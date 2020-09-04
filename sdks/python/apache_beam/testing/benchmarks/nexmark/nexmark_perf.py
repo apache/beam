@@ -21,22 +21,29 @@ performance summary for a run of nexmark query
 
 
 class NexmarkPerf(object):
-  def __init__(self):
-    self.runtime_sec = -1.0
-    self.event_count = -1
-    self.event_per_sec = -1.0
-    self.result_count = -1
+  def __init__(
+      self,
+      runtime_sec=None,
+      event_count=None,
+      event_per_sec=None,
+      result_count=None):
+    self.runtime_sec = runtime_sec if runtime_sec else -1.0
+    self.event_count = event_count if event_count else -1
+    self.event_per_sec = event_per_sec if event_per_sec else -1.0
+    self.result_count = result_count if result_count else -1
 
-  def is_active(self, other):
+  def has_progress(self, previous_perf):
     # type: (NexmarkPerf) -> bool
 
     """
-    :param other: a NexmarkPerf object to be compared to self
-    :return: True if there are activity between self and other NexmarkPerf
-             values
+    Args:
+      previous_perf: a NexmarkPerf object to be compared to self
+
+    Returns:
+      True if there are activity between self and other NexmarkPerf values
     """
-    if self.runtime_sec != other.runtime_sec or\
-       self.event_count != other.event_count or\
-       self.result_count != other.result_count:
+    if self.runtime_sec != previous_perf.runtime_sec or\
+       self.event_count != previous_perf.event_count or\
+       self.result_count != previous_perf.result_count:
       return True
     return False

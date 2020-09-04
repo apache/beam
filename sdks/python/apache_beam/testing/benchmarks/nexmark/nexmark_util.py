@@ -234,10 +234,13 @@ def get_counter_metric(result, namespace, name):
   """
   get specific counter metric from pipeline result
 
-  :param result: the PipelineResult which metrics are read from
-  :param namespace: a string representing the namespace of wanted metric
-  :param name: a string representing the  name of the wanted metric
-  :return: the result of the wanted metric if it exist, else -1
+  Args:
+    result: the PipelineResult which metrics are read from
+    namespace: a string representing the namespace of wanted metric
+    name: a string representing the  name of the wanted metric
+
+  Returns:
+    the result of the wanted metric if it exist, else -1
   """
   metrics = result.metrics().query(
       MetricsFilter().with_namespace(namespace).with_name(name))
@@ -256,10 +259,13 @@ def get_start_time_metric(result, namespace, name):
   get the start time out of all times recorded by the specified distribution
   metric
 
-  :param result: the PipelineResult which metrics are read from
-  :param namespace: a string representing the namespace of wanted metric
-  :param name: a string representing the  name of the wanted metric
-  :return: the smallest time in the metric or -1 if it doesn't exist
+  Args:
+    result: the PipelineResult which metrics are read from
+    namespace: a string representing the namespace of wanted metric
+    name: a string representing the  name of the wanted metric
+
+  Returns:
+    the smallest time in the metric or -1 if it doesn't exist
   """
   distributions = result.metrics().query(
       MetricsFilter().with_namespace(namespace).with_name(
@@ -275,10 +281,13 @@ def get_end_time_metric(result, namespace, name):
   get the end time out of all times recorded by the specified distribution
   metric
 
-  :param result: the PipelineResult which metrics are read from
-  :param namespace: a string representing the namespace of wanted metric
-  :param name: a string representing the  name of the wanted metric
-  :return: the largest time in the metric or -1 if it doesn't exist
+  Args:
+    result: the PipelineResult which metrics are read from
+    namespace: a string representing the namespace of wanted metric
+    name: a string representing the  name of the wanted metric
+
+  Returns:
+    the largest time in the metric or -1 if it doesn't exist
   """
   distributions = result.metrics().query(
       MetricsFilter().with_namespace(namespace).with_name(

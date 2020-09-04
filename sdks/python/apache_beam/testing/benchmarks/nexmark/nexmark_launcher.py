@@ -65,10 +65,8 @@ from __future__ import print_function
 
 import argparse
 import logging
-import sys
+import time
 import uuid
-from time import sleep
-from time import time
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -81,7 +79,6 @@ from apache_beam.testing.benchmarks.nexmark import nexmark_util
 from apache_beam.testing.benchmarks.nexmark.monitor import Monitor
 from apache_beam.testing.benchmarks.nexmark.monitor import MonitorSuffix
 from apache_beam.testing.benchmarks.nexmark.nexmark_perf import NexmarkPerf
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.queries import query0
 from apache_beam.testing.benchmarks.nexmark.queries import query1
 from apache_beam.testing.benchmarks.nexmark.queries import query2
@@ -199,15 +196,14 @@ class NexmarkLauncher(object):
     self.runner = self.pipeline_options.view_as(StandardOptions).runner
 
     if self.streaming:
-      if self.wait_until_finish_duration is None\
-          or self.project is None or self.runner != 'DataflowRunner':
-        print('error: argument --wait_until_finish_duration\n' +
-              '--project and --DataflowRunner required when running in streaming mode')  # pylint: disable=line-too-long
-        sys.exit(1)
+      if self.wait_until_finish_duration is None or self.project is None:
+        raise ValueError(
+            'argument --wait_until_finish_duration and --project ' +
+            'are required when running in streaming mode')
     else:
       if self.args.input is None:
-        print('error: argument --input is required when running in batch mode')
-        sys.exit(1)
+        raise ValueError(
+            'argument --input is required when running in batch mode')
 
     # We use the save_main_session option because one or more DoFn's in this
     # workflow rely on global context (e.g., a module imported at module level).
@@ -247,13 +243,11 @@ class NexmarkLauncher(object):
       raw_events = self.pipeline | 'ReadPubSub_sub' >> beam.io.ReadFromPubSub(
           subscription=self.subscription_name,
           with_attributes=True,
-          id_label='id',
           timestamp_attribute='timestamp')
     else:
       raw_events = self.pipeline | 'ReadPubSub_topic' >> beam.io.ReadFromPubSub(
           topic=self.topic_name,
           with_attributes=True,
-          id_label='id',
           timestamp_attribute='timestamp')
     events = (
         raw_events
@@ -283,30 +277,29 @@ class NexmarkLauncher(object):
       output | 'result_monitor' >> beam.ParDo(result_monitor.doFn)  # pylint: disable=expression-not-assigned
 
       result = self.pipeline.run()
-      if self.runner == 'DataflowRunner':
-        result.wait_until_finish(duration=self.wait_until_finish_duration)
-      else:
+      if not self.streaming:
         result.wait_until_finish()
       perf = self.monitor(result, event_monitor, result_monitor)
-      self.__class__.log_performance(perf)
+      self.log_performance(perf)
 
     except Exception as exc:
       query_errors.append(str(exc))
       raise
 
   def monitor(self, job, event_monitor, result_monitor):
+    logging.info('starting to monitor the job')
     last_active_ms = -1
     perf = None
     cancel_job = False
     waiting_for_shutdown = False
 
     while True:
-      now = int(time() * 1000)  # current time in ms
+      now = int(time.time() * 1000)  # current time in ms
       logging.debug('now is %d', now)
 
       curr_perf = NexmarkLauncher.get_performance(
           job, event_monitor, result_monitor)
-      if perf is None or curr_perf.is_active(perf):
+      if perf is None or curr_perf.has_progress(perf):
         last_active_ms = now
       if self.streaming and not waiting_for_shutdown:
         quiet_duration = (now - last_active_ms) // 1000
@@ -336,13 +329,13 @@ class NexmarkLauncher(object):
 
       if not waiting_for_shutdown:
         if last_active_ms == now:
-          logging.info('acticity seen, new performance data extracted')
+          logging.info('activity seen, new performance data extracted')
         else:
           logging.info('no activity seen')
       else:
         logging.info('waiting for shutdown')
 
-      sleep(self.PERF_DELAY)
+      time.sleep(self.PERF_DELAY)
 
     return perf
 
@@ -432,19 +425,7 @@ class NexmarkLauncher(object):
     query_errors = []
     for i in self.args.query:
       logging.info('Running query %d', i)
-
-      # The DirectRunner is the default runner, and it needs
-      # special handling to cancel streaming jobs.
-      streaming_from_direct_runner = self.runner in [
-          None, 'DirectRunner', 'BundleBasedDirectRunner'
-      ] and self.streaming
-
-      if streaming_from_direct_runner:
-        command = Command(
-            self.run_query, args=[queries[i], query_args, query_errors])
-        command.run(timeout=self.wait_until_finish_duration // 1000)
-      else:
-        self.run_query(queries[i], query_args, query_errors=query_errors)
+      self.run_query(queries[i], query_args, query_errors=query_errors)
 
     if query_errors:
       logging.error('Query failed with %s', ', '.join(query_errors))
