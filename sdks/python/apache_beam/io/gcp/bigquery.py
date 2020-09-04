@@ -1218,7 +1218,8 @@ class BigQueryWriteFn(DoFn):
              BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS) >
             self._latency_logging_frequency_msec):
           _LOGGER.info(
-              BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.get_percentile_info())
+              BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.get_percentile_info(
+                  'streaming insert requests', 'ms'))
           BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.clear()
           BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS = current_millis
       finally:
