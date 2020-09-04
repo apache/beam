@@ -78,7 +78,7 @@ class Histogram(object):
   def p50(self):
     return self.get_linear_interpolation(0.50)
 
-  def get_percentile_info(self):
+  def get_percentile_info(self, elem_type, unit):
     def _format(f):
       if f == float('-inf'):
         return '<%s' % self._bucket_type.range_from()
@@ -89,12 +89,16 @@ class Histogram(object):
 
     with self._lock:
       return (
-          'Total number of streaming insert requests: %s, '
-          'P99: %sms, P90: %sms, P50: %sms' % (
+          'Total number of %s: %s, '
+          'P99: %s%s, P90: %s%s, P50: %s%s' % (
+              elem_type,
               self.total_count(),
               _format(self._get_linear_interpolation(0.99)),
+              unit,
               _format(self._get_linear_interpolation(0.90)),
-              _format(self._get_linear_interpolation(0.50))))
+              unit,
+              _format(self._get_linear_interpolation(0.50)),
+              unit))
 
   def get_linear_interpolation(self, percentile):
     """Calculate percentile estimation based on linear interpolation.

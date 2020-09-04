@@ -106,11 +106,13 @@ class HistogramTest(unittest.TestCase):
     histogram = Histogram(LinearBucket(0, 0.2, 50))
     histogram.record(-1, -2, -3, -4, -5, 0, 1, 2, 3, 4)
     self.assertEqual(histogram.p50(), float('-inf'))
+    self.assertIn('P50: <0', histogram.get_percentile_info('integers', ''))
 
   def test_p50_positive_infinity(self):
     histogram = Histogram(LinearBucket(0, 0.2, 50))
     histogram.record(6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
     self.assertEqual(histogram.p50(), float('inf'))
+    self.assertIn('P50: >=10', histogram.get_percentile_info('integers', ''))
 
   def test_empty_p99(self):
     histogram = Histogram(LinearBucket(0, 0.2, 50))
