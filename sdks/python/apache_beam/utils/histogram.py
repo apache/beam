@@ -84,6 +84,11 @@ class Histogram(object):
     It first finds the bucket which includes the target percentile and
     projects the estimated point in the bucket by assuming all the elements
     in the bucket are uniformly distributed.
+
+    Args:
+      percentile: The target percentile of the value returning from this
+        method. Should be a floating point number greater than 0 and less
+        than 1.
     """
     with self._lock:
       total_num_records = self.total_count()
@@ -107,8 +112,9 @@ class Histogram(object):
       bucket_percentile = self._buckets[index] / total_num_records
     frac_bucket_size = frac_percentile * self._bucket_type.bucket_size(
         index) / bucket_percentile
-    return self._bucket_type.range_from(
-    ) + self._bucket_type.accumulated_bucket_size(index) + frac_bucket_size
+    return (
+        self._bucket_type.range_from() +
+        self._bucket_type.accumulated_bucket_size(index) + frac_bucket_size)
 
 
 class BucketType(object):
