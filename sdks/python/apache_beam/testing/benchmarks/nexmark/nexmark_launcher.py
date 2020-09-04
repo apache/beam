@@ -73,7 +73,6 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.runners import PipelineState
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
 from apache_beam.testing.benchmarks.nexmark.monitor import Monitor
