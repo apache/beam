@@ -647,7 +647,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * checkstyle
     //  * spotbugs
     //  * shadow (conditional on shadowClosure being specified)
-    //  * com.diffplug.gradle.spotless (code style plugin)
+    //  * com.diffplug.spotless (code style plugin)
     //
     // Dependency Management for Java Projects
     // ---------------------------------------
@@ -887,7 +887,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt-eclipse"
 
       // Enables a plugin which can apply code formatting to source.
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       // scan CVE
       project.apply plugin: "net.ossindex.audit"
       project.audit { rateLimitAsError = false }
@@ -907,6 +907,11 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableSpotbugs) {
+        project.tasks.whenTaskAdded {task ->
+          if(task.name.contains("spotbugsTest")) {
+            task.enabled = false
+          }
+        }
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
@@ -915,9 +920,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
-          sourceSets = [sourceSets.main]
         }
-        project.tasks.withType(com.github.spotbugs.SpotBugsTask) {
+        project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
             html.enabled = !project.jenkins.isCIBuild
             xml.enabled = project.jenkins.isCIBuild
@@ -1519,7 +1523,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyGroovyNature = {
       project.apply plugin: "groovy"
 
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
           project.disableSpotlessCheck == 'true'
       project.spotless {
