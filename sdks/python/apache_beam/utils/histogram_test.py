@@ -22,21 +22,19 @@ from __future__ import division
 
 import unittest
 
+from mock import patch
+
 from apache_beam.utils.histogram import Histogram
 from apache_beam.utils.histogram import LinearBucket
 
 
 class HistogramTest(unittest.TestCase):
-  def test_out_of_range(self):
+  @patch('apache_beam.utils.histogram._LOGGER')
+  def test_out_of_range(self, mock_logger):
     histogram = Histogram(LinearBucket(0, 20, 5))
-    with self.assertLogs('apache_beam.utils.histogram', level='WARNING') as cm:
-      histogram.record(100)
-    self.assertEqual(
-        cm.output,
-        [
-            'WARNING:apache_beam.utils.histogram:' +
-            'record is out of upper bound 100: 100'
-        ])
+    histogram.record(100)
+    mock_logger.warning.assert_called_with(
+        'record is out of upper bound %s: %s', 100, 100)
     self.assertEqual(histogram.total_count(), 1)
 
   def test_boundary_buckets(self):
