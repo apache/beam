@@ -78,6 +78,24 @@ class Histogram(object):
   def p50(self):
     return self.get_linear_interpolation(0.50)
 
+  def get_percentile_info(self):
+    def _format(f):
+      if f == float('-inf'):
+        return '<%s' % self._bucket_type.range_from()
+      elif f == float('inf'):
+        return '>=%s' % self._bucket_type.range_to()
+      else:
+        return str(round(f))  # pylint: disable=round-builtin
+
+    with self._lock:
+      return (
+          'Total number of streaming insert requests: %s, '
+          'P99: %sms, P90: %sms, P50: %sms' % (
+              self.total_count(),
+              _format(self._get_linear_interpolation(0.99)),
+              _format(self._get_linear_interpolation(0.90)),
+              _format(self._get_linear_interpolation(0.50))))
+
   def get_linear_interpolation(self, percentile):
     """Calculate percentile estimation based on linear interpolation.
 
@@ -91,25 +109,28 @@ class Histogram(object):
         than 1.
     """
     with self._lock:
-      total_num_records = self.total_count()
-      if total_num_records == 0:
-        raise RuntimeError('histogram has no record.')
+      return self._get_linear_interpolation(percentile)
 
-      index = 0
-      record_sum = self._num_bot_records
+  def _get_linear_interpolation(self, percentile):
+    total_num_records = self.total_count()
+    if total_num_records == 0:
+      raise RuntimeError('histogram has no record.')
+
+    index = 0
+    record_sum = self._num_bot_records
+    if record_sum / total_num_records >= percentile:
+      return float('-inf')
+    while index < self._bucket_type.num_buckets():
+      record_sum += self._buckets.get(index, 0)
       if record_sum / total_num_records >= percentile:
-        return float('-inf')
-      while index < self._bucket_type.num_buckets():
-        record_sum += self._buckets.get(index, 0)
-        if record_sum / total_num_records >= percentile:
-          break
-        index += 1
-      if index == self._bucket_type.num_buckets():
-        return float('inf')
+        break
+      index += 1
+    if index == self._bucket_type.num_buckets():
+      return float('inf')
 
-      frac_percentile = percentile - (
-          record_sum - self._buckets[index]) / total_num_records
-      bucket_percentile = self._buckets[index] / total_num_records
+    frac_percentile = percentile - (
+        record_sum - self._buckets[index]) / total_num_records
+    bucket_percentile = self._buckets[index] / total_num_records
     frac_bucket_size = frac_percentile * self._bucket_type.bucket_size(
         index) / bucket_percentile
     return (

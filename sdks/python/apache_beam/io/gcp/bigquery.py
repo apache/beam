@@ -1217,26 +1217,13 @@ class BigQueryWriteFn(DoFn):
             (current_millis -
              BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS) >
             self._latency_logging_frequency_msec):
-          self._log_percentiles()
+          _LOGGER.info(
+              BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.get_percentile_info())
           BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.clear()
           BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS = current_millis
       finally:
         BigQueryWriteFn.LATENCY_LOGGING_LOCK.release()
     return self._flush_all_batches()
-
-  @classmethod
-  def _log_percentiles(cls):
-    # Note that the total count and each percentile value may not be correlated
-    # each other. Histogram releases lock between each percentile calculation
-    # so additional latencies could be added anytime.
-    # pylint: disable=round-builtin
-    _LOGGER.info(
-        'Total number of streaming insert requests: %s, '
-        'P99: %sms, P90: %sms, P50: %sms',
-        cls.LATENCY_LOGGING_HISTOGRAM.total_count(),
-        round(cls.LATENCY_LOGGING_HISTOGRAM.p99()),
-        round(cls.LATENCY_LOGGING_HISTOGRAM.p90()),
-        round(cls.LATENCY_LOGGING_HISTOGRAM.p50()))
 
   def _flush_all_batches(self):
     _LOGGER.debug(
