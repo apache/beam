@@ -23,11 +23,13 @@ from __future__ import absolute_import
 
 import logging
 import unittest
+from mock import Mock
 
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import NestedValueProvider
 
 
 # TODO(BEAM-1319): Require unique names only within a test.
@@ -217,6 +219,43 @@ class ValueProviderTests(unittest.TestCase):
     self.assertIn('a', options.experiments)
     self.assertIn('b,c', options.experiments)
     self.assertNotIn('c', options.experiments)
+
+  def test_nested_value_provider_wrap_static(self):
+    vp = NestedValueProvider(StaticValueProvider(int, 1), lambda x: x + 1)
+
+    self.assertTrue(vp.is_accessible())
+    self.assertEqual(vp.get(), 2)
+
+  def test_nested_value_provider_caches_value(self):
+    mock_fn = Mock()
+
+    def translator(x):
+      mock_fn()
+      return x
+
+    vp = NestedValueProvider(StaticValueProvider(int, 1), lambda x: x + 1)
+
+    vp.get_value()
+    self.assertEqual(mock_fn.call_count, 1)
+    vp.get_value()
+    self.assertEqual(mock_fn.call_count, 1)
+
+  def test_nested_value_provider_wrap_runtime(self):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            '--vpt_vp_arg15',
+            help='This keyword argument is a value provider')  # set at runtime
+
+    options = UserDefinedOptions([])
+    vp = NestedValueProvider(options.vpt_vp_arg15, lambda x: x + x)
+    self.assertFalse(vp.is_accessible())
+
+    RuntimeValueProvider.set_runtime_options({'vpt_vp_arg15': 'abc'})
+
+    self.assertTrue(vp.is_accessible())
+    self.assertEqual(vp.get(), 'abcabc')
 
 
 if __name__ == '__main__':
