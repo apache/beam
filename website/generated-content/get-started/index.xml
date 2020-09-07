@@ -1076,7 +1076,7 @@ url = uri(&amp;#39;http://repo.maven.apache.org/maven2&amp;#39;)
 main = System.getProperty(&amp;#34;mainClass&amp;#34;)
 classpath = sourceSets.main.runtimeClasspath
 systemProperties System.getProperties()
-args System.getProperty(&amp;#34;exec.args&amp;#34;).split()
+args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 }&lt;/code>&lt;/pre>
 &lt;/li>
 &lt;li>Rebuild your project by running:
