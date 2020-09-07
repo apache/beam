@@ -235,9 +235,9 @@ class ValueProviderTests(unittest.TestCase):
 
     vp = NestedValueProvider(StaticValueProvider(int, 1), lambda x: x + 1)
 
-    vp.get_value()
+    vp.get()
     self.assertEqual(mock_fn.call_count, 1)
-    vp.get_value()
+    vp.get()
     self.assertEqual(mock_fn.call_count, 1)
 
   def test_nested_value_provider_wrap_runtime(self):
