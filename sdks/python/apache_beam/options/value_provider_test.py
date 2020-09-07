@@ -233,7 +233,7 @@ class ValueProviderTests(unittest.TestCase):
       mock_fn()
       return x
 
-    vp = NestedValueProvider(StaticValueProvider(int, 1), lambda x: x + 1)
+    vp = NestedValueProvider(StaticValueProvider(int, 1), translator)
 
     vp.get()
     self.assertEqual(mock_fn.call_count, 1)
