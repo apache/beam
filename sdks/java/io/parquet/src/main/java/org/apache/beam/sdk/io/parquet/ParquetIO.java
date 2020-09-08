@@ -135,10 +135,12 @@ import org.slf4j.LoggerFactory;
  * ...
  * }</pre>
  *
- * <p>Reading with projection can be enabled with the projection schema as following. *
+ * <p>Reading with projection can be enabled with the projection schema as following. The
+ * projection_schema contains only the column that we would like to read and encoder_schema contains
+ * all field but with the unwanted columns changed to nullable.
  *
  * <pre>{@code
- * * PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withProjection(PROJECTION_SCHEMA));
+ * * PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withProjection(Projection_schema,Encoder_Schema));
  * * ...
  * *
  * }</pre>
@@ -204,6 +206,8 @@ public class ParquetIO {
 
     abstract @Nullable Schema getProjection();
 
+    abstract @Nullable Schema getProjectionEncoder();
+
     abstract @Nullable GenericData getAvroDataModel();
 
     abstract boolean isSplittable();
@@ -218,6 +222,8 @@ public class ParquetIO {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder setSchema(Schema schema);
+
+      abstract Builder setProjectionEncoder(Schema schema);
 
       abstract Builder setProjection(Schema schema);
 
@@ -236,8 +242,12 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
     /** Enable the reading with projection. */
-    public Read withProjection(Schema schema) {
-      return toBuilder().setProjection(schema).setSplittable(true).build();
+    public Read withProjection(Schema projection, Schema encoder) {
+      return toBuilder()
+          .setProjection(projection)
+          .setSplittable(true)
+          .setProjectionEncoder(encoder)
+          .build();
     }
 
     /** Enable the Splittable reading. */
@@ -266,7 +276,7 @@ public class ParquetIO {
             readFiles(getSchema())
                 .withSplit()
                 .withAvroDataModel(getAvroDataModel())
-                .withProjection(getProjection()));
+                .withProjection(getProjection(), getProjectionEncoder()));
       }
       return inputFiles.apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
     }
@@ -288,6 +298,8 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
+    abstract @Nullable Schema getProjectionEncoder();
+
     abstract @Nullable Schema getProjection();
 
     abstract boolean isSplittable();
@@ -299,6 +311,8 @@ public class ParquetIO {
       abstract Builder setSchema(Schema schema);
 
       abstract Builder setAvroDataModel(GenericData model);
+
+      abstract Builder setProjectionEncoder(Schema schema);
 
       abstract Builder setProjection(Schema schema);
 
@@ -314,8 +328,12 @@ public class ParquetIO {
       return toBuilder().setAvroDataModel(model).build();
     }
 
-    public ReadFiles withProjection(Schema schema) {
-      return toBuilder().setProjection(schema).setSplittable(true).build();
+    public ReadFiles withProjection(Schema projection, Schema encoder) {
+      return toBuilder()
+          .setProjection(projection)
+          .setProjectionEncoder(encoder)
+          .setSplittable(true)
+          .build();
     }
     /** Enable the Splittable reading. */
     public ReadFiles withSplit() {
@@ -333,7 +351,7 @@ public class ParquetIO {
         }
         return input
             .apply(ParDo.of(new SplitReadFn(getAvroDataModel(), getProjection())))
-            .setCoder(AvroCoder.of(getProjection()));
+            .setCoder(AvroCoder.of(getProjectionEncoder()));
       }
       return input
           .apply(ParDo.of(new ReadFn(getAvroDataModel())))
