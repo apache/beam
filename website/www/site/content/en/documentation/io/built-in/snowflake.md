@@ -922,8 +922,11 @@ def csv_mapper(strings_array):
 #### Authentication parameters
 It’s required to pass one of the following combinations of valid parameters for authentication:
 - `username and password` Specifies username and password for username/password authentication method.
+
 - `private_key_path and private_key_passphrase` Specifies a path to private key and passphrase for key/pair authentication method.
+
 - `raw_private_key and private_key_passphrase` Specifies a private key and passphrase for key/pair authentication method. 
+
 - `o_auth_token` Specifies access token for OAuth authentication method.
 
 ### Writing to Snowflake 
