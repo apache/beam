@@ -508,76 +508,17 @@ public class DoFnOperatorTest {
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(new Duration(10))).withAllowedLateness(Duration.ZERO);
-
-    final String timerId = "boo";
-    final String stateId = "dazzle";
-
     final int offset = 5000;
     final int timerOutput = 4093;
-
-    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
-        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
-
-          @TimerId(timerId)
-          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-          @StateId(stateId)
-          private final StateSpec<ValueState<String>> stateSpec =
-              StateSpecs.value(StringUtf8Coder.of());
-
-          @ProcessElement
-          public void processElement(
-              ProcessContext context,
-              @TimerId(timerId) Timer timer,
-              @StateId(stateId) ValueState<String> state,
-              BoundedWindow window) {
-            timer.set(window.maxTimestamp());
-            state.write(context.element().getKey());
-            context.output(
-                KV.of(context.element().getKey(), context.element().getValue() + offset));
-          }
-
-          @OnTimer(timerId)
-          public void onTimer(OnTimerContext context, @StateId(stateId) ValueState<String> state) {
-            context.output(KV.of(state.read(), timerOutput));
-          }
-        };
-
-    WindowedValue.FullWindowedValueCoder<KV<String, Integer>> coder =
-        WindowedValue.getFullCoder(
-            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
-            windowingStrategy.getWindowFn().windowCoder());
-
-    TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
-
-    KeySelector<WindowedValue<KV<String, Integer>>, ByteBuffer> keySelector =
-        e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
-
-    DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
-        new DoFnOperator<>(
-            fn,
-            "stepName",
-            coder,
-            Collections.emptyMap(),
-            outputTag,
-            Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-            windowingStrategy,
-            new HashMap<>(), /* side-input mapping */
-            Collections.emptyList(), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            StringUtf8Coder.of(), /* key coder */
-            keySelector,
-            DoFnSchemaInformation.create(),
-            Collections.emptyMap());
 
     KeyedOneInputStreamOperatorTestHarness<
             ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
         testHarness =
-            new KeyedOneInputStreamOperatorTestHarness<>(
-                doFnOperator,
-                keySelector,
-                new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+            getHarness(
+                windowingStrategy,
+                offset,
+                (window) -> new Instant(window.maxTimestamp()),
+                timerOutput);
 
     testHarness.open();
 
@@ -628,10 +569,141 @@ public class DoFnOperatorTest {
             WindowedValue.of(
                 KV.of("key2", timerOutput), new Instant(9), window1, PaneInfo.NO_FIRING)));
 
+    testHarness.close();
+  }
+
+  @Test
+  public void testGCForGlobalWindow() throws Exception {
+    WindowingStrategy<Object, GlobalWindow> windowingStrategy = WindowingStrategy.globalDefault();
+
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+        testHarness = getHarness(windowingStrategy, 5000, (window) -> new Instant(50), 4092);
+
+    testHarness.open();
+
+    testHarness.processWatermark(0);
+
     // ensure the state was garbage collected and the pending timers have been removed
     assertEquals(0, testHarness.numKeyedStateEntries());
 
+    // Check global window cleanup via final watermark, _without_ cleanup timers
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(
+                KV.of("key1", 5), new Instant(23), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(
+                KV.of("key2", 6), new Instant(42), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+
+    // timers set by the transform
+    assertThat(testHarness.numEventTimeTimers(), is(2));
+    // state has been written which needs to be cleaned up (includes timers)
+    assertThat(testHarness.numKeyedStateEntries(), is(4));
+
+    // Fire timers set
+    testHarness.processWatermark(51);
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(2));
+
+    // Should not trigger garbage collection yet
+    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(1).getMillis());
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(2));
+
+    // Cleanup due to end of global window
+    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(2).getMillis());
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+
+    // Any new state will also be cleaned up on close
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(
+                KV.of("key2", 6), new Instant(42), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+
+    // Close sends Flink's max watermark and will cleanup again
     testHarness.close();
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+  }
+
+  private static KeyedOneInputStreamOperatorTestHarness<
+          ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+      getHarness(
+          WindowingStrategy windowingStrategy,
+          int elementOffset,
+          Function<BoundedWindow, Instant> timerTimestamp,
+          int timerOutput)
+          throws Exception {
+    final String timerId = "boo";
+    final String stateId = "dazzle";
+
+    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<String>> stateSpec =
+              StateSpecs.value(StringUtf8Coder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context,
+              @TimerId(timerId) Timer timer,
+              @StateId(stateId) ValueState<String> state,
+              BoundedWindow window) {
+            timer.set(timerTimestamp.apply(window));
+            state.write(context.element().getKey());
+            context.output(
+                KV.of(context.element().getKey(), context.element().getValue() + elementOffset));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context, @StateId(stateId) ValueState<String> state) {
+            context.output(KV.of(state.read(), timerOutput));
+          }
+        };
+
+    WindowedValue.FullWindowedValueCoder<KV<String, Integer>> coder =
+        WindowedValue.getFullCoder(
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+            windowingStrategy.getWindowFn().windowCoder());
+
+    TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
+
+    KeySelector<WindowedValue<KV<String, Integer>>, ByteBuffer> keySelector =
+        e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
+
+    DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
+        new DoFnOperator<>(
+            fn,
+            "stepName",
+            coder,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+            windowingStrategy,
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            StringUtf8Coder.of(), /* key coder */
+            keySelector,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator,
+                keySelector,
+                new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+    return testHarness;
   }
 
   @Test
