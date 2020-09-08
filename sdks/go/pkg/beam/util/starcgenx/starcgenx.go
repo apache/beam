@@ -328,18 +328,36 @@ func (e *Extractor) extractFromSignature(sig *types.Signature) {
 	e.extractFromTuple(sig.Results())
 }
 
+// extractFromContainer recurses through nested non-map container types to a non-derived
+// element type.
+func (e *Extractor) extractFromContainer(t types.Type) types.Type {
+	// Container types need to be iteratively unwrapped until we're at the base type,
+	// so we can get the import if necessary.
+	for {
+		if s, ok := t.(*types.Slice); ok {
+			t = s.Elem()
+			continue
+		}
+
+		if p, ok := t.(*types.Pointer); ok {
+			t = p.Elem()
+			continue
+		}
+
+		if a, ok := t.(*types.Array); ok {
+			t = a.Elem()
+			continue
+		}
+
+		return t
+	}
+}
+
 func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
 	for i := 0; i < tuple.Len(); i++ {
 		s := tuple.At(i) // *types.Var
 
-		// Pointer types need to be iteratively unwrapped until we're at the base type,
-		// so we can get the import if necessary.
-		t := s.Type()
-		p, ok := t.(*types.Pointer)
-		for ok {
-			t = p.Elem()
-			p, ok = t.(*types.Pointer)
-		}
+		t := e.extractFromContainer(s.Type())
 		// Here's where we ensure we register new imports.
 		if t, ok := t.(*types.Named); ok {
 			if pkg := t.Obj().Pkg(); pkg != nil {
