@@ -710,9 +710,10 @@ def eliminate_common_key_with_none(stages, context):
 
   """Runs common subexpression elimination for sibling KeyWithNone stages.
 
-  If multiple KeyWithNone stages have a common input, then all but one stages
-  will be eliminated, and the output of the remaining will be connected to
-  the original output PCollections of the eliminated stages.
+  If multiple KeyWithNone stages share a common input, then all but one stages
+  will be eliminated along with their output PCollections. Transforms that
+  read input from the output of the eliminated KeyWithNone stages will be
+  remapped to read input from the output of the remaining KeyWithNone stage.
   """
   # Partition stages by whether they are eligible for common KeyWithNone
   # elimination, and group eligible KeyWithNone stages by parent and
