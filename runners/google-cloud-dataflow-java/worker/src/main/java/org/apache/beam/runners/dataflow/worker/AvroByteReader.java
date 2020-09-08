@@ -29,8 +29,7 @@ import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.AvroSource;
-import org.apache.beam.sdk.io.AvroSource.AvroReader;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.OffsetBasedSource;
@@ -90,14 +89,14 @@ public class AvroByteReader<T> extends NativeReader<T> {
                   FileSystems.matchSingleFileSpec(filename), startPosition, endPosition)
               .createReader(options);
     }
-    return new AvroByteFileIterator((AvroReader<ByteBuffer>) reader);
+    return new AvroByteFileIterator((AvroSource.AvroReader<ByteBuffer>) reader);
   }
 
   class AvroByteFileIterator extends NativeReaderIterator<T> {
-    private final AvroReader<ByteBuffer> reader;
+    private final AvroSource.AvroReader<ByteBuffer> reader;
     private Optional<T> current;
 
-    public AvroByteFileIterator(AvroReader<ByteBuffer> reader) {
+    public AvroByteFileIterator(AvroSource.AvroReader<ByteBuffer> reader) {
       this.reader = reader;
     }
 

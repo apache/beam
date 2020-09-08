@@ -39,6 +39,7 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":sdks:java:extensions:avro")
   compile project(path: ":sdks:java:fn-execution")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
@@ -55,5 +56,6 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
   testCompile project(path: ":model:fn-execution", configuration: "shadow")
   testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
+  testRuntimeOnly project(path: ":sdks:java:extensions:avro")
   testRuntimeOnly library.java.slf4j_jdk14
 }

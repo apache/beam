@@ -35,29 +35,8 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 ext.summary = "Add support to Apache Beam for Avro."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:expansion-service")
-  // Get back to "provided" since 2.14
-  provided library.java.kafka_clients
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile "org.springframework:spring-expression:4.3.18.RELEASE"
-  provided library.java.jackson_dataformat_csv
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":sdks:java:io:synthetic")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  // For testing Cross-language transforms
-  testCompile project(":runners:core-construction-java")
-  testCompile library.java.avro
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
-  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

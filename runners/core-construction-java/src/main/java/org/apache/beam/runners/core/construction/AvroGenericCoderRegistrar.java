@@ -15,28 +15,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.avro.runners;
+package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.CoderTranslator;
-import org.apache.beam.runners.core.construction.CoderTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Coder registrar for AvroGenericCoder. */
 @AutoService(CoderTranslatorRegistrar.class)
 public class AvroGenericCoderRegistrar implements CoderTranslatorRegistrar {
+  private static final Logger LOG = LoggerFactory.getLogger(AvroGenericCoderRegistrar.class);
   public static final String AVRO_CODER_URN = "beam:coder:avro:generic:v1";
 
   @Override
   public Map<Class<? extends Coder>, String> getCoderURNs() {
-    return ImmutableMap.of(AvroGenericCoder.class, AVRO_CODER_URN);
+    if (classPresent("org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder")) {
+      return ImmutableMap.of(AvroGenericCoder.class, AVRO_CODER_URN);
+    } else {
+      LOG.debug("AvroGenericCoder serializer not in runtime path.");
+      return ImmutableMap.of();
+    }
   }
 
   @Override
   public Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators() {
-    return ImmutableMap.of(AvroGenericCoder.class, new AvroGenericCoderTranslator());
+    if (classPresent("org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder")) {
+      return ImmutableMap.of(AvroGenericCoder.class, new AvroGenericCoderTranslator());
+    } else {
+      LOG.debug("AvroGenericCoder serializer not in runtime path.");
+      return ImmutableMap.of();
+    }
+  }
+
+  private static boolean classPresent(String className) {
+    try {
+      ClassLoader.getSystemClassLoader().loadClass(className);
+      return true;
+    } catch (ClassNotFoundException ex) {
+      return false;
+    }
   }
 }
