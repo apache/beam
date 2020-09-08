@@ -74,11 +74,23 @@ public class ParquetIOTest implements Serializable {
           + "\"type\":\"record\", "
           + "\"name\":\"testrecord\","
           + "\"fields\":["
-          + "    {\"name\":\"name\",\"type\":\"string\"}"
+          + "    {\"name\":\"id\",\"type\":\"string\"}"
           + "  ]"
           + "}";
-  private static final Schema REQUESTED_SCHEMA = new Schema.Parser().parse(REQUESTED_SCHEMA_STRING);
 
+  private static final String REQUESTED_SCHEMA_ENCODER_STRING =
+      "{"
+          + "\"type\":\"record\", "
+          + "\"name\":\"testrecord\","
+          + "\"fields\":["
+          + "    {\"name\":\"name\",\"type\":[\"string\",\"null\"]},"
+          + "    {\"name\":\"id\",\"type\":\"string\"}"
+          + "  ]"
+          + "}";
+
+  private static final Schema REQUESTED_ENCODER_SCHEMA =
+      new Schema.Parser().parse(REQUESTED_SCHEMA_ENCODER_STRING);
+  private static final Schema REQUESTED_SCHEMA = new Schema.Parser().parse(REQUESTED_SCHEMA_STRING);
   private static final String[] SCIENTISTS =
       new String[] {
         "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie",
@@ -102,9 +114,8 @@ public class ParquetIOTest implements Serializable {
         readPipeline.apply(
             ParquetIO.read(SCHEMA)
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
-                .withProjection(REQUESTED_SCHEMA));
+                .withProjection(REQUESTED_SCHEMA, REQUESTED_ENCODER_SCHEMA));
     PAssert.that(readBack).containsInAnyOrder(requestRecords);
-    PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
 
@@ -216,10 +227,10 @@ public class ParquetIOTest implements Serializable {
 
   private List<GenericRecord> generateRequestedRecords(long count) {
     ArrayList<GenericRecord> data = new ArrayList<>();
-    GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_SCHEMA);
+    GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_ENCODER_SCHEMA);
     for (int i = 0; i < count; i++) {
       int index = i % SCIENTISTS.length;
-      GenericRecord record = builder.set("name", SCIENTISTS[index]).build();
+      GenericRecord record = builder.set("id", Integer.toString(i)).set("name", null).build();
       data.add(record);
     }
     return data;
