@@ -63,6 +63,13 @@ class Cacheable:
         self.pcoll,
         self.producer_version))
 
+  def to_key(self):
+    return CacheKey(
+        self.var,
+        self.version,
+        self.producer_version,
+        str(id(self.pcoll.pipeline)))
+
 
 # TODO: turn this into a dataclass object when we finally get off of Python2.
 class CacheKey:
