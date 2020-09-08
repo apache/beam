@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import collections
 import functools
+import itertools
 import logging
 from builtins import object
 from typing import Container
@@ -702,6 +703,63 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
     for si in stage.side_inputs():
       pipeline_context.length_prefix_pcoll_coders(si)
   return stages
+
+
+def eliminate_common_key_with_none(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
+
+  """Runs common subexpression elimination for sibling KeyWithNone stages.
+
+  If multiple KeyWithNone stages have a common input, then all but one stages
+  will be eliminated, and the output of the remaining will be connected to
+  the original output PCollections of the eliminated stages.
+  """
+  # Partition stages by whether they are eligible for common KeyWithNone
+  # elimination, and group eligible KeyWithNone stages by parent and
+  # environment.
+  grouped_eligible_stages = collections.defaultdict(list)
+  ineligible_stages = []
+  for stage in stages:
+    is_eligible = False
+    if len(stage.transforms) == 1:
+      transform = only_transform(stage.transforms)
+      if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
+          len(transform.inputs) == 1 and len(transform.outputs) == 1):
+        pardo_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if pardo_payload.do_fn.urn == python_urns.KEY_WITH_NONE_DOFN:
+          is_eligible = True
+
+    if is_eligible:
+      input_pcoll_id = only_element(transform.inputs.values())
+      stage_key = (input_pcoll_id, stage.environment)
+      grouped_eligible_stages[stage_key].append(stage)
+    else:
+      ineligible_stages.append(stage)
+
+  # Eliminate stages and build the PCollection remapping dictionary.
+  pcoll_id_remap = {}
+  for sibling_stages in grouped_eligible_stages.values():
+    output_pcoll_ids = [
+        only_element(stage.transforms[0].outputs.values())
+        for stage in sibling_stages
+    ]
+    for to_delete_pcoll_id in output_pcoll_ids[1:]:
+      pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
+      del context.components.pcollections[to_delete_pcoll_id]
+    del sibling_stages[1:]
+
+  # Yield stages while remapping input PCollections if needed.
+  stages_to_yield = itertools.chain(
+      ineligible_stages,
+      itertools.chain.from_iterable(grouped_eligible_stages.values()))
+  for stage in stages_to_yield:
+    for transform in stage.transforms:
+      for input_key in list(transform.inputs):
+        if transform.inputs[input_key] in pcoll_id_remap:
+          transform.inputs[input_key] = pcoll_id_remap[
+              transform.inputs[input_key]]
+    yield stage
 
 
 def pack_combiners(stages, context):
