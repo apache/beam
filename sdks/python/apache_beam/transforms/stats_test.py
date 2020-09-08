@@ -47,6 +47,8 @@ class ApproximateUniqueTest(unittest.TestCase):
   """Unit tests for ApproximateUnique.Globally, ApproximateUnique.PerKey,
   and ApproximateUniqueCombineFn.
   """
+  random.seed(0)
+
   def test_approximate_unique_global_by_invalid_size(self):
     # test if the transformation throws an error as expected with an invalid
     # small input size (< 16).

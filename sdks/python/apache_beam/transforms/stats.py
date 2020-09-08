@@ -34,6 +34,7 @@ from __future__ import division
 import hashlib
 import heapq
 import itertools
+import logging
 import math
 import sys
 import typing
@@ -54,6 +55,35 @@ __all__ = [
 T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
+
+
+def _default_hash_fn(value):
+  """Hash value using either murmurhash or md5 based on installation."""
+  if not _default_hash_fn.fn:
+    try:
+      import mmh3  # pylint: disable=import-error
+
+      def _mmh3_hash(value):
+        # mmh3.hash64 returns 2 64-bit unsigned integers
+        return mmh3.hash64(value, seed=0, signed=False)[0]
+
+      _default_hash_fn.fn = _mmh3_hash
+    except ImportError:
+      logging.warning(
+          'Couldn\'t find murmurhash so the implementation of '
+          'ApproximateUnique is not as fast as it could be.')
+
+      def _md5_hash(value):
+        # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
+        # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
+        # integer fingerprint.
+        return int(hashlib.md5(value).hexdigest()[:16], 16)
+
+      _default_hash_fn.fn = _md5_hash
+  return _default_hash_fn.fn(value)
+
+
+_default_hash_fn.fn = None
 
 
 class ApproximateUnique(object):
@@ -147,7 +177,7 @@ class _LargestUnique(object):
   An object to keep samples and calculate sample hash space. It is an
   accumulator of a combine function.
   """
-  # We use unsigned 64-bit hashes.
+  # We use unsigned 64-bit integer hashes.
   _HASH_SPACE_SIZE = 2.0**64
 
   def __init__(self, sample_size):
@@ -225,11 +255,7 @@ class ApproximateUniqueCombineFn(CombineFn):
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
-      # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
-      # integer fingerprint.
-      hashed_value = int(
-          hashlib.md5(self._coder.encode(element)).hexdigest()[:16], 16)
+      hashed_value = _default_hash_fn(self._coder.encode(element))
       accumulator.add(hashed_value)
       return accumulator
     except Exception as e:
