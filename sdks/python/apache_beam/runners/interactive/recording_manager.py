@@ -57,12 +57,14 @@ class ElementStream:
     # will be yielded if read() is called again.
     self._done = False
 
+  @property
   def var(self):
     # type: () -> str
 
     """Returns the variable named that defined this PCollection."""
     return self._var
 
+  @property
   def cache_key(self):
     # type: () -> str
 
@@ -246,8 +248,7 @@ class Recording:
     cache_manager = ie.current_env().get_cache_manager(self._user_pipeline)
 
     size = sum(
-        cache_manager.size('full', s.cache_key())
-        for s in self._streams.values())
+        cache_manager.size('full', s.cache_key) for s in self._streams.values())
     return {'size': size, 'start': self._start}
 
 

@@ -305,12 +305,12 @@ class RecordingTest(unittest.TestCase):
     # Get the cache key of the stream and write something to cache. This is
     # so that a pipeline doesn't have to run in the test.
     numbers_stream = recording.stream(numbers)
-    cache_manager.write([0, 1, 2], 'full', numbers_stream.cache_key())
-    cache_manager.save_pcoder(None, 'full', numbers_stream.cache_key())
+    cache_manager.write([0, 1, 2], 'full', numbers_stream.cache_key)
+    cache_manager.save_pcoder(None, 'full', numbers_stream.cache_key)
 
     letters_stream = recording.stream(letters)
-    cache_manager.write(['a', 'b', 'c'], 'full', letters_stream.cache_key())
-    cache_manager.save_pcoder(None, 'full', letters_stream.cache_key())
+    cache_manager.write(['a', 'b', 'c'], 'full', letters_stream.cache_key)
+    cache_manager.save_pcoder(None, 'full', letters_stream.cache_key)
 
     # Get the description.
     description = recording.describe()
@@ -319,8 +319,8 @@ class RecordingTest(unittest.TestCase):
 
     self.assertEqual(
         size,
-        cache_manager.size('full', numbers_stream.cache_key()) +
-        cache_manager.size('full', letters_stream.cache_key()))
+        cache_manager.size('full', numbers_stream.cache_key) +
+        cache_manager.size('full', letters_stream.cache_key))
     self.assertEqual(start, start_time)
 
 
