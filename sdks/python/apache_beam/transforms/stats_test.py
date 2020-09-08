@@ -465,8 +465,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as e:
       accumulator = combine_fn.add_input(accumulator, test_input)
 
-    expected_msg = 'Runtime exception: required argument is not a float'
-    assert e.exception.args[0] == expected_msg
+    self.assertRegex(e.exception.args[0], 'Runtime exception')
 
   def test_approximate_unique_combine_fn_adds_values_correctly(self):
     test_input = [['a', 'b', 'c'], ['b', 'd']]
