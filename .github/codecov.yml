@@ -49,3 +49,4 @@ fixes:
 ignore:
   - "**/*_test.py"
   - "**/*_test_py3*.py"
+  - "**/*_microbenchmark.py"
