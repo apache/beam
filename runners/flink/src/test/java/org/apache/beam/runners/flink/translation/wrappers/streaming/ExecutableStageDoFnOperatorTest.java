@@ -23,7 +23,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -32,7 +31,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -608,33 +606,17 @@ public class ExecutableStageDoFnOperatorTest {
     KeyedStateBackend keyedStateBackend = Mockito.mock(KeyedStateBackend.class);
     Lock stateBackendLock = Mockito.mock(Lock.class);
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
 
-    // Test that no cleanup timer is set for the global window
-    WindowingStrategy windowingStrategy = WindowingStrategy.globalDefault();
-    BoundedWindow window = GlobalWindow.INSTANCE;
+    // Test that cleanup timer is set correctly
     ExecutableStageDoFnOperator.CleanupTimer cleanupTimer =
         new ExecutableStageDoFnOperator.CleanupTimer<>(
             inMemoryTimerInternals,
             stateBackendLock,
-            windowingStrategy,
+            WindowingStrategy.globalDefault(),
             keyCoder,
-            windowingStrategy.getWindowFn().windowCoder(),
-            keyedStateBackend);
-    cleanupTimer.setForWindow(KV.of("key", "string"), window);
-    Mockito.verify(stateBackendLock, never()).lock();
-    Mockito.verify(stateBackendLock, never()).unlock();
-    assertThat(inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME), nullValue());
-
-    // Test that cleanup timer is set correctly for non-global window
-    windowingStrategy = WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
-    window = new IntervalWindow(new Instant(0), new Instant(9));
-    cleanupTimer =
-        new ExecutableStageDoFnOperator.CleanupTimer<>(
-            inMemoryTimerInternals,
-            stateBackendLock,
-            windowingStrategy,
-            keyCoder,
-            windowingStrategy.getWindowFn().windowCoder(),
+            windowCoder,
             keyedStateBackend);
     cleanupTimer.setForWindow(KV.of("key", "string"), window);
 
@@ -910,6 +892,9 @@ public class ExecutableStageDoFnOperatorTest {
         operator.keyedStateInternals.state(
             stateNamespace, StateTags.bag(stateId, ByteStringCoder.of()));
     state.add(ByteString.copyFrom("userstate".getBytes(Charsets.UTF_8)));
+    // No timers have been set for cleanup
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    // State has been created
     assertThat(testHarness.numKeyedStateEntries(), is(1));
 
     // Generate final watermark to trigger state cleanup
@@ -917,14 +902,6 @@ public class ExecutableStageDoFnOperatorTest {
         new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.plus(1).getMillis()));
 
     assertThat(testHarness.numKeyedStateEntries(), is(0));
-
-    // Close should not repeat state cleanup
-    state.add(ByteString.copyFrom("userstate".getBytes(Charsets.UTF_8)));
-    assertThat(testHarness.numKeyedStateEntries(), is(1));
-
-    testHarness.close();
-
-    assertThat(testHarness.numKeyedStateEntries(), is(1));
   }
 
   @Test
