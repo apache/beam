@@ -118,7 +118,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
    * A {@link FileBasedReader FileBasedReader} which can decode records delimited by delimiter
    * characters.
    *
-   * <p>See {@link ContextualTextIOSource } for further details.
+   * <p>See {@link ContextualTextIOSource} for further details.
    */
   @VisibleForTesting
   static class MultiLineTextBasedReader extends FileBasedReader<RecordWithMetadata> {
@@ -340,7 +340,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
               .setRecordOffset(startOfRecord)
               .setRecordNum(recordUniqueNum)
               .setFileName(fileName)
-              .setRecordValue(dataToDecode.toStringUtf8())
+              .setValue(dataToDecode.toStringUtf8())
               .build();
 
       elementIsPresent = true;
