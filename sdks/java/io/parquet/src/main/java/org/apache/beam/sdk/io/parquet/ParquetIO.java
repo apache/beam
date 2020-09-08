@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.parquet;
 import static java.lang.String.format;
 import static org.apache.parquet.Preconditions.checkNotNull;
 import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
+import static org.apache.parquet.hadoop.ParquetInputFormat.STRICT_TYPE_CHECKING;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -135,6 +136,12 @@ import org.slf4j.LoggerFactory;
  * ...
  * }</pre>
  *
+ * <p>Reading with projection can be enabled with the projection schema as following.
+ * * <pre>{@code
+ *  * PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withProjection(PROJECTION_SCHEMA));
+ *  * ...
+ *  * }</pre>
+ *
  * <h3>Writing Parquet files</h3>
  *
  * <p>{@link ParquetIO.Sink} allows you to write a {@link PCollection} of {@link GenericRecord} into
@@ -194,6 +201,8 @@ public class ParquetIO {
 
     abstract @Nullable Schema getSchema();
 
+    abstract @Nullable Schema getProjection();
+
     abstract @Nullable GenericData getAvroDataModel();
 
     abstract boolean isSplittable();
@@ -209,6 +218,8 @@ public class ParquetIO {
 
       abstract Builder setSchema(Schema schema);
 
+      abstract Builder setProjection(Schema schema);
+
       abstract Builder setAvroDataModel(GenericData model);
 
       abstract Read build();
@@ -222,6 +233,10 @@ public class ParquetIO {
     /** Like {@link #from(ValueProvider)}. */
     public Read from(String filepattern) {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
+    }
+    /** Enable the reading with projection. */
+    public Read withProjection(Schema schema) {
+      return toBuilder().setProjection(schema).setSplittable(true).build();
     }
 
     /** Enable the Splittable reading. */
@@ -247,7 +262,7 @@ public class ParquetIO {
               .apply(FileIO.readMatches());
       if (isSplittable()) {
         return inputFiles.apply(
-            readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()));
+            readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()).withProjection(getProjection()));
       }
       return inputFiles.apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
     }
@@ -269,6 +284,8 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
+    abstract @Nullable Schema getProjection();
+
     abstract boolean isSplittable();
 
     abstract Builder toBuilder();
@@ -278,6 +295,8 @@ public class ParquetIO {
       abstract Builder setSchema(Schema schema);
 
       abstract Builder setAvroDataModel(GenericData model);
+
+      abstract Builder setProjection(Schema schema);
 
       abstract Builder setSplittable(boolean split);
 
@@ -290,6 +309,10 @@ public class ParquetIO {
     public ReadFiles withAvroDataModel(GenericData model) {
       return toBuilder().setAvroDataModel(model).build();
     }
+
+    public ReadFiles withProjection(Schema schema) {
+      return toBuilder().setProjection(schema).setSplittable(true).build();
+    }
     /** Enable the Splittable reading. */
     public ReadFiles withSplit() {
       return toBuilder().setSplittable(true).build();
@@ -299,9 +322,13 @@ public class ParquetIO {
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
       if (isSplittable()) {
+        if(getProjection()==null){
         return input
-            .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
-            .setCoder(AvroCoder.of(getSchema()));
+            .apply(ParDo.of(new SplitReadFn(getAvroDataModel(),null)))
+            .setCoder(AvroCoder.of(getSchema()));}
+        return input
+                .apply(ParDo.of(new SplitReadFn(getAvroDataModel(),getProjection())))
+                .setCoder(AvroCoder.of(getProjection()));
       }
       return input
           .apply(ParDo.of(new ReadFn(getAvroDataModel())))
@@ -312,12 +339,14 @@ public class ParquetIO {
     static class SplitReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
       private Class<? extends GenericData> modelClass;
       private static final Logger LOG = LoggerFactory.getLogger(SplitReadFn.class);
+      private String requestSchemaString;
       // Default initial splitting the file into blocks of 64MB. Unit of SPLIT_LIMIT is byte.
       private static final long SPLIT_LIMIT = 64000000;
 
-      SplitReadFn(GenericData model) {
+      SplitReadFn(GenericData model, Schema requestSchema) {
 
         this.modelClass = model != null ? model.getClass() : null;
+        this.requestSchemaString = requestSchema!=null?requestSchema.toString():null;
       }
 
       ParquetFileReader getParquetFileReader(FileIO.ReadableFile file) throws Exception {
@@ -336,36 +365,40 @@ public class ParquetIO {
                 + tracker.currentRestriction().getFrom()
                 + " to "
                 + tracker.currentRestriction().getTo());
-        ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
-        ParquetFileReader reader =
-            ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
+        Configuration conf=getConfWithModelClass();
         GenericData model = null;
         if (modelClass != null) {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
         }
-        ReadSupport<GenericRecord> readSupport = new AvroReadSupport<GenericRecord>(model);
-
+        AvroReadSupport<GenericRecord> readSupport=new AvroReadSupport<GenericRecord>(model);
+        if (requestSchemaString != null) {
+          AvroReadSupport.setRequestedProjection(
+                  conf, new Schema.Parser().parse(requestSchemaString));
+        }
+        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        ParquetFileReader reader =
+            ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
         Filter filter = checkNotNull(options.getRecordFilter(), "filter");
         Configuration hadoopConf = ((HadoopReadOptions) options).getConf();
+        for (String property : options.getPropertyNames()) {
+          hadoopConf.set(property, options.getProperty(property));
+        }
         FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
         MessageType fileSchema = parquetFileMetadata.getSchema();
         Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
-
         ReadSupport.ReadContext readContext =
             readSupport.init(
                 new InitContext(
                     hadoopConf, Maps.transformValues(fileMetadata, ImmutableSet::of), fileSchema));
         ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
-        MessageType requestedSchema = readContext.getRequestedSchema();
+
         RecordMaterializer<GenericRecord> recordConverter =
             readSupport.prepareForRead(hadoopConf, fileMetadata, fileSchema, readContext);
-        reader.setRequestedSchema(requestedSchema);
-        MessageColumnIO columnIO = columnIOFactory.getColumnIO(requestedSchema, fileSchema, true);
+        MessageColumnIO columnIO = columnIOFactory.getColumnIO(readContext.getRequestedSchema(), fileSchema, true);
         long currentBlock = tracker.currentRestriction().getFrom();
         for (int i = 0; i < currentBlock; i++) {
           reader.skipNextRowGroup();
         }
-
         while (tracker.tryClaim(currentBlock)) {
           PageReadStore pages = reader.readNextRowGroup();
           LOG.debug("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
