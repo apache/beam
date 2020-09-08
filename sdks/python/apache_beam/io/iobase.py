@@ -890,6 +890,8 @@ class Read(ptransform.PTransform):
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
       return pbegin | _SDFBoundedSourceWrapper(self.source)
+    elif isinstance(self.source, ptransform.PTransform):
+      return pbegin.pipeline | self.source
     else:
       # Treat Read itself as a primitive.
       return pvalue.PCollection(
