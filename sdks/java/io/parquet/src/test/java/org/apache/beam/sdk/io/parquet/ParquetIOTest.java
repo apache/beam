@@ -70,13 +70,13 @@ public class ParquetIOTest implements Serializable {
   private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
 
   private static final String REQUESTED_SCHEMA_STRING =
-          "{"
-                  + "\"type\":\"record\", "
-                  + "\"name\":\"testrecord\","
-                  + "\"fields\":["
-                  + "    {\"name\":\"name\",\"type\":\"string\"}"
-                  + "  ]"
-                  + "}";
+      "{"
+          + "\"type\":\"record\", "
+          + "\"name\":\"testrecord\","
+          + "\"fields\":["
+          + "    {\"name\":\"name\",\"type\":\"string\"}"
+          + "  ]"
+          + "}";
   private static final Schema REQUESTED_SCHEMA = new Schema.Parser().parse(REQUESTED_SCHEMA_STRING);
 
   private static final String[] SCIENTISTS =
@@ -91,23 +91,22 @@ public class ParquetIOTest implements Serializable {
     List<GenericRecord> records = generateGenericRecords(1000);
 
     mainPipeline
-            .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
-            .apply(
-                    FileIO.<GenericRecord>write()
-                            .via(ParquetIO.sink(SCHEMA))
-                            .to(temporaryFolder.getRoot().getAbsolutePath()));
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
     mainPipeline.run().waitUntilFinish();
 
     PCollection<GenericRecord> readBack =
-            readPipeline.apply(
-                    ParquetIO.read(SCHEMA)
-                            .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
-                            .withProjection(REQUESTED_SCHEMA));
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withProjection(REQUESTED_SCHEMA));
     PAssert.that(readBack).containsInAnyOrder(requestRecords);
     PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
-
 
   @Test
   public void testBlockTracker() throws Exception {
@@ -123,7 +122,7 @@ public class ParquetIOTest implements Serializable {
 
   @Test
   public void testSplitBlockWithLimit() {
-    ParquetIO.ReadFiles.SplitReadFn testFn = new ParquetIO.ReadFiles.SplitReadFn(null,null);
+    ParquetIO.ReadFiles.SplitReadFn testFn = new ParquetIO.ReadFiles.SplitReadFn(null, null);
     ArrayList<BlockMetaData> blockList = new ArrayList<BlockMetaData>();
     ArrayList<OffsetRange> rangeList;
     BlockMetaData testBlock = mock(BlockMetaData.class);
@@ -214,6 +213,7 @@ public class ParquetIOTest implements Serializable {
     }
     return data;
   }
+
   private List<GenericRecord> generateRequestedRecords(long count) {
     ArrayList<GenericRecord> data = new ArrayList<>();
     GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_SCHEMA);
