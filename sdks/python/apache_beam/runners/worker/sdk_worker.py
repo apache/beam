@@ -429,9 +429,8 @@ class BundleProcessorCache(object):
       self.periodic_shutdown.join()
       self.periodic_shutdown = None
 
-    for instruction_id in self.active_bundle_processors:
-      self.active_bundle_processors[instruction_id][1].shutdown()
-      del self.active_bundle_processors[instruction_id]
+    for instruction_id in list(self.active_bundle_processors.keys()):
+      self.discard(instruction_id)
     for cached_bundle_processors in self.cached_bundle_processors.values():
       BundleProcessorCache._shutdown_cached_bundle_processors(
           cached_bundle_processors)
