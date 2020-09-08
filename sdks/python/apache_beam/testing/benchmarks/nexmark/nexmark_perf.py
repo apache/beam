@@ -27,9 +27,13 @@ class NexmarkPerf(object):
       event_count=None,
       event_per_sec=None,
       result_count=None):
+    # the time difference between first seen input and the last seen result
     self.runtime_sec = runtime_sec if runtime_sec else -1.0
+    # the count of input event seen
     self.event_count = event_count if event_count else -1
+    # number of event processed per runtime_sec
     self.event_per_sec = event_per_sec if event_per_sec else -1.0
+    # number of result produced
     self.result_count = result_count if result_count else -1
 
   def has_progress(self, previous_perf):
@@ -40,10 +44,11 @@ class NexmarkPerf(object):
       previous_perf: a NexmarkPerf object to be compared to self
 
     Returns:
-      True if there are activity between self and other NexmarkPerf values
+      True if there are observed pipeline activity between self and other
+        NexmarkPerf values
     """
-    if self.runtime_sec != previous_perf.runtime_sec or\
-       self.event_count != previous_perf.event_count or\
-       self.result_count != previous_perf.result_count:
+    if (self.runtime_sec != previous_perf.runtime_sec or
+        self.event_count != previous_perf.event_count or
+        self.result_count != previous_perf.result_count):
       return True
     return False

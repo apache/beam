@@ -116,17 +116,12 @@ class NexmarkLauncher(object):
     self.pubsub_mode = self.args.pubsub_mode
     if self.manage_resources:
       from google.cloud import pubsub
+      self.cleanup()
       publish_client = pubsub.Client(project=self.project)
       topic = publish_client.topic(self.topic_name)
-      if topic.exists():
-        logging.info('deleting topic %s', self.topic_name)
-        topic.delete()
       logging.info('creating topic %s', self.topic_name)
       topic.create()
       sub = topic.subscription(self.subscription_name)
-      if sub.exists():
-        logging.info('deleting sub %s', self.topic_name)
-        sub.delete()
       logging.info('creating sub %s', self.topic_name)
       sub.create()
 
@@ -281,6 +276,13 @@ class NexmarkLauncher(object):
       raise
 
   def monitor(self, job, event_monitor, result_monitor):
+    """
+    keep monitoring the performance and progress of running job and cancel
+    the job if the job is stuck or seems to have finished running
+
+    Returns:
+      the final performance if it is measured
+    """
     logging.info('starting to monitor the job')
     last_active_ms = -1
     perf = None
@@ -295,10 +297,15 @@ class NexmarkLauncher(object):
           job, event_monitor, result_monitor)
       if perf is None or curr_perf.has_progress(perf):
         last_active_ms = now
+
+      # only judge if the job should be cancelled if it is streaming job and
+      # has not been shut down already
       if self.streaming and not waiting_for_shutdown:
         quiet_duration = (now - last_active_ms) // 1000
-        if curr_perf.event_count >= self.args.num_events and\
-           curr_perf.result_count >= 0 and quiet_duration > self.DONE_DELAY:
+        if (curr_perf.event_count >= self.args.num_events and
+            curr_perf.result_count >= 0 and quiet_duration > self.DONE_DELAY):
+          # we think the job is finished if expected input count has been seen
+          # and no new results have been produced for a while
           logging.info('streaming query appears to have finished executing')
           waiting_for_shutdown = True
           cancel_job = True
@@ -383,9 +390,11 @@ class NexmarkLauncher(object):
       publish_client = pubsub.Client(project=self.project)
       topic = publish_client.topic(self.topic_name)
       if topic.exists():
+        logging.info('deleting topic %s', self.topic_name)
         topic.delete()
       sub = topic.subscription(self.subscription_name)
       if sub.exists():
+        logging.info('deleting sub %s', self.topic_name)
         sub.delete()
 
   def run(self):
