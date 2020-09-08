@@ -135,6 +135,12 @@ import org.slf4j.LoggerFactory;
  * <p>Example 4: reading a file or file pattern of RFC4180-compliant CSV files with fields that may
  * contain line breaks.
  *
+ * Example of such a file could be:
+ *
+ * "aaa","b CRLF
+ *  bb","ccc" CRLF
+ *  zzz,yyy,xxx
+ *
  * <pre>{@code
  * Pipeline p = ...;
  *
@@ -377,12 +383,11 @@ public class ContextualTextIO {
         return records;
       }
 
-      // At this point the line number in RecordWithMetadata contains the relative line offset from
-      // the
-      // beginning of the read range.
-
-      // To compute the absolute position from the beginning of the input,
-      // we group the lines within the same ranges, and evaluate the size of each range.
+      /*
+       * At this point the line number in RecordWithMetadata contains the relative line offset from the beginning of the read range.
+       *
+       * To compute the absolute position from the beginning of the input we group the lines within the same ranges, and evaluate the size of each range.
+       */
 
       PCollection<KV<KV<String, Long>, RecordWithMetadata>> recordsGroupedByFileAndRange =
           records.apply("AddFileNameAndRange", ParDo.of(new AddFileNameAndRange()));
@@ -397,11 +402,12 @@ public class ContextualTextIO {
       PCollection<Integer> singletonPcoll =
           input.getPipeline().apply("CreateSingletonPcoll", Create.of(Arrays.asList(1)));
 
-      // For each (File, Offset) pair, calculate the number of lines occurring before the Range for
-      // each File
+      /*
+       * For each (File, Offset) pair, calculate the number of lines occurring before the Range for each file
+       *
+       * After computing the number of lines before each range, we can find the line number in original file as numLiesBeforeOffset + lineNumInCurrentOffset
+       */
 
-      // After computing the number of lines before each range, we can find the line number in
-      // original file as numLiesBeforeOffset + lineNumInCurrentOffset
       PCollectionView<Map<KV<String, Long>, Long>> numRecordsBeforeEachRange =
           singletonPcoll
               .apply(
@@ -423,7 +429,7 @@ public class ContextualTextIO {
       public void processElement(
           @Element RecordWithMetadata record,
           OutputReceiver<KV<KV<String, Long>, RecordWithMetadata>> out) {
-        out.output(KV.of(KV.of(record.getFileName(), record.getRangeOffset()), record));
+        out.output(KV.of(KV.of(record.getFileName().toString(), record.getRangeOffset()), record));
       }
     }
 
@@ -501,7 +507,7 @@ public class ContextualTextIO {
             p.sideInput(numRecordsBeforeEachRange).get(KV.of(file, range));
         RecordWithMetadata newLine =
             RecordWithMetadata.newBuilder()
-                .setRecordValue(record.getRecordValue())
+                .setValue(record.getValue())
                 .setRecordOffset(record.getRecordOffset())
                 .setRecordNum(record.getRecordNumInOffset() + numRecordsLessThanThisRange)
                 .setFileName(record.getFileName())

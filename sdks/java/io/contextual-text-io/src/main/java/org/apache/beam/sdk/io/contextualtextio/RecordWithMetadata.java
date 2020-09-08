@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.contextualtextio;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
@@ -34,7 +35,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
  *       RecordWithMetadata#getRecordOffset()}
  *   <li>recordNum: The ordinal number of the record in its file. {@link
  *       RecordWithMetadata#getRecordNum()}
- *   <li>recordValue: The value / contents of the record {@link RecordWithMetadata#getRecordValue()}
+ *   <li>recordValue: The value / contents of the record {@link RecordWithMetadata#getValue()}
  *   <li>rangeOffset: The starting offset of the range (split), which contained the record, when the
  *       record was read. {@link RecordWithMetadata#getRangeOffset()}
  *   <li>recordNumInOffset: The record number relative to the Range. (line number within the range)
@@ -47,15 +48,15 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class RecordWithMetadata {
-  public abstract Long getRecordOffset();
+  public abstract long getRecordOffset();
 
-  public abstract Long getRecordNum();
+  public abstract long getRecordNum();
 
-  public abstract String getRecordValue();
+  public abstract String getValue();
 
-  public abstract Long getRangeOffset();
+  public abstract long getRangeOffset();
 
-  public abstract Long getRecordNumInOffset();
+  public abstract long getRecordNumInOffset();
 
   public abstract Builder toBuilder();
 
@@ -67,17 +68,17 @@ public abstract class RecordWithMetadata {
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setRecordNum(Long lineNum);
+    public abstract Builder setRecordNum(long lineNum);
 
-    public abstract Builder setRecordOffset(Long recordOffset);
+    public abstract Builder setRecordOffset(long recordOffset);
 
-    public abstract Builder setRecordValue(String line);
+    public abstract Builder setValue(String Value);
 
-    public abstract Builder setFileName(String file);
+    public abstract Builder setFileName(String fileName);
 
-    public abstract Builder setRecordNumInOffset(Long recordNumInOffset);
+    public abstract Builder setRecordNumInOffset(long recordNumInOffset);
 
-    public abstract Builder setRangeOffset(Long startingOffset);
+    public abstract Builder setRangeOffset(long startingOffset);
 
     public abstract RecordWithMetadata build();
   }
