@@ -442,7 +442,7 @@ def BigQuerySource(
         query,
         validate,
         coder,
-        use_stanrdard_sql,
+        use_standard_sql,
         flatten_results,
         kms_key)
   else:

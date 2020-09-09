@@ -168,7 +168,8 @@ class TestTableRowJsonCoder(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySource(unittest.TestCase):
   def test_display_data_item_on_validate_true(self):
-    source = beam.io.BigQuerySource('dataset.table', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table', validate=True, use_dataflow_native_source=True)
 
     dd = DisplayData.create_from(source)
     expected_items = [
@@ -178,7 +179,8 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_table_reference_display_data(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -186,7 +188,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -194,7 +197,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -203,27 +207,32 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_table_reference(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
     self.assertTrue(source.use_legacy_sql)
 
   def test_query_only_display_data(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -232,25 +241,36 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_sql_format(self):
-    source = beam.io.BigQuerySource(query='my_query', use_standard_sql=True)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        use_standard_sql=True,
+        use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
   def test_specify_query_flattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=False)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        flatten_results=False,
+        use_dataflow_native_source=True)
     self.assertFalse(source.flatten_results)
 
   def test_specify_query_unflattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=True)
+    source = beam.io.BigQuerySource(
+        query='my_query', flatten_results=True, use_dataflow_native_source=True)
     self.assertTrue(source.flatten_results)
 
   def test_specify_query_without_table(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
 
   def test_date_partitioned_table_name(self):
-    source = beam.io.BigQuerySource('dataset.table$20030102', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table$20030102',
+        validate=True,
+        use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', True),

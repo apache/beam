@@ -451,7 +451,9 @@ class TestBigQueryReader(unittest.TestCase):
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
+    with beam.io.BigQuerySource(
+        'dataset.table',
+        use_dataflow_native_source=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -465,7 +467,9 @@ class TestBigQueryReader(unittest.TestCase):
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with beam.io.BigQuerySource(query='query').reader(client) as reader:
+    with beam.io.BigQuerySource(
+        query='query',
+        use_dataflow_native_source=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -481,8 +485,9 @@ class TestBigQueryReader(unittest.TestCase):
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with beam.io.BigQuerySource(query='query',
-                                use_standard_sql=True).reader(client) as reader:
+    with beam.io.BigQuerySource(
+        query='query', use_standard_sql=True,
+        use_dataflow_native_source=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -498,8 +503,9 @@ class TestBigQueryReader(unittest.TestCase):
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with beam.io.BigQuerySource(query='query',
-                                flatten_results=False).reader(client) as reader:
+    with beam.io.BigQuerySource(
+        query='query', flatten_results=False,
+        use_dataflow_native_source=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -512,12 +518,13 @@ class TestBigQueryReader(unittest.TestCase):
         ValueError,
         r'Both a BigQuery table and a query were specified\. Please specify '
         r'only one of these'):
-      beam.io.BigQuerySource(table='dataset.table', query='query')
+      beam.io.BigQuerySource(
+          table='dataset.table', query='query', use_dataflow_native_source=True)
 
   def test_using_neither_query_nor_table_fails(self):
     with self.assertRaisesRegex(
         ValueError, r'A BigQuery table or a query must be specified'):
-      beam.io.BigQuerySource()
+      beam.io.BigQuerySource(use_dataflow_native_source=True)
 
   def test_read_from_table_as_tablerows(self):
     client = mock.Mock()
@@ -530,7 +537,9 @@ class TestBigQueryReader(unittest.TestCase):
     # We set the coder to TableRowJsonCoder, which is a signal that
     # the caller wants to see the rows as TableRows.
     with beam.io.BigQuerySource(
-        'dataset.table', coder=TableRowJsonCoder).reader(client) as reader:
+        'dataset.table',
+        coder=TableRowJsonCoder,
+        use_dataflow_native_source=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, table_rows)
@@ -550,7 +559,9 @@ class TestBigQueryReader(unittest.TestCase):
             jobComplete=True, rows=table_rows, schema=schema)
     ]
     actual_rows = []
-    with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
+    with beam.io.BigQuerySource(
+        'dataset.table',
+        use_dataflow_native_source=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -570,7 +581,9 @@ class TestBigQueryReader(unittest.TestCase):
             jobComplete=True, rows=table_rows, schema=schema)
     ]
     actual_rows = []
-    with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
+    with beam.io.BigQuerySource(
+        'dataset.table',
+        use_dataflow_native_source=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     # We return expected rows for each of the two pages of results so we
@@ -579,7 +592,8 @@ class TestBigQueryReader(unittest.TestCase):
 
   def test_table_schema_without_project(self):
     # Reader should pick executing project by default.
-    source = beam.io.BigQuerySource(table='mydataset.mytable')
+    source = beam.io.BigQuerySource(
+        table='mydataset.mytable', use_dataflow_native_source=True)
     options = PipelineOptions(flags=['--project', 'myproject'])
     source.pipeline_options = options
     reader = source.reader()
