@@ -125,8 +125,14 @@ def loadTestConfigurations = { mode, datasetName ->
   .each{ test -> (mode != 'streaming') ?: addStreamingOptions(test) }
 }
 
-def addStreamingOptions(test){
-  test.pipelineOptions << [streaming: null]
+def addStreamingOptions(test) {
+  test.pipelineOptions << [
+    streaming: null,
+    // Use the new Dataflow runner, which offers improved efficiency of Dataflow jobs.
+    // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
+    // for more details.
+    experiments: 'use_runner_v2',
+  ]
 }
 
 def loadTestJob = { scope, triggeringContext, jobType ->
