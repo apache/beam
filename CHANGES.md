@@ -59,6 +59,7 @@
 
 * Added cross-language support to Java's KinesisIO, now available in the Python module `apache_beam.io.kinesis` ([BEAM-10138](https://issues.apache.org/jira/browse/BEAM-10138), [BEAM-10137](https://issues.apache.org/jira/browse/BEAM-10137)).
 * Added cross-language support to Java's SnowflakeIO.Write, now available in the Python module `apache_beam.io.external.snowflake` ([BEAM-9898](https://issues.apache.org/jira/browse/BEAM-9898)).
+* Update Snowflake JDBC dependency for SnowflakeIO ([BEAM-10864](https://issues.apache.org/jira/browse/BEAM-10864))
 
 ## New Features / Improvements
 
