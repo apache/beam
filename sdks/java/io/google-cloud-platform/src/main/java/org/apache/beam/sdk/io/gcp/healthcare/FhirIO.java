@@ -1373,8 +1373,7 @@ public class FhirIO {
           throws IOException, InterruptedException, HealthcareHttpException {
         String sourceFhirStore = context.element();
         String destinationFhirStore = this.destinationFhirStore.get();
-        Gson g = new Gson();
-        DeidentifyConfig deidConfig = g.fromJson(this.deidConfigJson, DeidentifyConfig.class);
+        DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
         Operation operation =
             client.deidentifyFhirStore(sourceFhirStore, destinationFhirStore, deidConfig);
         operation = client.pollOperation(operation, 1000L);
