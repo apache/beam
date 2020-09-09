@@ -16,28 +16,35 @@
  * Theme configured from https://rmwc.io/.
  */
 :root {
-  --mdc-theme-primary: #1a73e8;
-  --mdc-theme-secondary: #661fff;
-  --mdc-theme-error: #b00020;
-  --mdc-theme-background: #fff;
-  --mdc-theme-surface: #fff;
-  --mdc-theme-on-primary: rgba(255, 255, 255, 1);
-  --mdc-theme-on-secondary: rgba(255, 255, 255, 1);
-  --mdc-theme-on-surface: rgba(0, 0, 0, 0.87);
-  --mdc-theme-on-error: #fff;
-  --mdc-theme-text-primary-on-background: rgba(0, 0, 0, 0.87);
-  --mdc-theme-text-secondary-on-background: rgba(0, 0, 0, 0.54);
-  --mdc-theme-text-hint-on-background: rgba(0, 0, 0, 0.38);
-  --mdc-theme-text-disabled-on-background: rgba(0, 0, 0, 0.38);
-  --mdc-theme-text-icon-on-background: rgba(0, 0, 0, 0.38);
-  --mdc-theme-text-primary-on-light: rgba(0, 0, 0, 0.87);
-  --mdc-theme-text-secondary-on-light: rgba(0, 0, 0, 0.54);
-  --mdc-theme-text-hint-on-light: rgba(0, 0, 0, 0.38);
-  --mdc-theme-text-disabled-on-light: rgba(0, 0, 0, 0.38);
-  --mdc-theme-text-icon-on-light: rgba(0, 0, 0, 0.38);
-  --mdc-theme-text-primary-on-dark: white;
-  --mdc-theme-text-secondary-on-dark: rgba(255, 255, 255, 0.7);
-  --mdc-theme-text-hint-on-dark: rgba(255, 255, 255, 0.5);
-  --mdc-theme-text-disabled-on-dark: rgba(255, 255, 255, 0.5);
-  --mdc-theme-text-icon-on-dark: rgba(255, 255, 255, 0.5);
+  --mdc-theme-primary: var(--jp-brand-color1);
+  --mdc-theme-secondary: var(--jp-brand-color2);
+  --mdc-theme-error: var(--jp-error-color1);
+  --mdc-theme-background: var(--jp-layout-color1);
+  --mdc-theme-surface: var(--jp-layout-color1);
+  --mdc-theme-on-primary: var(--jp-ui-inverse-font-color1);
+  --mdc-theme-on-secondary: var(--jp-ui-inverse-font-color1);
+  --mdc-theme-on-surface: var(--jp-ui-font-color1);
+  --mdc-theme-on-error: var(--jp-ui-inverse-font-color1);
+  --mdc-theme-text-primary-on-background: var(--jp-ui-font-color1);
+  --mdc-theme-text-secondary-on-background: var(--jp-ui-font-color2);
+  --mdc-theme-text-hint-on-background: var(--jp-ui-font-color3);
+  --mdc-theme-text-disabled-on-background: var(--jp-ui-font-color3);
+  --mdc-theme-text-icon-on-background: var(--jp-ui-font-color3);
+  --mdc-theme-text-primary-on-light: var(--jp-ui-font-color1);
+  --mdc-theme-text-secondary-on-light: var(--jp-ui-font-color2);
+  --mdc-theme-text-hint-on-light: var(--jp-ui-font-color3);
+  --mdc-theme-text-disabled-on-light: var(--jp-ui-font-color3);
+  --mdc-theme-text-icon-on-light: var(--jp-ui-font-color3);
+  --mdc-theme-text-primary-on-dark: var(--jp-ui-inverse-font-color1);
+  --mdc-theme-text-secondary-on-dark: var(--jp-ui-inverse-font-color2);
+  --mdc-theme-text-hint-on-dark: var(--jp-ui-inverse-font-color3);
+  --mdc-theme-text-disabled-on-dark: var(--jp-ui-inverse-font-color3);
+  --mdc-theme-text-icon-on-dark: var(--jp-ui-inverse-font-color3);
+}
+
+/**
+ * Color for an activated list item.
+ */
+.mdc-drawer li.mdc-list-item--activated {
+  color: var(--jp-ui-font-color1);
 }

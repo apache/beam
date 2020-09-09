@@ -54,51 +54,53 @@ export class SidePanel extends BoxPanel {
     this._inspector = new InteractiveInspectorWidget(this._sessionContext);
     this.addWidget(this._inspector);
 
-    void this._sessionContext
-      .initialize()
-      .then(async value => {
-        if (value) {
-          const sessionModelItr = manager.sessions.running();
-          const firstModel = sessionModelItr.next();
-          let onlyOneUniqueKernelExists = true;
-          if (firstModel === undefined) {
-            // There is zero unique running kernel.
-            onlyOneUniqueKernelExists = false;
-          } else {
-            let sessionModel = sessionModelItr.next();
-            while (sessionModel !== undefined) {
-              if (sessionModel.kernel.id !== firstModel.kernel.id) {
-                // There is more than one unique running kernel.
-                onlyOneUniqueKernelExists = false;
-                break;
-              }
-              sessionModel = sessionModelItr.next();
-            }
-          }
-          // Create a new notebook session with the same model of the first
-          // session (any session would suffice) when there is only one running
-          // kernel.
-          if (onlyOneUniqueKernelExists) {
-            this._sessionContext.sessionManager.connectTo({
-              model: firstModel,
-              kernelConnectionOptions: {
-                handleComms: true
-              }
-            });
-            // Connect to the unique kernel.
-            this._sessionContext.changeKernel(firstModel.kernel);
-          } else {
-            // Let the user choose among sessions and kernels when there is no
-            // or more than 1 running kernels.
-            await sessionContextDialogs.selectKernel(this._sessionContext);
-          }
+    this.initializeSession(manager);
+  }
+
+  async initializeSession(manager: ServiceManager.IManager): Promise<void> {
+    const sessionContext = await this._sessionContext.initialize();
+    if (!sessionContext) {
+      console.error('Cannot initialize the session in SidePanel.');
+      return;
+    }
+    const sessionModelItr = manager.sessions.running();
+    const firstModel = sessionModelItr.next();
+    let onlyOneUniqueKernelExists = true;
+    if (firstModel === undefined) {
+      // There is zero unique running kernel.
+      onlyOneUniqueKernelExists = false;
+    } else {
+      let sessionModel = sessionModelItr.next();
+      while (sessionModel !== undefined) {
+        if (sessionModel.kernel.id !== firstModel.kernel.id) {
+          // There is more than one unique running kernel.
+          onlyOneUniqueKernelExists = false;
+          break;
         }
-      })
-      .catch(reason => {
-        console.error(
-          `Failed to initialize the session in SidePanel.\n${reason}`
-        );
-      });
+        sessionModel = sessionModelItr.next();
+      }
+    }
+    try {
+      // Create a new notebook session with the same model of the first
+      // session (any session would suffice) when there is only one running
+      // kernel.
+      if (onlyOneUniqueKernelExists) {
+        this._sessionContext.sessionManager.connectTo({
+          model: firstModel,
+          kernelConnectionOptions: {
+            handleComms: true
+          }
+        });
+        // Connect to the unique kernel.
+        this._sessionContext.changeKernel(firstModel.kernel);
+      } else {
+        // Let the user choose among sessions and kernels when there is no
+        // or more than 1 running kernels.
+        await sessionContextDialogs.selectKernel(this._sessionContext);
+      }
+    } catch (err) {
+      console.error(`Failed to initialize the session in SidePanel.\n${err}`);
+    }
   }
 
   get session(): ISessionContext {
