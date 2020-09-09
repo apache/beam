@@ -923,9 +923,10 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState in
-            [dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
-             dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING]):
+        if (job.name == job_name and job.currentState in [
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
+        ]):
           return job.id
       token = response.nextPageToken
       if token is None:
