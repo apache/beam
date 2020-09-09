@@ -17,13 +17,13 @@
 
 """This module has all statistic related transforms.
 
-This ApproximateUnique class will be deprecated [1]. PLease look into using the
-approximate algorithms in the Beam Java SDK instead [2].
+This ApproximateUnique class will be deprecated [1]. PLease look into using
+HLLCount in the zetasketch extension module [2].
 
 [1] https://lists.apache.org/thread.html/501605df5027567099b81f18c080469661fb426
 4a002615fa1510502%40%3Cdev.beam.apache.org%3E
-[2] https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/
-apache/beam/sdk/transforms/ApproximateUnique.java
+[2] https://beam.apache.org/releases/javadoc/2.16.0/org/apache/beam/sdk/extensio
+ns/zetasketch/HllCount.html
 """
 
 # pytype: skip-file
@@ -57,33 +57,29 @@ K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
 
-def _default_hash_fn(value):
-  """Hash value using either murmurhash or md5 based on installation."""
-  if not _default_hash_fn.fn:
-    try:
-      import mmh3  # pylint: disable=import-error
+def _get_default_hash_fn():
+  """Returns either murmurhash or md5 based on installation."""
+  try:
+    import mmh3  # pylint: disable=import-error
 
-      def _mmh3_hash(value):
-        # mmh3.hash64 returns 2 64-bit unsigned integers
-        return mmh3.hash64(value, seed=0, signed=False)[0]
+    def _mmh3_hash(value):
+      # mmh3.hash64 returns two 64-bit unsigned integers
+      return mmh3.hash64(value, seed=0, signed=False)[0]
 
-      _default_hash_fn.fn = _mmh3_hash
-    except ImportError:
-      logging.warning(
-          'Couldn\'t find murmurhash so the implementation of '
-          'ApproximateUnique is not as fast as it could be.')
+    return _mmh3_hash
 
-      def _md5_hash(value):
-        # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
-        # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
-        # integer fingerprint.
-        return int(hashlib.md5(value).hexdigest()[:16], 16)
+  except ImportError:
+    logging.warning(
+        'Couldn\'t find murmurhash. Install mmh3 for a faster implementation of'
+        'ApproximateUnique.')
 
-      _default_hash_fn.fn = _md5_hash
-  return _default_hash_fn.fn(value)
+    def _md5_hash(value):
+      # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
+      # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
+      # integer fingerprint.
+      return int(hashlib.md5(value).hexdigest()[:16], 16)
 
-
-_default_hash_fn.fn = None
+    return _md5_hash
 
 
 class ApproximateUnique(object):
@@ -248,14 +244,16 @@ class ApproximateUniqueCombineFn(CombineFn):
     self._sample_size = sample_size
     coder = coders.typecoders.registry.verify_deterministic(
         coder, 'ApproximateUniqueCombineFn')
+
     self._coder = coder
+    self._hash_fn = _get_default_hash_fn()
 
   def create_accumulator(self, *args, **kwargs):
     return _LargestUnique(self._sample_size)
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      hashed_value = _default_hash_fn(self._coder.encode(element))
+      hashed_value = self._hash_fn(self._coder.encode(element))
       accumulator.add(hashed_value)
       return accumulator
     except Exception as e:
