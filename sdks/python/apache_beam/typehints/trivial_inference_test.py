@@ -104,6 +104,30 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         any_tuple, reverse, [trivial_inference.Const((1, 2, 3))])
 
+  def testBuildMap(self):
+    self.assertReturnType(
+        typehints.Dict[typehints.Any, typehints.Any],
+        lambda k,
+        v: {}, [int, float])
+    self.assertReturnType(
+        typehints.Dict[int, float], lambda k, v: {k: v}, [int, float])
+    self.assertReturnType(
+        typehints.Dict[int, typehints.Union[float, str]],
+        lambda k1,
+        v1,
+        k2,
+        v2: {
+            k1: v1, k2: v2
+        }, [int, float, int, str])
+
+    # Constant map.
+    self.assertReturnType(
+        typehints.Dict[str, typehints.Union[int, float]],
+        lambda a,
+        b: {
+            'a': a, 'b': b
+        }, [int, float])
+
   def testNoneReturn(self):
     def func(a):
       if a == 5:
