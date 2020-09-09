@@ -149,6 +149,7 @@ class Recording:
 
     self._user_pipeline = user_pipeline
     self._result = result
+    self._result_lock = threading.Lock()
     self._pcolls = pcolls
 
     pcoll_var = lambda pcoll: pipeline_instrument.cacheable_var_by_pcoll_id(
@@ -182,13 +183,18 @@ class Recording:
       return
 
     while not PipelineState.is_terminal(self._result.state):
-      if time.time() - self._start >= self._duration_secs:
-        self._result.cancel()
-        self._result.wait_until_finish()
+      with self._result_lock:
+        bcj = ie.current_env().get_background_caching_job(self._user_pipeline)
+        if bcj and bcj.is_done():
+          self._result.wait_until_finish()
 
-      elif all(s.is_done() for s in self._streams.values()):
-        self._result.cancel()
-        self._result.wait_until_finish()
+        elif time.time() - self._start >= self._duration_secs:
+          self._result.cancel()
+          self._result.wait_until_finish()
+
+        elif all(s.is_done() for s in self._streams.values()):
+          self._result.cancel()
+          self._result.wait_until_finish()
 
       time.sleep(0.1)
 
@@ -225,7 +231,8 @@ class Recording:
     # type: () -> None
 
     """Cancels the recording."""
-    self._result.cancel()
+    with self._result_lock:
+      self._result.cancel()
 
   def wait_until_finish(self):
     # type: () -> None
