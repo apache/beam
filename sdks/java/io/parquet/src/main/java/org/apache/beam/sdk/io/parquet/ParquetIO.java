@@ -137,8 +137,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Reading with projection can be enabled with the projection schema as following. Splittable
  * reading is enabled when reading with projection. The projection_schema contains only the column
- * that we would like to read and encoder_schema contains all field but with the unwanted columns
- * changed to nullable. Partial reading give faster reading time and better memory utilization.
+ * that we would like to read and encoder_schema contains the schema to encode the output with the
+ * unwanted columns changed to nullable. Partial reading provide increase of reading time due to
+ * partial processing of the data and partial encoding. The increase in the reading time depends on
+ * the relative position of the columns. Memory allocation is optimised depending on the encoding
+ * schema.
  *
  * <pre>{@code
  * * PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withProjection(Projection_schema,Encoder_Schema));
@@ -243,11 +246,11 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
     /** Enable the reading with projection. */
-    public Read withProjection(Schema projection, Schema encoder) {
+    public Read withProjection(Schema projectionSchema, Schema encoderSchema) {
       return toBuilder()
-          .setProjectionSchema(projection)
+          .setProjectionSchema(projectionSchema)
           .setSplittable(true)
-          .setEncoderSchema(encoder)
+          .setEncoderSchema(encoderSchema)
           .build();
     }
 
@@ -329,10 +332,10 @@ public class ParquetIO {
       return toBuilder().setAvroDataModel(model).build();
     }
 
-    public ReadFiles withProjection(Schema projection, Schema encoder) {
+    public ReadFiles withProjection(Schema projectionSchema, Schema encoderSchema) {
       return toBuilder()
-          .setProjectionSchema(projection)
-          .setEncoderSchema(encoder)
+          .setProjectionSchema(projectionSchema)
+          .setEncoderSchema(encoderSchema)
           .setSplittable(true)
           .build();
     }
