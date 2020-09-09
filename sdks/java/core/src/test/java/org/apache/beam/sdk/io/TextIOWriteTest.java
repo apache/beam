@@ -235,7 +235,7 @@ public class TextIOWriteTest {
     }
   }
 
-  private static class UserWriteTypeCoder extends CustomCoder<UserWriteType> {
+  public static class UserWriteTypeCoder extends CustomCoder<UserWriteType> {
 
     @Override
     public void encode(UserWriteType value, OutputStream outStream)

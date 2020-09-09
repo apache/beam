@@ -34,9 +34,16 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 ext.summary = "Add support to Apache Beam for Avro."
 
+
+test {
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
+}
+
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

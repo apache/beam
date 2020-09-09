@@ -56,6 +56,6 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
   testCompile project(path: ":model:fn-execution", configuration: "shadow")
   testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
-  testRuntimeOnly project(path: ":sdks:java:extensions:avro")
+  testCompile project(path: ":sdks:java:extensions:avro", configuration: "testRuntime")
   testRuntimeOnly library.java.slf4j_jdk14
 }
