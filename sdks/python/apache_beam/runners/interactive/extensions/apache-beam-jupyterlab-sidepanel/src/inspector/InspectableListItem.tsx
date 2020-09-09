@@ -86,7 +86,9 @@ export class InspectableListItem extends React.Component<
           paddingLeft: '5px'
         }}
         onClick={this.show}
-        activated={this.props?.inspectableViewModel?.identifier === this.props.id}
+        activated={
+          this.props?.inspectableViewModel?.identifier === this.props.id
+        }
       >
         <ListItemText>
           <ListItemPrimaryText>{this.props.metadata.name}</ListItemPrimaryText>
