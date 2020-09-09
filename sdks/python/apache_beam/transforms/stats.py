@@ -685,27 +685,6 @@ class ApproximateQuantilesCombineFn(CombineFn):
     self._add_unbuffered(quantile_state, elements=[element])
     return quantile_state
 
-  def add_inputs(self, quantile_state, elements):
-    """Add new elements to the collection being summarized by quantile state.
-    """
-    if not elements:
-      return quantile_state
-
-    values = [
-        element[0] for element in elements
-    ] if self._weighted else elements
-    min_val = min(values)
-    max_val = max(values)
-    if quantile_state.is_empty():
-      quantile_state.min_val = min_val
-      quantile_state.max_val = max_val
-    elif self._comparator(min_val, quantile_state.min_val) < 0:
-      quantile_state.min_val = min_val
-    elif self._comparator(max_val, quantile_state.max_val) > 0:
-      quantile_state.max_val = max_val
-    self._add_unbuffered(quantile_state, elements=elements)
-    return quantile_state
-
   def merge_accumulators(self, accumulators):
     """Merges all the accumulators (quantile state) as one."""
     qs = self.create_accumulator()

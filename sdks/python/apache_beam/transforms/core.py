@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 import copy
+import functools
 import inspect
 import logging
 import random
@@ -918,7 +919,9 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     raise NotImplementedError(str(self))
 
   def add_inputs(self, mutable_accumulator, elements, *args, **kwargs):
-    """Returns the result of folding each element in elements into accumulator.
+    """DEPRECATED and unused.
+
+    Returns the result of folding each element in elements into accumulator.
 
     This is provided in case the implementation affords more efficient
     bulk addition of elements. The default implementation simply loops
@@ -988,10 +991,13 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
+    if args or kwargs:
+      add_input = lambda element: self.add_input(element, *args, **kwargs)
+    else:
+      add_input = self.add_input
     return self.extract_output(
-        self.add_inputs(
-            self.create_accumulator(*args, **kwargs), elements, *args,
-            **kwargs),
+        functools.reduce(
+            add_input, elements, self.create_accumulator(*args, **kwargs)),
         *args,
         **kwargs)
 
@@ -1088,12 +1094,6 @@ class CallableWrapperCombineFn(CombineFn):
       accumulator = [self._fn(accumulator, *args, **kwargs)]
     return accumulator
 
-  def add_inputs(self, accumulator, elements, *args, **kwargs):
-    accumulator.extend(elements)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator, *args, **kwargs)]
-    return accumulator
-
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
 
@@ -1161,12 +1161,6 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
 
   def add_input(self, accumulator, element):
     accumulator.append(element)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator)]
-    return accumulator
-
-  def add_inputs(self, accumulator, elements):
-    accumulator.extend(elements)
     if len(accumulator) > self._buffer_size:
       accumulator = [self._fn(accumulator)]
     return accumulator
@@ -2182,31 +2176,7 @@ class CombineValuesDoFn(DoFn):
     # Expected elements input to this DoFn are 2-tuples of the form
     # (key, iter), with iter an iterable of all the values associated with key
     # in the input PCollection.
-    if self.runtime_type_check:
-      # Apply the combiner in a single operation rather than artificially
-      # breaking it up so that output type violations manifest as TypeCheck
-      # errors rather than type errors.
-      return [(element[0], self.combinefn.apply(element[1], *args, **kwargs))]
-
-    # Add the elements into three accumulators (for testing of merge).
-    elements = list(element[1])
-    accumulators = []
-    for k in range(3):
-      if len(elements) <= k:
-        break
-      accumulators.append(
-          self.combinefn.add_inputs(
-              self.combinefn.create_accumulator(*args, **kwargs),
-              elements[k::3],
-              *args,
-              **kwargs))
-    # Merge the accumulators.
-    accumulator = self.combinefn.merge_accumulators(
-        accumulators, *args, **kwargs)
-    # Convert accumulator to the final result.
-    return [(
-        element[0], self.combinefn.extract_output(accumulator, *args,
-                                                  **kwargs))]
+    yield element[0], self.combinefn.apply(element[1], *args, **kwargs)
 
   def default_type_hints(self):
     hints = self.combinefn.get_type_hints()
