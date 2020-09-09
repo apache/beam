@@ -712,8 +712,9 @@ def eliminate_common_key_with_none(stages, context):
 
   If multiple KeyWithNone stages share a common input, then all but one stages
   will be eliminated along with their output PCollections. Transforms that
-  read input from the output of the eliminated KeyWithNone stages will be
-  remapped to read input from the output of the remaining KeyWithNone stage.
+  originally read input from the output PCollection of the eliminated
+  KeyWithNone stages will be remapped to read input from the output PCollection
+  of the remaining KeyWithNone stage.
   """
   # Partition stages by whether they are eligible for common KeyWithNone
   # elimination, and group eligible KeyWithNone stages by parent and
