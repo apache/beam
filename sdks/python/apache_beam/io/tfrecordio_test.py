@@ -398,7 +398,6 @@ class TestReadAllFromTFRecord(unittest.TestCase):
                 compression_type=CompressionTypes.AUTO))
         assert_that(result, equal_to([b'foo', b'bar'] * 3))
 
-
   def test_process_multiple_globs(self):
     with TempDir() as temp_dir:
       globs = []
