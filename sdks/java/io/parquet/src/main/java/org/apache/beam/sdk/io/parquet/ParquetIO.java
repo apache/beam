@@ -138,10 +138,13 @@ import org.slf4j.LoggerFactory;
  * <p>Reading with projection can be enabled with the projection schema as following. Splittable
  * reading is enabled when reading with projection. The projection_schema contains only the column
  * that we would like to read and encoder_schema contains the schema to encode the output with the
- * unwanted columns changed to nullable. Partial reading provide increase of reading time due to
- * partial processing of the data and partial encoding. The increase in the reading time depends on
+ * unwanted columns changed to nullable. Partial reading provide decrease of reading time due to
+ * partial processing of the data and partial encoding. The decrease in the reading time depends on
  * the relative position of the columns. Memory allocation is optimised depending on the encoding
- * schema.
+ * schema. Note that the improvement is not as significant comparing to the proportion of the data
+ * requested, since the processing time saved is only the time to read the unwanted columns, the
+ * reader will still go over the data set according to the encoding schema since data for each
+ * column in a row is stored interleaved.
  *
  * <pre>{@code
  * * PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withProjection(Projection_schema,Encoder_Schema));
