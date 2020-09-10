@@ -398,19 +398,19 @@ class _DirectWriteToPubSubFn(DoFn):
   BUFFER_SIZE_ELEMENTS = 100
   FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
 
-  def __init__(self, sink):
-    self.project = sink.project
-    self.short_topic_name = sink.topic_name
-    self.id_label = sink.id_label
-    self.timestamp_attribute = sink.timestamp_attribute
-    self.with_attributes = sink.with_attributes
+  def __init__(self, transform):
+    self.project = transform.project
+    self.short_topic_name = transform.topic_name
+    self.id_label = transform.id_label
+    self.timestamp_attribute = transform.timestamp_attribute
+    self.with_attributes = transform.with_attributes
 
     # TODO(BEAM-4275): Add support for id_label and timestamp_attribute.
-    if sink.id_label:
+    if transform.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for '
           'PubSub writes')
-    if sink.timestamp_attribute:
+    if transform.timestamp_attribute:
       raise NotImplementedError(
           'DirectRunner: timestamp_attribute is not '
           'supported for PubSub writes')
@@ -475,8 +475,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
         raise Exception(
             'PubSub I/O is only available in streaming mode '
             '(use the --streaming flag).')
-      return beam.ParDo(
-          _DirectWriteToPubSubFn(applied_ptransform.transform._sink))
+      return beam.ParDo(_DirectWriteToPubSubFn(applied_ptransform.transform))
 
   return [ReadFromPubSubOverride(), WriteToPubSubOverride()]
 
