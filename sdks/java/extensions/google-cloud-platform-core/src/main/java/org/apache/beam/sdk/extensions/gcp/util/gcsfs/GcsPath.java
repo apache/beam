@@ -79,19 +79,19 @@ public class GcsPath implements Path, Serializable {
     checkArgument(uri.getScheme().equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
     checkArgument(uri.getPort() == -1, "GCS URI may not specify port: %s (%i)", uri, uri.getPort());
     checkArgument(
-      isNullOrEmpty(uri.getUserInfo()),
-      "GCS URI may not specify userInfo: %s (%s)",
-      uri,
-      uri.getUserInfo());
+        isNullOrEmpty(uri.getUserInfo()),
+        "GCS URI may not specify userInfo: %s (%s)",
+        uri,
+        uri.getUserInfo());
     checkArgument(
-      isNullOrEmpty(uri.getQuery()),
-      "GCS URI may not specify query: %s (%s)",
-      uri,
-      uri.getQuery());
+        isNullOrEmpty(uri.getQuery()),
+        "GCS URI may not specify query: %s (%s)",
+        uri,
+        uri.getQuery());
     checkArgument(
-          isNullOrEmpty(uri.getFragment()),
-          "GCS URI may not specify fragment: %s (%s)",
-          uri,
+        isNullOrEmpty(uri.getFragment()),
+        "GCS URI may not specify fragment: %s (%s)",
+        uri,
 
     return fromUri(uri.toString());
   }
@@ -119,7 +119,7 @@ public class GcsPath implements Path, Serializable {
 
   /** Pattern that is used to parse a GCS resource name. */
   private static final Pattern GCS_RESOURCE_NAME =
-    Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
+      Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
 
   /** Creates a GcsPath from a OnePlatform resource name in string form. */
   public static GcsPath fromResourceName(String name) {
@@ -183,7 +183,7 @@ public class GcsPath implements Path, Serializable {
     }
     checkArgument(!bucket.contains("/"), "GCS bucket may not contain a slash");
     checkArgument(
-      bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
+        bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
         "GCS bucket names must contain only lowercase letters, numbers, "
             + "dashes (-), underscores (_), and dots (.). Bucket names "
             + "must start and end with a number or letter. "
@@ -195,7 +195,7 @@ public class GcsPath implements Path, Serializable {
       object = "";
     }
     checkArgument(
-      object.indexOf('\n') < 0 && object.indexOf('\r') < 0,
+        object.indexOf('\n') < 0 && object.indexOf('\r') < 0,
         "GCS object names must not contain Carriage Return or " + "Line Feed characters.");
 
     this.fs = fs;
