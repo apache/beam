@@ -351,6 +351,20 @@ def show(*pcolls, **configs):
   n = configs.pop('n', 'inf')
   duration = configs.pop('duration', 'inf')
 
+  if isinstance(n, str):
+    assert n == 'inf', (
+        'Currently only the string \'inf\' is supported. This denotes reading '
+        'elements until the recording is stopped via a kernel interrupt.')
+  elif isinstance(n, int):
+    assert n > 0, 'n needs to be positive or the string \'inf\''
+
+  if isinstance(duration, str):
+    assert duration == 'inf', (
+        'Currently only the string \'inf\' is supported. This denotes reading '
+        'elements until the recording is stopped via a kernel interrupt.')
+  elif isinstance(duration, int):
+    assert duration > 0, 'duration needs to be positive or the string \'inf\''
+
   if n == 'inf':
     n = float('inf')
 
@@ -360,8 +374,8 @@ def show(*pcolls, **configs):
   # This assertion is to protect the backward compatibility for function
   # signature change after Python 2 deprecation.
   assert not configs, (
-      'The only configs supported are include_window_info and '
-      'visualize_data.')
+      'The only supported arguments are include_window_info, visualize_data, '
+      'n, and duration')
 
   recording_manager = RecordingManager(user_pipeline)
   recording = recording_manager.record(
@@ -427,6 +441,20 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   """
   assert isinstance(pcoll, beam.pvalue.PCollection), (
       '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
+
+  if isinstance(n, str):
+    assert n == 'inf', (
+        'Currently only the string \'inf\' is supported. This denotes reading '
+        'elements until the recording is stopped via a kernel interrupt.')
+  elif isinstance(n, int):
+    assert n > 0, 'n needs to be positive or the string \'inf\''
+
+  if isinstance(duration, str):
+    assert duration == 'inf', (
+        'Currently only the string \'inf\' is supported. This denotes reading '
+        'elements until the recording is stopped via a kernel interrupt.')
+  elif isinstance(duration, int):
+    assert duration > 0, 'duration needs to be positive or the string \'inf\''
 
   if n == 'inf':
     n = float('inf')
