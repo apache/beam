@@ -278,8 +278,11 @@ public class GcsPathTest {
 
   @Test
   public void testResolveSibling() {
-    assertEquals("gs://bucket/bar/moo", GcsPath.fromUri("gs://bucket/bar/foo").resolveSibling("moo").toString());
-    assertEquals("gs://bucket/moo", GcsPath.fromUri("gs://bucket/foo").resolveSibling("moo").toString());
+    assertEquals(
+        "gs://bucket/bar/moo",
+        GcsPath.fromUri("gs://bucket/bar/foo").resolveSibling("moo").toString());
+    assertEquals(
+        "gs://bucket/moo", GcsPath.fromUri("gs://bucket/foo").resolveSibling("moo").toString());
     thrown.expect(UnsupportedOperationException.class);
     GcsPath.fromUri("gs://bucket/").resolveSibling("moo");
   }
