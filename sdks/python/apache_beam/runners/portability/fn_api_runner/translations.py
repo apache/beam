@@ -192,6 +192,15 @@ class Stage(object):
 
     return all(is_sdk_transform(transform) for transform in self.transforms)
 
+  def is_stateful(self):
+    for transform in self.transforms:
+      if transform.spec.urn in PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if payload.state_specs or payload.timer_family_specs:
+          return True
+    return False
+
   def side_inputs(self):
     # type: () -> Iterator[str]
     for transform in self.transforms:
