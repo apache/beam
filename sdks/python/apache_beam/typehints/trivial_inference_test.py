@@ -104,6 +104,7 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         any_tuple, reverse, [trivial_inference.Const((1, 2, 3))])
 
+  @unittest.skipIf(sys.version_info < (3, ), 'BUILD_MAP better in Python 3')
   def testBuildMap(self):
     self.assertReturnType(
         typehints.Dict[typehints.Any, typehints.Any],
