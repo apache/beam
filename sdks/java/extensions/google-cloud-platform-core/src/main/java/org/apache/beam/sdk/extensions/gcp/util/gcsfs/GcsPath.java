@@ -41,19 +41,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Implements the Java NIO {@link Path} API for Google Cloud Storage paths.
  *
- * <p>
- * GcsPath uses a slash ('/') as a directory separator. Below is a summary of how slashes are 
+ * <p>GcsPath uses a slash ('/') as a directory separator. Below is a summary of how slashes are 
  * treated:
  *
  * <ul>
  *   <li>A GCS bucket may not contain a slash. An object may contain zero or more slashes.
  *   <li>A trailing slash always indicates a directory, which is compliant with POSIX.1-2008.
  *   <li>Slashes separate components of a path. Empty components are allowed, these are represented
- *       as repeated slashes. An empty component always refers to a directory, and always ends in a 
+ *       as repeated slashes. An empty component always refers to a directory, and always ends in a
  *       slash.
- *   <li>{@link #getParent()}} always returns a path ending in a slash, as the parent of a GcsPath 
+ *   <li>{@link #getParent()}} always returns a path ending in a slash, as the parent of a GcsPath
  *       is always a directory.
- *   <li>Use {@link #resolve(String)} to append elements to a GcsPath -- this applies the rules 
+ *   <li>Use {@link #resolve(String)} to append elements to a GcsPath -- this applies the rules
  *       consistently and is highly recommended over any custom string concatenation.
  * </ul>
  *
