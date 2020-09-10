@@ -214,6 +214,10 @@ class DataflowMetrics(MetricResults):
         # distribution metric is not meant to use on large values, but in case
         # it is, the value can overflow and become double_value, the correctness
         # of the value may not be guaranteed.
+        _LOGGER.warning(
+            "Distribution metric sum value seems to have "
+            "overflowed, the correctness of sum or mean value may not be "
+            "guaranteed.")
         dist_sum = int(
             _get_match(
                 metric.distribution.object_value.properties,
