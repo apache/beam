@@ -445,26 +445,30 @@ class StagerTest(unittest.TestCase):
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
-  @mock.patch(
-      'apache_beam.runners.portability.stager_test.TestStager.stage_artifact')
-  @mock.patch(
-      'apache_beam.runners.portability.stager_test.stager.Stager._download_file'
-  )
   def test_sdk_location_remote_wheel_file(self, *unused_mocks):
     staging_dir = self.make_temp_dir()
     sdk_filename = 'apache_beam-1.0.0-cp27-cp27mu-manylinux1_x86_64.whl'
-    sdk_location = '/tmp/remote/my-bucket/' + sdk_filename
+    sdk_location = 'https://storage.googleapis.com/my-gcs-bucket/' + sdk_filename
 
     options = PipelineOptions()
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
+    def file_download(_, to_path):
+      with open(to_path, 'w') as f:
+        f.write('Package content.')
+      return to_path
+
     with mock.patch('apache_beam.runners.portability.stager_test'
-                    '.stager.Stager._is_remote_path',
-                    staticmethod(self.is_remote_path)):
+                    '.stager.Stager._download_file',
+                    staticmethod(file_download)):
       self.assertEqual([sdk_filename],
                        self.stager.create_and_stage_job_resources(
                            options, staging_location=staging_dir)[1])
+
+    wheel_file_path = os.path.join(staging_dir, sdk_filename)
+    with open(wheel_file_path) as f:
+      self.assertEqual(f.read(), 'Package content.')
 
   def test_sdk_location_http(self):
     staging_dir = self.make_temp_dir()
