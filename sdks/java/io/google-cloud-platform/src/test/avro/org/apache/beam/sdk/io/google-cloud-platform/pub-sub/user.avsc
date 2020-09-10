@@ -1,5 +1,5 @@
 {
-  "namespace": "org.apache.beam.sdk.io",
+  "namespace": "org.apache.beam.sdk.io.gcp.pubsub",
   "type": "record",
   "name": "AvroGeneratedUser",
   "fields": [

@@ -1,0 +1,10 @@
+{
+  "namespace": "org.apache.beam.sdk.io.kafka",
+  "type": "record",
+  "name": "AvroGeneratedUser",
+  "fields": [
+    { "name": "name", "type": "string"},
+    { "name": "favorite_number", "type": ["int", "null"]},
+    { "name": "favorite_color", "type": ["string", "null"]}
+  ]
+}

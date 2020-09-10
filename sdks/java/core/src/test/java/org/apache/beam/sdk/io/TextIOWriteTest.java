@@ -304,6 +304,7 @@ public class TextIOWriteTest {
             new UserWriteType("baab", "fourth"),
             new UserWriteType("caaa", "fifth"),
             new UserWriteType("caab", "sixth"));
+    p.getCoderRegistry().registerCoderForClass(UserWriteType.class, new UserWriteTypeCoder());
     PCollection<UserWriteType> input = p.apply(Create.of(elements));
     input.apply(
         TextIO.<UserWriteType>writeCustomType()

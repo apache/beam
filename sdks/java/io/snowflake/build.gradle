@@ -20,6 +20,7 @@ applyJavaNature(
   enableChecker: false,
   ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdk.io.snowflake')
+applyAvroNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

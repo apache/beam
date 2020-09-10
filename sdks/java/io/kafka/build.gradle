@@ -25,6 +25,7 @@ applyJavaNature(
     [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
   ]
 )
+applyAvroNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
