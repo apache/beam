@@ -109,7 +109,7 @@ public class GcsPath implements Path, Serializable {
   }
 
   /** Pattern that is used to parse a GCS resource name. */
-  private static final Pattern GCS_RESOURCE_NAME = 
+  private static final Pattern GCS_RESOURCE_NAME =
     Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
 
   /** Creates a GcsPath from a OnePlatform resource name in string form. */

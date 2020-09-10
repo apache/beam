@@ -60,19 +60,19 @@ public class GcsPathTest {
 
   // Each test case is an expected URL, then the components used to build it.
   // Empty components result in a double slash.
-  static final List<TestCase> PATH_TEST_CASES = Arrays.asList(
-      new TestCase("gs://bucket/then/object", "bucket", "then", "object"),
-      new TestCase("gs://bucket//then/object", "bucket", "", "then", "object"),
-      new TestCase("gs://bucket/then//object", "bucket", "then", "", "object"),
-      new TestCase("gs://bucket/then///object", "bucket", "then", "", "", "object"),
-      new TestCase("gs://bucket/then/object/", "bucket", "then", "object/"),
-      new TestCase("gs://bucket/then/object/", "bucket", "then/", "object/"),
-      new TestCase("gs://bucket/then/object//", "bucket", "then", "object", ""),
-      new TestCase("gs://bucket/then/object//", "bucket", "then", "object/", ""),
-      new TestCase("gs://bucket/", "bucket"));
+  static final List<TestCase> PATH_TEST_CASES =
+      Arrays.asList(
+          new TestCase("gs://bucket/then/object", "bucket", "then", "object"),
+          new TestCase("gs://bucket//then/object", "bucket", "", "then", "object"),
+          new TestCase("gs://bucket/then//object", "bucket", "then", "", "object"),
+          new TestCase("gs://bucket/then///object", "bucket", "then", "", "", "object"),
+          new TestCase("gs://bucket/then/object/", "bucket", "then", "object/"),
+          new TestCase("gs://bucket/then/object/", "bucket", "then/", "object/"),
+          new TestCase("gs://bucket/then/object//", "bucket", "then", "object", ""),
+          new TestCase("gs://bucket/then/object//", "bucket", "then", "object/", ""),
+          new TestCase("gs://bucket/", "bucket"));
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGcsPathParsing() throws Exception {
