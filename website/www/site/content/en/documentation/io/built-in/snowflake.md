@@ -156,207 +156,6 @@ Snowflake IO library supports following options that can be passed via the [comm
 
 `--snowPipe` SnowPipe name. Optional.
 
-In the connector code SnowflakePipelineOptions looks following (and it can be [extended](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options)):
-{{< highlight java >}}
-public interface SnowflakePipelineOptions extends PipelineOptions, StreamingOptions {
-  String BASIC_CONNECTION_INFO_VALIDATION_GROUP = "BASIC_CONNECTION_INFO_GROUP";
-  String AUTH_VALIDATION_GROUP = "AUTH_VALIDATION_GROUP";
-
-  @Description(
-      "Snowflake's JDBC-like url including account name and region without any parameters.")
-  @Validation.Required(groups = BASIC_CONNECTION_INFO_VALIDATION_GROUP)
-  String getUrl();
-
-  void setUrl(String url);
-
-  @Description("Server Name - full server name with account, zone and domain.")
-  @Validation.Required(groups = BASIC_CONNECTION_INFO_VALIDATION_GROUP)
-  ValueProvider<String> getServerName();
-
-  void setServerName(ValueProvider<String> serverName);
-
-  @Description("Username. Required for username/password and Private Key authentication.")
-  @Validation.Required(groups = AUTH_VALIDATION_GROUP)
-  ValueProvider<String> getUsername();
-
-  void setUsername(ValueProvider<String> username);
-
-  @Description("OAuth token. Required for OAuth authentication only.")
-  @Validation.Required(groups = AUTH_VALIDATION_GROUP)
-  String getOauthToken();
-
-  void setOauthToken(String oauthToken);
-
-  @Description("Password. Required for username/password authentication only.")
-  @Default.String("")
-  ValueProvider<String> getPassword();
-
-  void setPassword(ValueProvider<String> password);
-
-  @Description("Path to Private Key file. Required for Private Key authentication only.")
-  @Default.String("")
-  String getPrivateKeyPath();
-
-  void setPrivateKeyPath(String privateKeyPath);
-
-  @Description("Private key. Required for Private Key authentication only.")
-  @Default.String("")
-  ValueProvider<String> getRawPrivateKey();
-
-  void setRawPrivateKey(ValueProvider<String> rawPrivateKey);
-
-  @Description("Private Key's passphrase. Required for Private Key authentication only.")
-  @Default.String("")
-  ValueProvider<String> getPrivateKeyPassphrase();
-
-  void setPrivateKeyPassphrase(ValueProvider<String> keyPassphrase);
-
-  @Description("Warehouse to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getWarehouse();
-
-  void setWarehouse(ValueProvider<String> warehouse);
-
-  @Description("Database name to connect to. Optional.")
-  @Default.String("")
-  ValueProvider<String> getDatabase();
-
-  void setDatabase(ValueProvider<String> database);
-
-  @Description("Schema to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getSchema();
-
-  void setSchema(ValueProvider<String> schema);
-
-  @Description("Table to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getTable();
-
-  void setTable(ValueProvider<String> table);
-
-  @Description("Query to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getQuery();
-
-  void setQuery(ValueProvider<String> query);
-
-  @Description("Role to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getRole();
-
-  void setRole(ValueProvider<String> role);
-
-  @Description("Authenticator to use. Optional.")
-  @Default.String("")
-  String getAuthenticator();
-
-  void setAuthenticator(String authenticator);
-
-  @Description("Port number. Optional.")
-  @Default.String("")
-  String getPortNumber();
-
-  void setPortNumber(String portNumber);
-
-  @Description("Login timeout. Optional.")
-  @Default.String("")
-  String getLoginTimeout();
-
-  void setLoginTimeout(String loginTimeout);
-
-  @Description("Temporary GCS bucket name.")
-  ValueProvider<String> getStagingBucketName();
-
-  void setStagingBucketName(ValueProvider<String> stagingBucketName);
-
-  @Description("Storage integration name")
-  ValueProvider<String> getStorageIntegrationName();
-
-  void setStorageIntegrationName(ValueProvider<String> storageIntegrationName);
-
-  @Description("SnowPipe name. Optional.")
-  ValueProvider<String> getSnowPipe();
-
-  void setSnowPipe(ValueProvider<String> snowPipe);
-}
-{{< /highlight >}}
-### Using Pipeline options
-To use Pipeline options, you must configure them as follows:
-
-{{< highlight java>}}
-SnowflakePipelineOptions options = PipelineOptionsFactory
-    .fromArgs(args)
-    .withValidation()
-    .as(SnowflakePipelineOptions.class);
-{{< /highlight >}}
-
-All the below parameters are required:
-- `.fromArgs()`
-  - GNU style command line arguments, 
-  - Example: `--project=myproject --database=test`
-- `.withValidation()`
-  - which validates that PipelineOptions confirms all criteria from the passed in interface
-- `.as()`
-  - a class of used pipeline options
-  - Example: `.as(SnowflakePipelineOptions.class)`
-
-Then create your pipeline using created options:
-
-{{< highlight java >}}
-Pipeline pipeline = Pipeline.create(options);
-{{< /highlight >}}
-
-Example of accessing pipeline options in code:
-
-{{< highlight java >}}
-String stagingBucketName = options.getStagingBucketName();
-{{< /highlight >}}
-
-Pipelines in tests:
-{{< highlight java >}}
-PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline
-                .testingPipelineOptions()                                  
-                .as(SnowflakePipelineOptions.class);
-{{< /highlight >}}
-
-Then use them in pipeline run:
-{{< highlight java >}}
-PipelineResult pipelineResult = pipeline.run(options);
-{{< /highlight >}}
-
-### Extending pipeline options
-Extend the SnowflakePipelineOptions with your own custom options to access additional parameters in your code.
-
-Example of extending the Pipeline options:
-{{< highlight java >}}
-public interface BatchTestPipelineOptions extends SnowflakePipelineOptions {
-  @Description("Table name to connect to.")
-  String getTable();
-
-  void setTable(String table);
-}
-{{< /highlight >}}
-
-The following example shows how to insert the custom options:
-{{< highlight java >}}
-ExampleSnowflakePipelineOptions options = PipelineOptionsFactory
-.fromArgs(args)
-.withValidation()
-.as(ExampleSnowflakePipelineOptions.class);
-
-options.getTable();
-{{< /highlight >}}
-
-And in case of testing:
-{{< highlight java >}}
-PipelineOptionsFactory.register(ExampleSnowflakePipelineOptions.class);
-    options = TestPipeline
-    .testingPipelineOptions()
-                .as(ExampleSnowflakePipelineOptions.class);
-{{< /highlight >}}
-
 ### Running main command with Pipeline options
 To pass Pipeline options via the command line, use `--args` in a gradle command as follows:
 
@@ -473,9 +272,9 @@ More pipeline options for Dataflow can be found [here](https://beam.apache.org/r
 
 **Note**: To properly authenticate with Google Cloud, please use [gcloud](https://cloud.google.com/sdk/gcloud/) or follow the [Google Cloud documentation](https://cloud.google.com/docs/authentication/).
 
-**Important**: Please acknowledge [Google Dataflow pricing](Important: Please acknowledge Google Dataflow pricing).
+**Important**: Please acknowledge [Google Dataflow pricing](https://cloud.google.com/dataflow/pricing)
 
-###Running pipeline templates on Dataflow
+### Running pipeline templates on Dataflow
 Google Dataflow is supporting [template](https://cloud.google.com/dataflow/docs/guides/templates/overview) creation which means staging pipelines on Cloud Storage and running them with ability to pass runtime parameters that are only available during pipeline execution.
 
 The process of creating own Dataflow template is following
@@ -574,7 +373,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to tabl
 
 **Optional** for batching:
 - `.withQuotationMark()` 
-  - Default value: ‘ (single quotation mark).
+  - Default value: `‘` (single quotation mark).
   - Accepts String with one character. It will surround all text (String) fields saved to CSV. It should be one of the accepted characters by [Snowflake’s](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) [FIELD_OPTIONALLY_ENCLOSED_BY](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) parameter (double quotation mark, single quotation mark or none).
   - Example: `.withQuotationMark("'")`
 ### Streaming write  (from unbounded source)
@@ -659,7 +458,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to tabl
   - Example: `.withShardNumber(5)`
 
 - `.withQuotationMark()`
-  - Default value: ‘ (single quotation mark).
+  - Default value: `‘` (single quotation mark).
   - Accepts String with one character. It will surround all text (String) fields saved to CSV. It should be one of the accepted characters by [Snowflake’s](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) [FIELD_OPTIONALLY_ENCLOSED_BY](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) parameter (double quotation mark, single quotation mark or none). Example: .withQuotationMark("") (no quotation marks)
 
 - `.withDebugMode()`
@@ -846,26 +645,8 @@ Snowflake cross-language implementation is supporting both reading and writing o
 Currently, cross-language is supporting only [Apache Flink](https://flink.apache.org/) as a runner in a stable manner but plans are to support all runners. For more information about cross-language please see [multi sdk efforts](https://beam.apache.org/roadmap/connectors-multi-sdk/) and [Beam on top of Flink](https://flink.apache.org/ecosystem/2020/02/22/apache-beam-how-beam-runs-on-top-of-flink.html) articles. 
 
 ### Set up 
-Please see [Apache Beam with Flink runner](https://beam.apache.org/documentation/runners/flink/) for a setup. The specific setup for current version of snowflake is following:
+Please see [Apache Beam with Flink runner](https://beam.apache.org/documentation/runners/flink/) for a setup. 
 
-1. Setup a Flink cluster by following the Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html) or [Setting up Apache Flink on Mac OS X](https://streambench.wordpress.com/2017/10/26/setting-up-apache-flink-on-mac-os-x/)
-2. Download Job server image:
-`docker pull gcr.io/snowflake-poli/apachebeam_flink1.10_job_server:snowflake`
-3. Download Apache Beam Java SDK image:
-`docker pull gcr.io/snowflake-poli/apachebeam_java_sdk:2.20.0.dev`
-4. Change tag of downloaded Java SDK image to make the whole setup work:
-{{< highlight >}}
-docker tag gcr.io/snowflake-poli/apachebeam_java_sdk:2.20.0.dev apache/beam_java_sdk:2.20.0.dev
-{{< /highlight >}}
-5. Start Job server:
-{{< highlight >}}
-docker run -p 8099:8099 -p 8098:8098 -p 8097:8097 gcr.io/snowflake-poli/apachebeam_flink1.10_job_server:snowflake
-{{< /highlight >}}
-6. Download [Apache Beam Python SDK](https://storage.cloud.google.com/snowflake_artifacts/apache_beam-2.21.0-py2-none-any.whl?_ga=2.24638847.-471657054.1583857613).
-7. Install python Apache Beam Python SDK using python 2.7:
-`python -m pip install apache_beam-2.21.0-py2-none-any.whl`
-8. Run your job:
-`python script.py`
 ### Reading from Snowflake 
 One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) of user-defined data type.
 #### General usage
@@ -893,7 +674,9 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
            storage_integration_name=<SNOWFLAKE STORAGE INTEGRATION NAME>,
            csv_mapper=<CSV MAPPER FUNCTION>,
            table=<SNOWFALKE TABLE>,
-           query=<<IF NOT TABLE THEN QUERY>>,
+           query=<IF NOT TABLE THEN QUERY>,
+           role=<SNOWFLAKE ROLE>,
+           warehouse=<SNOWFLAKE WAREHOUSE>,
            expansion_service=<EXPANSION SERVICE ADDRESS>))
 {{< /highlight >}}
 
@@ -929,6 +712,11 @@ It’s required to pass one of the following combinations of valid parameters fo
 
 - `o_auth_token` Specifies access token for OAuth authentication method.
 
+#### Additional parameters
+- `role`: specifies Snowflake role. If not specified then the user's default will be used.
+
+- `warehouse`: specifies Snowflake warehouse name. If not specified then the user's default will be used.
+
 ### Writing to Snowflake 
 One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) to your Snowflake database.
 #### General usage
@@ -960,7 +748,9 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
            table_schema=<SNOWFLAKE TABLE SCHEMA>,
            user_data_mapper=<USER DATA MAPPER FUNCTION>,
            table=<SNOWFALKE TABLE>,
-           query=<<IF NOT TABLE THEN QUERY>>,
+           query=<IF NOT TABLE THEN QUERY>,
+           role=<SNOWFLAKE ROLE>,
+           warehouse=<SNOWFLAKE WAREHOUSE>,
            expansion_service=<EXPANSION SERVICE ADDRESS>))
 {{< /highlight >}}
 #### Required parameters
@@ -982,7 +772,7 @@ def user_data_mapper(user):
     return [user.name, str(user.age)]
 {{< /highlight >}}
 
--`table or query` Specifies a Snowflake table name or custom SQL query
+- `table or query` Specifies a Snowflake table name or custom SQL query
 
 - `expansion_service` Specifies URL of expansion service.
 
@@ -998,6 +788,10 @@ It’s required to pass one of the following combination of valid parameters for
 - `o_auth_token` Specifies access token for OAuth authentication method.
 
 #### Additional parameters
+- `role`: specifies Snowflake role. If not specified then the user's default will be used.
+
+- `warehouse`: specifies Snowflake warehouse name. If not specified then the user's default will be used.
+
 - `create_disposition` Defines the behaviour of the write operation if the target table does not exist. The following values are supported:
   - CREATE_IF_NEEDED - default behaviour. The write operation checks whether the specified target table exists; if it does not, the write operation attempts to create the table Specify the schema for the target table using the table_schema parameter.
   - CREATE_NEVER -  The write operation fails if the target table does not exist.
@@ -1018,7 +812,6 @@ It’s required to pass one of the following combination of valid parameters for
         ...
   ]}
 {{< /highlight >}}
-
 All supported data types:
 {{< highlight >}}
 {"dataType":{"type":"date"},"name":"","nullable":false},
