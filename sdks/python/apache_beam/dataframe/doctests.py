@@ -44,11 +44,14 @@ from __future__ import print_function
 import collections
 import contextlib
 import doctest
+import os
 import re
+import sys
 import traceback
 from typing import Any
 from typing import Dict
 from typing import List
+from io import StringIO
 
 import numpy as np
 import pandas as pd
@@ -372,7 +375,105 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
     print()
 
 
-def teststring(text, report=True, **runner_kwargs):
+def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
+  """Extracts examples from an rst file and produce a test suite by running
+  them through pandas to get the expected outputs.
+  """
+
+  # Optional dependency.
+  import IPython
+  from traitlets.config import Config
+
+  def get_indent(line):
+    return len(line) - len(line.lstrip())
+
+  def is_example_line(line):
+    line = line.strip()
+    return line and not line.startswith('#') and not line[0] == line[-1] == ':'
+
+  IMPORT_PANDAS = 'import pandas as pd'
+
+  example_srcs = []
+  lines = iter(
+      [line.rstrip()
+       for line in rst.split('\n') if is_example_line(line)] + ['END'])
+
+  # https://ipython.readthedocs.io/en/stable/sphinxext.html
+  for line in lines:
+    if line.startswith('.. ipython::'):
+      line = next(lines)
+      indent = get_indent(line)
+      example = []
+      example_srcs.append(example)
+      while get_indent(line) >= indent:
+        if '@verbatim' in line or '@savefig' in line:
+          example_srcs.pop()
+          break
+        example.append(line[indent:])
+        line = next(lines)
+        if get_indent(line) == indent:
+          example = []
+          example_srcs.append(example)
+
+  # TODO(robertwb): Would it be better to try and detect/compare the actual
+  # objects in two parallel sessions than make (stringified) doctests?
+  examples = []
+
+  config = Config()
+  config.HistoryManager.hist_file = ':memory:'
+  config.InteractiveShell.autocall = False
+  config.InteractiveShell.autoindent = False
+  config.InteractiveShell.colors = 'NoColor'
+
+  set_pandas_options()
+  IP = IPython.InteractiveShell.instance(config=config)
+  IP.run_cell(IMPORT_PANDAS + '\n')
+  try:
+    stdout = sys.stdout
+    for src in example_srcs:
+      sys.stdout = cout = StringIO()
+      src = '\n'.join(src)
+      if src == IMPORT_PANDAS:
+        continue
+      IP.run_cell(src + '\n')
+      output = cout.getvalue()
+      if output:
+        # Strip the prompt.
+        # TODO(robertwb): Figure out how to suppress this.
+        output = re.sub(r'^Out\[\d+\]:\s*', '', output)
+      examples.append(doctest.Example(src, output))
+
+  finally:
+    sys.stdout = stdout
+
+  return doctest.DocTest(
+      examples, dict(extraglobs or {}), name, name, None, None)
+
+
+def test_rst_ipython(
+    rst, name, report=False, wont_implement_ok=[], skip=[], **kwargs):
+  """Extracts examples from an rst file and run them through pandas to get the
+  expected output, and then compare them against our dataframe implementation.
+  """
+  def run_tests(extraglobs, optionflags, **kwargs):
+    # The patched one.
+    tests = parse_rst_ipython_tests(rst, name, extraglobs, optionflags)
+    runner = doctest.DocTestRunner(optionflags=optionflags)
+    set_pandas_options()
+    result = runner.run(tests, **kwargs)
+    if report:
+      runner.summarize()
+    return result
+
+  result = _run_patched(
+      run_tests,
+      wont_implement_ok={name: wont_implement_ok},
+      skip={name: skip},
+      **kwargs)
+  return result
+
+
+def teststring(text, report=False, **runner_kwargs):
   optionflags = runner_kwargs.pop('optionflags', 0)
   optionflags |= (
       doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
@@ -407,25 +508,30 @@ def testmod(*args, **kwargs):
   return _run_patched(doctest.testmod, *args, **kwargs)
 
 
+def set_pandas_options():
+  # See
+  # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
+  np.random.seed(123456)
+  np.set_printoptions(precision=4, suppress=True)
+  pd.options.display.max_rows = 15
+
+
 def _run_patched(func, *args, **kwargs):
+  set_pandas_options()
+
+  # https://github.com/pandas-dev/pandas/blob/1.0.x/setup.cfg#L63
+  optionflags = kwargs.pop('optionflags', 0)
+  optionflags |= (
+      doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
+
+  env = TestEnvironment()
+  use_beam = kwargs.pop('use_beam', True)
+  skip = kwargs.pop('skip', {})
+  wont_implement_ok = kwargs.pop('wont_implement_ok', {})
+  extraglobs = dict(kwargs.pop('extraglobs', {}))
+  extraglobs['pd'] = env.fake_pandas_module()
+
   try:
-    # See
-    # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
-    np.random.seed(123456)
-    np.set_printoptions(precision=4, suppress=True)
-    pd.options.display.max_rows = 15
-
-    # https://github.com/pandas-dev/pandas/blob/1.0.x/setup.cfg#L63
-    optionflags = kwargs.pop('optionflags', 0)
-    optionflags |= (
-        doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
-
-    env = TestEnvironment()
-    use_beam = kwargs.pop('use_beam', True)
-    skip = kwargs.pop('skip', {})
-    wont_implement_ok = kwargs.pop('wont_implement_ok', {})
-    extraglobs = dict(kwargs.pop('extraglobs', {}))
-    extraglobs['pd'] = env.fake_pandas_module()
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
