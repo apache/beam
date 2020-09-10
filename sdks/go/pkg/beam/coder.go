@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type jsonCoder interface {
@@ -36,10 +37,12 @@ type jsonCoder interface {
 }
 
 var protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+var protoReflectMessageType = reflect.TypeOf((*protoreflect.ProtoMessage)(nil)).Elem()
 var jsonCoderType = reflect.TypeOf((*jsonCoder)(nil)).Elem()
 
 func init() {
 	coder.RegisterCoder(protoMessageType, protoEnc, protoDec)
+	coder.RegisterCoder(protoReflectMessageType, protoEnc, protoDec)
 }
 
 // Coder defines how to encode and decode values of type 'A' into byte streams.
