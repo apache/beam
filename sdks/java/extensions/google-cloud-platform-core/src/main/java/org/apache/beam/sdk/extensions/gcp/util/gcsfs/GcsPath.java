@@ -41,29 +41,37 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Implements the Java NIO {@link Path} API for Google Cloud Storage paths.
  *
- * <p>GcsPath uses a slash ('/') as a directory separator. Below is a summary of how slashes are
- * treated:
+ * <p>
+ * GcsPath uses a slash ('/') as a directory separator. Below is a summary of
+ * how slashes are treated:
  *
  * <ul>
- *   <li>A GCS bucket may not contain a slash. An object may contain zero or more slashes.
- *   <li>A trailing slash always indicates a directory, which is compliant with POSIX.1-2008.
- *   <li>Slashes separate components of a path. Empty components are allowed, these are represented
- *       as repeated slashes. An empty component always refers to a directory, and always ends in a
- *       slash.
- *   <li>{@link #getParent()}} always returns a path ending in a slash, as the parent of a GcsPath
- *       is always a directory.
- *   <li>Use {@link #resolve(String)} to append elements to a GcsPath -- this applies the rules
- *       consistently and is highly recommended over any custom string concatenation.
+ * <li>A GCS bucket may not contain a slash. An object may contain zero or more
+ * slashes.
+ * <li>A trailing slash always indicates a directory, which is compliant with
+ * POSIX.1-2008.
+ * <li>Slashes separate components of a path. Empty components are allowed,
+ * these are represented as repeated slashes. An empty component always refers
+ * to a directory, and always ends in a slash.
+ * <li>{@link #getParent()}} always returns a path ending in a slash, as the
+ * parent of a GcsPath is always a directory.
+ * <li>Use {@link #resolve(String)} to append elements to a GcsPath -- this
+ * applies the rules consistently and is highly recommended over any custom
+ * string concatenation.
  * </ul>
  *
- * <p>GcsPath treats all GCS objects and buckets as belonging to the same filesystem, so the root of
- * a GcsPath is the GcsPath bucket="", object="".
+ * <p>
+ * GcsPath treats all GCS objects and buckets as belonging to the same
+ * filesystem, so the root of a GcsPath is the GcsPath bucket="", object="".
  *
- * <p>Relative paths are not associated with any bucket. This matches common treatment of Path in
- * which relative paths can be constructed from one filesystem and appended to another filesystem.
+ * <p>
+ * Relative paths are not associated with any bucket. This matches common
+ * treatment of Path in which relative paths can be constructed from one
+ * filesystem and appended to another filesystem.
  *
- * @see <a href= "http://docs.oracle.com/javase/tutorial/essential/io/pathOps.html" >Java Tutorials:
- *     Path Operations</a>
+ * @see <a href=
+ *      "http://docs.oracle.com/javase/tutorial/essential/io/pathOps.html" >Java
+ *      Tutorials: Path Operations</a>
  */
 public class GcsPath implements Path, Serializable {
 
@@ -72,26 +80,17 @@ public class GcsPath implements Path, Serializable {
   /**
    * Creates a GcsPath from a URI.
    *
-   * <p>The URI must be in the form {@code gs://[bucket]/[path]}, and may not contain a port, user
-   * info, a query, or a fragment.
+   * <p>
+   * The URI must be in the form {@code gs://[bucket]/[path]}, and may not contain
+   * a port, user info, a query, or a fragment.
    */
   public static GcsPath fromUri(URI uri) {
     checkArgument(uri.getScheme().equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
     checkArgument(uri.getPort() == -1, "GCS URI may not specify port: %s (%i)", uri, uri.getPort());
-    checkArgument(
-        isNullOrEmpty(uri.getUserInfo()),
-        "GCS URI may not specify userInfo: %s (%s)",
-        uri,
+    checkArgument(isNullOrEmpty(uri.getUserInfo()), "GCS URI may not specify userInfo: %s (%s)", uri,
         uri.getUserInfo());
-    checkArgument(
-        isNullOrEmpty(uri.getQuery()),
-        "GCS URI may not specify query: %s (%s)",
-        uri,
-        uri.getQuery());
-    checkArgument(
-        isNullOrEmpty(uri.getFragment()),
-        "GCS URI may not specify fragment: %s (%s)",
-        uri,
+    checkArgument(isNullOrEmpty(uri.getQuery()), "GCS URI may not specify query: %s (%s)", uri, uri.getQuery());
+    checkArgument(isNullOrEmpty(uri.getFragment()), "GCS URI may not specify fragment: %s (%s)", uri,
         uri.getFragment());
 
     return fromUri(uri.toString());
@@ -100,28 +99,29 @@ public class GcsPath implements Path, Serializable {
   /**
    * Pattern that is used to parse a GCS URL.
    *
-   * <p>This is used to separate the components. Verification is handled separately.
+   * <p>
+   * This is used to separate the components. Verification is handled separately.
    */
-  public static final Pattern GCS_URI =
-      Pattern.compile("(?<SCHEME>[^:]+)://(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
+  public static final Pattern GCS_URI = Pattern.compile("^([^:]+)://([^/#]+)(?:/?(.*?))(?:#([0-9]*))?$");
 
   /**
    * Creates a GcsPath from a URI in string form.
    *
-   * <p>This does not use URI parsing, which means it may accept patterns that the URI parser would
-   * not accept.
+   * <p>
+   * This does not use URI parsing, which means it may accept patterns that the
+   * URI parser would not accept.
    */
   public static GcsPath fromUri(String uri) {
     Matcher m = GCS_URI.matcher(uri);
     checkArgument(m.matches(), "Invalid GCS URI: %s", uri);
 
-    checkArgument(m.group("SCHEME").equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
-    return new GcsPath(null, m.group("BUCKET"), m.group("OBJECT"));
+    checkArgument(m.group(1).equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
+    return new GcsPath(null, m.group(2), m.group(3), m.group(4));
   }
 
   /** Pattern that is used to parse a GCS resource name. */
-  private static final Pattern GCS_RESOURCE_NAME =
-      Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
+  private static final Pattern GCS_RESOURCE_NAME = Pattern
+      .compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
 
   /** Creates a GcsPath from a OnePlatform resource name in string form. */
   public static GcsPath fromResourceName(String name) {
@@ -133,69 +133,82 @@ public class GcsPath implements Path, Serializable {
 
   /** Creates a GcsPath from a {@linkplain StorageObject}. */
   public static GcsPath fromObject(StorageObject object) {
-    return new GcsPath(null, object.getBucket(), object.getName());
+    return new GcsPath(null, object.getBucket(), object.getName(),
+        object.getGeneration() == null ? null : object.getGeneration().toString());
   }
 
   /**
    * Creates a GcsPath from bucket and object components.
    *
-   * <p>A GcsPath without a bucket name is treated as a relative path, which is a path component
-   * with no linkage to the root element. This is similar to a Unix path that does not begin with
-   * the root marker (a slash). GCS has different naming constraints and APIs for working with
-   * buckets and objects, so these two concepts are kept separate to avoid accidental attempts to
-   * treat objects as buckets, or vice versa, as much as possible.
+   * <p>
+   * A GcsPath without a bucket name is treated as a relative path, which is a
+   * path component with no linkage to the root element. This is similar to a Unix
+   * path that does not begin with the root marker (a slash). GCS has different
+   * naming constraints and APIs for working with buckets and objects, so these
+   * two concepts are kept separate to avoid accidental attempts to treat objects
+   * as buckets, or vice versa, as much as possible.
    *
-   * <p>A GcsPath without an object name is a bucket reference. A bucket is always a directory,
-   * which could be used to lookup or add files to a bucket, but could not be opened as a file.
+   * <p>
+   * A GcsPath without an object name is a bucket reference. A bucket is always a
+   * directory, which could be used to lookup or add files to a bucket, but could
+   * not be opened as a file.
    *
-   * <p>A GcsPath containing neither bucket or object names is treated as the root of the GCS
-   * filesystem. A listing on the root element would return the buckets available to the user.
+   * <p>
+   * A GcsPath containing neither bucket or object names is treated as the root of
+   * the GCS filesystem. A listing on the root element would return the buckets
+   * available to the user.
    *
-   * <p>If {@code null} is passed as either parameter, it is converted to an empty string internally
-   * for consistency. There is no distinction between an empty string and a {@code null}, as neither
-   * are allowed by GCS.
+   * <p>
+   * If {@code null} is passed as either parameter, it is converted to an empty
+   * string internally for consistency. There is no distinction between an empty
+   * string and a {@code null}, as neither are allowed by GCS.
    *
-   * @param bucket a GCS bucket name, or none ({@code null} or an empty string) if the object is not
-   *     associated with a bucket (e.g. relative paths or the root node).
-   * @param object a GCS object path, or none ({@code null} or an empty string) for no object.
+   * @param bucket a GCS bucket name, or none ({@code null} or an empty string) if
+   *               the object is not associated with a bucket (e.g. relative paths
+   *               or the root node).
+   * @param object a GCS object path, or none ({@code null} or an empty string)
+   *               for no object.
    */
   public static GcsPath fromComponents(@Nullable String bucket, @Nullable String object) {
     return new GcsPath(null, bucket, object);
   }
 
   private transient @Nullable FileSystem fs;
-  @Nonnull private final String bucket;
-  @Nonnull private final String object;
+  @Nonnull
+  private final String bucket;
+  @Nonnull
+  private final String object;
+  @Nullable
+  private Long generation;
 
   /**
    * Constructs a GcsPath.
    *
-   * @param fs the associated FileSystem, if any
-   * @param bucket the associated bucket, or none ({@code null} or an empty string) for a relative
-   *     path component
-   * @param object the object, which is a fully-qualified object name if bucket was also provided,
-   *     or none ({@code null} or an empty string) for no object
-   * @throws java.lang.IllegalArgumentException if the bucket of object names are invalid.
+   * @param fs     the associated FileSystem, if any
+   * @param bucket the associated bucket, or none ({@code null} or an empty
+   *               string) for a relative path component
+   * @param object the object, which is a fully-qualified object name if bucket
+   *               was also provided, or none ({@code null} or an empty string)
+   *               for no object
+   * @throws java.lang.IllegalArgumentException if the bucket of object names are
+   *                                            invalid.
    */
   public GcsPath(@Nullable FileSystem fs, @Nullable String bucket, @Nullable String object) {
     if (bucket == null) {
       bucket = "";
     }
     checkArgument(!bucket.contains("/"), "GCS bucket may not contain a slash");
-    checkArgument(
-        bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
+    checkArgument(bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
         "GCS bucket names must contain only lowercase letters, numbers, "
             + "dashes (-), underscores (_), and dots (.). Bucket names "
             + "must start and end with a number or letter. "
-            + "See https://developers.google.com/storage/docs/bucketnaming "
-            + "for more details.  Bucket name: "
+            + "See https://developers.google.com/storage/docs/bucketnaming " + "for more details.  Bucket name: "
             + bucket);
 
     if (object == null) {
       object = "";
     }
-    checkArgument(
-        object.indexOf('\n') < 0 && object.indexOf('\r') < 0,
+    checkArgument(object.indexOf('\n') < 0 && object.indexOf('\r') < 0,
         "GCS object names must not contain Carriage Return or " + "Line Feed characters.");
 
     this.fs = fs;
@@ -203,17 +216,27 @@ public class GcsPath implements Path, Serializable {
     this.object = object;
   }
 
+  public GcsPath(@Nullable FileSystem fs, @Nullable String bucket, @Nullable String object,
+      @Nullable String generationString) {
+    this(fs, bucket, object);
+    if (generationString != null && !generationString.isEmpty()) {
+      checkArgument(generationString.chars().allMatch(Character::isDigit),
+          "GCS URI must specify only digits for a generation: (%s)", generationString);
+      this.generation = Long.parseLong(generationString);
+    }
+  }
+
   /**
-   * Returns the bucket name associated with this GCS path, or an empty string if this is a relative
-   * path component.
+   * Returns the bucket name associated with this GCS path, or an empty string if
+   * this is a relative path component.
    */
   public String getBucket() {
     return bucket;
   }
 
   /**
-   * Returns the object name associated with this GCS path, or an empty string if no object is
-   * specified.
+   * Returns the object name associated with this GCS path, or an empty string if
+   * no object is specified.
    */
   public String getObject() {
     return object;
@@ -226,6 +249,14 @@ public class GcsPath implements Path, Serializable {
   @Override
   public FileSystem getFileSystem() {
     return fs;
+  }
+
+  public Long getGeneration() {
+    return generation;
+  }
+
+  public boolean hasGeneration() {
+    return generation != null && generation != -1L;
   }
 
   // Absolute paths are those that have a bucket and the root path.
@@ -243,16 +274,18 @@ public class GcsPath implements Path, Serializable {
   public GcsPath getFileName() {
     int nameCount = getNameCount();
     if (nameCount < 2) {
-      throw new UnsupportedOperationException(
-          "Can't get filename from root path in the bucket: " + this);
+      throw new UnsupportedOperationException("Can't get filename from root path in the bucket: " + this);
     }
     return getName(nameCount - 1);
   }
 
   /**
-   * Returns the <em>parent path</em>, or {@code null} if this path does not have a parent.
+   * Returns the <em>parent path</em>, or {@code null} if this path does not have
+   * a parent.
    *
-   * <p>Returns a path that ends in '/', as the parent path always refers to a directory.
+   * <p>
+   * Returns a path that ends in '/', as the parent path always refers to a
+   * directory.
    */
   @Override
   public GcsPath getParent() {
@@ -447,8 +480,7 @@ public class GcsPath implements Path, Serializable {
   }
 
   @Override
-  public WatchKey register(
-      WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers)
+  public WatchKey register(WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers)
       throws IOException {
     throw new UnsupportedOperationException();
   }
@@ -518,7 +550,7 @@ public class GcsPath implements Path, Serializable {
     }
 
     // Compare a component at a time, so that the separator char doesn't
-    // get compared against component contents.  Eg, "a/b" < "a-1/b".
+    // get compared against component contents. Eg, "a/b" < "a-1/b".
     Iterator<Path> left = iterator();
     Iterator<Path> right = path.iterator();
 

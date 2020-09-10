@@ -60,19 +60,19 @@ public class GcsPathTest {
 
   // Each test case is an expected URL, then the components used to build it.
   // Empty components result in a double slash.
-  static final List<TestCase> PATH_TEST_CASES =
-      Arrays.asList(
-          new TestCase("gs://bucket/then/object", "bucket", "then", "object"),
-          new TestCase("gs://bucket//then/object", "bucket", "", "then", "object"),
-          new TestCase("gs://bucket/then//object", "bucket", "then", "", "object"),
-          new TestCase("gs://bucket/then///object", "bucket", "then", "", "", "object"),
-          new TestCase("gs://bucket/then/object/", "bucket", "then", "object/"),
-          new TestCase("gs://bucket/then/object/", "bucket", "then/", "object/"),
-          new TestCase("gs://bucket/then/object//", "bucket", "then", "object", ""),
-          new TestCase("gs://bucket/then/object//", "bucket", "then", "object/", ""),
-          new TestCase("gs://bucket/", "bucket"));
+  static final List<TestCase> PATH_TEST_CASES = Arrays.asList(
+      new TestCase("gs://bucket/then/object", "bucket", "then", "object"),
+      new TestCase("gs://bucket//then/object", "bucket", "", "then", "object"),
+      new TestCase("gs://bucket/then//object", "bucket", "then", "", "object"),
+      new TestCase("gs://bucket/then///object", "bucket", "then", "", "", "object"),
+      new TestCase("gs://bucket/then/object/", "bucket", "then", "object/"),
+      new TestCase("gs://bucket/then/object/", "bucket", "then/", "object/"),
+      new TestCase("gs://bucket/then/object//", "bucket", "then", "object", ""),
+      new TestCase("gs://bucket/then/object//", "bucket", "then", "object/", ""),
+      new TestCase("gs://bucket/", "bucket"));
 
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGcsPathParsing() throws Exception {
@@ -176,6 +176,39 @@ public class GcsPathTest {
   }
 
   @Test
+  public void testGcsPath_withGeneration() {
+    String filename = "gs://some_bucket/some/file.txt#12345";
+    String actualFilename = "gs://some_bucket/some/file.txt";
+    GcsPath path = GcsPath.fromUri(filename);
+    assertEquals(Long.valueOf(12345), path.getGeneration());
+    assertEquals(path.toString(), actualFilename);
+  }
+
+  @Test
+  public void testGcsPath_withoutGeneration_generationNull() {
+    String filename = "gs://some_bucket/some/file.txt";
+    GcsPath path = GcsPath.fromUri(filename);
+    assertNull(path.getGeneration());
+  }
+
+  @Test
+  public void testGcsPath_withPoundSignInObjectName() {
+    String filename = "gs://some_bucket/some/directory #55/file.txt";
+    GcsPath path = GcsPath.fromUri(filename);
+    assertNull(path.getGeneration());
+    assertEquals(path.toString(), filename);
+  }
+
+  @Test
+  public void testGcsPath_withPoundSignInObjectName_withGeneration() {
+    String filename = "gs://some_bucket/some/directory #55/file.txt#12345";
+    String actualFilename = "gs://some_bucket/some/directory #55/file.txt";
+    GcsPath path = GcsPath.fromUri(filename);
+    assertEquals(Long.valueOf(12345), path.getGeneration());
+    assertEquals(path.toString(), actualFilename);
+  }
+
+  @Test
   public void testEquals() {
     GcsPath a = GcsPath.fromComponents(null, "a/b/c");
     GcsPath a2 = GcsPath.fromComponents(null, "a/b/c");
@@ -245,11 +278,8 @@ public class GcsPathTest {
 
   @Test
   public void testResolveSibling() {
-    assertEquals(
-        "gs://bucket/bar/moo",
-        GcsPath.fromUri("gs://bucket/bar/foo").resolveSibling("moo").toString());
-    assertEquals(
-        "gs://bucket/moo", GcsPath.fromUri("gs://bucket/foo").resolveSibling("moo").toString());
+    assertEquals("gs://bucket/bar/moo", GcsPath.fromUri("gs://bucket/bar/foo").resolveSibling("moo").toString());
+    assertEquals("gs://bucket/moo", GcsPath.fromUri("gs://bucket/foo").resolveSibling("moo").toString());
     thrown.expect(UnsupportedOperationException.class);
     GcsPath.fromUri("gs://bucket/").resolveSibling("moo");
   }
