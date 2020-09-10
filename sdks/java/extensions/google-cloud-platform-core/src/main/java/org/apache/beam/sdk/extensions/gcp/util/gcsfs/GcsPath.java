@@ -102,7 +102,8 @@ public class GcsPath implements Path, Serializable {
    *
    * <p>This is used to separate the components. Verification is handled separately.
    */
-  public static final Pattern GCS_URI = Pattern.compile("^([^:]+)://([^/#]+)(?:/?(.*?))(?:#([0-9]*))?$");
+  public static final Pattern GCS_URI =
+      Pattern.compile("^([^:]+)://([^/#]+)(?:/?(.*?))(?:#([0-9]*))?$");
 
   /**
    * Creates a GcsPath from a URI in string form.
@@ -132,7 +133,10 @@ public class GcsPath implements Path, Serializable {
 
   /** Creates a GcsPath from a {@linkplain StorageObject}. */
   public static GcsPath fromObject(StorageObject object) {
-    return new GcsPath(null, object.getBucket(), object.getName(),
+    return new GcsPath(
+        null,
+        object.getBucket(),
+        object.getName(),
         object.getGeneration() == null ? null : object.getGeneration().toString());
   }
 
@@ -204,12 +208,17 @@ public class GcsPath implements Path, Serializable {
     this.object = object;
   }
 
-  public GcsPath(@Nullable FileSystem fs, @Nullable String bucket, @Nullable String object,
+  public GcsPath(
+      @Nullable FileSystem fs,
+      @Nullable String bucket,
+      @Nullable String object,
       @Nullable String generationString) {
     this(fs, bucket, object);
     if (generationString != null && !generationString.isEmpty()) {
-      checkArgument(generationString.chars().allMatch(Character::isDigit),
-          "GCS URI must specify only digits for a generation: (%s)", generationString);
+      checkArgument(
+          generationString.chars().allMatch(Character::isDigit),
+          "GCS URI must specify only digits for a generation: (%s)",
+          generationString);
       this.generation = Long.parseLong(generationString);
     }
   }
