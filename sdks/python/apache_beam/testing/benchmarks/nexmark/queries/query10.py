@@ -55,7 +55,6 @@ def open_writable_gcs_file(options, filename):
 
 
 def output_file_for(window, shard, pane):
-  # type: (window.BoundedWindow, str, beam.DoFn.PaneInfoParam) -> OutputFile
   filename = '%s/LOG-%s-%s-%03d-%s' % (
       output_path, window.max_timestamp(), shard, pane.index,
       pane.timing) if output_path else None
@@ -64,7 +63,6 @@ def output_file_for(window, shard, pane):
 
 
 def index_path_for(window):
-  # type: (window.BoundedWindow) -> [str, None]
   if output_path:
     return '%s/INDEX-%s' % (output_path, window.max_timestamp())
   else:
