@@ -55,6 +55,10 @@ func TestExtractor(t *testing.T) {
 			expected: []string{"runtime.RegisterFunction(included)", "runtime.RegisterFunction(users)", "funcMakerMapOfString_IntᏘIntГArrayOf4ᏘInt", "runtime.RegisterType(reflect.TypeOf((*myInterface)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*myType)(nil)).Elem())"},
 			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*typex.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())"},
 		},
+		{name: "newtypes2", files: []string{newtypes2}, pkg: "newtypes2",
+			expected: []string{"runtime.RegisterFunction(included)", "runtime.RegisterFunction(users)", "funcMakerMapOfString_IntᏘIntГSliceOfᏘInt", "runtime.RegisterType(reflect.TypeOf((*myInterface)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*myType)(nil)).Elem())"},
+			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*typex.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())"},
+		},
 		{name: "imports1", files: []string{imports}, pkg: "imports", imports: []string{"math/rand", "time"},
 			expected: []string{"runtime.RegisterFunction(MyImportedTypesDoFn)", "runtime.RegisterType(reflect.TypeOf((*rand.Rand)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*time.Time)(nil)).Elem())", "funcMakerᏘRand۰RandГTime۰Time", "\"math/rand\"", "\"time\""},
 		},
@@ -174,6 +178,20 @@ type myType struct{}
 type myInterface interface{}
 
 func users(k *myType, v [2]myInterface) {
+}
+`
+
+const newtypes2 = `
+package newtypes2
+
+func included(k map[string]int, v *int) []*int {
+	return []*int{}
+}
+
+type myType struct{}
+type myInterface interface{}
+
+func users(k *myType, v []myInterface) {
 }
 `
 

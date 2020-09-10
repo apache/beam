@@ -136,7 +136,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_ParDo_Dataflow_Batch',
-    'Run Python Load Tests ParDo Dataflow Batch',
+    'Run Load Tests Python ParDo Dataflow Batch',
     'Load Tests Python ParDo Dataflow Batch suite',
     this
     ) {
