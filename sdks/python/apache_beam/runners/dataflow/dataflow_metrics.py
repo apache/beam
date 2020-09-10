@@ -210,6 +210,14 @@ class DataflowMetrics(MetricResults):
       dist_sum = _get_match(
           metric.distribution.object_value.properties,
           lambda x: x.key == 'sum').value.integer_value
+      if not dist_sum:
+        # distribution metric is not meant to use on large values, but in case
+        # it is, the value can overflow and become double_value, the correctness
+        # of the value may not be guaranteed.
+        dist_sum = int(
+            _get_match(
+                metric.distribution.object_value.properties,
+                lambda x: x.key == 'sum').value.double_value)
       return DistributionResult(
           DistributionData(dist_sum, dist_count, dist_min, dist_max))
     else:
