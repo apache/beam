@@ -146,7 +146,6 @@ dependencies {
   compile "org.apache.flink:flink-metrics-core:$flink_version"
   compile "org.apache.flink:flink-java:$flink_version"
   compile "org.apache.flink:flink-runtime_2.11:$flink_version"
-  compile("com.lyft:streamingplatform-events-source:2.1-dryft-SNAPSHOT")
   compile "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   // RocksDB state backend (included in the Flink distribution)
   provided "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
@@ -180,8 +179,17 @@ dependencies {
   //LYFT CUSTOM
   // Required for embedded fn execution
   runtimeOnly project(":sdks:java:harness")
-  if (flink_version.startsWith('1.10')) {
+  if (flink_version.startsWith('1.11')) {
+    compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.11-lyft20200811"
+    compile("com.lyft:streamingplatform-events-source:2.2-SNAPSHOT")
+    compile "com.lyft:streamingplatform-kinesis:2.2-SNAPSHOT"
+    compile("com.lyft:streamingplatform-kafka:2.2-SNAPSHOT") {
+      exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
+      exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
+    }
+  } else if (flink_version.startsWith('1.10')) {
       compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.10-lyft20200508"
+      compile("com.lyft:streamingplatform-events-source:2.1-dryft-SNAPSHOT")
       compile "com.lyft:streamingplatform-kinesis:2.1-SNAPSHOT"
       compile("com.lyft:streamingplatform-kafka:2.1-SNAPSHOT") {
         exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
