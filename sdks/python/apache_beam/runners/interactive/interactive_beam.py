@@ -267,22 +267,23 @@ def show(*pcolls, **configs):
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
 
+  Args:
+    include_window_info: (optional) if True, windowing information of the
+        data will be visualized too. Default is false.
+    visualize_data: (optional) by default, the visualization contains data
+        tables rendering data from given pcolls separately as if they are
+        converted into dataframes. If visualize_data is True, there will be a
+        more dive-in widget and statistically overview widget of the data.
+        Otherwise, those 2 data visualization widgets will not be displayed.
+    n: (optional) max number of elements to visualize. Default 'inf'.
+    duration: (optional) max duration of elements to read. Default 'inf'.
+
   The given pcolls can be dictionary of PCollections (as values), or iterable
   of PCollections or plain PCollection values.
 
   The user can specify either the max number of elements with `n` to read
   or the maximum duration of elements to read with `duration`. When a limiter is
   not supplied, it is assumed to be infinite.
-
-  There are 2 boolean configurations:
-
-    #. include_window_info=<True/False>. If True, windowing information of the
-       data will be visualized too. Default is false.
-    #. visualize_data=<True/False>. By default, the visualization contains data
-       tables rendering data from given pcolls separately as if they are
-       converted into dataframes. If visualize_data is True, there will be a
-       more dive-in widget and statistically overview widget of the data.
-       Otherwise, those 2 data visualization widgets will not be displayed.
 
   By default, the visualization contains data tables rendering data from given
   pcolls separately as if they are converted into dataframes. If visualize_data
@@ -429,6 +430,10 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   into memory. The user can specify either the max number of elements to read
   or the maximum duration of elements to read. When a limiter is not supplied,
   it is assumed to be infinite.
+
+  Args:
+    n: (optional) max number of elements to visualize. Default 'inf'.
+    duration: (optional) max duration of elements to read. Default 'inf'.
 
   For example::
 
