@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -101,10 +100,13 @@ class ConsumerSpEL {
 
     try {
       // It is supported by Kafka Client 2.1.0 onwards.
-      Method method =
-          Deserializer.class.getDeclaredMethod(
-              "deserialize", String.class, Headers.class, byte[].class);
-      deserializerSupportsHeaders = method.isDefault();
+      deserializerSupportsHeaders =
+          "T"
+              .equals(
+                  Deserializer.class
+                      .getDeclaredMethod("deserialize", String.class, Headers.class, byte[].class)
+                      .getGenericReturnType()
+                      .getTypeName());
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Deserializer interface does not support Kafka headers");
     }
