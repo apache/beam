@@ -257,9 +257,9 @@ task miniCluster(type: Jar, dependsOn: shadowJar) {
   zip64 true // jar needs to contain more than 65535 files
 }
 
-def addTestFlinkUberJarPy(String pyVersion) {
+def addTestFlinkUberJarPy(String pyVersion, boolean saveMainSession) {
   def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
-  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}") {
+  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}${saveMainSession ? 'saveMainSession' : ''}") {
     dependsOn miniCluster
     dependsOn shadowJar
     dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
@@ -276,6 +276,9 @@ def addTestFlinkUberJarPy(String pyVersion) {
                         + "${project.docker_image_default_repo_prefix}"
                         + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
+        if (saveMainSession) {
+          options.add('--save_main_session')
+        }
         args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
       }
     }
@@ -284,11 +287,14 @@ def addTestFlinkUberJarPy(String pyVersion) {
 
 ["2.7", "3.5", "3.6", "3.7"].each{ pyVersion ->
   addTestJavaJarCreator(pyVersion)
-  addTestFlinkUberJarPy(pyVersion)
+  addTestFlinkUberJarPy(pyVersion, false)
+  addTestFlinkUberJarPy(pyVersion, true)
 }
 
 task testPipelineJar() {
   dependsOn testJavaJarCreatorPy37
   dependsOn testFlinkUberJarPy36
+  dependsOn testFlinkUberJarPy36saveMainSession
   dependsOn testFlinkUberJarPy37
+  dependsOn testFlinkUberJarPy37saveMainSession
 }
