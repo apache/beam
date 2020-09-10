@@ -97,7 +97,8 @@ class JrhReadPTransformOverride(PTransformOverride):
         isinstance(applied_ptransform.transform, Read) and
         isinstance(applied_ptransform.transform.source, BoundedSource))
 
-  def get_replacement_transform_for_applied_ptransform(self, applied_ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     from apache_beam.io import Read
     from apache_beam.transforms import core
     from apache_beam.transforms import util
