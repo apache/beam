@@ -78,11 +78,20 @@ public class GcsPath implements Path, Serializable {
   public static GcsPath fromUri(URI uri) {
     checkArgument(uri.getScheme().equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
     checkArgument(uri.getPort() == -1, "GCS URI may not specify port: %s (%i)", uri, uri.getPort());
-    checkArgument(isNullOrEmpty(uri.getUserInfo()), "GCS URI may not specify userInfo: %s (%s)", uri,
-        uri.getUserInfo());
-    checkArgument(isNullOrEmpty(uri.getQuery()), "GCS URI may not specify query: %s (%s)", uri, uri.getQuery());
-    checkArgument(isNullOrEmpty(uri.getFragment()), "GCS URI may not specify fragment: %s (%s)", uri,
-        uri.getFragment());
+    checkArgument(
+      isNullOrEmpty(uri.getUserInfo()),
+      "GCS URI may not specify userInfo: %s (%s)",
+      uri,
+      uri.getUserInfo());
+    checkArgument(
+      isNullOrEmpty(uri.getQuery()),
+      "GCS URI may not specify query: %s (%s)",
+      uri,
+      uri.getQuery());
+    checkArgument(
+          isNullOrEmpty(uri.getFragment()),
+          "GCS URI may not specify fragment: %s (%s)",
+          uri,
 
     return fromUri(uri.toString());
   }
@@ -173,7 +182,8 @@ public class GcsPath implements Path, Serializable {
       bucket = "";
     }
     checkArgument(!bucket.contains("/"), "GCS bucket may not contain a slash");
-    checkArgument(bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
+    checkArgument(
+      bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
         "GCS bucket names must contain only lowercase letters, numbers, "
             + "dashes (-), underscores (_), and dots (.). Bucket names "
             + "must start and end with a number or letter. "
@@ -184,7 +194,8 @@ public class GcsPath implements Path, Serializable {
     if (object == null) {
       object = "";
     }
-    checkArgument(object.indexOf('\n') < 0 && object.indexOf('\r') < 0,
+    checkArgument(
+      object.indexOf('\n') < 0 && object.indexOf('\r') < 0,
         "GCS object names must not contain Carriage Return or " + "Line Feed characters.");
 
     this.fs = fs;
@@ -250,7 +261,8 @@ public class GcsPath implements Path, Serializable {
   public GcsPath getFileName() {
     int nameCount = getNameCount();
     if (nameCount < 2) {
-      throw new UnsupportedOperationException("Can't get filename from root path in the bucket: " + this);
+      throw new UnsupportedOperationException(
+        "Can't get filename from root path in the bucket: " + this);
     }
     return getName(nameCount - 1);
   }
@@ -453,7 +465,8 @@ public class GcsPath implements Path, Serializable {
   }
 
   @Override
-  public WatchKey register(WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers)
+  public WatchKey register(
+    WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers)
       throws IOException {
     throw new UnsupportedOperationException();
   }
