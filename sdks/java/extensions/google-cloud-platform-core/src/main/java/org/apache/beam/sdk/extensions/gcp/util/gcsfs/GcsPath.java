@@ -41,7 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Implements the Java NIO {@link Path} API for Google Cloud Storage paths.
  *
- * <p>GcsPath uses a slash ('/') as a directory separator. Below is a summary of how slashes are 
+ * <p>GcsPath uses a slash ('/') as a directory separator. Below is a summary of how slashes are
  * treated:
  *
  * <ul>
@@ -90,7 +90,7 @@ public class GcsPath implements Path, Serializable {
   /**
    * Pattern that is used to parse a GCS URL.
    *
-   * <p>This is used to separate the components. Verification is handled separately.	
+   * <p>This is used to separate the components. Verification is handled separately.
    */
   public static final Pattern GCS_URI = Pattern.compile("^([^:]+)://([^/#]+)(?:/?(.*?))(?:#([0-9]*))?$");
 
@@ -109,8 +109,8 @@ public class GcsPath implements Path, Serializable {
   }
 
   /** Pattern that is used to parse a GCS resource name. */
-  private static final Pattern GCS_RESOURCE_NAME = Pattern
-      .compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
+  private static final Pattern GCS_RESOURCE_NAME = 
+    Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
 
   /** Creates a GcsPath from a OnePlatform resource name in string form. */
   public static GcsPath fromResourceName(String name) {
@@ -258,8 +258,7 @@ public class GcsPath implements Path, Serializable {
   /**
    * Returns the <em>parent path</em>, or {@code null} if this path does not have a parent.
    *
-   * <p>
-   * Returns a path that ends in '/', as the parent path always refers to a directory.
+   * <p>Returns a path that ends in '/', as the parent path always refers to a directory.
    */
   @Override
   public GcsPath getParent() {
