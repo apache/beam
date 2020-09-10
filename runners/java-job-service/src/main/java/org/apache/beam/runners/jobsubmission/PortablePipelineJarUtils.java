@@ -51,7 +51,6 @@ import org.slf4j.LoggerFactory;
  *             <ul>
  *               <li>pipeline.json
  *               <li>pipeline-options.json
- *               <li>artifact-manifest.json
  *               <li>artifacts/
  *                   <ul>
  *                     <li>...artifact files...
@@ -68,7 +67,6 @@ import org.slf4j.LoggerFactory;
 public abstract class PortablePipelineJarUtils {
   private static final String ARTIFACT_FOLDER = "artifacts";
   private static final String PIPELINE_FOLDER = "BEAM-PIPELINE";
-  private static final String ARTIFACT_MANIFEST = "artifact-manifest.json";
   private static final String PIPELINE = "pipeline.json";
   private static final String PIPELINE_OPTIONS = "pipeline-options.json";
   private static final String PIPELINE_MANIFEST = PIPELINE_FOLDER + "/pipeline-manifest.json";
@@ -109,10 +107,6 @@ public abstract class PortablePipelineJarUtils {
     Struct.Builder builder = Struct.newBuilder();
     parseJsonResource(getPipelineOptionsUri(jobName), builder);
     return builder.build();
-  }
-
-  public static String getArtifactManifestUri(String jobName) {
-    return PIPELINE_FOLDER + "/" + jobName + "/" + ARTIFACT_MANIFEST;
   }
 
   static String getPipelineUri(String jobName) {
