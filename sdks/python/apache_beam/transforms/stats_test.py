@@ -27,6 +27,7 @@ import sys
 import unittest
 from builtins import range
 from collections import defaultdict
+
 import hamcrest as hc
 from parameterized import parameterized
 from parameterized import parameterized_class
@@ -50,13 +51,13 @@ except ImportError:
   mmh3_options = [(None, )]
 
 
-@parameterized_class(('sys.modules[\'mmh3\']', ), mmh3_options)
+@parameterized_class(('mmh3_option', ), mmh3_options)
 class ApproximateUniqueTest(unittest.TestCase):
-  """Unit tests for ApproximateUnique.Globally, ApproximateUnique.PerKey,
-  and ApproximateUniqueCombineFn.
-  """
+  """Unit tests for ApproximateUnique.Globally and ApproximateUnique.PerKey."""
   random.seed(0)
-  sys.modules['mmh3'] = None
+
+  def setUp(self):
+    sys.modules['mmh3'] = self.mmh3_option
 
   @parameterized.expand([
       (
@@ -92,7 +93,7 @@ class ApproximateUniqueTest(unittest.TestCase):
   def test_approximate_unique_global(
       self, name, test_input, sample_size, est_error, label):
     # check that only either sample_size or est_error is not None
-    assert (bool(sample_size) != bool(est_error))
+    assert bool(sample_size) != bool(est_error)
     if sample_size:
       error = 2 / math.sqrt(sample_size)
     else:
@@ -117,7 +118,7 @@ class ApproximateUniqueTest(unittest.TestCase):
   ])
   def test_approximate_unique_perkey(self, name, sample_size, est_error, label):
     # check that only either sample_size or est_error is set
-    assert (bool(sample_size) != bool(est_error))
+    assert bool(sample_size) != bool(est_error)
     if sample_size:
       error = 2 / math.sqrt(sample_size)
     else:
