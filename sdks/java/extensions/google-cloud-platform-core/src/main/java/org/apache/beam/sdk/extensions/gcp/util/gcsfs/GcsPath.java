@@ -92,6 +92,7 @@ public class GcsPath implements Path, Serializable {
         isNullOrEmpty(uri.getFragment()),
         "GCS URI may not specify fragment: %s (%s)",
         uri,
+        uri.getFragment());
 
     return fromUri(uri.toString());
   }
@@ -262,7 +263,7 @@ public class GcsPath implements Path, Serializable {
     int nameCount = getNameCount();
     if (nameCount < 2) {
       throw new UnsupportedOperationException(
-        "Can't get filename from root path in the bucket: " + this);
+          "Can't get filename from root path in the bucket: " + this);
     }
     return getName(nameCount - 1);
   }
@@ -466,7 +467,7 @@ public class GcsPath implements Path, Serializable {
 
   @Override
   public WatchKey register(
-    WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers)
+      WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers)
       throws IOException {
     throw new UnsupportedOperationException();
   }
