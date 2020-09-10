@@ -17,11 +17,17 @@
     under the License.
 -->
 
-# how to Run Python Nexmark
+# How to run a python nexmark benchmark
 
 ## Batch Mode
 
 For batch mode, a file needs to be generated first by running java suite and writing events to a file.
+
+```shell script
+./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=":runners:direct-java"
+    -Pnexmark.args=" --query=1 --runner=DirectRunner --streaming=false --suite=SMOKE --numEvents=100000  --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true --generateInputFileOnly=true"
+```
 
 ### Direct Runner
 
@@ -37,7 +43,7 @@ python nexmark_launcher.py --query 5 --num_events 100000 --runner DataflowRunner
 
 ## Streaming mode
 
-First generate and publish events to pubsub using java nexmark suite:
+First generate and publish events to pubsub using java nexmark suite, exmaple:
 ```shell script
 ./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:google-cloud-dataflow-java"
