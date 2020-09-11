@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.Row;
  */
 public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
   public static final String IDENTIFIER = "beam:logical_type:micros_instant:v1";
+  // TODO(BEAM-10878): This should be a constant
   private final Schema schema;
 
   public MicrosInstant() {
