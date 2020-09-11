@@ -39,6 +39,7 @@ from apache_beam.dataframe import doctests
 
 PANDAS_VERSION = '1.1.1'
 PANDAS_DIR = os.path.expanduser("~/.apache_beam/cache/pandas-" + PANDAS_VERSION)
+PANDAS_DOCS_SOURCE = os.path.join(PANDAS_DIR, 'doc', 'source')
 
 # This is here to populate PANDAS_DIR early when called manually.
 
@@ -78,7 +79,7 @@ class PandasDocsTest(unittest.TestCase):
   def _run_rst_tests(
       self, path, report=True, wont_implement_ok=['*'], skip=[], **kwargs):
 
-    with open(os.path.join(PANDAS_DIR, 'doc', 'source', *path.split('/'))) as f:
+    with open(os.path.join(PANDAS_DOCS_SOURCE, *path.split('/'))) as f:
       rst = f.read()
 
     result = doctests.test_rst_ipython(
@@ -95,6 +96,21 @@ class PandasDocsTest(unittest.TestCase):
 
   def test_groupby(self):
     self._run_rst_tests('user_guide/groupby.rst', use_beam=False)
+
+
+if os.path.exists(PANDAS_DOCS_SOURCE):
+  for root, dirs, files in os.walk(PANDAS_DOCS_SOURCE):
+    if 'getting_started' not in root and 'user_guide' not in root:
+      continue
+    for name in files:
+      base, ext = os.path.splitext(name)
+      if ext == '.rst':
+        setattr(
+            PandasDocsTest,
+            'test_%s' % base,
+            lambda self,
+            path=os.path.join(root[len(PANDAS_DOCS_SOURCE):], name): self._run_rst_tests(
+                path, use_beam=False))
 
 
 if __name__ == '__main__':
