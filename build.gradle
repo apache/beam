@@ -42,6 +42,9 @@ rat {
   def exclusions = [
     // Ignore files we track but do not distribute
     "**/.github/**/*",
+    "gradlew",
+    "gradlew.bat",
+    "gradle/wrapper/gradle-wrapper.properties",
 
     "**/package-list",
     "**/test.avsc",
