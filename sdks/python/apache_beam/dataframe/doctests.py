@@ -86,6 +86,9 @@ class FakePandasObject(object):
     setattr(self, name, result)
     return result
 
+  def __reduce__(self):
+    return lambda: pd, ()
+
 
 class TestEnvironment(object):
   """A class managing the patching (of methods, inputs, and outputs) needed
