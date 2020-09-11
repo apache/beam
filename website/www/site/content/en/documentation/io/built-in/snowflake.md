@@ -40,7 +40,7 @@ SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(options);
 SnowflakeIO.DataSourceConfiguration.create(credentials)
         .(other DataSourceConfiguration options)
 {{< /highlight >}}
-### Username and password 
+### Username and password
 To use username/password authentication in SnowflakeIO, invoke your pipeline with the following Pipeline options:
 {{< highlight >}}
 --username=<USERNAME> --password=<PASSWORD>
@@ -85,7 +85,7 @@ Where parameters can be:
   - Server Name - full server name with account, zone and domain.
   - Example: `.withServerName("account.snowflakecomputing.com")`
 - `.withDatabase(...)`
-  - Name of the Snowflake database to use. 
+  - Name of the Snowflake database to use.
   - Example: `.withDatabase("MY_DATABASE")`
 - `.withWarehouse(...)`
   - Name of the Snowflake warehouse to use. This parameter is optional. If no warehouse name is specified, the default warehouse for the user is used.
@@ -160,34 +160,34 @@ Snowflake IO library supports following options that can be passed via the [comm
 To pass Pipeline options via the command line, use `--args` in a gradle command as follows:
 
 {{< highlight >}}
-./gradle run 
+./gradle run
     --args="
-        --serverName=<SNOWFLAKE SERVER NAME>  
+        --serverName=<SNOWFLAKE SERVER NAME>
            Example: --serverName=account.region.gcp.snowflakecomputing.com
-        --username=<SNOWFLAKE USERNAME> 
+        --username=<SNOWFLAKE USERNAME>
            Example: --username=testuser
-        --password=<SNOWFLAKE PASSWORD> 
+        --password=<SNOWFLAKE PASSWORD>
            Example: --password=mypassword
-        --database=<SNOWFLAKE DATABASE> 
+        --database=<SNOWFLAKE DATABASE>
            Example: --database=TEST_DATABASE
-        --schema=<SNOWFLAKE SCHEMA> 
+        --schema=<SNOWFLAKE SCHEMA>
            Example: --schema=public
-        --table=<SNOWFLAKE TABLE IN DATABASE> 
+        --table=<SNOWFLAKE TABLE IN DATABASE>
            Example: --table=TEST_TABLE
-        --query=<IF NOT TABLE THEN QUERY> 
+        --query=<IF NOT TABLE THEN QUERY>
            Example: --query=‘SELECT column FROM TABLE’
-        --storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME> 
+        --storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>
            Example: --storageIntegrationName=my_integration
         --stagingBucketName=<GCS BUCKET NAME>
            Example: --stagingBucketName=gs://my_gcp_bucket/
         --runner=<DirectRunner/DataflowRunner>
            Example: --runner=DataflowRunner
-        --project=<FOR DATAFLOW RUNNER: GCP PROJECT NAME> 
+        --project=<FOR DATAFLOW RUNNER: GCP PROJECT NAME>
            Example: --project=my_project
         --tempLocation=<FOR DATAFLOW RUNNER: GCS TEMP LOCATION STARTING
                         WITH gs://…>
            Example: --tempLocation=gs://my_bucket/temp/
-        --region=<FOR DATAFLOW RUNNER: GCP REGION> 
+        --region=<FOR DATAFLOW RUNNER: GCP REGION>
            Example: --region=us-east-1
         --appName=<OPTIONAL: DATAFLOW JOB NAME PREFIX>
            Example: --appName=my_job"
@@ -197,7 +197,7 @@ Then in the code it is possible to access the parameters with arguments using th
 ### Running test command with Pipeline options
 To pass Pipeline options via the command line, use `-DintegrationTestPipelineOptions` in a gradle command as follows:
 {{< highlight >}}
-./gradlew test --tests nameOfTest 
+./gradlew test --tests nameOfTest
 -DintegrationTestPipelineOptions='[
   "--serverName=<SNOWFLAKE SERVER NAME>",
       Example: --serverName=account.region.gcp.snowflakecomputing.com
@@ -211,7 +211,7 @@ To pass Pipeline options via the command line, use `-DintegrationTestPipelineOpt
       Example: --table=TEST_TABLE
   "--database=<SNOWFLAKE DATABASE>",
       Example: --database=TEST_DATABASE
-  "--storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>", 
+  "--storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>",
       Example: --storageIntegrationName=my_integration
   "--stagingBucketName=<GCS BUCKET NAME>",
       Example: --stagingBucketName=gs://my_gcp_bucket
@@ -223,7 +223,7 @@ To pass Pipeline options via the command line, use `-DintegrationTestPipelineOpt
 Where all parameters are starting with “--”, they are surrounded with double quotation and separated with comma:
 
 - `--serverName=<SNOWFLAKE SERVER NAME>`
-  - Specifies the full name of your account (provided by Snowflake). Note that your full account name might include additional segments that identify the region and cloud platform where your account is hosted. 
+  - Specifies the full name of your account (provided by Snowflake). Note that your full account name might include additional segments that identify the region and cloud platform where your account is hosted.
   - Example: `--serverName=xy12345.eu-west-1.gcp..snowflakecomputing.com`
 
 - `--username=<SNOWFLAKE USERNAME>`
@@ -277,7 +277,7 @@ More pipeline options for Dataflow can be found [here](https://beam.apache.org/r
 Google Dataflow is supporting [template](https://cloud.google.com/dataflow/docs/guides/templates/overview) creation which means staging pipelines on Cloud Storage and running them with ability to pass runtime parameters that are only available during pipeline execution.
 
 The process of creating own Dataflow template is following
-1. Create your own pipeline. 
+1. Create your own pipeline.
 2. Create [Dataflow template](https://cloud.google.com/dataflow/docs/guides/templates/creating-templates#creating-and-staging-templates) with checking which options SnowflakeIO is supporting at runtime.
 3. Run a Dataflow template using [Cloud Console](https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-the-cloud-console), [REST API](https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-the-rest-api) or [gcloud](https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-gcloud).
 
@@ -354,10 +354,10 @@ All the below parameters are required:
 
 - `.withStorageIntegrationName()` Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt. Example:
 {{< highlight >}}
-CREATE OR REPLACE STORAGE INTEGRATION test_integration 
-TYPE = EXTERNAL_STAGE 
-STORAGE_PROVIDER = GCS 
-ENABLED = TRUE 
+CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
 {{< /highlight >}}
 Then:
@@ -371,7 +371,7 @@ Then:
 SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to table](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html)). StagingBucketName will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under the “stagingBucketName” path.
 
 **Optional** for batching:
-- `.withQuotationMark()` 
+- `.withQuotationMark()`
   - Default value: `‘` (single quotation mark).
   - Accepts String with one character. It will surround all text (String) fields saved to CSV. It should be one of the accepted characters by [Snowflake’s](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) [FIELD_OPTIONALLY_ENCLOSED_BY](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) parameter (double quotation mark, single quotation mark or none).
   - Example: `.withQuotationMark("'")`
@@ -405,13 +405,13 @@ data.apply(
   - Example: `.withStagingBucketName("gs://mybucket/my/dir/")`
 
 - `.withStorageIntegrationName()`
-  - Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt. 
+  - Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt.
   - Example:
 {{< highlight >}}
-CREATE OR REPLACE STORAGE INTEGRATION test_integration 
-TYPE = EXTERNAL_STAGE 
-STORAGE_PROVIDER = GCS 
-ENABLED = TRUE 
+CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
 {{< /highlight >}}
 Then:
@@ -463,7 +463,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to tabl
 - `.withDebugMode()`
   - Accepts:
     - `SnowflakeIO.StreamingLogLevel.INFO` - shows whole info about loaded files
-    - `SnowflakeIO.StreamingLogLevel.ERROR` - shows only errors. 
+    - `SnowflakeIO.StreamingLogLevel.ERROR` - shows only errors.
   - Shows logs about streamed files to Snowflake similarly to [insertReport](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-rest-apis.html#endpoint-insertreport). Enabling debug mode may influence performance.
   - Example: `.withDebugMode(SnowflakeIO.StreamingLogLevel.INFO)`
 
@@ -472,7 +472,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to tabl
 **Important notice**: Streaming accepts only **key pair authentication**.
 
 #### Flush time: duration & number of rows
-Duration: streaming write will write periodically files on stage according to time duration specified in flush time limit (for example. every 1 minute). 
+Duration: streaming write will write periodically files on stage according to time duration specified in flush time limit (for example. every 1 minute).
 
 Number of rows: files staged for write will have number of rows specified in flush row limit unless the flush time limit will be reached (for example if the limit is 1000 rows and buffor collected 99 rows and the 1 minute flush time passes, the rows will be sent to SnowPipe for insertion).
 
@@ -546,8 +546,8 @@ data.apply(
 {{< /highlight >}}
 
 #### Table schema disposition
-When the `.withCreateDisposition()` .option is set to `CREATE_IF_NEEDED`, the `.withTableSchema()` option enables specifying the schema for the created target table. 
-A table schema is a list of `SFColumn` objects with name and type corresponding to column type for each column in the table. 
+When the `.withCreateDisposition()` .option is set to `CREATE_IF_NEEDED`, the `.withTableSchema()` option enables specifying the schema for the created target table.
+A table schema is a list of `SFColumn` objects with name and type corresponding to column type for each column in the table.
 
 Usage:
 {{< highlight java >}}
@@ -598,10 +598,10 @@ Where all below parameters are required:
 -  `.withStorageIntegrationName()`
   - Accepts a name of a Snowflake storage integration object created according to Snowflake documentation. Example:
 {{< highlight >}}
-CREATE OR REPLACE STORAGE INTEGRATION test_integration 
-TYPE = EXTERNAL_STAGE 
-STORAGE_PROVIDER = GCS 
-ENABLED = TRUE 
+CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
 {{< /highlight >}}
 Then:
@@ -618,7 +618,7 @@ Then:
 SnowflakeIO uses COPY statements behind the scenes to read (using [COPY to location](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html)) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` and they will be removed automatically once Read operation finishes.
 
 ### CSVMapper
-SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/2.3.0/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library. 
+SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/2.3.0/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library.
 
 The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.
 
@@ -637,16 +637,16 @@ static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
 {{< /highlight >}}
 ## Cross Language
 ### Intro
-Cross-language which is part of [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/) which aims to provide full interoperability across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go). 
+Cross-language which is part of [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/) which aims to provide full interoperability across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go).
 
-Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language. 
+Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language.
 
-Currently, cross-language is supporting only [Apache Flink](https://flink.apache.org/) as a runner in a stable manner but plans are to support all runners. For more information about cross-language please see [multi sdk efforts](https://beam.apache.org/roadmap/connectors-multi-sdk/) and [Beam on top of Flink](https://flink.apache.org/ecosystem/2020/02/22/apache-beam-how-beam-runs-on-top-of-flink.html) articles. 
+Currently, cross-language is supporting only [Apache Flink](https://flink.apache.org/) as a runner in a stable manner but plans are to support all runners. For more information about cross-language please see [multi sdk efforts](https://beam.apache.org/roadmap/connectors-multi-sdk/) and [Beam on top of Flink](https://flink.apache.org/ecosystem/2020/02/22/apache-beam-how-beam-runs-on-top-of-flink.html) articles.
 
-### Set up 
-Please see [Apache Beam with Flink runner](https://beam.apache.org/documentation/runners/flink/) for a setup. 
+### Set up
+Please see [Apache Beam with Flink runner](https://beam.apache.org/documentation/runners/flink/) for a setup.
 
-### Reading from Snowflake 
+### Reading from Snowflake
 One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) of user-defined data type.
 #### General usage
 {{< highlight >}}
@@ -707,7 +707,7 @@ It’s required to pass one of the following combinations of valid parameters fo
 
 - `private_key_path and private_key_passphrase` Specifies a path to private key and passphrase for key/pair authentication method.
 
-- `raw_private_key and private_key_passphrase` Specifies a private key and passphrase for key/pair authentication method. 
+- `raw_private_key and private_key_passphrase` Specifies a private key and passphrase for key/pair authentication method.
 
 - `o_auth_token` Specifies access token for OAuth authentication method.
 
@@ -716,7 +716,7 @@ It’s required to pass one of the following combinations of valid parameters fo
 
 - `warehouse`: specifies Snowflake warehouse name. If not specified then the user's default will be used.
 
-### Writing to Snowflake 
+### Writing to Snowflake
 One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) to your Snowflake database.
 #### General usage
 {{< highlight >}}
@@ -764,7 +764,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `storage_integration_name` Is the name of a Snowflake storage integration object created according to [Snowflake documentation](https://docs.snowflake.net/manuals/sql-reference/sql/create-storage-integration.html).
 
-- `user_data_mapper` Specifies a function which  maps data from a PCollection to an array of String values before the write operation saves the data to temporary .csv files. 
+- `user_data_mapper` Specifies a function which  maps data from a PCollection to an array of String values before the write operation saves the data to temporary .csv files.
 Example:
 {{< highlight >}}
 def user_data_mapper(user):
