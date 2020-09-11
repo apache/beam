@@ -40,6 +40,7 @@ import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
+import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -137,6 +139,7 @@ class FlinkStreamingTransformTranslators {
 
   // here you can find all the available translators.
   static {
+    TRANSLATORS.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator());
     TRANSLATORS.put(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslator());
 
     TRANSLATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoStreamingTranslator());
@@ -282,6 +285,30 @@ class FlinkStreamingTransformTranslators {
         WindowedValue<ValueWithRecordId<T>> value, Collector<WindowedValue<T>> collector)
         throws Exception {
       collector.collect(value.withValue(value.getValue().getValue()));
+    }
+  }
+
+  private static class ImpulseTranslator<T>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Impulse> {
+    @Override
+    void translateNode(Impulse transform, FlinkStreamingTranslationContext context) {
+
+      TypeInformation<WindowedValue<byte[]>> typeInfo =
+          new CoderTypeInformation<>(
+              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+
+      long shutdownAfterIdleSourcesMs =
+          context
+              .getPipelineOptions()
+              .as(FlinkPipelineOptions.class)
+              .getShutdownSourcesAfterIdleMs();
+      SingleOutputStreamOperator<WindowedValue<byte[]>> source =
+          context
+              .getExecutionEnvironment()
+              .addSource(new ImpulseSourceFunction(shutdownAfterIdleSourcesMs), "Impulse")
+              .returns(typeInfo);
+
+      context.setOutputDataStream(context.getOutput(transform), source);
     }
   }
 
