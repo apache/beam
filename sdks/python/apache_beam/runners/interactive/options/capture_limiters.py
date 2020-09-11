@@ -109,7 +109,7 @@ class CountLimiter(ElementLimiter):
       self._count += 1
 
   def is_triggered(self):
-    return self._count > self._max_count
+    return self._count >= self._max_count
 
 
 class ProcessingTimeLimiter(ElementLimiter):

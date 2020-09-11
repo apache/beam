@@ -57,6 +57,7 @@ google-cloud-datastore==1.7.4
 cython==0.29.13
 guppy==0.1.11;python_version<="2.7"
 guppy3==3.0.9;python_version>="3.5"
+mmh3==2.5.1
 
 # These are additional packages likely to be used by customers.
 numpy==1.16.5;python_version<="2.7"

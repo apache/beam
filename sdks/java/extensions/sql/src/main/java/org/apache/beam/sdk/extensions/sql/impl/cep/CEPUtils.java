@@ -34,13 +34,13 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator
  * Some utility methods for transforming Calcite's constructs into our own Beam constructs (for
  * serialization purpose).
  */
-public class CEPUtil {
+public class CEPUtils {
 
   private static Quantifier getQuantifier(int start, int end, boolean isReluctant) {
     Quantifier quantToAdd;
     if (!isReluctant) {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }");
+        quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -48,21 +48,21 @@ public class CEPUtil {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }");
+            quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }");
+            quantToAdd = new Quantifier("{ , " + end + " }", start, end, false);
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }");
+            quantToAdd = new Quantifier("{ " + start + " , }", start, end, false);
           }
         }
       }
     } else {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }?");
+        quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -70,15 +70,15 @@ public class CEPUtil {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS_RELUCTANT;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }?");
+            quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK_RELUCTANT;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }?");
+            quantToAdd = new Quantifier("{ , " + end + " }?", start, end, true);
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }?");
+            quantToAdd = new Quantifier("{ " + start + " , }?", start, end, true);
           }
         }
       }
@@ -100,7 +100,7 @@ public class CEPUtil {
       SqlOperator operator = patCall.getOperator();
       List<RexNode> operands = patCall.getOperands();
 
-      // check if if the node has quantifier
+      // check if the node has quantifier
       if (operator.getKind() == SqlKind.PATTERN_QUANTIFIER) {
         String p = ((RexLiteral) operands.get(0)).getValueAs(String.class);
         RexNode pd = patternDefs.get(p);
@@ -209,41 +209,5 @@ public class CEPUtil {
     } else {
       throw new UnsupportedOperationException("the function in Measures is not recognized.");
     }
-  }
-
-  public static Schema decideSchema(
-      List<CEPMeasure> measures,
-      boolean allRows,
-      List<CEPFieldRef> parKeys,
-      Schema upstreamSchema) {
-    // if the measures clause does not present
-    // then output the schema from the pattern and the partition columns
-    if (measures.isEmpty() && !allRows) {
-      throw new UnsupportedOperationException(
-          "The Measures clause cannot be empty for ONE ROW PER MATCH");
-    }
-
-    // TODO: implement ALL ROWS PER MATCH
-    // for now, return all rows as they were (return the origin schema)
-    if (allRows) {
-      return upstreamSchema;
-    }
-
-    Schema.Builder outTableSchemaBuilder = new Schema.Builder();
-
-    // take the partition keys first
-    for (CEPFieldRef i : parKeys) {
-      outTableSchemaBuilder.addField(upstreamSchema.getField(i.getIndex()));
-    }
-
-    // add the fields in the Measures clause
-    for (CEPMeasure i : measures) {
-      Schema.Field fieldToAdd = Schema.Field.of(i.getName(), i.getType());
-      outTableSchemaBuilder.addField(fieldToAdd);
-    }
-
-    // TODO: add any columns left for ALL ROWS PER MATCH
-
-    return outTableSchemaBuilder.build();
   }
 }

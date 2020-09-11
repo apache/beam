@@ -388,14 +388,14 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.8.0"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
-    def gax_version = "1.54.0"
+    def gax_version = "1.57.1"
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.3"
-    def google_cloud_core_version = "1.92.2"
+    def google_cloud_core_version = "1.93.7"
     def google_cloud_pubsublite_version = "0.1.6"
-    def google_cloud_spanner_version = "1.49.1"
+    def google_cloud_spanner_version = "1.59.0"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_code_gson_version = "2.8.6"
     def google_http_clients_version = "1.34.0"
@@ -482,7 +482,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.108.0",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.125.0-beta",
-        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.13.0",
+        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.16.0",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog:$google_cloud_datacatalog_version",
@@ -647,7 +647,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * checkstyle
     //  * spotbugs
     //  * shadow (conditional on shadowClosure being specified)
-    //  * com.diffplug.gradle.spotless (code style plugin)
+    //  * com.diffplug.spotless (code style plugin)
     //
     // Dependency Management for Java Projects
     // ---------------------------------------
@@ -887,7 +887,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt-eclipse"
 
       // Enables a plugin which can apply code formatting to source.
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       // scan CVE
       project.apply plugin: "net.ossindex.audit"
       project.audit { rateLimitAsError = false }
@@ -907,6 +907,11 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableSpotbugs) {
+        project.tasks.whenTaskAdded {task ->
+          if(task.name.contains("spotbugsTest")) {
+            task.enabled = false
+          }
+        }
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
@@ -915,9 +920,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
-          sourceSets = [sourceSets.main]
         }
-        project.tasks.withType(com.github.spotbugs.SpotBugsTask) {
+        project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
             html.enabled = !project.jenkins.isCIBuild
             xml.enabled = project.jenkins.isCIBuild
@@ -1519,7 +1523,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyGroovyNature = {
       project.apply plugin: "groovy"
 
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
           project.disableSpotlessCheck == 'true'
       project.spotless {

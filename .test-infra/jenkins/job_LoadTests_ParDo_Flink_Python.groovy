@@ -190,6 +190,7 @@ def streamingScenarios = { datasetName ->
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        use_stateful_load_generator: null,
       ]
     ],
     [
@@ -223,6 +224,7 @@ def streamingScenarios = { datasetName ->
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        use_stateful_load_generator: null,
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }

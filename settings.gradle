@@ -16,6 +16,31 @@
  * limitations under the License.
  */
 
+
+plugins {
+  id "com.gradle.enterprise" version "3.4" apply false
+}
+
+
+// Plugins which require online access should not be enabled when running in offline mode.
+if (!gradle.startParameter.isOffline()) {
+  apply plugin: "com.gradle.enterprise"
+}
+
+// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
+def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
+if (isCIBuild) {
+  gradleEnterprise {
+    buildScan {
+      // Build Scan enabled and TOS accepted for Jenkins lab build. This does not apply to builds on
+      // non-Jenkins machines. Developers need to separately enable and accept TOS to use build scans.
+      termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+      termsOfServiceAgree = 'yes'
+      publishAlways()
+    }
+  }
+}
+
 rootProject.name = "beam"
 
 include ":release"

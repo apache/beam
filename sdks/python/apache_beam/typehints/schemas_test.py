@@ -40,6 +40,7 @@ from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.utils.timestamp import Timestamp
 
 IS_PYTHON_3 = sys.version_info.major > 2
 
@@ -67,6 +68,7 @@ class SchemaTest(unittest.TestCase):
     # The bytes type cannot survive a roundtrip to/from proto in Python 2.
     # In order to use BYTES a user type has to use typing.ByteString (because
     # bytes == str, and we map str to STRING).
+    # TODO(BEAM-7372)
     if IS_PYTHON_3:
       all_nonoptional_primitives.extend([bytes])
 
@@ -97,6 +99,7 @@ class SchemaTest(unittest.TestCase):
                     Optional[Mapping[unicode, Optional[np.float64]]]),
                 ('optional_array', Optional[Sequence[np.float32]]),
                 ('array_optional', Sequence[Optional[bool]]),
+                ('timestamp', Timestamp),
             ])
     ]
 
