@@ -134,6 +134,14 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
   }
 
   @Test
+  public void testLogThrowable() {
+    PrintStream printStream = createPrintStreamAdapter();
+    Throwable t = new RuntimeException("Test error");
+    t.printStackTrace(printStream);
+    assertThat(handler.getLogs(), hasLogItem("testLogThrowable"));
+  }
+
+  @Test
   public void testNoEmptyMessages() {
     try (PrintStream printStream = createPrintStreamAdapter()) {
       printStream.println("blah");
