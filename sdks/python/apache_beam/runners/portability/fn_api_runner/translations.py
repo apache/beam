@@ -763,7 +763,7 @@ def eliminate_common_key_with_none(stages, context):
   stages_to_yield = itertools.chain(ineligible_stages, remaining_stages)
   for stage in stages_to_yield:
     for transform in stage.transforms:
-      for input_key in list(transform.inputs):
+      for input_key in list(transform.inputs.keys()):
         if transform.inputs[input_key] in pcoll_id_remap:
           transform.inputs[input_key] = pcoll_id_remap[
               transform.inputs[input_key]]
@@ -826,8 +826,8 @@ def pack_combiners(stages, context):
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
     if (len(stage.transforms) == 1 and stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN
-        in context.components.environments[stage.environment].capabilities):
+        python_urns.PACKED_COMBINE_FN in context.components.environments[
+            stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
