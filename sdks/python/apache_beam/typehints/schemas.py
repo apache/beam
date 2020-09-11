@@ -448,7 +448,7 @@ class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
   def _from_typing(cls, typ):
     # type: (type) -> LogicalType
 
-    # Sicne there's no argument, there can be no additional information encoded
+    # Since there's no argument, there can be no additional information encoded
     # in the typing. Just construct an instance.
     return cls()
 
