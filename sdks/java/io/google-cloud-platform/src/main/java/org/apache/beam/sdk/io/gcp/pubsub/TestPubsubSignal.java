@@ -223,6 +223,12 @@ public class TestPubsubSignal implements TestRule {
             return null;
           } catch (IOException e) {
             throw new RuntimeException(e);
+          } finally {
+            try {
+              pubsub.deleteSubscription(startSubscriptionPath);
+            } catch (IOException e) {
+              LOG.warn(String.format("Leaked PubSub subscription '%s'", startSubscriptionPath));
+            }
           }
         });
   }
@@ -238,6 +244,12 @@ public class TestPubsubSignal implements TestRule {
         resultTopicPath, resultSubscriptionPath, (int) duration.getStandardSeconds());
 
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
+
+    try {
+      pubsub.deleteSubscription(resultSubscriptionPath);
+    } catch (IOException e) {
+      LOG.warn(String.format("Leaked PubSub subscription '%s'", resultSubscriptionPath));
+    }
 
     if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
       throw new AssertionError(result);
