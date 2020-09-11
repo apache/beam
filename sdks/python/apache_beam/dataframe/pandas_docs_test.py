@@ -28,14 +28,7 @@ import os
 import re
 import sys
 import unittest
-import urllib.request
 import zipfile
-from io import StringIO
-
-import IPython
-import numpy as np
-import pandas as pd
-from traitlets.config import Config
 
 from apache_beam.dataframe import doctests
 
@@ -45,6 +38,8 @@ PANDAS_DOCS_SOURCE = os.path.join(PANDAS_DIR, 'doc', 'source')
 
 
 def main():
+  # Not available for Python 2.
+  import urllib.request
   if not os.path.exists(PANDAS_DIR):
     # Download the pandas source.
     os.makedirs(os.path.dirname(PANDAS_DIR), exist_ok=True)

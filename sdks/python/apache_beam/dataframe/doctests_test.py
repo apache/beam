@@ -173,6 +173,10 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 1)  # Only the very last one.
 
   def test_rst_ipython(self):
+    try:
+      import IPython
+    except ImportError:
+      raise unittest.SkipTest('IPython not available')
     result = doctests.test_rst_ipython(RST_IPYTHON, 'test_rst_ipython')
     self.assertEqual(result.attempted, 5)
     self.assertEqual(result.failed, 1)  # Only the very last one.
