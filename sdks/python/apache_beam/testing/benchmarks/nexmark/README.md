@@ -26,7 +26,7 @@ For batch mode, a file needs to be generated first by running java suite and wri
 ```shell script
 ./gradlew :sdks:java:testing:nexmark:run \
     -Pnexmark.runner=":runners:direct-java"
-    -Pnexmark.args=" --query=1 --runner=DirectRunner --streaming=false --suite=SMOKE --numEvents=100000  --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true --generateInputFileOnly=true"
+    -Pnexmark.args=" --query=1 --runner=DirectRunner --streaming=false --suite=SMOKE --numEvents=100000  --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true --generateInputFileOnlyPrefix=YOUR_FILE_PREFIX"
 ```
 
 ### Direct Runner
