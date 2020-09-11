@@ -39,10 +39,15 @@ public class CEPOperator implements Serializable {
           .put(SqlKind.PREV, CEPKind.PREV)
           .put(SqlKind.NEXT, CEPKind.NEXT)
           .put(SqlKind.EQUALS, CEPKind.EQUALS)
+          .put(SqlKind.NOT_EQUALS, CEPKind.NOT_EQUALS)
           .put(SqlKind.GREATER_THAN, CEPKind.GREATER_THAN)
           .put(SqlKind.GREATER_THAN_OR_EQUAL, CEPKind.GREATER_THAN_OR_EQUAL)
           .put(SqlKind.LESS_THAN, CEPKind.LESS_THAN)
           .put(SqlKind.LESS_THAN_OR_EQUAL, CEPKind.LESS_THAN_OR_EQUAL)
+          .put(SqlKind.TIMES, CEPKind.TIMES)
+          .put(SqlKind.DIVIDE, CEPKind.DIVIDE)
+          .put(SqlKind.PLUS, CEPKind.PLUS)
+          .put(SqlKind.MINUS, CEPKind.MINUS)
           .build();
 
   private CEPOperator(CEPKind cepKind) {

@@ -30,7 +30,7 @@ public class CEPPattern implements Serializable {
 
   private final Schema mySchema;
   private final String patternVar;
-  private final PatternCondition patternCondition;
+  private final CEPCall patternCondition;
   private final Quantifier quant;
 
   private CEPPattern(
@@ -41,79 +41,20 @@ public class CEPPattern implements Serializable {
     this.quant = quant;
 
     if (patternDef == null) {
-      this.patternCondition =
-          new PatternCondition(this) {
-            @Override
-            public boolean eval(Row eleRow) {
-              return true;
-            }
-          };
+      this.patternCondition = null;
       return;
     }
 
-    CEPCall cepCall = CEPCall.of(patternDef);
-    CEPOperator cepOperator = cepCall.getOperator();
-    List<CEPOperation> cepOperands = cepCall.getOperands();
-    CEPCall cepOpr0 = (CEPCall) cepOperands.get(0);
-    CEPLiteral cepOpr1 = (CEPLiteral) cepOperands.get(1);
-
-    switch (cepOperator.getCepKind()) {
-      case EQUALS:
-        this.patternCondition =
-            new PatternCondition(this) {
-              @Override
-              public boolean eval(Row eleRow) {
-                return evalOperation(cepOpr0, cepOpr1, eleRow) == 0;
-              }
-            };
-        break;
-      case GREATER_THAN:
-        this.patternCondition =
-            new PatternCondition(this) {
-              @Override
-              public boolean eval(Row eleRow) {
-                return evalOperation(cepOpr0, cepOpr1, eleRow) > 0;
-              }
-            };
-        break;
-      case GREATER_THAN_OR_EQUAL:
-        this.patternCondition =
-            new PatternCondition(this) {
-              @Override
-              public boolean eval(Row eleRow) {
-                return evalOperation(cepOpr0, cepOpr1, eleRow) >= 0;
-              }
-            };
-        break;
-      case LESS_THAN:
-        this.patternCondition =
-            new PatternCondition(this) {
-              @Override
-              public boolean eval(Row eleRow) {
-                return evalOperation(cepOpr0, cepOpr1, eleRow) < 0;
-              }
-            };
-        break;
-      case LESS_THAN_OR_EQUAL:
-        this.patternCondition =
-            new PatternCondition(this) {
-              @Override
-              public boolean eval(Row eleRow) {
-                return evalOperation(cepOpr0, cepOpr1, eleRow) <= 0;
-              }
-            };
-        break;
-      default:
-        throw new UnsupportedOperationException("Comparison operator not recognized.");
-    }
+    this.patternCondition = CEPCall.of(patternDef);
   }
 
-  // LAST(*.$1, 0)
+  // support only simple match: LAST(*.$, 0) for now.
+  // TODO: remove this method after implementing NFA
   private int evalOperation(CEPCall operation, CEPLiteral lit, Row rowEle) {
     CEPOperator call = operation.getOperator();
     List<CEPOperation> operands = operation.getOperands();
 
-    if (call.getCepKind() == CEPKind.LAST) { // support only simple match for now: LAST(*.$, 0)
+    if (call.getCepKind() == CEPKind.LAST) {
       CEPOperation opr0 = operands.get(0);
       CEPLiteral opr1 = (CEPLiteral) operands.get(1);
       if (opr0.getClass() == CEPFieldRef.class && opr1.getDecimal().equals(BigDecimal.ZERO)) {
@@ -152,17 +93,21 @@ public class CEPPattern implements Serializable {
         "backward functions (PREV, NEXT) not supported for now");
   }
 
-  public boolean evalRow(Row rowEle) {
-    return patternCondition.eval(rowEle);
-  }
-
   @Override
   public String toString() {
     return patternVar + quant.toString();
   }
 
+  public CEPCall getPatternCondition() {
+    return patternCondition;
+  }
+
   public String getPatternVar() {
     return patternVar;
+  }
+
+  public Quantifier getQuantifier() {
+    return quant;
   }
 
   public static CEPPattern of(
