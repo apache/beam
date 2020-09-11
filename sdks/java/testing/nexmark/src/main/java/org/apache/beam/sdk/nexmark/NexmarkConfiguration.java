@@ -42,6 +42,9 @@ public class NexmarkConfiguration implements Serializable {
   /** Where events come from. */
   @JsonProperty public NexmarkUtils.SourceType sourceType = NexmarkUtils.SourceType.DIRECT;
 
+  /** If provided, only generate events and write them to local file with this prefix. */
+  @JsonProperty public String generateInputFileOnlyPrefix = null;
+
   /** Where results go to. */
   @JsonProperty public NexmarkUtils.SinkType sinkType = NexmarkUtils.SinkType.DEVNULL;
 
@@ -216,6 +219,10 @@ public class NexmarkConfiguration implements Serializable {
     if (options.getSourceType() != null) {
       sourceType = options.getSourceType();
     }
+    if (options.getGenerateInputFileOnlyPrefix() != null) {
+      generateInputFileOnlyPrefix = options.getGenerateInputFileOnlyPrefix();
+    }
+
     if (options.getSinkType() != null) {
       sinkType = options.getSinkType();
     }
