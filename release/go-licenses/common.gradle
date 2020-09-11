@@ -30,7 +30,8 @@ docker {
 mkdir "${licenseOutput}"
 
 dockerRun {
-  name "license-container-${sdkName}"
+  // Add a random number to the running container name to avoid collisions.
+  name "license-container-${sdkName}-" + (new Random().nextInt())
   image "golicenses-${sdkName}:latest"
   volumes "${licenseOutput}": '/output'
   daemonize false
@@ -41,5 +42,8 @@ tasks.dockerRun.dependsOn 'docker'
 task createLicenses {
   outputs.cacheIf { true }
   outputs.file("$buildDir/output/licenses/list.csv")
-  dependsOn 'dockerRun'
+  // Aggressively cache, to avoid slowness and docker run collisions.
+  if (!file("$buildDir/output/licenses/list.csv").exists()) {
+    dependsOn 'dockerRun'
+  }
 }
