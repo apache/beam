@@ -539,12 +539,16 @@ public class Schema implements Serializable {
     /** The unique identifier for this type. */
     String getIdentifier();
 
-    /** A schema type representing how to interpret the argument. */
+    /**
+     * A schema type representing how to interpret the argument. {@code null} indicates this logical
+     * type is not parameterized by an argument.
+     */
+    @Nullable
     FieldType getArgumentType();
 
     /** An optional argument to configure the type. */
     @SuppressWarnings("TypeParameterUnusedInFormals")
-    default <T> T getArgument() {
+    default <T> @Nullable T getArgument() {
       return null;
     }
 
@@ -807,14 +811,24 @@ public class Schema implements Serializable {
             getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
           return false;
         }
-        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
-          return false;
-        }
-        if (!Row.Equals.deepEquals(
-            getLogicalType().getArgument(),
-            other.getLogicalType().getArgument(),
-            getLogicalType().getArgumentType())) {
-          return false;
+        if (getLogicalType().getArgument() == null) {
+          if (other.getLogicalType().getArgument() != null) {
+            return false;
+          }
+        } else {
+          if (!getLogicalType()
+              .getArgumentType()
+              .equals(other.getLogicalType().getArgumentType())) {
+            return false;
+          }
+          // Only check argument equality if argument type is non-null. null indicates argument is
+          // ignored.
+          if (!Row.Equals.deepEquals(
+              getLogicalType().getArgument(),
+              other.getLogicalType().getArgument(),
+              getLogicalType().getArgumentType())) {
+            return false;
+          }
         }
       }
       return Objects.equals(getTypeName(), other.getTypeName())

@@ -36,9 +36,12 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
@@ -49,6 +52,12 @@ public class SchemaTranslation {
   private static final String URN_BEAM_LOGICAL_DATETIME = "beam:logical_type:datetime:v1";
   private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:logical_type:decimal:v1";
   private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
+
+  // TODO(BEAM-7855): Populate this with a LogicalTypeRegistrar, which includes a way to construct
+  // the LogicalType
+  // given an argument.
+  private static final ImmutableMap<String, Class<? extends LogicalType<?, ?>>>
+      STANDARD_LOGICAL_TYPES = ImmutableMap.of(MicrosInstant.IDENTIFIER, MicrosInstant.class);
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
@@ -112,22 +121,35 @@ public class SchemaTranslation {
 
       case LOGICAL_TYPE:
         LogicalType logicalType = fieldType.getLogicalType();
-        SchemaApi.LogicalType.Builder logicalTypeBuilder =
-            SchemaApi.LogicalType.newBuilder()
-                .setArgumentType(
-                    fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
-                .setArgument(
-                    fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()))
-                .setRepresentation(
-                    fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
-                // TODO(BEAM-7855): "javasdk" types should only be a last resort. Types defined in
-                // Beam should have their own URN, and there should be a mechanism for users to
-                // register their own types by URN.
-                .setUrn(URN_BEAM_LOGICAL_JAVASDK);
-        if (serializeLogicalType) {
+        SchemaApi.LogicalType.Builder logicalTypeBuilder;
+        if (STANDARD_LOGICAL_TYPES.containsKey(logicalType.getIdentifier())) {
+          Preconditions.checkArgument(
+              logicalType.getArgumentType() == null,
+              "Logical type '%s' cannot be used as a logical type, it has a non-null argument type.",
+              logicalType.getIdentifier());
           logicalTypeBuilder =
-              logicalTypeBuilder.setPayload(
-                  ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)));
+              SchemaApi.LogicalType.newBuilder()
+                  .setRepresentation(
+                      fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
+                  .setUrn(logicalType.getIdentifier());
+        } else {
+          logicalTypeBuilder =
+              SchemaApi.LogicalType.newBuilder()
+                  .setArgumentType(
+                      fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
+                  .setArgument(
+                      fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()))
+                  .setRepresentation(
+                      fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
+                  // TODO(BEAM-7855): "javasdk" types should only be a last resort. Types defined in
+                  // Beam should have their own URN, and there should be a mechanism for users to
+                  // register their own types by URN.
+                  .setUrn(URN_BEAM_LOGICAL_JAVASDK);
+          if (serializeLogicalType) {
+            logicalTypeBuilder =
+                logicalTypeBuilder.setPayload(
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(logicalType)));
+          }
         }
         builder.setLogicalType(logicalTypeBuilder.build());
         break;
@@ -252,9 +274,31 @@ public class SchemaTranslation {
             fieldTypeFromProto(protoFieldType.getMapType().getKeyType()),
             fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
       case LOGICAL_TYPE:
+        String urn = protoFieldType.getLogicalType().getUrn();
+        Class<? extends LogicalType<?, ?>> logicalTypeClass = STANDARD_LOGICAL_TYPES.get(urn);
+        if (logicalTypeClass != null) {
+          try {
+            return FieldType.logicalType(logicalTypeClass.getConstructor().newInstance());
+          } catch (NoSuchMethodException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Standard logical type '%s' does not have a zero-argument constructor.", urn),
+                e);
+          } catch (IllegalAccessException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Standard logical type '%s' has a zero-argument constructor, but it is not accessible.",
+                    urn),
+                e);
+          } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Error instantiating logical type '%s' with zero-argument constructor.", urn),
+                e);
+          }
+        }
         // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
         // but not yet in Java. (BEAM-7554)
-        String urn = protoFieldType.getLogicalType().getUrn();
         if (urn.equals(URN_BEAM_LOGICAL_DATETIME)) {
           return FieldType.DATETIME;
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {

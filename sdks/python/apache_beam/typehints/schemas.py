@@ -27,6 +27,14 @@ np.float32  <-----> FLOAT
 np.float64  <-----> DOUBLE
 float       ---/
 bool        <-----> BOOLEAN
+Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+Mapping     <-----> MapType
+Sequence    <-----> ArrayType
+NamedTuple  <-----> RowType
+beam.Row    ---/
+
+nullable=True on a Beam FieldType is represented in Python by wrapping the
+typing in Optional.
 
 The mappings for STRING and BYTES are different between python 2 and python 3,
 because of the changes to str:
@@ -47,10 +55,12 @@ from __future__ import absolute_import
 
 import sys
 from typing import ByteString
+from typing import Generic
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
+from typing import TypeVar
 from uuid import uuid4
 
 import numpy as np
@@ -65,6 +75,7 @@ from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.utils import proto_utils
+from apache_beam.utils.timestamp import Timestamp
 
 
 # Registry of typings for a schema by UUID
@@ -190,7 +201,17 @@ def typing_to_runner_api(type_):
     return schema_pb2.FieldType(
         map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
 
-  raise ValueError("Unsupported type: %s" % type_)
+  try:
+    logical_type = LogicalType.from_typing(type_)
+  except ValueError:
+    raise ValueError("Unsupported type: %s" % type_)
+  else:
+    # TODO(bhulette): Add support for logical types that require arguments
+    return schema_pb2.FieldType(
+        logical_type=schema_pb2.LogicalType(
+            urn=logical_type.urn(),
+            representation=typing_to_runner_api(
+                logical_type.representation_type())))
 
 
 def typing_from_runner_api(fieldtype_proto):
@@ -243,7 +264,8 @@ def typing_from_runner_api(fieldtype_proto):
     return user_type
 
   elif type_info == "logical_type":
-    pass  # TODO
+    return LogicalType.from_runner_api(
+        fieldtype_proto.logical_type).language_type()
 
 
 def _hydrate_namedtuple_instance(encoded_schema, values):
@@ -279,3 +301,184 @@ def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
 def named_fields_from_element_type(
     element_type):  # (type) -> typing.List[typing.Tuple[unicode, type]]
   return named_fields_from_schema(schema_from_element_type(element_type))
+
+
+# Registry of typings for a schema by UUID
+class LogicalTypeRegistry(object):
+  def __init__(self):
+    self.by_urn = {}
+    self.by_logical_type = {}
+    self.by_language_type = {}
+
+  def add(self, urn, logical_type):
+    self.by_urn[urn] = logical_type
+    self.by_logical_type[logical_type] = urn
+    self.by_language_type[logical_type.language_type()] = logical_type
+
+  def get_logical_type_by_urn(self, urn):
+    return self.by_urn.get(urn, None)
+
+  def get_urn_by_logial_type(self, logical_type):
+    return self.by_logical_type.get(logical_type, None)
+
+  def get_logical_type_by_language_type(self, representation_type):
+    return self.by_language_type.get(representation_type, None)
+
+
+LanguageT = TypeVar('LanguageT')
+RepresentationT = TypeVar('RepresentationT')
+ArgT = TypeVar('ArgT')
+
+
+class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
+  _known_logical_types = LogicalTypeRegistry()
+
+  @classmethod
+  def urn(cls):
+    # type: () -> unicode
+
+    """Return the URN used to identify this logical type"""
+    raise NotImplementedError()
+
+  @classmethod
+  def language_type(cls):
+    # type: () -> type
+
+    """Return the language type this LogicalType encodes.
+
+    The returned type should match LanguageT"""
+    raise NotImplementedError()
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+
+    """Return the type of the representation this LogicalType uses to encode the
+    language type.
+
+    The returned type should match RepresentationT"""
+    raise NotImplementedError()
+
+  @classmethod
+  def argument_type(cls):
+    # type: () -> type
+
+    """Return the type of the argument used for variations of this LogicalType.
+
+    The returned type should match ArgT"""
+    raise NotImplementedError(cls)
+
+  def argument(self):
+    # type: () -> ArgT
+
+    """Return the argument for this instance of the LogicalType."""
+    raise NotImplementedError()
+
+  def to_representation_type(value):
+    # type: (LanguageT) -> RepresentationT
+
+    """Convert an instance of LanguageT to RepresentationT."""
+    raise NotImplementedError()
+
+  def to_language_type(value):
+    # type: (RepresentationT) -> LanguageT
+
+    """Convert an instance of RepresentationT to LanguageT."""
+    raise NotImplementedError()
+
+  @classmethod
+  def register_logical_type(cls, logical_type_cls):
+    """Register an implementation of LogicalType."""
+    cls._known_logical_types.add(logical_type_cls.urn(), logical_type_cls)
+
+  @classmethod
+  def from_typing(cls, typ):
+    # type: (type) -> LogicalType
+
+    """Construct an instance of a registered LogicalType implementation given a
+    typing.
+
+    Raises ValueError if no registered LogicalType implementation can encode the
+    given typing."""
+
+    logical_type = cls._known_logical_types.get_logical_type_by_language_type(
+        typ)
+    if logical_type is None:
+      raise ValueError("No logical type registered for typing '%s'" % typ)
+
+    return logical_type._from_typing(typ)
+
+  @classmethod
+  def _from_typing(cls, typ):
+    # type: (type) -> LogicalType
+
+    """Construct an instance of this LogicalType implementation given a typing.
+    """
+    raise NotImplementedError()
+
+  @classmethod
+  def from_runner_api(cls, logical_type_proto):
+    # type: (schema_pb2.LogicalType) -> LogicalType
+
+    """Construct an instance of a registered LogicalType implementation given a
+    proto LogicalType.
+
+    Raises ValueError if no LogicalType registered for the given URN.
+    """
+    logical_type = cls._known_logical_types.get_logical_type_by_urn(
+        logical_type_proto.urn)
+    if logical_type is None:
+      raise ValueError(
+          "No logical type registered for URN '%s'" % logical_type_proto.urn)
+    # TODO(bhulette): Use argument
+    return logical_type()
+
+
+class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
+  @classmethod
+  def argument_type(cls):
+    # type: () -> type
+    return None
+
+  def argument(self):
+    # type: () -> ArgT
+    return None
+
+  @classmethod
+  def _from_typing(cls, typ):
+    # type: (type) -> LogicalType
+
+    # Since there's no argument, there can be no additional information encoded
+    # in the typing. Just construct an instance.
+    return cls()
+
+
+MicrosInstantRepresentation = NamedTuple(
+    'MicrosInstantRepresentation', [('seconds', np.int64),
+                                    ('micros', np.int64)])
+
+
+@LogicalType.register_logical_type
+class MicrosInstant(NoArgumentLogicalType[Timestamp,
+                                          MicrosInstantRepresentation]):
+  @classmethod
+  def urn(cls):
+    return "beam:logical_type:micros_instant:v1"
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return MicrosInstantRepresentation
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+  def to_representation_type(self, value):
+    # type: (Timestamp) -> MicrosInstantRepresentation
+    return MicrosInstantRepresentation(
+        value.micros // 1000000, value.micros % 1000000)
+
+  def to_language_type(self, value):
+    # type: (MicrosInstantRepresentation) -> Timestamp
+    return Timestamp(seconds=int(value.seconds), micros=int(value.micros))
