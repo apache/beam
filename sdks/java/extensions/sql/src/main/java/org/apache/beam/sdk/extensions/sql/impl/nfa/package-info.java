@@ -15,30 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.cep;
 
-import java.io.Serializable;
-
-/**
- * {@code CEPKind} corresponds to Calcite's {@code SqlKind}. It records some special SQL operations.
- */
-public enum CEPKind implements Serializable {
-  COUNT,
-  AVG,
-  SUM,
-  FIRST,
-  LAST,
-  PREV,
-  NEXT,
-  EQUALS,
-  NOT_EQUALS,
-  GREATER_THAN,
-  GREATER_THAN_OR_EQUAL,
-  LESS_THAN,
-  LESS_THAN_OR_EQUAL,
-  TIMES,
-  DIVIDE,
-  PLUS,
-  MINUS,
-  NONE
-}
+/** Package of Non-deterministic Finite Automata ({@code NFA}) for MATCH_RECOGNIZE. */
+package org.apache.beam.sdk.extensions.sql.impl.nfa;
