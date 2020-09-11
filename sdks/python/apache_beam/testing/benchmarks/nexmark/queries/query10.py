@@ -49,12 +49,16 @@ class OutputFile(object):
 
 
 def open_writable_gcs_file(options, filename):
-  # TODO: it seems that beam team has not yet decided about this method and
-  #   it is left blank and unspecified.
+  # TODO: [BEAM-10879] it seems that beam team has not yet decided about this
+  #   method and it is left blank and unspecified.
   pass
 
 
 def output_file_for(window, shard, pane):
+  """
+  Returns:
+    an OutputFile object constructed with pane, window and shard.
+  """
   filename = '%s/LOG-%s-%s-%03d-%s' % (
       output_path, window.max_timestamp(), shard, pane.index,
       pane.timing) if output_path else None
@@ -63,6 +67,11 @@ def output_file_for(window, shard, pane):
 
 
 def index_path_for(window):
+  """
+  Returns:
+    path to the index file containing all shard names or None if no output_path
+      is set
+  """
   if output_path:
     return '%s/INDEX-%s' % (output_path, window.max_timestamp())
   else:
@@ -73,6 +82,11 @@ def load(events, pipeline_options, metadata=None):
   return (
       events
       | 'query10_shard_events' >> beam.ParDo(ShardEventsDoFn())
+      # trigger fires when each sub-triger (executed in order) fires
+      # repeatedly 1. after at least maxLogEvents in pane
+      #            2. or finally when watermark pass the end of window
+      # Repeatedly 1. after at least maxLogEvents in pane
+      #            2. or processing time pass the first element in pane + delay
       | 'query10_fix_window' >> beam.WindowInto(
           window.FixedWindows(metadata.get('window_size_sec')),
           trigger=trigger.AfterEach(
