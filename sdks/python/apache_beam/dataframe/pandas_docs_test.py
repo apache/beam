@@ -64,24 +64,37 @@ if __name__ == '__main__':
     'Run python -m apache_beam.dataframe.pandas_docs_test to download pandas tests.'
 )
 class PandasDocsTest(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls):
+    unittest.TestCase.setUpClass()
+    cls._running_summary = doctests.Summary()
+
+  @classmethod
+  def tearDownClass(cls):
+    print("Final summary:")
+    cls._running_summary.summarize()
+    unittest.TestCase.tearDownClass()
+
   def _run_rst_tests(
       self, path, report=True, wont_implement_ok=['*'], skip=[], **kwargs):
 
     with open(os.path.join(PANDAS_DIR, 'doc', 'source', *path.split('/'))) as f:
       rst = f.read()
 
-    result = doctests.test_rst_ipython(rst, path, **kwargs)
+    result = doctests.test_rst_ipython(
+        rst, path, report=report, wont_implement_ok=wont_implement_ok, **kwargs)
+    type(self)._running_summary += result.summary
     self.assertEqual(result.failed, 0)
 
   # TODO(robertwb): Auto-generate?
   def test_10min(self):
-    result = self._run_rst_tests('user_guide/10min.rst', use_beam=False)
+    self._run_rst_tests('user_guide/10min.rst', use_beam=False)
 
   def test_basics(self):
-    result = self._run_rst_tests('user_guide/basics.rst', use_beam=False)
+    self._run_rst_tests('user_guide/basics.rst', use_beam=False)
 
   def test_groupby(self):
-    result = self._run_rst_tests('user_guide/groupby.rst', use_beam=False)
+    self._run_rst_tests('user_guide/groupby.rst', use_beam=False)
 
 
 if __name__ == '__main__':

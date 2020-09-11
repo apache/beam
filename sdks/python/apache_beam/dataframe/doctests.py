@@ -325,6 +325,9 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         self.wont_implement += 1
     with self._test_env.context():
       result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
+      # Can't add attributes to builtin result.
+      result = TestResults(result.failed, result.attempted)
+      result.summary = self.summary()
       return result
 
   def report_success(self, out, test, example, got):
@@ -351,18 +354,57 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
   def summarize(self):
     super(BeamDataframeDoctestRunner, self).summarize()
-    if self.failures:
-      return
+    self.summary().summarize()
 
+  def summary(self):
+    return Summary(
+        self.failures,
+        self.tries,
+        self.skipped,
+        self.wont_implement,
+        self._wont_implement_reasons)
+
+
+class TestResults(doctest.TestResults):
+  pass
+
+
+class Summary(object):
+  def __init__(
+      self,
+      failures=0,
+      tries=0,
+      skipped=0,
+      wont_implement=0,
+      wont_implement_reasons=[]):
+    self.failures = failures
+    self.tries = tries
+    self.skipped = skipped
+    self.wont_implement = wont_implement
+    self.wont_implement_reasons = wont_implement_reasons
+
+  def __add__(self, other):
+    return Summary(
+        self.failures + other.failures,
+        self.tries + other.tries,
+        self.skipped + other.skipped,
+        self.wont_implement + other.wont_implement,
+        self.wont_implement_reasons + other.wont_implement_reasons)
+
+  def summarize(self):
     def print_partition(indent, desc, n, total):
       print("%s%d %s (%.1f%%)" % ("  " * indent, n, desc, n / total * 100))
 
     print()
     print("%d total test cases:" % self.tries)
+
+    if not self.tries:
+      return
+
     print_partition(1, "skipped", self.skipped, self.tries)
     print_partition(1, "won't implement", self.wont_implement, self.tries)
     reason_counts = sorted(
-        collections.Counter(self._wont_implement_reasons).items(),
+        collections.Counter(self.wont_implement_reasons).items(),
         key=lambda x: x[1],
         reverse=True)
     for desc, count in reason_counts:
@@ -428,6 +470,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
   set_pandas_options()
   IP = IPython.InteractiveShell.instance(config=config)
   IP.run_cell(IMPORT_PANDAS + '\n')
+  IP.run_cell('import numpy as np\n')
   try:
     stdout = sys.stdout
     for src in example_srcs:
@@ -447,7 +490,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
     sys.stdout = stdout
 
   return doctest.DocTest(
-      examples, dict(extraglobs or {}), name, name, None, None)
+      examples, dict(extraglobs or {}, np=np), name, name, None, None)
 
 
 def test_rst_ipython(
