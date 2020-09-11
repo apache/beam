@@ -17,23 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 
-/** This class is created because Kafka Consumer Records are not serializable. */
-@AutoValue
-public abstract class KafkaTestRecord<ValueT> implements Serializable {
+public class KafkaTestTableCSV extends KafkaTestTable {
 
-  public abstract String getKey();
+  public KafkaTestTableCSV(Schema beamSchema, List<String> topics, int partitionsPerTopic) {
+    super(beamSchema, topics, partitionsPerTopic);
+  }
 
-  public abstract ValueT getValue();
-
-  public abstract String getTopic();
-
-  public abstract long getTimeStamp();
-
-  public static <ValueT> KafkaTestRecord<ValueT> create(
-      String newKey, ValueT newValue, String newTopic, long newTimeStamp) {
-    return new AutoValue_KafkaTestRecord<>(newKey, newValue, newTopic, newTimeStamp);
+  @Override
+  protected byte[] getRecordValueBytes(KafkaTestRecord<?> record) {
+    return ((String) record.getValue()).getBytes(StandardCharsets.UTF_8);
   }
 }

@@ -31,6 +31,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -44,23 +48,25 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 
 /** This is a MockKafkaCSVTestTable. It will use a Mock Consumer. */
-public class KafkaCSVTestTable extends BeamKafkaCSVTable {
-  private int partitionsPerTopic;
-  private List<KafkaTestRecord> records;
+public abstract class KafkaTestTable extends BeamKafkaTable {
+  private final int partitionsPerTopic;
+  private List<KafkaTestRecord<?>> records;
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
 
-  public KafkaCSVTestTable(Schema beamSchema, List<String> topics, int partitionsPerTopic) {
+  public KafkaTestTable(Schema beamSchema, List<String> topics, int partitionsPerTopic) {
     super(beamSchema, "server:123", topics);
     this.partitionsPerTopic = partitionsPerTopic;
     this.records = new ArrayList<>();
   }
+
+  protected abstract byte[] getRecordValueBytes(KafkaTestRecord<?> record);
 
   @Override
   KafkaIO.Read<byte[], byte[]> createKafkaRead() {
     return super.createKafkaRead().withConsumerFactoryFn(this::mkMockConsumer);
   }
 
-  public void addRecord(KafkaTestRecord record) {
+  public void addRecord(KafkaTestRecord<?> record) {
     records.add(record);
   }
 
@@ -73,7 +79,7 @@ public class KafkaCSVTestTable extends BeamKafkaCSVTable {
     this.numberOfRecordsForRate = numberOfRecordsForRate;
   }
 
-  private MockConsumer<byte[], byte[]> mkMockConsumer(Map<String, Object> config) {
+  private <ValueT> MockConsumer<byte[], byte[]> mkMockConsumer(Map<String, Object> config) {
     OffsetResetStrategy offsetResetStrategy = OffsetResetStrategy.EARLIEST;
     final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> kafkaRecords = new HashMap<>();
     Map<String, List<PartitionInfo>> partitionInfoMap = new HashMap<>();
@@ -99,11 +105,11 @@ public class KafkaCSVTestTable extends BeamKafkaCSVTable {
                 config.getOrDefault(
                     TIMESTAMP_TYPE_CONFIG, TimestampType.LOG_APPEND_TIME.toString()));
 
-    for (KafkaTestRecord record : this.records) {
+    for (KafkaTestRecord<?> record : this.records) {
       int partitionIndex = record.getKey().hashCode() % partitionsPerTopic;
       TopicPartition tp = partitionMap.get(record.getTopic()).get(partitionIndex);
       byte[] key = record.getKey().getBytes(UTF_8);
-      byte[] value = record.getValue().getBytes(UTF_8);
+      byte[] value = getRecordValueBytes(record);
       kafkaRecords
           .get(tp)
           .add(
@@ -122,7 +128,7 @@ public class KafkaCSVTestTable extends BeamKafkaCSVTable {
 
     // This is updated when reader assigns partitions.
     final AtomicReference<List<TopicPartition>> assignedPartitions =
-        new AtomicReference<>(Collections.<TopicPartition>emptyList());
+        new AtomicReference<>(Collections.emptyList());
     final MockConsumer<byte[], byte[]> consumer =
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
           @Override
@@ -193,5 +199,15 @@ public class KafkaCSVTestTable extends BeamKafkaCSVTable {
     consumer.schedulePollTask(recordEnqueueTask);
 
     return consumer;
+  }
+
+  @Override
+  public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
+    return null;
+  }
+
+  @Override
+  public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
+    return null;
   }
 }

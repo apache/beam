@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
@@ -30,9 +31,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -41,27 +40,49 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.JavaTypeFa
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.commons.csv.CSVFormat;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 /** Test for BeamKafkaCSVTable. */
-public class BeamKafkaCSVTableTest {
+public abstract class BeamKafkaTableTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  private static final Row ROW1 = Row.withSchema(genSchema()).addValues(1L, 1, 1.0).build();
+  protected static final Schema BEAM_SQL_SCHEMA =
+      TestTableUtils.buildBeamSqlSchema(
+          Schema.FieldType.INT32,
+          "order_id",
+          Schema.FieldType.INT32,
+          "site_id",
+          Schema.FieldType.INT32,
+          "price");
 
-  private static final Row ROW2 = Row.withSchema(genSchema()).addValues(2L, 2, 2.0).build();
+  protected static final List<String> TOPICS = ImmutableList.of("topic1", "topic2");
 
-  private static Map<String, BeamSqlTable> tables = new HashMap<>();
+  protected static final Schema SCHEMA = genSchema();
+
+  protected static final Row ROW1 = Row.withSchema(SCHEMA).addValues(1L, 1, 1.0).build();
+
+  protected static final Row ROW2 = Row.withSchema(SCHEMA).addValues(2L, 2, 2.0).build();
+
+  private static final Map<String, BeamSqlTable> tables = new HashMap<>();
+
   protected static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
+
+  protected abstract KafkaTestRecord<?> createKafkaTestRecord(
+      String key, boolean useFixedKey, int i, int timestamp, boolean useFixedTimestamp);
+
+  protected abstract KafkaTestTable getTable(int numberOfPartitions);
+
+  protected abstract PCollection<Row> createRecorderDecoder(TestPipeline pipeline);
+
+  protected abstract PCollection<Row> createRecorderEncoder(TestPipeline pipeline);
 
   @Test
   public void testOrderedArrivalSinglePartitionRate() {
-    KafkaCSVTestTable table = getTable(1);
+    KafkaTestTable table = getTable(1);
     for (int i = 0; i < 100; i++) {
-      table.addRecord(KafkaTestRecord.create("key1", i + ",1,2", "topic1", 500 * i));
+      table.addRecord(createKafkaTestRecord("k", false, i, 500, false));
     }
 
     BeamTableStatistics stats = table.getTableStatistics(null);
@@ -70,9 +91,9 @@ public class BeamKafkaCSVTableTest {
 
   @Test
   public void testOrderedArrivalMultiplePartitionsRate() {
-    KafkaCSVTestTable table = getTable(3);
+    KafkaTestTable table = getTable(3);
     for (int i = 0; i < 100; i++) {
-      table.addRecord(KafkaTestRecord.create("key" + i, i + ",1,2", "topic1", 500 * i));
+      table.addRecord(createKafkaTestRecord("k", false, i, 500, false));
     }
 
     BeamTableStatistics stats = table.getTableStatistics(null);
@@ -81,10 +102,10 @@ public class BeamKafkaCSVTableTest {
 
   @Test
   public void testOnePartitionAheadRate() {
-    KafkaCSVTestTable table = getTable(3);
+    KafkaTestTable table = getTable(3);
     for (int i = 0; i < 100; i++) {
-      table.addRecord(KafkaTestRecord.create("1", i + ",1,2", "topic1", 1000 * i));
-      table.addRecord(KafkaTestRecord.create("2", i + ",1,2", "topic1", 500 * i));
+      table.addRecord(createKafkaTestRecord("1", true, i, 1000, false));
+      table.addRecord(createKafkaTestRecord("2", true, i, 500, false));
     }
 
     table.setNumberOfRecordsForRate(20);
@@ -94,13 +115,13 @@ public class BeamKafkaCSVTableTest {
 
   @Test
   public void testLateRecords() {
-    KafkaCSVTestTable table = getTable(3);
+    KafkaTestTable table = getTable(3);
 
-    table.addRecord(KafkaTestRecord.create("1", 132 + ",1,2", "topic1", 1000));
+    table.addRecord(createKafkaTestRecord("1", true, 132, 1000, true));
     for (int i = 0; i < 98; i++) {
-      table.addRecord(KafkaTestRecord.create("1", i + ",1,2", "topic1", 500));
+      table.addRecord(createKafkaTestRecord("1", true, i, 500, true));
     }
-    table.addRecord(KafkaTestRecord.create("1", 133 + ",1,2", "topic1", 2000));
+    table.addRecord(createKafkaTestRecord("1", true, 133, 2000, true));
 
     table.setNumberOfRecordsForRate(200);
     BeamTableStatistics stats = table.getTableStatistics(null);
@@ -109,11 +130,11 @@ public class BeamKafkaCSVTableTest {
 
   @Test
   public void testAllLate() {
-    KafkaCSVTestTable table = getTable(3);
+    KafkaTestTable table = getTable(3);
 
-    table.addRecord(KafkaTestRecord.create("1", 132 + ",1,2", "topic1", 1000));
+    table.addRecord(createKafkaTestRecord("1", true, 132, 1000, true));
     for (int i = 0; i < 98; i++) {
-      table.addRecord(KafkaTestRecord.create("1", i + ",1,2", "topic1", 500));
+      table.addRecord(createKafkaTestRecord("1", true, i, 500, true));
     }
 
     table.setNumberOfRecordsForRate(200);
@@ -123,57 +144,37 @@ public class BeamKafkaCSVTableTest {
 
   @Test
   public void testEmptyPartitionsRate() {
-    KafkaCSVTestTable table = getTable(3);
+    KafkaTestTable table = getTable(3);
     BeamTableStatistics stats = table.getTableStatistics(null);
     Assert.assertTrue(stats.isUnknown());
   }
 
   @Test
   public void allTheRecordsSameTimeRate() {
-    KafkaCSVTestTable table = getTable(3);
+    KafkaTestTable table = getTable(3);
     for (int i = 0; i < 100; i++) {
-      table.addRecord(KafkaTestRecord.create("key" + i, i + ",1,2", "topic1", 1000));
+      table.addRecord(createKafkaTestRecord("key", false, i, 1000, true));
     }
     BeamTableStatistics stats = table.getTableStatistics(null);
     Assert.assertTrue(stats.isUnknown());
   }
 
-  private static class PrintDoFn extends DoFn<Row, Row> {
-
-    @ProcessElement
-    public void process(ProcessContext c) {
-      System.out.println("we are here");
-      System.out.println(c.element().getValues());
-    }
-  }
-
   @Test
-  public void testCsvRecorderDecoder() {
-    PCollection<Row> result =
-        pipeline
-            .apply(Create.of("1,\"1\",1.0", "2,2,2.0"))
-            .apply(ParDo.of(new String2KvBytes()))
-            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genSchema(), CSVFormat.DEFAULT));
-
+  public void testRecorderDecoder() {
+    PCollection<Row> result = createRecorderDecoder(pipeline);
     PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
 
     pipeline.run();
   }
 
   @Test
-  public void testCsvRecorderEncoder() {
-    PCollection<Row> result =
-        pipeline
-            .apply(Create.of(ROW1, ROW2))
-            .apply(new BeamKafkaCSVTable.CsvRecorderEncoder(genSchema(), CSVFormat.DEFAULT))
-            .apply(new BeamKafkaCSVTable.CsvRecorderDecoder(genSchema(), CSVFormat.DEFAULT));
-
+  public void testRecorderEncoder() {
+    PCollection<Row> result = createRecorderDecoder(pipeline);
     PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
-
     pipeline.run();
   }
 
-  private static Schema genSchema() {
+  protected static Schema genSchema() {
     JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
     return CalciteUtils.toSchema(
         typeFactory
@@ -184,24 +185,11 @@ public class BeamKafkaCSVTableTest {
             .build());
   }
 
-  private static class String2KvBytes extends DoFn<String, KV<byte[], byte[]>>
+  protected static class String2KvBytes extends DoFn<String, KV<byte[], byte[]>>
       implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(KV.of(new byte[] {}, ctx.element().getBytes(UTF_8)));
     }
-  }
-
-  private KafkaCSVTestTable getTable(int numberOfPartitions) {
-    return new KafkaCSVTestTable(
-        TestTableUtils.buildBeamSqlSchema(
-            Schema.FieldType.INT32,
-            "order_id",
-            Schema.FieldType.INT32,
-            "site_id",
-            Schema.FieldType.INT32,
-            "price"),
-        ImmutableList.of("topic1", "topic2"),
-        numberOfPartitions);
   }
 }
