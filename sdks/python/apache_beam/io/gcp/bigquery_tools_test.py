@@ -177,6 +177,41 @@ class TestBigQueryWrapper(unittest.TestCase):
       wrapper._insert_all_rows('', '', '', [], latency_recoder=mock_recoder)
     self.assertTrue(mock_recoder.record.called)
 
+  def test_insert_error_count_skipped(self):
+    client = mock.Mock()
+    insert_response = mock.Mock()
+    insert_response.insertErrors = []
+    client.tabledata.InsertAll.return_value = insert_response
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    mock_counter = mock.Mock()
+    wrapper._insert_all_rows('', '', '', [], error_counter=mock_counter)
+    self.assertEqual(mock_counter.record.call_count, 0)
+
+  def test_insert_error_count_recorded(self):
+    client = mock.Mock()
+    client.tabledata.InsertAll.side_effect = HttpError(
+        response={'status': '404'},
+        url='',
+        content='''{
+          "error": {
+            "code": 400,
+            "message": "The destination table has no schema.",
+            "errors": [
+              {
+                "message": "The destination table has no schema.",
+                "domain": "global",
+                "reason": "invalid"
+              }
+            ],
+            "status": "INVALID_ARGUMENT"
+          }
+        }''')
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    mock_counter = mock.Mock()
+    with self.assertRaises(HttpError):
+      wrapper._insert_all_rows('', '', '', [], error_counter=mock_counter)
+    self.assertEqual(mock_counter.record.call_count, 1)
+
   @mock.patch('time.sleep', return_value=None)
   def test_temporary_dataset_is_unique(self, patched_time_sleep):
     client = mock.Mock()

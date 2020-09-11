@@ -518,7 +518,8 @@ class BigQueryWrapper(object):
       table_id,
       rows,
       skip_invalid_rows=False,
-      latency_recoder=None):
+      latency_recoder=None,
+      error_counter=None):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -538,6 +539,13 @@ class BigQueryWrapper(object):
     try:
       response = self.client.tabledata.InsertAll(request)
       # response.insertErrors is not [] if errors encountered.
+    except HttpError as exn:
+      if error_counter:
+        content = json.loads(exn.content)
+        error_counter.record(
+            '%s(%s)' %
+            (content['error']['errors'][0]['reason'], exn.status_code))
+      raise
     finally:
       if latency_recoder:
         latency_recoder.record(int(time.time() * 1000) - started_millis)
@@ -947,7 +955,8 @@ class BigQueryWrapper(object):
       rows,
       insert_ids=None,
       skip_invalid_rows=False,
-      latency_recoder=None):
+      latency_recoder=None,
+      error_counter=None):
     """Inserts rows into the specified table.
 
     Args:
@@ -961,6 +970,9 @@ class BigQueryWrapper(object):
       latency_recoder: The object that records request-to-response latencies.
         The object should provide `record(int)` method to be invoked with
         milliseconds latency values.
+      error_counter: The object that records the number of errors. The object
+        should provide `record(error_code)` method to be invoked with http
+        response error codes.
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -982,7 +994,7 @@ class BigQueryWrapper(object):
               insertId=insert_id, json=json_row))
     result, errors = self._insert_all_rows(
         project_id, dataset_id, table_id, final_rows, skip_invalid_rows,
-        latency_recoder)
+        latency_recoder, error_counter)
     return result, errors
 
   def _convert_to_json_row(self, row):
