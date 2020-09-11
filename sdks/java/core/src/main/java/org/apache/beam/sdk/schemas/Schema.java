@@ -46,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Schema} describes the fields in {@link Row}. */
@@ -521,6 +522,8 @@ public class Schema implements Serializable {
    * allowed to have LogicalTypes reference each other recursively via getBaseType. The {@link
    * #toBaseType} and {@link #toInputType} should convert back and forth between the Java type for
    * the LogicalType (InputT) and the Java type appropriate for the underlying base type (BaseT).
+   * Note for nullable types, null checking is always done externally. {@link #toBaseType} and
+   * {@link #toInputType} may assume their inputs are never null.
    *
    * <p>{@link #getIdentifier} must define a globally unique identifier for this LogicalType. A
    * LogicalType can optionally provide an identifying argument as well using {@link #getArgument}.
@@ -551,10 +554,13 @@ public class Schema implements Serializable {
     /** The base {@link FieldType} used to store values of this type. */
     FieldType getBaseType();
 
-    BaseT toBaseType(InputT input);
+    /** Convert the input type to the type Java type used by the base {@link FieldType}. */
+    @NonNull
+    BaseT toBaseType(@NonNull InputT input);
 
     /** Convert the Java type used by the base {@link FieldType} to the input type. */
-    InputT toInputType(BaseT base);
+    @NonNull
+    InputT toInputType(@NonNull BaseT base);
   }
 
   /**
