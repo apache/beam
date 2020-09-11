@@ -190,9 +190,8 @@ To pass Pipeline options via the command line, use `--args` in a gradle command 
         --region=<FOR DATAFLOW RUNNER: GCP REGION> 
            Example: --region=us-east-1
         --appName=<OPTIONAL: DATAFLOW JOB NAME PREFIX>
-           Example: --appName=my_job
-    "
-    {{< /highlight >}}
+           Example: --appName=my_job"
+{{< /highlight >}}
 Then in the code it is possible to access the parameters with arguments using the options.getStagingBucketName(); command.
 
 ### Running test command with Pipeline options
