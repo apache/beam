@@ -17,68 +17,51 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLines2BeamRows;
-
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.commons.csv.CSVFormat;
 
-/** A Kafka topic that saves records as CSV format. */
-public class BeamKafkaCSVTable extends BeamKafkaTable {
-  private CSVFormat csvFormat;
+public class BeamKafkaAvroTable extends BeamKafkaTable {
 
-  public BeamKafkaCSVTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
-    this(beamSchema, bootstrapServers, topics, CSVFormat.DEFAULT);
-  }
-
-  public BeamKafkaCSVTable(
-      Schema beamSchema, String bootstrapServers, List<String> topics, CSVFormat format) {
+  public BeamKafkaAvroTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
     super(beamSchema, bootstrapServers, topics);
-    this.csvFormat = format;
   }
 
   @Override
   public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
-    return new CsvRecorderDecoder(schema, csvFormat);
+    return new AvroRecorderDecoder(schema);
   }
 
   @Override
   public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
-    return new CsvRecorderEncoder(csvFormat);
+    return new AvroRecorderEncoder();
   }
 
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
-  public static class CsvRecorderDecoder
+  public static class AvroRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {
     private final Schema schema;
-    private final CSVFormat format;
 
-    public CsvRecorderDecoder(Schema schema, CSVFormat format) {
+    public AvroRecorderDecoder(Schema schema) {
       this.schema = schema;
-      this.format = format;
     }
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
       return input
           .apply(
-              "decodeCsvRecord",
+              "decodeAvroRecord",
               ParDo.of(
                   new DoFn<KV<byte[], byte[]>, Row>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) {
-                      String rowInString = new String(c.element().getValue(), UTF_8);
-                      for (Row row : csvLines2BeamRows(format, rowInString, schema)) {
-                        c.output(row);
-                      }
+                      c.output(AvroUtils.avroBytesToRow(c.element().getValue(), schema));
                     }
                   }))
           .setRowSchema(schema);
@@ -86,24 +69,19 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   }
 
   /** A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}. */
-  public static class CsvRecorderEncoder
+  public static class AvroRecorderEncoder
       extends PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> {
-    private final CSVFormat format;
-
-    public CsvRecorderEncoder(CSVFormat format) {
-      this.format = format;
-    }
 
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
       return input.apply(
-          "encodeCsvRecord",
+          "encodeAvroRecord",
           ParDo.of(
               new DoFn<Row, KV<byte[], byte[]>>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   Row in = c.element();
-                  c.output(KV.of(new byte[] {}, beamRow2CsvLine(in, format).getBytes(UTF_8)));
+                  c.output(KV.of(new byte[] {}, AvroUtils.rowToAvroBytes(in)));
                 }
               }));
     }

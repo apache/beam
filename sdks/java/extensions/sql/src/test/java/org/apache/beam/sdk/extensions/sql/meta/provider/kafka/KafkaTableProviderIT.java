@@ -68,7 +68,7 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** This is an integration test for KafkaCSVTable. */
-public class KafkaCSVTableIT {
+public abstract class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -78,14 +78,20 @@ public class KafkaCSVTableIT {
       new KafkaContainer(
           DockerImageName.parse("confluentinc/cp-kafka").withTag(KAFKA_CONTAINER_VERSION));
 
-  private KafkaOptions kafkaOptions;
+  protected KafkaOptions kafkaOptions;
 
-  private static final Schema TEST_TABLE_SCHEMA =
+  protected static final Schema TEST_TABLE_SCHEMA =
       Schema.builder()
           .addNullableField("order_id", Schema.FieldType.INT32)
           .addNullableField("member_id", Schema.FieldType.INT32)
           .addNullableField("item_name", Schema.FieldType.INT32)
           .build();
+
+  protected abstract <ValueT> ProducerRecord<String, ValueT> generateProducerRecord(int i);
+
+  protected abstract String getPayloadFormat();
+
+  protected abstract String getValueSerializer();
 
   @Before
   public void setUp() {
@@ -120,7 +126,9 @@ public class KafkaCSVTableIT {
   }
 
   private String getKafkaPropertiesString() {
-    return "{ \"bootstrap.servers\" : \""
+    return "{ "
+        + (getPayloadFormat() == null ? "" : "\"payloadFormat\" : \"" + getPayloadFormat() + "\",")
+        + "\"bootstrap.servers\" : \""
         + kafkaOptions.getKafkaBootstrapServerAddress()
         + "\",\"topics\":[\""
         + kafkaOptions.getKafkaTopic()
@@ -234,47 +242,48 @@ public class KafkaCSVTableIT {
     }
   }
 
-  private Row row(Schema schema, Object... values) {
+  protected Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private void produceSomeRecords(int num) {
-    Producer<String, String> producer = new KafkaProducer<String, String>(producerProps());
-    String topicName = kafkaOptions.getKafkaTopic();
-    for (int i = 0; i < num; i++) {
-      producer.send(
-          new ProducerRecord<String, String>(
-              topicName, "k" + i, i + "," + ((i % 3) + 1) + "," + i));
-    }
+  private <ValueT> void produceSomeRecords(int num) {
+    Producer<String, ValueT> producer = new KafkaProducer<>(producerProps());
+    Stream.iterate(0, i -> ++i)
+        .limit(num)
+        .forEach(
+            i -> {
+              ProducerRecord<String, ValueT> record = generateProducerRecord(i);
+              producer.send(record);
+            });
     producer.flush();
     producer.close();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private void produceSomeRecordsWithDelay(int num, int delayMilis) {
-    Producer<String, String> producer = new KafkaProducer<String, String>(producerProps());
-    String topicName = pipeline.getOptions().as(KafkaOptions.class).getKafkaTopic();
-    for (int i = 0; i < num; i++) {
-      producer.send(
-          new ProducerRecord<String, String>(
-              topicName, "k" + i, i + "," + ((i % 3) + 1) + "," + i));
-      try {
-        TimeUnit.MILLISECONDS.sleep(delayMilis);
-      } catch (InterruptedException e) {
-        throw new RuntimeException("Could not wait for producing", e);
-      }
-    }
+  private <ValueT> void produceSomeRecordsWithDelay(int num, int delayMilis) {
+    Producer<String, ValueT> producer = new KafkaProducer<>(producerProps());
+    Stream.iterate(0, i -> ++i)
+        .limit(num)
+        .forEach(
+            i -> {
+              ProducerRecord<String, ValueT> record = generateProducerRecord(i);
+              producer.send(record);
+              try {
+                TimeUnit.MILLISECONDS.sleep(delayMilis);
+              } catch (InterruptedException e) {
+                throw new RuntimeException("Could not wait for producing", e);
+              }
+            });
     producer.flush();
     producer.close();
   }
 
   private Properties producerProps() {
-    KafkaOptions options = pipeline.getOptions().as(KafkaOptions.class);
     Properties props = new Properties();
-    props.put("bootstrap.servers", options.getKafkaBootstrapServerAddress());
+    props.put("bootstrap.servers", kafkaOptions.getKafkaBootstrapServerAddress());
     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    props.put("value.serializer", getValueSerializer());
     props.put("buffer.memory", 33554432);
     props.put("acks", "all");
     props.put("request.required.acks", "1");
