@@ -992,7 +992,8 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       **kwargs: Additional arguments and side inputs.
     """
     if args or kwargs:
-      add_input = lambda element: self.add_input(element, *args, **kwargs)
+      add_input = lambda accumulator, element: self.add_input(
+          accumulator, element, *args, **kwargs)
     else:
       add_input = self.add_input
     return self.extract_output(
