@@ -19,5 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 public enum PayloadFormat {
   JSON,
-  AVRO
+  AVRO,
+  PROTO
 }

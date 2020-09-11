@@ -22,6 +22,9 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -30,6 +33,7 @@ import java.util.stream.Collectors;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
@@ -102,7 +106,7 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
     return rows;
   }
 
-  private static Row parsePayload(
+  static Row parsePayload(
       byte[] payload,
       Schema payloadSchema,
       PayloadFormat payloadFormat,
@@ -112,8 +116,20 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
         return parseJsonPayload(payload, payloadSchema, objectMapper);
       case AVRO:
         return AvroUtils.avroBytesToRow(payload, payloadSchema);
+      case PROTO:
+        return parseProtoPayload(payload, payloadSchema);
       default:
         throw new IllegalArgumentException("Unsupported payload format given: " + payloadFormat);
+    }
+  }
+
+  private static Row parseProtoPayload(byte[] payload, Schema payloadSchema) {
+    try {
+      InputStream inputStream = new ByteArrayInputStream(payload);
+      RowCoder rowCoder = RowCoder.of(payloadSchema);
+      return rowCoder.decode(inputStream);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Could not decode row from proto payload.", e);
     }
   }
 
@@ -181,7 +197,9 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
                 .map(field -> getValueForFieldFlatSchema(field, timestamp, payload))
                 .collect(toList());
         o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
-      } catch (UnsupportedRowJsonException | AvroRuntimeException exception) {
+      } catch (UnsupportedRowJsonException
+          | AvroRuntimeException
+          | IllegalArgumentException exception) {
         if (useDlq) {
           o.get(DLQ_TAG).output(element);
         } else {
@@ -252,7 +270,9 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
                             field, timestamp, element.getAttributeMap(), payload))
                 .collect(toList());
         o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
-      } catch (UnsupportedRowJsonException | AvroRuntimeException exception) {
+      } catch (UnsupportedRowJsonException
+          | AvroRuntimeException
+          | IllegalArgumentException exception) {
         if (useDlq) {
           o.get(DLQ_TAG).output(element);
         } else {

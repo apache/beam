@@ -19,7 +19,10 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.transforms.DropFields;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -74,8 +77,23 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
         return withTimestamp.apply(
             MapElements.into(TypeDescriptor.of(PubsubMessage.class))
                 .via(row -> new PubsubMessage(AvroUtils.rowToAvroBytes(row), ImmutableMap.of())));
+      case PROTO:
+        return withTimestamp.apply(
+            MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                .via(RowToPubsubMessage::encodeToProtoPubsubMessage));
       default:
         throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
+    }
+  }
+
+  private static PubsubMessage encodeToProtoPubsubMessage(Row row) {
+    RowCoder rowCoder = RowCoder.of(row.getSchema());
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    try {
+      rowCoder.encode(row, outputStream);
+      return new PubsubMessage(outputStream.toByteArray(), ImmutableMap.of());
+    } catch (IOException e) {
+      throw new RuntimeException(String.format("Could not encode row %s to proto.", row), e);
     }
   }
 }

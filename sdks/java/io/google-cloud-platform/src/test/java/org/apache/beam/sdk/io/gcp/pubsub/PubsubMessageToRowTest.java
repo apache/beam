@@ -25,11 +25,13 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.VARCHAR;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
@@ -320,6 +322,36 @@ public class PubsubMessageToRowTest implements Serializable {
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
     Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
+  }
+
+  @Test
+  public void testParsesProtoPayload() {
+    Schema payloadSchema = getParserSchema();
+    Row row = row(payloadSchema, 3, "Dovakkin", 5.5, 5L);
+    byte[] payload = rowToBytes(row);
+    Row parsedRow =
+        PubsubMessageToRow.parsePayload(payload, payloadSchema, PayloadFormat.PROTO, null);
+    assertEquals(row, parsedRow);
+  }
+
+  private Schema getParserSchema() {
+    return Schema.builder()
+        .addInt32Field("id")
+        .addNullableField("name", FieldType.STRING)
+        .addNullableField("real", FieldType.DOUBLE)
+        .addNullableField("number", FieldType.INT64)
+        .build();
+  }
+
+  private byte[] rowToBytes(Row row) {
+    try {
+      RowCoder coder = RowCoder.of(row.getSchema());
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      coder.encode(row, outputStream);
+      return outputStream.toByteArray();
+    } catch (Exception e) {
+      throw new RuntimeException("Could not convert row to bytes", e);
+    }
   }
 
   private Row row(Schema schema, Object... objects) {

@@ -80,6 +80,19 @@ public abstract class PubsubTableProviderIT implements Serializable {
           .addNullableField("name", Schema.FieldType.STRING)
           .build();
 
+  protected static final Schema NAME_HEIGHT_KNOWS_JS_SCHEMA =
+      Schema.builder()
+          .addNullableField("name", Schema.FieldType.STRING)
+          .addNullableField("height", Schema.FieldType.INT32)
+          .addNullableField("knowsJavascript", Schema.FieldType.BOOLEAN)
+          .build();
+
+  protected static final Schema NAME_HEIGHT_SCHEMA =
+      Schema.builder()
+          .addNullableField("name", Schema.FieldType.STRING)
+          .addNullableField("height", Schema.FieldType.INT32)
+          .build();
+
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub filteredEventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
