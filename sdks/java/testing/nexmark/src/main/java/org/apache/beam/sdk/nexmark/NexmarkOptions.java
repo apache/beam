@@ -403,9 +403,9 @@ public interface NexmarkOptions
 
   @Description("if provided, only generate events and write them to local file with this prefix.")
   @Nullable
-  String getGenerateInputFileOnlyPrefix();
+  String getGenerateEventFilePathPrefix();
 
-  void setGenerateInputFileOnlyPrefix(String value);
+  void setGenerateEventFilePathPrefix(String value);
 
   @Description("If set, cancel running pipelines after this long")
   @Nullable

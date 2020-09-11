@@ -782,7 +782,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .apply(
             "writeToFile",
             TextIO.write()
-                .to(configuration.generateInputFileOnlyPrefix)
+                .to(configuration.generateEventFilePathPrefix)
                 .withSuffix(".json")
                 .withNumShards(1));
   }
@@ -936,7 +936,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     switch (configuration.sourceType) {
       case DIRECT:
         source = sourceEventsFromSynthetic(p);
-        if (configuration.generateInputFileOnlyPrefix != null) {
+        if (configuration.generateEventFilePathPrefix != null) {
           PCollection<Event> events = source;
           source = null;
           sinkEventsToFile(events);
