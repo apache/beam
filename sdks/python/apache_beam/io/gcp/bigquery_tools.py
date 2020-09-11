@@ -53,12 +53,15 @@ from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricLogger
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
+from apache_beam.utils.histogram import LinearBucket
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -261,6 +264,8 @@ class BigQueryWrapper(object):
   TEMP_TABLE = 'temp_table_'
   TEMP_DATASET = 'temp_dataset_'
 
+  HISTOGRAM_METRIC_LOGGER = MetricLogger()
+
   def __init__(self, client=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
@@ -271,6 +276,11 @@ class BigQueryWrapper(object):
     # randomized prefix for row IDs.
     self._row_id_prefix = '' if client else uuid.uuid4()
     self._temporary_table_suffix = uuid.uuid4().hex
+    self._latency_histogram_metric = Metrics.histogram(
+        self.__class__,
+        'latency_histogram_ms',
+        LinearBucket(0, 20, 3000),
+        BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
 
   @property
   def unique_row_id(self):
@@ -512,13 +522,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_all_rows(
-      self,
-      project_id,
-      dataset_id,
-      table_id,
-      rows,
-      skip_invalid_rows=False,
-      latency_recoder=None):
+      self, project_id, dataset_id, table_id, rows, skip_invalid_rows=False):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -534,13 +538,13 @@ class BigQueryWrapper(object):
             skipInvalidRows=skip_invalid_rows,
             # TODO(silviuc): Should have an option for ignoreUnknownValues?
             rows=rows))
-    started_millis = int(time.time() * 1000) if latency_recoder else None
+    started_millis = int(time.time() * 1000)
     try:
       response = self.client.tabledata.InsertAll(request)
       # response.insertErrors is not [] if errors encountered.
     finally:
-      if latency_recoder:
-        latency_recoder.record(int(time.time() * 1000) - started_millis)
+      self._latency_histogram_metric.update(
+          int(time.time() * 1000) - started_millis)
     return not response.insertErrors, response.insertErrors
 
   @retry.with_exponential_backoff(
@@ -958,8 +962,7 @@ class BigQueryWrapper(object):
       table_id,
       rows,
       insert_ids=None,
-      skip_invalid_rows=False,
-      latency_recoder=None):
+      skip_invalid_rows=False):
     """Inserts rows into the specified table.
 
     Args:
@@ -970,9 +973,6 @@ class BigQueryWrapper(object):
         each key in it is the name of a field.
       skip_invalid_rows: If there are rows with insertion errors, whether they
         should be skipped, and all others should be inserted successfully.
-      latency_recoder: The object that records request-to-response latencies.
-        The object should provide `record(int)` method to be invoked with
-        milliseconds latency values.
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -993,8 +993,7 @@ class BigQueryWrapper(object):
           bigquery.TableDataInsertAllRequest.RowsValueListEntry(
               insertId=insert_id, json=json_row))
     result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, final_rows, skip_invalid_rows,
-        latency_recoder)
+        project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
     return result, errors
 
   def _convert_to_json_row(self, row):

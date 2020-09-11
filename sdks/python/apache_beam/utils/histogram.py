@@ -21,6 +21,7 @@ from __future__ import division
 import logging
 import math
 import threading
+from collections import Counter
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,17 +35,41 @@ class Histogram(object):
   def __init__(self, bucket_type):
     self._lock = threading.Lock()
     self._bucket_type = bucket_type
-    self._buckets = {}
+    self._buckets = Counter()
     self._num_records = 0
     self._num_top_records = 0
     self._num_bot_records = 0
 
   def clear(self):
     with self._lock:
-      self._buckets = {}
+      self._buckets = Counter()
       self._num_records = 0
       self._num_top_records = 0
       self._num_bot_records = 0
+
+  def copy(self):
+    with self._lock:
+      histogram = Histogram(self._bucket_type)
+      histogram._num_records = self._num_records
+      histogram._num_top_records = self._num_top_records
+      histogram._num_bot_records = self._num_bot_records
+      histogram._buckets = self._buckets.copy()
+      return histogram
+
+  def combine(self, other):
+    if not isinstance(other,
+                      Histogram) or self._bucket_type != other._bucket_type:
+      raise RuntimeError('failed to combine histogram.')
+    other_histogram = other.copy()
+    with self._lock:
+      histogram = Histogram(self._bucket_type)
+      histogram._num_records = self._num_records + other_histogram._num_records
+      histogram._num_top_records = (
+          self._num_top_records + other_histogram._num_top_records)
+      histogram._num_bot_records = (
+          self._num_bot_records + other_histogram._num_bot_records)
+      histogram._buckets = self._buckets + other_histogram._buckets
+      return histogram
 
   def record(self, *args):
     for arg in args:
@@ -78,27 +103,23 @@ class Histogram(object):
   def p50(self):
     return self.get_linear_interpolation(0.50)
 
-  def get_percentile_info(self, elem_type, unit):
+  def get_percentile_info(self):
     def _format(f):
       if f == float('-inf'):
         return '<%s' % self._bucket_type.range_from()
       elif f == float('inf'):
         return '>=%s' % self._bucket_type.range_to()
       else:
-        return str(round(f))  # pylint: disable=round-builtin
+        return str(int(round(f)))  # pylint: disable=round-builtin
 
     with self._lock:
       return (
-          'Total number of %s: %s, '
-          'P99: %s%s, P90: %s%s, P50: %s%s' % (
-              elem_type,
+          'Total count: %s, '
+          'P99: %s, P90: %s, P50: %s' % (
               self.total_count(),
               _format(self._get_linear_interpolation(0.99)),
-              unit,
               _format(self._get_linear_interpolation(0.90)),
-              unit,
-              _format(self._get_linear_interpolation(0.50)),
-              unit))
+              _format(self._get_linear_interpolation(0.50))))
 
   def get_linear_interpolation(self, percentile):
     """Calculate percentile estimation based on linear interpolation.
@@ -140,6 +161,24 @@ class Histogram(object):
     return (
         self._bucket_type.range_from() +
         self._bucket_type.accumulated_bucket_size(index) + frac_bucket_size)
+
+  def __eq__(self, other):
+    if not isinstance(other, Histogram):
+      return False
+    return (
+        self._bucket_type == other._bucket_type and
+        self._num_records == other._num_records and
+        self._num_top_records == other._num_top_records and
+        self._num_bot_records == other._num_bot_records and
+        self._buckets == other._buckets)
+
+  def __hash__(self):
+    return hash((
+        self._bucket_type,
+        self._num_records,
+        self._num_top_records,
+        self._num_bot_records,
+        frozenset(self._buckets.items())))
 
 
 class BucketType(object):
@@ -205,3 +244,13 @@ class LinearBucket(BucketType):
 
   def accumulated_bucket_size(self, end_index):
     return self._width * end_index
+
+  def __eq__(self, other):
+    if not isinstance(other, LinearBucket):
+      return False
+    return (
+        self._start == other._start and self._width == other._width and
+        self._num_buckets == other._num_buckets)
+
+  def __hash__(self):
+    return hash((self._start, self._width, self._num_buckets))

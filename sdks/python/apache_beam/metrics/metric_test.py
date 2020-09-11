@@ -23,14 +23,17 @@ import unittest
 from builtins import object
 
 import hamcrest as hc
+from mock import patch
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import metrics
 from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import HistogramCellFactory
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metric import MetricLogger
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
@@ -42,6 +45,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils import counters
+from apache_beam.utils.histogram import LinearBucket
 
 
 class NameTest(unittest.TestCase):
@@ -233,6 +237,24 @@ class MetricsTest(unittest.TestCase):
             DistributionData(12, 2, 2, 10))
     finally:
       sampler.stop()
+
+
+class MetricLoggerTest(unittest.TestCase):
+  @patch('apache_beam.metrics.metric._LOGGER')
+  def test_log_metrics(self, mock_logger):
+    logger = MetricLogger()
+    logger.minimum_logging_frequency_msec = -1
+    namespace = Metrics.get_namespace(self.__class__)
+    metric_name = MetricName(namespace, 'metric_logger_test')
+    logger.update(HistogramCellFactory(LinearBucket(0, 1, 10)), metric_name, 1)
+    logger.log_metrics()
+
+    class Contains(str):
+      def __eq__(self, other):
+        return self in other
+
+    mock_logger.info.assert_called_once_with(
+        Contains('HistogramData(Total count: 1, P99: 2, P90: 2, P50: 2)'))
 
 
 if __name__ == '__main__':

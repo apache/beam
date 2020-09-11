@@ -29,9 +29,15 @@ from __future__ import division
 import threading
 import time
 from builtins import object
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
 from typing import SupportsInt
+
+from apache_beam.utils.histogram import Histogram
+
+if TYPE_CHECKING:
+  from apache_beam.utils.histogram import BucketType
 
 try:
   import cython
@@ -72,6 +78,12 @@ class MetricCell(object):
     raise NotImplementedError
 
   def __reduce__(self):
+    raise NotImplementedError
+
+
+class MetricCellFactory(object):
+  def __call__(self):
+    # type: () -> MetricCell
     raise NotImplementedError
 
 
@@ -238,6 +250,57 @@ class GaugeCell(MetricCell):
         ptransform=transform_id)
 
 
+class HistogramCell(MetricCell):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value and delta for a histogram metric.
+
+  Each cell tracks the state of a metric independently per context per bundle.
+  Therefore, each metric has a different cell in each bundle, that is later
+  aggregated.
+
+  This class is thread safe since underlying histogram object is thread safe.
+  """
+  def __init__(self, bucket_type):
+    self._bucket_type = bucket_type
+    self.data = HistogramAggregator(bucket_type).identity_element()
+
+  def reset(self):
+    self.data = HistogramAggregator(self._bucket_type).identity_element()
+
+  def combine(self, other):
+    # type: (HistogramCell) -> HistogramCell
+    result = HistogramCell(self._bucket_type)
+    result.data = self.data.combine(other.data)
+    return result
+
+  def update(self, value):
+    self.data.histogram.record(value)
+
+  def get_cumulative(self):
+    # type: () -> HistogramData
+    return self.data.get_cumulative()
+
+  def to_runner_api_monitoring_info(self, name, transform_id):
+    return None
+
+
+class HistogramCellFactory(MetricCellFactory):
+  def __init__(self, bucket_type):
+    self._bucket_type = bucket_type
+
+  def __call__(self):
+    return HistogramCell(self._bucket_type)
+
+  def __eq__(self, other):
+    if not isinstance(other, HistogramCellFactory):
+      return False
+    return self._bucket_type == other._bucket_type
+
+  def __hash__(self):
+    return hash(self._bucket_type)
+
+
 class DistributionResult(object):
   """The result of a Distribution metric."""
   def __init__(self, data):
@@ -332,6 +395,41 @@ class GaugeResult(object):
   def timestamp(self):
     # type: () -> Optional[int]
     return self.data.timestamp
+
+
+class HistogramResult(object):
+  def __init__(self, data):
+    # type: (HistogramData) -> None
+    self.data = data
+
+  def __eq__(self, other):
+    if isinstance(other, HistogramResult):
+      return self.data == other.data
+    else:
+      return False
+
+  def __hash__(self):
+    return hash(self.data)
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
+  def __repr__(self):
+    return '<HistogramResult({})>'.format(
+        self.data.histogram.get_percentile_info())
+
+  @property
+  def p99(self):
+    return self.data.histogram.p99()
+
+  @property
+  def p95(self):
+    return self.data.histogram.p95()
+
+  @property
+  def p90(self):
+    return self.data.histogram.p90()
 
 
 class GaugeData(object):
@@ -457,6 +555,42 @@ class DistributionData(object):
     return DistributionData(value, 1, value, value)
 
 
+class HistogramData(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  The data structure that holds data about a histogram metric.
+
+  This object is not thread safe, so it's not supposed to be modified
+  by other than the HistogramCell that contains it.
+  """
+  def __init__(self, histogram):
+    self.histogram = histogram
+
+  def __eq__(self, other):
+    return self.histogram == other.histogram
+
+  def __hash__(self):
+    return hash(self.histogram)
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
+  def __repr__(self):
+    return 'HistogramData({})'.format(self.histogram.get_percentile_info())
+
+  def get_cumulative(self):
+    # type: () -> HistogramData
+    return HistogramData(self.histogram)
+
+  def combine(self, other):
+    # type: (Optional[HistogramData]) -> HistogramData
+    if other is None:
+      return self
+
+    return HistogramData(self.histogram.combine(other.histogram))
+
+
 class MetricAggregator(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -542,3 +676,27 @@ class GaugeAggregator(MetricAggregator):
   def result(self, x):
     # type: (GaugeData) -> GaugeResult
     return GaugeResult(x.get_cumulative())
+
+
+class HistogramAggregator(MetricAggregator):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Aggregator for Histogram metric data during pipeline execution.
+
+  Values aggregated should be ``HistogramData`` objects.
+  """
+  def __init__(self, bucket_type):
+    # type: (BucketType) -> None
+    self._bucket_type = bucket_type
+
+  def identity_element(self):
+    # type: () -> HistogramData
+    return HistogramData(Histogram(self._bucket_type))
+
+  def combine(self, x, y):
+    # type: (HistogramData, HistogramData) -> HistogramData
+    return x.combine(y)
+
+  def result(self, x):
+    # type: (HistogramData) -> HistogramResult
+    return HistogramResult(x.get_cumulative())
