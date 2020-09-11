@@ -45,8 +45,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An implementation of {@link SchemaIOProvider} for reading and writing JSON payloads with {@link
- * PubsubIO}.
+ * An implementation of {@link SchemaIOProvider} for reading and writing JSON/AVRO payloads with
+ * {@link PubsubIO}.
  *
  * <h2>Schema</h2>
  *
@@ -109,6 +109,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     return Schema.builder()
         .addNullableField("timestampAttributeKey", FieldType.STRING)
         .addNullableField("deadLetterQueue", FieldType.STRING)
+        .addNullableField("payloadFormat", FieldType.STRING)
         .build();
   }
 
@@ -195,6 +196,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
                           .messageSchema(dataSchema)
                           .useDlq(config.useDeadLetterQueue())
                           .useFlatSchema(useFlatSchema)
+                          .payloadFormat(config.payloadFormat())
                           .build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
@@ -218,7 +220,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-              .apply(RowToPubsubMessage.withTimestampAttribute(config.useTimestampAttribute()))
+              .apply(RowToPubsubMessage.of(config.useTimestampAttribute(), config.payloadFormat()))
               .apply(createPubsubMessageWrite());
         }
       };
@@ -271,12 +273,20 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     abstract @Nullable String getDeadLetterQueue();
 
+    abstract @Nullable String getPayloadFormat();
+
     boolean useDeadLetterQueue() {
       return getDeadLetterQueue() != null;
     }
 
     boolean useTimestampAttribute() {
       return getTimestampAttributeKey() != null;
+    }
+
+    PayloadFormat payloadFormat() {
+      return getPayloadFormat() == null
+          ? PayloadFormat.JSON
+          : PayloadFormat.valueOf(getPayloadFormat().toUpperCase());
     }
   }
 }

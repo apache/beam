@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.schemas.utils.AvroUtils.avroBytesToRow;
+import static org.apache.beam.sdk.schemas.utils.AvroUtils.rowToAvroBytes;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -556,6 +558,21 @@ public class AvroUtilsTest {
     users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
     assertTrue(users.hasSchema());
     CoderProperties.coderSerializable(users.getCoder());
+  }
+
+  @Test
+  public void convertsRowToBytesAndThenBytesToRow() {
+    Schema beamSchema =
+        Schema.builder()
+            .addInt32Field("int")
+            .addBooleanField("bool")
+            .addInt64Field("long")
+            .addStringField("text")
+            .build();
+    Row row = Row.withSchema(beamSchema).attachValues(3, true, 5L, "Avro");
+    byte[] bytesRow = rowToAvroBytes(row);
+    Row decodedRow = avroBytesToRow(bytesRow, beamSchema);
+    assertEquals(row, decodedRow);
   }
 
   public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {

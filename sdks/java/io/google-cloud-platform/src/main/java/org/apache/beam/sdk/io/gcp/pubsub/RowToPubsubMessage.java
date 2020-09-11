@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIE
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.schemas.transforms.DropFields;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ToJson;
@@ -31,22 +32,24 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * A {@link PTransform} to convert {@link Row} to {@link PubsubMessage} with JSON payload.
+ * A {@link PTransform} to convert {@link Row} to {@link PubsubMessage} with JSON/AVRO payload.
  *
- * <p>Currently only supports writing a flat schema into a JSON payload. This means that all Row
- * field values are written to the {@link PubsubMessage} JSON payload, except for {@code
+ * <p>Currently only supports writing a flat schema into a JSON/AVRO payload. This means that all
+ * Row field values are written to the {@link PubsubMessage} payload, except for {@code
  * event_timestamp}, which is either ignored or written to the message attributes, depending on
  * whether config.getValue("timestampAttributeKey") is set.
  */
 class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
   private final boolean useTimestampAttribute;
+  private final PayloadFormat payloadFormat;
 
-  private RowToPubsubMessage(boolean useTimestampAttribute) {
+  private RowToPubsubMessage(boolean useTimestampAttribute, PayloadFormat payloadFormat) {
     this.useTimestampAttribute = useTimestampAttribute;
+    this.payloadFormat = payloadFormat;
   }
 
-  public static RowToPubsubMessage withTimestampAttribute(boolean useTimestampAttribute) {
-    return new RowToPubsubMessage(useTimestampAttribute);
+  public static RowToPubsubMessage of(boolean useTimestampAttribute, PayloadFormat payloadFormat) {
+    return new RowToPubsubMessage(useTimestampAttribute, payloadFormat);
   }
 
   @Override
@@ -56,14 +59,23 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
             ? input.apply(WithTimestamps.of((row) -> row.getDateTime(TIMESTAMP_FIELD).toInstant()))
             : input;
 
-    return withTimestamp
-        .apply(DropFields.fields(TIMESTAMP_FIELD))
-        .apply(ToJson.of())
-        .apply(
+    withTimestamp = withTimestamp.apply(DropFields.fields(TIMESTAMP_FIELD));
+    switch (payloadFormat) {
+      case JSON:
+        return withTimestamp
+            .apply(ToJson.of())
+            .apply(
+                MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                    .via(
+                        json ->
+                            new PubsubMessage(
+                                json.getBytes(StandardCharsets.ISO_8859_1), ImmutableMap.of())));
+      case AVRO:
+        return withTimestamp.apply(
             MapElements.into(TypeDescriptor.of(PubsubMessage.class))
-                .via(
-                    (String json) ->
-                        new PubsubMessage(
-                            json.getBytes(StandardCharsets.ISO_8859_1), ImmutableMap.of())));
+                .via(row -> new PubsubMessage(AvroUtils.rowToAvroBytes(row), ImmutableMap.of())));
+      default:
+        throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
+    }
   }
 }

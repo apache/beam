@@ -143,7 +143,7 @@ public class PubsubMessageToRowTest implements Serializable {
               assertEquals(2, size(messages));
               assertEquals(
                   ImmutableSet.of(map("attr1", "val1"), map("attr2", "val2")),
-                  convertToSet(messages, m -> m.getAttributeMap()));
+                  convertToSet(messages, PubsubMessage::getAttributeMap));
 
               assertEquals(
                   ImmutableSet.of("{ \"invalid1\" : \"sdfsd\" }", "{ \"invalid2"),
@@ -246,7 +246,7 @@ public class PubsubMessageToRowTest implements Serializable {
               assertEquals(2, size(messages));
               assertEquals(
                   ImmutableSet.of(map("attr1", "val1"), map("attr2", "val2")),
-                  convertToSet(messages, m -> m.getAttributeMap()));
+                  convertToSet(messages, PubsubMessage::getAttributeMap));
 
               assertEquals(
                   ImmutableSet.of("{ \"invalid1\" : \"sdfsd\" }", "{ \"invalid2"),

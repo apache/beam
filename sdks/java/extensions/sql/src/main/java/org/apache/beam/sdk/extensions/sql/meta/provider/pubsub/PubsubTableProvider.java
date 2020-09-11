@@ -30,12 +30,12 @@ import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
  * {@link TableProvider} for {@link PubsubIO} for consumption by Beam SQL.
  *
  * <p>Passes the {@link PubsubSchemaIOProvider} to the generalized table provider wrapper, {@link
- * SchemaIOTableProviderWrapper}, for Pubsub specific behavior.
+ * SchemaIOTableProviderWrapper}, for Pubsub specific behavior with json payload.
  */
 @Internal
 @Experimental
 @AutoService(TableProvider.class)
-public class PubsubJsonTableProvider extends SchemaIOTableProviderWrapper {
+public class PubsubTableProvider extends SchemaIOTableProviderWrapper {
   @Override
   public SchemaIOProvider getSchemaIOProvider() {
     return new PubsubSchemaIOProvider();

@@ -29,20 +29,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/** Unit tests for {@link PubsubJsonTableProvider}. */
-public class PubsubJsonTableProviderTest {
+/** Unit tests for {@link PubsubTableProvider}. */
+public class PubsubTableProviderTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testTableTypePubsub() {
-    PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
+    PubsubTableProvider provider = new PubsubTableProvider();
     assertEquals("pubsub", provider.getTableType());
   }
 
   @Test
   public void testCreatesTable() {
-    PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
+    PubsubTableProvider provider = new PubsubTableProvider();
     Schema messageSchema =
         Schema.builder()
             .addDateTimeField("event_timestamp")
@@ -60,7 +60,7 @@ public class PubsubJsonTableProviderTest {
 
   @Test
   public void testThrowsIfTimestampFieldNotProvided() {
-    PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
+    PubsubTableProvider provider = new PubsubTableProvider();
     Schema messageSchema =
         Schema.builder()
             .addMapField("attributes", VARCHAR, VARCHAR)
@@ -76,7 +76,7 @@ public class PubsubJsonTableProviderTest {
 
   @Test
   public void testCreatesTableWithJustTimestamp() {
-    PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
+    PubsubTableProvider provider = new PubsubTableProvider();
     Schema messageSchema = Schema.builder().addDateTimeField("event_timestamp").build();
 
     Table tableDefinition = tableDefinition().schema(messageSchema).build();
@@ -89,7 +89,7 @@ public class PubsubJsonTableProviderTest {
 
   @Test
   public void testCreatesFlatTable() {
-    PubsubJsonTableProvider provider = new PubsubJsonTableProvider();
+    PubsubTableProvider provider = new PubsubTableProvider();
     Schema messageSchema =
         Schema.builder().addDateTimeField("event_timestamp").addStringField("someField").build();
 
