@@ -21,13 +21,10 @@ Run as python -m apache_beam.dataframe.pandas_docs_test [getting_started ...]
 """
 
 from __future__ import absolute_import
+from __future__ import print_function
 
-import doctest
-import itertools
 import os
-import re
 import sys
-import unittest
 import zipfile
 
 from apache_beam.dataframe import doctests
@@ -69,10 +66,9 @@ def main():
       filters.append(test)
 
   # Names of pandas source files.
-  for root, dirs, files in os.walk(PANDAS_DOCS_SOURCE):
+  for root, _, files in os.walk(PANDAS_DOCS_SOURCE):
     for name in files:
-      base, ext = os.path.splitext(name)
-      if ext == '.rst':
+      if name.endswith('.rst'):
         path = os.path.join(root, name)
         if any(filter in path for filter in filters):
           paths.append(path)

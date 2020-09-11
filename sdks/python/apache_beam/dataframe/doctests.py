@@ -44,7 +44,6 @@ from __future__ import print_function
 import collections
 import contextlib
 import doctest
-import os
 import re
 import sys
 import traceback
@@ -378,7 +377,7 @@ class Summary(object):
       tries=0,
       skipped=0,
       wont_implement=0,
-      wont_implement_reasons=[]):
+      wont_implement_reasons=()):
     self.failures = failures
     self.tries = tries
     self.skipped = skipped
@@ -496,7 +495,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
 
 
 def test_rst_ipython(
-    rst, name, report=False, wont_implement_ok=[], skip=[], **kwargs):
+    rst, name, report=False, wont_implement_ok=(), skip=(), **kwargs):
   """Extracts examples from an rst file and run them through pandas to get the
   expected output, and then compare them against our dataframe implementation.
   """
