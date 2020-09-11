@@ -39,6 +39,7 @@ from functools import reduce
 
 from past.builtins import unicode
 
+from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
@@ -50,6 +51,7 @@ from apache_beam.typehints.typehints import Iterable
 from apache_beam.typehints.typehints import List
 from apache_beam.typehints.typehints import Tuple
 from apache_beam.typehints.typehints import Union
+
 
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
@@ -297,8 +299,11 @@ def load_attr(state, arg):
   """
   o = state.stack.pop()
   name = state.get_name(arg)
+  state.stack.append(_getattr(o, name))
+
+def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
-    state.stack.append(Const(getattr(o.value, name)))
+    return Const(getattr(o.value, name))
   elif (inspect.isclass(o) and
         isinstance(getattr(o, name, None),
                    (types.MethodType, types.FunctionType))):
@@ -307,9 +312,11 @@ def load_attr(state, arg):
       func = getattr(o, name).__func__
     else:
       func = getattr(o, name)  # Python 3 has no unbound methods
-    state.stack.append(Const(BoundMethod(func, o)))
+    return Const(BoundMethod(func, o))
+  elif isinstance(o, row_type.RowTypeConstraint):
+    return o.get_type_for(name)
   else:
-    state.stack.append(Any)
+    return Any
 
 
 def load_method(state, arg):

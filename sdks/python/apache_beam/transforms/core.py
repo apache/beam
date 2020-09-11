@@ -102,6 +102,7 @@ __all__ = [
     'CombineValues',
     'GroupBy',
     'GroupByKey',
+    'ToRows',
     'Partition',
     'Windowing',
     'WindowInto',
@@ -2517,6 +2518,52 @@ class _GroupAndAggregate(PTransform):
             lambda key,
             value: _dynamic_named_tuple('Result', result_fields)
             (*(key + value))))
+
+
+class ToRows(PTransform):
+  """Converts the elements of a PCollection into a schema'd PCollection of Rows.
+
+  `ToRow(...)` is roughly equivalent to `Map(lambda x: Row(...))` where each
+  argument (which may be a string or callable) of `ToRow` is applied to `x`.
+  For example,
+
+      pcoll | beam.ToRow('a', b=lambda x: foo(x))
+
+  is the same as
+
+      pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
+  """
+  def __init__(self,
+               *args,  # type: typing.Union[str, callable]
+               **kwargs  # type: typing.Union[str, callable]
+               ):
+    def make_selector(name, expr):
+      if isinstance(expr, str):
+        return lambda x: getattr(x, expr), name or selector
+      else:
+        return expr, name
+
+    self._fields = [(
+        expr if isinstance(expr, str) else 'arg%02d' % ix,
+        _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
+                    ] + [(name, _expr_to_callable(expr, name))
+                         for (name, expr) in kwargs.items()]
+
+  def default_label(self):
+    return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
+
+  def expand(self, pcoll):
+    return pcoll | Map(
+        lambda x: pvalue.Row(**{name: expr(x)
+                                for name, expr in self._fields}))
+
+  def infer_output_type(self, input_type):
+    from apache_beam.typehints import row_type
+    from apache_beam.typehints import trivial_inference
+    return row_type.RowTypeConstraint([
+        (name, trivial_inference.infer_return_type(expr, [input_type]))
+        for (name, expr) in self._fields
+    ])
 
 
 class Partition(PTransformWithSideInputs):
