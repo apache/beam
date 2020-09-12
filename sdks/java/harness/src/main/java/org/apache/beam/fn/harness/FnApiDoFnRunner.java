@@ -1772,6 +1772,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void clear() {
+      TimerHandler<K> consumer = (TimerHandler) timerHandlers.get(timerId);
+      try {
+        consumer.accept(
+            Timer.cleared(userKey, dynamicTimerTag, Collections.singletonList(boundedWindow)));
+      } catch (Throwable t) {
+        throw UserCodeException.wrap(t);
+      }
+    }
+
+    @Override
     public org.apache.beam.sdk.state.Timer offset(Duration offset) {
       this.offset = offset;
       return this;

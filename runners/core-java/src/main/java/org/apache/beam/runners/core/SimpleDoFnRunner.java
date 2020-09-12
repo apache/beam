@@ -1125,6 +1125,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void clear() {
+      timerInternals.deleteTimer(namespace, timerId, spec.getTimeDomain());
+    }
+
+    @Override
     public void setRelative() {
       Instant now = getCurrentTime();
       if (period.equals(Duration.ZERO)) {

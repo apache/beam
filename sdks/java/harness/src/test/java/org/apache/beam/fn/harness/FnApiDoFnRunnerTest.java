@@ -1067,9 +1067,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           fakeTimerClient.getTimers(eventTimer),
           contains(
               timerInGlobalWindow("X", new Instant(1000L), new Instant(1001L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1100L), new Instant(1101L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("X", new Instant(1200L), new Instant(1201L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1300L), new Instant(1301L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("A", new Instant(1400L), new Instant(2411L)),
               timerInGlobalWindow("B", new Instant(1500L), new Instant(2511L)),
               timerInGlobalWindow("A", new Instant(1600L), new Instant(2611L)),
@@ -1082,9 +1086,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           fakeTimerClient.getTimers(processingTimer),
           contains(
               timerInGlobalWindow("X", new Instant(1000L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1100L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("X", new Instant(1200L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(1300L), new Instant(10002L)),
+              clearedTimerInGlobalWindow("Y"),
               timerInGlobalWindow("A", new Instant(1400L), new Instant(10012L)),
               timerInGlobalWindow("B", new Instant(1500L), new Instant(10012L)),
               timerInGlobalWindow("A", new Instant(1600L), new Instant(10012L)),
@@ -1185,6 +1193,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
       return dynamicTimerInGlobalWindow(userKey, "", holdTimestamp, fireTimestamp);
     }
 
+    private <K> org.apache.beam.runners.core.construction.Timer<K> clearedTimerInGlobalWindow(
+        K userKey) {
+      return org.apache.beam.runners.core.construction.Timer.cleared(
+          userKey, "", Collections.singletonList(GlobalWindow.INSTANCE));
+    }
+
     private <K> org.apache.beam.runners.core.construction.Timer<K> dynamicTimerInGlobalWindow(
         K userKey, String dynamicTimerTag, Instant holdTimestamp, Instant fireTimestamp) {
       return org.apache.beam.runners.core.construction.Timer.of(
@@ -1234,8 +1248,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
         bagState.add(context.element().getValue());
 
         eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(1L));
+        eventTimeTimer.clear();
         processingTimeTimer.offset(Duration.millis(2L));
         processingTimeTimer.setRelative();
+        processingTimeTimer.clear();
         eventTimerFamily
             .get("event-timer1")
             .withOutputTimestamp(context.timestamp())
