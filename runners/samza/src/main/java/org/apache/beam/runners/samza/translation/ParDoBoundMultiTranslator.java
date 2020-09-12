@@ -331,7 +331,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     return config;
   }
 
-  private static class SideInputWatermarkFn<InT>
+  static class SideInputWatermarkFn<InT>
       implements FlatMapFunction<OpMessage<InT>, OpMessage<InT>>,
           WatermarkFunction<OpMessage<InT>> {
 
@@ -352,7 +352,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
   }
 
-  private static class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
+  static class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
     @Override
     public void processElement(WindowedValue<RawUnionValue> inputElement, OpEmitter<OutT> emitter) {
       @SuppressWarnings("unchecked")
