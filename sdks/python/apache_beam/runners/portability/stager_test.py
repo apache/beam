@@ -448,7 +448,8 @@ class StagerTest(unittest.TestCase):
   def test_sdk_location_remote_wheel_file(self, *unused_mocks):
     staging_dir = self.make_temp_dir()
     sdk_filename = 'apache_beam-1.0.0-cp27-cp27mu-manylinux1_x86_64.whl'
-    sdk_location = 'https://storage.googleapis.com/my-gcs-bucket/' + sdk_filename
+    sdk_location = 'https://storage.googleapis.com/my-gcs-bucket/' + \
+                   sdk_filename
 
     options = PipelineOptions()
     self.update_options(options)
