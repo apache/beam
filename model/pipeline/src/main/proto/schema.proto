@@ -47,12 +47,11 @@ message Field {
   FieldType type = 3;
   
   int32 id = 4;
-   // OPTIONAL. The position of this field's data in the encoding.
+   // OPTIONAL. The position of this field's data when encoded, e.g. with beam:coder:row:v1.
    // Either no fields in a given row are have encoding position populated,
    // or all of them are. Used to support backwards compatibility with schema
    // changes.
-   // Two schemas, one with encoding positions and one without, are equal
-   // if the fields when sorted by encoding position would otherwise be equal.
+   // If no fields have encoding position populated the order of encoding is the same as the order in the Schema.
   int32 encoding_position = 5;
   repeated Option options = 6;
 }
@@ -110,9 +109,9 @@ message LogicalType {
 message Option {
   // REQUIRED. Identifier for the option.
   string name = 1;
-  // Optional type specifer for the structure of value.
+  // OPTIONAL. Type specifer for the structure of value.
   // If not present, assumes no additional configuration is needed
-  // for this option.
+  // for this option and value is ignored.
   FieldType type = 2;
   FieldValue value = 3;
 }
