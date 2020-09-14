@@ -79,12 +79,9 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
+
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot()
-          + "/"
-          + ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix()
-          + "java_sdk:"
-          + ReleaseInfo.getReleaseInfo().getSdkVersion();
+      getDefaultJavaSdkHarnessContainerUrl();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
@@ -356,5 +353,15 @@ public class Environments {
     public @Nullable Map<String, String> getEnv() {
       return env;
     }
+  }
+
+  private static String getDefaultJavaSdkHarnessContainerUrl() {
+    String javaVersionId =
+        Float.parseFloat(System.getProperty("java.specification.version")) >= 9 ? "java11" : "java8";
+    return String.format("%s/%s_%s_sdk:%s",
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
+        javaVersionId,
+        ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }

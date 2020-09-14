@@ -85,11 +85,9 @@ licenseReport {
 }
 
 def imageJavaVersion = project.hasProperty('imageJavaVersion') ? project.findProperty('imageJavaVersion') : '8'
-def imageSdkName = project.hasProperty('imageJavaVersion') ? "java${project.findProperty('imageJavaVersion')}" : 'java'
-
 docker {
   name containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${imageSdkName}_sdk",
+          name: "${project.docker_image_default_repo_prefix}java${imageJavaVersion}_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
                   project.docker_image_default_repo_root,
