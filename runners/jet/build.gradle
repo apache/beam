@@ -87,7 +87,7 @@ task validatesRunnerBatch(type: Test) {
         // There is an existing bug caused by Jet assuming that outputs emitted are Object.equals comparable which is not true for byte[]
         excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointBounded'
 
-        // There is an existing bug where we are trying to add additional outputs during flusing and don't restore state correctly
+        // There is an existing bug where we are trying to add additional outputs during flushing and don't restore state correctly
         excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsBounded'
 
         // unbounded streams created from bounded sources not supported by Jet Runner
