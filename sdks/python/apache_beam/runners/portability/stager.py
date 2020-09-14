@@ -58,9 +58,8 @@ import tempfile
 from typing import List
 from typing import Optional
 
-from future.moves.urllib.parse import urlparse
-
 import pkg_resources
+from future.moves.urllib.parse import urlparse
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
