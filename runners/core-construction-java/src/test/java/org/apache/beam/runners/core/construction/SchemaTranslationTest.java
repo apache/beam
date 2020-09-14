@@ -30,15 +30,18 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link SchemaTranslation}. */
+@RunWith(Enclosed.class)
 public class SchemaTranslationTest {
 
   /** Tests round-trip proto encodings for {@link Schema}. */
@@ -112,7 +115,8 @@ public class SchemaTranslationTest {
           .add(
               Schema.of(
                   Field.of("decimal", FieldType.DECIMAL), Field.of("datetime", FieldType.DATETIME)))
-          .add(Schema.of(Field.of("logical", FieldType.logicalType(FixedBytes.of(24)))))
+          .add(Schema.of(Field.of("fixed_bytes", FieldType.logicalType(FixedBytes.of(24)))))
+          .add(Schema.of(Field.of("micros_instant", FieldType.logicalType(new MicrosInstant()))))
           .add(
               Schema.of(
                       Field.of("field_with_option_atomic", FieldType.STRING)

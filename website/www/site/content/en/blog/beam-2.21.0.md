@@ -1,7 +1,7 @@
 ---
 title:  "Apache Beam 2.21.0"
 date:   2020-05-27 00:00:01 -0800
-categories: 
+categories:
   - blog
 authors:
   - ibzib
@@ -40,17 +40,17 @@ for example usage.
 
     If you suspect that this feature is causing your pipeline to fail, calling
     `apache_beam.typehints.disable_type_annotations()` before pipeline creation
-    will disable is completely, and decorating specific functions (such as 
+    will disable is completely, and decorating specific functions (such as
     `process()`) with `@apache_beam.typehints.no_annotations` will disable it
     for that function.
 
-    More details can be found in 
+    More details can be found in
     [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
     and the Python SDK Typing Changes
     [blog post](https://beam.apache.org/blog/python-typing/).
 
-* Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra 
-context to fields and schemas. This replaces the current Beam metadata that is present 
+* Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
+context to fields and schemas. This replaces the current Beam metadata that is present
 in a FieldType only, options are available in fields and row schemas. Schema options are
 fully typed and can contain complex rows. *Remark: Schema aware is still experimental.*
 ([BEAM-9035](https://issues.apache.org/jira/browse/BEAM-9035))
@@ -67,15 +67,15 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
     values as strings) into Python native types that are written to Avro
     (Python's date, datetime types, decimal, etc). For more information
     see https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions.
-* Added integration of Java SDK with Google Cloud AI VideoIntelligence service 
+* Added integration of Java SDK with Google Cloud AI VideoIntelligence service
 ([BEAM-9147](https://issues.apache.org/jira/browse/BEAM-9147))
 * Added integration of Java SDK with Google Cloud AI natural language processing API
 ([BEAM-9634](https://issues.apache.org/jira/browse/BEAM-9634))
-* `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set. 
-  The files are added to `/opt/apache/beam/third_party_licenses/`. 
+* `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set.
+  The files are added to `/opt/apache/beam/third_party_licenses/`.
   By default, no licenses/notices are added to the docker images. ([BEAM-9136](https://issues.apache.org/jira/browse/BEAM-9136))
 
- 
+
 ## Breaking Changes
 
 * Dataflow runner now requires the `--region` option to be set, unless a default value is set in the environment ([BEAM-9199](https://issues.apache.org/jira/browse/BEAM-9199)). See [here](https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) for more details.

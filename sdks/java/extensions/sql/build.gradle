@@ -71,6 +71,7 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
+  testCompile library.java.testcontainers_kafka
   testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
   testRuntimeClasspath library.java.slf4j_jdk14
 }
@@ -165,7 +166,7 @@ task integrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
-  exclude '**/KafkaCSVTableIT.java'
+
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
           .sourceSets

@@ -86,6 +86,9 @@ class FakePandasObject(object):
     setattr(self, name, result)
     return result
 
+  def __reduce__(self):
+    return lambda: pd, ()
+
 
 class TestEnvironment(object):
   """A class managing the patching (of methods, inputs, and outputs) needed
@@ -231,8 +234,8 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         def sort_and_normalize(text):
           return '\n'.join(
               sorted(
-                  line.rstrip()
-                  for line in text.split('\n') if line.strip())) + '\n'
+                  [line.rstrip() for line in text.split('\n') if line.strip()],
+                  key=str.strip)) + '\n'
 
         got = sort_and_normalize(got)
         want = sort_and_normalize(want)
@@ -319,25 +322,24 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         # Don't fail doctests that raise this error.
         example.exc_msg = (
             'apache_beam.dataframe.frame_base.WontImplementError: ...')
-        self.wont_implement += 1
     with self._test_env.context():
       result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
       return result
 
   def report_success(self, out, test, example, got):
     def extract_concise_reason(got):
-      m = re.search(r"(WontImplementError:.*)\n$", got)
+      m = re.search(r"WontImplementError:\s+(.*)\n$", got)
       if m:
         return m.group(1)
       elif "NameError" in got:
-        return "NameError"
+        return "NameError following WontImplementError"
       elif re.match(r"DeferredBase\[\d+\]\n", got):
         return "DeferredBase[*]"
       else:
         return got.replace("\n", "\\n")
 
-    if example.exc_msg == (
-        'apache_beam.dataframe.frame_base.WontImplementError: ...'):
+    if self._checker._seen_wont_implement:
+      self.wont_implement += 1
       self._wont_implement_reasons.append(extract_concise_reason(got))
 
     return super(BeamDataframeDoctestRunner,
@@ -348,8 +350,6 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
   def summarize(self):
     super(BeamDataframeDoctestRunner, self).summarize()
-    if self.failures:
-      return
 
     def print_partition(indent, desc, n, total):
       print("%s%d %s (%.1f%%)" % ("  " * indent, n, desc, n / total * 100))

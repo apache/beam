@@ -32,6 +32,6 @@ with each key in a collection of key-value pairs.
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [Sample](/documentation/transforms/java/aggregation/sample)
   takes samples of collection

@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 import copy
+import functools
 import inspect
 import logging
 import random
@@ -436,23 +437,30 @@ class RunnerAPIPTransformHolder(PTransform):
             '%r and %r',
             env1.payload, env2.to_runner_api(context).payload)
 
+    def recursively_add_coder_protos(coder_id, old_context, new_context):
+      coder_proto = old_context.coders.get_proto_from_id(coder_id)
+      new_context.coders.put_proto(coder_id, coder_proto, True)
+      for component_coder_id in coder_proto.component_coder_ids:
+        recursively_add_coder_protos(
+            component_coder_id, old_context, new_context)
+
     if common_urns.primitives.PAR_DO.urn == self._proto.urn:
       # If a restriction coder has been set by an external SDK, we have to
       # explicitly add it (and all component coders recursively) to the context
       # to make sure that it does not get dropped by Python SDK.
-
-      def recursively_add_coder_protos(coder_id, old_context, new_context):
-        coder_proto = old_context.coders.get_proto_from_id(coder_id)
-        new_context.coders.put_proto(coder_id, coder_proto, True)
-        for component_coder_id in coder_proto.component_coder_ids:
-          recursively_add_coder_protos(
-              component_coder_id, old_context, new_context)
-
       par_do_payload = proto_utils.parse_Bytes(
           self._proto.payload, beam_runner_api_pb2.ParDoPayload)
       if par_do_payload.restriction_coder_id:
         recursively_add_coder_protos(
             par_do_payload.restriction_coder_id, self._context, context)
+    elif (common_urns.composites.COMBINE_PER_KEY.urn == self._proto.urn or
+          common_urns.composites.COMBINE_GLOBALLY.urn == self._proto.urn):
+      # We have to include coders embedded in `CombinePayload`.
+      combine_payload = proto_utils.parse_Bytes(
+          self._proto.payload, beam_runner_api_pb2.CombinePayload)
+      if combine_payload.accumulator_coder_id:
+        recursively_add_coder_protos(
+            combine_payload.accumulator_coder_id, self._context, context)
 
     return self._proto
 
@@ -911,7 +919,9 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     raise NotImplementedError(str(self))
 
   def add_inputs(self, mutable_accumulator, elements, *args, **kwargs):
-    """Returns the result of folding each element in elements into accumulator.
+    """DEPRECATED and unused.
+
+    Returns the result of folding each element in elements into accumulator.
 
     This is provided in case the implementation affords more efficient
     bulk addition of elements. The default implementation simply loops
@@ -981,10 +991,14 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
+    if args or kwargs:
+      add_input = lambda accumulator, element: self.add_input(
+          accumulator, element, *args, **kwargs)
+    else:
+      add_input = self.add_input
     return self.extract_output(
-        self.add_inputs(
-            self.create_accumulator(*args, **kwargs), elements, *args,
-            **kwargs),
+        functools.reduce(
+            add_input, elements, self.create_accumulator(*args, **kwargs)),
         *args,
         **kwargs)
 
@@ -1081,12 +1095,6 @@ class CallableWrapperCombineFn(CombineFn):
       accumulator = [self._fn(accumulator, *args, **kwargs)]
     return accumulator
 
-  def add_inputs(self, accumulator, elements, *args, **kwargs):
-    accumulator.extend(elements)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator, *args, **kwargs)]
-    return accumulator
-
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
 
@@ -1154,12 +1162,6 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
 
   def add_input(self, accumulator, element):
     accumulator.append(element)
-    if len(accumulator) > self._buffer_size:
-      accumulator = [self._fn(accumulator)]
-    return accumulator
-
-  def add_inputs(self, accumulator, elements):
-    accumulator.extend(elements)
     if len(accumulator) > self._buffer_size:
       accumulator = [self._fn(accumulator)]
     return accumulator
@@ -1358,10 +1360,8 @@ class ParDo(PTransformWithSideInputs):
       raise ValueError('Unexpected keyword arguments: %s' % list(main_kw))
     return _MultiParDo(self, tags, main_tag)
 
-  def _pardo_fn_data(self):
-    si_tags_and_types = None
-    windowing = None
-    return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
+  def _do_fn_info(self):
+    return DoFnInfo.create(self.fn, self.args, self.kwargs)
 
   def _get_key_and_window_coder(self, named_inputs):
     if named_inputs is None or not self._signature.is_stateful_dofn():
@@ -1385,7 +1385,6 @@ class ParDo(PTransformWithSideInputs):
     # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
-    picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     if state_specs or timer_specs:
       context.add_requirement(
@@ -1412,9 +1411,7 @@ class ParDo(PTransformWithSideInputs):
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
-            do_fn=beam_runner_api_pb2.FunctionSpec(
-                urn=python_urns.PICKLED_DOFN_INFO,
-                payload=picked_pardo_fn_data),
+            do_fn=self._do_fn_info().to_runner_api(context),
             requests_finalization=has_bundle_finalization,
             restriction_coder_id=restriction_coder_id,
             state_specs={
@@ -1439,9 +1436,9 @@ class ParDo(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(unused_ptransform, pardo_payload, context):
-    assert pardo_payload.do_fn.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        pardo_payload.do_fn.payload)
+        DoFnInfo.from_runner_api(
+            pardo_payload.do_fn, context).serialized_dofn_data())
     if si_tags_and_types:
       raise NotImplementedError('explicit side input data')
     elif windowing:
@@ -1467,6 +1464,11 @@ class ParDo(PTransformWithSideInputs):
     from apache_beam.runners.common import DoFnSignature
     return DoFnSignature(self.fn).get_restriction_coder()
 
+  def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
+    if not hasattr(self.fn, '_runtime_output_constraints'):
+      self.fn._runtime_output_constraints = {}
+    self.fn._runtime_output_constraints[full_label] = input_type_hints
+
 
 class _MultiParDo(PTransform):
   def __init__(self, do_transform, tags, main_tag):
@@ -1479,6 +1481,72 @@ class _MultiParDo(PTransform):
     _ = pcoll | self._do_transform
     return pvalue.DoOutputsTuple(
         pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
+
+
+class DoFnInfo(object):
+  """This class represents the state in the ParDoPayload's function spec,
+  which is the actual DoFn together with some data required for invoking it.
+  """
+  @staticmethod
+  def register_stateless_dofn(urn):
+    def wrapper(cls):
+      StatelessDoFnInfo.REGISTERED_DOFNS[urn] = cls
+      cls._stateless_dofn_urn = urn
+      return cls
+
+    return wrapper
+
+  @classmethod
+  def create(cls, fn, args, kwargs):
+    if hasattr(fn, '_stateless_dofn_urn'):
+      assert not args and not kwargs
+      return StatelessDoFnInfo(fn._stateless_dofn_urn)
+    else:
+      return PickledDoFnInfo(cls._pickled_do_fn_info(fn, args, kwargs))
+
+  @staticmethod
+  def from_runner_api(spec, unused_context):
+    if spec.urn == python_urns.PICKLED_DOFN_INFO:
+      return PickledDoFnInfo(spec.payload)
+    elif spec.urn in StatelessDoFnInfo.REGISTERED_DOFNS:
+      return StatelessDoFnInfo(spec.urn)
+    else:
+      raise ValueError('Unexpected DoFn type: %s' % spec.urn)
+
+  @staticmethod
+  def _pickled_do_fn_info(fn, args, kwargs):
+    # This can be cleaned up once all runners move to portability.
+    return pickler.dumps((fn, args, kwargs, None, None))
+
+  def serialized_dofn_data(self):
+    raise NotImplementedError(type(self))
+
+
+class PickledDoFnInfo(DoFnInfo):
+  def __init__(self, serialized_data):
+    self._serialized_data = serialized_data
+
+  def serialized_dofn_data(self):
+    return self._serialized_data
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.FunctionSpec(
+        urn=python_urns.PICKLED_DOFN_INFO, payload=self._serialized_data)
+
+
+class StatelessDoFnInfo(DoFnInfo):
+
+  REGISTERED_DOFNS = {}
+
+  def __init__(self, urn):
+    assert urn in self.REGISTERED_DOFNS
+    self._urn = urn
+
+  def serialized_dofn_data(self):
+    return self._pickled_do_fn_info(self.REGISTERED_DOFNS[self._urn](), (), {})
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.FunctionSpec(urn=self._urn)
 
 
 def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -1887,7 +1955,7 @@ class CombineGlobally(PTransform):
     combined = (
         pcoll
         | 'KeyWithVoid' >> add_input_types(
-            Map(lambda v: (None, v)).with_output_types(
+            ParDo(_KeyWithNone()).with_output_types(
                 typehints.KV[None, pcoll.element_type]))
         | 'CombinePerKey' >> combine_per_key
         | 'UnKey' >> Map(lambda k_v: k_v[1]))
@@ -1933,6 +2001,12 @@ class CombineGlobally(PTransform):
   def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombineGlobally(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
+
+
+@DoFnInfo.register_stateless_dofn(python_urns.KEY_WITH_NONE_DOFN)
+class _KeyWithNone(DoFn):
+  def process(self, v):
+    yield None, v
 
 
 class CombinePerKey(PTransformWithSideInputs):
@@ -2103,31 +2177,7 @@ class CombineValuesDoFn(DoFn):
     # Expected elements input to this DoFn are 2-tuples of the form
     # (key, iter), with iter an iterable of all the values associated with key
     # in the input PCollection.
-    if self.runtime_type_check:
-      # Apply the combiner in a single operation rather than artificially
-      # breaking it up so that output type violations manifest as TypeCheck
-      # errors rather than type errors.
-      return [(element[0], self.combinefn.apply(element[1], *args, **kwargs))]
-
-    # Add the elements into three accumulators (for testing of merge).
-    elements = list(element[1])
-    accumulators = []
-    for k in range(3):
-      if len(elements) <= k:
-        break
-      accumulators.append(
-          self.combinefn.add_inputs(
-              self.combinefn.create_accumulator(*args, **kwargs),
-              elements[k::3],
-              *args,
-              **kwargs))
-    # Merge the accumulators.
-    accumulator = self.combinefn.merge_accumulators(
-        accumulators, *args, **kwargs)
-    # Convert accumulator to the final result.
-    return [(
-        element[0], self.combinefn.extract_output(accumulator, *args,
-                                                  **kwargs))]
+    yield element[0], self.combinefn.apply(element[1], *args, **kwargs)
 
   def default_type_hints(self):
     hints = self.combinefn.get_type_hints()

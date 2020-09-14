@@ -135,6 +135,9 @@ public interface HealthcareApiClient {
   Operation importFhirResource(
       String fhirStore, String gcsSourcePath, @Nullable String contentStructure) throws IOException;
 
+  Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
+      throws IOException;
+
   Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException;
 

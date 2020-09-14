@@ -20,10 +20,10 @@
 # Filter using ParDo
 
 This lesson introduces transformations for removing elements based on various conditions by using
-a ParDo with a DoFn.  Subsequent lessons will use the package 
+a ParDo with a DoFn.  Subsequent lessons will use the package
 [filter](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/transforms/filter).
 
-**Kata:** Implement a filter function that filters out the even numbers. 
+**Kata:** Implement a filter function that filters out the even numbers.
 
 <div class="hint">
   Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">

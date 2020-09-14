@@ -96,9 +96,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if *stagingLocation == "" {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
-	if *image == "" {
-		*image = getContainerImage(ctx)
-	}
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
@@ -220,6 +217,9 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 func getContainerImage(ctx context.Context) string {
 	urn := jobopts.GetEnvironmentUrn(ctx)
 	if urn == "" || urn == "beam:env:docker:v1" {
+		if *image != "" {
+			return *image
+		}
 		return jobopts.GetEnvironmentConfig(ctx)
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))

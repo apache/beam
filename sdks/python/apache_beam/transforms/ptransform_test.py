@@ -1599,13 +1599,22 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                   int).with_output_types(int)))
       self.p.run()
 
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within "
-        "ParDo(ToInt): "
-        "According to type-hint expected output should be "
-        "of type {}. Instead, received '1.0', "
-        "an instance of type {}.".format(int, float))
+    if self.p._options.view_as(TypeOptions).runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within "
+          "ParDo(ToInt): "
+          "According to type-hint expected output should be "
+          "of type {}. Instead, received '1.0', "
+          "an instance of type {}.".format(int, float))
+
+    if self.p._options.view_as(TypeOptions).performance_runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within ToInt: "
+          "Type-hint for argument: 'x' violated. "
+          "Expected an instance of {}, "
+          "instead found 1.0, an instance of {}".format(int, float))
 
   def test_pipeline_runtime_checking_violation_composite_type_output(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1625,12 +1634,21 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                       typing.Tuple[float, int])))
       self.p.run()
 
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within "
-        "ParDo(Swap): Tuple type constraint violated. "
-        "Valid object instance must be of type 'tuple'. Instead, "
-        "an instance of 'float' was received.")
+    if self.p._options.view_as(TypeOptions).runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within "
+          "ParDo(Swap): Tuple type constraint violated. "
+          "Valid object instance must be of type 'tuple'. Instead, "
+          "an instance of 'float' was received.")
+
+    if self.p._options.view_as(TypeOptions).performance_runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within "
+          "Swap: Type-hint for argument: 'x_y1' violated: "
+          "Tuple type constraint violated. "
+          "Valid object instance must be of type 'tuple'. ")
 
   def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False

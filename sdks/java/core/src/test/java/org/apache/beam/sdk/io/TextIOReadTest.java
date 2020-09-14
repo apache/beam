@@ -36,6 +36,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -80,6 +81,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
+import org.apache.commons.lang3.SystemUtils;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -743,6 +745,8 @@ public class TextIOReadTest {
 
     @Test
     public void testInitialSplitAutoModeGz() throws Exception {
+      // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10746
+      assumeFalse(SystemUtils.IS_OS_WINDOWS);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
       long desiredBundleSize = 1000;
       File largeGz = writeToFile(LARGE, tempFolder, "large.gz", GZIP);

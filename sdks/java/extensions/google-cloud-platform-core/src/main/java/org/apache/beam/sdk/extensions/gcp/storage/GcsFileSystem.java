@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -108,8 +109,12 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
         ret.add(nonGlobsMatchResults.next());
       }
     }
-    checkState(!globsMatchResults.hasNext(), "Expect no more elements in globsMatchResults.");
-    checkState(!nonGlobsMatchResults.hasNext(), "Expect no more elements in nonGlobsMatchResults.");
+    checkState(
+        !globsMatchResults.hasNext(),
+        "Internal error encountered in GcsFilesystem: expected no more elements in globsMatchResults.");
+    checkState(
+        !nonGlobsMatchResults.hasNext(),
+        "Internal error encountered in GcsFilesystem: expected no more elements in globsMatchResults.");
     return ret.build();
   }
 
@@ -200,7 +205,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @VisibleForTesting
   MatchResult expand(GcsPath gcsPattern) throws IOException {
     String prefix = GcsUtil.getNonWildcardPrefix(gcsPattern.getObject());
-    Pattern p = Pattern.compile(GcsUtil.wildcardToRegexp(gcsPattern.getObject()));
+    Pattern p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
 
     LOG.debug(
         "matching files in bucket {}, prefix {} against pattern {}",

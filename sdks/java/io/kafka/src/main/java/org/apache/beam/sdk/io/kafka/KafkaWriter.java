@@ -66,7 +66,8 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
     String topicName = record.topic() != null ? record.topic() : spec.getTopic();
 
     producer.send(
-        new ProducerRecord<>(topicName, null, timestampMillis, record.key(), record.value()),
+        new ProducerRecord<>(
+            topicName, null, timestampMillis, record.key(), record.value(), record.headers()),
         new SendCallback());
 
     elementsWritten.inc();

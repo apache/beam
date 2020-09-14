@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/shimx"
 )
@@ -92,19 +93,6 @@ func (e *Extractor) Summary() {
 	e.Printf("%d\t Shims\n", len(e.funcs))
 	e.Printf("%d\t Emits\n", len(e.emits))
 	e.Printf("%d\t Inputs\n", len(e.iters))
-}
-
-// lifecycleMethodName returns if the passed in string is one of the lifecycle method names used
-// by the Go SDK as DoFn or CombineFn lifecycle methods. These are the only methods that need
-// shims generated for them, as per beam/core/graph/fn.go
-// TODO(lostluck): Move this to beam/core/graph/fn.go, so it can stay up to date.
-func lifecycleMethodName(n string) bool {
-	switch n {
-	case "ProcessElement", "StartBundle", "FinishBundle", "Setup", "Teardown", "CreateAccumulator", "AddInput", "MergeAccumulators", "ExtractOutput", "Compact":
-		return true
-	default:
-		return false
-	}
 }
 
 // Bytes forwards to fmt.Fprint to the extractor buffer.
@@ -206,7 +194,7 @@ func (e *Extractor) isRequired(ident string, obj types.Object, idsRequired, idsF
 		return false
 	}
 	// If this is a function, and it has a receiver, it's a method.
-	if recv := sig.Recv(); recv != nil && lifecycleMethodName(ident) {
+	if recv := sig.Recv(); recv != nil && graph.IsLifecycleMethod(ident) {
 		// We don't want to care about pointers, so dereference to value type.
 		t := recv.Type()
 		p, ok := t.(*types.Pointer)
@@ -261,7 +249,7 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 			// Methods don't need registering, but they do need shim generation.
 			e.Printf("%s: %q is a method of %v -> %v--- %T %v %v %v\n",
 				fset.Position(id.Pos()), id.Name, recv.Type(), obj, obj, id, obj.Pkg(), obj.Type())
-			if !lifecycleMethodName(id.Name) {
+			if !graph.IsLifecycleMethod(id.Name) {
 				// If this is not a lifecycle method, we should ignore it.
 				return
 			}
@@ -340,18 +328,37 @@ func (e *Extractor) extractFromSignature(sig *types.Signature) {
 	e.extractFromTuple(sig.Results())
 }
 
+// extractFromContainer recurses through nested non-map container types to a non-derived
+// element type.
+func (e *Extractor) extractFromContainer(t types.Type) types.Type {
+	// Container types need to be iteratively unwrapped until we're at the base type,
+	// so we can get the import if necessary.
+	for {
+		if s, ok := t.(*types.Slice); ok {
+			t = s.Elem()
+			continue
+		}
+
+		if p, ok := t.(*types.Pointer); ok {
+			t = p.Elem()
+			continue
+		}
+
+		if a, ok := t.(*types.Array); ok {
+			t = a.Elem()
+			continue
+		}
+
+		return t
+	}
+}
+
 func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
 	for i := 0; i < tuple.Len(); i++ {
 		s := tuple.At(i) // *types.Var
 
-		// Pointer types need to be iteratively unwrapped until we're at the base type,
-		// so we can get the import if necessary.
-		t := s.Type()
-		p, ok := t.(*types.Pointer)
-		for ok {
-			t = p.Elem()
-			p, ok = t.(*types.Pointer)
-		}
+		t := e.extractFromContainer(s.Type())
+
 		// Here's where we ensure we register new imports.
 		if t, ok := t.(*types.Named); ok {
 			if pkg := t.Obj().Pkg(); pkg != nil {

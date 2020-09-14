@@ -27,12 +27,12 @@ from __future__ import print_function
 import contextlib
 import copy
 import functools
+import sys
 import threading
 from typing import ByteString
 from typing import Dict
 
 import grpc
-from past.builtins import unicode
 
 from apache_beam import pvalue
 from apache_beam.coders import RowCoder
@@ -127,17 +127,21 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
         for key, value in self._values.items() if value is not None
     }
 
+    # In python 2 named_fields_to_schema will not accept str because its
+    # ambiguous. This converts str hints to ByteString recursively so its clear
+    # we intend to use BYTES.
     # TODO(BEAM-7372): Remove coercion to ByteString
     def coerce_str_to_bytes(typ):
       if typ == str:
         return ByteString
 
-      elif hasattr(typ, '__args__'):
-        typ.__args__ = tuple(map(coerce_str_to_bytes, typ.__args__))
+      elif hasattr(typ, '__args__') and hasattr(typ, '__origin__'):
+        # Create a new type rather than modifying the existing one
+        typ = typ.__origin__[tuple(map(coerce_str_to_bytes, typ.__args__))]
 
       return typ
 
-    if str == unicode:
+    if sys.version_info[0] >= 3:
       coerce_str_to_bytes = lambda x: x
 
     schema = named_fields_to_schema([(

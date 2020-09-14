@@ -22,7 +22,8 @@ job('beam_Dependency_Check') {
   description('Runs Beam dependency check.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(
+      delegate, 'master', 100, true, 'beam', false)
 
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
@@ -70,6 +71,9 @@ job('beam_Dependency_Check') {
     archiveArtifacts {
       pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
       onlyIfSuccessful()
+    }
+    wsCleanup {
+      excludePattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
     }
   }
 }

@@ -30,7 +30,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Flink_J
 
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
       publishers {
-        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+        archiveJunit('**/build/test-results/**/*.xml')
       }
 
       steps {

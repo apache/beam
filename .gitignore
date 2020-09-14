@@ -49,6 +49,8 @@ sdks/python/apache_beam/portability/api/*.yaml
 sdks/python/nosetests*.xml
 sdks/python/pytest*.xml
 sdks/python/postcommit_requirements.txt
+sdks/python/.coverage
+sdks/python/coverage.xml
 
 # Ignore IntelliJ files.
 **/.idea/**/*

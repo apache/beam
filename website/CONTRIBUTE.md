@@ -119,9 +119,9 @@ That will create a markdown file `/www/site/content/en/blog/my-new-blogpost.md` 
 ---
 title: "My New Blogpost"
 date: "2020-04-20T14:02:57+02:00"
-categories: 
+categories:
   - blog
-authors: 
+authors:
   - "Your Name"
 ---
 ```
@@ -346,7 +346,7 @@ In order to add a new language into Apache Beam website, please follow this guid
 For more details of syntax, please refer to the [Hugo documentation](https://gohugo.io/content-management/multilingual/). Below is a step-by-step instructions of translating our website to Polish as an example.
 
 1. Configuring a new language
-  
+
 Firstly, we add the following params to our config file `/www/site/config.toml`.
 
 ```

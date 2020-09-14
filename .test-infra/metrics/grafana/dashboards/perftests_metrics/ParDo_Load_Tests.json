@@ -16,7 +16,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1596815471813,
+  "iteration": 1598622819988,
   "links": [],
   "panels": [
     {
@@ -543,7 +543,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "$tag_metric",
+          "alias": "",
           "groupBy": [
             {
               "params": [
@@ -586,7 +586,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "latency | $sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5",
+      "title": "latency | $sdk | ParDo | 2GB, 100 byte records, 10 iterations",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -668,7 +668,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "$tag_metric",
+          "alias": "",
           "groupBy": [
             {
               "params": [
@@ -711,7 +711,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "checkpoint duration | $sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5",
+      "title": "checkpoint duration | $sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -855,5 +855,5 @@
   "variables": {
     "list": []
   },
-  "version": 8
+  "version": 9
 }

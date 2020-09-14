@@ -21,7 +21,7 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog')
 
 def hive_version = "2.1.0"
-def netty_version = "4.1.30.Final"
+def netty_version = "4.1.51.Final"
 
 dependencies {
   provided project(":sdks:java:extensions:sql")

@@ -68,6 +68,7 @@ class BackgroundCachingJob(object):
   """
   def __init__(self, pipeline_result, limiters):
     self._pipeline_result = pipeline_result
+    self._result_lock = threading.RLock()
     self._condition_checker = threading.Thread(
         target=self._background_caching_job_condition_checker, daemon=True)
 
@@ -77,7 +78,11 @@ class BackgroundCachingJob(object):
     self._condition_checker.start()
 
   def _background_caching_job_condition_checker(self):
-    while not PipelineState.is_terminal(self._pipeline_result.state):
+    while True:
+      with self._result_lock:
+        if PipelineState.is_terminal(self._pipeline_result.state):
+          break
+
       if self._should_end_condition_checker():
         self.cancel()
         break
@@ -87,29 +92,40 @@ class BackgroundCachingJob(object):
     return any([l.is_triggered() for l in self._limiters])
 
   def is_done(self):
-    is_terminated = self._pipeline_result.state is PipelineState.DONE
-    is_triggered = self._should_end_condition_checker()
-    is_cancelling = (
-        self._pipeline_result.state in (
-            PipelineState.CANCELLED, PipelineState.CANCELLING))
+    with self._result_lock:
+      is_terminated = self._pipeline_result.state in (
+          PipelineState.DONE, PipelineState.CANCELLED)
+      is_triggered = self._should_end_condition_checker()
+      is_cancelling = self._pipeline_result.state is PipelineState.CANCELLING
     return is_terminated or (is_triggered and is_cancelling)
 
   def is_running(self):
-    return self._pipeline_result.state is PipelineState.RUNNING
+    with self._result_lock:
+      return self._pipeline_result.state is PipelineState.RUNNING
 
   def cancel(self):
     """Cancels this background caching job.
     """
-    if not PipelineState.is_terminal(self._pipeline_result.state):
-      try:
-        self._pipeline_result.cancel()
-      except NotImplementedError:
-        # Ignore the cancel invocation if it is never implemented by the runner.
-        pass
+    with self._result_lock:
+      if not PipelineState.is_terminal(self._pipeline_result.state):
+        try:
+          self._pipeline_result.cancel()
+          # self._pipeline_result.wait_until_finish()
+        except NotImplementedError:
+          # Ignore the cancel invocation if it is never implemented by the
+          # runner.
+          pass
+
+  @property
+  def state(self):
+    with self._result_lock:
+      return self._pipeline_result.state
 
 
 def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
   """Attempts to run a background caching job for a user-defined pipeline.
+
+  Returns True if a job was started, False otherwise.
 
   The pipeline result is automatically tracked by Interactive Beam in case
   future cancellation/cleanup is needed.
@@ -134,6 +150,8 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
     ie.current_env().set_background_caching_job(
         user_pipeline,
         BackgroundCachingJob(background_caching_job_result, limiters=limiters))
+    return True
+  return False
 
 
 def is_background_caching_job_needed(user_pipeline):

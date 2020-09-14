@@ -140,4 +140,38 @@ public class ElasticsearchIOIT {
     elasticsearchIOTestCommonUpdate.setPipeline(pipeline);
     elasticsearchIOTestCommonUpdate.testWritePartialUpdate();
   }
+
+  /**
+   * This test verifies volume deletes of Elasticsearch. The test dataset index is cloned and then
+   * around half of the documents are deleted and the other half is partially updated using bulk
+   * delete request. The test then asserts the documents were deleted successfully.
+   */
+  @Test
+  public void testWriteWithIsDeletedFnWithPartialUpdates() throws Exception {
+    ElasticsearchIOTestUtils.copyIndex(
+        restClient,
+        readConnectionConfiguration.getIndex(),
+        updateConnectionConfiguration.getIndex());
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonDeleteFn =
+        new ElasticsearchIOTestCommon(updateConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonDeleteFn.setPipeline(pipeline);
+    elasticsearchIOTestCommonDeleteFn.testWriteWithIsDeletedFnWithPartialUpdates();
+  }
+
+  /**
+   * This test verifies volume deletes of Elasticsearch. The test dataset index is cloned and then
+   * around half of the documents are deleted using bulk delete request. The test then asserts the
+   * documents were deleted successfully.
+   */
+  @Test
+  public void testWriteWithIsDeletedFnWithoutPartialUpdate() throws Exception {
+    ElasticsearchIOTestUtils.copyIndex(
+        restClient,
+        readConnectionConfiguration.getIndex(),
+        updateConnectionConfiguration.getIndex());
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonDeleteFn =
+        new ElasticsearchIOTestCommon(updateConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonDeleteFn.setPipeline(pipeline);
+    elasticsearchIOTestCommonDeleteFn.testWriteWithIsDeletedFnWithoutPartialUpdate();
+  }
 }

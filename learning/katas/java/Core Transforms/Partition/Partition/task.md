@@ -19,16 +19,16 @@
 Partition
 ---------
 
-Partition is a Beam transform for PCollection objects that store the same data type. Partition 
+Partition is a Beam transform for PCollection objects that store the same data type. Partition
 splits a single PCollection into a fixed number of smaller collections.
 
-Partition divides the elements of a PCollection according to a partitioning function that you 
-provide. The partitioning function contains the logic that determines how to split up the elements 
+Partition divides the elements of a PCollection according to a partitioning function that you
+provide. The partitioning function contains the logic that determines how to split up the elements
 of the input PCollection into each resulting partition PCollection.
 
-**Kata:** Implement a 
-[Partition](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Partition.html) 
-transform that splits a PCollection of numbers into two PCollections. The first PCollection 
+**Kata:** Implement a
+[Partition](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Partition.html)
+transform that splits a PCollection of numbers into two PCollections. The first PCollection
 contains numbers greater than 100, and the second PCollection contains the remaining numbers.
 
 <div class="hint">

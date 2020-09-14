@@ -19,14 +19,14 @@
 
 # Partition
 
-Partition is a Beam transform for PCollection objects that store the same data type.  Partition splits a single 
+Partition is a Beam transform for PCollection objects that store the same data type.  Partition splits a single
 PCollection into a fixed number of smaller collections.
 
-Partition divides the elements of a PCollection according to a partitioning function (PartitionFn) that you provide. A 
+Partition divides the elements of a PCollection according to a partitioning function (PartitionFn) that you provide. A
 PartitionFn contains the logic that determines how to split up the elements of the input PCollection into
 each resulting partition PCollection.
 
-**Kata:** Provide a custom PartitionFn to 
+**Kata:** Provide a custom PartitionFn to
 [beam.Partition](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#Partition)
 that splits a PCollection of numbers into two PCollections.  The first PCollection contains numbers greater
 than 100, and the second PCollection contains the remaining numbers.

@@ -59,7 +59,7 @@ task generateSources(type: Exec) {
   inputs.file './generate-sources.sh'
   inputs.files project(':examples:java').sourceSets.main.allSource
   inputs.files project(':examples:java').sourceSets.test.allSource
-  outputs.dir('src/main/resources/archetype-resources/src')  
+  outputs.dir('src/main/resources/archetype-resources/src')
   commandLine './generate-sources.sh'
 }
 

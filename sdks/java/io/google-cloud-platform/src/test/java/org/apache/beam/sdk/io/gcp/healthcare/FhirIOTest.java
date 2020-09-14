@@ -86,7 +86,6 @@ public class FhirIOTest {
   }
 
   private static final long NUM_ELEMENTS = 11;
-  private static final long BATCH_SIZE = 5;
 
   private static ArrayList<KV<String, String>> createTestData() {
     String[] scientists = {

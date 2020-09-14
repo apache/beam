@@ -55,6 +55,10 @@ public class SparkTranslationContext {
     return jsc;
   }
 
+  public SerializablePipelineOptions getSerializableOptions() {
+    return serializablePipelineOptions;
+  }
+
   /** Add output of transform to context. */
   public void pushDataset(String pCollectionId, Dataset dataset) {
     dataset.setName(pCollectionId);

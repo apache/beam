@@ -468,6 +468,13 @@ class TypeOptions(PipelineOptions):
         help='Enable type checking at pipeline execution '
         'time. NOTE: only supported with the '
         'DirectRunner')
+    parser.add_argument(
+        '--performance_runtime_type_check',
+        default=False,
+        action='store_true',
+        help='Enable faster type checking via sampling at pipeline execution '
+        'time. NOTE: only supported with portable runners '
+        '(including the DirectRunner)')
 
 
 class DirectOptions(PipelineOptions):
@@ -665,6 +672,27 @@ class HadoopFileSystemOptions(PipelineOptions):
   def validate(self, validator):
     errors = []
     errors.extend(validator.validate_optional_argument_positive(self, 'port'))
+    return errors
+
+
+class BigQueryOptions(PipelineOptions):
+  """BigQueryIO configuration options."""
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--latency_logging_frequency_sec',
+        type=int,
+        default=180,
+        help=(
+            'The minimum duration in seconds between percentile latencies '
+            'logging. The interval might be longer than the specified value '
+            'due to each bundle processing time.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(
+        validator.validate_optional_argument_positive(
+            self, 'latency_logging_frequency_sec'))
     return errors
 
 

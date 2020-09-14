@@ -320,10 +320,8 @@ class FnApiRunnerTest(unittest.TestCase):
                 ('B', 'b', 3, 'b:3')]
 
     with self.create_pipeline() as p:
-      # TODO(BEAM-8893): Allow the reshuffle.
       assert_that(
-          p | beam.Create(inputs, reshuffle=False) | beam.ParDo(AddIndex()),
-          equal_to(expected))
+          p | beam.Create(inputs) | beam.ParDo(AddIndex()), equal_to(expected))
 
   @unittest.skip('TestStream not yet supported')
   def test_teststream_pardo_timers(self):
@@ -484,8 +482,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       actual = (
           p
-          # TODO(BEAM-8893): Allow the reshuffle.
-          | beam.Create(elements, reshuffle=False)
+          | beam.Create(elements)
           # Send even and odd elements to different windows.
           | beam.Map(lambda e: window.TimestampedValue(e, ord(e) % 2))
           | beam.WindowInto(

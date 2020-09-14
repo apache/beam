@@ -47,7 +47,7 @@ PCollection<KV<Integer, String>> lengthAndWord =
   });
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
 * [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
 * [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.

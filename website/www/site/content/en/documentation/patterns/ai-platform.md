@@ -82,7 +82,7 @@ The function for extracting information about sentence-level and document-level 
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpExtractSentiments >}}
 {{< /highlight >}}
 
-The snippet loops over `sentences` and, for each sentence, extracts the sentiment score. 
+The snippet loops over `sentences` and, for each sentence, extracts the sentiment score.
 
 The output is:
 
@@ -92,7 +92,7 @@ The output is:
 
 ### Extracting entities
 
-The next function inspects the response for entities and returns the names and the types of those entities. 
+The next function inspects the response for entities and returns the names and the types of those entities.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" nlp_extract_entities >}}
@@ -161,9 +161,9 @@ The output is below. For better readability, indexes are replaced by text which 
 ## Getting predictions
 
 This section shows how to use [Google Cloud AI Platform Prediction](https://cloud.google.com/ai-platform/prediction/docs/overview) to make predictions about new data from a cloud-hosted machine learning model.
- 
-[tfx_bsl](https://github.com/tensorflow/tfx-bsl) is a library with a Beam PTransform called `RunInference`. `RunInference` is able to perform an inference that can use an external service endpoint for receiving data. When using a service endpoint, the transform takes a PCollection of type `tf.train.Example` and, for every batch of elements, sends a request to AI Platform Prediction. The size of a batch is automatically computed. For more details on how Beam finds the best batch size, refer to a docstring for [BatchElements](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=batchelements#apache_beam.transforms.util.BatchElements). Currently, the transform does not support using `tf.train.SequenceExample` as input, but the work is in progress.    
- 
+
+[tfx_bsl](https://github.com/tensorflow/tfx-bsl) is a library with a Beam PTransform called `RunInference`. `RunInference` is able to perform an inference that can use an external service endpoint for receiving data. When using a service endpoint, the transform takes a PCollection of type `tf.train.Example` and, for every batch of elements, sends a request to AI Platform Prediction. The size of a batch is automatically computed. For more details on how Beam finds the best batch size, refer to a docstring for [BatchElements](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=batchelements#apache_beam.transforms.util.BatchElements). Currently, the transform does not support using `tf.train.SequenceExample` as input, but the work is in progress.
+
  The transform produces a PCollection of type `PredictionLog`, which contains predictions.
 
 Before getting started, deploy a TensorFlow model to AI Platform Prediction. The cloud service manages the infrastructure needed to handle prediction requests in both efficient and scalable way. Do note that only TensorFlow models are supported by the transform. For more information, see [Exporting a SavedModel for prediction](https://cloud.google.com/ai-platform/prediction/docs/exporting-savedmodel-for-prediction).
@@ -176,7 +176,7 @@ Here is an example of a pipeline that reads input instances from the file, conve
 ```
 {"input": "the quick brown"}
 {"input": "la bruja le"}
-``` 
+```
 
 The example creates `tf.train.BytesList` instances, thus it expects byte-like strings as input. However, other data types, like `tf.train.FloatList` and `tf.train.Int64List`, are also supported by the transform.
 

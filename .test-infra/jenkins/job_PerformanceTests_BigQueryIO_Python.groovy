@@ -39,7 +39,7 @@ def bqio_read_test = [
     metrics_table        : 'bqio_read_10GB_results',
     influx_measurement   : 'python_bqio_read_10GB_results',
     influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     input_options        : '\'{' +
     '"num_records": 10485760,' +
     '"key_size": 1,' +
@@ -65,7 +65,7 @@ def bqio_write_test = [
     metrics_table        : 'bqio_write_10GB_results',
     influx_measurement   : 'python_bqio_write_10GB_results',
     influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     input_options        : '\'{' +
     '"num_records": 10485760,' +
     '"key_size": 1,' +

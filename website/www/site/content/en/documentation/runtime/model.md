@@ -162,8 +162,8 @@ retries the entire bundle.*
 
 Because we encountered a failure while processing an element in the input
 bundle, we had to reprocess _all_ of the elements in the input bundle. This means
-the runner must throw away the entire output bundle since all of the results it
-contains will be recomputed.
+the runner must throw away the entire output of the bundle (including any state
+mutations and set timers) since all of the results it contains will be recomputed.
 
 Note that if the failed transform is a `ParDo`, then the `DoFn` instance is torn
 down and abandoned.

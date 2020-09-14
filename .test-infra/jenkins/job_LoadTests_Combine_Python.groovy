@@ -116,7 +116,7 @@ def loadTestJob = { scope, triggeringContext, jobType ->
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_Combine_Dataflow_Batch',
-    'Run Python Load Tests Combine Dataflow Batch',
+    'Run Load Tests Python Combine Dataflow Batch',
     'Load Tests Python Combine Dataflow Batch suite',
     this
     ) {
@@ -127,14 +127,14 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H 15 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, "batch")
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_Combine_Dataflow_Streaming',
-    'Run Python Load Tests Combine Dataflow Streaming',
+    'Run Load Tests Python Combine Dataflow Streaming',
     'Load Tests Python Combine Dataflow Streaming suite',
     this
     ) {
@@ -145,7 +145,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Streaming', 'H 15 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, "streaming")
 }

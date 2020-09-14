@@ -309,9 +309,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit {
-    excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported'
-  }
+  useJUnit { }
 }
 
 task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
