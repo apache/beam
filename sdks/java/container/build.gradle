@@ -51,8 +51,6 @@ dependencies {
   dockerDependency library.java.kafka_clients
 }
 
-def dockerfileName = project.findProperty('dockerfile') ?: 'Dockerfile'
-
 task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
   rename "slf4j-api.*", "slf4j-api.jar"
@@ -86,18 +84,24 @@ licenseReport {
   renderers = [new JsonReportRenderer()]
 }
 
+def imageJavaVersion = project.hasProperty('imageJavaVersion') ? project.findProperty('imageJavaVersion') : '8'
+def imageSdkName = project.hasProperty('imageJavaVersion') ? "java${project.findProperty('imageJavaVersion')}" : 'java'
+
 docker {
   name containerImageName(
-          name: project.docker_image_default_repo_prefix + "java_sdk",
+          name: "${project.docker_image_default_repo_prefix}${imageSdkName}_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
                   project.docker_image_default_repo_root,
           tag: project.rootProject.hasProperty(["docker-tag"]) ?
                   project.rootProject["docker-tag"] : project.sdk_version)
-  dockerfile project.file("./${dockerfileName}")
+  dockerfile project.file("./Dockerfile")
   files "./build/"
-  buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                     project.rootProject.hasProperty(["isRelease"])])
+  buildArgs([
+    'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+                     project.rootProject.hasProperty(["isRelease"]),
+    'java_version': imageJavaVersion,
+  ])
 }
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
