@@ -609,6 +609,7 @@ public class AvroUtils {
             getter = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, fieldName);
           } else {
             // FIELD_NAME -> fIELDNAME
+            // must remove underscore and then convert to match compiled Avro schema getter name
             getter = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL, fieldName.replace("_", ""));
           }
         } else if (Character.isUpperCase(fieldName.charAt(0))) {
