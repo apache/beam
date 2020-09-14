@@ -28,7 +28,7 @@ class CaptureLimitersTest(unittest.TestCase):
   def test_count_limiter(self):
     limiter = CountLimiter(5)
 
-    for e in range(5):
+    for e in range(4):
       limiter.update(e)
 
     self.assertFalse(limiter.is_triggered())

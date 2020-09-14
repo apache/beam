@@ -292,6 +292,7 @@ class FnApiRunner(runner.PipelineRunner):
         phases=[
             translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
+            translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
             translations.expand_gbk,
@@ -305,7 +306,7 @@ class FnApiRunner(runner.PipelineRunner):
         ],
         known_runner_urns=frozenset([
             common_urns.primitives.FLATTEN.urn,
-            common_urns.primitives.GROUP_BY_KEY.urn
+            common_urns.primitives.GROUP_BY_KEY.urn,
         ]),
         use_state_iterables=self._use_state_iterables,
         is_drain=self._is_drain)
@@ -493,7 +494,16 @@ class FnApiRunner(runner.PipelineRunner):
     # We create the bundle manager here, as it can be reused for bundles of the
     # same stage, but it may have to be created by-bundle later on.
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
-    bundle_manager = ParallelBundleManager(
+    if bundle_context_manager.num_workers == 1:
+      # Avoid thread/processor pools for increased performance and debugability.
+      bundle_manager_type = BundleManager
+    elif bundle_context_manager.stage.is_stateful():
+      # State is keyed, and a single key cannot be processed concurrently.
+      # Alternatively, we could arrange to partition work by key.
+      bundle_manager_type = BundleManager
+    else:
+      bundle_manager_type = ParallelBundleManager
+    bundle_manager = bundle_manager_type(
         bundle_context_manager,
         self._progress_frequency,
         cache_token_generator=cache_token_generator)

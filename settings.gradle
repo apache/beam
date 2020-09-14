@@ -16,9 +16,37 @@
  * limitations under the License.
  */
 
+
+plugins {
+  id "com.gradle.enterprise" version "3.4" apply false
+}
+
+
+// Plugins which require online access should not be enabled when running in offline mode.
+if (!gradle.startParameter.isOffline()) {
+  apply plugin: "com.gradle.enterprise"
+}
+
+// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
+def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
+if (isCIBuild) {
+  gradleEnterprise {
+    buildScan {
+      // Build Scan enabled and TOS accepted for Jenkins lab build. This does not apply to builds on
+      // non-Jenkins machines. Developers need to separately enable and accept TOS to use build scans.
+      termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+      termsOfServiceAgree = 'yes'
+      publishAlways()
+    }
+  }
+}
+
 rootProject.name = "beam"
 
 include ":release"
+include ":release:go-licenses:go"
+include ":release:go-licenses:java"
+include ":release:go-licenses:py"
 
 include ":examples:java"
 include ":examples:kotlin"
@@ -77,6 +105,7 @@ include ":sdks:java:extensions:jackson"
 include ":sdks:java:extensions:join-library"
 include ":sdks:java:extensions:ml"
 include ":sdks:java:extensions:protobuf"
+include ":sdks:java:extensions:schemaio-expansion-service"
 include ":sdks:java:extensions:sketching"
 include ":sdks:java:extensions:sorter"
 include ":sdks:java:extensions:sql"
@@ -116,6 +145,7 @@ include ":sdks:java:io:jdbc"
 include ":sdks:java:io:jms"
 include ":sdks:java:io:kafka"
 include ":sdks:java:io:kinesis"
+include ":sdks:java:io:kinesis:expansion-service"
 include ":sdks:java:io:kudu"
 include ":sdks:java:io:mongodb"
 include ":sdks:java:io:mqtt"
@@ -153,6 +183,7 @@ include ":sdks:python:test-suites:dataflow:py35"
 include ":sdks:python:test-suites:dataflow:py36"
 include ":sdks:python:test-suites:dataflow:py37"
 include ":sdks:python:test-suites:dataflow:py38"
+include ":sdks:python:test-suites:direct"
 include ":sdks:python:test-suites:direct:py2"
 include ":sdks:python:test-suites:direct:py35"
 include ":sdks:python:test-suites:direct:py36"

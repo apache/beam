@@ -27,6 +27,7 @@ import mock
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
+from apache_beam.runners.worker.worker_status import heap_dump
 from apache_beam.utils import thread_pool_executor
 
 
@@ -83,6 +84,14 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     for response in self.test_status_service.response_received:
       self.assertIsNotNone(response.error)
     self.fn_status_handler.close()
+
+
+class HeapDumpTest(unittest.TestCase):
+  @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)
+  def test_skip_heap_dump(self):
+    result = '%s' % heap_dump()
+    self.assertTrue(
+        'Unable to import guppy, the heap dump will be skipped' in result)
 
 
 if __name__ == '__main__':

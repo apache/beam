@@ -387,38 +387,44 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	return allPIds
 }
 
-func (m *marshaller) expandCrossLanguage(edge NamedEdge) string {
-	e := edge.Edge
-	id := edgeID(e)
+func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) string {
+	edge := namedEdge.Edge
+	id := edgeID(edge)
 
 	inputs := make(map[string]string)
 
-	for tag, n := range e.External.Inputs() {
+	for tag, n := range ExternalInputs(edge) {
 		m.addNode(n)
+		// Ignore tag if it is a dummy SourceInputTag
+		if tag == graph.SourceInputTag {
+			tag = fmt.Sprintf("i%v", edge.External.InputsMap[tag])
+		}
 		inputs[tag] = nodeID(n)
 	}
 
 	spec := &pipepb.FunctionSpec{
-		Urn:     e.External.Urn,
-		Payload: e.External.Payload,
+		Urn:     edge.External.Urn,
+		Payload: edge.External.Payload,
 	}
 
 	transform := &pipepb.PTransform{
-		UniqueName: edge.Name,
-		Spec:       spec,
-		Inputs:     inputs,
+		UniqueName:    namedEdge.Name,
+		Spec:          spec,
+		Inputs:        inputs,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 
-	if e.External.IsExpanded() {
+	if edge.External.Expanded != nil {
 		// Outputs need to temporarily match format of unnamed Go SDK Nodes.
 		// After the initial pipeline is constructed, these will be used to correctly
 		// map consumers of these outputs to the expanded transform's outputs.
 		outputs := make(map[string]string)
-		for i, out := range edge.Edge.Output {
+		for i, out := range edge.Output {
 			m.addNode(out.To)
 			outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 		}
 		transform.Outputs = outputs
+		transform.EnvironmentId = ExpandedTransform(edge.External.Expanded).EnvironmentId
 	}
 
 	m.transforms[id] = transform

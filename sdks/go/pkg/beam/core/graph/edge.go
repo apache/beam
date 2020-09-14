@@ -18,6 +18,7 @@ package graph
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -282,32 +283,74 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
-// NewCrossLanguage inserts a Cross-langugae External transform.
-func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform) *MultiEdge {
+// NewCrossLanguage inserts a Cross-langugae External transform using initialized input and output nodes
+func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform, ins []*Inbound, outs []*Outbound) (*MultiEdge, func(*Node, bool)) {
 	edge := g.NewEdge(s)
 	edge.Op = External
 	edge.External = ext
 
-	for _, n := range ext.Inputs() {
-		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
+	windowingStrategy := inputWindow([]*Node{ins[0].From})
+	for _, o := range outs {
+		o.To.w = windowingStrategy
 	}
-	return edge
+
+	isBoundedUpdater := func(n *Node, bounded bool) {
+		n.bounded = bounded
+	}
+
+	edge.Input = ins
+	edge.Output = outs
+
+	return edge, isBoundedUpdater
 }
 
-// AddOutboundLinks adds Outbound links to existing MultiEdge
-func AddOutboundLinks(g *Graph, e *MultiEdge) {
-	windowingStrategy := inputWindow([]*Node{e.Input[0].From})
-	outputTypes := e.External.OutputTypes()
-	boundedOutputs := e.External.Expanded().BoundedOutputs()
-	outputs := make(map[string]*Node)
+// NamedInboundLinks returns an array of new Inbound links and a map (tag ->
+// index of Inbound in MultiEdge.Input) of corresponding indices with respect to
+// their names.
+func NamedInboundLinks(ins map[string]*Node) (map[string]int, []*Inbound) {
+	inputsMap := make(map[string]int)
+	var inboundLinks []*Inbound
 
-	for tag, fullType := range outputTypes {
-		n := g.NewNode(fullType, windowingStrategy, boundedOutputs[tag])
-		outputs[tag] = n
-		e.Output = append(e.Output, &Outbound{To: n, Type: fullType})
+	// Ensuring deterministic order of Nodes
+	var tags []string
+	for tag := range ins {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
+	for _, tag := range tags {
+		node := ins[tag]
+		id := len(inboundLinks)
+		inputsMap[tag] = id
+		inboundLinks = append(inboundLinks, &Inbound{Kind: Main, From: node, Type: node.Type()})
 	}
 
-	e.External.Outputs = outputs
+	return inputsMap, inboundLinks
+}
+
+// NamedOutboundLinks returns an array of new Outbound links and a map (tag ->
+// index of Outbound in MultiEdge.Output) of corresponding indices with respect
+// to their names.
+func NamedOutboundLinks(g *Graph, outs map[string]typex.FullType) (map[string]int, []*Outbound) {
+	outputsMap := make(map[string]int)
+	var outboundLinks []*Outbound
+
+	// Ensuring deterministic order of Nodes
+	var tags []string
+	for tag := range outs {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
+	for _, tag := range tags {
+		fullType := outs[tag]
+		node := g.NewNode(fullType, nil, true)
+		id := len(outboundLinks)
+		outputsMap[tag] = id
+		outboundLinks = append(outboundLinks, &Outbound{To: node, Type: fullType})
+	}
+
+	return outputsMap, outboundLinks
 }
 
 // NewExternal inserts an External transform. The system makes no assumptions about

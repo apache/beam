@@ -48,7 +48,9 @@ pip_dependencies:
   cython:
     license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
   enum34:
-    license: "https://bitbucket.org/stoneleaf/enum34/raw/c208549a93b71b948ff7bbdfd29dce8f85527916/enum/LICENSE"
+    # The original repo is down. This license taken from somebody's clone:
+    # https://github.com/jamespharaoh/python-enum34/blob/master/enum/LICENSE
+    license: "file:///tmp/license_scripts/manual_licenses/enum34/LICENSE"
   fastavro:
     license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
     notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
@@ -75,6 +77,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  mmh3:
+    license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
   mock:
     license: "https://raw.githubusercontent.com/testing-cabal/mock/master/LICENSE.txt"
   monotonic:
@@ -93,6 +97,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE"
   protorpc:
     license: "https://raw.githubusercontent.com/google/protorpc/master/LICENSE"
+  pbr:
+    license: "https://opendev.org/openstack/pbr/raw/branch/master/LICENSE"
   pyarrow:
     license: "https://raw.githubusercontent.com/apache/arrow/master/LICENSE.txt"
     notice: "https://raw.githubusercontent.com/apache/arrow/master/NOTICE.txt"

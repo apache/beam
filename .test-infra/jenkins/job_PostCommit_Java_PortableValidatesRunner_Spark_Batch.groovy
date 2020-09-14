@@ -29,7 +29,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark_Batch',
 
       // Publish all test results to Jenkins
       publishers {
-        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+        archiveJunit('**/build/test-results/**/*.xml')
       }
 
       // Gradle goals for this job.

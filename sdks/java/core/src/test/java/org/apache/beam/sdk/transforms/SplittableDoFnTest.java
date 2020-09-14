@@ -38,7 +38,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -293,11 +292,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesBoundedSplittableParDo.class,
-    DataflowPortabilityApiUnsupported.class
-  })
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testOutputAfterCheckpointBounded() {
     testOutputAfterCheckpoint(IsBounded.BOUNDED);
   }

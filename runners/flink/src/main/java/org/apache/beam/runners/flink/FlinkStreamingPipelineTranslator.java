@@ -99,6 +99,13 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null) {
+      // TODO(BEAM-10670): Remove this and the ReadTranslator once the "use_deprecated_read"
+      // experiment is removed. Don't translate composite Read transforms since we expect the
+      // primitive expansion containing an SDF to be used.
+      if (PTransformTranslation.READ_TRANSFORM_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(transform))) {
+        return CompositeBehavior.ENTER_TRANSFORM;
+      }
       StreamTransformTranslator<?> translator =
           FlinkStreamingTransformTranslators.getTranslator(transform);
 

@@ -75,6 +75,23 @@ class DeferredBase(object):
   def _elementwise(self, func, name=None, other_args=(), inplace=False):
     return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
 
+  def __reduce__(self):
+    return UnusableUnpickledDeferredBase, (str(self), )
+
+
+class UnusableUnpickledDeferredBase(object):
+  """Placeholder object used to break the transitive pickling chain in case a
+  DeferredBase accidentially gets pickled (e.g. as part of globals).
+
+  Trying to use this object after unpickling is a bug and will result in an
+  error.
+  """
+  def __init__(self, name):
+    self._name = name
+
+  def __repr__(self):
+    return 'UnusablePickledDeferredBase(%r)' % self.name
+
 
 class DeferredFrame(DeferredBase):
   @property

@@ -53,14 +53,14 @@ public static class CubicIntegerFn implements SerializableFunction<Integer, Inte
 }
 
 // Define a SQL query which calls the above UDFs
-String sql = 
+String sql =
     "SELECT f_int, cubic1(f_int), cubic2(f_int)"
       + "FROM PCOLLECTION "
       + "WHERE f_int = 2";
 
 // Create and apply the PTransform representing the query.
-// Register the UDFs used in the query by calling '.registerUdf()' with 
-// either a class which implements BeamSqlUdf or with 
+// Register the UDFs used in the query by calling '.registerUdf()' with
+// either a class which implements BeamSqlUdf or with
 // an instance of the SerializableFunction;
 PCollection<Row> result =
     input.apply(
@@ -108,13 +108,13 @@ public static class SquareSum extends CombineFn<Integer, Integer, Integer> {
 }
 
 // Define a SQL query which calls the above UDAF
-String sql = 
+String sql =
     "SELECT f_int1, squaresum(f_int2) "
       + "FROM PCOLLECTION "
       + "GROUP BY f_int2";
-      
+
 // Create and apply the PTransform representing the query.
-// Register the UDAFs used in the query by calling '.registerUdaf()' by 
+// Register the UDAFs used in the query by calling '.registerUdaf()' by
 // providing it an instance of the CombineFn
 PCollection<Row> result =
     input.apply(

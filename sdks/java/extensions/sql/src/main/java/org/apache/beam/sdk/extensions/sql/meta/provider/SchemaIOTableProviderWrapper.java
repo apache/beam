@@ -80,7 +80,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     }
   }
 
-  private BeamTableStatistics getTableStatistics(PipelineOptions options) {
+  protected BeamTableStatistics getTableStatistics(PipelineOptions options, SchemaIO schemaIO) {
     if (isBounded().equals(PCollection.IsBounded.BOUNDED)) {
       return BeamTableStatistics.BOUNDED_UNKNOWN;
     }
@@ -117,13 +117,13 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
 
     @Override
     public POutput buildIOWriter(PCollection<Row> input) {
-      PTransform<PCollection<Row>, POutput> writerTransform = schemaIO.buildWriter();
+      PTransform<PCollection<Row>, ? extends POutput> writerTransform = schemaIO.buildWriter();
       return input.apply(writerTransform);
     }
 
     @Override
     public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-      return SchemaIOTableProviderWrapper.this.getTableStatistics(options);
+      return SchemaIOTableProviderWrapper.this.getTableStatistics(options, schemaIO);
     }
   }
 }

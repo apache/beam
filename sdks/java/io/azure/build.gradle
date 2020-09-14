@@ -16,12 +16,29 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+}
+
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.azure',
   enableChecker: false)
 
+description = "Apache Beam :: SDKs :: Java :: IO :: Azure"
+ext.summary = "IO library to read and write Azure services from Beam."
+
+repositories { jcenter() }
+
 dependencies {
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "com.azure:azure-storage-blob:12.1.0"
+  compile "com.azure:azure-identity:1.0.8"
+  compile "com.microsoft.azure:azure-storage:8.0.0"
+  compile "commons-io:commons-io:2.6"
+  compile library.java.slf4j_api
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile library.java.mockito_core
   testCompile library.java.junit
+  testRuntimeOnly library.java.slf4j_jdk14
 }

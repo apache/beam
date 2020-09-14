@@ -215,8 +215,9 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
           'installGcpTest',
           ':runners:flink:1.10:job-server:shadowJar',
           ':sdks:java:container:docker',
-          ':sdks:java:io:expansion-service:shadowJar',
-          ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar'
+          ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
+          ':sdks:java:io:kinesis:expansion-service:shadowJar',
+          ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
   ]
 
   doLast {
@@ -224,6 +225,7 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
             "apache_beam.io.gcp.bigquery_read_it_test",
             "apache_beam.io.external.xlang_jdbcio_it_test",
             "apache_beam.io.external.xlang_kafkaio_it_test",
+            "apache_beam.io.external.xlang_kinesisio_it_test",
     ]
     def testOpts = ["--tests=${tests.join(',')}"]
     def cmdArgs = mapToArgString([

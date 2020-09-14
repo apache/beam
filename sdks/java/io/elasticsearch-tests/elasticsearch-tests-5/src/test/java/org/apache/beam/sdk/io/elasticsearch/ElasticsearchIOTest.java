@@ -222,4 +222,11 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetryValidRequest();
   }
+
+  @Test
+  public void testWriteWithIsDeleteFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
+  }
 }

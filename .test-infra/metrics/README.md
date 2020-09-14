@@ -26,7 +26,7 @@ There are two types of metrics in Beam:
   * Postgres analytics database
 
 * Test Results, i.e. metrics published by tests (IO Performance tests, Load tests and Nexmark tests). Beam uses InfluxDB time series database to store test metrics.
-  
+
 
 Both types of metrics are presented in [Grafana dashboard available here.](http://metrics.beam.apache.org)
 

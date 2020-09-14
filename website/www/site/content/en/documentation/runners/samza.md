@@ -79,7 +79,7 @@ The Samza Runner is built on Samza version greater than 1.0.
   <version>${samza.version}</version>
   <scope>runtime</scope>
 </dependency>
-    
+
 {{< /highlight >}}
 
 ## Executing a pipeline with Samza Runner
@@ -107,7 +107,7 @@ job.default.system=${job_default_system}
 
 For more details on the configuration, see [Samza Configuration Reference](https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html).
 
-The config file will be passed in by setting the command line arg `--configFilePath=/path/to/config.properties`. With that, you can run your main class of Beam pipeline in a Yarn Resource Manager, and the Samza Runner will submit a Yarn job under the hood. 
+The config file will be passed in by setting the command line arg `--configFilePath=/path/to/config.properties`. With that, you can run your main class of Beam pipeline in a Yarn Resource Manager, and the Samza Runner will submit a Yarn job under the hood.
 
 Check out our [Samza Beam example from Github](https://github.com/apache/samza-beam-examples)
 

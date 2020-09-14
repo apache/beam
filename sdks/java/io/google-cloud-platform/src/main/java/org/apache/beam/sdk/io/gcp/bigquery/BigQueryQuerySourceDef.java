@@ -147,8 +147,12 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   /** {@inheritDoc} */
   @Override
   public <T> BigQuerySourceBase<T> toSource(
-      String stepUuid, Coder<T> coder, SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return BigQueryQuerySource.create(stepUuid, this, bqServices, coder, parseFn);
+      String stepUuid,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes) {
+    return BigQueryQuerySource.create(
+        stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
   }
 
   /** {@inheritDoc} */

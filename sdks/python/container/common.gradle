@@ -69,3 +69,12 @@ docker {
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn copyLicenseScripts
+
+if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+  task copyGolangLicenses(type: Copy) {
+    from "${project(':release:go-licenses:py').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:py:createLicenses'
+  }
+  dockerPrepare.dependsOn 'copyGolangLicenses'
+}

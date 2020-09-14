@@ -21,8 +21,9 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
-import Docker
 import InfluxDBCredentialsHelper
+
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -47,15 +48,16 @@ def scenarios = { datasetName ->
         '"num_hot_keys": 1,' +
         '"hot_key_fraction": 1}\'',
         co_input_options      : '\'{' +
-        '"num_records": 20000000,' +
+        '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
-        '"num_hot_keys": 1,' +
+        '"num_hot_keys": 1000,' +
         '"hot_key_fraction": 1}\'',
         iterations           : 1,
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
     [
@@ -77,15 +79,16 @@ def scenarios = { datasetName ->
         '"num_hot_keys": 5,' +
         '"hot_key_fraction": 1}\'',
         co_input_options      : '\'{' +
-        '"num_records": 20000000,' +
+        '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
-        '"num_hot_keys": 5,' +
+        '"num_hot_keys": 1000,' +
         '"hot_key_fraction": 1}\'',
         iterations           : 1,
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
     [
@@ -107,33 +110,33 @@ def scenarios = { datasetName ->
         '"num_hot_keys": 200000,' +
         '"hot_key_fraction": 1}\'',
         co_input_options      : '\'{' +
-        '"num_records": 20000000,' +
+        '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
-        '"num_hot_keys": 200000,' +
+        '"num_hot_keys": 1000,' +
         '"hot_key_fraction": 1}\'',
         iterations           : 4,
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTest = { scope, triggeringContext ->
-  Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String pythonHarnessImageTag = publisher.getFullImageName('beam_python3.7_sdk')
-
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
-  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
   List<Map> testScenarios = scenarios(datasetName)
 
-  publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
-  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
+  flink.setUp(
+      [
+        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+      ],
+      numberOfWorkers,
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, testScenarios, 'CoGBK', 'batch')
 }

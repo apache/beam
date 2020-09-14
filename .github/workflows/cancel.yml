@@ -16,19 +16,23 @@
 # under the License.
 
 name: Cancel
-on: [push, pull_request]
+
+on:
+  workflow_run:
+    workflows:
+      - "Build python source distribution and wheels"
+      - "Java Tests"
+      - "Python tests"
+    types: ['requested']
+
 jobs:
-  cancel:
-    name: 'Cancel Previous Runs'
+  cancel-duplicate-workflow-runs:
+    name: "Cancel duplicate workflow runs"
     runs-on: ubuntu-latest
-    timeout-minutes: 3
     steps:
-      - name: Get workflow id
-        run: |
-          WORKFLOW_ID=$(curl "Authorization: token ${{ github.token }}" https://api.github.com/repos/${{ github.repository }}/actions/workflows/build_wheels.yml | jq '.id')
-          echo "Workflow id: ${WORKFLOW_ID}"
-          echo "::set-env name=WORKFLOW_ID::${WORKFLOW_ID}"
-      - uses: styfle/cancel-workflow-action@0.3.2
+      - uses: potiuk/cancel-workflow-runs@v2.0.1
+        name: "Cancel duplicate workflow runs"
         with:
-          workflow_id: ${{ env.WORKFLOW_ID }}
-          access_token: ${{ github.token }}
+          cancelMode: duplicates
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sourceRunId: ${{ github.event.workflow_run.id }}

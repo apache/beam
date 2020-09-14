@@ -186,6 +186,32 @@ var sdfNames = []string{
 	createTrackerName,
 }
 
+var combineFnNames = []string{
+	createAccumulatorName,
+	addInputName,
+	mergeAccumulatorsName,
+	extractOutputName,
+	compactName,
+}
+
+var lifecycleMethods map[string]struct{}
+
+func init() {
+	lifecycleMethods = make(map[string]struct{})
+	methods := append(doFnNames, combineFnNames...)
+	for _, name := range methods {
+		lifecycleMethods[name] = struct{}{}
+	}
+}
+
+// lifecycleMethodName returns if the passed in string is one of the lifecycle
+// method names used by the Go SDK as DoFn or CombineFn lifecycle methods. These
+// are the only methods that need shims generated for them.
+func IsLifecycleMethod(n string) bool {
+	_, ok := lifecycleMethods[n]
+	return ok
+}
+
 // DoFn represents a DoFn.
 type DoFn Fn
 
