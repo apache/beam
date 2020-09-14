@@ -871,6 +871,7 @@ limitations under the License.
 &lt;li>Apache Spark &lt;img src="/images/logos/runners/spark.png" alt="Apache Spark logo">&lt;/li>
 &lt;li>Google Cloud Dataflow &lt;img src="/images/logos/runners/dataflow.png" alt="Google Cloud Dataflow logo">&lt;/li>
 &lt;li>Hazelcast Jet &lt;img src="/images/logos/runners/jet.png" alt="Hazelcast Jet logo">&lt;/li>
+&lt;li>Twister2 &lt;img src="/images/logos/runners/twister2.png" alt="Twister2 logo">&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Note:&lt;/strong> You can always execute your pipeline locally for testing and debugging purposes.&lt;/p>
 &lt;h2 id="get-started">Get Started&lt;/h2>
