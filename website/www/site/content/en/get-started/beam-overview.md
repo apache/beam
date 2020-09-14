@@ -48,6 +48,7 @@ Beam currently supports Runners that work with the following distributed process
 - Apache Spark ![Apache Spark logo](/images/logos/runners/spark.png)
 - Google Cloud Dataflow ![Google Cloud Dataflow logo](/images/logos/runners/dataflow.png)
 - Hazelcast Jet ![Hazelcast Jet logo](/images/logos/runners/jet.png)
+- Twister2 ![Twister2 logo](/images/logos/runners/twister2.png)
 
 **Note:** You can always execute your pipeline locally for testing and debugging purposes.
 
