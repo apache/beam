@@ -136,7 +136,7 @@ prerequisites and additional information.
 ```sh
 export DOCKER_ROOT="Your Docker Repository Root"
 ./gradlew :sdks:java:container:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
-docker push $DOCKER_ROOT/beam_java_sdk:latest
+docker push $DOCKER_ROOT/beam_java8_sdk:latest
 ```
 
 For portable Flink/Spark in local mode, instead of above command just build the
