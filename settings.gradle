@@ -28,8 +28,10 @@ if (!gradle.startParameter.isOffline()) {
 }
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
-def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
-if (isCIBuild) {
+def isJenkinsBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
+// GITHUB_REPOSITORY and GITHUB_RUN_ID set automatically during Github Actions run
+def isGithubActionsBuild = ['GITHUB_REPOSITORY', 'GITHUB_RUN_ID'].every System.&getenv
+if (isJenkinsBuild || isGithubActionsBuild) {
   gradleEnterprise {
     buildScan {
       // Build Scan enabled and TOS accepted for Jenkins lab build. This does not apply to builds on
