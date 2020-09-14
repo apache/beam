@@ -2537,12 +2537,6 @@ class ToRows(PTransform):
                *args,  # type: typing.Union[str, callable]
                **kwargs  # type: typing.Union[str, callable]
                ):
-    def make_selector(name, expr):
-      if isinstance(expr, str):
-        return lambda x: getattr(x, expr), name or selector
-      else:
-        return expr, name
-
     self._fields = [(
         expr if isinstance(expr, str) else 'arg%02d' % ix,
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
@@ -2559,7 +2553,6 @@ class ToRows(PTransform):
 
   def infer_output_type(self, input_type):
     from apache_beam.typehints import row_type
-    from apache_beam.typehints import trivial_inference
     return row_type.RowTypeConstraint([
         (name, trivial_inference.infer_return_type(expr, [input_type]))
         for (name, expr) in self._fields

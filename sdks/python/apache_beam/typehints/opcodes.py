@@ -52,7 +52,6 @@ from apache_beam.typehints.typehints import List
 from apache_beam.typehints.typehints import Tuple
 from apache_beam.typehints.typehints import Union
 
-
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
 _MethodDescriptorType = type(str.upper)
@@ -300,6 +299,7 @@ def load_attr(state, arg):
   o = state.stack.pop()
   name = state.get_name(arg)
   state.stack.append(_getattr(o, name))
+
 
 def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
