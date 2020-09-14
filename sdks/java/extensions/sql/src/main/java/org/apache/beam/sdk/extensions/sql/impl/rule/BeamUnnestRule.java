@@ -31,6 +31,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexFieldAccess;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A {@code ConverterRule} to replace {@link Correlate} {@link Uncollect} with {@link
@@ -93,7 +94,16 @@ public class BeamUnnestRule extends RelOptRule {
     if (!(exp instanceof RexFieldAccess)) {
       return;
     }
-    int fieldIndex = ((RexFieldAccess) exp).getField().getIndex();
+    RexFieldAccess fieldAccess = (RexFieldAccess) exp;
+    // Innermost field index comes first (e.g. struct.field1.field2 => [2, 1])
+    ImmutableList.Builder<Integer> fieldAccessIndices = ImmutableList.builder();
+    while (true) {
+      fieldAccessIndices.add(fieldAccess.getField().getIndex());
+      if (!(fieldAccess.getReferenceExpr() instanceof RexFieldAccess)) {
+        break;
+      }
+      fieldAccess = (RexFieldAccess) fieldAccess.getReferenceExpr();
+    }
 
     call.transformTo(
         new BeamUnnestRel(
@@ -101,6 +111,6 @@ public class BeamUnnestRule extends RelOptRule {
             correlate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
             outer,
             call.rel(2).getRowType(),
-            fieldIndex));
+            fieldAccessIndices.build()));
   }
 }
