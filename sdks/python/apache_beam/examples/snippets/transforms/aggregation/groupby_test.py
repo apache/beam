@@ -25,13 +25,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import typing
 import unittest
 
 import apache_beam as beam
-from apache_beam.transforms.combiners import MeanCombineFn
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.combiners import MeanCombineFn
 
 
 class UnorderedList(object):
@@ -46,13 +47,6 @@ class UnorderedList(object):
 
   def __hash__(self):
     return hash(tuple(sorted(self._contents)))
-
-  # TODO(Py2): Remove.
-  def __ne__(self, other):
-    return not self == other
-
-  def __cmp__(self, other):
-    return self == other
 
 
 def normalize(x):
@@ -123,6 +117,7 @@ class GroupByTest(unittest.TestCase):
       ]
       assert_that(grouped | beam.MapTuple(normalize_kv), equal_to(expected))
 
+  @unittest.skipIf(sys.version_info[0] < 3, 'bad comparison op')
   def test_group_by_attr(self):
     # [START groupby_attr]
     with beam.Pipeline() as p:
@@ -147,6 +142,7 @@ class GroupByTest(unittest.TestCase):
       ]
       assert_that(grouped | beam.MapTuple(normalize_kv), equal_to(expected))
 
+  @unittest.skipIf(sys.version_info[0] < 3, 'bad comparison op')
   def test_group_by_attr_expr(self):
     # [START groupby_attr_expr]
     with beam.Pipeline() as p:
