@@ -20,7 +20,7 @@ limitations under the License.
 
 ## Overview
 
-Twister2 Runner can be used to execute Apache beam pipelines on top of a Twister2
+Twister2 Runner can be used to execute Apache Beam pipelines on top of a Twister2
 cluster. Twister2 Runner runs Beam pipelines as Twister2 jobs, which can be executed on
 a Twister2 cluster either as a local deployment or distributed deployment using, Nomad,
 Kubernetes, Slurm, etc.
@@ -31,8 +31,7 @@ require high performance, and provide.
 * Support for HPC environments, supports propriety interconnects such as Infiniband.
 * Distributed massively parallel data processing engine with high performance using
  Bulk Synchronous Parallel (BSP) style execution.
-* Native support for Beam side-inputs
-
+* Native support for Beam side-inputs.
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
 supported capabilities of the Jet Runner.
@@ -61,7 +60,7 @@ Issue following command in the Beam examples project to start new Twister2 Local
 ### Running WordCount on a Twister2 Deployment
 
 The Beam examples project, when generated from an archetype, comes from a particular released Beam version (that's what
-the `archetypeVersion` property is about). Each Beam version that contains the Twister2 Runner (ie. from 2.23.0 onwards)
+the `archetypeVersion` property is about). Each Beam version that contains the Twister2 Runner (i.e. from 2.23.0 onwards)
 uses a certain version of Twister2. Because of this, when we start a stand-alone Twister2 cluster and try to run Beam examples on
 it we need to make sure the two are compatible. See following table for which Twister2 version is recommended for various
 Beam versions.
@@ -123,7 +122,7 @@ Note: Currently file paths need to be absolute paths.
 <tr>
   <td><code>runner</code></td>
   <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
-  <td>Set to <code>Twister2Runner</code> to run using Jet.</td>
+  <td>Set to <code>Twister2Runner</code> to run using Twister2.</td>
 </tr>
 <tr>
   <td><code>twister2Home</code></td>
