@@ -47,6 +47,13 @@ class UnorderedList(object):
   def __hash__(self):
     return hash(tuple(sorted(self._contents)))
 
+  # TODO(Py2): Remove.
+  def __ne__(self, other):
+    return not self == other
+
+  def __cmp__(self, other):
+    return self == other
+
 
 def normalize(x):
   if isinstance(x, tuple) and hasattr(x, '_fields'):
