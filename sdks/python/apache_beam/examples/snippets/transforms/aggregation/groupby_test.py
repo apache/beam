@@ -18,7 +18,11 @@
 
 # pytype: skip-file
 
+# Wrapping hurts the readability of the docs.
+# pylint: disable=line-too-long
+
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import typing
@@ -39,6 +43,9 @@ class UnorderedList(object):
       return sorted(self._contents) == sorted(other)
     except TypeError:
       return sorted(self._contents, key=str) == sorted(other, key=str)
+
+  def __hash__(self):
+    return hash(tuple(sorted(self._contents)))
 
 
 def normalize(x):
