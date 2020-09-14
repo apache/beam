@@ -159,25 +159,25 @@ For Unix shells:
 
 {{< highlight class="runner-direct" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+     -Dexec.args="--inputFile=pom.xml --output=counts" -P direct-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -P flink-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -P flink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -P spark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -193,7 +193,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {{< highlight class="runner-samza-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
+     -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
@@ -283,13 +283,13 @@ We are working on adding the instruction for this runner!
 
 {{< highlight class="runner-spark" >}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=pom.xml --output=counts" -Pspark-runner
+    -Dexec.args="--inputFile=pom.xml --output=counts" -P spark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     -Dexec.args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
-    --output=gs://<your-gcs-bucket>/counts" -Pdataflow-runner
+    --output=gs://<your-gcs-bucket>/counts" -P dataflow-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-samza-local">}}
