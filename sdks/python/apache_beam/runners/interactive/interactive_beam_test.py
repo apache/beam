@@ -94,6 +94,8 @@ class InteractiveBeamTest(unittest.TestCase):
     # The pcoll is not watched since watch(locals()) is not explicitly called.
     self.assertFalse(pcoll in _get_watched_pcollections_with_variable_names())
     # The call of show watches pcoll.
+    ib.watch({'p': p})
+    ie.current_env().track_user_pipelines()
     ib.show(pcoll)
     self.assertTrue(pcoll in _get_watched_pcollections_with_variable_names())
 
@@ -104,6 +106,8 @@ class InteractiveBeamTest(unittest.TestCase):
     pcoll = p | 'Create' >> beam.Create(range(10))
     self.assertFalse(pcoll in ie.current_env().computed_pcollections)
     # The call of show marks pcoll computed.
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
     ib.show(pcoll)
     self.assertTrue(pcoll in ie.current_env().computed_pcollections)
 
@@ -115,6 +119,8 @@ class InteractiveBeamTest(unittest.TestCase):
     p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
     pcoll = p | 'Create' >> beam.Create(range(10))
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
     ie.current_env().mark_pcollection_computed([pcoll])
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
@@ -129,6 +135,8 @@ class InteractiveBeamTest(unittest.TestCase):
     p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
     pcoll = p | 'Create' >> beam.Create(range(10))
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
     ie.current_env().mark_pcollection_computed([pcoll])
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
