@@ -61,3 +61,7 @@ class IOTest(unittest.TestCase):
       df.to_csv(output + 'out.csv', index=False)
     self.assertCountEqual(['a,b,c', '1,2,3', '3,4,7'],
                           set(self.read_all_lines(output + 'out.csv*')))
+
+
+if __name__ == '__main__':
+  unittest.main()
