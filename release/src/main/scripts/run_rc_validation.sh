@@ -231,6 +231,18 @@ else
   echo "* Skip Java quickstart with Dataflow runner. Google Cloud SDK is required."
 fi
 
+echo "[Current task] Java quickstart with Twister2 local runner"
+if [[ "$java_quickstart_twister2_local" = true ]]; then
+  echo "*************************************************************"
+  echo "* Running Java Quickstart with Twister2 local runner"
+  echo "*************************************************************"
+  ./gradlew :runners:twister2:runQuickstartJavaTwister2 \
+  -Prepourl=${REPO_URL} \
+  -Pver=${RELEASE_VER}
+else
+  echo "* Skip Java quickstart with Twister2 local runner"
+fi
+
 echo ""
 echo "====================Starting Java Mobile Game====================="
 if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true) \

@@ -675,6 +675,27 @@ class HadoopFileSystemOptions(PipelineOptions):
     return errors
 
 
+class BigQueryOptions(PipelineOptions):
+  """BigQueryIO configuration options."""
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--latency_logging_frequency_sec',
+        type=int,
+        default=180,
+        help=(
+            'The minimum duration in seconds between percentile latencies '
+            'logging. The interval might be longer than the specified value '
+            'due to each bundle processing time.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(
+        validator.validate_optional_argument_positive(
+            self, 'latency_logging_frequency_sec'))
+    return errors
+
+
 # Command line options controlling the worker pool configuration.
 # TODO(silviuc): Update description when autoscaling options are in.
 class WorkerOptions(PipelineOptions):

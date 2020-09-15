@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -416,6 +417,15 @@ public class AvroUtilsTest {
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
             null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "enum",
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.createEnum(
+                    "fruit", "", "", ImmutableList.of("banana", "apple", "pear"))),
+            "",
+            null));
+
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
 
@@ -424,6 +434,10 @@ public class AvroUtilsTest {
             .addNullableField("int", FieldType.INT32)
             .addArrayField("array", FieldType.BYTES.withNullable(true))
             .addMapField("map", FieldType.STRING, FieldType.INT32.withNullable(true))
+            .addField(
+                "enum",
+                FieldType.logicalType(EnumerationType.create("banana", "apple", "pear"))
+                    .withNullable(true))
             .build();
     assertEquals(expectedSchema, AvroUtils.toBeamSchema(avroSchema));
 
@@ -434,12 +448,14 @@ public class AvroUtilsTest {
             .set("int", null)
             .set("array", Lists.newArrayList((Object) null))
             .set("map", nullMap)
+            .set("enum", null)
             .build();
     Row expectedRow =
         Row.withSchema(expectedSchema)
             .addValue(null)
             .addValue(Lists.newArrayList((Object) null))
             .addValue(nullMap)
+            .addValue(null)
             .build();
     assertEquals(expectedRow, AvroUtils.toBeamRowStrict(genericRecord, expectedSchema));
   }

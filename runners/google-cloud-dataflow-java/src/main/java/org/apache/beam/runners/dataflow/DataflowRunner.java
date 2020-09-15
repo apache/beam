@@ -1460,9 +1460,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       stepContext.addInput(
           PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
           byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
-      // No coder is needed in this case since the collection being written is already of
-      // PubsubMessage, however the Dataflow backend require a coder to be set.
-      stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(VoidCoder.of()));
+
+      // Using a GlobalWindowCoder as a place holder because GlobalWindowCoder is known coder.
+      stepContext.addEncodingInput(
+          WindowedValue.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE));
       stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }

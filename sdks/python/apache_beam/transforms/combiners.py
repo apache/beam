@@ -23,6 +23,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import copy
+import functools
 import heapq
 import operator
 import random
@@ -161,9 +162,6 @@ class CountCombineFn(core.CombineFn):
 
   def add_input(self, accumulator, element):
     return accumulator + 1
-
-  def add_inputs(self, accumulator, elements):
-    return accumulator + len(list(elements))
 
   def merge_accumulators(self, accumulators):
     return sum(accumulators)
@@ -938,8 +936,10 @@ class PhasedCombineFnExecutor(object):
     return self.combine_fn.apply(elements)
 
   def add_only(self, elements):
-    return self.combine_fn.add_inputs(
-        self.combine_fn.create_accumulator(), elements)
+    return functools.reduce(
+        self.combine_fn.add_input,
+        elements,
+        self.combine_fn.create_accumulator())
 
   def merge_only(self, accumulators):
     return self.combine_fn.merge_accumulators(accumulators)

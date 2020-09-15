@@ -69,6 +69,8 @@ class DeferredSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing()))
 
+  to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
+
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
 
@@ -111,6 +113,8 @@ class DeferredSeries(frame_base.DeferredFrame):
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
+
+  head = tail = frame_base.wont_implement_method('order-sensitive')
 
   @frame_base.args_to_kwargs(pd.Series)
   def nlargest(self, **kwargs):
@@ -374,6 +378,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
+
+  head = tail = frame_base.wont_implement_method('order-sensitive')
 
   max = frame_base._agg_method('max')
   min = frame_base._agg_method('min')

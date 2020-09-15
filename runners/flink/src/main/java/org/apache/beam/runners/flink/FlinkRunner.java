@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -70,6 +71,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
+    SplittableParDo.validateNoPrimitiveReads(pipeline);
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
 
     MetricsEnvironment.setMetricsSupported(true);
