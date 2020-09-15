@@ -29,6 +29,7 @@ from builtins import range
 from collections import defaultdict
 
 import hamcrest as hc
+import numpy as np
 from parameterized import parameterized
 from parameterized import parameterized_class
 
@@ -89,6 +90,12 @@ class ApproximateUniqueTest(unittest.TestCase):
           None,
           0.1,
           'assert:global_by_error_with_large_population'),
+      (
+          'numpy_input_data',
+          np.array(range(10)),
+          30,
+          None,
+          'assert:global_with_numpy_data'),
   ])
   def test_approximate_unique_global(
       self, name, test_input, sample_size, est_error, label):

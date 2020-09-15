@@ -36,6 +36,7 @@ import heapq
 import itertools
 import logging
 import math
+import numpy as np
 import sys
 import typing
 from builtins import round
@@ -242,10 +243,9 @@ class ApproximateUniqueCombineFn(CombineFn):
   """
   def __init__(self, sample_size, coder):
     self._sample_size = sample_size
-    coder = coders.typecoders.registry.verify_deterministic(
+    self._coder = coders.typecoders.registry.verify_deterministic(
         coder, 'ApproximateUniqueCombineFn')
 
-    self._coder = coder
     self._hash_fn = _get_default_hash_fn()
 
   def create_accumulator(self, *args, **kwargs):
@@ -253,6 +253,9 @@ class ApproximateUniqueCombineFn(CombineFn):
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
+      # if element is numpy type, convert to python scalar.
+      if isinstance(element, np.generic):
+        element = element.item(0)
       hashed_value = self._hash_fn(self._coder.encode(element))
       accumulator.add(hashed_value)
       return accumulator
