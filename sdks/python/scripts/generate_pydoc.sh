@@ -202,6 +202,7 @@ ignore_identifiers = [
   'google.cloud.datastore.entity.Entity',
   'google.cloud.datastore.batch.Batch',
   'is_in_ipython',
+  'doctest.TestResults',
 ]
 ignore_references = [
   'BeamIOError',

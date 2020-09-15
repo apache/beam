@@ -377,12 +377,12 @@ class Summary(object):
       tries=0,
       skipped=0,
       wont_implement=0,
-      wont_implement_reasons=list()):
+      wont_implement_reasons=None):
     self.failures = failures
     self.tries = tries
     self.skipped = skipped
     self.wont_implement = wont_implement
-    self.wont_implement_reasons = wont_implement_reasons
+    self.wont_implement_reasons = wont_implement_reasons or []
 
   def __add__(self, other):
     return Summary(
