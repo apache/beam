@@ -47,10 +47,10 @@ import doctest
 import re
 import sys
 import traceback
+from io import StringIO
 from typing import Any
 from typing import Dict
 from typing import List
-from io import StringIO
 
 import numpy as np
 import pandas as pd
@@ -327,7 +327,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
     with self._test_env.context():
       result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
       # Can't add attributes to builtin result.
-      result = TestResults(result.failed, result.attempted)
+      result = AugmentedTestResults(result.failed, result.attempted)
       result.summary = self.summary()
       return result
 
@@ -366,7 +366,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         self._wont_implement_reasons)
 
 
-class TestResults(doctest.TestResults):
+class AugmentedTestResults(doctest.TestResults):
   pass
 
 
@@ -377,7 +377,7 @@ class Summary(object):
       tries=0,
       skipped=0,
       wont_implement=0,
-      wont_implement_reasons=()):
+      wont_implement_reasons=list()):
     self.failures = failures
     self.tries = tries
     self.skipped = skipped
