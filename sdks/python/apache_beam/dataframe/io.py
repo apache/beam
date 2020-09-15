@@ -24,10 +24,7 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam import io
-from apache_beam.dataframe import convert
-from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
-from apache_beam.dataframe import frames
 
 
 def read_csv(path, *args, **kwargs):
@@ -35,6 +32,7 @@ def read_csv(path, *args, **kwargs):
 
 
 def write_csv(df, path, *args, **kwargs):
+  from apache_beam.dataframe import convert
   # TODO(roberwb): Amortize the computation for multiple writes?
   return convert.to_pcollection(df) | _WriteToPandas(
       pd.DataFrame.to_csv, path, args, kwargs, incremental=True, binary=False)
@@ -75,6 +73,7 @@ class _ReadFromPandas(beam.PTransform):
         paths_pcoll
         | beam.FlatMap(expand_pattern)
         | beam.ParDo(_ReadFromPandasDoFn(self.reader, self.args, self.kwargs)))
+    from apache_beam.dataframe import convert
     return convert.to_dataframe(
         pcoll, proxy=_prefix_range_index_with(':', df[:0]))
 
