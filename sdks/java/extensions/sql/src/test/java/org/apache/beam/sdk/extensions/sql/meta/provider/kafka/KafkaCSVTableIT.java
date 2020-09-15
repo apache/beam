@@ -17,18 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
 import com.alibaba.fastjson.JSON;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -60,12 +49,23 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.testcontainers.containers.KafkaContainer;
+
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 /** This is an integration test for KafkaCSVTable. */
 public class KafkaCSVTableIT {
@@ -83,15 +83,9 @@ public class KafkaCSVTableIT {
 
   @Before
   public void setUp() {
-    kafka.start();
     kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
     kafkaOptions.setKafkaTopic("topic");
     kafkaOptions.setKafkaBootstrapServerAddress(kafka.getBootstrapServers());
-  }
-
-  @After
-  public void tearDown() {
-    kafka.stop();
   }
 
   @Test
