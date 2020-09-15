@@ -34,7 +34,8 @@ def to_element_list(
     reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
     coder,  # type: Coder
     include_window_info,  # type: bool
-    n=None  # type: int
+    n=None,  # type: int
+    include_teststream_events=False, # type: bool
 ):
   # type: (...) -> List[WindowedValue]
 
@@ -48,12 +49,14 @@ def to_element_list(
       if isinstance(e, TestStreamPayload.Event):
         if (e.HasField('watermark_event') or
             e.HasField('processing_time_event')):
-          continue
-        for tv in e.element_event.elements:
-          decoded = coder.decode(tv.encoded_element)
-          yield (
-              decoded.windowed_value
-              if include_window_info else decoded.windowed_value.value)
+          if include_teststream_events:
+            yield e
+        else:
+          for tv in e.element_event.elements:
+            decoded = coder.decode(tv.encoded_element)
+            yield (
+                decoded.windowed_value
+                if include_window_info else decoded.windowed_value.value)
       elif isinstance(e, WindowedValueHolder):
         yield (
             e.windowed_value if include_window_info else e.windowed_value.value)
@@ -62,10 +65,15 @@ def to_element_list(
 
   # Because we can yield multiple elements from a single TestStreamFileRecord,
   # we have to limit the count here to ensure that `n` is fulfilled.
-  for count, e in enumerate(elements()):
+  count = 0
+  for e in elements():
     if n and count >= n:
       break
+
     yield e
+
+    if not isinstance(e, TestStreamPayload.Event):
+      count += 1
 
 
 def elements_to_df(elements, include_window_info=False):
