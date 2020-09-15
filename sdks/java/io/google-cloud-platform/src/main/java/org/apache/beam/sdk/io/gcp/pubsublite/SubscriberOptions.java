@@ -33,13 +33,12 @@ import com.google.cloud.pubsublite.proto.SubscriberServiceGrpc.SubscriberService
 import io.grpc.StatusException;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Options needed for a Pub/Sub Lite Subscriber. */
 @AutoValue
 public abstract class SubscriberOptions implements Serializable {
   private static final long serialVersionUID = 269598118L;
@@ -47,19 +46,22 @@ public abstract class SubscriberOptions implements Serializable {
   private static final Framework FRAMEWORK = Framework.of("BEAM");
 
   // Required parameters.
-  abstract SubscriptionPath subscriptionPath();
+  public abstract SubscriptionPath subscriptionPath();
 
-  abstract FlowControlSettings flowControlSettings();
+  public abstract FlowControlSettings flowControlSettings();
 
   // Optional parameters.
   /** A set of partitions. If empty, retrieve the set of partitions using an admin client. */
-  abstract Set<Partition> partitions();
+  public abstract Set<Partition> partitions();
+
+  /** The class used to read backlog for the subscription described by subscriptionPath(). */
+  public abstract TopicBacklogReader topicBacklogReader();
 
   /** A supplier for the subscriber stub to be used. */
-  abstract @Nullable SerializableSupplier<SubscriberServiceStub> subscriberStubSupplier();
+  public abstract @Nullable SerializableSupplier<SubscriberServiceStub> subscriberStubSupplier();
 
   /** A supplier for the cursor service stub to be used. */
-  abstract @Nullable SerializableSupplier<CursorServiceStub> committerStubSupplier();
+  public abstract @Nullable SerializableSupplier<CursorServiceStub> committerStubSupplier();
 
   /**
    * A factory to override subscriber creation entirely and delegate to another method. Primarily
@@ -84,21 +86,22 @@ public abstract class SubscriberOptions implements Serializable {
   Map<Partition, SubscriberFactory> getSubscriberFactories() {
     ImmutableMap.Builder<Partition, SubscriberFactory> factories = ImmutableMap.builder();
     for (Partition partition : partitions()) {
-      factories.put(
-          partition,
-          Optional.fromNullable(subscriberFactory())
-              .or(
-                  consumer -> {
-                    SubscriberBuilder.Builder builder = SubscriberBuilder.newBuilder();
-                    builder.setMessageConsumer(consumer);
-                    builder.setSubscriptionPath(subscriptionPath());
-                    builder.setPartition(partition);
-                    builder.setContext(PubsubContext.of(FRAMEWORK));
-                    if (subscriberStubSupplier() != null) {
-                      builder.setSubscriberServiceStub(subscriberStubSupplier().get());
-                    }
-                    return builder.build();
-                  }));
+      SubscriberFactory factory = subscriberFactory();
+      if (factory == null) {
+        factory =
+            consumer -> {
+              SubscriberBuilder.Builder builder = SubscriberBuilder.newBuilder();
+              builder.setMessageConsumer(consumer);
+              builder.setSubscriptionPath(subscriptionPath());
+              builder.setPartition(partition);
+              builder.setContext(PubsubContext.of(FRAMEWORK));
+              if (subscriberStubSupplier() != null) {
+                builder.setSubscriberServiceStub(subscriberStubSupplier().get());
+              }
+              return builder.build();
+            };
+      }
+      factories.put(partition, factory);
     }
     return factories.build();
   }
@@ -138,24 +141,43 @@ public abstract class SubscriberOptions implements Serializable {
     public abstract Builder setCommitterStubSupplier(
         SerializableSupplier<CursorServiceStub> stubSupplier);
 
+    public abstract Builder setTopicBacklogReader(TopicBacklogReader topicBacklogReader);
+
+    // Used in unit tests
     abstract Builder setSubscriberFactory(SubscriberFactory subscriberFactory);
 
     abstract Builder setCommitterSupplier(SerializableSupplier<Committer> committerSupplier);
 
+    // Used for implementing build();
+    abstract SubscriptionPath subscriptionPath();
+
+    abstract Set<Partition> partitions();
+
+    abstract Optional<TopicBacklogReader> topicBacklogReader();
+
     abstract SubscriberOptions autoBuild();
 
     public SubscriberOptions build() throws StatusException {
-      SubscriberOptions built = autoBuild();
-      if (!built.partitions().isEmpty()) {
-        return built;
+      if (!partitions().isEmpty() && topicBacklogReader().isPresent()) {
+        return autoBuild();
       }
-      int partitionCount = PartitionLookupUtils.numPartitions(built.subscriptionPath());
-      SubscriberOptions.Builder builder = built.toBuilder();
-      ImmutableSet.Builder<Partition> partitions = ImmutableSet.builder();
-      for (int i = 0; i < partitionCount; i++) {
-        partitions.add(Partition.of(i));
+
+      if (partitions().isEmpty()) {
+        int partitionCount = PartitionLookupUtils.numPartitions(subscriptionPath());
+        ImmutableSet.Builder<Partition> partitions = ImmutableSet.builder();
+        for (int i = 0; i < partitionCount; i++) {
+          partitions.add(Partition.of(i));
+        }
+        setPartitions(partitions.build());
       }
-      return builder.setPartitions(partitions.build()).autoBuild();
+      if (!topicBacklogReader().isPresent()) {
+        setTopicBacklogReader(
+            TopicBacklogReader.create(
+                TopicBacklogReaderSettings.newBuilder()
+                    .setSubscriptionPath(subscriptionPath())
+                    .build()));
+      }
+      return autoBuild();
     }
   }
 }
