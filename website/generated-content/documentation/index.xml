@@ -8085,6 +8085,7 @@ It allows to do additional calculations before extracting a result.&lt;/p>
 &lt;li>&lt;a href="/documentation/transforms/python/aggregation/top">Top&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/python/aggregation/sample">Sample&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;p>See also &lt;a href="/documentation/transforms/python/aggregation/groupby">GroupBy&lt;/a> which allows you to combine more than one field at once.&lt;/p>
 &lt;table align="left" style="margin-right:1em">
 &lt;td>
 &lt;a
@@ -11744,7 +11745,260 @@ outputs the results to a BigQuery table.&lt;/p>
 reads weather station data from a BigQuery table, manipulates BigQuery rows in
 memory, and writes the results to a BigQuery table.&lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>Documentation: GroupByKey</title><link>/documentation/transforms/java/aggregation/groupbykey/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/groupbykey/</guid><description>
+&lt;/ul></description></item><item><title>Documentation: GroupBy</title><link>/documentation/transforms/python/aggregation/groupby/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/groupby/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="groupby">GroupBy&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupBy"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;p>Takes a collection of elements and produces a collection grouped,
+by properties of those elements.&lt;/p>
+&lt;p>Unlike &lt;code>GroupByKey&lt;/code>, the key is dynamically created from the elements themselves.&lt;/p>
+&lt;h2 id="grouping-examples">Grouping Examples&lt;/h2>
+&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of fruits.&lt;/p>
+&lt;p>We use &lt;code>GroupBy&lt;/code> to group all fruits by the first letter of their name.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(&amp;#39;s&amp;#39;, [&amp;#39;strawberry&amp;#39;]),
+(&amp;#39;r&amp;#39;, [&amp;#39;raspberry&amp;#39;]),
+(&amp;#39;b&amp;#39;, [&amp;#39;banana&amp;#39;, &amp;#39;blackberry&amp;#39;, &amp;#39;blueberry&amp;#39;]),&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;p>We can group by a composite key consisting of multiple properties if desired.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">letter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">is_berry&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;berry&amp;#39;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>The resulting key is a named tuple with the two requested attributes, and the
+values are grouped accordingly.&lt;/p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(NamedTuple(letter=&amp;#39;s&amp;#39;, is_berry=True), [&amp;#39;strawberry&amp;#39;]),
+(NamedTuple(letter=&amp;#39;r&amp;#39;, is_berry=True), [&amp;#39;raspberry&amp;#39;]),
+(NamedTuple(letter=&amp;#39;b&amp;#39;, is_berry=True), [&amp;#39;blackberry&amp;#39;, &amp;#39;blueberry&amp;#39;]),
+(NamedTuple(letter=&amp;#39;b&amp;#39;, is_berry=False), [&amp;#39;banana&amp;#39;]),&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;p>In the case that the property one wishes to group by is an attribute, a string
+may be passed to &lt;code>GroupBy&lt;/code> in the place of a callable expression. For example,
+suppose I have the following data&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">GROCERY_LIST&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;strawberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.50&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;raspberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">3.50&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;blackberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">4.00&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;pie&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">2.00&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;muffin&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;blueberry&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">2.00&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">recipe&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;muffin&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fruit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;banana&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unit_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.00&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>We can then do&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(&amp;#39;pie&amp;#39;,
+[
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;strawberry&amp;#39;, quantity=3, unit_price=1.50),
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;raspberry&amp;#39;, quantity=1, unit_price=3.50),
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blackberry&amp;#39;, quantity=1, unit_price=4.00),
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=1, unit_price=2.00),
+]),
+(&amp;#39;muffin&amp;#39;,
+[
+beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=2, unit_price=2.00),
+beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;banana&amp;#39;, quantity=3, unit_price=1.00),
+]),&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;p>It is possible to mix and match attributes and expressions, for example&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">is_berry&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;berry&amp;#39;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">fruit&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(NamedTuple(recipe=&amp;#39;pie&amp;#39;, is_berry=True),
+[
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;strawberry&amp;#39;, quantity=3, unit_price=1.50),
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;raspberry&amp;#39;, quantity=1, unit_price=3.50),
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blackberry&amp;#39;, quantity=1, unit_price=4.00),
+beam.Row(recipe=&amp;#39;pie&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=1, unit_price=2.00),
+]),
+(NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=True),
+[
+beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;blueberry&amp;#39;, quantity=2, unit_price=2.00),
+]),
+(NamedTuple(recipe=&amp;#39;muffin&amp;#39;, is_berry=False),
+[
+beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;banana&amp;#39;, quantity=3, unit_price=1.00),
+]),&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;p>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+.&lt;/p>
+&lt;h2 id="aggregation">Aggregation&lt;/h2>
+&lt;p>Grouping is often used in conjunction with aggregation, and the
+&lt;code>aggregate_field&lt;/code> method of the ``GroupBy&lt;code>transform can be used to accomplish this easily. This method takes three parameters: the field (or expression) which to aggregate, the&lt;/code>CombineFn&lt;code>(or associative&lt;/code>callable`) with which to aggregate
+by, and finally a field name in which to store the result.
+For example, suppose one wanted to compute the amount of each fruit to buy.
+One could write&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fruit&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>NamedTuple(fruit=&amp;#39;strawberry&amp;#39;, total_quantity=3),
+NamedTuple(fruit=&amp;#39;raspberry&amp;#39;, total_quantity=1),
+NamedTuple(fruit=&amp;#39;blackberry&amp;#39;, total_quantity=1),
+NamedTuple(fruit=&amp;#39;blueberry&amp;#39;, total_quantity=3),
+NamedTuple(fruit=&amp;#39;banana&amp;#39;, total_quantity=3),&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;p>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+.&lt;/p>
+&lt;p>Similar to the parameters in GroupBy, one can also aggregate multiple fields
+and by expressions.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;recipe&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;quantity&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;total_quantity&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">quantity&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unit_price&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>NamedTuple(recipe=&amp;#39;pie&amp;#39;, total_quantity=6, price=14.00),
+NamedTuple(recipe=&amp;#39;muffin&amp;#39;, total_quantity=5, price=7.00),&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;p>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+.&lt;/p>
+&lt;p>One can, of course, aggregate the same field multiple times as well.
+This example also illustrates a global grouping, as the grouping key is empty.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">grouped&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GROCERY_LIST&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupBy&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;min_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">MeanCombineFn&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="s1">&amp;#39;mean_price&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">aggregate_field&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;unit_price&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;max_price&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>NamedTuple(min_price=1.00, mean_price=7 / 3, max_price=4.00),&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;p>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+.&lt;/p>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey&lt;/a> for combining with a single CombineFn.&lt;/li>
+&lt;li>&lt;a href="/documentation/transforms/python/aggregation/groupbykey">GroupByKey&lt;/a> for grouping with a known key.&lt;/li>
+&lt;li>&lt;a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey&lt;/a> for multiple input collections.&lt;/li>
+&lt;/ul>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: GroupByKey</title><link>/documentation/transforms/java/aggregation/groupbykey/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/groupbykey/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11857,7 +12111,8 @@ where each element consists of a key and all values associated with that key.&lt
 &lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally&lt;/a> for combining all values associated with a key to a single result.&lt;/li>
+&lt;li>&lt;a href="/documentation/transforms/python/aggregation/groupby">GroupBy&lt;/a> for grouping by arbitrary properties of the elements.&lt;/li>
+&lt;li>&lt;a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey&lt;/a> for combining all values associated with a key to a single result.&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey&lt;/a> for multiple input collections.&lt;/li>
 &lt;/ul>
 &lt;table align="left" style="margin-right:1em">
@@ -12221,38 +12476,4 @@ When you submit a topology with argument &lt;code>&amp;quot;--external-libs beam
 &lt;h2 id="additional-notes">Additional notes&lt;/h2>
 &lt;h3 id="monitoring-your-job">Monitoring your job&lt;/h3>
 &lt;p>You can monitor your job with the JStorm UI, which displays all JStorm system metrics and Beam metrics.
-For testing on local mode, you can retreive the Beam metrics with the metrics method of PipelineResult.&lt;/p></description></item><item><title>Documentation: Keys</title><link>/documentation/transforms/java/elementwise/keys/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/elementwise/keys/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="keys">Keys&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Keys.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
-alt="Javadoc" />
-Javadoc
-&lt;/a>
-&lt;/table>
-&lt;br>&lt;br>
-&lt;p>Takes a collection of key-value pairs, and returns the key of each element.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>&lt;strong>Example&lt;/strong>&lt;/p>
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">keyValuePairs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="cm">/* ... */&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">keys&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">keyValuePairs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Keys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">());&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/kvswap">KvSwap&lt;/a> swaps key-value pair values.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/values">Values&lt;/a> for extracting the value of each element.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/withkeys">WithKeys&lt;/a> for adding a key to each element.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+For testing on local mode, you can retreive the Beam metrics with the metrics method of PipelineResult.&lt;/p></description></item></channel></rss>
