@@ -16,9 +16,10 @@
 
 from __future__ import absolute_import
 
-import os
 import glob
+import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -50,6 +51,7 @@ class IOTest(unittest.TestCase):
         for line in fin:
           yield line.rstrip('\n')
 
+  @unittest.skipIf(sys.version_info[0] < 3, 'unicode issues')
   def test_write_csv(self):
     input = self.temp_dir({'1.csv': 'a,b\n1,2\n', '2.csv': 'a,b\n3,4\n'})
     output = self.temp_dir()
