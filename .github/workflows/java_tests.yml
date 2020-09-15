@@ -69,7 +69,9 @@ jobs:
         uses: actions/checkout@v2
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
-        run: ./gradlew :sdks:java:core:test
+        uses: eskatos/gradle-command-action@v1
+        with:
+          arguments: :sdks:java:core:test
       - name: Upload test logs for :sdks:java:core:test
         uses: actions/upload-artifact@v2
         if: always()
@@ -78,8 +80,10 @@ jobs:
           path: sdks/java/core/build/reports/tests/test
       # :sdks:java:harness:test
       - name: Run :sdks:java:harness:test
+        uses: eskatos/gradle-command-action@v1
+        with:
+          arguments: :sdks:java:harness:test
         if: always()
-        run: ./gradlew :sdks:java:harness:test
       - name: Upload test logs for :sdks:java:harness:test
         uses: actions/upload-artifact@v2
         if: always()
@@ -88,8 +92,10 @@ jobs:
           path: sdks/java/harness/build/reports/tests/test
       # :runners:core-java:test
       - name: Run :runners:core-java:test
+        uses: eskatos/gradle-command-action@v1
+        with:
+          arguments: :runners:core-java:test
         if: always()
-        run: ./gradlew :runners:core-java:test
       - name: Upload test logs for :runners:core-java:test
         uses: actions/upload-artifact@v2
         if: always()
@@ -108,13 +114,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Run WordCount Unix
-        shell: bash
-        run: |
-          bash ./gradlew -p examples/ \
-             integrationTest -DintegrationTestPipelineOptions='[
-          	 "--runner=DirectRunner", "--tempRoot=./tmp" ]' \
-             --tests org.apache.beam.examples.WordCountIT \
-             -DintegrationTestRunner=direct
+        uses: eskatos/gradle-command-action@v1
+        with:
+          arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
+            -DintegrationTestRunner=direct
+            -DintegrationTestPipelineOptions=["--runner=DirectRunner","--tempRoot=./tmp"]
       - name: Upload test logs
         uses: actions/upload-artifact@v2
         if: always()
@@ -147,13 +151,11 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
       - name: Run WordCount
-        shell: bash
-        run: |
-          bash ./gradlew -p examples/ \
-             integrationTest -DintegrationTestPipelineOptions='[
-             "--runner=DataflowRunner", "--project=${{ secrets.GCP_PROJECT_ID }}", "--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/"]' \
-             --tests org.apache.beam.examples.WordCountIT \
-             -DintegrationTestRunner=dataflow
+        uses: eskatos/gradle-command-action@v1
+        with:
+          arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
+            -DintegrationTestPipelineOptions=["--runner=DataflowRunner","--project=${{ secrets.GCP_PROJECT_ID }}","--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/"]
+            -DintegrationTestRunner=dataflow
       - name: Upload test logs
         uses: actions/upload-artifact@v2
         if: always()
