@@ -34,12 +34,13 @@ class IOTest(unittest.TestCase):
     for root in self._temp_roots:
       shutil.rmtree(root)
 
-  def temp_dir(self, files={}):
+  def temp_dir(self, files=None):
     dir = tempfile.mkdtemp(prefix='beam-test')
     self._temp_roots.append(dir)
-    for name, contents in files.items():
-      with open(os.path.join(dir, name), 'w') as fout:
-        fout.write(contents)
+    if files:
+      for name, contents in files.items():
+        with open(os.path.join(dir, name), 'w') as fout:
+          fout.write(contents)
     return dir + os.path.sep
 
   def read_all_lines(self, pattern):
