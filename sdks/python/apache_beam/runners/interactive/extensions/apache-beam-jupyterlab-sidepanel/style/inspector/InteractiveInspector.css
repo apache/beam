@@ -11,10 +11,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-@import '~material-design-icons/iconfont/material-icons.css';
-
-@import './mdc-theme.css';
-
-@import './inspector/Inspectables.css';
-@import './inspector/InspectableView.css';
-@import './inspector/InteractiveInspector.css';
+.InteractiveInspector {
+  height: 100%;
+  overflow-y: auto;
+}
