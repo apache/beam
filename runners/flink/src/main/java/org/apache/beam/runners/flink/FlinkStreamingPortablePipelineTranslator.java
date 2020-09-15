@@ -228,7 +228,7 @@ public class FlinkStreamingPortablePipelineTranslator
 
   @Override
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because PipelineTrimmer otherwise removes
+    // Do not expose Read as a known URN because TrivialNativeTransformExpander otherwise removes
     // the subtransforms which are added in case of bounded reads. We only have a
     // translator here for unbounded Reads which are native transforms which do not
     // have subtransforms. Unbounded Reads are used by cross-language transforms, e.g.
@@ -282,9 +282,12 @@ public class FlinkStreamingPortablePipelineTranslator
       // create an empty dummy source to satisfy downstream operations
       // we cannot create an empty source in Flink, therefore we have to
       // add the flatMap that simply never forwards the single element
-      boolean keepSourceAlive = !context.getPipelineOptions().isShutdownSourcesOnFinalWatermark();
+      long shutdownAfterIdleSourcesMs =
+          context.getPipelineOptions().getShutdownSourcesAfterIdleMs();
       DataStreamSource<WindowedValue<byte[]>> dummySource =
-          context.getExecutionEnvironment().addSource(new ImpulseSourceFunction(keepSourceAlive));
+          context
+              .getExecutionEnvironment()
+              .addSource(new ImpulseSourceFunction(shutdownAfterIdleSourcesMs));
 
       DataStream<WindowedValue<T>> result =
           dummySource
@@ -545,11 +548,11 @@ public class FlinkStreamingPortablePipelineTranslator
         new CoderTypeInformation<>(
             WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
 
-    boolean keepSourceAlive = !context.getPipelineOptions().isShutdownSourcesOnFinalWatermark();
+    long shutdownAfterIdleSourcesMs = context.getPipelineOptions().getShutdownSourcesAfterIdleMs();
     SingleOutputStreamOperator<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .addSource(new ImpulseSourceFunction(keepSourceAlive), "Impulse")
+            .addSource(new ImpulseSourceFunction(shutdownAfterIdleSourcesMs), "Impulse")
             .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);

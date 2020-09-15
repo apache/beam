@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
@@ -45,11 +44,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code Join}. */
+@RunWith(JUnit4.class)
 public class JoinTest extends AbstractOperatorTest {
 
   @Test
@@ -809,8 +812,7 @@ public class JoinTest extends AbstractOperatorTest {
     }
 
     @Override
-    @Nullable
-    public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+    public @Nullable WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
       return null;
     }
 
@@ -834,7 +836,7 @@ public class JoinTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof NamedGlobalWindow) {
         return name.equals(((NamedGlobalWindow) other).name);
       }

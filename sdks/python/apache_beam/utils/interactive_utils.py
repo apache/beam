@@ -30,15 +30,20 @@ _LOGGER = logging.getLogger(__name__)
 
 def is_in_ipython():
   """Determines if current code is executed within an ipython session."""
-  is_in_ipython = False
-  # Check if the runtime is within an interactive environment, i.e., ipython.
   try:
     from IPython import get_ipython  # pylint: disable=import-error
     if get_ipython():
-      is_in_ipython = True
+      return True
+    return False
   except ImportError:
-    pass  # If dependencies are not available, then not interactive for sure.
-  return is_in_ipython
+    # If dependencies are not available, then not interactive for sure.
+    return False
+  except (KeyboardInterrupt, SystemExit):
+    raise
+  except:  # pylint: disable=bare-except
+    _LOGGER.info(
+        'Unexpected error occurred, treated as not in IPython.', exc_info=True)
+    return False
 
 
 def is_in_notebook():
@@ -77,16 +82,11 @@ def alter_label_if_ipython(transform, pvalueish):
     from IPython import get_ipython
     prompt = get_ipython().execution_count
     pipeline = _extract_pipeline_of_pvalueish(pvalueish)
-    if not pipeline:
-      _LOGGER.warning(
-          'Failed to alter the label of a transform with the '
-          'ipython prompt metadata. Cannot figure out the pipeline '
-          'that the given pvalueish %s belongs to. Thus noop.' % pvalueish)
     if (pipeline
         # We only alter for transforms to be applied to user-defined pipelines
         # at pipeline construction time.
         and pipeline in ie.current_env().tracked_user_pipelines):
-      transform.label = 'Cell {}: {}'.format(prompt, transform.label)
+      transform.label = '[{}]: {}'.format(prompt, transform.label)
 
 
 def _extract_pipeline_of_pvalueish(pvalueish):

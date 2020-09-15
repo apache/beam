@@ -18,14 +18,17 @@
 package org.apache.beam.sdk.io.aws2.sns;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,10 +43,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.GetTopicAttributesRequest;
 import software.amazon.awssdk.services.sns.model.GetTopicAttributesResponse;
@@ -54,7 +59,7 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
 /**
  * {@link PTransform}s for writing to <a href="https://aws.amazon.com/sns/">SNS</a>.
  *
- * <h3>Writing to SNS</h3>
+ * <h3>Writing to SNS Synchronously</h3>
  *
  * <p>Example usage:
  *
@@ -78,13 +83,49 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  *   <li>AwsCredentialsProvider, which you can pass on to BasicSnsClientProvider
  *   <li>publishRequestFn, a function to convert your message into PublishRequest
  * </ul>
+ *
+ * <h3>Writing to SNS Asynchronously</h3>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * PCollection<String> data = ...;
+ *
+ * data.apply(SnsIO.<String>writeAsync()
+ * 		.withElementCoder(StringUtf8Coder.of())
+ * 		.withPublishRequestFn(createPublishRequestFn())
+ * 		.withSnsClientProvider(new BasicSnsClientProvider(awsCredentialsProvider, region));
+ *
+ * }</pre>
+ *
+ * <pre>{@code
+ * PCollection<String> data = ...;
+ *
+ * PCollection<SnsResponse<String>> responses = data.apply(SnsIO.<String>writeAsync()
+ *      .withElementCoder(StringUtf8Coder.of())
+ *      .withPublishRequestFn(createPublishRequestFn())
+ *  *   .withSnsClientProvider(new BasicSnsClientProvider(awsCredentialsProvider, region));
+ *
+ * }</pre>
+ *
+ * <p>As a client, you need to provide at least the following things:
+ *
+ * <ul>
+ *   <li>Coder for element T.
+ *   <li>publishRequestFn, a function to convert your message into PublishRequest
+ *   <li>SnsClientProvider, a provider to create an async client.
+ * </ul>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public final class SnsIO {
 
-  // Write data tp SNS
+  // Write data to SNS (synchronous)
   public static <T> Write<T> write() {
     return new AutoValue_SnsIO_Write.Builder().build();
+  }
+
+  public static <T> WriteAsync<T> writeAsync() {
+    return new AutoValue_SnsIO_WriteAsync.Builder().build();
   }
 
   /**
@@ -158,17 +199,14 @@ public final class SnsIO {
   @AutoValue
   public abstract static class Write<T>
       extends PTransform<PCollection<T>, PCollection<PublishResponse>> {
-    @Nullable
-    abstract String getTopicArn();
 
-    @Nullable
-    abstract SerializableFunction<T, PublishRequest> getPublishRequestFn();
+    abstract @Nullable String getTopicArn();
 
-    @Nullable
-    abstract SnsClientProvider getSnsClientProvider();
+    abstract @Nullable SerializableFunction<T, PublishRequest> getPublishRequestFn();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable SnsClientProvider getSnsClientProvider();
+
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     abstract Builder<T> builder();
 
@@ -366,6 +404,147 @@ public final class SnsIO {
           producer = null;
         }
       }
+    }
+  }
+
+  /** Implementation of {@link #writeAsync}. */
+  @AutoValue
+  public abstract static class WriteAsync<T>
+      extends PTransform<PCollection<T>, PCollection<SnsResponse<T>>> {
+
+    abstract @Nullable SnsAsyncClientProvider getSnsClientProvider();
+
+    /** SerializableFunction to create PublishRequest. */
+    abstract @Nullable SerializableFunction<T, PublishRequest> getPublishRequestFn();
+
+    /** Coder for element T. */
+    abstract @Nullable Coder<T> getCoder();
+
+    abstract Builder<T> builder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setSnsClientProvider(SnsAsyncClientProvider asyncClientProvider);
+
+      abstract Builder<T> setCoder(Coder<T> elementCoder);
+
+      abstract Builder<T> setPublishRequestFn(
+          SerializableFunction<T, PublishRequest> publishRequestFn);
+
+      abstract WriteAsync<T> build();
+    }
+
+    /**
+     * Specify a Coder for SNS PublishRequest object.
+     *
+     * @param elementCoder Coder
+     */
+    public WriteAsync<T> withCoder(Coder<T> elementCoder) {
+      checkNotNull(elementCoder, "elementCoder cannot be null");
+      return builder().setCoder(elementCoder).build();
+    }
+
+    /**
+     * Specify a function for converting a message into PublishRequest object.
+     *
+     * @param publishRequestFn publishRequestFn
+     */
+    public WriteAsync<T> withPublishRequestFn(
+        SerializableFunction<T, PublishRequest> publishRequestFn) {
+      checkNotNull(publishRequestFn, "publishRequestFn cannot be null");
+      return builder().setPublishRequestFn(publishRequestFn).build();
+    }
+
+    /**
+     * Allows to specify custom {@link SnsAsyncClientProvider}. {@link SnsAsyncClientProvider}
+     * creates new {@link SnsAsyncClientProvider} which is later used for writing to a SNS topic.
+     */
+    public WriteAsync<T> withSnsClientProvider(SnsAsyncClientProvider asyncClientProvider) {
+      checkNotNull(asyncClientProvider, "asyncClientProvider cannot be null");
+      return builder().setSnsClientProvider(asyncClientProvider).build();
+    }
+
+    /**
+     * Specify credential details and region to be used to write to SNS. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * WriteAsync#withSnsClientProvider(SnsAsyncClientProvider)}.
+     */
+    public WriteAsync<T> withSnsClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region) {
+      checkNotNull(credentialsProvider, "credentialsProvider cannot be null");
+      checkNotNull(region, "region cannot be null");
+      return withSnsClientProvider(credentialsProvider, region, null);
+    }
+
+    /**
+     * Specify credential details and region to be used to write to SNS. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * WriteAsync#withSnsClientProvider(SnsAsyncClientProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host.
+     */
+    public WriteAsync<T> withSnsClientProvider(
+        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
+      checkNotNull(credentialsProvider, "credentialsProvider cannot be null");
+      checkNotNull(region, "region cannot be null");
+      return withSnsClientProvider(
+          new BasicSnsAsyncClientProvider(credentialsProvider, region, serviceEndpoint));
+    }
+
+    @Override
+    public PCollection<SnsResponse<T>> expand(PCollection<T> input) {
+      checkArgument(getSnsClientProvider() != null, "withSnsClientProvider() needs to called");
+      checkArgument(getPublishRequestFn() != null, "withPublishRequestFn() needs to called");
+      checkArgument(getCoder() != null, "withElementCoder() needs to called");
+
+      return input
+          .apply(ParDo.of(new SnsWriteAsyncFn<>(this)))
+          .setCoder(SnsResponseCoder.of(getCoder()));
+    }
+
+    private static class SnsWriteAsyncFn<T> extends DoFn<T, SnsResponse<T>> {
+
+      private static final Logger LOG = LoggerFactory.getLogger(SnsWriteAsyncFn.class);
+
+      private final WriteAsync<T> spec;
+      private transient SnsAsyncClient client;
+
+      SnsWriteAsyncFn(WriteAsync<T> spec) {
+        this.spec = spec;
+      }
+
+      @Setup
+      public void setup() {
+        this.client = spec.getSnsClientProvider().getSnsAsyncClient();
+      }
+
+      @SuppressWarnings("FutureReturnValueIgnored")
+      @ProcessElement
+      public void processElement(ProcessContext context) {
+        PublishRequest publishRequest = spec.getPublishRequestFn().apply(context.element());
+        client.publish(publishRequest).whenComplete(getPublishResponse(context));
+      }
+
+      private BiConsumer<? super PublishResponse, ? super Throwable> getPublishResponse(
+          DoFn<T, SnsResponse<T>>.ProcessContext context) {
+        return (response, ex) -> {
+          if (ex == null) {
+            SnsResponse<T> snsResponse = SnsResponse.of(context.element(), response);
+            context.output(snsResponse);
+          } else {
+            LOG.error("Error while publishing request to SNS", ex);
+            throw new SnsWriteException("Error while publishing request to SNS", ex);
+          }
+        };
+      }
+    }
+  }
+
+  /** Exception class for SNS write exceptions. */
+  protected static class SnsWriteException extends RuntimeException {
+
+    SnsWriteException(String message, Throwable error) {
+      super(message, error);
     }
   }
 }

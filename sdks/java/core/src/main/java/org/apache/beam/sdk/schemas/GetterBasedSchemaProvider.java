@@ -24,6 +24,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link SchemaProvider} base class that vends schemas and rows based on {@link
@@ -56,7 +57,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
     @Override
     public Row apply(T input) {
-      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input).build();
+      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input);
     }
 
     private GetterBasedSchemaProvider getOuter() {
@@ -64,7 +65,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -107,7 +108,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj != null && this.getClass() == obj.getClass();
   }
 }

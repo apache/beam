@@ -18,8 +18,14 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws')
+plugins {
+  id 'org.apache.beam.module'
+}
+
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.io.aws')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
@@ -33,6 +39,7 @@ dependencies {
   compile library.java.aws_java_sdk_s3
   compile library.java.aws_java_sdk_sns
   compile library.java.aws_java_sdk_sqs
+  compile library.java.aws_java_sdk_sts
   compile "commons-lang:commons-lang:2.6"
   compile library.java.jackson_core
   compile library.java.jackson_annotations
@@ -47,8 +54,9 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
+  testCompile library.java.testcontainers_localstack
+  testCompile "org.assertj:assertj-core:3.11.1"
   testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
-  testCompile 'org.testcontainers:localstack:1.11.2'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

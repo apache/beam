@@ -25,5 +25,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
  * error responses will be converted to exceptionally completed futures.
  */
 public interface InstructionRequestHandler extends AutoCloseable {
+  void registerProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor processBundleDescriptor);
+
   CompletionStage<BeamFnApi.InstructionResponse> handle(BeamFnApi.InstructionRequest request);
 }

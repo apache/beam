@@ -20,7 +20,10 @@
  * {@link org.apache.beam.sdk.transforms.DoFn}.
  */
 @DefaultAnnotation(NonNull.class)
+@Experimental(Kind.SPLITTABLE_DO_FN)
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.NonNull;

@@ -17,5 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /** Category tag for validation tests which utilize at least one unbounded {@code PCollection}. */
+@Internal
 public interface UsesUnboundedPCollections {}

@@ -24,9 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsOptions;
@@ -34,14 +32,14 @@ import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Component that regularly merges metrics and pushes them to a metrics sink. */
-@Experimental(Experimental.Kind.METRICS)
 public class MetricsPusher implements Serializable {
 
   private MetricsSink metricsSink;
   private long period;
-  @Nullable private transient ScheduledFuture<?> scheduledFuture;
+  private transient @Nullable ScheduledFuture<?> scheduledFuture;
   private transient PipelineResult pipelineResult;
   private MetricsContainerStepMap metricsContainerStepMap;
 

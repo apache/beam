@@ -1,0 +1,89 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Please keep the entries sorted lexicographically in each category.
+
+# General
+build: ["assembly.xml", "build.gradle", "buildSrc/*", ".gitattributes", ".github/*", ".gitignore", "gradle/*", ".mailmap", "ownership/*", "release/*", "sdks/java/build-tools/*", "settings.gradle"]
+docker: ["runners/flink/job-server-container/*", "runners/spark/job-server/container/*", "sdks/go/container/*", "sdks/java/container/*", "sdks/python/container/*"]
+examples: ["examples/*", "sdks/go/examples/*", "sdks/python/apache_beam/examples/*"]
+go: ["sdks/go/*"]
+infra: [".test-infra/*"]
+java: ["examples/java/*", "sdks/java/*"]
+kotlin: ["examples/kotlin/*"]
+learning: ["learning/*"]
+model: ["model/*"]
+python: ["sdks/python/*"]
+vendor: ["vendor/*"]
+website: ["website/*"]
+
+# Extensions
+extensions: ["sdks/java/extensions/*"]
+"euphoria": ["sdks/java/extensions/euphoria/*"]
+"google-cloud-platform-core": ["sdks/java/extensions/google-cloud-platform-core/*"]
+"jackson": ["sdks/java/extensions/jackson/*"]
+"join-library": ["sdks/java/extensions/join-library*"]
+"kryo": ["sdks/java/extensions/kryo/*"]
+"protobuf": ["sdks/java/extensions/protobuf/*"]
+"sketching": ["sdks/java/extensions/sketching/*"]
+"sorter": ["sdks/java/extensions/sorter/*"]
+"sql": ["sdks/java/extensions/sql/*"]
+"zetasketch": ["sdks/java/extensions/zetasketch/*"]
+
+# IO
+io:  ["sdks/go/pkg/beam/io/*", "sdks/java/io/*", "sdks/python/apache_beam/io/*"]
+"amqp":  ["sdks/java/io/amqp/*"]
+"aws":  ["sdks/java/io/amazon-web-services/*", "sdks/java/io/amazon-web-services2/*", "sdks/python/apache_beam/io/aws/*"]
+"cassandra":  ["sdks/java/io/cassandra/*"]
+"clickhouse":  ["sdks/java/io/clickhouse/*"]
+"elasticsearch":  ["sdks/java/io/elasticsearch/*", "sdks/java/io/elasticsearch-tests/*"]
+"gcp":  ["sdks/go/pkg/beam/io/bigqueryio/*", "sdks/go/pkg/beam/io/datastoreio/*", "sdks/go/pkg/beam/io/pubsubio/*", "sdks/java/io/bigquery-io-perf-tests/*", "sdks/java/io/google-cloud-platform/*", "sdks/python/apache_beam/io/gcp/*"]
+"hadoop":  ["sdks/java/io/hadoop-common/*", "sdks/java/io/hadoop-file-system/*", "sdks/java/io/hadoop-format/*"]
+"hbase":  ["sdks/java/io/hbase/*"]
+"hcatalog":  ["sdks/java/io/hcatalog/*"]
+"jdbc":  ["sdks/java/io/jdbc/*"]
+"jms":  ["sdks/java/io/jms/*"]
+"kafka":  ["sdks/java/io/kafka/*"]
+"kinesis":  ["sdks/java/io/kinesis/*"]
+"kudu":  ["sdks/java/io/kudu/*"]
+"mongodb":  ["sdks/java/io/mongodb/*"]
+"mqtt":  ["sdks/java/io/mqtt/*"]
+"parquet":  ["sdks/java/io/parquet/*"]
+"rabbitmq":  ["sdks/java/io/rabbitmq/*"]
+"redis":  ["sdks/java/io/redis/*"]
+"solr":  ["sdks/java/io/solr/*"]
+"synthetic":  ["sdks/java/io/synthetic/*"]
+"tests":  ["sdks/java/io/file-based-io-tests/*"]
+"thrift": ["sdks/java/io/thrift/*"]
+"tika":  ["sdks/java/io/tika/*"]
+"xml":  ["sdks/java/io/xml/*"]
+
+# Runners
+"runners": ["runners/*", "sdks/go/pkg/beam/runners/*", "sdks/python/runners/*"]
+"core": ["runners/core-construction-java/*", "runners/core-java/*"]
+"dataflow": ["runners/google-cloud-dataflow-java/*", "sdks/go/pkg/beam/runners/dataflow/*", "sdks/python/runners/dataflow/*"]
+"direct": ["runners/direct-java/*", "sdks/go/pkg/beam/runners/direct/*", "sdks/python/runners/direct/*"]
+"extensions-java": ["runners/extensions-java/*"]
+"flink": ["runners/flink/*", "sdks/go/pkg/beam/runners/flink/*", "sdks/python/runners/portability/flink*"]
+"fn-execution": ["runners/java-fn-execution/*"]
+"interactive": ["sdks/python/runners/interactive/*"]
+"jet": ["runners/jet/*"]
+"local": ["runners/local-java/*"]
+"portability": ["runners/portability/*"]
+"samza": ["runners/samza/*"]
+"spark": ["runners/spark/*", "sdks/go/pkg/beam/runners/spark/*", "sdks/python/runners/portability/spark*"]
+"twister2": ["runners/twister2"]

@@ -19,7 +19,9 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.zetasketch')
+applyJavaNature(
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.extensions.zetasketch')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: ZetaSketch"
 
@@ -49,6 +51,7 @@ task integrationTest(type: Test) {
     def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
     def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 
     // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
@@ -56,6 +59,7 @@ task integrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${gcpProject}",
+            "--region=${gcpRegion}",
             "--tempRoot=${gcpTempRoot}",
             "--dataflowWorkerJar=${dataflowWorkerJar}",
             "--workerHarnessContainerImage=",

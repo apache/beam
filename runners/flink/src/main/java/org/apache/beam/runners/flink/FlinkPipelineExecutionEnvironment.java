@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
@@ -123,6 +124,16 @@ class FlinkPipelineExecutionEnvironment {
    */
   private static void prepareFilesToStageForRemoteClusterExecution(FlinkPipelineOptions options) {
     if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
+      if (options.getFilesToStage() == null) {
+        options.setFilesToStage(
+            detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader(), options));
+        LOG.info(
+            "PipelineOptions.filesToStage was not specified. "
+                + "Defaulting to files from the classpath: will stage {} files. "
+                + "Enable logging at DEBUG level to see which files will be staged.",
+            options.getFilesToStage().size());
+        LOG.debug("Classpath elements: {}", options.getFilesToStage());
+      }
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
               options.getFilesToStage(),

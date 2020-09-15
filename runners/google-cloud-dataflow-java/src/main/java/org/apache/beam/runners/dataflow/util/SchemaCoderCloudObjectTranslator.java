@@ -91,7 +91,7 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
       SchemaApi.Schema protoSchema =
           SchemaApi.Schema.parseFrom(
               StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));
-      Schema schema = SchemaTranslation.fromProto(protoSchema);
+      Schema schema = SchemaTranslation.schemaFromProto(protoSchema);
       return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
     } catch (IOException e) {
       throw new RuntimeException(e);

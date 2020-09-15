@@ -101,8 +101,8 @@ class _SideInputsContainer(object):
     self._transform_to_side_inputs = collections.defaultdict(
         list
     )  # type: DefaultDict[Optional[AppliedPTransform], List[pvalue.AsSideInput]]
-    self._side_input_to_blocked_tasks = collections.defaultdict(
-        list)  # type: ignore  # usused?
+    # this appears unused:
+    self._side_input_to_blocked_tasks = collections.defaultdict(list)  # type: ignore
 
     for side in side_inputs:
       self._views[side] = _SideInputView(side)
@@ -258,7 +258,7 @@ class EvaluationContext(object):
     self._step_names = step_names
     self.views = views
     self._pcollection_to_views = collections.defaultdict(
-        list)  # type: DefaultDict[pvalue.PCollection, List[pvalue.AsSideInput]]
+        list)  # type: DefaultDict[pvalue.PValue, List[pvalue.AsSideInput]]
     for view in views:
       self._pcollection_to_views[view.pvalue].append(view)
     self._transform_keyed_states = self._initialize_keyed_states(
@@ -275,6 +275,7 @@ class EvaluationContext(object):
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
+    self.shutdown_requested = False
 
   def _initialize_keyed_states(self, root_transforms, value_to_consumers):
     """Initialize user state dicts.
@@ -452,6 +453,9 @@ class EvaluationContext(object):
     assert isinstance(task, TransformExecutor)
     return self._side_inputs_container.get_value_or_block_until_ready(
         side_input, task, block_until)
+
+  def shutdown(self):
+    self.shutdown_requested = True
 
 
 class DirectUnmergedState(InMemoryUnmergedState):

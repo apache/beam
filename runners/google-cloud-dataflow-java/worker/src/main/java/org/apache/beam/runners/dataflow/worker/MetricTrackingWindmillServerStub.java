@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -30,7 +29,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.joda.time.Duration;
 
@@ -45,6 +43,7 @@ import org.joda.time.Duration;
  * #MAX_READS_PER_BATCH}.
  */
 public class MetricTrackingWindmillServerStub {
+
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();
   private final AtomicInteger activeHeartbeats = new AtomicInteger();
@@ -64,6 +63,7 @@ public class MetricTrackingWindmillServerStub {
   private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
 
   private static final class QueueEntry {
+
     final String computation;
     final Windmill.KeyedGetDataRequest request;
     final SettableFuture<Windmill.KeyedGetDataResponse> response;
@@ -75,33 +75,6 @@ public class MetricTrackingWindmillServerStub {
       this.computation = computation;
       this.request = request;
       this.response = response;
-    }
-  }
-
-  private static final class KeyAndComputation {
-    final ByteString key;
-    final String computation;
-
-    KeyAndComputation(ByteString key, String computation) {
-      this.key = key;
-      this.computation = computation;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (this == other) {
-        return true;
-      }
-      if (!(other instanceof KeyAndComputation)) {
-        return false;
-      }
-      KeyAndComputation that = (KeyAndComputation) other;
-      return this.key.equals(that.key) && this.computation.equals(that.computation);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(key, computation);
     }
   }
 
@@ -144,7 +117,7 @@ public class MetricTrackingWindmillServerStub {
         continue;
       }
       int numReads = 1;
-      Map<KeyAndComputation, SettableFuture<Windmill.KeyedGetDataResponse>> pendingResponses =
+      Map<WindmillComputationKey, SettableFuture<Windmill.KeyedGetDataResponse>> pendingResponses =
           new HashMap<>();
       Map<String, Windmill.ComputationGetDataRequest.Builder> computationBuilders = new HashMap<>();
       do {
@@ -158,7 +131,9 @@ public class MetricTrackingWindmillServerStub {
 
         computationBuilder.addRequests(entry.request);
         pendingResponses.put(
-            new KeyAndComputation(entry.request.getKey(), entry.computation), entry.response);
+            WindmillComputationKey.create(
+                entry.computation, entry.request.getKey(), entry.request.getShardingKey()),
+            entry.response);
       } while (numReads++ < MAX_READS_PER_BATCH && (entry = readQueue.poll()) != null);
 
       // Build the full GetDataRequest from the KeyedGetDataRequests pulled from the queue.
@@ -175,8 +150,10 @@ public class MetricTrackingWindmillServerStub {
         for (Windmill.KeyedGetDataResponse keyResponse : computationResponse.getDataList()) {
           pendingResponses
               .get(
-                  new KeyAndComputation(
-                      keyResponse.getKey(), computationResponse.getComputationId()))
+                  WindmillComputationKey.create(
+                      computationResponse.getComputationId(),
+                      keyResponse.getKey(),
+                      keyResponse.getShardingKey()))
               .set(keyResponse);
         }
       }

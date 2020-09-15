@@ -17,24 +17,27 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,6 +86,7 @@ class BigQueryQueryHelper {
       Boolean useLegacySql,
       QueryPriority priority,
       @Nullable String location,
+      @Nullable String queryTempDatasetId,
       @Nullable String kmsKey)
       throws InterruptedException, IOException {
     // Step 1: Find the effective location of the query.
@@ -106,23 +110,39 @@ class BigQueryQueryHelper {
       }
     }
 
-    // Step 2: Create a temporary dataset in the query location.
-    String jobIdToken = createJobIdToken(options.getJobName(), stepUuid);
-    TableReference queryResultTable = createTempTableReference(options.getProject(), jobIdToken);
-    LOG.info("Creating temporary dataset {} for query results", queryResultTable.getDatasetId());
+    // Step 2: Create a temporary dataset in the query location only if the user has not specified a
+    // temp dataset.
+    String queryJobId =
+        BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
+    Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
+    TableReference queryResultTable =
+        createTempTableReference(options.getProject(), queryJobId, queryTempDatasetOpt);
 
-    tableService.createDataset(
-        queryResultTable.getProjectId(),
-        queryResultTable.getDatasetId(),
-        effectiveLocation,
-        "Temporary tables for query results of job " + options.getJobName(),
-        TimeUnit.DAYS.toMillis(1));
+    boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
+    // Create dataset only if it has not been set by the user
+    if (beamToCreateTempDataset) {
+      LOG.info("Creating temporary dataset {} for query results", queryResultTable.getDatasetId());
+
+      tableService.createDataset(
+          queryResultTable.getProjectId(),
+          queryResultTable.getDatasetId(),
+          effectiveLocation,
+          "Temporary tables for query results of job " + options.getJobName(),
+          TimeUnit.DAYS.toMillis(1));
+    } else { // If the user specified a temp dataset, check that the destination table does not
+      // exist
+      Table destTable = tableService.getTable(queryResultTable);
+      checkArgument(
+          destTable == null,
+          "Refusing to write on existing table {} in the specified temp dataset {}",
+          queryResultTable.getTableId(),
+          queryResultTable.getDatasetId());
+    }
 
     // Step 3: Execute the query. Generate a transient (random) query job ID, because this code may
     // be retried after the temporary dataset and table have been deleted by a previous attempt --
     // in that case, we want to regenerate the temporary dataset and table, and we'll need a fresh
     // query ID to do that.
-    String queryJobId = jobIdToken + "-query-" + BigQueryHelpers.randomUUIDString();
     LOG.info(
         "Exporting query results into temporary table {} using job {}",
         queryResultTable,

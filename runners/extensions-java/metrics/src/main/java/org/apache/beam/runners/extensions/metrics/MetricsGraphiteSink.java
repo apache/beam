@@ -25,7 +25,6 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -55,7 +54,6 @@ public class MetricsGraphiteSink implements MetricsSink {
     this.charset = UTF_8;
   }
 
-  @Experimental(Experimental.Kind.METRICS)
   @Override
   public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     final long metricTimestamp = System.currentTimeMillis() / 1000L;
@@ -293,10 +291,11 @@ public class MetricsGraphiteSink implements MetricsSink {
       CommittedOrAttemped committedOrAttemped) {
     String metricName =
         String.format(
-            "beam.%s.%s.%s.%s.%s",
+            "beam.%s.%s.%s.%s.%s.%s",
             metricType,
             metric.getName().getNamespace(),
             metric.getName().getName(),
+            metric.getKey().stepName(),
             committedOrAttemped,
             valueType);
 

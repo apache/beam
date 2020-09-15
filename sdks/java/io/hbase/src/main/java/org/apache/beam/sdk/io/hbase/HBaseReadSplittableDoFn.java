@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.hbase;
 
-import java.io.IOException;
 import java.util.List;
-import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
+import org.apache.beam.sdk.io.hbase.HBaseIO.Read;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -32,65 +31,50 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 
 /** A SplittableDoFn to read from HBase. */
 @BoundedPerElement
-class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
-  private final SerializableConfiguration serializableConfiguration;
-
-  private transient Connection connection;
-
-  HBaseReadSplittableDoFn(SerializableConfiguration serializableConfiguration) {
-    this.serializableConfiguration = serializableConfiguration;
-  }
-
-  @Setup
-  public void setup() throws Exception {
-    connection = ConnectionFactory.createConnection(serializableConfiguration.get());
-  }
-
-  private static Scan newScanInRange(Scan scan, ByteKeyRange range) throws IOException {
-    return new Scan(scan)
-        .setStartRow(range.getStartKey().getBytes())
-        .setStopRow(range.getEndKey().getBytes());
-  }
+class HBaseReadSplittableDoFn extends DoFn<Read, Result> {
+  HBaseReadSplittableDoFn() {}
 
   @ProcessElement
-  public void processElement(ProcessContext c, RestrictionTracker<ByteKeyRange, ByteKey> tracker)
+  public void processElement(
+      @Element Read read,
+      OutputReceiver<Result> out,
+      RestrictionTracker<ByteKeyRange, ByteKey> tracker)
       throws Exception {
-    final HBaseQuery query = c.element();
-    TableName tableName = TableName.valueOf(query.getTableId());
+    Connection connection = ConnectionFactory.createConnection(read.getConfiguration());
+    TableName tableName = TableName.valueOf(read.getTableId());
     Table table = connection.getTable(tableName);
     final ByteKeyRange range = tracker.currentRestriction();
-    try (ResultScanner scanner = table.getScanner(newScanInRange(query.getScan(), range))) {
+    try (ResultScanner scanner =
+        table.getScanner(HBaseUtils.newScanInRange(read.getScan(), range))) {
       for (Result result : scanner) {
         ByteKey key = ByteKey.copyFrom(result.getRow());
         if (!tracker.tryClaim(key)) {
           return;
         }
-        c.output(result);
+        out.output(result);
       }
       tracker.tryClaim(ByteKey.EMPTY);
     }
   }
 
   @GetInitialRestriction
-  public ByteKeyRange getInitialRestriction(@Element HBaseQuery query) {
-    return HBaseUtils.getByteKeyRange(query.getScan());
+  public ByteKeyRange getInitialRestriction(@Element Read read) {
+    return HBaseUtils.getByteKeyRange(read.getScan());
   }
 
   @SplitRestriction
   public void splitRestriction(
-      @Element HBaseQuery query,
-      @Restriction ByteKeyRange range,
-      OutputReceiver<ByteKeyRange> receiver)
+      @Element Read read, @Restriction ByteKeyRange range, OutputReceiver<ByteKeyRange> receiver)
       throws Exception {
+    Connection connection = ConnectionFactory.createConnection(read.getConfiguration());
     List<HRegionLocation> regionLocations =
-        HBaseUtils.getRegionLocations(connection, query.getTableId(), range);
+        HBaseUtils.getRegionLocations(connection, read.getTableId(), range);
     List<ByteKeyRange> splitRanges =
-        HBaseUtils.getRanges(regionLocations, query.getTableId(), range);
+        HBaseUtils.getRanges(regionLocations, read.getTableId(), range);
     for (ByteKeyRange splitRange : splitRanges) {
       receiver.output(ByteKeyRange.of(splitRange.getStartKey(), splitRange.getEndKey()));
     }
@@ -99,13 +83,5 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
   @NewTracker
   public ByteKeyRangeTracker newTracker(@Restriction ByteKeyRange range) {
     return ByteKeyRangeTracker.of(range);
-  }
-
-  @Teardown
-  public void tearDown() throws Exception {
-    if (connection != null) {
-      connection.close();
-      connection = null;
-    }
   }
 }

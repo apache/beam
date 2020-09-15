@@ -127,6 +127,7 @@ public class BundleManager<OutT> {
             this.bundleCheckTimerId,
             StateNamespaces.global(),
             nextBundleCheckTime,
+            nextBundleCheckTime,
             TimeDomain.PROCESSING_TIME);
     bundleTimerScheduler.schedule(
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());

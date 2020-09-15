@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /** Factory that produces {@code Combine.Context} based on different inputs. */
+@Internal
 public class CombineContextFactory {
 
   private static final Context NULL_CONTEXT =

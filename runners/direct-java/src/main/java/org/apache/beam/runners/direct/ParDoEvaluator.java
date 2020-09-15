@@ -247,11 +247,12 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     }
   }
 
-  public void onTimer(TimerData timer, BoundedWindow window) {
+  public <KeyT> void onTimer(TimerData timer, KeyT key, BoundedWindow window) {
     try {
       fnRunner.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          key,
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
@@ -282,6 +283,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
         .addUnprocessedElements(unprocessedElements.build())
+        .withBundleFinalizations(stepContext.getAndClearFinalizations())
         .build();
   }
 

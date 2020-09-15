@@ -1,0 +1,44 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+default_language_version:
+  python: python3.7
+repos:
+  - repo: https://github.com/pre-commit/mirrors-yapf
+    # this rev is a release tag in the repo above and corresponds with a yapf
+    # version. make sure this matches the version of yapf in tox.ini.
+    rev: v0.29.0
+    hooks:
+      - id: yapf
+        files: ^sdks/python/apache_beam/
+        # keep these in sync with sdks/python/.yapfignore  and run_pylint.sh
+        exclude: &exclude >
+            (?x)^(
+                sdks/python/apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_client.py|
+                sdks/python/apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_messages.py|
+                sdks/python/apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_client.py|
+                sdks/python/apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_messages.py|
+                sdks/python/apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py|
+                sdks/python/apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py|
+                sdks/python/apache_beam/coders/proto2_coder_test_messages_pb2.py|
+                sdks/python/apache_beam/portability/api/.*pb2.*.py
+            )$
+
+  - repo: https://github.com/pycqa/pylint
+    # this rev is a release tag in the repo above and corresponds with a pylint
+    # version. make sure this matches the version of pylint in tox.ini.
+    rev: pylint-2.4.3
+    hooks:
+      - id: pylint
+        args: ["--rcfile=sdks/python/.pylintrc"]
+        files: ^sdks/python/apache_beam/
+        exclude: *exclude

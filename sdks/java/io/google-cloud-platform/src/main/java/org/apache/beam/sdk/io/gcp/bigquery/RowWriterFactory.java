@@ -21,7 +21,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable {
@@ -74,27 +74,36 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
     }
   }
 
-  static <ElementT, DestinationT> RowWriterFactory<ElementT, DestinationT> avroRecords(
-      SerializableFunction<AvroWriteRequest<ElementT>, GenericRecord> toAvro,
-      SerializableFunction<TableSchema, Schema> schemaFactory,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    return new AvroRowWriterFactory<>(toAvro, schemaFactory, dynamicDestinations);
+  static <ElementT, AvroT, DestinationT>
+      AvroRowWriterFactory<ElementT, AvroT, DestinationT> avroRecords(
+          SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro,
+          SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory) {
+    return new AvroRowWriterFactory<>(toAvro, writerFactory, null, null);
   }
 
-  private static final class AvroRowWriterFactory<ElementT, DestinationT>
+  static final class AvroRowWriterFactory<ElementT, AvroT, DestinationT>
       extends RowWriterFactory<ElementT, DestinationT> {
 
-    private final SerializableFunction<AvroWriteRequest<ElementT>, GenericRecord> toAvro;
+    private final SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro;
+    private final SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory;
     private final SerializableFunction<TableSchema, Schema> schemaFactory;
     private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
     private AvroRowWriterFactory(
-        SerializableFunction<AvroWriteRequest<ElementT>, GenericRecord> toAvro,
+        SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro,
+        SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory,
         SerializableFunction<TableSchema, Schema> schemaFactory,
         DynamicDestinations<?, DestinationT> dynamicDestinations) {
       this.toAvro = toAvro;
+      this.writerFactory = writerFactory;
       this.schemaFactory = schemaFactory;
       this.dynamicDestinations = dynamicDestinations;
+    }
+
+    AvroRowWriterFactory<ElementT, AvroT, DestinationT> prepare(
+        DynamicDestinations<?, DestinationT> dynamicDestinations,
+        SerializableFunction<TableSchema, Schema> schemaFactory) {
+      return new AvroRowWriterFactory<>(toAvro, writerFactory, schemaFactory, dynamicDestinations);
     }
 
     @Override
@@ -107,7 +116,7 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
         throws Exception {
       TableSchema tableSchema = dynamicDestinations.getSchema(destination);
       Schema avroSchema = schemaFactory.apply(tableSchema);
-      return new AvroRowWriter<>(tempFilePrefix, avroSchema, toAvro);
+      return new AvroRowWriter<>(tempFilePrefix, avroSchema, toAvro, writerFactory);
     }
 
     @Override

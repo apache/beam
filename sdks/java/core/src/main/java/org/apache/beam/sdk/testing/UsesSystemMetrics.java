@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Category tag for tests that use System metrics. These metrics are available only in portable
  * runners.
  */
+@Internal
 public interface UsesSystemMetrics {}

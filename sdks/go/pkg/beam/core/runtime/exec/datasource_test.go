@@ -19,11 +19,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 func TestDataSource_PerElement(t *testing.T) {
@@ -277,11 +279,17 @@ func TestDataSource_Split(t *testing.T) {
 			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
 			// SDK never splits on 0, so check that every test.
-			if splitIdx, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}}); err != nil {
+			splitRes, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}})
+			if err != nil {
 				t.Fatalf("error in Split: %v", err)
-			} else if got, want := splitIdx, test.splitIdx; got != want {
+			}
+			if got, want := splitRes.RI, test.splitIdx; got != want {
 				t.Fatalf("error in Split: got splitIdx = %v, want %v ", got, want)
 			}
+			if got, want := splitRes.PI, test.splitIdx-1; got != want {
+				t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
+			}
+
 			runOnRoots(ctx, t, p, "Process", Root.Process)
 			runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
 
@@ -341,10 +349,15 @@ func TestDataSource_Split(t *testing.T) {
 					<-blockedCh
 					// Validate that we do not split on the element we're blocking on index.
 					// The first valid split is at test.splitIdx.
-					if splitIdx, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1); err != nil {
+					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1, 0); err != nil {
 						t.Errorf("error in Split: %v", err)
-					} else if got, want := splitIdx, test.splitIdx; got != want {
-						t.Errorf("error in Split: got splitIdx = %v, want %v ", got, want)
+					} else {
+						if got, want := splitRes.RI, test.splitIdx; got != want {
+							t.Errorf("error in Split: got splitIdx = %v, want %v ", got, want)
+						}
+						if got, want := splitRes.PI, test.splitIdx-1; got != want {
+							t.Errorf("error in Split: got primary index = %v, want %v ", got, want)
+						}
 					}
 					// Validate that our progress is where we expect it to be. (test.splitIdx - 1)
 					if got, want := source.Progress().Count, test.splitIdx-1; got != want {
@@ -365,6 +378,160 @@ func TestDataSource_Split(t *testing.T) {
 					adjustedExpectation = int64(len(elements))
 				}
 				if got, want := source.Progress().Count, adjustedExpectation; got != want {
+					t.Fatalf("progress didn't match split: got %v, want %v", got, want)
+				}
+			})
+		}
+	})
+
+	// Test that the bufSize param can be used to affect the split range.
+	t.Run("bufSize", func(t *testing.T) {
+		test := struct {
+			splitPts []int64
+			frac     float64
+			bufSize  int64
+			splitIdx int64
+			expected []interface{}
+		}{
+			// splitIdx defaults to the max int64, so if bufSize is respected
+			// the closest splitPt is 3, otherwise it'll be 5000.
+			splitPts: []int64{3, 5000},
+			frac:     0.5,
+			bufSize:  10,
+			splitIdx: 3,
+			expected: elements[:3],
+		}
+
+		source, out, pr := initSourceTest("bufSize")
+		p, err := NewPlan("a", []Unit{out, source})
+		if err != nil {
+			t.Fatalf("failed to construct plan: %v", err)
+		}
+		dc := DataContext{Data: &TestDataManager{R: pr}}
+		ctx := context.Background()
+
+		// StartBundle resets the source, so no splits can be actuated before then,
+		// which means we need to actuate the plan manually, and insert the split request
+		// after StartBundle.
+		for i, root := range p.units {
+			if err := root.Up(ctx); err != nil {
+				t.Fatalf("error in root[%d].Up: %v", i, err)
+			}
+		}
+		p.status = Active
+
+		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
+
+		// SDK never splits on 0, so check that every test.
+		sp := SplitPoints{Splits: test.splitPts, Frac: test.frac, BufSize: test.bufSize}
+		splitRes, err := p.Split(sp)
+		if err != nil {
+			t.Fatalf("error in Split: %v", err)
+		}
+		if got, want := splitRes.RI, test.splitIdx; got != want {
+			t.Fatalf("error in Split: got splitIdx = %v, want %v ", got, want)
+		}
+		if got, want := splitRes.PI, test.splitIdx-1; got != want {
+			t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
+		}
+		runOnRoots(ctx, t, p, "Process", Root.Process)
+		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
+
+		validateSource(t, out, source, makeValues(test.expected...))
+	})
+
+	// Test splitting on sub-elements works when available.
+	t.Run("subElement", func(t *testing.T) {
+		// Each test will process up to an element, then split at different
+		// fractions and check that a sub-element split either was, or was not
+		// performed.
+		const blockOn int64 = 3 // Should leave 2 elements unprocessed, including blocked element.
+		numElms := int64(len(elements))
+		tests := []struct {
+			fraction float64
+			splitIdx int64
+			isSubElm bool
+		}{
+			{fraction: 0.0, splitIdx: blockOn + 1, isSubElm: true},
+			{fraction: 0.01, splitIdx: blockOn + 1, isSubElm: true},
+			{fraction: 0.49, splitIdx: blockOn + 1, isSubElm: true},  // Should be just within current element.
+			{fraction: 0.51, splitIdx: blockOn + 1, isSubElm: false}, // Should be just past current element.
+			{fraction: 0.99, splitIdx: numElms, isSubElm: false},
+		}
+		for _, test := range tests {
+			test := test
+			name := fmt.Sprintf("withFraction_%v", test.fraction)
+			t.Run(name, func(t *testing.T) {
+				source, out, pr := initSourceTest(name)
+				unblockCh, blockedCh := make(chan struct{}), make(chan struct{}, 1)
+				// Block on the one less than the desired split,
+				// so the desired split is the first valid split.
+				blocker := &BlockingNode{
+					UID: 3,
+					Block: func(elm *FullValue) bool {
+						if source.index == blockOn {
+							// Signal to call Split
+							blockedCh <- struct{}{}
+							return true
+						}
+						return false
+					},
+					Unblock: unblockCh,
+					Out:     out,
+				}
+				source.Out = blocker
+
+				splittableCh := make(chan SplittableUnit, 1)
+				source.su = splittableCh
+				splittableCh <- &TestSplittableUnit{elm: elements[blockOn]}
+
+				go func() {
+					// Wait to call Split until the DoFn is blocked at the desired element.
+					<-blockedCh
+					// Validate that we either do or do not perform a sub-element split with the
+					// given fraction.
+					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, test.fraction, int64(len(elements))); err != nil {
+						t.Errorf("error in Split: %v", err)
+					} else {
+						// For sub-element splits, check sub-element split only results.
+						isSubElm := splitRes.RS != nil && splitRes.PS != nil
+						if isSubElm != test.isSubElm {
+							t.Errorf("error in Split: got sub-element split = %t, want %t", isSubElm, test.isSubElm)
+						}
+						if isSubElm {
+							if got, want := splitRes.TId, testTransformId; got != want {
+								t.Errorf("error in Split: got incorrect Transform Id = %v, want %v", got, want)
+							}
+							if got, want := splitRes.InId, testInputId; got != want {
+								t.Errorf("error in Split: got incorrect Input Id = %v, want %v", got, want)
+							}
+						}
+
+						// Check that split indices are correct, for both sub-element and channel splits.
+						var wantPI, wantRI = test.splitIdx - 1, test.splitIdx
+						if isSubElm {
+							// In sub-element splits, primary index is expected to be one element
+							// before the current (split) element.
+							wantPI--
+						}
+						if splitRes.PI != wantPI || splitRes.RI != wantRI {
+							t.Errorf("error in Split: got split indices of (primary, residual) = (%d, %d), want (%d, %d)",
+								splitRes.PI, splitRes.RI, wantPI, wantRI)
+						}
+					}
+					// Validate that our progress is where we expect it to be. (blockOn)
+					if got, want := source.Progress().Count, blockOn; got != want {
+						t.Errorf("error in Progress: got finished processing Count = %v, want %v ", got, want)
+					}
+					unblockCh <- struct{}{}
+				}()
+
+				constructAndExecutePlanWithContext(t, []Unit{out, blocker, source}, DataContext{
+					Data: &TestDataManager{R: pr},
+				})
+
+				validateSource(t, out, source, makeValues(elements[:test.splitIdx]...))
+				if got, want := source.Progress().Count, test.splitIdx; got != want {
 					t.Fatalf("progress didn't match split: got %v, want %v", got, want)
 				}
 			})
@@ -410,11 +577,251 @@ func TestDataSource_Split(t *testing.T) {
 
 	t.Run("sanity_errors", func(t *testing.T) {
 		var source *DataSource
-		if _, err := source.Split([]int64{0}, -1); err == nil {
+		if _, err := source.Split([]int64{0}, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil *DataSource")
 		}
-		if _, err := source.Split(nil, -1); err == nil {
+		if _, err := source.Split(nil, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil desired splits")
+		}
+	})
+}
+
+const testTransformId = "transform_id"
+const testInputId = "input_id"
+
+// TestSplittableUnit is an implementation of the SplittableUnit interface
+// for DataSource tests.
+type TestSplittableUnit struct {
+	elm interface{} // The element to split.
+}
+
+// Split checks the input fraction for correctness, but otherwise always returns
+// a successful split. The split elements are just copies of the original.
+func (n *TestSplittableUnit) Split(f float64) (*FullValue, *FullValue, error) {
+	if f > 1.0 || f < 0.0 {
+		return nil, nil, errors.Errorf("Error")
+	}
+	return &FullValue{Elm: n.elm}, &FullValue{Elm: n.elm}, nil
+}
+
+// GetProgress always returns 0, to keep tests consistent.
+func (n *TestSplittableUnit) GetProgress() float64 {
+	return 0
+}
+
+// GetTransformId returns a constant transform ID that can be tested for.
+func (n *TestSplittableUnit) GetTransformId() string {
+	return testTransformId
+}
+
+// GetInputId returns a constant input ID that can be tested for.
+func (n *TestSplittableUnit) GetInputId() string {
+	return testInputId
+}
+
+func floatEquals(a, b, epsilon float64) bool {
+	return math.Abs(a-b) < epsilon
+}
+
+// TestSplitHelper tests the underlying split logic to confirm that various
+// cases produce expected split points.
+func TestSplitHelper(t *testing.T) {
+	eps := 0.00001 // Float comparison precision.
+
+	// Test splits at various fractions.
+	t.Run("SimpleSplits", func(t *testing.T) {
+		tests := []struct {
+			curr, size int64
+			frac       float64
+			want       int64
+		}{
+			// Split as close to the beginning as possible.
+			{curr: 0, size: 16, frac: 0, want: 1},
+			// The closest split is at 4, even when just above or below it.
+			{curr: 0, size: 16, frac: 0.24, want: 4},
+			{curr: 0, size: 16, frac: 0.25, want: 4},
+			{curr: 0, size: 16, frac: 0.26, want: 4},
+			// Split the *remainder* in half.
+			{curr: 0, size: 16, frac: 0.5, want: 8},
+			{curr: 2, size: 16, frac: 0.5, want: 9},
+			{curr: 6, size: 16, frac: 0.5, want: 11},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(fmt.Sprintf("(%v of [%v, %v])", test.frac, test.curr, test.size), func(t *testing.T) {
+				wantFrac := -1.0
+				got, gotFrac, err := splitHelper(test.curr, test.size, 0.0, nil, test.frac, false)
+				if err != nil {
+					t.Fatalf("error in splitHelper: %v", err)
+				}
+				if got != test.want {
+					t.Errorf("incorrect split point: got: %v, want: %v", got, test.want)
+				}
+				if !floatEquals(gotFrac, wantFrac, eps) {
+					t.Errorf("incorrect split fraction: got: %v, want: %v", gotFrac, wantFrac)
+				}
+			})
+		}
+	})
+
+	t.Run("WithElementProgress", func(t *testing.T) {
+		tests := []struct {
+			curr, size int64
+			currProg   float64
+			frac       float64
+			want       int64
+		}{
+			// Progress into the active element influences where the split of
+			// the remainder falls.
+			{curr: 0, currProg: 0.5, size: 4, frac: 0.25, want: 1},
+			{curr: 0, currProg: 0.9, size: 4, frac: 0.25, want: 2},
+			{curr: 1, currProg: 0.0, size: 4, frac: 0.25, want: 2},
+			{curr: 1, currProg: 0.1, size: 4, frac: 0.25, want: 2},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(fmt.Sprintf("(%v of [%v, %v])", test.frac, float64(test.curr)+test.currProg, test.size), func(t *testing.T) {
+				wantFrac := -1.0
+				got, gotFrac, err := splitHelper(test.curr, test.size, test.currProg, nil, test.frac, false)
+				if err != nil {
+					t.Fatalf("error in splitHelper: %v", err)
+				}
+				if got != test.want {
+					t.Errorf("incorrect split point: got: %v, want: %v", got, test.want)
+				}
+				if !floatEquals(gotFrac, wantFrac, eps) {
+					t.Errorf("incorrect split fraction: got: %v, want: %v", gotFrac, wantFrac)
+				}
+			})
+		}
+	})
+
+	// Test splits with allowed split points.
+	t.Run("WithAllowedSplits", func(t *testing.T) {
+		tests := []struct {
+			curr, size int64
+			splits     []int64
+			frac       float64
+			want       int64
+			err        bool // True if test should cause a failure.
+		}{
+			// The desired split point is at 4.
+			{curr: 0, size: 16, splits: []int64{2, 3, 4, 5}, frac: 0.25, want: 4},
+			// If we can't split at 4, choose the closest possible split point.
+			{curr: 0, size: 16, splits: []int64{2, 3, 5}, frac: 0.25, want: 5},
+			{curr: 0, size: 16, splits: []int64{2, 3, 6}, frac: 0.25, want: 3},
+			// Also test the case where all possible split points lie above or
+			// below the desired split point.
+			{curr: 0, size: 16, splits: []int64{5, 6, 7}, frac: 0.25, want: 5},
+			{curr: 0, size: 16, splits: []int64{1, 2, 3}, frac: 0.25, want: 3},
+			// We have progressed beyond all possible split points, so can't split.
+			{curr: 5, size: 16, splits: []int64{1, 2, 3}, frac: 0.25, err: true},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(fmt.Sprintf("(%v of [%v, %v], splits = %v)", test.frac, test.curr, test.size, test.splits), func(t *testing.T) {
+				wantFrac := -1.0
+				got, gotFrac, err := splitHelper(test.curr, test.size, 0.0, test.splits, test.frac, false)
+				if test.err {
+					if err == nil {
+						t.Fatalf("splitHelper should have errored, instead got: %v", got)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatalf("error in splitHelper: %v", err)
+				}
+				if got != test.want {
+					t.Errorf("incorrect split point: got: %v, want: %v", got, test.want)
+				}
+				if !floatEquals(gotFrac, wantFrac, eps) {
+					t.Errorf("incorrect split fraction: got: %v, want: %v", gotFrac, wantFrac)
+				}
+			})
+		}
+	})
+
+	t.Run("SdfSplits", func(t *testing.T) {
+		tests := []struct {
+			curr, size int64
+			currProg   float64
+			frac       float64
+			want       int64
+			wantFrac   float64
+		}{
+			// Split between future elements at element boundaries.
+			{curr: 0, currProg: 0, size: 4, frac: 0.51, want: 2, wantFrac: -1.0},
+			{curr: 0, currProg: 0, size: 4, frac: 0.49, want: 2, wantFrac: -1.0},
+			{curr: 0, currProg: 0, size: 4, frac: 0.26, want: 1, wantFrac: -1.0},
+			{curr: 0, currProg: 0, size: 4, frac: 0.25, want: 1, wantFrac: -1.0},
+
+			// If the split falls inside the first, splittable element, split there.
+			{curr: 0, currProg: 0, size: 4, frac: 0.20, want: 0, wantFrac: 0.8},
+			// The choice of split depends on the progress into the first element.
+			{curr: 0, currProg: 0, size: 4, frac: 0.125, want: 0, wantFrac: 0.5},
+			// Here we are far enough into the first element that splitting at 0.2 of the
+			// remainder falls outside the first element.
+			{curr: 0, currProg: 0.5, size: 4, frac: 0.2, want: 1, wantFrac: -1.0},
+
+			// Verify the above logic when we are partially through the stream.
+			{curr: 2, currProg: 0, size: 4, frac: 0.6, want: 3, wantFrac: -1.0},
+			{curr: 2, currProg: 0.9, size: 4, frac: 0.6, want: 4, wantFrac: -1.0},
+			{curr: 2, currProg: 0.5, size: 4, frac: 0.2, want: 2, wantFrac: 0.6},
+
+			// Verify that the fraction returned is in terms of remaining work.
+			{curr: 0, currProg: 0.8, size: 1, frac: 0.5, want: 0, wantFrac: 0.5},
+			{curr: 0, currProg: 0.4, size: 2, frac: 0.1875, want: 0, wantFrac: 0.5},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(fmt.Sprintf("(%v of [%v, %v])", test.frac, float64(test.curr)+test.currProg, test.size), func(t *testing.T) {
+				got, gotFrac, err := splitHelper(test.curr, test.size, test.currProg, nil, test.frac, true)
+				if err != nil {
+					t.Fatalf("error in splitHelper: %v", err)
+				}
+				if got != test.want {
+					t.Errorf("incorrect split point: got: %v, want: %v", got, test.want)
+				}
+				if !floatEquals(gotFrac, test.wantFrac, eps) {
+					t.Errorf("incorrect split fraction: got: %v, want: %v", gotFrac, test.wantFrac)
+				}
+			})
+		}
+	})
+
+	t.Run("SdfWithAllowedSplits", func(t *testing.T) {
+		tests := []struct {
+			curr, size int64
+			currProg   float64
+			frac       float64
+			splits     []int64
+			want       int64
+			wantFrac   float64
+		}{
+			// This is where we would like to split, when all split points are available.
+			{curr: 2, currProg: 0, size: 5, frac: 0.2, splits: []int64{1, 2, 3, 4, 5}, want: 2, wantFrac: 0.6},
+			// We can't split element at index 2, because 3 is not a split point.
+			{curr: 2, currProg: 0, size: 5, frac: 0.2, splits: []int64{1, 2, 4, 5}, want: 4, wantFrac: -1.0},
+			// We can't even split element at index 4 as above, because 4 is also not a
+			// split point.
+			{curr: 2, currProg: 0, size: 5, frac: 0.2, splits: []int64{1, 2, 5}, want: 5, wantFrac: -1.0},
+			// We can't split element at index 2, because 2 is not a split point.
+			{curr: 2, currProg: 0, size: 5, frac: 0.2, splits: []int64{1, 3, 4, 5}, want: 3, wantFrac: -1.0},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(fmt.Sprintf("(%v of [%v, %v])", test.frac, float64(test.curr)+test.currProg, test.size), func(t *testing.T) {
+				got, gotFrac, err := splitHelper(test.curr, test.size, test.currProg, test.splits, test.frac, true)
+				if err != nil {
+					t.Fatalf("error in splitHelper: %v", err)
+				}
+				if got != test.want {
+					t.Errorf("incorrect split point: got: %v, want: %v", got, test.want)
+				}
+				if !floatEquals(gotFrac, test.wantFrac, eps) {
+					t.Errorf("incorrect split fraction: got: %v, want: %v", gotFrac, test.wantFrac)
+				}
+			})
 		}
 	})
 }

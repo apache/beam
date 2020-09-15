@@ -18,11 +18,12 @@
 package org.apache.beam.runners.flink.translation.utils;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
+import java.lang.reflect.Field;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.flink.runtime.state.InternalPriorityQueue;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.InternalTimerServiceImpl;
 
 /** Workarounds for dealing with limitations of Flink or its libraries. */
 public class Workarounds {
@@ -33,16 +34,22 @@ public class Workarounds {
     TypeFactory.defaultInstance().clearCache();
   }
 
-  /**
-   * Flink uses the {@link org.apache.flink.client.program.OptimizerPlanEnvironment} which replaces
-   * stdout/stderr during job graph creation. This was intended only for previewing the plan, but
-   * other parts of Flink, e.g. the Rest API have started to use this code as well. To be able to
-   * inspect the output before execution, we use this method to restore the original stdout/stderr.
-   */
-  public static void restoreOriginalStdOutAndStdErrIfApplicable() {
-    if (ExecutionEnvironment.getExecutionEnvironment() instanceof OptimizerPlanEnvironment) {
-      System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out)));
-      System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err)));
+  @SuppressWarnings("all")
+  public static InternalPriorityQueue<InternalTimer<Object, TimerInternals.TimerData>>
+      retrieveInternalProcessingTimerQueue(
+          InternalTimerService<TimerInternals.TimerData> timerService) {
+    Field internalProcessingTimerQueue = null;
+    try {
+      internalProcessingTimerQueue =
+          InternalTimerServiceImpl.class.getDeclaredField("processingTimeTimersQueue");
+      internalProcessingTimerQueue.setAccessible(true);
+      return (InternalPriorityQueue) internalProcessingTimerQueue.get(timerService);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to retrieve processing timer queue.", e);
+    } finally {
+      if (internalProcessingTimerQueue != null) {
+        internalProcessingTimerQueue.setAccessible(false);
+      }
     }
   }
 }

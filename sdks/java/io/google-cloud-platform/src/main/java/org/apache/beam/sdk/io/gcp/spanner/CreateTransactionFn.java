@@ -33,7 +33,7 @@ class CreateTransactionFn extends DoFn<Object, Transaction> {
 
   @DoFn.Setup
   public void setup() throws Exception {
-    spannerAccessor = config.getSpannerConfig().connectToSpanner();
+    spannerAccessor = SpannerAccessor.getOrCreate(config.getSpannerConfig());
   }
 
   @Teardown

@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -40,6 +41,10 @@ import org.joda.time.Instant;
 /** Static utility methods that provide {@link GroupingTable} implementations. */
 public class PrecombineGroupingTable<K, InputT, AccumT>
     implements GroupingTable<K, InputT, AccumT> {
+  private static long getGroupingTableSizeBytes(PipelineOptions options) {
+    return options.as(SdkHarnessOptions.class).getGroupingTableMaxSizeMb() * 1024L * 1024L;
+  }
+
   /** Returns a {@link GroupingTable} that combines inputs into a accumulator. */
   public static <K, InputT, AccumT> GroupingTable<WindowedValue<K>, InputT, AccumT> combining(
       PipelineOptions options,
@@ -50,7 +55,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
         new ValueCombiner<>(
             GlobalCombineFnRunners.create(combineFn), NullSideInputReader.empty(), options);
     return new PrecombineGroupingTable<>(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES,
+        getGroupingTableSizeBytes(options),
         new WindowingCoderGroupingKeyCreator<>(keyCoder),
         WindowedPairInfo.create(),
         valueCombiner,
@@ -73,7 +78,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
         new ValueCombiner<>(
             GlobalCombineFnRunners.create(combineFn), NullSideInputReader.empty(), options);
     return new PrecombineGroupingTable<>(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES,
+        getGroupingTableSizeBytes(options),
         new WindowingCoderGroupingKeyCreator<>(keyCoder),
         WindowedPairInfo.create(),
         valueCombiner,
@@ -254,10 +259,6 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
           accumulator, options, sideInputReader, windowedKey.getWindows());
     }
   }
-
-  // By default, how many bytes we allow the grouping table to consume before
-  // it has to be flushed.
-  private static final long DEFAULT_MAX_GROUPING_TABLE_BYTES = 100_000_000L;
 
   // How many bytes a word in the JVM has.
   private static final int BYTES_PER_JVM_WORD = getBytesPerJvmWord();

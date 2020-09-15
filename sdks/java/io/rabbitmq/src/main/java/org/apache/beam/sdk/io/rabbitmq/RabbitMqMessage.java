@@ -23,12 +23,13 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.LongString;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * It contains the message payload, and additional metadata like routing key or attributes. The main
@@ -79,7 +80,7 @@ public class RabbitMqMessage implements Serializable {
             if (value instanceof LongString) {
               LongString longString = (LongString) value;
               byte[] bytes = longString.getBytes();
-              String s = new String(bytes, "UTF-8");
+              String s = new String(bytes, StandardCharsets.UTF_8);
               value = s;
             } else {
               throw new RuntimeException(String.format("no transformation defined for %s", value));
@@ -98,22 +99,22 @@ public class RabbitMqMessage implements Serializable {
     return returned;
   }
 
-  @Nullable private final String routingKey;
+  private final @Nullable String routingKey;
   private final byte[] body;
   private final String contentType;
   private final String contentEncoding;
   private final Map<String, Object> headers;
   private final Integer deliveryMode;
   private final Integer priority;
-  @Nullable private final String correlationId;
-  @Nullable private final String replyTo;
+  private final @Nullable String correlationId;
+  private final @Nullable String replyTo;
   private final String expiration;
   private final String messageId;
   private final Date timestamp;
-  @Nullable private final String type;
-  @Nullable private final String userId;
-  @Nullable private final String appId;
-  @Nullable private final String clusterId;
+  private final @Nullable String type;
+  private final @Nullable String userId;
+  private final @Nullable String appId;
+  private final @Nullable String clusterId;
 
   public RabbitMqMessage(byte[] body) {
     this.body = body;
@@ -294,7 +295,7 @@ public class RabbitMqMessage implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof RabbitMqMessage) {
       RabbitMqMessage other = (RabbitMqMessage) obj;
       return Objects.equals(routingKey, other.routingKey)

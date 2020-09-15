@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -40,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To obtain the collection of {@link ReadableFile} from a filepattern, use {@link
  * FileIO#readMatches()}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ReadAllViaFileBasedSource<T>
     extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
   private final long desiredBundleSizeBytes;
@@ -95,6 +97,9 @@ public class ReadAllViaFileBasedSource<T>
     }
 
     @ProcessElement
+    @SuppressFBWarnings(
+        value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE",
+        justification = "https://github.com/spotbugs/spotbugs/issues/756")
     public void process(ProcessContext c) throws IOException {
       ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();

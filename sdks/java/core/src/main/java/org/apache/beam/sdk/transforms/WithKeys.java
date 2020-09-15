@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -28,6 +27,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code WithKeys<K, V>} takes a {@code PCollection<V>}, and either a constant key of type {@code
@@ -73,18 +74,21 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
    * paired with the given key.
    */
   @SuppressWarnings("unchecked")
-  public static <K, V> WithKeys<K, V> of(@Nullable final K key) {
-    return new WithKeys<>(value -> key, (Class<K>) (key == null ? Void.class : key.getClass()));
+  public static <K, V> WithKeys<K, V> of(final @Nullable K key) {
+    return new WithKeys<>(
+        value -> key,
+        (TypeDescriptor<K>)
+            (key == null ? TypeDescriptors.voids() : TypeDescriptor.of(key.getClass())));
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
   private SerializableFunction<V, K> fn;
-  @CheckForNull private transient Class<K> keyClass;
+  @CheckForNull private transient TypeDescriptor<K> keyType;
 
-  private WithKeys(SerializableFunction<V, K> fn, Class<K> keyClass) {
+  private WithKeys(SerializableFunction<V, K> fn, TypeDescriptor<K> keyType) {
     this.fn = fn;
-    this.keyClass = keyClass;
+    this.keyType = keyType;
   }
 
   /**
@@ -95,10 +99,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
    * PCollection}.
    */
   public WithKeys<K, V> withKeyType(TypeDescriptor<K> keyType) {
-    // Safe cast
-    @SuppressWarnings("unchecked")
-    Class<K> rawType = (Class<K>) keyType.getRawType();
-    return new WithKeys<>(fn, rawType);
+    return new WithKeys<>(fn, keyType);
   }
 
   @Override
@@ -117,10 +118,10 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
     try {
       Coder<K> keyCoder;
       CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
-      if (keyClass == null) {
+      if (keyType == null) {
         keyCoder = coderRegistry.getOutputCoder(fn, in.getCoder());
       } else {
-        keyCoder = coderRegistry.getCoder(TypeDescriptor.of(keyClass));
+        keyCoder = coderRegistry.getCoder(keyType);
       }
       // TODO: Remove when we can set the coder inference context.
       result.setCoder(KvCoder.of(keyCoder, in.getCoder()));

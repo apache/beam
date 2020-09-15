@@ -77,7 +77,7 @@ public class BagUserState<T> {
             new DataStreams.DataStreamDecoder(
                 valueCoder,
                 DataStreams.inbound(
-                    StateFetchingIterators.forFirstChunk(beamFnStateClient, request))));
+                    StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request))));
     this.newValues = new ArrayList<>();
   }
 

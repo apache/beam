@@ -38,9 +38,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -60,6 +60,7 @@ import org.bson.BsonString;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +108,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class MongoDbIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);
@@ -142,8 +143,8 @@ public class MongoDbIO {
   /** A {@link PTransform} to read data from MongoDB. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Document>> {
-    @Nullable
-    abstract String uri();
+
+    abstract @Nullable String uri();
 
     abstract int maxConnectionIdleTime();
 
@@ -153,11 +154,9 @@ public class MongoDbIO {
 
     abstract boolean ignoreSSLCertificate();
 
-    @Nullable
-    abstract String database();
+    abstract @Nullable String database();
 
-    @Nullable
-    abstract String collection();
+    abstract @Nullable String collection();
 
     abstract int numSplits();
 
@@ -761,8 +760,7 @@ public class MongoDbIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Document>, PDone> {
 
-    @Nullable
-    abstract String uri();
+    abstract @Nullable String uri();
 
     abstract int maxConnectionIdleTime();
 
@@ -774,11 +772,9 @@ public class MongoDbIO {
 
     abstract boolean ordered();
 
-    @Nullable
-    abstract String database();
+    abstract @Nullable String database();
 
-    @Nullable
-    abstract String collection();
+    abstract @Nullable String collection();
 
     abstract long batchSize();
 

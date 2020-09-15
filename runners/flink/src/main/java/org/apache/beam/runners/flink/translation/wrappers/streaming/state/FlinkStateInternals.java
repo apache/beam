@@ -19,13 +19,15 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -46,16 +49,18 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -63,6 +68,7 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -73,11 +79,21 @@ import org.joda.time.Instant;
  */
 public class FlinkStateInternals<K> implements StateInternals {
 
-  private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
-  private Coder<K> keyCoder;
+  private static final StateNamespace globalWindowNamespace =
+      StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
 
-  // Combined watermark holds for all keys of this partition
-  private final Map<String, Instant> watermarkHolds = new HashMap<>();
+  private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+  private final Coder<K> keyCoder;
+
+  /**
+   * A set which contains all state descriptors created in the global window. Used for cleanup on
+   * final watermark.
+   */
+  @SuppressWarnings("unchecked")
+  private final Set<StateDescriptor> globalWindowStateDescriptors = new HashSet<>();
+
+  // Watermark holds for all keys/windows of this partition, allows efficient lookup of the minimum
+  private final TreeMultiset<Long> watermarkHolds = TreeMultiset.create();
   // State to persist combined watermark holds for all keys of this partition
   private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor =
       new MapStateDescriptor<>(
@@ -93,12 +109,12 @@ public class FlinkStateInternals<K> implements StateInternals {
   }
 
   /** Returns the minimum over all watermark holds. */
-  public Instant watermarkHold() {
-    long min = Long.MAX_VALUE;
-    for (Instant hold : watermarkHolds.values()) {
-      min = Math.min(min, hold.getMillis());
+  public Long minWatermarkHoldMs() {
+    if (watermarkHolds.isEmpty()) {
+      return Long.MAX_VALUE;
+    } else {
+      return watermarkHolds.firstEntry().getElement();
     }
-    return new Instant(min);
   }
 
   @Override
@@ -110,53 +126,63 @@ public class FlinkStateInternals<K> implements StateInternals {
   @Override
   public <T extends State> T state(
       StateNamespace namespace, StateTag<T> address, StateContext<?> context) {
-    return address
-        .getSpec()
-        .bind(
-            address.getId(),
-            new FlinkStateBinder(
-                namespace,
-                context,
-                flinkStateBackend,
-                watermarkHolds,
-                watermarkHoldStateDescriptor));
+    return address.getSpec().bind(address.getId(), new FlinkStateBinder(namespace, context));
   }
 
-  private static class FlinkStateBinder implements StateBinder {
+  /**
+   * Allows to clear all state for the global watermark when the maximum watermark arrives. We do
+   * not clean up the global window state via timers which would lead to an unbounded number of keys
+   * and cleanup timers. Instead, the cleanup code below should be run when we finally receive the
+   * max watermark.
+   */
+  public void clearGlobalState() {
+    try {
+      for (StateDescriptor stateDescriptor : globalWindowStateDescriptors) {
+        flinkStateBackend.applyToAllKeys(
+            globalWindowNamespace.stringKey(),
+            StringSerializer.INSTANCE,
+            stateDescriptor,
+            (key, state) -> state.clear());
+      }
+      // Clear set to avoid repeating the cleanup
+      globalWindowStateDescriptors.clear();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to cleanup global state.", e);
+    }
+  }
+
+  private class FlinkStateBinder implements StateBinder {
 
     private final StateNamespace namespace;
     private final StateContext<?> stateContext;
-    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
-    private final Map<String, Instant> watermarkHolds;
-    private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor;
 
-    private FlinkStateBinder(
-        StateNamespace namespace,
-        StateContext<?> stateContext,
-        KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        Map<String, Instant> watermarkHolds,
-        MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor) {
+    private FlinkStateBinder(StateNamespace namespace, StateContext<?> stateContext) {
       this.namespace = namespace;
       this.stateContext = stateContext;
-      this.flinkStateBackend = flinkStateBackend;
-      this.watermarkHolds = watermarkHolds;
-      this.watermarkHoldStateDescriptor = watermarkHoldStateDescriptor;
     }
 
     @Override
     public <T2> ValueState<T2> bindValue(
         String id, StateSpec<ValueState<T2>> spec, Coder<T2> coder) {
-      return new FlinkValueState<>(flinkStateBackend, id, namespace, coder);
+      FlinkValueState<T2> valueState =
+          new FlinkValueState<>(flinkStateBackend, id, namespace, coder);
+      collectGlobalWindowStateDescriptor(valueState.flinkStateDescriptor);
+      return valueState;
     }
 
     @Override
     public <T2> BagState<T2> bindBag(String id, StateSpec<BagState<T2>> spec, Coder<T2> elemCoder) {
-      return new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder);
+      FlinkBagState<Object, T2> bagState =
+          new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder);
+      collectGlobalWindowStateDescriptor(bagState.flinkStateDescriptor);
+      return bagState;
     }
 
     @Override
     public <T2> SetState<T2> bindSet(String id, StateSpec<SetState<T2>> spec, Coder<T2> elemCoder) {
-      return new FlinkSetState<>(flinkStateBackend, id, namespace, elemCoder);
+      FlinkSetState<T2> setState = new FlinkSetState<>(flinkStateBackend, id, namespace, elemCoder);
+      collectGlobalWindowStateDescriptor(setState.flinkStateDescriptor);
+      return setState;
     }
 
     @Override
@@ -165,7 +191,17 @@ public class FlinkStateInternals<K> implements StateInternals {
         StateSpec<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
-      return new FlinkMapState<>(flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder);
+      FlinkMapState<KeyT, ValueT> mapState =
+          new FlinkMapState<>(flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder);
+      collectGlobalWindowStateDescriptor(mapState.flinkStateDescriptor);
+      return mapState;
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
     }
 
     @Override
@@ -174,7 +210,10 @@ public class FlinkStateInternals<K> implements StateInternals {
         StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new FlinkCombiningState<>(flinkStateBackend, id, combineFn, namespace, accumCoder);
+      FlinkCombiningState<Object, InputT, AccumT, OutputT> combiningState =
+          new FlinkCombiningState<>(flinkStateBackend, id, combineFn, namespace, accumCoder);
+      collectGlobalWindowStateDescriptor(combiningState.flinkStateDescriptor);
+      return combiningState;
     }
 
     @Override
@@ -184,25 +223,31 @@ public class FlinkStateInternals<K> implements StateInternals {
             StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
             Coder<AccumT> accumCoder,
             CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-      return new FlinkCombiningStateWithContext<>(
-          flinkStateBackend,
-          id,
-          combineFn,
-          namespace,
-          accumCoder,
-          CombineContextFactory.createFromStateContext(stateContext));
+      FlinkCombiningStateWithContext<Object, InputT, AccumT, OutputT> combiningStateWithContext =
+          new FlinkCombiningStateWithContext<>(
+              flinkStateBackend,
+              id,
+              combineFn,
+              namespace,
+              accumCoder,
+              CombineContextFactory.createFromStateContext(stateContext));
+      collectGlobalWindowStateDescriptor(combiningStateWithContext.flinkStateDescriptor);
+      return combiningStateWithContext;
     }
 
     @Override
     public WatermarkHoldState bindWatermark(
         String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
-      return new FlinkWatermarkHoldState<>(
-          flinkStateBackend,
-          watermarkHolds,
-          watermarkHoldStateDescriptor,
-          id,
-          namespace,
-          timestampCombiner);
+      collectGlobalWindowStateDescriptor(watermarkHoldStateDescriptor);
+      return new FlinkWatermarkHoldState(
+          flinkStateBackend, watermarkHoldStateDescriptor, id, namespace, timestampCombiner);
+    }
+
+    /** Take note of state bound to the global window for cleanup in clearGlobalState(). */
+    private void collectGlobalWindowStateDescriptor(StateDescriptor descriptor) {
+      if (globalWindowNamespace.equals(namespace)) {
+        globalWindowStateDescriptors.add(descriptor);
+      }
     }
   }
 
@@ -268,7 +313,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -405,7 +450,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -566,7 +611,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -730,7 +775,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -752,23 +797,19 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  private static class FlinkWatermarkHoldState<K, W extends BoundedWindow>
-      implements WatermarkHoldState {
+  private class FlinkWatermarkHoldState implements WatermarkHoldState {
 
     private final TimestampCombiner timestampCombiner;
-    private final Map<String, Instant> watermarkHolds;
     private final String namespaceString;
     private org.apache.flink.api.common.state.MapState<String, Instant> watermarkHoldsState;
 
     public FlinkWatermarkHoldState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        Map<String, Instant> watermarkHolds,
         MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor,
         String stateId,
         StateNamespace namespace,
         TimestampCombiner timestampCombiner) {
       this.timestampCombiner = timestampCombiner;
-      this.watermarkHolds = watermarkHolds;
       // Combines StateNamespace and stateId to generate a unique namespace for
       // watermarkHoldsState. We do not want to use Flink's namespacing to be
       // able to recover watermark holds efficiently during recovery.
@@ -818,12 +859,15 @@ public class FlinkStateInternals<K> implements StateInternals {
       try {
         Instant current = watermarkHoldsState.get(namespaceString);
         if (current == null) {
-          watermarkHolds.put(namespaceString, value);
+          addWatermarkHoldUsage(value);
           watermarkHoldsState.put(namespaceString, value);
         } else {
           Instant combined = timestampCombiner.combine(current, value);
-          watermarkHolds.put(namespaceString, combined);
-          watermarkHoldsState.put(namespaceString, combined);
+          if (combined.getMillis() != current.getMillis()) {
+            removeWatermarkHoldUsage(current);
+            addWatermarkHoldUsage(combined);
+            watermarkHoldsState.put(namespaceString, combined);
+          }
         }
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
@@ -841,7 +885,10 @@ public class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public void clear() {
-      watermarkHolds.remove(namespaceString);
+      Instant current = read();
+      if (current != null) {
+        removeWatermarkHoldUsage(current);
+      }
       try {
         watermarkHoldsState.remove(namespaceString);
       } catch (Exception e) {
@@ -850,7 +897,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -858,7 +905,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         return false;
       }
 
-      FlinkWatermarkHoldState<?, ?> that = (FlinkWatermarkHoldState<?, ?>) o;
+      FlinkWatermarkHoldState that = (FlinkWatermarkHoldState) o;
 
       if (!timestampCombiner.equals(that.timestampCombiner)) {
         return false;
@@ -1040,7 +1087,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1191,7 +1238,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1212,7 +1259,15 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  /** Restores a view of the watermark holds of all keys of this partiton. */
+  public void addWatermarkHoldUsage(Instant watermarkHold) {
+    watermarkHolds.add(watermarkHold.getMillis());
+  }
+
+  public void removeWatermarkHoldUsage(Instant watermarkHold) {
+    watermarkHolds.remove(watermarkHold.getMillis());
+  }
+
+  /** Restores a view of the watermark holds of all keys of this partition. */
   private void restoreWatermarkHoldsView() throws Exception {
     org.apache.flink.api.common.state.MapState<String, Instant> mapState =
         flinkStateBackend.getPartitionedState(
@@ -1222,7 +1277,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       Iterator<ByteBuffer> iterator = keys.iterator();
       while (iterator.hasNext()) {
         flinkStateBackend.setCurrentKey(iterator.next());
-        mapState.entries().forEach(entry -> watermarkHolds.put(entry.getKey(), entry.getValue()));
+        mapState.values().forEach(this::addWatermarkHoldUsage);
       }
     }
   }
@@ -1292,6 +1347,13 @@ public class FlinkStateInternals<K> implements StateInternals {
         throw new RuntimeException(e);
       }
       return null;
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
     }
 
     @Override

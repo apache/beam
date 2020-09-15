@@ -24,6 +24,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doNothing;
@@ -33,6 +35,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
@@ -47,20 +51,23 @@ import com.google.cloud.spanner.Type;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherBundleAndSortFn;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherSortCreateBatchesFn;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -94,7 +101,6 @@ public class SpannerIOWriteTest implements Serializable {
   @Captor public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
   @Captor public transient ArgumentCaptor<Iterable<MutationGroup>> mutationGroupListCaptor;
   @Captor public transient ArgumentCaptor<MutationGroup> mutationGroupCaptor;
-  @Captor public transient ArgumentCaptor<List<KV<byte[], byte[]>>> byteArrayKvListCaptor;
 
   private FakeServiceFactory serviceFactory;
 
@@ -257,18 +263,34 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void noBatching() throws Exception {
+
+    // This test uses a different mock/fake because it explicitly does not want to populate the
+    // Spanner schema.
+    FakeServiceFactory fakeServiceFactory = new FakeServiceFactory();
+    ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
+    when(fakeServiceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
+
+    // Capture batches sent to writeAtLeastOnce.
+    when(fakeServiceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+        .thenReturn(null);
+
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
     mutations.apply(
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withServiceFactory(serviceFactory)
+            .withServiceFactory(fakeServiceFactory)
             .withBatchSizeBytes(1)
             .grouped());
     pipeline.run();
 
-    verifyBatches(batch(m(1L)), batch(m(2L)));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(1L))));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(2L))));
+    // If no batching then the DB schema is never read.
+    verify(tx, never()).executeQuery(any());
   }
 
   @Test
@@ -292,6 +314,54 @@ public class SpannerIOWriteTest implements Serializable {
     pipeline.run();
 
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesWithGrouping() throws Exception {
+
+    // verify that grouping/sorting occurs when set.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+    pipeline
+        .apply(testStream)
+        .apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory)
+                .withGroupingFactor(40)
+                .withMaxNumRows(2));
+    pipeline.run();
+
+    // Output should be batches of sorted mutations.
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesNoGrouping() throws Exception {
+
+    // verify that grouping/sorting does not occur - batches should be created in received order.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+
+    // verify that grouping/sorting does not occur when notset.
+    pipeline
+        .apply(testStream)
+        .apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory)
+                .withMaxNumRows(2));
+    pipeline.run();
+
+    verifyBatches(batch(m(1L), m(5L)), batch(m(2L), m(4L)), batch(m(3L), m(6L)));
   }
 
   @Test
@@ -338,20 +408,318 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  public void displayData() throws Exception {
+  public void deadlineExceededRetries() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // respond with 2 timeouts and a success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
+
+    // all success, so veryify no errors
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 2 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
+    // 3 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void deadlineExceededFailsAfterRetries() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // respond with all timeouts.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout"));
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withMaxCumulativeBackoff(Duration.standardHours(2))
+                    .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
+
+    // One error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(1, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // Due to jitter in backoff algorithm, we cannot test for an exact number of retries,
+    // but there will be more than 16 (normally 18).
+    int numSleeps = Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().size();
+    assertTrue(String.format("Should be least 16 sleeps, got %d", numSleeps), numSleeps > 16);
+    long totalSleep =
+        Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().stream()
+            .mapToLong(i -> i.getArgument(0))
+            .reduce(0L, Long::sum);
+
+    // Total sleep should be greater then 2x maxCumulativeBackoff: 120m,
+    // because the batch is repeated inidividually due REPORT_FAILURES.
+    assertTrue(
+        String.format("Should be least 7200s of sleep, got %d", totalSleep),
+        totalSleep >= Duration.standardHours(2).getMillis());
+
+    // Number of write attempts should be numSleeps + 2 write attempts:
+    //      1 batch attempt, numSleeps/2 batch retries,
+    // then 1 individual attempt + numSleeps/2 individual retries
+    verify(serviceFactory.mockDatabaseClient(), times(numSleeps + 2)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryOnSchemaChangeException() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // respond with 2 timeouts and a success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // all success, so veryify no errors
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 0 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+    // 3 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryMaxOnSchemaChangeException() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // Respond with Aborted transaction
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString));
+
+    // When spanner aborts transaction for more than 5 time, pipeline execution stops with
+    // PipelineExecutionException
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage(errString);
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // One error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(1, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 0 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+    // 5 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(5)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryOnAbortedAndDeadlineExceeded() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // Respond with (1) Aborted transaction a couple of times (2) deadline exceeded
+    // (3) Aborted transaction 3 times (4)  deadline exceeded and finally return success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // Zero error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 2 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
+    // 8 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(8)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void displayDataWrite() throws Exception {
     SpannerIO.Write write =
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withBatchSizeBytes(123);
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100);
 
     DisplayData data = DisplayData.from(write);
-    assertThat(data.items(), hasSize(4));
+    assertThat(data.items(), hasSize(7));
     assertThat(data, hasDisplayItem("projectId", "test-project"));
     assertThat(data, hasDisplayItem("instanceId", "test-instance"));
     assertThat(data, hasDisplayItem("databaseId", "test-database"));
     assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", "100"));
+
+    // check for default grouping value
+    write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database");
+
+    data = DisplayData.from(write);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("groupingFactor", "DEFAULT"));
+  }
+
+  @Test
+  public void displayDataWriteGrouped() throws Exception {
+    SpannerIO.WriteGrouped writeGrouped =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100)
+            .grouped();
+
+    DisplayData data = DisplayData.from(writeGrouped);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("projectId", "test-project"));
+    assertThat(data, hasDisplayItem("instanceId", "test-instance"));
+    assertThat(data, hasDisplayItem("databaseId", "test-database"));
+    assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", "100"));
+
+    // check for default grouping value
+    writeGrouped =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .grouped();
+
+    data = DisplayData.from(writeGrouped);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("groupingFactor", "DEFAULT"));
   }
 
   @Test
@@ -376,7 +744,8 @@ public class SpannerIOWriteTest implements Serializable {
     BatchableMutationFilterFn testFn =
         new BatchableMutationFilterFn(null, null, 10000000, 3 * CELLS_PER_KEY, 1000);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -430,7 +799,8 @@ public class SpannerIOWriteTest implements Serializable {
     BatchableMutationFilterFn testFn =
         new BatchableMutationFilterFn(null, null, mutationSize * 3, 1000, 1000);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    DoFn<MutationGroup, MutationGroup>.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -483,7 +853,8 @@ public class SpannerIOWriteTest implements Serializable {
     long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -521,7 +892,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 0, 0, 0);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -544,147 +916,154 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testGatherBundleAndSortFn() throws Exception {
-    GatherBundleAndSortFn testFn = new GatherBundleAndSortFn(10000000, 10, 1000, 100, null);
+  public void testGatherSortAndBatchFn() throws Exception {
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn testFn =
+        new GatherSortCreateBatchesFn(
+            10000000, // batch bytes
+            100, // batch up to 35 mutated cells.
+            5, // batch rows
+            100, // groupingFactor
+            null);
+
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
-    doNothing().when(mockProcessContext).output(byteArrayKvListCaptor.capture());
-    // Capture the outputs.
-    doNothing().when(mockFinishBundleContext).output(byteArrayKvListCaptor.capture(), any(), any());
+    doNothing()
+        .when(mockFinishBundleContext)
+        .output(mutationGroupListCaptor.capture(), any(), any());
 
     MutationGroup[] mutationGroups =
         new MutationGroup[] {
-          g(m(4L)), g(m(1L)), g(m(5L), m(6L), m(7L), m(8L), m(9L)), g(del(2L)), g(m(3L))
+          // Unsorted group of 12 mutations.
+          // each mutation is considered 7 cells,
+          // should be sorted and output as 2 lists of 5, then 1 list of 2
+          // with mutations sorted in order.
+          g(m(4L)),
+          g(m(1L)),
+          g(m(7L)),
+          g(m(12L)),
+          g(m(10L)),
+          g(m(11L)),
+          g(m(2L)),
+          g(del(8L)),
+          g(m(3L)),
+          g(m(6L)),
+          g(m(9L)),
+          g(m(5L))
         };
 
     // Process all elements as one bundle.
-    testFn.startBundle();
     for (MutationGroup m : mutationGroups) {
       when(mockProcessContext.element()).thenReturn(m);
-      testFn.processElement(mockProcessContext);
+      // outputReceiver should not be called until end of bundle.
+      testFn.processElement(mockProcessContext, null);
     }
     testFn.finishBundle(mockFinishBundleContext);
 
     verify(mockProcessContext, never()).output(any());
-    verify(mockFinishBundleContext, times(1)).output(any(), any(), any());
+    verify(mockFinishBundleContext, times(3)).output(any(), any(), any());
 
-    // Verify sorted output... first decode it...
-    List<MutationGroup> sorted =
-        byteArrayKvListCaptor.getValue().stream()
-            .map(kv -> WriteGrouped.decode(kv.getValue()))
-            .collect(Collectors.toList());
+    // Verify output are 3 batches of sorted values
     assertThat(
-        sorted,
-        contains(g(m(1L)), g(del(2L)), g(m(3L)), g(m(4L)), g(m(5L), m(6L), m(7L), m(8L), m(9L))));
+        mutationGroupListCaptor.getAllValues(),
+        contains(
+            Arrays.asList(g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L))),
+            Arrays.asList(g(m(6L)), g(m(7L)), g(del(8L)), g(m(9L)), g(m(10L))),
+            Arrays.asList(g(m(11L)), g(m(12L)))));
   }
 
   @Test
   public void testGatherBundleAndSortFn_flushOversizedBundle() throws Exception {
 
-    // Setup class to bundle every 3 mutations
-    GatherBundleAndSortFn testFn =
-        new GatherBundleAndSortFn(10000000, CELLS_PER_KEY, 1000, 3, null);
+    // Setup class to bundle every 6 rows and create batches of 2.
+    GatherSortCreateBatchesFn testFn =
+        new GatherSortCreateBatchesFn(
+            10000000, // batch bytes
+            100, // batch up to 14 mutated cells.
+            2, // batch rows
+            3, // groupingFactor
+            null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
+    OutputReceiver<Iterable<MutationGroup>> mockOutputReceiver = mock(OutputReceiver.class);
 
     // Capture the outputs.
-    doNothing().when(mockProcessContext).output(byteArrayKvListCaptor.capture());
+    doNothing().when(mockOutputReceiver).output(mutationGroupListCaptor.capture());
     // Capture the outputs.
-    doNothing().when(mockFinishBundleContext).output(byteArrayKvListCaptor.capture(), any(), any());
+    doNothing()
+        .when(mockFinishBundleContext)
+        .output(mutationGroupListCaptor.capture(), any(), any());
 
     MutationGroup[] mutationGroups =
         new MutationGroup[] {
+          // Unsorted group of 12 mutations.
+          // each mutation is considered 7 cells,
+          // should be sorted and output as 2 lists of 5, then 1 list of 2
+          // with mutations sorted in order.
           g(m(4L)),
           g(m(1L)),
-          // end group
-          g(m(5L), m(6L), m(7L), m(8L), m(9L)),
-          // end group
+          g(m(7L)),
+          g(m(9L)),
           g(m(10L)),
-          g(m(3L)),
           g(m(11L)),
-          // end group.
-          g(m(2L))
+          // end group
+          g(m(2L)),
+          g(del(8L)), // end batch
+          g(m(3L)),
+          g(m(6L)), // end batch
+          g(m(5L))
+          // end bundle, so end group and end batch.
         };
 
     // Process all elements as one bundle.
-    testFn.startBundle();
     for (MutationGroup m : mutationGroups) {
       when(mockProcessContext.element()).thenReturn(m);
-      testFn.processElement(mockProcessContext);
+      testFn.processElement(mockProcessContext, mockOutputReceiver);
     }
     testFn.finishBundle(mockFinishBundleContext);
 
-    verify(mockProcessContext, times(3)).output(any());
-    verify(mockFinishBundleContext, times(1)).output(any(), any(), any());
+    // processElement ouput receiver should have been called 3 times when the 1st group was full.
+    verify(mockOutputReceiver, times(3)).output(any());
+    // finsihBundleContext output should be called 3 times when the bundle was finished.
+    verify(mockFinishBundleContext, times(3)).output(any(), any(), any());
 
-    // verify sorted output... needs decoding...
-    List<List<KV<byte[], byte[]>>> kvGroups = byteArrayKvListCaptor.getAllValues();
-    assertEquals(4, kvGroups.size());
+    List<Iterable<MutationGroup>> mgListGroups = mutationGroupListCaptor.getAllValues();
 
-    // decode list of lists of KV to a list of lists of MutationGroup.
-    List<List<MutationGroup>> mgListGroups =
-        kvGroups.stream()
-            .map(
-                l ->
-                    l.stream()
-                        .map(kv -> WriteGrouped.decode(kv.getValue()))
-                        .collect(Collectors.toList()))
-            .collect(Collectors.toList());
-
-    // verify contents of 4 sorted groups.
+    assertEquals(6, mgListGroups.size());
+    // verify contents of 6 sorted groups.
+    // first group should be 1,3,4,7,9,11
     assertThat(mgListGroups.get(0), contains(g(m(1L)), g(m(4L))));
-    assertThat(mgListGroups.get(1), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
-    assertThat(mgListGroups.get(2), contains(g(m(3L)), g(m(10L)), g(m(11L))));
-    assertThat(mgListGroups.get(3), contains(g(m(2L))));
+    assertThat(mgListGroups.get(1), contains(g(m(7L)), g(m(9L))));
+    assertThat(mgListGroups.get(2), contains(g(m(10L)), g(m(11L))));
+
+    // second group at finishBundle should be 2,3,5,6,8
+    assertThat(mgListGroups.get(3), contains(g(m(2L)), g(m(3L))));
+    assertThat(mgListGroups.get(4), contains(g(m(5L)), g(m(6L))));
+    assertThat(mgListGroups.get(5), contains(g(del(8L))));
   }
 
   @Test
   public void testBatchFn_cells() throws Exception {
 
-    // Setup class to bundle every 3 mutations (3xCELLS_PER_KEY cell mutations)
-    BatchFn testFn = new BatchFn(10000000, 3 * CELLS_PER_KEY, 1000, null);
+    // Setup class to batch every 3 mutations (3xCELLS_PER_KEY cell mutations)
+    GatherSortCreateBatchesFn testFn =
+        new GatherSortCreateBatchesFn(
+            10000000, // batch bytes
+            3 * CELLS_PER_KEY, // batch up to 21 mutated cells - 3 mutations.
+            100, // batch rows
+            100, // groupingFactor
+            null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
-
-    // Capture the outputs.
-    doNothing().when(mockProcessContext).output(mutationGroupListCaptor.capture());
-
-    List<MutationGroup> mutationGroups =
-        Arrays.asList(
-            g(m(1L)),
-            g(m(4L)),
-            g(m(5L), m(6L), m(7L), m(8L), m(9L)),
-            g(m(3L)),
-            g(m(10L)),
-            g(m(11L)),
-            g(m(2L)));
-
-    List<KV<byte[], byte[]>> encodedInput =
-        mutationGroups.stream()
-            .map(mg -> KV.of((byte[]) null, WriteGrouped.encode(mg)))
-            .collect(Collectors.toList());
-
-    // Process elements.
-    when(mockProcessContext.element()).thenReturn(encodedInput);
-    testFn.processElement(mockProcessContext);
-
-    verify(mockProcessContext, times(4)).output(any());
-
-    List<Iterable<MutationGroup>> batches = mutationGroupListCaptor.getAllValues();
-    assertEquals(4, batches.size());
-
-    // verify contents of 4 batches.
-    assertThat(batches.get(0), contains(g(m(1L)), g(m(4L))));
-    assertThat(batches.get(1), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
-    assertThat(batches.get(2), contains(g(m(3L)), g(m(10L)), g(m(11L))));
-    assertThat(batches.get(3), contains(g(m(2L))));
+    testAndVerifyBatches(testFn);
   }
 
   @Test
@@ -693,56 +1072,43 @@ public class SpannerIOWriteTest implements Serializable {
     long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
 
     // Setup class to bundle every 3 mutations by size)
-    BatchFn testFn = new BatchFn(mutationSize * 3, 1000, 1000, null);
+    GatherSortCreateBatchesFn testFn =
+        new GatherSortCreateBatchesFn(
+            mutationSize * 3, // batch bytes = 3 mutations.
+            100, // batch cells
+            100, // batch rows
+            100, // groupingFactor
+            null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
-
-    // Capture the outputs.
-    doNothing().when(mockProcessContext).output(mutationGroupListCaptor.capture());
-
-    List<MutationGroup> mutationGroups =
-        Arrays.asList(
-            g(m(1L)),
-            g(m(4L)),
-            g(m(5L), m(6L), m(7L), m(8L), m(9L)),
-            g(m(3L)),
-            g(m(10L)),
-            g(m(11L)),
-            g(m(2L)));
-
-    List<KV<byte[], byte[]>> encodedInput =
-        mutationGroups.stream()
-            .map(mg -> KV.of((byte[]) null, WriteGrouped.encode(mg)))
-            .collect(Collectors.toList());
-
-    // Process elements.
-    when(mockProcessContext.element()).thenReturn(encodedInput);
-    testFn.processElement(mockProcessContext);
-
-    verify(mockProcessContext, times(4)).output(any());
-
-    List<Iterable<MutationGroup>> batches = mutationGroupListCaptor.getAllValues();
-    assertEquals(4, batches.size());
-
-    // verify contents of 4 batches.
-    assertThat(batches.get(0), contains(g(m(1L)), g(m(4L))));
-    assertThat(batches.get(1), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
-    assertThat(batches.get(2), contains(g(m(3L)), g(m(10L)), g(m(11L))));
-    assertThat(batches.get(3), contains(g(m(2L))));
+    testAndVerifyBatches(testFn);
   }
 
   @Test
   public void testBatchFn_rows() throws Exception {
 
-    // Setup class to bundle every 3 mutations (3xCELLS_PER_KEY cell mutations)
-    BatchFn testFn = new BatchFn(10000000, 1000, 3, null);
+    // Setup class to bundle every 3 rows
+    GatherSortCreateBatchesFn testFn =
+        new GatherSortCreateBatchesFn(
+            10000, // batch bytes = 3 mutations.
+            100, // batch cells
+            3, // batch rows
+            100, // groupingFactor
+            null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    testAndVerifyBatches(testFn);
+  }
+
+  private void testAndVerifyBatches(GatherSortCreateBatchesFn testFn) throws Exception {
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
-    // Capture the outputs.
-    doNothing().when(mockProcessContext).output(mutationGroupListCaptor.capture());
+    // Capture the output at finish bundle..
+    doNothing()
+        .when(mockFinishBundleContext)
+        .output(mutationGroupListCaptor.capture(), any(), any());
 
     List<MutationGroup> mutationGroups =
         Arrays.asList(
@@ -754,25 +1120,101 @@ public class SpannerIOWriteTest implements Serializable {
             g(m(11L)),
             g(m(2L)));
 
-    List<KV<byte[], byte[]>> encodedInput =
-        mutationGroups.stream()
-            .map(mg -> KV.of((byte[]) null, WriteGrouped.encode(mg)))
-            .collect(Collectors.toList());
-
     // Process elements.
-    when(mockProcessContext.element()).thenReturn(encodedInput);
-    testFn.processElement(mockProcessContext);
+    for (MutationGroup m : mutationGroups) {
+      when(mockProcessContext.element()).thenReturn(m);
+      testFn.processElement(mockProcessContext, null);
+    }
+    testFn.finishBundle(mockFinishBundleContext);
 
-    verify(mockProcessContext, times(4)).output(any());
+    verify(mockFinishBundleContext, times(4)).output(any(), any(), any());
 
     List<Iterable<MutationGroup>> batches = mutationGroupListCaptor.getAllValues();
     assertEquals(4, batches.size());
 
     // verify contents of 4 batches.
-    assertThat(batches.get(0), contains(g(m(1L)), g(m(4L))));
-    assertThat(batches.get(1), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
-    assertThat(batches.get(2), contains(g(m(3L)), g(m(10L)), g(m(11L))));
-    assertThat(batches.get(3), contains(g(m(2L))));
+    assertThat(batches.get(0), contains(g(m(1L)), g(m(2L)), g(m(3L))));
+    assertThat(batches.get(1), contains(g(m(4L)))); // small batch : next mutation group is too big.
+    assertThat(batches.get(2), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
+    assertThat(batches.get(3), contains(g(m(10L)), g(m(11L))));
+  }
+
+  @Test
+  public void testRefCountedSpannerAccessorOnlyOnce() {
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .build();
+
+    SpannerIO.WriteToSpannerFn test1Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test2Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test3Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+
+    test1Fn.setup();
+    test2Fn.setup();
+    test3Fn.setup();
+
+    test2Fn.teardown();
+    test3Fn.teardown();
+    test1Fn.teardown();
+
+    // getDatabaseClient and close() only called once.
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(DatabaseId.of("project", "test1", "test1"));
+    verify(serviceFactory.mockSpanner(), times(1)).close();
+  }
+
+  @Test
+  public void testRefCountedSpannerAccessorDifferentDbsOnlyOnce() {
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setMaxCumulativeBackoff(StaticValueProvider.of(Duration.standardSeconds(10)))
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .build();
+    SpannerConfig config2 =
+        config1
+            .toBuilder()
+            .setInstanceId(StaticValueProvider.of("test2"))
+            .setDatabaseId(StaticValueProvider.of("test2"))
+            .build();
+
+    SpannerIO.WriteToSpannerFn test1Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test2Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+
+    SpannerIO.WriteToSpannerFn test3Fn =
+        new SpannerIO.WriteToSpannerFn(config2, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test4Fn =
+        new SpannerIO.WriteToSpannerFn(config2, FailureMode.REPORT_FAILURES, null /* failedTag */);
+
+    test1Fn.setup();
+    test2Fn.setup();
+    test3Fn.setup();
+    test4Fn.setup();
+
+    test2Fn.teardown();
+    test3Fn.teardown();
+    test4Fn.teardown();
+    test1Fn.teardown();
+
+    // getDatabaseClient called once each for the separate instances.
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(eq(DatabaseId.of("project", "test1", "test1")));
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(eq(DatabaseId.of("project", "test2", "test2")));
+    verify(serviceFactory.mockSpanner(), times(2)).close();
   }
 
   private static MutationGroup g(Mutation m, Mutation... other) {

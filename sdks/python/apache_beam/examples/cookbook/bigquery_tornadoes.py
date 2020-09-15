@@ -92,7 +92,7 @@ def run(argv=None):
   with beam.Pipeline(argv=pipeline_args) as p:
 
     # Read the table rows into a PCollection.
-    rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
+    rows = p | 'read' >> beam.io.ReadFromBigQuery(table=known_args.input)
     counts = count_tornadoes(rows)
 
     # Write the output using a "Write" transform that has side effects.

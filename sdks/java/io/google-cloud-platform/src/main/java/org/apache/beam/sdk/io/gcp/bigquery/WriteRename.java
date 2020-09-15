@@ -154,7 +154,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
 
     // Make sure each destination table gets a unique job id.
     String jobIdPrefix =
-        BigQueryHelpers.createJobId(
+        BigQueryResourceNaming.createJobIdWithDestination(
             c.sideInput(jobIdToken), finalTableDestination, -1, c.pane().getIndex());
 
     BigQueryHelpers.PendingJob retryJob =
@@ -267,6 +267,9 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
                 .withLabel("Write Disposition"))
         .add(
             DisplayData.item("firstPaneCreateDisposition", firstPaneCreateDisposition.toString())
-                .withLabel("Create Disposition"));
+                .withLabel("Create Disposition"))
+        .add(
+            DisplayData.item("launchesBigQueryJobs", true)
+                .withLabel("This transform launches BigQuery jobs to read/write elements."));
   }
 }

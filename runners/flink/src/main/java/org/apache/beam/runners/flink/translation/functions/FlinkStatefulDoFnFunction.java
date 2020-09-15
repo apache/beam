@@ -42,6 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -59,7 +60,7 @@ import org.joda.time.Instant;
 
 /** A {@link RichGroupReduceFunction} for stateful {@link ParDo} in Flink Batch Runner. */
 public class FlinkStatefulDoFnFunction<K, V, OutputT>
-    extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
+    extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<RawUnionValue>> {
 
   private final DoFn<KV<K, V>, OutputT> dofn;
   private String stepName;
@@ -104,7 +105,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
   @Override
   public void reduce(
-      Iterable<WindowedValue<KV<K, V>>> values, Collector<WindowedValue<OutputT>> out)
+      Iterable<WindowedValue<KV<K, V>>> values, Collector<WindowedValue<RawUnionValue>> out)
       throws Exception {
     RuntimeContext runtimeContext = getRuntimeContext();
 
@@ -113,7 +114,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional Outputs
-      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
+      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManager(out, outputMap);
     }
 
     final Iterator<WindowedValue<KV<K, V>>> iterator = values.iterator();
@@ -179,13 +180,13 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
     timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
-    fireEligibleTimers(timerInternals, doFnRunner);
+    fireEligibleTimers(key, timerInternals, doFnRunner);
 
     doFnRunner.finishBundle();
   }
 
   private void fireEligibleTimers(
-      InMemoryTimerInternals timerInternals, DoFnRunner<KV<K, V>, OutputT> runner)
+      final K key, InMemoryTimerInternals timerInternals, DoFnRunner<KV<K, V>, OutputT> runner)
       throws Exception {
 
     while (true) {
@@ -195,15 +196,15 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
       while ((timer = timerInternals.removeNextEventTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, runner);
+        fireTimer(key, timer, runner);
       }
       while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, runner);
+        fireTimer(key, timer, runner);
       }
       while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, runner);
+        fireTimer(key, timer, runner);
       }
       if (!hasFired) {
         break;
@@ -211,13 +212,15 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     }
   }
 
-  private void fireTimer(TimerInternals.TimerData timer, DoFnRunner<KV<K, V>, OutputT> doFnRunner) {
+  private void fireTimer(
+      final K key, TimerInternals.TimerData timer, DoFnRunner<KV<K, V>, OutputT> doFnRunner) {
     StateNamespace namespace = timer.getNamespace();
     checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     doFnRunner.onTimer(
         timer.getTimerId(),
         timer.getTimerFamilyId(),
+        key,
         window,
         timer.getTimestamp(),
         timer.getOutputTimestamp(),

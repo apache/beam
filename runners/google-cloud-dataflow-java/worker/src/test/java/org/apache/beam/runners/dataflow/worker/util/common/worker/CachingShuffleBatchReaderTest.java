@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -37,7 +37,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class CachingShuffleBatchReaderTest {
   private final ShuffleBatchReader.Batch testBatch =
-      new ShuffleBatchReader.Batch(new ArrayList<ShuffleEntry>(), null, 0);
+      new ShuffleBatchReader.Batch(new ArrayList<ShuffleEntry>(), null);
 
   @Test
   public void readerShouldCacheReads() throws IOException {

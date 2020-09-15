@@ -18,14 +18,8 @@
 """
 A connector for reading from and writing to Google Cloud Datastore.
 
-Please use this module for Datastore I/O since
-``apache_beam.io.gcp.datastore.v1.datastoreio`` will be deprecated in the
-next Beam major release.
-
-This module uses the newer google-cloud-datastore package. Its API was different
-enough to require extensive changes to this and associated modules.
-
-This module is experimental, no backwards compatibility guarantees.
+This module uses the newer google-cloud-datastore client package. Its API was
+different enough to require extensive changes to this and associated modules.
 """
 # pytype: skip-file
 
@@ -37,11 +31,11 @@ import time
 from builtins import round
 
 from apache_beam import typehints
-from apache_beam.io.gcp.datastore.v1 import util
-from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
 from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
+from apache_beam.io.gcp.datastore.v1new import util
+from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
@@ -363,7 +357,7 @@ class _Mutate(PTransform):
         rpc_stats_callback: a function to call with arguments `successes` and
             `failures` and `throttled_secs`; this is called to record successful
             and failed RPCs to Datastore and time spent waiting for throttling.
-        throttler: (``apache_beam.io.gcp.datastore.v1.adaptive_throttler.
+        throttler: (``apache_beam.io.gcp.datastore.v1new.adaptive_throttler.
           AdaptiveThrottler``)
           Throttler instance used to select requests to be throttled.
         throttle_delay: (:class:`float`) time in seconds to sleep when

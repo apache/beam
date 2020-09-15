@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.rabbitmq')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.rabbitmq')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: RabbitMQ"
 ext.summary = "IO to read and write to a RabbitMQ broker."
@@ -27,6 +27,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.joda_time
   compile "com.rabbitmq:amqp-client:5.7.3"
+  provided library.java.jackson_dataformat_xml
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile "org.apache.qpid:qpid-broker-core:7.1.5"
   testCompile "org.apache.qpid:qpid-broker-plugins-memory-store:7.1.5"

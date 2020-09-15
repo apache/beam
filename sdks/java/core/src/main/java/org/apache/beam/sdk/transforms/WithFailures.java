@@ -22,9 +22,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A collection of utilities for writing transforms that can handle exceptions raised during
@@ -67,7 +68,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *      .apply("FlattenFailureCollections", Flatten.pCollections());
  * }</pre>
  */
-@Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+@Experimental(Kind.WITH_EXCEPTIONS)
 public class WithFailures {
 
   /**
@@ -125,8 +126,7 @@ public class WithFailures {
 
     public abstract OutputT output();
 
-    @Nullable
-    abstract TupleTag<?> outputTag();
+    abstract @Nullable TupleTag<?> outputTag();
 
     public abstract PCollection<FailureElementT> failures();
 

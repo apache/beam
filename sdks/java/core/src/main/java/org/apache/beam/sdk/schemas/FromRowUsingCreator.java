@@ -25,11 +25,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -39,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collecti
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 @Experimental(Kind.SCHEMAS)
@@ -92,8 +93,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
-  @Nullable
-  private <ValueT> ValueT fromValue(
+  private @Nullable <ValueT> ValueT fromValue(
       FieldType type,
       ValueT value,
       Type fieldType,
@@ -126,21 +126,25 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               valueType,
               typeFactory);
     } else {
-      if (type.getTypeName().isLogicalType()
-          && OneOfType.IDENTIFIER.equals(type.getLogicalType().getIdentifier())) {
+      if (type.isLogicalType(OneOfType.IDENTIFIER)) {
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);
-        OneOfType.Value oneOfValue = oneOfType.toInputType((Row) value);
+        EnumerationType oneOfEnum = oneOfType.getCaseEnumType();
+        OneOfType.Value oneOfValue = (OneOfType.Value) value;
         FieldValueTypeInformation oneOfFieldValueTypeInformation =
             checkNotNull(
-                fieldValueTypeInformation.getOneOfTypes().get(oneOfValue.getCaseType().toString()));
+                fieldValueTypeInformation
+                    .getOneOfTypes()
+                    .get(oneOfEnum.toString(oneOfValue.getCaseType())));
         Object fromValue =
             fromValue(
-                oneOfValue.getFieldType(),
+                oneOfType.getFieldType(oneOfValue),
                 oneOfValue.getValue(),
                 oneOfFieldValueTypeInformation.getRawType(),
                 oneOfFieldValueTypeInformation,
                 typeFactory);
         return (ValueT) oneOfType.createValue(oneOfValue.getCaseType(), fromValue);
+      } else if (type.getTypeName().isLogicalType()) {
+        return (ValueT) type.getLogicalType().toBaseType(value);
       }
       return value;
     }
@@ -222,7 +226,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

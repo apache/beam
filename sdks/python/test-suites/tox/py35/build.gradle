@@ -23,23 +23,10 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-// Required to setup a Python 3 virtualenv.
+// Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.5'
 
-// TODO(BEAM-3713): Migrate to -pytest env variant.
-toxTask "testPython35", "py35"
-test.dependsOn testPython35
-
-toxTask "testPy35Gcp", "py35-gcp-pytest"
-test.dependsOn testPy35Gcp
-
-toxTask "testPy35Cython", "py35-cython-pytest"
-test.dependsOn testPy35Cython
+apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
-testPy35Cython.mustRunAfter testPython35, testPy35Gcp
-
-task preCommitPy35() {
-    dependsOn "testPy35Gcp"
-    dependsOn "testPy35Cython"
-}
+testPy35Cython.mustRunAfter testPython35, testPy35Cloud

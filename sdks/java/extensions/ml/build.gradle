@@ -1,0 +1,54 @@
+import groovy.json.JsonOutput
+
+/*
+ *
+ *  * Licensed to the Apache Software Foundation (ASF) under one
+ *  * or more contributor license agreements.  See the NOTICE file
+ *  * distributed with this work for additional information
+ *  * regarding copyright ownership.  The ASF licenses this file
+ *  * to you under the Apache License, Version 2.0 (the
+ *  * "License"); you may not use this file except in compliance
+ *  * with the License.  You may obtain a copy of the License at
+ *  *
+ *  *     http://www.apache.org/licenses/LICENSE-2.0
+ *  *
+ *  * Unless required by applicable law or agreed to in writing, software
+ *  * distributed under the License is distributed on an "AS IS" BASIS,
+ *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  * See the License for the specific language governing permissions and
+ *  * limitations under the License.
+ *
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.ml')
+
+description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
+
+dependencies {
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile project(":sdks:java:expansion-service")
+    compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    compile 'com.google.cloud:google-cloud-dlp:1.1.4'
+    compile 'com.google.cloud:google-cloud-language:1.99.4'
+    provided library.java.junit
+    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
+    compile 'com.google.cloud:google-cloud-vision:1.99.3'
+    testCompile library.java.mockito_core
+    testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
+    testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testCompile 'com.google.cloud:google-cloud-language:1.99.4'
+    testCompile 'com.google.cloud:google-cloud-vision:1.99.3'
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(":runners:google-cloud-dataflow-java")
+}
+
+project.test {
+    def gcpProject = project.findProperty("gcpProject") ?: 'apache-beam-testing'
+    include "**/**IT.class"
+    def pipelineOptions = [
+            "--project=${gcpProject}"
+    ]
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+}

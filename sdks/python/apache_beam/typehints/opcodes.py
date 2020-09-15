@@ -51,6 +51,10 @@ from apache_beam.typehints.typehints import List
 from apache_beam.typehints.typehints import Tuple
 from apache_beam.typehints.typehints import Union
 
+# This is missing in the builtin types module.  str.upper is arbitrary, any
+# method on a C-implemented type will do.
+_MethodDescriptorType = type(str.upper)
+
 
 def pop_one(state, unused_arg):
   del state.stack[-1:]
@@ -120,7 +124,7 @@ def get_iter(state, unused_arg):
 
 def symmetric_binary_op(state, unused_arg):
   # TODO(robertwb): This may not be entirely correct...
-  b, a = state.stack.pop(), state.stack.pop()
+  b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:
     state.stack.append(a)
   elif type(a) == type(b) and isinstance(a, typehints.SequenceTypeConstraint):
@@ -194,8 +198,14 @@ def list_append(state, arg):
 
 
 def map_add(state, arg):
-  new_key_type = Const.unwrap(state.stack.pop())
-  new_value_type = Const.unwrap(state.stack.pop())
+  if sys.version_info >= (3, 8):
+    # PEP 572 The MAP_ADD expects the value as the first element in the stack
+    # and the key as the second element.
+    new_value_type = Const.unwrap(state.stack.pop())
+    new_key_type = Const.unwrap(state.stack.pop())
+  else:
+    new_key_type = Const.unwrap(state.stack.pop())
+    new_value_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = Dict[Union[state.stack[-arg].key_type, new_key_type],
                            Union[state.stack[-arg].value_type, new_value_type]]
 
@@ -261,6 +271,9 @@ def build_map(state, unused_arg):
 def load_attr(state, arg):
   """Replaces the top of the stack, TOS, with
   getattr(TOS, co_names[arg])
+
+  Will replace with Any for builtin methods, but these don't have bytecode in
+  CPython so that's okay.
   """
   o = state.stack.pop()
   name = state.get_name(arg)
@@ -287,8 +300,15 @@ def load_method(state, arg):
     method = Const(getattr(o.value, name))
   elif isinstance(o, typehints.AnyTypeConstraint):
     method = typehints.Any
+  elif hasattr(o, name):
+    attr = getattr(o, name)
+    if isinstance(attr, _MethodDescriptorType):
+      # Skip builtins since they don't disassemble.
+      method = typehints.Any
+    else:
+      method = Const(BoundMethod(attr, o))
   else:
-    method = Const(BoundMethod(getattr(o, name), o))
+    method = typehints.Any
 
   state.stack.append(method)
 

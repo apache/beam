@@ -20,24 +20,25 @@ import CommonJobProperties as commonJobProperties
 
 job('beam_Prober_CommunityMetrics') {
   description('Health check probes for the Community Metrics infrastructure')
- commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
- commonJobProperties.enablePhraseTriggeringFromPullRequest(delegate,
-     'Community Metrics Prober',
-     'Run Community Metrics Prober')
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(delegate,
+      'Community Metrics Prober',
+      'Run Community Metrics Prober')
 
- commonJobProperties.setAutoJob(delegate)
+  commonJobProperties.setAutoJob(delegate)
 
- commonJobProperties.enablePhraseTriggeringFromPullRequest(
-         delegate,
-         'Community Metrics Prober',
-         'Run Community Metrics Prober')
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Community Metrics Prober',
+      'Run Community Metrics Prober')
 
   // Gradle goals for this job.
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':communityMetricsProber')
+      switches('--rerun-tasks')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

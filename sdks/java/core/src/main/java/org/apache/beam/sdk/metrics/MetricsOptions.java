@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -25,7 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /** Extension of {@link PipelineOptions} that defines {@link MetricsSink} specific options. */
-@Experimental(Experimental.Kind.METRICS)
+@Experimental(Kind.METRICS)
 public interface MetricsOptions extends PipelineOptions {
   @Description("The beam sink class to which the metrics will be pushed")
   @Default.InstanceFactory(NoOpMetricsSink.class)

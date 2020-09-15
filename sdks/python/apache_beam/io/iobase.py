@@ -37,7 +37,6 @@ from __future__ import division
 import logging
 import math
 import random
-import threading
 import uuid
 from builtins import object
 from builtins import range
@@ -65,15 +64,15 @@ from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
-  from apache_beam.io import restriction_trackers
   from apache_beam.runners.pipeline_context import PipelineContext
-  from apache_beam.utils.timestamp import Timestamp
 
 __all__ = [
     'BoundedSource',
     'RangeTracker',
     'Read',
+    'RestrictionProgress',
     'RestrictionTracker',
+    'WatermarkEstimator',
     'Sink',
     'Write',
     'Writer'
@@ -927,7 +926,7 @@ class Read(ptransform.PTransform):
             beam_runner_api_pb2.IsBounded.UNBOUNDED))
 
   @staticmethod
-  def from_runner_api_parameter(parameter, context):
+  def from_runner_api_parameter(unused_ptransform, parameter, context):
     # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
@@ -1021,10 +1020,10 @@ class WriteImpl(ptransform.PTransform):
       min_shards = 1
       write_result_coll = (
           pcoll
+          | core.WindowInto(window.GlobalWindows())
           | 'WriteBundles' >> core.ParDo(
               _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
           | 'Pair' >> core.Map(lambda x: (None, x))
-          | core.WindowInto(window.GlobalWindows())
           | core.GroupByKey()
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
@@ -1245,130 +1244,60 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
+  def is_bounded(self):
+    """Returns whether the amount of work represented by the current restriction
+    is bounded.
 
-class ThreadsafeRestrictionTracker(object):
-  """A thread-safe wrapper which wraps a `RestritionTracker`.
+    The boundedness of the restriction is used to determine the default behavior
+    of how to truncate restrictions when a pipeline is being
+    `drained <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#>`_.  # pylint: disable=line-too-long
+    If the restriction is bounded, then the entire restriction will be processed
+    otherwise the restriction will be processed till a checkpoint is possible.
 
-  This wrapper guarantees synchronization of modifying restrictions across
-  multi-thread.
+    The API is required to be implemented.
+
+    Returns: ``True`` if the restriction represents a finite amount of work.
+    Otherwise, returns ``False``.
+    """
+    raise NotImplementedError
+
+
+class WatermarkEstimator(object):
+  """A WatermarkEstimator which is used for estimating output_watermark based on
+  the timestamp of output records or manual modifications.
+
+  The base class provides common APIs that are called by the framework, which
+  are also accessible inside a DoFn.process() body. Derived watermark estimator
+  should implement all APIs listed below. Additional methods can be implemented
+  and will be available when invoked within a DoFn.
+
+  Internal state must not be updated asynchronously.
   """
-  def __init__(self, restriction_tracker):
-    # type: (RestrictionTracker) -> None
-    if not isinstance(restriction_tracker, RestrictionTracker):
-      raise ValueError(
-          'Initialize ThreadsafeRestrictionTracker requires'
-          'RestrictionTracker.')
-    self._restriction_tracker = restriction_tracker
-    # Records an absolute timestamp when defer_remainder is called.
-    self._deferred_timestamp = None
-    self._lock = threading.RLock()
-    self._deferred_residual = None
-    self._deferred_watermark = None
+  def get_estimator_state(self):
+    """Get current state of the WatermarkEstimator instance, which can be used
+    to recreate the WatermarkEstimator when processing the restriction. See
+    WatermarkEstimatorProvider.create_watermark_estimator.
+    """
+    raise NotImplementedError(type(self))
 
-  def current_restriction(self):
-    with self._lock:
-      return self._restriction_tracker.current_restriction()
+  def current_watermark(self):
+    # type: () -> timestamp.Timestamp
 
-  def try_claim(self, position):
-    with self._lock:
-      return self._restriction_tracker.try_claim(position)
+    """Return estimated output_watermark. This function must return
+    monotonically increasing watermarks."""
+    raise NotImplementedError(type(self))
 
-  def defer_remainder(self, deferred_time=None):
-    """Performs self-checkpoint on current processing restriction with an
-    expected resuming time.
+  def observe_timestamp(self, timestamp):
+    # type: (timestamp.Timestamp) -> None
 
-    Self-checkpoint could happen during processing elements. When executing an
-    DoFn.process(), you may want to stop processing an element and resuming
-    later if current element has been processed quit a long time or you also
-    want to have some outputs from other elements. ``defer_remainder()`` can be
-    called on per element if needed.
+    """Update tracking  watermark with latest output timestamp.
 
     Args:
-      deferred_time: A relative ``timestamp.Duration`` that indicates the ideal
-      time gap between now and resuming, or an absolute ``timestamp.Timestamp``
-      for resuming execution time. If the time_delay is None, the deferred work
-      will be executed as soon as possible.
+      timestamp: the `timestamp.Timestamp` of current output element.
+
+    This is called with the timestamp of every element output from the DoFn.
     """
-
-    # Record current time for calculating deferred_time later.
-    self._deferred_timestamp = timestamp.Timestamp.now()
-    if (deferred_time and not isinstance(deferred_time, timestamp.Duration) and
-        not isinstance(deferred_time, timestamp.Timestamp)):
-      raise ValueError(
-          'The timestamp of deter_remainder() should be a '
-          'Duration or a Timestamp, or None.')
-    self._deferred_watermark = deferred_time
-    checkpoint = self.try_split(0)
-    if checkpoint:
-      _, self._deferred_residual = checkpoint
-
-  def check_done(self):
-    with self._lock:
-      return self._restriction_tracker.check_done()
-
-  def current_progress(self):
-    with self._lock:
-      return self._restriction_tracker.current_progress()
-
-  def try_split(self, fraction_of_remainder):
-    with self._lock:
-      return self._restriction_tracker.try_split(fraction_of_remainder)
-
-  def deferred_status(self):
-    # type: () -> Optional[Tuple[Any, Timestamp]]
-
-    """Returns deferred work which is produced by ``defer_remainder()``.
-
-    When there is a self-checkpoint performed, the system needs to fulfill the
-    DelayedBundleApplication with deferred_work for a  ProcessBundleResponse.
-    The system calls this API to get deferred_residual with watermark together
-    to help the runner to schedule a future work.
-
-    Returns: (deferred_residual, time_delay) if having any residual, else None.
-    """
-    if self._deferred_residual:
-      # If _deferred_watermark is None, create Duration(0).
-      if not self._deferred_watermark:
-        self._deferred_watermark = timestamp.Duration()
-      # If an absolute timestamp is provided, calculate the delta between
-      # the absoluted time and the time deferred_status() is called.
-      elif isinstance(self._deferred_watermark, timestamp.Timestamp):
-        self._deferred_watermark = (
-            self._deferred_watermark - timestamp.Timestamp.now())
-      # If a Duration is provided, the deferred time should be:
-      # provided duration - the spent time since the defer_remainder() is
-      # called.
-      elif isinstance(self._deferred_watermark, timestamp.Duration):
-        self._deferred_watermark -= (
-            timestamp.Timestamp.now() - self._deferred_timestamp)
-      return self._deferred_residual, self._deferred_watermark
-    return None
-
-
-class RestrictionTrackerView(object):
-  """A DoFn view of thread-safe RestrictionTracker.
-
-  The RestrictionTrackerView wraps a ThreadsafeRestrictionTracker and only
-  exposes APIs that will be called by a ``DoFn.process()``. During execution
-  time, the RestrictionTrackerView will be fed into the ``DoFn.process`` as a
-  restriction_tracker.
-  """
-  def __init__(self, threadsafe_restriction_tracker):
-    if not isinstance(threadsafe_restriction_tracker,
-                      ThreadsafeRestrictionTracker):
-      raise ValueError(
-          'Initialize RestrictionTrackerView requires '
-          'ThreadsafeRestrictionTracker.')
-    self._threadsafe_restriction_tracker = threadsafe_restriction_tracker
-
-  def current_restriction(self):
-    return self._threadsafe_restriction_tracker.current_restriction()
-
-  def try_claim(self, position):
-    return self._threadsafe_restriction_tracker.try_claim(position)
-
-  def defer_remainder(self, deferred_time=None):
-    self._threadsafe_restriction_tracker.defer_remainder(deferred_time)
+    raise NotImplementedError(type(self))
 
 
 class RestrictionProgress(object):
@@ -1390,18 +1319,22 @@ class RestrictionProgress(object):
   @property
   def completed_work(self):
     # type: () -> float
-    if self._completed:
+    if self._completed is not None:
       return self._completed
-    elif self._remaining and self._fraction:
+    elif self._remaining is not None and self._fraction is not None:
       return self._remaining * self._fraction / (1 - self._fraction)
+    else:
+      return self._fraction
 
   @property
   def remaining_work(self):
     # type: () -> float
-    if self._remaining:
+    if self._remaining is not None:
       return self._remaining
-    elif self._completed:
+    elif self._completed is not None and self._fraction:
       return self._completed * (1 - self._fraction) / self._fraction
+    else:
+      return 1 - self._fraction
 
   @property
   def total_work(self):
@@ -1425,6 +1358,7 @@ class RestrictionProgress(object):
       return float(self._remaining) / self.total_work
 
   def with_completed(self, completed):
+    # type: (int) -> RestrictionProgress
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 
@@ -1525,6 +1459,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def check_done(self):
       return self.restriction.range_tracker().fraction_consumed() >= 1.0
 
+    def is_bounded(self):
+      return True
+
   class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
     def __init__(self, source, desired_chunk_size=None):
@@ -1577,6 +1514,13 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, read_source):
         self.source = read_source
+
+      def display_data(self):
+        return {
+            'source': DisplayDataItem(
+                self.source.__class__, label='Read Source'),
+            'source_dd': self.source
+        }
 
       def process(
           self,

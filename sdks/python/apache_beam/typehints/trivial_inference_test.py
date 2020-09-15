@@ -25,6 +25,8 @@ import sys
 import types
 import unittest
 
+import apache_beam as beam
+from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
 
@@ -116,7 +118,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(
         typehints.List[typehints.Any],
-        lambda xs: list(xs), # List is a disallowed builtin
+        lambda xs: list(xs),  # List is a disallowed builtin
         [typehints.Tuple[int, ...]])
 
   def testListComprehension(self):
@@ -161,6 +163,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testBinOp(self):
     self.assertReturnType(int, lambda a, b: a + b, [int, int])
+    self.assertReturnType(int, lambda a: a + 1, [int])
     self.assertReturnType(
         typehints.Any, lambda a, b: a + b, [int, typehints.Any])
     self.assertReturnType(
@@ -199,6 +202,21 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(int, lambda: A().m(3))
     self.assertReturnType(float, lambda: A.m(A(), 3.0))
+
+  def testCallFunctionOnAny(self):
+    # Tests inference when CALL_FUNCTION/CALL_METHOD's function argument is Any.
+    # The function cannot be called but inference should continue. Also tests
+    # that LOAD_ATTR/LOAD_METHOD implementations don't load builtin functions,
+    # which also break inference since they don't disassemble.
+    def call_function_on_any(s):
+      # str.split is a builtin so opcodes.load_attr (load_method in Py3.7+)
+      # should put Any on the stack.
+      # If infer_return_type_func raises while trying to simulate CALL_FUNCTION
+      # on Any, the result will be Any instead of int.
+      s.split()
+      return 0
+
+    self.assertReturnType(int, call_function_on_any, [str])
 
   def testAlwaysReturnsEarly(self):
     def some_fn(v):
@@ -302,6 +320,11 @@ class TrivialInferenceTest(unittest.TestCase):
         (typehints.Set[str], {'a'}),
         (typehints.Set[typehints.Union[str, float]], {'a', 0.4}),
         (typehints.Set[typehints.Any], set()),
+        (typehints.FrozenSet[str], frozenset(['a'])),
+        (
+            typehints.FrozenSet[typehints.Union[str, float]],
+            frozenset(['a', 0.4])),
+        (typehints.FrozenSet[typehints.Any], frozenset()),
         (typehints.Tuple[int], (1, )),
         (typehints.Tuple[int, int, str], (1, 2, '3')),
         (typehints.Tuple[()], ()),
@@ -319,6 +342,15 @@ class TrivialInferenceTest(unittest.TestCase):
           expected_type,
           trivial_inference.instance_to_type(instance),
           msg=instance)
+
+  def testRow(self):
+    self.assertReturnType(
+        row_type.RowTypeConstraint([('x', int), ('y', str)]),
+        lambda x,
+        y: beam.Row(x=x + 1, y=y), [int, str])
+    self.assertReturnType(
+        row_type.RowTypeConstraint([('x', int), ('y', str)]),
+        lambda x: beam.Row(x=x, y=str(x)), [int])
 
 
 if __name__ == '__main__':

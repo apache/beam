@@ -19,8 +19,9 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -54,9 +55,10 @@ public class ShardReadersPoolTest {
   @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock private SimplifiedKinesisClient kinesis;
   @Mock private KinesisRecord a, b, c, d;
-  @Mock private WatermarkPolicyFactory factory;
+  @Mock private WatermarkPolicyFactory watermarkPolicyFactory;
+  @Mock private RateLimitPolicyFactory rateLimitPolicyFactory;
+  @Mock private RateLimitPolicy customRateLimitPolicy;
 
-  private KinesisReaderCheckpoint checkpoint;
   private ShardReadersPool shardReadersPool;
   private final Instant now = Instant.now();
 
@@ -75,12 +77,19 @@ public class ShardReadersPoolTest {
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
 
-    WatermarkPolicy policy = WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+    WatermarkPolicy watermarkPolicy =
+        WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+    RateLimitPolicy rateLimitPolicy = RateLimitPolicyFactory.withoutLimiter().getRateLimitPolicy();
 
-    checkpoint = new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
-    shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint, factory, 100));
+    KinesisReaderCheckpoint checkpoint =
+        new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
+    shardReadersPool =
+        Mockito.spy(
+            new ShardReadersPool(
+                kinesis, checkpoint, watermarkPolicyFactory, rateLimitPolicyFactory, 100));
 
-    when(factory.createWatermarkPolicy()).thenReturn(policy);
+    when(watermarkPolicyFactory.createWatermarkPolicy()).thenReturn(watermarkPolicy);
+    when(rateLimitPolicyFactory.getRateLimitPolicy()).thenReturn(rateLimitPolicy);
 
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
@@ -178,8 +187,10 @@ public class ShardReadersPoolTest {
         new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
 
     WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    RateLimitPolicyFactory rateLimitPolicyFactory = RateLimitPolicyFactory.withoutLimiter();
     ShardReadersPool shardReadersPool =
-        new ShardReadersPool(kinesis, checkpoint, watermarkPolicyFactory, 2);
+        new ShardReadersPool(
+            kinesis, checkpoint, watermarkPolicyFactory, rateLimitPolicyFactory, 2);
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();
@@ -237,12 +248,14 @@ public class ShardReadersPoolTest {
   public void shouldReturnAbsentOptionalWhenStartedWithNoIterators() throws Exception {
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(Collections.emptyList());
     WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
+    RateLimitPolicyFactory rateLimitPolicyFactory = RateLimitPolicyFactory.withoutLimiter();
     shardReadersPool =
         Mockito.spy(
             new ShardReadersPool(
                 kinesis,
                 checkpoint,
                 watermarkPolicyFactory,
+                rateLimitPolicyFactory,
                 ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD));
     doReturn(firstIterator)
         .when(shardReadersPool)
@@ -285,5 +298,54 @@ public class ShardReadersPoolTest {
 
     verify(firstIterator, times(2)).getShardWatermark();
     verify(secondIterator, times(2)).getShardWatermark();
+  }
+
+  @Test
+  public void shouldReturnTheOldestFromLatestRecordTimestampOfAllShards()
+      throws TransientKinesisException {
+    Instant threeMin = now.minus(Duration.standardMinutes(3));
+    Instant twoMin = now.minus(Duration.standardMinutes(2));
+
+    when(firstIterator.getLatestRecordTimestamp()).thenReturn(threeMin).thenReturn(now);
+    when(secondIterator.getLatestRecordTimestamp()).thenReturn(twoMin);
+
+    shardReadersPool.start();
+
+    assertThat(shardReadersPool.getLatestRecordTimestamp()).isEqualTo(threeMin);
+    assertThat(shardReadersPool.getLatestRecordTimestamp()).isEqualTo(twoMin);
+
+    verify(firstIterator, times(2)).getLatestRecordTimestamp();
+    verify(secondIterator, times(2)).getLatestRecordTimestamp();
+  }
+
+  @Test
+  public void shouldCallRateLimitPolicy()
+      throws TransientKinesisException, KinesisShardClosedException, InterruptedException {
+    KinesisClientThrottledException e = new KinesisClientThrottledException("", null);
+    when(firstIterator.readNextBatch())
+        .thenThrow(e)
+        .thenReturn(ImmutableList.of(a, b))
+        .thenReturn(Collections.emptyList());
+    when(secondIterator.readNextBatch())
+        .thenReturn(singletonList(c))
+        .thenReturn(singletonList(d))
+        .thenReturn(Collections.emptyList());
+    when(rateLimitPolicyFactory.getRateLimitPolicy()).thenReturn(customRateLimitPolicy);
+
+    shardReadersPool.start();
+    List<KinesisRecord> fetchedRecords = new ArrayList<>();
+    while (fetchedRecords.size() < 4) {
+      CustomOptional<KinesisRecord> nextRecord = shardReadersPool.nextRecord();
+      if (nextRecord.isPresent()) {
+        fetchedRecords.add(nextRecord.get());
+      }
+    }
+
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onThrottle(same(e));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(ImmutableList.of(a, b)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(singletonList(c)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(singletonList(d)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS).atLeastOnce())
+        .onSuccess(eq(Collections.emptyList()));
   }
 }

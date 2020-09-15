@@ -17,4 +17,7 @@
  */
 
 /** Table schema for HCatalog. */
+@Experimental
 package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
+
+import org.apache.beam.sdk.annotations.Experimental;

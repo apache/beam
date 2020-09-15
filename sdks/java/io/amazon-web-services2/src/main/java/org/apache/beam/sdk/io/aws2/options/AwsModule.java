@@ -36,8 +36,10 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -47,22 +49,31 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.utils.AttributeMap;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
  * {@link AwsCredentialsProvider} and some subclasses. The serialized form is a JSON map.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 @AutoService(Module.class)
 public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";
+  public static final String CONNECTION_ACQUIRE_TIMEOUT = "connectionAcquisitionTimeout";
+  public static final String CONNECTION_MAX_IDLE_TIMEOUT = "connectionMaxIdleTime";
+  public static final String CONNECTION_TIMEOUT = "connectionTimeout";
+  public static final String CONNECTION_TIME_TO_LIVE = "connectionTimeToLive";
+  public static final String MAX_CONNECTIONS = "maxConnections";
+  public static final String READ_TIMEOUT = "socketTimeout";
 
   public AwsModule() {
     super("AwsModule");
     setMixInAnnotation(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
     setMixInAnnotation(ProxyConfiguration.class, ProxyConfigurationMixin.class);
+    setMixInAnnotation(AttributeMap.class, AttributeMapMixin.class);
   }
 
   /** A mixin to add Jackson annotations to {@link AwsCredentialsProvider}. */
@@ -195,6 +206,95 @@ public class AwsModule extends SimpleModule {
       jsonGenerator.writeStringField("endpoint", endpoint);
       jsonGenerator.writeStringField("username", proxyConfiguration.username());
       jsonGenerator.writeStringField("password", proxyConfiguration.password());
+      jsonGenerator.writeEndObject();
+    }
+  }
+
+  /** A mixin to add Jackson annotations to {@link AttributeMap}. */
+  @JsonSerialize(using = AttributeMapSerializer.class)
+  @JsonDeserialize(using = AttributeMapDeserializer.class)
+  private static class AttributeMapMixin {}
+
+  private static class AttributeMapDeserializer extends JsonDeserializer<AttributeMap> {
+    @Override
+    public AttributeMap deserialize(JsonParser jsonParser, DeserializationContext context)
+        throws IOException {
+      Map<String, String> map = jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
+
+      // Add new attributes below.
+      final AttributeMap.Builder attributeMapBuilder = AttributeMap.builder();
+      if (map.containsKey(CONNECTION_ACQUIRE_TIMEOUT)) {
+        attributeMapBuilder.put(
+            SdkHttpConfigurationOption.CONNECTION_ACQUIRE_TIMEOUT,
+            Duration.parse(map.get(CONNECTION_ACQUIRE_TIMEOUT)));
+      }
+      if (map.containsKey(CONNECTION_MAX_IDLE_TIMEOUT)) {
+        attributeMapBuilder.put(
+            SdkHttpConfigurationOption.CONNECTION_MAX_IDLE_TIMEOUT,
+            Duration.parse(map.get(CONNECTION_MAX_IDLE_TIMEOUT)));
+      }
+      if (map.containsKey(CONNECTION_TIMEOUT)) {
+        attributeMapBuilder.put(
+            SdkHttpConfigurationOption.CONNECTION_TIMEOUT,
+            Duration.parse(map.get(CONNECTION_TIMEOUT)));
+      }
+      if (map.containsKey(CONNECTION_TIME_TO_LIVE)) {
+        attributeMapBuilder.put(
+            SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE,
+            Duration.parse(map.get(CONNECTION_TIME_TO_LIVE)));
+      }
+      if (map.containsKey(MAX_CONNECTIONS)) {
+        attributeMapBuilder.put(
+            SdkHttpConfigurationOption.MAX_CONNECTIONS, Integer.parseInt(map.get(MAX_CONNECTIONS)));
+      }
+      if (map.containsKey(READ_TIMEOUT)) {
+        attributeMapBuilder.put(
+            SdkHttpConfigurationOption.READ_TIMEOUT, Duration.parse(map.get(READ_TIMEOUT)));
+      }
+      return attributeMapBuilder.build();
+    }
+  }
+
+  private static class AttributeMapSerializer extends JsonSerializer<AttributeMap> {
+
+    @Override
+    public void serialize(
+        AttributeMap attributeMap, JsonGenerator jsonGenerator, SerializerProvider serializer)
+        throws IOException {
+
+      jsonGenerator.writeStartObject();
+      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_ACQUIRE_TIMEOUT)) {
+        jsonGenerator.writeStringField(
+            CONNECTION_ACQUIRE_TIMEOUT,
+            String.valueOf(
+                attributeMap.get(SdkHttpConfigurationOption.CONNECTION_ACQUIRE_TIMEOUT)));
+      }
+      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_MAX_IDLE_TIMEOUT)) {
+        jsonGenerator.writeStringField(
+            CONNECTION_MAX_IDLE_TIMEOUT,
+            String.valueOf(
+                attributeMap.get(SdkHttpConfigurationOption.CONNECTION_MAX_IDLE_TIMEOUT)));
+      }
+      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_TIMEOUT)) {
+        jsonGenerator.writeStringField(
+            CONNECTION_TIMEOUT,
+            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIMEOUT)));
+      }
+      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE)) {
+        jsonGenerator.writeStringField(
+            CONNECTION_TIME_TO_LIVE,
+            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE)));
+      }
+      if (attributeMap.containsKey(SdkHttpConfigurationOption.MAX_CONNECTIONS)) {
+        jsonGenerator.writeStringField(
+            MAX_CONNECTIONS,
+            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS)));
+      }
+      if (attributeMap.containsKey(SdkHttpConfigurationOption.READ_TIMEOUT)) {
+        jsonGenerator.writeStringField(
+            READ_TIMEOUT,
+            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.READ_TIMEOUT)));
+      }
       jsonGenerator.writeEndObject();
     }
   }

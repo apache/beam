@@ -142,7 +142,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         inputLocation.getInstructionId(),
         inputLocation.getTransformId());
     final BeamFnDataInboundObserver<T> observer =
-        BeamFnDataInboundObserver.forConsumer(coder, listener);
+        BeamFnDataInboundObserver.forConsumer(inputLocation, coder, listener);
     if (connectedClient.isDone()) {
       try {
         connectedClient.get().registerConsumer(inputLocation, observer);

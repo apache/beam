@@ -58,9 +58,6 @@ excluded_patterns=(
     apache_beam/examples/
     apache_beam/internal/clients/
     apache_beam/io/gcp/internal/
-    # TODO(BEAM-4543): Remove datastore paths once they no longer exist.
-    apache_beam/io/gcp/datastore/v1/
-    apache_beam/io/gcp/datastore_write_it_*
     apache_beam/io/gcp/tests/
     apache_beam/metrics/execution.*
     apache_beam/runners/common.*
@@ -140,6 +137,7 @@ ignore_identifiers = [
   'Iterable',
   'List',
   'Set',
+  'Text',
   'Tuple',
 
   # Ignore broken built-in type references
@@ -153,7 +151,6 @@ ignore_identifiers = [
   'apache_beam.coders.coders.FastCoder',
   'apache_beam.io._AvroSource',
   'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
-  'apache_beam.io.gcp.datastore.v1.datastoreio._Mutate',
   'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',
   'apache_beam.io.gcp.datastore.v1new.datastoreio.DatastoreMutateFn',
   'apache_beam.io.gcp.internal.clients.bigquery.'
@@ -168,6 +165,8 @@ ignore_identifiers = [
   'apache_beam.pvalue.DoOutputsTuple',
   'apache_beam.pvalue.PValue',
   'apache_beam.runners.direct.executor.CallableTask',
+  'apache_beam.testing.synthetic_pipeline._Random',
+  'apache_beam.transforms.combiners.CombinerWithoutDefaults',
   'apache_beam.transforms.core.CallableWrapperCombineFn',
   'apache_beam.transforms.ptransform.PTransformWithSideInputs',
   'apache_beam.transforms.trigger._ParallelTriggerFn',
@@ -177,6 +176,7 @@ ignore_identifiers = [
   'apache_beam.typehints.typehints.TypeConstraint',
   'apache_beam.typehints.typehints.validate_composite_type_param()',
   'apache_beam.utils.windowed_value._IntervalWindowBase',
+  'apache_beam.coders.coder_impl.StreamCoderImpl',
 
   # Private classes which are used within the same module
   'apache_beam.transforms.external_test.PayloadBase',
@@ -236,7 +236,7 @@ EOF
 
 # Build the documentation using sphinx
 # Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
-python $(type -p sphinx-build) -v -a -E -j 8 -q target/docs/source \
+python $(type -p sphinx-build) -v -a -E -q target/docs/source \
   target/docs/_build -c target/docs/source \
   -w "target/docs/sphinx-build.warnings.log"
 
@@ -249,7 +249,7 @@ python $(type -p sphinx-build) -v -a -E -j 8 -q target/docs/source \
 # - Interactive code starting with '>>>'
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
-  -w "target/docs/sphinx-doctest.warnings.log" -j 8
+  -w "target/docs/sphinx-doctest.warnings.log"
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-doctest.warnings.log || exit 1

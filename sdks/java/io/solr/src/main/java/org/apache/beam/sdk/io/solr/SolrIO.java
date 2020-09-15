@@ -28,8 +28,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -40,7 +40,6 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -66,6 +65,7 @@ import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,7 +111,7 @@ import org.slf4j.LoggerFactory;
  * <p>When writing it is possible to customize the retry behavior if an error is encountered. By
  * default this is disabled and only one attempt will be made.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class SolrIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(SolrIO.class);
@@ -121,6 +121,10 @@ public class SolrIO {
     // ex: if document size is large, around 10KB, the response's size will be around 10MB
     // if document seize is small, around 1KB, the response's size will be around 1MB
     return new AutoValue_SolrIO_Read.Builder().setBatchSize(1000).setQuery("*:*").build();
+  }
+
+  public static ReadAll readAll() {
+    return new ReadAll();
   }
 
   public static Write write() {
@@ -138,11 +142,9 @@ public class SolrIO {
 
     abstract String getZkHost();
 
-    @Nullable
-    abstract String getUsername();
+    abstract @Nullable String getUsername();
 
-    @Nullable
-    abstract String getPassword();
+    abstract @Nullable String getPassword();
 
     abstract Builder builder();
 
@@ -295,15 +297,15 @@ public class SolrIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<SolrDocument>> {
     private static final long MAX_BATCH_SIZE = 10000L;
 
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
-    @Nullable
-    abstract String getCollection();
+    abstract @Nullable String getCollection();
 
     abstract String getQuery();
 
     abstract int getBatchSize();
+
+    abstract @Nullable ReplicaInfo getReplicaInfo();
 
     abstract Builder builder();
 
@@ -311,11 +313,13 @@ public class SolrIO {
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
 
+      abstract Builder setCollection(String collection);
+
       abstract Builder setQuery(String query);
 
       abstract Builder setBatchSize(int batchSize);
 
-      abstract Builder setCollection(String collection);
+      abstract Builder setReplicaInfo(ReplicaInfo replicaInfo);
 
       abstract Read build();
     }
@@ -363,10 +367,16 @@ public class SolrIO {
       // by tuning batchSize when pipelines run.
       checkArgument(
           batchSize > 0 && batchSize < MAX_BATCH_SIZE,
-          "Valid values for batchSize are 1 (inclusize) to %s (exclusive), but was: %s ",
+          "Valid values for batchSize are 1 (inclusive) to %s (exclusive), but was: %s ",
           MAX_BATCH_SIZE,
           batchSize);
       return builder().setBatchSize(batchSize).build();
+    }
+
+    /** Read from a specific Replica (partition). */
+    public Read withReplicaInfo(ReplicaInfo replicaInfo) {
+      checkArgument(replicaInfo != null, "replicaInfo can not be null");
+      return builder().setReplicaInfo(replicaInfo).build();
     }
 
     @Override
@@ -374,25 +384,24 @@ public class SolrIO {
       checkArgument(
           getConnectionConfiguration() != null, "withConnectionConfiguration() is required");
       checkArgument(getCollection() != null, "from() is required");
-
-      return input
-          .apply("Create", Create.of(this))
-          .apply("Split", ParDo.of(new SplitFn()))
-          .apply("Reshuffle", Reshuffle.viaRandomKey())
-          .apply("Read", ParDo.of(new ReadFn()));
+      return input.apply("Create", Create.of(this)).apply("ReadAll", readAll());
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("query", getQuery()));
       getConnectionConfiguration().populateDisplayData(builder);
+      builder.add(DisplayData.item("collection", getCollection()));
+      builder.addIfNotNull(DisplayData.item("query", getQuery()));
+      builder.add(DisplayData.item("batchSize", getBatchSize()));
+      final String replicaInfo = (getReplicaInfo() != null) ? getReplicaInfo().toString() : null;
+      builder.addIfNotNull(DisplayData.item("replicaInfo", replicaInfo));
     }
   }
 
   /** A POJO describing a replica of Solr. */
   @AutoValue
-  abstract static class ReplicaInfo implements Serializable {
+  public abstract static class ReplicaInfo implements Serializable {
     public abstract String coreName();
 
     public abstract String coreUrl();
@@ -407,10 +416,9 @@ public class SolrIO {
     }
   }
 
-  static class SplitFn extends DoFn<SolrIO.Read, KV<Read, ReplicaInfo>> {
+  private static class SplitFn extends DoFn<Read, Read> {
     @ProcessElement
-    public void process(@Element SolrIO.Read spec, OutputReceiver<KV<Read, ReplicaInfo>> out)
-        throws IOException {
+    public void process(@Element Read spec, OutputReceiver<Read> out) throws IOException {
       ConnectionConfiguration connectionConfig = spec.getConnectionConfiguration();
       try (AuthorizedSolrClient<CloudSolrClient> client = connectionConfig.createClient()) {
         String collection = spec.getCollection();
@@ -436,19 +444,17 @@ public class SolrIO {
               randomActiveReplica != null,
               "Can not found an active replica for slice %s",
               slice.getName());
-          out.output(KV.of(spec, ReplicaInfo.create(checkNotNull(randomActiveReplica))));
+          out.output(spec.withReplicaInfo(ReplicaInfo.create(checkNotNull(randomActiveReplica))));
         }
       }
     }
   }
 
-  static class ReadFn extends DoFn<KV<SolrIO.Read, ReplicaInfo>, SolrDocument> {
+  private static class ReadFn extends DoFn<Read, SolrDocument> {
     @ProcessElement
-    public void process(
-        @Element KV<SolrIO.Read, ReplicaInfo> specAndReplica, OutputReceiver<SolrDocument> out)
-        throws IOException {
-      Read spec = specAndReplica.getKey();
-      ReplicaInfo replica = specAndReplica.getValue();
+    public void process(@Element Read spec, OutputReceiver<SolrDocument> out) throws IOException {
+      ReplicaInfo replicaInfo = spec.getReplicaInfo();
+      checkArgument(replicaInfo != null, "replicaInfo is required");
       String cursorMark = CursorMarkParams.CURSOR_MARK_START;
       String query = spec.getQuery();
       if (query == null) {
@@ -458,7 +464,7 @@ public class SolrIO {
       solrQuery.setRows(spec.getBatchSize());
       solrQuery.setDistrib(false);
       try (AuthorizedSolrClient<HttpSolrClient> client =
-          spec.getConnectionConfiguration().createClient(replica.baseUrl())) {
+          spec.getConnectionConfiguration().createClient(replicaInfo.baseUrl())) {
         SchemaRequest.UniqueKey request = new SchemaRequest.UniqueKey();
         try {
           SchemaResponse.UniqueKeyResponse response = client.process(spec.getCollection(), request);
@@ -471,7 +477,7 @@ public class SolrIO {
           solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
           try {
             QueryResponse response;
-            response = client.query(replica.coreName(), solrQuery);
+            response = client.query(replicaInfo.coreName(), solrQuery);
             if (cursorMark.equals(response.getNextCursorMark())) {
               break;
             }
@@ -487,21 +493,29 @@ public class SolrIO {
     }
   }
 
+  public static class ReadAll extends PTransform<PCollection<Read>, PCollection<SolrDocument>> {
+    @Override
+    public PCollection<SolrDocument> expand(PCollection<Read> input) {
+      return input
+          .apply("Split", ParDo.of(new SplitFn()))
+          .apply("Reshuffle", Reshuffle.viaRandomKey())
+          .apply("Read", ParDo.of(new ReadFn()));
+    }
+  }
+
   /** A {@link PTransform} writing data to Solr. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
 
-    @Nullable
-    abstract String getCollection();
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
+
+    abstract @Nullable String getCollection();
 
     abstract int getMaxBatchSize();
 
     abstract Builder builder();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -598,7 +612,7 @@ public class SolrIO {
       }
 
       @Setup
-      public void setup() throws Exception {
+      public void setup() {
         solrClient = spec.getConnectionConfiguration().createClient();
 
         retryBackoff =

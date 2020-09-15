@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import com.google.auto.value.AutoOneOf;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 
 /**
  * An interface that planners should implement to convert sql statement to {@link BeamRelNode} or
@@ -55,12 +59,21 @@ public interface QueryPlanner {
       return AutoOneOf_QueryPlanner_QueryParameters.none();
     }
 
-    public static QueryParameters ofNamed(Map namedParams) {
-      return AutoOneOf_QueryPlanner_QueryParameters.named(namedParams);
+    public static QueryParameters ofNamed(Map<String, ?> namedParams) {
+      ImmutableMap.Builder builder = ImmutableMap.builder();
+      for (Map.Entry<String, ?> e : namedParams.entrySet()) {
+        builder.put(e.getKey().toLowerCase(), e.getValue());
+      }
+      return AutoOneOf_QueryPlanner_QueryParameters.named(builder.build());
     }
 
     public static QueryParameters ofPositional(List positionalParams) {
-      return AutoOneOf_QueryPlanner_QueryParameters.positional(positionalParams);
+      return AutoOneOf_QueryPlanner_QueryParameters.positional(
+          ImmutableList.copyOf(positionalParams));
     }
+  }
+
+  interface Factory {
+    QueryPlanner createPlanner(JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets);
   }
 }

@@ -20,12 +20,13 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Vends Java SDK objects rehydrated from a Runner API {@link Components} collection.
@@ -44,10 +46,10 @@ public class RehydratedComponents {
   private final Components components;
 
   /**
-   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrated
+   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrate
    * {@link PCollection PCollections}.
    */
-  @Nullable private final Pipeline pipeline;
+  private final @Nullable Pipeline pipeline;
 
   /**
    * A non-evicting cache, serving as a memo table for rehydrated {@link WindowingStrategy
@@ -59,8 +61,7 @@ public class RehydratedComponents {
               new CacheLoader<String, WindowingStrategy<?, ?>>() {
                 @Override
                 public WindowingStrategy<?, ?> load(String id) throws Exception {
-                  @Nullable
-                  RunnerApi.WindowingStrategy windowingStrategyProto =
+                  RunnerApi.@Nullable WindowingStrategy windowingStrategyProto =
                       components.getWindowingStrategiesOrDefault(id, null);
                   checkState(
                       windowingStrategyProto != null,
@@ -78,9 +79,10 @@ public class RehydratedComponents {
               new CacheLoader<String, Coder<?>>() {
                 @Override
                 public Coder<?> load(String id) throws Exception {
-                  @Nullable RunnerApi.Coder coder = components.getCodersOrDefault(id, null);
+                  RunnerApi.@Nullable Coder coder = components.getCodersOrDefault(id, null);
                   checkState(coder != null, "No coder with id '%s' in serialized components", id);
-                  return CoderTranslation.fromProto(coder, RehydratedComponents.this);
+                  return CoderTranslation.fromProto(
+                      coder, RehydratedComponents.this, TranslationContext.DEFAULT);
                 }
               });
 
@@ -175,13 +177,14 @@ public class RehydratedComponents {
     return components;
   }
 
-  public SdkComponents getSdkComponents() {
+  public SdkComponents getSdkComponents(Collection<String> requirements) {
     return SdkComponents.create(
         components,
         Collections.emptyMap(),
         pCollections.asMap(),
         windowingStrategies.asMap(),
         coders.asMap(),
-        Collections.emptyMap());
+        Collections.emptyMap(),
+        requirements);
   }
 }

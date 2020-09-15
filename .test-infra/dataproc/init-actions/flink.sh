@@ -37,16 +37,12 @@ readonly FLINK_YARN_SCRIPT='/usr/bin/flink-yarn-daemon'
 readonly FLINK_WORKING_USER='yarn'
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 
-# The number of buffers for the network stack.
-# Flink config entry: taskmanager.network.numberOfBuffers.
-readonly FLINK_NETWORK_NUM_BUFFERS=2048
-
 # Heap memory used by the job manager (master) determined by the physical (free) memory of the server.
 # Flink config entry: jobmanager.heap.mb.
 readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
 
 # Heap memory used by the task managers (slaves) determined by the physical (free) memory of the servers.
-# Flink config entry: taskmanager.heap.mb.
+# Flink config entry: taskmanager.memory.process.size.
 readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
 
 readonly START_FLINK_YARN_SESSION_METADATA_KEY='flink-start-yarn-session'
@@ -134,18 +130,21 @@ function configure_flink() {
 
   # Determine the default parallelism.
   local flink_parallelism=$(python -c \
-    "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
+    "print(${num_taskmanagers} * ${flink_taskmanager_slots})")
 
   # Get worker memory from yarn config.
   local worker_total_mem="$(hdfs getconf \
     -confKey yarn.nodemanager.resource.memory-mb)"
   local flink_jobmanager_memory=$(python -c \
-    "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
+    "print(int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION}))")
   local flink_taskmanager_memory=$(python -c \
-    "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
+    "print(int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION}))")
 
   # Fetch the primary master name from metadata.
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+
+  # Use the staging bucket to store checkpoints
+  local checkpoints_dir="gs://$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)/checkpoints"
 
   # create working directory
   mkdir -p "${FLINK_WORKING_DIR}"
@@ -155,11 +154,15 @@ function configure_flink() {
 # Settings applied by Cloud Dataproc initialization action
 jobmanager.rpc.address: ${master_hostname}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
-taskmanager.heap.mb: ${flink_taskmanager_memory}
+taskmanager.memory.process.size: "${flink_taskmanager_memory} mb"
+taskmanager.memory.jvm-metaspace.size: 512 mb
+taskmanager.memory.task.off-heap.size: 256 mb
+taskmanager.memory.managed.fraction: 0.5
 taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
 parallelism.default: ${flink_parallelism}
-taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
+state.backend: filesystem
+state.checkpoints.dir: ${checkpoints_dir}
 EOF
 
 cat > "${FLINK_YARN_SCRIPT}" << EOF
@@ -168,7 +171,6 @@ set -exuo pipefail
 sudo -u yarn -i \
 HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
   ${FLINK_INSTALL_DIR}/bin/yarn-session.sh \
-  -n "${num_taskmanagers}" \
   -s "${flink_taskmanager_slots}" \
   -jm "${flink_jobmanager_memory}" \
   -tm "${flink_taskmanager_memory}" \

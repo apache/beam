@@ -19,47 +19,6 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-// Required to setup a Python 3 virtualenv.
+// Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.7'
-
-def pythonDir = "${rootDir}/sdks/python"
-
-task postCommitIT {
-  dependsOn 'installGcpTest'
-
-  // Run IT tests with TestDirectRunner in batch in Python 3.
-  doLast {
-    def batchTests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
-        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
-        "apache_beam.io.gcp.bigquery_io_read_it_test",
-        "apache_beam.io.gcp.bigquery_read_it_test",
-        "apache_beam.io.gcp.bigquery_write_it_test",
-        "apache_beam.io.gcp.datastore.v1new.datastore_write_it_test",
-    ]
-    def testOpts = [
-        "--tests=${batchTests.join(',')}",
-        "--nocapture",    // Print stdout instantly
-        "--processes=8",  // run tests in parallel
-        "--process-timeout=4500", // timeout of whole command execution
-    ]
-    def argMap = ["runner": "TestDirectRunner",
-                  "test_opts": testOpts,
-                  "suite": "postCommitIT-direct-py37"]
-    def batchCmdArgs = mapToArgString(argMap)
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${pythonDir}/scripts/run_integration_test.sh $batchCmdArgs"
-    }
-  }
-}
-
-task hdfsIntegrationTest {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', "${pythonDir}/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:3.7"
-    }
-  }
-}
+apply from: '../common.gradle'

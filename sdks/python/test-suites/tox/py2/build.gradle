@@ -32,22 +32,20 @@ lint.dependsOn lintPy27
 toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
-toxTask "testPy2Gcp", "py27-gcp-pytest"
-test.dependsOn testPy2Gcp
+toxTask "testPy2Cloud", "py27-cloud"
+test.dependsOn testPy2Cloud
 
-// TODO(BEAM-3713): Migrate to -pytest env variant.
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
 
-toxTask "testPy2Cython", "py27-cython-pytest"
+toxTask "testPy2Cython", "py27-cython"
 test.dependsOn testPy2Cython
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
-testPy2Cython.mustRunAfter testPython2, testPy2Gcp
+testPy2Cython.mustRunAfter testPython2, testPy2Cloud
 
 toxTask "cover", "cover"
 
 task preCommitPy2() {
-  dependsOn "testPy2Cython"
-  dependsOn "testPy2Gcp"
+  dependsOn "testPy2Cloud"
 }

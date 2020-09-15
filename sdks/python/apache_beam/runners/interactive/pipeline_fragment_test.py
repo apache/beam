@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
@@ -28,13 +29,14 @@ from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
+from apache_beam.testing.test_stream import TestStream
 
 # TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
 # unittest.mock module.
 try:
   from unittest.mock import patch
 except ImportError:
-  from mock import patch
+  from mock import patch  # type: ignore[misc]
 
 
 @unittest.skipIf(
@@ -115,7 +117,25 @@ class PipelineFragmentTest(unittest.TestCase):
 
     ib.watch(locals())
     result = pf.PipelineFragment([square]).run()
-    self.assertEqual([0, 1, 4, 9, 16], result.get(square))
+    self.assertEqual([0, 1, 4, 9, 16], list(result.get(square)))
+
+  def test_fragment_does_not_prune_teststream(self):
+    """Tests that the fragment does not prune the TestStream composite parts.
+    """
+    options = StandardOptions(streaming=True)
+    p = beam.Pipeline(ir.InteractiveRunner(), options)
+
+    test_stream = p | TestStream(output_tags=['a', 'b'])
+
+    # pylint: disable=unused-variable
+    a = test_stream['a'] | 'a' >> beam.Map(lambda _: _)
+    b = test_stream['b'] | 'b' >> beam.Map(lambda _: _)
+
+    fragment = pf.PipelineFragment([b]).deduce_fragment()
+
+    # If the fragment does prune the TestStreawm composite parts, then the
+    # resulting graph is invalid and the following call will raise an exception.
+    fragment.to_runner_api()
 
 
 if __name__ == '__main__':

@@ -22,8 +22,10 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import os
 import re
 import sys
+import urllib
 
 from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
@@ -57,6 +59,13 @@ class SparkRunner(portable_runner.PortableRunner):
           spark_options.spark_rest_url, options)
     return job_server.StopOnExitJobServer(SparkJarJobServer(options))
 
+  def create_job_service_handle(self, job_service, options):
+    return portable_runner.JobServiceHandle(
+        job_service,
+        options,
+        retain_unknown_options=options.view_as(
+            pipeline_options.SparkRunnerOptions).spark_submit_uber_jar)
+
 
 class SparkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
@@ -67,9 +76,18 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
 
   def path_to_jar(self):
     if self._jar:
+      if not os.path.exists(self._jar):
+        url = urllib.parse.urlparse(self._jar)
+        if not url.scheme:
+          raise ValueError(
+              'Unable to parse jar URL "%s". If using a full URL, make sure '
+              'the scheme is specified. If using a local file path, make sure '
+              'the file exists; you may have to first build the job server '
+              'using `./gradlew runners:spark:job-server:shadowJar`.' %
+              self._jar)
       return self._jar
     else:
-      return self.path_to_beam_jar('runners:spark:job-server:shadowJar')
+      return self.path_to_beam_jar(':runners:spark:job-server:shadowJar')
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):

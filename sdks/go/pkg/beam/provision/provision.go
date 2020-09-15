@@ -24,23 +24,23 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/jsonpb"
-	google_protobuf "github.com/golang/protobuf/ptypes/struct"
+	google_pb "github.com/golang/protobuf/ptypes/struct"
 )
 
 // Info returns the runtime provisioning info for the worker.
-func Info(ctx context.Context, endpoint string) (*pb.ProvisionInfo, error) {
+func Info(ctx context.Context, endpoint string) (*fnpb.ProvisionInfo, error) {
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	client := pb.NewProvisionServiceClient(cc)
+	client := fnpb.NewProvisionServiceClient(cc)
 
-	resp, err := client.GetProvisionInfo(ctx, &pb.GetProvisionInfoRequest{})
+	resp, err := client.GetProvisionInfo(ctx, &fnpb.GetProvisionInfoRequest{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get manifest")
 	}
@@ -51,7 +51,7 @@ func Info(ctx context.Context, endpoint string) (*pb.ProvisionInfo, error) {
 }
 
 // OptionsToProto converts pipeline options to a proto struct via JSON.
-func OptionsToProto(v interface{}) (*google_protobuf.Struct, error) {
+func OptionsToProto(v interface{}) (*google_pb.Struct, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
@@ -60,8 +60,8 @@ func OptionsToProto(v interface{}) (*google_protobuf.Struct, error) {
 }
 
 // JSONToProto converts JSON-encoded pipeline options to a proto struct.
-func JSONToProto(data string) (*google_protobuf.Struct, error) {
-	var out google_protobuf.Struct
+func JSONToProto(data string) (*google_pb.Struct, error) {
+	var out google_pb.Struct
 	if err := jsonpb.UnmarshalString(string(data), &out); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func JSONToProto(data string) (*google_protobuf.Struct, error) {
 }
 
 // ProtoToOptions converts pipeline options from a proto struct via JSON.
-func ProtoToOptions(opt *google_protobuf.Struct, v interface{}) error {
+func ProtoToOptions(opt *google_pb.Struct, v interface{}) error {
 	data, err := ProtoToJSON(opt)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func ProtoToOptions(opt *google_protobuf.Struct, v interface{}) error {
 }
 
 // ProtoToJSON converts pipeline options from a proto struct to JSON.
-func ProtoToJSON(opt *google_protobuf.Struct) (string, error) {
+func ProtoToJSON(opt *google_pb.Struct) (string, error) {
 	if opt == nil {
 		return "{}", nil
 	}

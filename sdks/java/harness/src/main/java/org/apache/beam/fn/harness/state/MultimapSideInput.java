@@ -71,7 +71,8 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         new DataStreams.DataStreamDecoder(
             keyCoder,
             DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build()))));
+                StateFetchingIterators.readAllStartingFrom(
+                    beamFnStateClient, requestBuilder.build()))));
   }
 
   @Override
@@ -97,6 +98,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         new DataStreams.DataStreamDecoder(
             valueCoder,
             DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build()))));
+                StateFetchingIterators.readAllStartingFrom(
+                    beamFnStateClient, requestBuilder.build()))));
   }
 }

@@ -27,7 +27,6 @@ import unittest
 from builtins import object
 from builtins import range
 
-import mock
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -39,6 +38,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -117,6 +117,32 @@ class ToStringParDo(beam.PTransform):
     # We use copy.copy() here to make sure the typehint mechanism doesn't
     # automatically infer that the output type is str.
     return input | 'Inner' >> beam.Map(lambda a: copy.copy(str(a)))
+
+
+class FlattenAndDouble(beam.PTransform):
+  def expand(self, pcolls):
+    return pcolls | beam.Flatten() | 'Double' >> DoubleParDo()
+
+
+class FlattenAndTriple(beam.PTransform):
+  def expand(self, pcolls):
+    return pcolls | beam.Flatten() | 'Triple' >> TripleParDo()
+
+
+class AddWithProductDoFn(beam.DoFn):
+  def process(self, input, a, b):
+    yield input + a * b
+
+
+class AddThenMultiplyDoFn(beam.DoFn):
+  def process(self, input, a, b):
+    yield (input + a) * b
+
+
+class AddThenMultiply(beam.PTransform):
+  def expand(self, pvalues):
+    return pvalues[0] | beam.ParDo(
+        AddThenMultiplyDoFn(), AsSingleton(pvalues[1]), AsSingleton(pvalues[2]))
 
 
 class PipelineTest(unittest.TestCase):
@@ -261,8 +287,8 @@ class PipelineTest(unittest.TestCase):
 
     visitor = PipelineTest.Visitor(visited=[])
     pipeline.visit(visitor)
-    self.assertEqual(
-        set([pcoll1, pcoll2, pcoll3, pcoll4, pcoll5]), set(visitor.visited))
+    self.assertEqual({pcoll1, pcoll2, pcoll3, pcoll4, pcoll5},
+                     set(visitor.visited))
     self.assertEqual(set(visitor.enter_composite), set(visitor.leave_composite))
     self.assertEqual(2, len(visitor.enter_composite))
     self.assertEqual(visitor.enter_composite[1].transform, transform)
@@ -369,14 +395,7 @@ class PipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
 
-  # TODO(BEAM-1894).
-  # def test_eager_pipeline(self):
-  #   p = Pipeline('EagerRunner')
-  #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
-
-  @mock.patch(
-      'apache_beam.runners.direct.direct_runner._get_transform_overrides')
-  def test_ptransform_overrides(self, file_system_override_mock):
+  def test_ptransform_overrides(self):
     class MyParDoOverride(PTransformOverride):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
@@ -386,15 +405,12 @@ class PipelineTest(unittest.TestCase):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r' % ptransform)
 
-    def get_overrides(unused_pipeline_options):
-      return [MyParDoOverride()]
+    p = Pipeline()
+    pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
+    assert_that(pcoll, equal_to([3, 6, 9]))
 
-    file_system_override_mock.side_effect = get_overrides
-
-    # Specify DirectRunner as it's the one patched above.
-    with Pipeline(runner='BundleBasedDirectRunner') as p:
-      pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
-      assert_that(pcoll, equal_to([3, 6, 9]))
+    p.replace_all([MyParDoOverride()])
+    p.run()
 
   def test_ptransform_override_type_hints(self):
     class NoTypeHintOverride(PTransformOverride):
@@ -422,6 +438,74 @@ class PipelineTest(unittest.TestCase):
 
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
+
+  def test_ptransform_override_multiple_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return isinstance(applied_ptransform.transform, FlattenAndDouble)
+
+      def get_replacement_transform(self, applied_ptransform):
+        return FlattenAndTriple()
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([1, 2, 3])
+    pcoll2 = p | 'pc2' >> beam.Create([4, 5, 6])
+    pcoll3 = (pcoll1, pcoll2) | 'FlattenAndMultiply' >> FlattenAndDouble()
+    assert_that(pcoll3, equal_to([3, 6, 9, 12, 15, 18]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
+
+  def test_ptransform_override_side_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return (
+            isinstance(applied_ptransform.transform, ParDo) and
+            isinstance(applied_ptransform.transform.fn, AddWithProductDoFn))
+
+      def get_replacement_transform(self, transform):
+        return AddThenMultiply()
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([2])
+    pcoll2 = p | 'pc2' >> beam.Create([3])
+    pcoll3 = p | 'pc3' >> beam.Create([4, 5, 6])
+    result = pcoll3 | 'Operate' >> beam.ParDo(
+        AddWithProductDoFn(), AsSingleton(pcoll1), AsSingleton(pcoll2))
+    assert_that(result, equal_to([18, 21, 24]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
+
+  def test_ptransform_override_replacement_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return (
+            isinstance(applied_ptransform.transform, ParDo) and
+            isinstance(applied_ptransform.transform.fn, AddWithProductDoFn))
+
+      def get_replacement_transform(self, transform):
+        return AddThenMultiply()
+
+      def get_replacement_inputs(self, applied_ptransform):
+        assert len(applied_ptransform.inputs) == 1
+        assert len(applied_ptransform.side_inputs) == 2
+        # Swap the order of the two side inputs
+        return (
+            applied_ptransform.inputs[0],
+            applied_ptransform.side_inputs[1].pvalue,
+            applied_ptransform.side_inputs[0].pvalue)
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([2])
+    pcoll2 = p | 'pc2' >> beam.Create([3])
+    pcoll3 = p | 'pc3' >> beam.Create([4, 5, 6])
+    result = pcoll3 | 'Operate' >> beam.ParDo(
+        AddWithProductDoFn(), AsSingleton(pcoll1), AsSingleton(pcoll2))
+    assert_that(result, equal_to([14, 16, 18]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
 
   def test_ptransform_override_multiple_outputs(self):
     class MultiOutputComposite(PTransform):
@@ -783,31 +867,31 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_dir(self):
     options = Breakfast()
-    self.assertEqual(
-        set([
-            'from_dictionary',
-            'get_all_options',
-            'slices',
-            'style',
-            'view_as',
-            'display_data'
-        ]),
-        set([
-            attr for attr in dir(options)
-            if not attr.startswith('_') and attr != 'next'
-        ]))
-    self.assertEqual(
-        set([
-            'from_dictionary',
-            'get_all_options',
-            'style',
-            'view_as',
-            'display_data'
-        ]),
-        set([
-            attr for attr in dir(options.view_as(Eggs))
-            if not attr.startswith('_') and attr != 'next'
-        ]))
+    self.assertEqual({
+        'from_dictionary',
+        'get_all_options',
+        'slices',
+        'style',
+        'view_as',
+        'display_data'
+    },
+                     {
+                         attr
+                         for attr in dir(options)
+                         if not attr.startswith('_') and attr != 'next'
+                     })
+    self.assertEqual({
+        'from_dictionary',
+        'get_all_options',
+        'style',
+        'view_as',
+        'display_data'
+    },
+                     {
+                         attr
+                         for attr in dir(options.view_as(Eggs))
+                         if not attr.startswith('_') and attr != 'next'
+                     })
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -824,6 +908,16 @@ class RunnerApiTest(unittest.TestCase):
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
     self.assertEqual(
         p.transforms_stack[0].parts[0].parent, p.transforms_stack[0])
+
+  def test_requirements(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Create([])
+        | beam.ParDo(lambda x, finalize=beam.DoFn.BundleFinalizerParam: None))
+    proto = p.to_runner_api()
+    self.assertTrue(
+        common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
+        proto.requirements)
 
 
 if __name__ == '__main__':

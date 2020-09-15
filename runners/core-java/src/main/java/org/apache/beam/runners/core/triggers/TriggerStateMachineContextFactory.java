@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.triggers;
 
 import java.util.Collection;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ActiveWindowSet;
 import org.apache.beam.runners.core.MergingStateAccessor;
 import org.apache.beam.runners.core.StateAccessor;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -189,6 +189,11 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
+    public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
+      timers.setTimer(timestamp, outputTimestamp, timeDomain);
+    }
+
+    @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
       if (timeDomain == TimeDomain.EVENT_TIME && timestamp.equals(window.maxTimestamp())) {
         // Don't allow triggers to unset the at-max-timestamp timer. This is necessary for on-time
@@ -204,8 +209,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
@@ -345,14 +349,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
     @Override
-    @Nullable
-    public Instant currentEventTime() {
+    public @Nullable Instant currentEventTime() {
       return timers.currentEventTime();
     }
   }
@@ -420,14 +422,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
     @Override
-    @Nullable
-    public Instant currentEventTime() {
+    public @Nullable Instant currentEventTime() {
       return timers.currentEventTime();
     }
   }
@@ -489,14 +489,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return timers.currentSynchronizedProcessingTime();
     }
 
     @Override
-    @Nullable
-    public Instant currentEventTime() {
+    public @Nullable Instant currentEventTime() {
       return timers.currentEventTime();
     }
   }

@@ -34,16 +34,18 @@ import com.google.protobuf.StringValue;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.UInt32Value;
 import com.google.protobuf.UInt64Value;
-import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -54,8 +56,9 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
-import org.apache.beam.sdk.schemas.logicaltypes.OneOfType.Value;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -69,30 +72,46 @@ import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.asm.AsmVisitorWrapper;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.method.MethodDescription;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.FieldManifestation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.Visibility;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.DynamicType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.FixedValue;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.Duplication;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.Assigner;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.NullConstant;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.ClassWriter;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.Label;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class ProtoByteBuddyUtils {
+class ProtoByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final TypeDescriptor<ByteString> BYTE_STRING_TYPE_DESCRIPTOR =
       TypeDescriptor.of(ByteString.class);
@@ -123,6 +142,22 @@ public class ProtoByteBuddyUtils {
   private static final ForLoadedType BYTE_ARRAY_TYPE = new ForLoadedType(byte[].class);
   private static final ForLoadedType PROTO_ENUM_TYPE = new ForLoadedType(ProtocolMessageEnum.class);
   private static final ForLoadedType INTEGER_TYPE = new ForLoadedType(Integer.class);
+  private static final ForLoadedType ENUM_LITE_TYPE = new ForLoadedType(EnumLite.class);
+  private static final ForLoadedType FIELD_VALUE_GETTER_LOADED_TYPE =
+      new ForLoadedType(FieldValueGetter.class);
+  private static final ForLoadedType FIELD_VALUE_SETTER_LOADED_TYPE =
+      new ForLoadedType(FieldValueSetter.class);
+  private static final ForLoadedType ONEOF_TYPE_LOADED_TYPE = new ForLoadedType(OneOfType.class);
+  private static final ForLoadedType ONEOF_VALUE_TYPE_LOADED_TYPE =
+      new ForLoadedType(OneOfType.Value.class);
+  private static final ForLoadedType ENUM_TYPE_LOADED_TYPE =
+      new ForLoadedType(EnumerationType.class);
+  private static final ForLoadedType ENUM_VALUE_TYPE_LOADED_TYPE =
+      new ForLoadedType(EnumerationType.Value.class);
+
+  private static final String CASE_GETTERS_FIELD_NAME = "CASE_GETTERS";
+  private static final String CASE_SETTERS_FIELD_NAME = "CASE_SETTERS";
+  private static final String ONEOF_TYPE_FIELD_NAME = "ONEOF_TYPE";
 
   private static final Map<TypeDescriptor<?>, ForLoadedType> WRAPPER_LOADED_TYPES =
       ImmutableMap.<TypeDescriptor<?>, ForLoadedType>builder()
@@ -410,48 +445,462 @@ public class ProtoByteBuddyUtils {
         });
   }
 
-  static class OneOfFieldValueGetter<ProtoT extends MessageLite>
-      implements FieldValueGetter<ProtoT, OneOfType.Value> {
-    private final String name;
-    private final Supplier<Method> getCaseMethod;
-    private final Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap;
-    private final OneOfType oneOfType;
+  static <ProtoT> FieldValueGetter<ProtoT, OneOfType.Value> createOneOfGetter(
+      FieldValueTypeInformation typeInformation,
+      TreeMap<Integer, FieldValueGetter<ProtoT, OneOfType.Value>> getterMethodMap,
+      Class protoClass,
+      OneOfType oneOfType,
+      Method getCaseMethod) {
+    Set<Integer> indices = getterMethodMap.keySet();
+    boolean contiguous = isContiguous(indices);
+    Preconditions.checkArgument(
+        typeInformation.getType().equals(TypeDescriptor.of(OneOfType.Value.class)));
 
-    public OneOfFieldValueGetter(
-        String name,
-        Supplier<Method> getCaseMethod,
-        Map<Integer, FieldValueGetter<ProtoT, ?>> getterMethodMap,
-        OneOfType oneOfType) {
-      this.name = name;
-      this.getCaseMethod = getCaseMethod;
-      this.getterMethodMap = getterMethodMap;
-      this.oneOfType = oneOfType;
-    }
+    int[] keys = getterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
-    @Nullable
-    @Override
-    public Value get(ProtoT object) {
-      try {
-        EnumLite caseValue = (EnumLite) getCaseMethod.get().invoke(object);
-        if (caseValue.getNumber() == 0) {
-          return null;
-        } else {
-          Object value = getterMethodMap.get(caseValue.getNumber()).get(object);
-          return oneOfType.createValue(
-              oneOfType.getCaseEnumType().valueOf(caseValue.getNumber()), value);
-        }
-      } catch (IllegalAccessException | InvocationTargetException e) {
-        throw new RuntimeException(e);
-      }
-    }
+    DynamicType.Builder<FieldValueGetter> builder =
+        ByteBuddyUtils.subclassGetterInterface(BYTE_BUDDY, protoClass, OneOfType.Value.class);
+    builder =
+        builder
+            .method(ElementMatchers.named("name"))
+            .intercept(FixedValue.reference(typeInformation.getName()))
+            .method(ElementMatchers.named("get"))
+            .intercept(new OneOfGetterInstruction(contiguous, keys, getCaseMethod));
 
-    @Override
-    public String name() {
-      return name;
+    List<FieldValueGetter> getters = Lists.newArrayList(getterMethodMap.values());
+    builder =
+        builder
+            // Store a field with the list of individual getters. The get() instruction will pick
+            // the appropriate
+            // getter from the list based on the case value of the OneOf.
+            .defineField(
+                CASE_GETTERS_FIELD_NAME,
+                FieldValueGetter[].class,
+                Visibility.PRIVATE,
+                FieldManifestation.FINAL)
+            // Store a field for the specific OneOf type.
+            .defineField(
+                ONEOF_TYPE_FIELD_NAME,
+                OneOfType.class,
+                Visibility.PRIVATE,
+                FieldManifestation.FINAL)
+            .defineConstructor(Modifier.PUBLIC)
+            .withParameters(List.class, OneOfType.class)
+            .intercept(new OneOfGetterConstructor());
+
+    try {
+      return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor(List.class, OneOfType.class)
+          .newInstance(getters, oneOfType);
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException(
+          "Unable to generate a getter for getter '" + typeInformation.getMethod() + "'");
     }
   }
 
-  private static FieldValueGetter createGetter(
+  static <ProtoBuilderT extends MessageLite.Builder>
+      FieldValueSetter<ProtoBuilderT, Object> createOneOfSetter(
+          String name,
+          TreeMap<Integer, FieldValueSetter<ProtoBuilderT, Object>> setterMethodMap,
+          Class protoBuilderClass) {
+    Set<Integer> indices = setterMethodMap.keySet();
+    boolean contiguous = isContiguous(indices);
+    int[] keys = setterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
+
+    DynamicType.Builder<FieldValueSetter> builder =
+        ByteBuddyUtils.subclassSetterInterface(
+            BYTE_BUDDY, protoBuilderClass, OneOfType.Value.class);
+    builder =
+        builder
+            .method(ElementMatchers.named("name"))
+            .intercept(FixedValue.reference(name))
+            .method(ElementMatchers.named("set"))
+            .intercept(new OneOfSetterInstruction(contiguous, keys));
+
+    builder =
+        builder
+            // Store a field with the list of individual setters. The get() instruction will pick
+            // the appropriate
+            // getter from the list based on the case value of the OneOf.
+            .defineField(
+                CASE_SETTERS_FIELD_NAME,
+                FieldValueSetter[].class,
+                Visibility.PRIVATE,
+                FieldManifestation.FINAL)
+            .defineConstructor(Modifier.PUBLIC)
+            .withParameters(List.class)
+            .intercept(new OneOfSetterConstructor());
+
+    List<FieldValueSetter> setters = Lists.newArrayList(setterMethodMap.values());
+    try {
+      return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor(List.class)
+          .newInstance(setters);
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException("Unable to generate a setter for setter '" + name + "'", e);
+    }
+  }
+
+  private static boolean isContiguous(Set<Integer> indices) {
+    Preconditions.checkArgument(!indices.isEmpty());
+    Iterator<Integer> iter = indices.iterator();
+    Preconditions.checkArgument(iter.hasNext());
+    int current = iter.next();
+    while (iter.hasNext()) {
+      if (iter.next() > current + 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static class OneOfGetterConstructor implements Implementation {
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        StackManipulation stackManipulation =
+            new StackManipulation.Compound(
+                // Call the base constructor for Object.
+                MethodVariableAccess.REFERENCE.loadFrom(0),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    new ForLoadedType(Object.class)
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()),
+                Duplication.SINGLE,
+                // Store the list of FieldValueGetters as a member variable.
+                MethodVariableAccess.REFERENCE.loadFrom(1),
+                MethodInvocation.invoke(
+                    new ForLoadedType(List.class)
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.named("toArray").and(ElementMatchers.takesArguments(0)))
+                        .getOnly()),
+                FieldAccess.forField(
+                        implementationTarget
+                            .getInstrumentedType()
+                            .getDeclaredFields()
+                            .filter(ElementMatchers.named(CASE_GETTERS_FIELD_NAME))
+                            .getOnly())
+                    .write(),
+                // Store the OneOf type as a member variable.
+                MethodVariableAccess.REFERENCE.loadFrom(2),
+                FieldAccess.forField(
+                        implementationTarget
+                            .getInstrumentedType()
+                            .getDeclaredFields()
+                            .filter(ElementMatchers.named(ONEOF_TYPE_FIELD_NAME))
+                            .getOnly())
+                    .write(),
+                MethodReturn.VOID);
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), 2);
+      };
+    }
+  }
+
+  private static class OneOfSetterConstructor implements Implementation {
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        StackManipulation stackManipulation =
+            new StackManipulation.Compound(
+                // Call the base constructor for Object.
+                MethodVariableAccess.REFERENCE.loadFrom(0),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    new ForLoadedType(Object.class)
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()),
+                Duplication.SINGLE,
+                // Store the list of FieldValueSetters as a member variable.
+                MethodVariableAccess.REFERENCE.loadFrom(1),
+                MethodInvocation.invoke(
+                    new ForLoadedType(List.class)
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.named("toArray").and(ElementMatchers.takesArguments(0)))
+                        .getOnly()),
+                FieldAccess.forField(
+                        implementationTarget
+                            .getInstrumentedType()
+                            .getDeclaredFields()
+                            .filter(ElementMatchers.named(CASE_SETTERS_FIELD_NAME))
+                            .getOnly())
+                    .write(),
+                MethodReturn.VOID);
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), 2);
+      };
+    }
+  }
+
+  // Implements the get method for OneOf fields.
+  static class OneOfGetterInstruction implements Implementation {
+    private final boolean isContiguous;
+    private final int[] keys;
+    private final Method getCaseMethod;
+
+    public OneOfGetterInstruction(boolean isContiguous, int[] keys, Method getCaseMethod) {
+      this.isContiguous = isContiguous;
+      this.keys = keys;
+      this.getCaseMethod = getCaseMethod;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        // this + method parameters.
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation.Size size = new StackManipulation.Size(0, numLocals);
+
+        // Initialize the set of keys and switch labels. The set of keys must be sorted, which we
+        // get since
+        // getterMethodMap is a TreeSet.
+        Label defaultLabel = new Label();
+        Label[] labels = new Label[keys.length];
+        Arrays.setAll(labels, i -> new Label());
+
+        // Read case value to switch on.
+        StackManipulation readCaseValue =
+            new StackManipulation.Compound(
+                // Call the proto getter that returns the case enum.
+                MethodVariableAccess.REFERENCE.loadFrom(1),
+                MethodInvocation.invoke(new ForLoadedMethod(getCaseMethod)),
+                TypeCasting.to(ENUM_LITE_TYPE),
+                // Call EnumLite.getNumber to extract the integer for the current case enum.
+                MethodInvocation.invoke(
+                    ENUM_LITE_TYPE
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("getNumber"))
+                        .getOnly()));
+        size = size.aggregate(readCaseValue.apply(methodVisitor, implementationContext));
+
+        // Start the switch block.
+        if (isContiguous) {
+          // If the case enum values are not all contiguous (i.e. there are holes), then generate
+          // the slower
+          // TABLESWITCH opcode.
+          methodVisitor.visitTableSwitchInsn(keys[0], keys[keys.length - 1], defaultLabel, labels);
+        } else {
+          // If all the case enum value are contiguous, then generate the faster LOOKUPSWITCH
+          // opcode.
+          methodVisitor.visitLookupSwitchInsn(defaultLabel, keys, labels);
+        }
+
+        // Now generate all the case labels.
+        for (int i = 0; i < labels.length; ++i) {
+          // Place the current case label.
+          methodVisitor.visitLabel(labels[i]);
+          // Generate the following code:
+          // return this.ONE_OF_TYPE.createValue(
+          //    oneOfType.getCaseEnumType().valueOf(caseValue.getNumber()),
+          // CASE_GETTERS[i].get(object));
+          StackManipulation returnGetterGet =
+              new StackManipulation.Compound(
+                  // this parameter.
+                  MethodVariableAccess.REFERENCE.loadFrom(0),
+                  // Read the OneOf type value.
+                  FieldAccess.forField(
+                          implementationTarget
+                              .getInstrumentedType()
+                              .getDeclaredFields()
+                              .filter(ElementMatchers.named(ONEOF_TYPE_FIELD_NAME))
+                              .getOnly())
+                      .read(),
+                  Duplication.SINGLE,
+                  MethodInvocation.invoke(
+                      ONEOF_TYPE_LOADED_TYPE
+                          .getDeclaredMethods()
+                          .filter(ElementMatchers.named("getCaseEnumType"))
+                          .getOnly()),
+                  IntegerConstant.forValue(keys[i]),
+                  MethodInvocation.invoke(
+                      ENUM_TYPE_LOADED_TYPE
+                          .getDeclaredMethods()
+                          .filter(
+                              ElementMatchers.named("valueOf")
+                                  .and(ElementMatchers.takesArguments(int.class)))
+                          .getOnly()),
+                  MethodVariableAccess.REFERENCE.loadFrom(0),
+                  // load array of component getters
+                  FieldAccess.forField(
+                          implementationTarget
+                              .getInstrumentedType()
+                              .getDeclaredFields()
+                              .filter(ElementMatchers.named(CASE_GETTERS_FIELD_NAME))
+                              .getOnly())
+                      .read(),
+                  // Access the ith getter.
+                  IntegerConstant.forValue(i),
+                  ArrayAccess.REFERENCE.load(),
+                  // Access the object parameter.
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  // Now call the getter's get method.
+                  MethodInvocation.invoke(
+                      FIELD_VALUE_GETTER_LOADED_TYPE
+                          .getDeclaredMethods()
+                          .filter(ElementMatchers.named("get"))
+                          .getOnly()),
+                  MethodInvocation.invoke(
+                      ONEOF_TYPE_LOADED_TYPE
+                          .getDeclaredMethods()
+                          .filter(
+                              ElementMatchers.named("createValue")
+                                  .and(
+                                      ElementMatchers.takesArgument(
+                                          0, EnumerationType.Value.class)))
+                          .getOnly()),
+                  MethodReturn.REFERENCE);
+          size = size.aggregate(returnGetterGet.apply(methodVisitor, implementationContext));
+        }
+        methodVisitor.visitLabel(defaultLabel);
+        StackManipulation defaultHandler =
+            new StackManipulation.Compound(NullConstant.INSTANCE, MethodReturn.REFERENCE);
+        size = size.aggregate(defaultHandler.apply(methodVisitor, implementationContext));
+
+        return new Size(size.getMaximalSize(), size.getSizeImpact());
+      };
+    }
+  }
+
+  static class OneOfSetterInstruction implements Implementation {
+    private final boolean isContiguous;
+    private final int[] keys;
+
+    public OneOfSetterInstruction(boolean isContiguous, int[] keys) {
+      this.isContiguous = isContiguous;
+      this.keys = keys;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        // this + method parameters.
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation.Size size = new StackManipulation.Size(0, numLocals);
+
+        // Initialize the set of keys and switch labels. The set of keys must be sorted, which we
+        // get since
+        // getterMethodMap is a TreeSet.
+        Label defaultLabel = new Label();
+        Label[] labels = new Label[keys.length];
+        Arrays.setAll(labels, i -> new Label());
+
+        // Read case value to switch on.
+        StackManipulation readCaseValue =
+            new StackManipulation.Compound(
+                // Call the proto getter that returns the case enum.
+                // value.getCaseType().getValue()
+                MethodVariableAccess.REFERENCE.loadFrom(2),
+                MethodInvocation.invoke(
+                    ONEOF_VALUE_TYPE_LOADED_TYPE
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("getCaseType"))
+                        .getOnly()),
+                MethodInvocation.invoke(
+                    ENUM_VALUE_TYPE_LOADED_TYPE
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("getValue"))
+                        .getOnly()));
+        size = size.aggregate(readCaseValue.apply(methodVisitor, implementationContext));
+
+        // Start the switch block.
+        if (isContiguous) {
+          // If the case enum values are not all contiguous (i.e. there are holes), then generate
+          // the slower TABLESWITCH opcode.
+          methodVisitor.visitTableSwitchInsn(keys[0], keys[keys.length - 1], defaultLabel, labels);
+        } else {
+          // If all the case enum value are contiguous, then generate the faster LOOKUPSWITCH
+          // opcode.
+          methodVisitor.visitLookupSwitchInsn(defaultLabel, keys, labels);
+        }
+
+        // Now generate all the case labels.
+        for (int i = 0; i < labels.length; ++i) {
+          // Place the current case label.
+          methodVisitor.visitLabel(labels[i]);
+          // Generate the following code:
+          // return this.CASE_SETTERS[caseValueIndex].set(object, value.getValue());
+          StackManipulation returnGetterGet =
+              new StackManipulation.Compound(
+                  // load array of component getters
+                  MethodVariableAccess.REFERENCE.loadFrom(0),
+                  FieldAccess.forField(
+                          implementationTarget
+                              .getInstrumentedType()
+                              .getDeclaredFields()
+                              .filter(ElementMatchers.named(CASE_SETTERS_FIELD_NAME))
+                              .getOnly())
+                      .read(),
+                  // Access the ith getter.
+                  IntegerConstant.forValue(i),
+                  ArrayAccess.REFERENCE.load(),
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  MethodVariableAccess.REFERENCE.loadFrom(2),
+                  MethodInvocation.invoke(
+                      ONEOF_VALUE_TYPE_LOADED_TYPE
+                          .getDeclaredMethods()
+                          .filter(
+                              ElementMatchers.named("getValue")
+                                  .and(ElementMatchers.takesArguments(0)))
+                          .getOnly()),
+                  MethodInvocation.invoke(
+                      FIELD_VALUE_SETTER_LOADED_TYPE
+                          .getDeclaredMethods()
+                          .filter(ElementMatchers.named("set"))
+                          .getOnly()),
+                  MethodReturn.VOID);
+          size = size.aggregate(returnGetterGet.apply(methodVisitor, implementationContext));
+        }
+        methodVisitor.visitLabel(defaultLabel);
+        StackManipulation defaultHandler = MethodReturn.VOID;
+        size = size.aggregate(defaultHandler.apply(methodVisitor, implementationContext));
+
+        return new Size(size.getMaximalSize(), size.getSizeImpact());
+      };
+    }
+  }
+
+  private static <ProtoT> FieldValueGetter createGetter(
       FieldValueTypeInformation fieldValueTypeInformation,
       TypeConversionsFactory typeConversionsFactory,
       Class clazz,
@@ -467,12 +916,13 @@ public class ProtoByteBuddyUtils {
               methods,
               field.getName() + "_case",
               FieldType.logicalType(oneOfType.getCaseEnumType()));
-      Map<Integer, FieldValueGetter> oneOfGetters = Maps.newHashMap();
+      // Create a map of case enum value to getter. This must be sorted, so store in a TreeMap.
+      TreeMap<Integer, FieldValueGetter<ProtoT, OneOfType.Value>> oneOfGetters = Maps.newTreeMap();
       Map<String, FieldValueTypeInformation> oneOfFieldTypes =
           fieldValueTypeSupplier.get(clazz, oneOfType.getOneOfSchema()).stream()
               .collect(Collectors.toMap(FieldValueTypeInformation::getName, f -> f));
       for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
-        int protoFieldIndex = getFieldNumber(oneOfField.getType());
+        int protoFieldIndex = getFieldNumber(oneOfField);
         FieldValueGetter oneOfFieldGetter =
             createGetter(
                 oneOfFieldTypes.get(oneOfField.getName()),
@@ -483,11 +933,8 @@ public class ProtoByteBuddyUtils {
                 fieldValueTypeSupplier);
         oneOfGetters.put(protoFieldIndex, oneOfFieldGetter);
       }
-      return new OneOfFieldValueGetter(
-          field.getName(),
-          (Supplier<Method> & Serializable) () -> caseMethod,
-          oneOfGetters,
-          oneOfType);
+      return createOneOfGetter(
+          fieldValueTypeInformation, oneOfGetters, clazz, oneOfType, caseMethod);
     } else {
       return JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
     }
@@ -523,67 +970,46 @@ public class ProtoByteBuddyUtils {
   }
 
   @Experimental(Kind.SCHEMAS)
-  @Nullable
-  public static SchemaUserTypeCreator getBuilderCreator(
-      Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<?> builderClass = getProtoGeneratedBuilder(protoClass);
+  public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
+      SchemaUserTypeCreator getBuilderCreator(
+          Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(protoClass);
     if (builderClass == null) {
       return null;
     }
-
-    List<FieldValueSetter> setters = Lists.newArrayListWithCapacity(schema.getFieldCount());
     Multimap<String, Method> methods = ReflectUtils.getMethodsMap(builderClass);
-    for (Field field : schema.getFields()) {
-      if (field.getType().isLogicalType(OneOfType.IDENTIFIER)) {
-        OneOfType oneOfType = field.getType().getLogicalType(OneOfType.class);
-        Map<Integer, Method> oneOfMethods = Maps.newHashMap();
-        for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
-          Method method = getProtoSetter(methods, oneOfField.getName(), oneOfField.getType());
-          oneOfMethods.put(getFieldNumber(oneOfField.getType()), method);
-        }
-        setters.add(
-            new ProtoOneOfSetter(
-                (Function<Integer, Method> & Serializable) oneOfMethods::get, field.getName()));
-      } else {
-        Method method = getProtoSetter(methods, field.getName(), field.getType());
-        setters.add(
-            JavaBeanUtils.createSetter(
-                FieldValueTypeInformation.forSetter(method, protoSetterPrefix(field.getType())),
-                new ProtoTypeConversionsFactory()));
-      }
-    }
+    List<FieldValueSetter<ProtoBuilderT, Object>> setters =
+        schema.getFields().stream()
+            .map(f -> getProtoFieldValueSetter(f, methods, builderClass))
+            .collect(Collectors.toList());
     return createBuilderCreator(protoClass, builderClass, setters, schema);
   }
 
-  static class ProtoOneOfSetter<BuilderT extends MessageLite.Builder>
-      implements FieldValueSetter<BuilderT, OneOfType.Value> {
-    private final Function<Integer, Method> methods;
-    private final String name;
-
-    ProtoOneOfSetter(Function<Integer, Method> methods, String name) {
-      this.methods = methods;
-      this.name = name;
-    }
-
-    @Override
-    public void set(BuilderT builder, OneOfType.Value oneOfValue) {
-      Method method = methods.apply(oneOfValue.getCaseType().getValue());
-      try {
-        method.invoke(builder, oneOfValue.getValue());
-      } catch (IllegalAccessException | InvocationTargetException e) {
-        throw new RuntimeException(e);
+  private static <ProtoBuilderT extends MessageLite.Builder>
+      FieldValueSetter<ProtoBuilderT, Object> getProtoFieldValueSetter(
+          Field field, Multimap<String, Method> methods, Class<ProtoBuilderT> builderClass) {
+    if (field.getType().isLogicalType(OneOfType.IDENTIFIER)) {
+      OneOfType oneOfType = field.getType().getLogicalType(OneOfType.class);
+      TreeMap<Integer, FieldValueSetter<ProtoBuilderT, Object>> oneOfSetters = Maps.newTreeMap();
+      for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
+        FieldValueSetter setter = getProtoFieldValueSetter(oneOfField, methods, builderClass);
+        oneOfSetters.put(getFieldNumber(oneOfField), setter);
       }
-    }
-
-    @Override
-    public String name() {
-      return name;
+      return createOneOfSetter(field.getName(), oneOfSetters, builderClass);
+    } else {
+      Method method = getProtoSetter(methods, field.getName(), field.getType());
+      return JavaBeanUtils.createSetter(
+          FieldValueTypeInformation.forSetter(method, protoSetterPrefix(field.getType())),
+          new ProtoTypeConversionsFactory());
     }
   }
 
   @Experimental(Kind.SCHEMAS)
-  static SchemaUserTypeCreator createBuilderCreator(
-      Class<?> protoClass, Class<?> builderClass, List<FieldValueSetter> setters, Schema schema) {
+  static <ProtoBuilderT extends MessageLite.Builder> SchemaUserTypeCreator createBuilderCreator(
+      Class<?> protoClass,
+      Class<?> builderClass,
+      List<FieldValueSetter<ProtoBuilderT, Object>> setters,
+      Schema schema) {
     try {
       DynamicType.Builder<Supplier> builder =
           BYTE_BUDDY
@@ -593,12 +1019,15 @@ public class ProtoByteBuddyUtils {
               .intercept(new BuilderSupplier(protoClass));
       Supplier supplier =
           builder
+              .visit(
+                  new AsmVisitorWrapper.ForDeclaredMethods()
+                      .writerFlags(ClassWriter.COMPUTE_FRAMES))
               .make()
               .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
               .getLoaded()
               .getDeclaredConstructor()
               .newInstance();
-      return new ProtoCreatorFactory(supplier, setters);
+      return new ProtoCreatorFactory<>(supplier, setters);
     } catch (InstantiationException
         | IllegalAccessException
         | NoSuchMethodException
@@ -609,19 +1038,21 @@ public class ProtoByteBuddyUtils {
   }
 
   @Experimental(Kind.SCHEMAS)
-  static class ProtoCreatorFactory implements SchemaUserTypeCreator {
-    private final Supplier<? extends MessageLite.Builder> builderCreator;
-    private final List<FieldValueSetter> setters;
+  static class ProtoCreatorFactory<ProtoBuilderT extends MessageLite.Builder>
+      implements SchemaUserTypeCreator {
+    private final Supplier<ProtoBuilderT> builderCreator;
+    private final List<FieldValueSetter<ProtoBuilderT, Object>> setters;
 
     public ProtoCreatorFactory(
-        Supplier<? extends MessageLite.Builder> builderCreator, List<FieldValueSetter> setters) {
+        Supplier<ProtoBuilderT> builderCreator,
+        List<FieldValueSetter<ProtoBuilderT, Object>> setters) {
       this.builderCreator = builderCreator;
       this.setters = setters;
     }
 
     @Override
     public Object create(Object... params) {
-      MessageLite.Builder builder = builderCreator.get();
+      ProtoBuilderT builder = builderCreator.get();
       for (int i = 0; i < params.length; ++i) {
         setters.get(i).set(builder, params[i]);
       }

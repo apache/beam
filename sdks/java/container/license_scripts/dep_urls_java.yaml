@@ -1,0 +1,48 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This is a list of packages whose license files cannot be pulled with jk1.dependency-license-report plugin.
+# For packages that do not include licenses in their distribution files, we need to manually
+# provide a url where they can be downloaded from.
+
+# template:
+# dependency_name:
+#   version: # package version, it is required because license may change between versions.
+#     license: optional, url_to_license or "skip"
+#       # skip: don't add license for the dependency
+#       # url_to_license: a url to source code (https://...) or a local file (file://...)
+#     notice: optional, url_to_notice
+#     type: optional, license type, ie: Apache License 2.0. Type should be provided if the plug in does not provide moduleLicense.
+#     source: optional, url_to_maven_repo. If maven artifact repo does not follow a patten of 'https://repo1.maven.org/maven2/{module}/{version}', the url should be provided.
+
+antlr-runtime:
+  '3.1.2':
+    license: "https://raw.githubusercontent.com/antlr/antlr4/master/LICENSE.txt"
+    type: "3-Clause BSD"
+jcip-annotations:
+  '1.0':
+    license: "https://raw.githubusercontent.com/stephenc/jcip-annotations/master/LICENSE.txt"
+    type: "Apache License 2.0"
+jaxen:
+  '1.1.6':
+    type: "3-Clause BSD"
+paranamer:
+  '2.7':
+    license: "https://raw.githubusercontent.com/paul-hammant/paranamer/master/LICENSE.txt"
+xz:
+  '1.8':
+    license: "https://git.tukaani.org/?p=xz-java.git;a=blob_plain;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=HEAD"

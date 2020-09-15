@@ -135,6 +135,14 @@ public class NexmarkUtils {
     COMBINED
   }
 
+  /** Controls how the event objects are serialized before publishing to pubsub. */
+  public enum PubsubMessageSerializationMethod {
+    /** Use coder to serialize the event objects to byte array. */
+    CODER,
+    /** Use encode with UTF-8 to serialize event object string representation. */
+    TO_STRING
+  }
+
   /** Possible side input sources. */
   public enum SideInputType {
     /** Produce the side input via {@link Create}. */
@@ -206,7 +214,7 @@ public class NexmarkUtils {
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
-  private static String processingMode(boolean isStreaming) {
+  public static String processingMode(boolean isStreaming) {
     return isStreaming ? "streaming" : "batch";
   }
 

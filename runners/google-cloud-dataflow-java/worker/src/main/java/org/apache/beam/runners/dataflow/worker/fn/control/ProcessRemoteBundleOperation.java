@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.*;
 import java.util.EnumMap;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -29,12 +28,17 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReceivingOperation;
-import org.apache.beam.runners.fnexecution.control.*;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
+import org.apache.beam.runners.fnexecution.control.RemoteBundle;
+import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,20 +65,16 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private RemoteBundle remoteBundle;
   private ExecutableStage executableStage;
 
-  private final TimerReceiver timerReceiver;
-
   public ProcessRemoteBundleOperation(
       ExecutableStage executableStage,
       DataflowOperationContext operationContext,
       StageBundleFactory stageBundleFactory,
       Map<String, OutputReceiver> outputReceiverMap,
-      TimerReceiver timerReceiver,
       Map<String, SideInputReader> ptransformIdToSideInputReader,
       Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
           sideInputIdToPCollectionViewMap) {
     super(EMPTY_RECEIVER_ARRAY, operationContext);
 
-    this.timerReceiver = timerReceiver;
     this.stageBundleFactory = stageBundleFactory;
     this.progressHandler = BundleProgressHandler.ignored();
     this.executableStage = executableStage;
@@ -126,17 +126,19 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   @Override
   public void process(Object inputElement) throws Exception {
     LOG.debug("Sending element: {}", inputElement);
-    String mainInputPCollectionId = executableStage.getInputPCollection().getId();
     FnDataReceiver<WindowedValue<?>> mainInputReceiver =
-        remoteBundle.getInputReceivers().get(mainInputPCollectionId);
+        Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
 
     try (Closeable scope = context.enterProcess()) {
       mainInputReceiver.accept((WindowedValue<InputT>) inputElement);
     } catch (Exception e) {
       String err =
           String.format(
-              "Could not process element %s to receiver %s for pcollection %s with error %s",
-              inputElement.toString(), mainInputReceiver.toString(), mainInputPCollectionId, e);
+              "Could not process element %s to receiver %s for PTransform %s with error %s",
+              inputElement,
+              mainInputReceiver,
+              Iterables.getOnlyElement(remoteBundle.getInputReceivers().keySet()),
+              e);
       LOG.error(err);
       throw new RuntimeException(err, e);
     }
@@ -151,16 +153,11 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       } catch (Exception e) {
         throw new RuntimeException("Failed to finish remote bundle", e);
       }
-
-      // Wait until all timer elements are received and scheduled, then fire the timers.
-      timerReceiver.finish();
     }
   }
 
   private void receive(String pCollectionId, Object receivedElement) throws Exception {
     LOG.debug("Received element {} for pcollection {}", receivedElement, pCollectionId);
-    if (!timerReceiver.receive(pCollectionId, receivedElement)) {
-      outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
-    }
+    outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
   }
 }

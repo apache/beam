@@ -18,8 +18,6 @@
 package org.apache.beam.runners.core;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
@@ -28,7 +26,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  *
  * <p>For internal use only.
  */
-@Experimental(Kind.STATE)
 public interface MergingStateAccessor<K, W extends BoundedWindow> extends StateAccessor<K> {
   /**
    * Analogous to {@link #access}, but returned as a map from each window which is about to be

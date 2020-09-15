@@ -25,10 +25,11 @@ from __future__ import division
 import glob
 import gzip
 import logging
+import math
 import os
 import sys
 import tempfile
-import typing
+import time
 import unittest
 import uuid
 from builtins import map
@@ -39,11 +40,12 @@ from builtins import zip
 import mock
 
 import apache_beam as beam
+import apache_beam.transforms.combiners as combiners
 from apache_beam import WindowInto
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.coders.coders import ToStringCoder
+from apache_beam.coders.coders import ToBytesCoder
 from apache_beam.examples.snippets import snippets
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
@@ -75,9 +77,9 @@ except ImportError:
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.datastore import client as datastore_client
 except ImportError:
-  datastore_pb2 = None
+  datastore_client = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # Protect against environments where the PubSub library is not available.
@@ -290,7 +292,7 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
   def test_bad_types(self):
     # [START type_hints_missing_define_numbers]
-    p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+    p = TestPipeline()
 
     numbers = p | beam.Create(['1', '2', '3'])
     # [END type_hints_missing_define_numbers]
@@ -332,10 +334,12 @@ class TypeHintsTest(unittest.TestCase):
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
-    T = typing.TypeVar('T')
+    from typing import Tuple, TypeVar
+
+    T = TypeVar('T')
 
     @beam.typehints.with_input_types(T)
-    @beam.typehints.with_output_types(typing.Tuple[int, T])
+    @beam.typehints.with_output_types(Tuple[int, T])
     class MyTransform(beam.PTransform):
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: (len(x), x))
@@ -343,10 +347,12 @@ class TypeHintsTest(unittest.TestCase):
     words_with_lens = words | MyTransform()
     # [END type_hints_transform]
 
+    # Given an input of str, the inferred output type would be Tuple[int, str].
+    self.assertEqual(typehints.Tuple[int, str], words_with_lens.element_type)
+
     # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
-      words_with_lens | beam.Map(lambda x: x).with_input_types(
-          typing.Tuple[int, int])
+      words_with_lens | beam.Map(lambda x: x).with_input_types(Tuple[int, int])
 
   def test_runtime_checks_off(self):
     # We do not run the following pipeline, as it has incorrect type
@@ -354,16 +360,16 @@ class TypeHintsTest(unittest.TestCase):
     # implementation.
 
     # pylint: disable=expression-not-assigned
-    p = TestPipeline()
     # [START type_hints_runtime_off]
+    p = TestPipeline()
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
+      p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       p.run()
       # [END type_hints_runtime_on]
@@ -382,6 +388,8 @@ class TypeHintsTest(unittest.TestCase):
       global Player  # pylint: disable=global-variable-not-assigned
 
       # [START type_hints_deterministic_key]
+      from typing import Tuple
+
       class Player(object):
         def __init__(self, team, name):
           self.team = team
@@ -406,7 +414,7 @@ class TypeHintsTest(unittest.TestCase):
       totals = (
           lines
           | beam.Map(parse_player_and_score)
-          | beam.CombinePerKey(sum).with_input_types(typing.Tuple[Player, int]))
+          | beam.CombinePerKey(sum).with_input_types(Tuple[Player, int]))
       # [END type_hints_deterministic_key]
 
       assert_that(
@@ -468,7 +476,7 @@ class SnippetsTest(unittest.TestCase):
       def __init__(self, file_to_write):
         self.file_to_write = file_to_write
         self.file_obj = None
-        self.coder = ToStringCoder()
+        self.coder = ToBytesCoder()
 
       def start_bundle(self):
         assert self.file_to_write
@@ -645,11 +653,7 @@ class SnippetsTest(unittest.TestCase):
                                      ['aa', 'bb', 'cc'])
 
   @unittest.skipIf(
-      sys.version_info[0] == 3 and
-      os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-      'This test still needs to be fixed on Python 3'
-      'TODO: BEAM-4543')
-  @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
+      datastore_client is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
     # We cannot test DatastoreIO functionality in unit tests, therefore we limit
     # ourselves to making sure the pipeline containing Datastore read and write
@@ -1299,6 +1303,55 @@ class PTransformTest(unittest.TestCase):
     with TestPipeline() as p:
       lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
       assert_that(lengths, equal_to([1, 2, 3]))
+
+
+class SlowlyChangingSideInputsTest(unittest.TestCase):
+  """Tests for PTransform."""
+  def test_side_input_slow_update(self):
+    temp_file = tempfile.NamedTemporaryFile(delete=True)
+    src_file_pattern = temp_file.name
+    temp_file.close()
+
+    first_ts = math.floor(time.time()) - 30
+    interval = 5
+    main_input_windowing_interval = 7
+
+    # aligning timestamp to get persistent results
+    first_ts = first_ts - (
+        first_ts % (interval * main_input_windowing_interval))
+    last_ts = first_ts + 45
+
+    for i in range(-1, 10, 1):
+      count = i + 2
+      idstr = str(first_ts + interval * i)
+      with open(src_file_pattern + idstr, "w") as f:
+        for j in range(count):
+          f.write('f' + idstr + 'a' + str(j) + '\n')
+
+    sample_main_input_elements = ([first_ts - 2, # no output due to no SI
+                                   first_ts + 1,  # First window
+                                   first_ts + 8,  # Second window
+                                   first_ts + 15,  # Third window
+                                   first_ts + 22,  # Fourth window
+                                   ])
+
+    pipeline, pipeline_result = snippets.side_input_slow_update(
+      src_file_pattern, first_ts, last_ts, interval,
+      sample_main_input_elements, main_input_windowing_interval)
+
+    try:
+      with pipeline:
+        pipeline_result = (
+            pipeline_result
+            | 'AddKey' >> beam.Map(lambda v: ('key', v))
+            | combiners.Count.PerKey())
+
+        assert_that(
+            pipeline_result,
+            equal_to([('key', 3), ('key', 4), ('key', 6), ('key', 7)]))
+    finally:
+      for i in range(-1, 10, 1):
+        os.unlink(src_file_pattern + str(first_ts + interval * i))
 
 
 if __name__ == '__main__':

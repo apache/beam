@@ -24,68 +24,61 @@ dependencies:
     transitive: false
   - name: "github.com/beorn7/perks"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/beorn7/perks"
     transitive: false
   - name: "github.com/bgentry/speakeasy"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/bgentry/speakeasy"
     transitive: false
   - name: "github.com/coreos/bbolt"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/coreos/bbolt"
     transitive: false
-  - urls:
-    - "https://github.com/coreos/etcd.git"
-    - "git@github.com:coreos/etcd.git"
-    vcs: "git"
-    name: "github.com/coreos/etcd"
-    commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
-    transitive: false
   - name: "github.com/coreos/go-semver"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/coreos/go-semver"
     transitive: false
   - name: "github.com/coreos/go-systemd"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/coreos/go-systemd"
     transitive: false
   - name: "github.com/coreos/pkg"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/coreos/pkg"
     transitive: false
@@ -105,21 +98,21 @@ dependencies:
     transitive: false
   - name: "github.com/dgrijalva/jwt-go"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/dgrijalva/jwt-go"
     transitive: false
   - name: "github.com/dustin/go-humanize"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/dustin/go-humanize"
     transitive: false
@@ -145,6 +138,13 @@ dependencies:
     commit: "44cc805cf13205b55f69e14bcb69867d1ae92f98"
     transitive: false
   - urls:
+    - "https://github.com/etcd-io/etcd.git"
+    - "git@github.com:etcd-io/etcd.git"
+    vcs: "git"
+    name: "github.com/etcd-io/etcd"
+    commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
+    transitive: false
+  - urls:
     - "https://github.com/fsnotify/fsnotify.git"
     - "git@github.com:fsnotify/fsnotify.git"
     vcs: "git"
@@ -153,21 +153,21 @@ dependencies:
     transitive: false
   - name: "github.com/ghodss/yaml"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/ghodss/yaml"
     transitive: false
   - name: "github.com/gogo/protobuf"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/gogo/protobuf"
     transitive: false
@@ -180,11 +180,11 @@ dependencies:
     transitive: false
   - name: "github.com/golang/groupcache"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/golang/groupcache"
     transitive: false
@@ -200,7 +200,7 @@ dependencies:
     - "git@github.com:golang/protobuf.git"
     vcs: "git"
     name: "github.com/golang/protobuf"
-    commit: "ed6926b37a637426117ccab59282c3839528a700"
+    commit: "d04d7b157bb510b1e0c10132224b616ac0e26b17"
     transitive: false
   - urls:
     - "https://github.com/golang/snappy.git"
@@ -211,11 +211,11 @@ dependencies:
     transitive: false
   - name: "github.com/google/btree"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/google/btree"
     transitive: false
@@ -224,7 +224,7 @@ dependencies:
     - "git@github.com:google/go-cmp.git"
     vcs: "git"
     name: "github.com/google/go-cmp"
-    commit: "3af367b6b30c263d47e8895973edcca9a49cf029"
+    commit: "9680bfaf28748393e28e00238d94070fb9972fd8"
     transitive: false
   - urls:
     - "https://github.com/google/pprof.git"
@@ -242,31 +242,31 @@ dependencies:
     transitive: false
   - name: "github.com/gorilla/websocket"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/gorilla/websocket"
     transitive: false
   - name: "github.com/grpc-ecosystem/go-grpc-prometheus"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/grpc-ecosystem/go-grpc-prometheus"
     transitive: false
   - name: "github.com/grpc-ecosystem/grpc-gateway"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/grpc-ecosystem/grpc-gateway"
     transitive: false
@@ -286,21 +286,21 @@ dependencies:
     transitive: false
   - name: "github.com/inconshreveable/mousetrap"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/inconshreveable/mousetrap"
     transitive: false
   - name: "github.com/jonboulle/clockwork"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/jonboulle/clockwork"
     transitive: false
@@ -313,11 +313,11 @@ dependencies:
     transitive: false
   - name: "github.com/kr/pty"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/kr/pty"
     transitive: false
@@ -330,21 +330,21 @@ dependencies:
     transitive: false
   - name: "github.com/mattn/go-runewidth"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/mattn/go-runewidth"
     transitive: false
   - name: "github.com/matttproud/golang_protobuf_extensions"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/matttproud/golang_protobuf_extensions"
     transitive: false
@@ -371,11 +371,11 @@ dependencies:
     transitive: false
   - name: "github.com/olekukonko/tablewriter"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/olekukonko/tablewriter"
     transitive: false
@@ -395,11 +395,11 @@ dependencies:
     transitive: false
   - name: "github.com/petar/GoLLRB"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/petar/GoLLRB"
     transitive: false
@@ -440,21 +440,21 @@ dependencies:
     transitive: false
   - name: "github.com/prometheus/client_model"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/prometheus/client_model"
     transitive: false
   - name: "github.com/prometheus/common"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/prometheus/common"
     transitive: false
@@ -494,21 +494,21 @@ dependencies:
     transitive: false
   - name: "github.com/sirupsen/logrus"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/sirupsen/logrus"
     transitive: false
   - name: "github.com/soheilhy/cmux"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/soheilhy/cmux"
     transitive: false
@@ -542,11 +542,11 @@ dependencies:
     transitive: false
   - name: "github.com/spf13/pflag"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/spf13/pflag"
     transitive: false
@@ -566,41 +566,41 @@ dependencies:
     transitive: false
   - name: "github.com/tmc/grpc-websocket-proxy"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/tmc/grpc-websocket-proxy"
     transitive: false
   - name: "github.com/ugorji/go"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/ugorji/go"
     transitive: false
   - name: "github.com/urfave/cli"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/urfave/cli"
     transitive: false
   - name: "github.com/xiang90/probing"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/github.com/xiang90/probing"
     transitive: false
@@ -648,21 +648,21 @@ dependencies:
     transitive: false
   - name: "golang.org/x/text"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/golang.org/x/text"
     transitive: false
   - name: "golang.org/x/time"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/golang.org/x/time"
     transitive: false
@@ -681,24 +681,34 @@ dependencies:
     commit: "7646b5360d049a7ca31e9133315db43456f39e2e"
     url: "https://github.com/grpc/grpc-go"
     transitive: false
+  - vcs: "git"
+    name: "google.golang.org/protobuf"
+    commit: "d165be301fb1e13390ad453281ded24385fd8ebc"
+    url: "https://go.googlesource.com/protobuf"
+    transitive: false
   - name: "gopkg.in/cheggaaa/pb.v1"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/gopkg.in/cheggaaa/pb.v1"
     transitive: false
   - name: "gopkg.in/yaml.v2"
     host:
-      name: "github.com/coreos/etcd"
+      name: "github.com/etcd-io/etcd"
       commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
       urls:
-      - "https://github.com/coreos/etcd.git"
-      - "git@github.com:coreos/etcd.git"
+      - "https://github.com/etcd-io/etcd.git"
+      - "git@github.com:etcd-io/etcd.git"
       vcs: "git"
     vendorPath: "vendor/gopkg.in/yaml.v2"
     transitive: false
-  test: []
+  test:
+  - vcs: "git"
+    name: "golang.org/x/xerrors"
+    commit: "5ec99f83aff198f5fbd629d6c8d8eb38a04218ca"
+    url: "https://go.googlesource.com/xerrors"
+    transitive: false

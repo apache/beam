@@ -23,6 +23,7 @@
 from __future__ import absolute_import
 
 import base64
+import datetime
 import logging
 import random
 import time
@@ -36,6 +37,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -67,6 +69,18 @@ def skip(runners):
     return wrapped
 
   return inner
+
+
+def datetime_to_utc(element):
+  for k, v in element.items():
+    if isinstance(v, (datetime.time, datetime.date)):
+      element[k] = str(v)
+    if isinstance(v, datetime.datetime) and v.tzinfo:
+      # For datetime objects, we'll
+      offset = v.utcoffset()
+      utc_dt = (v - offset).strftime('%Y-%m-%d %H:%M:%S.%f UTC')
+      element[k] = utc_dt
+  return element
 
 
 class BigQueryReadIntegrationTests(unittest.TestCase):
@@ -156,10 +170,11 @@ class ReadTests(BigQueryReadIntegrationTests):
 
   @attr('IT')
   def test_iobase_source(self):
+    query = StaticValueProvider(str, self.query)
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io._ReadFromBigQuery(
-              query=self.query, use_standard_sql=True, project=self.project))
+          p | 'read with value provider query' >> beam.io.ReadFromBigQuery(
+              query=query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.TABLE_DATA))
 
 
@@ -236,11 +251,12 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, table_data)
 
-  def get_expected_data(self):
+  def get_expected_data(self, native=True):
+    byts = b'\xab\xac'
     expected_row = {
         'float': 0.33,
         'numeric': Decimal('10'),
-        'bytes': base64.b64encode(b'\xab\xac'),
+        'bytes': base64.b64encode(byts) if native else byts,
         'date': '3000-12-31',
         'time': '23:59:59',
         'datetime': '2018-12-31T12:44:31',
@@ -263,7 +279,8 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
   def test_native_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io.Read(
+          p
+          | 'read' >> beam.io.Read(
               beam.io.BigQuerySource(query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.get_expected_data()))
 
@@ -271,9 +288,14 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io._ReadFromBigQuery(
-              query=self.query, use_standard_sql=True, project=self.project))
-      assert_that(result, equal_to(self.get_expected_data()))
+          p
+          | 'read' >> beam.io.ReadFromBigQuery(
+              query=self.query,
+              use_standard_sql=True,
+              project=self.project,
+              bigquery_job_labels={'launcher': 'apache_beam_tests'})
+          | beam.Map(datetime_to_utc))
+      assert_that(result, equal_to(self.get_expected_data(native=False)))
 
 
 if __name__ == '__main__':

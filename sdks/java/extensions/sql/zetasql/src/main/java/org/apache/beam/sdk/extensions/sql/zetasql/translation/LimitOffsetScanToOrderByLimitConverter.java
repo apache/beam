@@ -34,7 +34,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCol
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts ORDER BY LIMIT. */
 class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitOffsetScan> {
@@ -69,25 +71,33 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
     RexNode fetch =
         getExpressionConverter()
             .convertRexNodeFromResolvedExpr(
-                zetaNode.getLimit(), zetaNode.getColumnList(), input.getRowType().getFieldList());
+                zetaNode.getLimit(),
+                zetaNode.getColumnList(),
+                input.getRowType().getFieldList(),
+                ImmutableMap.of());
+
+    if (RexLiteral.isNullLiteral(offset) || RexLiteral.isNullLiteral(fetch)) {
+      throw new UnsupportedOperationException("Limit requires non-null count and offset");
+    }
 
     return LogicalSort.create(input, relCollation, offset, fetch);
   }
 
   /** Collation is a sort order, as in ORDER BY DESCENDING/ASCENDING. */
   private static RelCollation getRelCollation(ResolvedOrderByScan node) {
+    final long inputOffset = node.getColumnList().get(0).getId();
     List<RelFieldCollation> fieldCollations =
         node.getOrderByItemList().stream()
-            .map(LimitOffsetScanToOrderByLimitConverter::orderByItemToFieldCollation)
+            .map(item -> orderByItemToFieldCollation(item, inputOffset))
             .collect(toList());
     return RelCollationImpl.of(fieldCollations);
   }
 
-  private static RelFieldCollation orderByItemToFieldCollation(ResolvedOrderByItem item) {
-    // TODO: might need a column ref mapping here.
+  private static RelFieldCollation orderByItemToFieldCollation(
+      ResolvedOrderByItem item, long inputOffset) {
     Direction sortDirection = item.getIsDescending() ? DESCENDING : ASCENDING;
-    int fieldIndex = (int) item.getColumnRef().getColumn().getId();
-    return new RelFieldCollation(fieldIndex, sortDirection);
+    final long fieldIndex = item.getColumnRef().getColumn().getId() - inputOffset;
+    return new RelFieldCollation((int) fieldIndex, sortDirection);
   }
 
   private RelNode convertOrderByScanToLogicalScan(ResolvedOrderByScan node, RelNode input) {

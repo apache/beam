@@ -237,6 +237,22 @@ public class SchemaTest {
   }
 
   @Test
+  public void testFieldsWithDifferentMetadataAreEquivalent() {
+    Field foo = Field.of("foo", FieldType.STRING);
+    Field fooWithMetadata = Field.of("foo", FieldType.STRING.withMetadata("key", "value"));
+
+    Schema schema1 = Schema.builder().addField(foo).build();
+    Schema schema2 = Schema.builder().addField(foo).build();
+    assertEquals(schema1, schema2);
+    assertTrue(schema1.equivalent(schema2));
+
+    schema1 = Schema.builder().addField(foo).build();
+    schema2 = Schema.builder().addField(fooWithMetadata).build();
+    assertNotEquals(schema1, schema2);
+    assertTrue(schema1.equivalent(schema2));
+  }
+
+  @Test
   public void testNestedNotEquivalent() {
     Schema nestedSchema1 = Schema.builder().addInt64Field("foo").build();
     Schema nestedSchema2 = Schema.builder().addStringField("foo").build();
@@ -309,11 +325,50 @@ public class SchemaTest {
     assertEquals(schema1, schema2); // Logical types are the same.
 
     Schema schema3 =
-        Schema.builder().addLogicalTypeField("logical", new TestType("id2", "arg")).build();
-    assertNotEquals(schema1, schema3); // Logical type id is different.
+        Schema.builder()
+            .addNullableField("logical", Schema.FieldType.logicalType(new TestType("id", "arg")))
+            .build();
+    assertNotEquals(schema1, schema3); // schema1 and schema3 differ in Nullability
 
     Schema schema4 =
+        Schema.builder().addLogicalTypeField("logical", new TestType("id2", "arg")).build();
+    assertNotEquals(schema1, schema4); // Logical type id is different.
+
+    Schema schema5 =
         Schema.builder().addLogicalTypeField("logical", new TestType("id", "arg2")).build();
-    assertNotEquals(schema1, schema4); // Logical type arg is different.
+    assertNotEquals(schema1, schema5); // Logical type arg is different.
+  }
+
+  @Test
+  public void testTypesEquality() {
+    Schema schema1 = Schema.builder().addStringField("foo").build();
+    Schema schema2 = Schema.builder().addStringField("bar").build();
+    assertTrue(schema1.typesEqual(schema2)); // schema1 and schema2 only differ by names
+
+    Schema schema3 = Schema.builder().addNullableField("foo", FieldType.STRING).build();
+    assertFalse(schema1.typesEqual(schema3)); // schema1 and schema3 differ in Nullability
+
+    Schema schema4 = Schema.builder().addInt32Field("foo").build();
+    assertFalse(schema1.typesEqual(schema4)); // schema1 and schema4 differ by types
+  }
+
+  @Test
+  public void testIllegalIndexOf() {
+    Schema schema = Schema.builder().addStringField("foo").build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot find field bar in schema " + schema);
+
+    schema.indexOf("bar");
+  }
+
+  @Test
+  public void testIllegalNameOf() {
+    Schema schema = Schema.builder().addStringField("foo").build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot find field 1");
+
+    schema.nameOf(1);
   }
 }

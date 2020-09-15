@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.avro.SchemaBuilder;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -74,7 +75,7 @@ public class CoderTranslationTest {
           .add(StringUtf8Coder.of())
           .add(IntervalWindowCoder.of())
           .add(IterableCoder.of(ByteArrayCoder.of()))
-          .add(Timer.Coder.of(ByteArrayCoder.of()))
+          .add(Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE))
           .add(LengthPrefixCoder.of(IterableCoder.of(VarLongCoder.of())))
           .add(GlobalWindow.Coder.INSTANCE)
           .add(
@@ -165,7 +166,9 @@ public class CoderTranslationTest {
       Components encodedComponents = sdkComponents.toComponents();
       Coder<?> decodedCoder =
           CoderTranslation.fromProto(
-              coderProto, RehydratedComponents.forComponents(encodedComponents));
+              coderProto,
+              RehydratedComponents.forComponents(encodedComponents),
+              TranslationContext.DEFAULT);
       assertThat(decodedCoder, equalTo(coder));
 
       if (KNOWN_CODERS.contains(coder)) {

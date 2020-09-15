@@ -499,3 +499,30 @@ func (n *ExtractOutput) ProcessElement(ctx context.Context, value *FullValue, va
 	}
 	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
 }
+
+// ConvertToAccumulators is an executor for converting an input value to an accumulator value.
+type ConvertToAccumulators struct {
+	*Combine
+}
+
+func (n *ConvertToAccumulators) String() string {
+	return fmt.Sprintf("ConvertToAccumulators[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
+}
+
+// ProcessElement accepts an input value and returns an accumulator containing that one value.
+func (n *ConvertToAccumulators) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return errors.Errorf("invalid status for combine convert %v: %v", n.UID, n.status)
+	}
+	a, err := n.newAccum(n.Combine.ctx, value.Elm)
+	if err != nil {
+		return n.fail(err)
+	}
+
+	first := true
+	a, err = n.addInput(n.Combine.ctx, a, value.Elm, value.Elm2, value.Timestamp, first)
+	if err != nil {
+		return n.fail(err)
+	}
+	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp})
+}

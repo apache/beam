@@ -33,14 +33,24 @@ import "beam_runner_api.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 
-// A specification containing required set of fields and labels required
-// to be set on a MonitoringInfo for the specific URN for SDK->RunnerHarness
-// ProcessBundleResponse reporting.
+// A specification for describing a well known MonitoringInfo.
+//
+// All specifications are uniquely identified by the urn.
 message MonitoringInfoSpec {
+  // Defines the semantic meaning of the metric or monitored state.
+  //
+  // See MonitoringInfoSpecs.Enum for the set of well known metrics/monitored
+  // state.
   string urn = 1;
-  string type_urn = 2;
-  // The list of required
+
+  // Defines the required encoding and aggregation method for the payload.
+  //
+  // See MonitoringInfoTypeUrns.Enum for the set of well known types.
+  string type = 2;
+
+  // The list of required labels for the specified urn and type.
   repeated string required_labels = 3;
+
   // Extra non functional parts of the spec for descriptive purposes.
   // i.e. description, units, etc.
   repeated Annotation annotations = 4;
@@ -52,28 +62,150 @@ message Annotation {
   string value = 2;
 }
 
-// Populated MonitoringInfoSpecs for specific URNs.
-// Indicating the required fields to be set.
-// SDKs and RunnerHarnesses can load these instances into memory and write a
-// validator or code generator to assist with populating and validating
-// MonitoringInfo protos.
+// A set of well known MonitoringInfo specifications.
 message MonitoringInfoSpecs {
   enum Enum {
-    // TODO(BEAM-6926): Add the PTRANSFORM name as a required label after
-    // upgrading the python SDK.
-    USER_COUNTER = 0 [(monitoring_info_spec) = {
-      urn: "beam:metric:user",
-      type_urn: "beam:metrics:sum_int_64",
+    // Represents an integer counter where values are summed across bundles.
+    USER_SUM_INT64 = 0 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:sum_int64:v1",
+      type: "beam:metrics:sum_int64:v1",
       required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
       annotations: [{
         key: "description",
-        value: "URN utilized to report user numeric counters."
+        value: "URN utilized to report user metric."
       }]
     }];
 
-    ELEMENT_COUNT = 1 [(monitoring_info_spec) = {
+    // Represents a double counter where values are summed across bundles.
+    USER_SUM_DOUBLE = 1 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:sum_double:v1",
+      type: "beam:metrics:sum_double:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents a distribution of an integer value where:
+    //   - count: represents the number of values seen across all bundles
+    //   - sum: represents the total of the value across all bundles
+    //   - min: represents the smallest value seen across all bundles
+    //   - max: represents the largest value seen across all bundles
+    USER_DISTRIBUTION_INT64 = 2 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:distribution_int64:v1",
+      type: "beam:metrics:distribution_int64:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents a distribution of a double value where:
+    //   - count: represents the number of values seen across all bundles
+    //   - sum: represents the total of the value across all bundles
+    //   - min: represents the smallest value seen across all bundles
+    //   - max: represents the largest value seen across all bundles
+    USER_DISTRIBUTION_DOUBLE = 3 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:distribution_double:v1",
+      type: "beam:metrics:distribution_double:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents the latest seen integer value. The timestamp is used to
+    // provide an "ordering" over multiple values to determine which is the
+    // latest.
+    USER_LATEST_INT64 = 4 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:latest_int64:v1",
+      type: "beam:metrics:latest_int64:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents the latest seen double value. The timestamp is used to
+    // provide an "ordering" over multiple values to determine which is the
+    // latest.
+    USER_LATEST_DOUBLE = 5 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:latest_double:v1",
+      type: "beam:metrics:latest_double:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents the largest set of integer values seen across bundles.
+    USER_TOP_N_INT64 = 6 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:top_n_int64:v1",
+      type: "beam:metrics:top_n_int64:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents the largest set of double values seen across bundles.
+    USER_TOP_N_DOUBLE = 7 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:top_n_double:v1",
+      type: "beam:metrics:top_n_double:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents the smallest set of integer values seen across bundles.
+    USER_BOTTOM_N_INT64 = 8 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:bottom_n_int64:v1",
+      type: "beam:metrics:bottom_n_int64:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // Represents the smallest set of double values seen across bundles.
+    USER_BOTTOM_N_DOUBLE = 9 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:bottom_n_double:v1",
+      type: "beam:metrics:bottom_n_double:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
+    // General monitored state information which contains structured information
+    // which does not fit into a typical metric format. See MonitoringTableData
+    // for more details.
+    //
+    // TODO(BEAM-9617): Support monitored state.
+    //
+    // USER_MONITORING_TABLE = XX [(monitoring_info_spec) = {
+    //   urn: "beam:metric:user:v1",
+    //   type: "beam:metrics:monitoring_table:v1",
+    //   required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+    //   annotations: [{
+    //     key: "description",
+    //     value: "URN utilized to report user monitoring data."
+    //   }]
+    // }];
+
+    ELEMENT_COUNT = 10 [(monitoring_info_spec) = {
       urn: "beam:metric:element_count:v1",
-      type_urn: "beam:metrics:sum_int_64",
+      type: "beam:metrics:sum_int64:v1",
       required_labels: [ "PCOLLECTION" ],
       annotations: [ {
         key: "description",
@@ -81,9 +213,9 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    SAMPLED_BYTE_SIZE = 7 [(monitoring_info_spec) = {
+    SAMPLED_BYTE_SIZE = 11 [(monitoring_info_spec) = {
       urn: "beam:metric:sampled_byte_size:v1",
-      type_urn: "beam:metrics:distribution_int_64",
+      type: "beam:metrics:distribution_int64:v1",
       required_labels: [ "PCOLLECTION" ],
       annotations: [ {
         key: "description",
@@ -94,9 +226,9 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    START_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
+    START_BUNDLE_MSECS = 12 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
+      type: "beam:metrics:sum_int64:v1",
       required_labels: [ "PTRANSFORM" ],
       annotations: [ {
         key: "description",
@@ -105,9 +237,9 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    PROCESS_BUNDLE_MSECS = 3 [(monitoring_info_spec) = {
+    PROCESS_BUNDLE_MSECS = 13 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:process_bundle_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
+      type: "beam:metrics:sum_int64:v1",
       required_labels: [ "PTRANSFORM" ],
       annotations: [ {
         key: "description",
@@ -116,9 +248,9 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    FINISH_BUNDLE_MSECS = 4 [(monitoring_info_spec) = {
+    FINISH_BUNDLE_MSECS = 14 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
+      type: "beam:metrics:sum_int64:v1",
       required_labels: [ "PTRANSFORM" ],
       annotations: [ {
         key: "description",
@@ -127,9 +259,9 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    TOTAL_MSECS = 5 [(monitoring_info_spec) = {
+    TOTAL_MSECS = 15 [(monitoring_info_spec) = {
       urn: "beam:metric:ptransform_execution_time:total_msecs:v1",
-      type_urn: "beam:metrics:sum_int_64",
+      type: "beam:metrics:sum_int64:v1",
       required_labels: [ "PTRANSFORM" ],
       annotations: [ {
         key: "description",
@@ -137,15 +269,42 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    // TODO(BEAM-6926): Add the PTRANSFORM name as a required label after
-    // upgrading the python SDK.
-    USER_DISTRIBUTION_COUNTER = 6 [(monitoring_info_spec) = {
-      urn: "beam:metric:user_distribution",
-      type_urn: "beam:metrics:distribution_int_64",
-      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+    // All values reported across all beam:metric:ptransform_progress:.*:v1
+    // metrics are of the same magnitude.
+    WORK_REMAINING = 16 [(monitoring_info_spec) = {
+      urn: "beam:metric:ptransform_progress:remaining:v1",
+      type: "beam:metrics:progress:v1",
+      required_labels: [ "PTRANSFORM" ],
       annotations: [{
         key: "description",
-        value: "URN utilized to report user distribution counters."
+        value: "The remaining amount of work for each active element. Each active element represents an independent amount of work not shared with any other active element."
+      }]
+    }];
+
+    // All values reported across all beam:metric:ptransform_progress:.*:v1
+    // metrics are of the same magnitude.
+    WORK_COMPLETED = 17 [(monitoring_info_spec) = {
+      urn: "beam:metric:ptransform_progress:completed:v1",
+      type: "beam:metrics:progress:v1",
+      required_labels: [ "PTRANSFORM" ],
+      annotations: [{
+        key: "description",
+        value: "The remaining amount of work for each active element. Each active element represents an independent amount of work not shared with any other active element."
+      }]
+    }];
+
+    // The (0-based) index of the latest item processed from the data channel.
+    // This gives an indication of the SDKs progress through the data channel,
+    // and is a lower bound on where it is able to split.
+    // For an SDK that processes items sequentially, this is equivalently the
+    // number of items fully processed (or -1 if processing has not yet started).
+    DATA_CHANNEL_READ_INDEX = 18 [(monitoring_info_spec) = {
+      urn: "beam:metric:data_channel:read_index:v1",
+      type: "beam:metrics:sum_int64:v1",
+      required_labels: [ "PTRANSFORM" ],
+      annotations: [{
+        key: "description",
+        value: "The read index of the data channel."
       }]
     }];
   }
@@ -168,31 +327,27 @@ extend google.protobuf.EnumValueOptions {
 }
 
 message MonitoringInfo {
-  // The name defining the metric or monitored state.
+  // (Required) Defines the semantic meaning of the metric or monitored state.
+  //
+  // See MonitoringInfoSpecs.Enum for the set of well known metrics/monitored
+  // state.
   string urn = 1;
 
-  // This is specified as a URN that implies:
-  // A message class: (Distribution, Counter, Extrema, MonitoringDataTable).
-  // Sub types like field formats - int64, double, string.
-  // Aggregation methods - SUM, LATEST, TOP-N, BOTTOM-N, DISTRIBUTION
-  // valid values are:
-  // beam:metrics:[sum_int_64|latest_int_64|top_n_int_64|bottom_n_int_64|
-  //     sum_double|latest_double|top_n_double|bottom_n_double|
-  //     distribution_int_64|distribution_double|monitoring_data_table
+  // (Required) Defines the encoding and aggregation method for the payload.
+  //
+  // See MonitoringInfoTypeUrns.Enum for the set of well known types.
   string type = 2;
 
-  // The Metric or monitored state.
-  oneof data {
-    MonitoringTableData monitoring_table_data = 3;
-    Metric metric = 4;
-  }
+  // (Required) The metric or monitored state encoded as per the specification
+  // defined by the type.
+  bytes payload = 3;
 
   enum MonitoringInfoLabels {
-    // TODO(ajamato): Rename all references from TRANSFORM to PTRANSFORM
-
     // The values used for TRANSFORM, PCOLLECTION, WINDOWING_STRATEGY
     // CODER, ENVIRONMENT, etc. must always match the keys used to
-    // refer to them in the ProcessBundleDescriptor.
+    // refer to them. For actively processed bundles, these should match the
+    // values within the ProcessBundleDescriptor. For job management APIs,
+    // these should match values within the original pipeline representation.
     TRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
     PCOLLECTION = 1 [(label_props) = { name: "PCOLLECTION" }];
     WINDOWING_STRATEGY = 2 [(label_props) = { name: "WINDOWING_STRATEGY" }];
@@ -201,133 +356,173 @@ message MonitoringInfo {
     NAMESPACE = 5 [(label_props) = { name: "NAMESPACE" }];
     NAME = 6 [(label_props) = { name: "NAME" }];
   }
-  // A set of key+value labels which define the scope of the metric.
+
+  // A set of key and value labels which define the scope of the metric. For
+  // well known URNs, the set of required labels is provided by the associated
+  // MonitoringInfoSpec.
+  //
   // Either a well defined entity id for matching the enum names in
   // the MonitoringInfoLabels enum or any arbitrary label
   // set by a custom metric or user metric.
+  //
   // A monitoring system is expected to be able to aggregate the metrics
   // together for all updates having the same URN and labels. Some systems such
   // as Stackdriver will be able to aggregate the metrics using a subset of the
   // provided labels
-  map<string, string> labels = 5;
-
-  // The walltime of the most recent update.
-  // Useful for aggregation for latest types such as LatestInt64.
-  google.protobuf.Timestamp timestamp = 6;
+  map<string, string> labels = 4;
 }
 
+// A set of well known URNs that specify the encoding and aggregation method.
 message MonitoringInfoTypeUrns {
   enum Enum {
+    // Represents an integer counter where values are summed across bundles.
+    //
+    // Encoding: <value>
+    //   - value: beam:coder:varint:v1
     SUM_INT64_TYPE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                            "beam:metrics:sum_int_64"];
+                            "beam:metrics:sum_int64:v1"];
 
-    DISTRIBUTION_INT64_TYPE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                                     "beam:metrics:distribution_int_64"];
+    // Represents a double counter where values are summed across bundles.
+    //
+    // Encoding: <value>
+    //   value: beam:coder:double:v1
+    SUM_DOUBLE_TYPE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                        "beam:metrics:sum_double:v1"];
 
-    LATEST_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-                               "beam:metrics:latest_int_64"];
+    // Represents a distribution of an integer value where:
+    //   - count: represents the number of values seen across all bundles
+    //   - sum: represents the total of the value across all bundles
+    //   - min: represents the smallest value seen across all bundles
+    //   - max: represents the largest value seen across all bundles
+    //
+    // Encoding: <count><sum><min><max>
+    //   - count: beam:coder:varint:v1
+    //   - sum:   beam:coder:varint:v1
+    //   - min:   beam:coder:varint:v1
+    //   - max:   beam:coder:varint:v1
+    DISTRIBUTION_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                                     "beam:metrics:distribution_int64:v1"];
+
+    // Represents a distribution of a double value where:
+    //   - count: represents the number of values seen across all bundles
+    //   - sum: represents the total of the value across all bundles
+    //   - min: represents the smallest value seen across all bundles
+    //   - max: represents the largest value seen across all bundles
+    //
+    // Encoding: <count><sum><min><max>
+    //   - count: beam:coder:varint:v1
+    //   - sum:   beam:coder:double:v1
+    //   - min:   beam:coder:double:v1
+    //   - max:   beam:coder:double:v1
+    DISTRIBUTION_DOUBLE_TYPE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                                 "beam:metrics:distribution_double:v1"];
+
+    // Represents the latest seen integer value. The timestamp is used to
+    // provide an "ordering" over multiple values to determine which is the
+    // latest.
+    //
+    // Encoding: <timestamp><value>
+    //   - timestamp: beam:coder:varint:v1     (milliseconds since epoch)
+    //   - value:     beam:coder:varint:v1
+    LATEST_INT64_TYPE = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                               "beam:metrics:latest_int64:v1"];
+
+    // Represents the latest seen double value. The timestamp is used to
+    // provide an "ordering" over multiple values to determine which is the
+    // latest.
+    //
+    // Encoding: <timestamp><value>
+    //   - timestamp: beam:coder:varint:v1     (milliseconds since epoch)
+    //   - value:     beam:coder:double:v1
+    LATEST_DOUBLE_TYPE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                           "beam:metrics:latest_double:v1"];
+
+    // Represents the largest set of integer values seen across bundles.
+    //
+    // Encoding: <iter><value1><value2>...<valueN></iter>
+    //   - iter:   beam:coder:iterable:v1
+    //   - valueX: beam:coder:varint:v1
+    TOP_N_INT64_TYPE = 6 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                           "beam:metrics:top_n_int64:v1"];
+
+    // Represents the largest set of double values seen across bundles.
+    //
+    // Encoding: <iter><value1><value2>...<valueN></iter>
+    //   - iter:   beam:coder:iterable:v1
+    //   - valueX: beam:coder<beam:coder:double:v1
+    TOP_N_DOUBLE_TYPE = 7 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                            "beam:metrics:top_n_double:v1"];
+
+    // Represents the smallest set of integer values seen across bundles.
+    //
+    // Encoding: <iter><value1><value2>...<valueN></iter>
+    //   - iter:   beam:coder:iterable:v1
+    //   - valueX: beam:coder:varint:v1
+    BOTTOM_N_INT64_TYPE = 8 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                          "beam:metrics:bottom_n_int64:v1"];
+
+    // Represents the smallest set of double values seen across bundles.
+    //
+    // Encoding: <iter><value1><value2>...<valueN></iter>
+    //   - iter:   beam:coder:iterable:v1
+    //   - valueX: beam:coder:double:v1
+    BOTTOM_N_DOUBLE_TYPE = 9 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                           "beam:metrics:bottom_n_double:v1"];
+
+    // Encoding: <iter><value1><value2>...<valueN></iter>
+    //   - iter:   beam:coder:iterable:v1
+    //   - valueX: beam:coder:double:v1
+    PROGRESS_TYPE = 10 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                       "beam:metrics:progress:v1"];
+
+    // General monitored state information which contains structured information
+    // which does not fit into a typical metric format. See MonitoringTableData
+    // for more details.
+    //
+    // TODO(BEAM-9617): Support monitored state.
+    //
+    // Encoding: MonitoringTableData proto encoded as bytes
+    // MONITORING_TABLE_TYPE = XX [(org.apache.beam.model.pipeline.v1.beam_urn) =
+    //                            "beam:metrics:monitoring_table:v1"];
   }
 }
 
-message Metric {
-  // (Required) The data for this metric.
-  oneof data {
-    CounterData counter_data = 1;
-    DistributionData distribution_data = 2;
-    ExtremaData extrema_data = 3;
-  }
-}
-
-// Data associated with a Counter or Gauge metric.
-// This is designed to be compatible with metric collection
-// systems such as DropWizard.
-message CounterData {
-  oneof value {
-    int64 int64_value = 1;
-    double double_value = 2;
-    string string_value = 3;
-  }
-}
-
-// Extrema messages are used for calculating
-// Top-N/Bottom-N metrics.
-message ExtremaData {
-  oneof extrema {
-    IntExtremaData int_extrema_data = 1;
-    DoubleExtremaData double_extrema_data = 2;
-  }
-}
-
-message IntExtremaData {
-  repeated int64 int_values = 1;
-}
-
-message DoubleExtremaData {
-  repeated double double_values = 2;
-}
-
-// Data associated with a distribution metric.
-// This is based off of the current DistributionData metric.
-// This is not a stackdriver or dropwizard compatible
-// style of distribution metric.
-message DistributionData {
-  oneof distribution {
-    IntDistributionData int_distribution_data = 1;
-    DoubleDistributionData double_distribution_data = 2;
-  }
-}
-
-message IntDistributionData {
-  int64 count = 1;
-  int64 sum = 2;
-  int64 min = 3;
-  int64 max = 4;
-}
-
-message DoubleDistributionData {
-  int64 count = 1;
-  double sum = 2;
-  double min = 3;
-  double max = 4;
-}
-
-// General MonitoredState information which contains
-// structured information which does not fit into a typical
-// metric format. For example, a table of important files
-// and metadata which an I/O source is reading.
-// Note: Since MonitoredState is designed to be
-// customizable, and allow engines to aggregate these
-// metrics in custom ways.
-// Engines can use custom aggregation functions for specific URNs
-// by inspecting the column values.
-// An SDK should always report its current state, that is all
-// relevant MonitoredState for its PTransform at the current moment
-// and this should be kept small.
-// For example, an SDK can emit the oldest three files which
-// have been waiting for data for over 1 hour.
-// If an engine supports the URN with a custom aggregation then
-// it can filter these and keep only the Top-3 rows based on
-// how long the files have been waiting for data.
-// Otherwise an engine can ignore the MonitoringTableData
-// or union all the rows together into one large table and display
-// them in a UI.
-message MonitoringTableData {
-  message MonitoringColumnValue {
-    oneof value {
-      int64 int64_value = 1;
-      double double_value = 2;
-      string string_value = 3;
-      google.protobuf.Timestamp timestamp = 4;
-    }
-  }
-
-  message MonitoringRow {
-    repeated MonitoringColumnValue values = 1;
-  }
-
-  // The number of column names must match the
-  // number of values in each MonitoringRow.
-  repeated string column_names = 1;
-  repeated MonitoringRow row_data = 2;
-}
-
+// General monitored state information which contains structured information
+// which does not fit into a typical metric format.
+//
+// An SDK should always report its current state, that is all relevant monitored
+// state for its PTransform at the current moment and this should be kept small.
+//
+// For example, a table of important files and metadata which an I/O source is
+// reading. An SDK can emit the oldest three files which have been waiting for
+// data for over 1 hour. If an engine supports the URN with a custom aggregation
+// then it can filter these and keep only the Top-3 rows based on how long the
+// files have been waiting for data. Otherwise an engine can ignore the
+// MonitoringTableData or union all the rows together into one large table and
+// display them in a UI.
+//
+// Note: Since MonitoredState is designed to be customizable, and allow engines
+// to aggregate these metrics in custom ways. Engines can use custom aggregation
+// functions for specific URNs by inspecting the column values.
+//
+// TODO(BEAM-9617): Support monitored state.
+//
+// message MonitoringTableData {
+//   message MonitoringColumnValue {
+//     oneof value {
+//       int64 int64_value = 1;
+//       double double_value = 2;
+//       string string_value = 3;
+//       google.protobuf.Timestamp timestamp = 4;
+//     }
+//   }
+//
+//   message MonitoringRow {
+//     repeated MonitoringColumnValue values = 1;
+//   }
+//
+//   // The number of column names must match the
+//   // number of values in each MonitoringRow.
+//   repeated string column_names = 1;
+//   repeated MonitoringRow row_data = 2;
+// }

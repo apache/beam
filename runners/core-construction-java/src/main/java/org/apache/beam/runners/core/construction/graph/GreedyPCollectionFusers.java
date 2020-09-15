@@ -50,9 +50,6 @@ class GreedyPCollectionFusers {
               PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
               GreedyPCollectionFusers::canFuseParDo)
           .put(
-              PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN,
-              GreedyPCollectionFusers::canFuseParDo)
-          .put(
               PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
               GreedyPCollectionFusers::cannotFuse)
           .put(
@@ -206,12 +203,13 @@ class GreedyPCollectionFusers {
     try {
       ParDoPayload payload = ParDoPayload.parseFrom(parDo.getTransform().getSpec().getPayload());
       if (Maps.filterKeys(
-              parDo.getTransform().getInputsMap(), s -> payload.getTimerSpecsMap().containsKey(s))
+              parDo.getTransform().getInputsMap(),
+              s -> payload.getTimerFamilySpecsMap().containsKey(s))
           .values()
           .contains(candidate.getId())) {
         // Allow fusion across timer PCollections because they are a self loop.
         return true;
-      } else if (payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0) {
+      } else if (payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0) {
         // Inputs to a ParDo that uses State or Timers must be key-partitioned, and elements for
         // a key must execute serially. To avoid checking if the rest of the stage is
         // key-partitioned and preserves keys, these ParDos do not fuse into an existing stage.

@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -78,6 +77,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.storage.StorageLevel;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
 
 /** Supports translation between a Beam transform, and Spark's operations on RDDs. */
@@ -708,8 +708,7 @@ public final class TransformTranslator {
     };
   }
 
-  @Nullable
-  private static Partitioner getPartitioner(EvaluationContext context) {
+  private static @Nullable Partitioner getPartitioner(EvaluationContext context) {
     Long bundleSize =
         context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
     return (bundleSize > 0)
@@ -734,8 +733,7 @@ public final class TransformTranslator {
     EVALUATORS.putAll(TransformEvaluatorRegistrar.loadTransformEvaluators());
   }
 
-  @Nullable
-  private static TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {
+  private static @Nullable TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {
     @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
     return urn == null ? null : EVALUATORS.get(urn);
   }

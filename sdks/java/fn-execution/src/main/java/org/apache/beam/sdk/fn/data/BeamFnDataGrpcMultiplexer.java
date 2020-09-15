@@ -21,18 +21,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,14 +52,14 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
-  @Nullable private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
+  private final Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
-  private final ConcurrentMap<LogicalEndpoint, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
+  private final ConcurrentMap<LogicalEndpoint, CompletableFuture<BiConsumer<ByteString, Boolean>>>
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
-      @Nullable Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
       OutboundObserverFactory outboundObserverFactory,
       OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
@@ -85,14 +86,15 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     return outboundObserver;
   }
 
-  private CompletableFuture<Consumer<Data>> receiverFuture(LogicalEndpoint endpoint) {
+  private CompletableFuture<BiConsumer<ByteString, Boolean>> receiverFuture(
+      LogicalEndpoint endpoint) {
     return consumers.computeIfAbsent(
         endpoint, (LogicalEndpoint unused) -> new CompletableFuture<>());
   }
 
-  public void registerConsumer(
-      LogicalEndpoint inputLocation, Consumer<BeamFnApi.Elements.Data> dataBytesReceiver) {
-    receiverFuture(inputLocation).complete(dataBytesReceiver);
+  public <T> void registerConsumer(
+      LogicalEndpoint inputLocation, BiConsumer<ByteString, Boolean> bytesReceiver) {
+    receiverFuture(inputLocation).complete(bytesReceiver);
   }
 
   @VisibleForTesting
@@ -102,7 +104,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
 
   @Override
   public void close() {
-    for (CompletableFuture<Consumer<BeamFnApi.Elements.Data>> receiver :
+    for (CompletableFuture<BiConsumer<ByteString, Boolean>> receiver :
         ImmutableList.copyOf(consumers.values())) {
       // Cancel any observer waiting for the client to complete. If the receiver has already been
       // completed or cancelled, this call will be ignored.
@@ -127,16 +129,17 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     public void onNext(BeamFnApi.Elements value) {
       for (BeamFnApi.Elements.Data data : value.getDataList()) {
         try {
-          LogicalEndpoint key = LogicalEndpoint.of(data.getInstructionId(), data.getTransformId());
-          CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = receiverFuture(key);
+          LogicalEndpoint key =
+              LogicalEndpoint.data(data.getInstructionId(), data.getTransformId());
+          CompletableFuture<BiConsumer<ByteString, Boolean>> consumer = receiverFuture(key);
           if (!consumer.isDone()) {
             LOG.debug(
                 "Received data for key {} without consumer ready. "
                     + "Waiting for consumer to be registered.",
                 key);
           }
-          consumer.get().accept(data);
-          if (data.getData().isEmpty()) {
+          consumer.get().accept(data.getData(), data.getIsLast());
+          if (data.getIsLast()) {
             consumers.remove(key);
           }
           /*
@@ -155,6 +158,45 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
               "Client failed to handle data for instruction {} and transform {}",
               data.getInstructionId(),
               data.getTransformId(),
+              e);
+          outboundObserver.onError(e);
+        }
+      }
+
+      for (BeamFnApi.Elements.Timers timer : value.getTimersList()) {
+        try {
+          LogicalEndpoint key =
+              LogicalEndpoint.timer(
+                  timer.getInstructionId(), timer.getTransformId(), timer.getTimerFamilyId());
+          CompletableFuture<BiConsumer<ByteString, Boolean>> consumer = receiverFuture(key);
+          if (!consumer.isDone()) {
+            LOG.debug(
+                "Received data for key {} without consumer ready. "
+                    + "Waiting for consumer to be registered.",
+                key);
+          }
+          consumer.get().accept(timer.getTimers(), timer.getIsLast());
+          if (timer.getIsLast()) {
+            consumers.remove(key);
+          }
+          /*
+           * TODO: On failure we should fail any bundles that were impacted eagerly
+           * instead of relying on the Runner harness to do all the failure handling.
+           */
+        } catch (ExecutionException | InterruptedException e) {
+          LOG.error(
+              "Client interrupted during handling of timer for instruction {}, transform {}, and timer family {}",
+              timer.getInstructionId(),
+              timer.getTransformId(),
+              timer.getTimerFamilyId(),
+              e);
+          outboundObserver.onError(e);
+        } catch (RuntimeException e) {
+          LOG.error(
+              "Client failed to handle timer for instruction {}, transform {}, and timer family {}",
+              timer.getInstructionId(),
+              timer.getTransformId(),
+              timer.getTimerFamilyId(),
               e);
           outboundObserver.onError(e);
         }

@@ -92,7 +92,7 @@ __all__ = ['ReadFromMongoDB', 'WriteToMongoDB']
 
 @experimental()
 class ReadFromMongoDB(PTransform):
-  """A ``PTransfrom`` to read MongoDB documents into a ``PCollection``.
+  """A ``PTransform`` to read MongoDB documents into a ``PCollection``.
   """
   def __init__(
       self,
@@ -171,6 +171,12 @@ class _BoundedMongoSource(iobase.BoundedSource):
         start_position, stop_position)
 
     desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
+
+    # for desired bundle size, if desired chunk size smaller than 1mb, use
+    # mongodb default split size of 1mb.
+    if desired_bundle_size_in_mb < 1:
+      desired_bundle_size_in_mb = 1
+
     split_keys = self._get_split_keys(
         desired_bundle_size_in_mb, start_position, stop_position)
 
@@ -201,9 +207,9 @@ class _BoundedMongoSource(iobase.BoundedSource):
   def read(self, range_tracker):
     with MongoClient(self.uri, **self.spec) as client:
       all_filters = self._merge_id_filter(range_tracker)
-      docs_cursor = client[self.db][self.coll].find(filter=all_filters).sort([
-          ('_id', ASCENDING)
-      ])
+      docs_cursor = client[self.db][self.coll].find(
+          filter=all_filters,
+          projection=self.projection).sort([('_id', ASCENDING)])
       for doc in docs_cursor:
         if not range_tracker.try_claim(doc['_id']):
           return
@@ -221,22 +227,19 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def _get_split_keys(self, desired_chunk_size_in_mb, start_pos, end_pos):
     # calls mongodb splitVector command to get document ids at split position
-    # for desired bundle size, if desired chunk size smaller than 1mb, use
-    # mongodb default split size of 1mb.
-    if desired_chunk_size_in_mb < 1:
-      desired_chunk_size_in_mb = 1
     if start_pos >= end_pos:
       # single document not splittable
       return []
     with MongoClient(self.uri, **self.spec) as client:
       name_space = '%s.%s' % (self.db, self.coll)
-      return (client[self.db].command(
-          'splitVector',
-          name_space,
-          keyPattern={'_id': 1},  # Ascending index
-          min={'_id': start_pos},
-          max={'_id': end_pos},
-          maxChunkSize=desired_chunk_size_in_mb)['splitKeys'])
+      return (
+          client[self.db].command(
+              'splitVector',
+              name_space,
+              keyPattern={'_id': 1},  # Ascending index
+              min={'_id': start_pos},
+              max={'_id': end_pos},
+              maxChunkSize=desired_chunk_size_in_mb)['splitKeys'])
 
   def _merge_id_filter(self, range_tracker):
     # Merge the default filter with refined _id field range of range_tracker.

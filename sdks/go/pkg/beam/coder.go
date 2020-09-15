@@ -27,7 +27,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/golang/protobuf/proto"
+	protov1 "github.com/golang/protobuf/proto"
+	protov2 "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type jsonCoder interface {
@@ -35,11 +37,13 @@ type jsonCoder interface {
 	json.Unmarshaler
 }
 
-var protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+var protoMessageType = reflect.TypeOf((*protov1.Message)(nil)).Elem()
+var protoReflectMessageType = reflect.TypeOf((*protoreflect.ProtoMessage)(nil)).Elem()
 var jsonCoderType = reflect.TypeOf((*jsonCoder)(nil)).Elem()
 
 func init() {
 	coder.RegisterCoder(protoMessageType, protoEnc, protoDec)
+	coder.RegisterCoder(protoReflectMessageType, protoEnc, protoDec)
 }
 
 // Coder defines how to encode and decode values of type 'A' into byte streams.
@@ -144,30 +148,26 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return coder.CoderFrom(c), nil
 		case reflectx.Uint, reflectx.Uint8, reflectx.Uint16, reflectx.Uint32, reflectx.Uint64:
 			c, err := coderx.NewVarUintZ(t.Type())
 			if err != nil {
 				return nil, err
 			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return coder.CoderFrom(c), nil
 
 		case reflectx.Float32:
 			c, err := coderx.NewFloat(t.Type())
 			if err != nil {
 				return nil, err
 			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return coder.CoderFrom(c), nil
 
 		case reflectx.Float64:
 			return &coder.Coder{Kind: coder.Double, T: t}, nil
 
 		case reflectx.String:
-			c, err := coderx.NewString()
-			if err != nil {
-				return nil, err
-			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return &coder.Coder{Kind: coder.String, T: t}, nil
 
 		case reflectx.ByteSlice:
 			return &coder.Coder{Kind: coder.Bytes, T: t}, nil
@@ -178,7 +178,7 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 		default:
 			et := t.Type()
 			if c := coder.LookupCustomCoder(et); c != nil {
-				return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+				return coder.CoderFrom(c), nil
 			}
 			// Interface types that implement JSON marshalling can be handled by the default coder.
 			// otherwise, inference needs to fail here.
@@ -232,22 +232,35 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 
 // protoEnc marshals the supplied proto.Message.
 func protoEnc(in T) ([]byte, error) {
-	buf := proto.NewBuffer(nil)
-	buf.SetDeterministic(true)
-	if err := buf.Marshal(in.(proto.Message)); err != nil {
+	var p protoreflect.ProtoMessage
+	switch it := in.(type) {
+	case protoreflect.ProtoMessage:
+		p = it
+	case protov1.Message:
+		p = protov1.MessageV2(it)
+	}
+	b, err := protov2.MarshalOptions{Deterministic: true}.Marshal(p)
+	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return b, nil
 }
 
 // protoDec unmarshals the supplied bytes into an instance of the supplied
 // proto.Message type.
 func protoDec(t reflect.Type, in []byte) (T, error) {
-	val := reflect.New(t.Elem()).Interface().(proto.Message)
-	if err := proto.Unmarshal(in, val); err != nil {
+	var p protoreflect.ProtoMessage
+	switch it := reflect.New(t.Elem()).Interface().(type) {
+	case protoreflect.ProtoMessage:
+		p = it
+	case protov1.Message:
+		p = protov1.MessageV2(it)
+	}
+	err := protov2.UnmarshalOptions{}.Unmarshal(in, p)
+	if err != nil {
 		return nil, err
 	}
-	return val, nil
+	return p, nil
 }
 
 // Concrete and universal custom coders both have a similar signature.

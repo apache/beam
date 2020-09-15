@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
@@ -75,7 +76,7 @@ public class AvroSchemaTest {
     public AvroSubPojo() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -136,7 +137,7 @@ public class AvroSchemaTest {
     @AvroIgnore String extraField;
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -477,7 +478,7 @@ public class AvroSchemaTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testAvroPipelineGroupBy() {
-    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO)).setRowSchema(POJO_SCHEMA);
+    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO).withRowSchema(POJO_SCHEMA));
 
     PCollection<Row> output = input.apply(Group.byFieldNames("string"));
     Schema keySchema = Schema.builder().addStringField("string").build();

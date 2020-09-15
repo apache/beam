@@ -21,6 +21,7 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
 import unittest
 
@@ -178,6 +179,22 @@ class PipelineOptionsTest(unittest.TestCase):
               DisplayDataItemMatcher('mock_multi_option', ['op1', 'op2'])
           ]
       },
+      {
+          'flags': ['--mock_json_option={"11a": 0, "37a": 1}'],
+          'expected': {
+              'mock_flag': False,
+              'mock_option': None,
+              'mock_multi_option': None,
+              'mock_json_option': {
+                  '11a': 0, '37a': 1
+              },
+          },
+          'display_data': [
+              DisplayDataItemMatcher('mock_json_option', {
+                  '11a': 0, '37a': 1
+              })
+          ]
+      },
   ]
 
   # Used for testing newly added flags.
@@ -189,6 +206,7 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument(
           '--mock_multi_option', action='append', help='mock multi option')
       parser.add_argument('--option with space', help='mock option with space')
+      parser.add_argument('--mock_json_option', type=json.loads, default={})
 
   # Use with MockOptions in test cases where multiple option classes are needed.
   class FakeOptions(PipelineOptions):
@@ -284,6 +302,12 @@ class PipelineOptionsTest(unittest.TestCase):
       self.assertEqual(
           options.view_as(PipelineOptionsTest.MockOptions).mock_option,
           case['expected']['mock_option'])
+      self.assertEqual(
+          options.view_as(PipelineOptionsTest.MockOptions).mock_multi_option,
+          case['expected']['mock_multi_option'])
+      self.assertEqual(
+          options.view_as(PipelineOptionsTest.MockOptions).mock_json_option,
+          case['expected'].get('mock_json_option', {}))
 
   def test_option_with_space(self):
     options = PipelineOptions(flags=['--option with space= value with space'])
@@ -299,6 +323,47 @@ class PipelineOptionsTest(unittest.TestCase):
             options_from_dict.view_as(PipelineOptionsTest.MockOptions),
             'option with space'),
         ' value with space')
+
+  def test_retain_unknown_options_binary_store_string(self):
+    options = PipelineOptions(['--unknown_option', 'some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+
+  def test_retain_unknown_options_binary_equals_store_string(self):
+    options = PipelineOptions(['--unknown_option=some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+
+  def test_retain_unknown_options_binary_multi_equals_store_string(self):
+    options = PipelineOptions(['--unknown_option=expr = "2 + 2 = 5"'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'expr = "2 + 2 = 5"')
+
+  def test_retain_unknown_options_binary_single_dash_store_string(self):
+    options = PipelineOptions(['-i', 'some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['i'], 'some_value')
+
+  def test_retain_unknown_options_unary_store_true(self):
+    options = PipelineOptions(['--unknown_option'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+
+  def test_retain_unknown_options_consecutive_unary_store_true(self):
+    options = PipelineOptions(['--option_foo', '--option_bar'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['option_foo'], True)
+    self.assertEqual(result['option_bar'], True)
+
+  def test_retain_unknown_options_unary_single_dash_store_true(self):
+    options = PipelineOptions(['-i'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['i'], True)
+
+  def test_retain_unknown_options_unary_missing_prefix(self):
+    options = PipelineOptions(['bad_option'])
+    with self.assertRaises(SystemExit):
+      options.get_all_options(retain_unknown_options=True)
 
   def test_override_options(self):
     base_flags = ['--num_workers', '5']

@@ -21,6 +21,8 @@
 set -e
 set -v
 
+SAVE_MAIN_SESSION=0
+
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -53,6 +55,10 @@ case $key in
     --python_container_image)
         PYTHON_CONTAINER_IMAGE="$2"
         shift # past argument
+        shift # past value
+        ;;
+    --save_main_session)
+        SAVE_MAIN_SESSION=1
         shift # past value
         ;;
     *)    # unknown option
@@ -91,10 +97,11 @@ s.close()
 FLINK_PORT=$(python -c "$SOCKET_SCRIPT")
 
 echo "Starting Flink mini cluster listening on port $FLINK_PORT"
-java -jar "$FLINK_MINI_CLUSTER_JAR" --rest-port "$FLINK_PORT" &
+java -Dorg.slf4j.simpleLogger.defaultLogLevel=warn -jar "$FLINK_MINI_CLUSTER_JAR" --rest-port "$FLINK_PORT" --rest-bind-address localhost &
 
 PIPELINE_PY="
 import apache_beam as beam
+import logging
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.util import assert_that
@@ -102,32 +109,52 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import Create
 from apache_beam.transforms import Map
 
-# To test that our main session is getting plumbed through artifact staging
-# correctly, create a global variable. If the main session is not plumbed
-# through properly, global_var will be undefined and the pipeline will fail.
-global_var = 1
+logging.basicConfig(level=logging.INFO)
 
 pipeline_options = PipelineOptions()
-pipeline_options.view_as(SetupOptions).save_main_session = True
 pipeline = beam.Pipeline(options=pipeline_options)
-pcoll = (pipeline
-         | Create([0, 1, 2])
-         | Map(lambda x: x + global_var))
+
+if pipeline_options.view_as(SetupOptions).save_main_session:
+  # To test that our main session is getting plumbed through artifact staging
+  # correctly, create a global variable. If the main session is not plumbed
+  # through properly, global_var will be undefined and the pipeline will fail.
+  global_var = 1
+  pcoll = (pipeline
+           | Create([0, 1, 2])
+           | Map(lambda x: x + global_var))
+else:
+  pcoll = (pipeline
+           | Create([0, 1, 2])
+           | Map(lambda x: x + 1))
+
 assert_that(pcoll, equal_to([1, 2, 3]))
 
 result = pipeline.run()
 result.wait_until_finish()
 "
 
-(python -c "$PIPELINE_PY" \
-  --runner FlinkRunner \
-  --flink_job_server_jar "$FLINK_JOB_SERVER_JAR" \
-  --parallelism 1 \
-  --environment_type DOCKER \
-  --environment_config "$PYTHON_CONTAINER_IMAGE" \
-  --flink_master "localhost:$FLINK_PORT" \
-  --flink_submit_uber_jar \
-) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
+if [[ "$SAVE_MAIN_SESSION" -eq 0 ]]; then
+  (python -c "$PIPELINE_PY" \
+    --runner FlinkRunner \
+    --flink_job_server_jar "$FLINK_JOB_SERVER_JAR" \
+    --parallelism 1 \
+    --environment_type DOCKER \
+    --environment_config "$PYTHON_CONTAINER_IMAGE" \
+    --flink_master "localhost:$FLINK_PORT" \
+    --flink_submit_uber_jar \
+  ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
+else
+  (python -c "$PIPELINE_PY" \
+    --runner FlinkRunner \
+    --flink_job_server_jar "$FLINK_JOB_SERVER_JAR" \
+    --parallelism 1 \
+    --environment_type DOCKER \
+    --environment_config "$PYTHON_CONTAINER_IMAGE" \
+    --flink_master "localhost:$FLINK_PORT" \
+    --flink_submit_uber_jar \
+    --save_main_session
+  ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
+fi
 
 kill %1 || echo "Failed to shut down Flink mini cluster"
 

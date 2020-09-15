@@ -46,6 +46,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.slf4j.Logger;
@@ -72,17 +73,18 @@ public class GreedyPipelineFuser {
       unfusedRootNodes.addAll(descendants.getUnfusedNodes());
       rootConsumers.addAll(descendants.getFusibleConsumers());
     }
-    this.fusedPipeline = fusePipeline(unfusedRootNodes, groupSiblings(rootConsumers));
+    this.fusedPipeline =
+        fusePipeline(
+            unfusedRootNodes,
+            groupSiblings(rootConsumers),
+            ImmutableSet.copyOf(p.getRequirementsList()));
   }
 
   /**
    * Fuses a {@link Pipeline} into a collection of {@link ExecutableStage ExecutableStages}.
    *
    * <p>This fuser expects each ExecutableStage to have exactly one input. This means that pipelines
-   * must be rooted at Impulse, or other runner-executed primitive transforms, instead of primitive
-   * Read nodes. The utilities in {@link
-   * org.apache.beam.runners.core.construction.JavaReadViaImpulse} can be used to convert bounded
-   * pipelines using the Read primitive.
+   * must be rooted at Impulse, or other runner-executed primitive transforms.
    */
   public static FusedPipeline fuse(Pipeline p) {
     return new GreedyPipelineFuser(p).fusedPipeline;
@@ -117,7 +119,8 @@ public class GreedyPipelineFuser {
    */
   private FusedPipeline fusePipeline(
       Collection<PTransformNode> initialUnfusedTransforms,
-      NavigableSet<NavigableSet<CollectionConsumer>> initialConsumers) {
+      NavigableSet<NavigableSet<CollectionConsumer>> initialConsumers,
+      Set<String> requirements) {
     Map<CollectionConsumer, ExecutableStage> consumedCollectionsAndTransforms = new HashMap<>();
     Set<ExecutableStage> stages = new LinkedHashSet<>();
     Set<PTransformNode> unfusedTransforms = new LinkedHashSet<>(initialUnfusedTransforms);
@@ -177,7 +180,8 @@ public class GreedyPipelineFuser {
                         deduplicated
                             .getDeduplicatedTransforms()
                             .getOrDefault(transform.getId(), transform))
-                .collect(Collectors.toSet())));
+                .collect(Collectors.toSet())),
+        requirements);
   }
 
   private DescendantConsumers getRootConsumers(PTransformNode rootNode) {

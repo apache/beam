@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jet')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jet', enableChecker:false, ignoreRawtypeErrors: true)
 
 description = "Apache Beam :: Runners :: Hazelcast Jet"
 
@@ -28,8 +28,8 @@ evaluationDependsOn(":runners:core-java")
 evaluationDependsOn(":runners:core-construction-java")
 
 project.ext {
-    jet_version = '3.0'
-    hazelcast_version = '3.12'
+    jet_version = '4.0'
+    hazelcast_version = '4.0'
 }
 
 configurations {
@@ -47,9 +47,9 @@ dependencies {
     testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
     testCompile library.java.hamcrest_core
     testCompile library.java.junit
+    testCompile library.java.joda_time
     testCompile "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
     testCompile "com.hazelcast:hazelcast:$hazelcast_version:tests"
-    testCompile "com.hazelcast:hazelcast-client:$hazelcast_version:tests"
 
     needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
     needsRunner project(path: ":runners:core-java", configuration: "testRuntime")
@@ -72,8 +72,26 @@ task validatesRunnerBatch(type: Test) {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse' //impulse doesn't cooperate properly with Jet when multiple cluster members are used
         exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+
+        //Jet Runner doesn't current support @RequiresTimeSortedInput annotation.
+        excludeCategories 'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput'
+
+        //Event type not supported in TestStream: class org.apache.beam.sdk.testing.AutoValue_TestStream_ProcessingTimeEvent
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+    }
+    filter {
+        // unbounded streams created from bounded sources not supported by Jet Runner
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInputUnbounded'
+
+        // timer output timestamps not supported by Jet Runner
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+
+        excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testAssertionSiteIsCaptured*'
     }
 
     maxHeapSize = '4g'
@@ -97,6 +115,7 @@ task needsRunnerTests(type: Test) {
     useJUnit {
         includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
         excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     }
 }
 

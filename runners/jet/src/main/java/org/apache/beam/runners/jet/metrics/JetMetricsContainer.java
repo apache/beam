@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.jet.metrics;
 
-import com.hazelcast.jet.IMapJet;
 import com.hazelcast.jet.Util;
 import com.hazelcast.jet.core.Processor;
+import com.hazelcast.map.IMap;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,7 +48,7 @@ public class JetMetricsContainer implements MetricsContainer {
   private final Map<MetricName, DistributionImpl> distributions = new HashMap<>();
   private final Map<MetricName, GaugeImpl> gauges = new HashMap<>();
 
-  private final IMapJet<String, MetricUpdates> accumulator;
+  private final IMap<String, MetricUpdates> accumulator;
 
   public JetMetricsContainer(String stepName, String ownerId, Processor.Context context) {
     this.metricsKey = context.globalProcessorIndex() + "/" + stepName + "/" + ownerId;

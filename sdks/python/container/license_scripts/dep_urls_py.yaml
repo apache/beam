@@ -1,0 +1,128 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+pip_dependencies:
+  # This is a list of packages whose license files cannot be pulled with pip-licenses tool.
+  # pip-licenses scans site-packages/ directory to get a list of packages installed and their licenses.
+  # For packages that do not include licenses in their distribution, we need to manually
+  # provide license files in ./manual_licences/, or provide a url where they can be downloaded from.
+  # We need to manually configure licenses for a dependency if pip-licenses fails to retrieve
+  # the license file under any Python version we support.
+
+  # template:
+  # dependency_name:
+  #   license: url_to_license or "skip"
+  #     # skip: don't add license for the dependency
+  #     # url_to_license: a url to source code (https://...) or a local file (file://...)
+  #   notice: it's optional, url_to_notice
+  apache-beam:
+    license: "skip" # don't include self dependency.
+  # TODO(BEAM-8371): License for this dependency cannot be automatically retrieved on Python 2.
+  appdirs:
+    license: "https://raw.githubusercontent.com/ActiveState/appdirs/master/LICENSE.txt"
+  avro:
+    license: "https://raw.githubusercontent.com/apache/avro/master/LICENSE.txt"
+    notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"
+  avro-python3:
+    license: "https://raw.githubusercontent.com/apache/avro/master/LICENSE.txt"
+    notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"
+  backports.weakref:
+    license: "https://raw.githubusercontent.com/PiDelport/backports.weakref/master/LICENSE"
+  chardet:
+    license: "https://raw.githubusercontent.com/chardet/chardet/master/LICENSE"
+  certifi:
+    license: "https://raw.githubusercontent.com/certifi/python-certifi/master/LICENSE"
+  cython:
+    license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
+  enum34:
+    # The original repo is down. This license taken from somebody's clone:
+    # https://github.com/jamespharaoh/python-enum34/blob/master/enum/LICENSE
+    license: "file:///tmp/license_scripts/manual_licenses/enum34/LICENSE"
+  fastavro:
+    license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
+  funcsigs:
+    license: "https://raw.githubusercontent.com/aliles/funcsigs/master/LICENSE"
+  futures:
+    license: "https://raw.githubusercontent.com/agronholm/pythonfutures/master/LICENSE"
+  google-apitools:
+    license: "https://raw.githubusercontent.com/google/apitools/master/LICENSE"
+  googledatastore:
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/google-cloud-datastore/master/LICENSE"
+  grpcio:
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
+  grpcio-gcp:
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/grpc-gcp-python/master/LICENSE"
+  guppy:
+    license: "https://raw.githubusercontent.com/joshwcomeau/guppy/master/LICENSE.md"
+  guppy3:
+    license: "https://raw.githubusercontent.com/zhuyifei1999/guppy3/master/LICENSE"
+  h5py:
+    license: "https://raw.githubusercontent.com/h5py/h5py/master/LICENSE"
+  hdfs:
+    license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
+  httplib2:
+    license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  mmh3:
+    license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
+  mock:
+    license: "https://raw.githubusercontent.com/testing-cabal/mock/master/LICENSE.txt"
+  monotonic:
+    license: "https://raw.githubusercontent.com/atdt/monotonic/master/LICENSE"
+  nose:
+      license: "https://raw.githubusercontent.com/nose-devs/nose/master/lgpl.txt"
+  numpy:
+    license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
+  oauth2client:
+    license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
+  pandas:
+    license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
+  pathlib2:
+    license: "https://raw.githubusercontent.com/mcmtroffaes/pathlib2/develop/LICENSE.rst"
+  protobuf:
+    license: "https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE"
+  protorpc:
+    license: "https://raw.githubusercontent.com/google/protorpc/master/LICENSE"
+  pbr:
+    license: "https://opendev.org/openstack/pbr/raw/branch/master/LICENSE"
+  pyarrow:
+    license: "https://raw.githubusercontent.com/apache/arrow/master/LICENSE.txt"
+    notice: "https://raw.githubusercontent.com/apache/arrow/master/NOTICE.txt"
+  pyhamcrest:
+    license: "https://raw.githubusercontent.com/hamcrest/PyHamcrest/master/LICENSE.txt"
+  pymongo:
+    license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
+  python-gflags:
+    license: "https://raw.githubusercontent.com/google/python-gflags/master/COPYING"
+  pyvcf:
+    license: "https://raw.githubusercontent.com/jamescasbon/PyVCF/master/LICENSE"
+  singledispatch:
+    license: "file:///tmp/license_scripts/manual_licenses/singledispatch/LICENSE"
+  scipy:
+    license: "https://raw.githubusercontent.com/scipy/scipy/master/LICENSE.txt"
+  termcolor:
+    license: "file:///tmp/license_scripts/manual_licenses/termcolor/LICENSE"
+  tensorflow:
+    license: "https://raw.githubusercontent.com/tensorflow/tensorflow/master/LICENSE"
+  tensorflow-estimator:
+    license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
+  tensorboard-plugin-wit:
+    license: "https://raw.githubusercontent.com/PAIR-code/what-if-tool/master/LICENSE"
+  timeloop:
+    license: "https://raw.githubusercontent.com/sankalpjonn/timeloop/master/LICENSE"
+  wget:
+    license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"

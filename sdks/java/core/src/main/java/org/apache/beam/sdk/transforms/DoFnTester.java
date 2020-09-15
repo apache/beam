@@ -28,18 +28,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -50,12 +49,12 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -212,7 +211,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           createProcessContext(
               ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
       fnInvoker.invokeProcessElement(
-          new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
+          new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
+
+            @Override
+            public String getErrorContext() {
+              return "DoFnTester";
+            }
+
             @Override
             public BoundedWindow window() {
               return window;
@@ -253,13 +258,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public InputT sideInput(String sideInputTag) {
-              throw new UnsupportedOperationException("SideInputs are not supported by DoFnTester");
-            }
-
-            @Override
-            public InputT schemaElement(int index) {
-              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
+            public Object key() {
+              throw new UnsupportedOperationException(
+                  "Cannot access key as parameter outside of @OnTimer method.");
             }
 
             @Override
@@ -285,18 +286,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
-            }
-
-            @Override
             public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
               return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
-            }
-
-            @Override
-            public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet.");
             }
 
             @Override
@@ -309,21 +300,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             public RestrictionTracker<?, ?> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
-            }
-
-            @Override
-            public org.apache.beam.sdk.state.State state(String stateId) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support state yet");
-            }
-
-            @Override
-            public Timer timer(String timerId) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet");
-            }
-
-            @Override
-            public TimerMap timerFamily(String tagId) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support timerFamily yet");
             }
           });
     } catch (UserCodeException e) {
@@ -459,38 +435,58 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return mainOutputTag;
   }
 
-  private class TestStartBundleContext extends DoFn<InputT, OutputT>.StartBundleContext {
-
-    private TestStartBundleContext() {
-      fn.super();
+  private class TestStartBundleContext extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public StartBundleContext startBundleContext(DoFn doFn) {
+      return fn.new StartBundleContext() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
+      };
     }
 
     @Override
-    public PipelineOptions getPipelineOptions() {
+    public PipelineOptions pipelineOptions() {
       return options;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "DoFnTester/StartBundle";
     }
   }
 
-  private class TestFinishBundleContext extends DoFn<InputT, OutputT>.FinishBundleContext {
+  private class TestFinishBundleContext extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn doFn) {
+      return fn.new FinishBundleContext() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
 
-    private TestFinishBundleContext() {
-      fn.super();
+        @Override
+        public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+          output(mainOutputTag, output, timestamp, window);
+        }
+
+        @Override
+        public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+          getMutableOutput(tag)
+              .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        }
+      };
     }
 
     @Override
-    public PipelineOptions getPipelineOptions() {
+    public PipelineOptions pipelineOptions() {
       return options;
     }
 
     @Override
-    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-      output(mainOutputTag, output, timestamp, window);
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-      getMutableOutput(tag)
-          .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+    public String getErrorContext() {
+      return "DoFnTester/FinishBundle";
     }
   }
 
@@ -528,29 +524,33 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       }
       // Fallback to returning the default materialization if no data was supplied.
       // This is really to support singleton views with default values.
+      switch (view.getViewFn().getMaterialization().getUrn()) {
+        case Materializations.ITERABLE_MATERIALIZATION_URN:
+          return ((ViewFn<Materializations.IterableView, T>) view.getViewFn())
+              .apply(() -> Collections.emptyList());
+        case Materializations.MULTIMAP_MATERIALIZATION_URN:
+          return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
+              .apply(
+                  new MultimapView() {
+                    @Override
+                    public Iterable get() {
+                      return Collections.emptyList();
+                    }
 
-      // TODO: Update this to supply a materialization dependent on actual URN of materialization.
-      // Currently the SDK only supports the multimap materialization and it expects a
-      // mapping function.
-      checkState(
-          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-              view.getViewFn().getMaterialization().getUrn()),
-          "Only materializations of type %s supported, received %s",
-          Materializations.MULTIMAP_MATERIALIZATION_URN,
-          view.getViewFn().getMaterialization().getUrn());
-      return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
-          .apply(
-              new MultimapView() {
-                @Override
-                public Iterable get() {
-                  return Collections.emptyList();
-                }
-
-                @Override
-                public Iterable get(@Nullable Object o) {
-                  return Collections.emptyList();
-                }
-              });
+                    @Override
+                    public Iterable get(@Nullable Object o) {
+                      return Collections.emptyList();
+                    }
+                  });
+        default:
+          throw new IllegalStateException(
+              String.format(
+                  "Only materializations of type %s supported, received %s",
+                  Arrays.asList(
+                      Materializations.ITERABLE_MATERIALIZATION_URN,
+                      Materializations.MULTIMAP_MATERIALIZATION_URN),
+                  view.getViewFn().getMaterialization().getUrn()));
+      }
     }
 
     @Override
@@ -561,11 +561,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @Override
     public PaneInfo pane() {
       return element.getPane();
-    }
-
-    @Override
-    public void updateWatermark(Instant watermark) {
-      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -639,9 +634,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
   /** The original DoFn under test, if started. */
-  @Nullable private DoFn<InputT, OutputT> fn;
+  private @Nullable DoFn<InputT, OutputT> fn;
 
-  @Nullable private DoFnInvoker<InputT, OutputT> fnInvoker;
+  private @Nullable DoFnInvoker<InputT, OutputT> fnInvoker;
 
   /** The outputs from the {@link DoFn} under test. Access via {@link #getOutputs()}. */
   @CheckForNull private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
@@ -656,52 +651,45 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       param.match(
           new DoFnSignature.Parameter.Cases.WithDefault<Void>() {
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
               // ProcessContext parameter is obviously supported.
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
               // We also support the BoundedWindow parameter.
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
+            public @Nullable Void dispatch(
+                DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
               return null;
             }
 

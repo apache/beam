@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
@@ -32,31 +33,28 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.modifier.FieldManifestation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.modifier.Ownership;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.modifier.Visibility;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.FixedValue;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.TypeCreation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.FieldManifestation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.Ownership;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.modifier.Visibility;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.DynamicType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.FixedValue;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.Duplication;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
@@ -99,66 +97,98 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 @Experimental(Kind.SCHEMAS)
 public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
-  private static final ForLoadedType CODER_TYPE = new ForLoadedType(Coder.class);
-  private static final ForLoadedType LIST_CODER_TYPE = new ForLoadedType(ListCoder.class);
-  private static final ForLoadedType ITERABLE_CODER_TYPE = new ForLoadedType(IterableCoder.class);
-  private static final ForLoadedType MAP_CODER_TYPE = new ForLoadedType(MapCoder.class);
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
   private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
-  private static final ForLoadedType NULLABLE_CODER = new ForLoadedType(NullableCoder.class);
 
   private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
 
-  // A map of primitive types -> StackManipulations to create their coders.
-  private static final Map<TypeName, StackManipulation> CODER_MAP;
-
   // Cache for Coder class that are already generated.
-  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newConcurrentMap();
-
-  static {
-    // Initialize the CODER_MAP with the StackManipulations to create the primitive coders.
-    // Assumes that each class contains a static of() constructor method.
-    CODER_MAP = Maps.newHashMap();
-    for (Map.Entry<TypeName, Coder> entry : SchemaCoder.CODER_MAP.entrySet()) {
-      StackManipulation stackManipulation =
-          MethodInvocation.invoke(
-              new ForLoadedType(entry.getValue().getClass())
-                  .getDeclaredMethods()
-                  .filter(ElementMatchers.named("of"))
-                  .getOnly());
-      CODER_MAP.putIfAbsent(entry.getKey(), stackManipulation);
-    }
-  }
+  private static final Map<UUID, Coder<Row>> GENERATED_CODERS = Maps.newConcurrentMap();
 
   @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema) {
     // Using ConcurrentHashMap::computeIfAbsent here would deadlock in case of nested
     // coders. Using HashMap::computeIfAbsent generates ConcurrentModificationExceptions in Java 11.
-    Coder<Row> rowCoder = generatedCoders.get(schema.getUUID());
+    Coder<Row> rowCoder = GENERATED_CODERS.get(schema.getUUID());
     if (rowCoder == null) {
       TypeDescription.Generic coderType =
           TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
       DynamicType.Builder<Coder> builder =
           (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
-      builder = createComponentCoders(schema, builder);
       builder = implementMethods(schema, builder);
+
+      Coder[] componentCoders = new Coder[schema.getFieldCount()];
+      for (int i = 0; i < schema.getFieldCount(); ++i) {
+        // We use withNullable(false) as nulls are handled by the RowCoder and the individual
+        // component coders therefore do not need to handle nulls.
+        componentCoders[i] =
+            SchemaCoder.coderForFieldType(schema.getField(i).getType().withNullable(false));
+      }
+
+      builder =
+          builder.defineField(
+              CODERS_FIELD_NAME, Coder[].class, Visibility.PRIVATE, FieldManifestation.FINAL);
+
+      builder =
+          builder
+              .defineConstructor(Modifier.PUBLIC)
+              .withParameters(Coder[].class)
+              .intercept(new GeneratedCoderConstructor());
+
       try {
         rowCoder =
             builder
                 .make()
                 .load(Coder.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded()
-                .getDeclaredConstructor()
-                .newInstance();
+                .getDeclaredConstructor(Coder[].class)
+                .newInstance((Object) componentCoders);
       } catch (InstantiationException
           | IllegalAccessException
           | NoSuchMethodException
           | InvocationTargetException e) {
-        throw new RuntimeException("Unable to generate coder for schema " + schema);
+        throw new RuntimeException("Unable to generate coder for schema " + schema, e);
       }
-      generatedCoders.put(schema.getUUID(), rowCoder);
+      GENERATED_CODERS.put(schema.getUUID(), rowCoder);
     }
     return rowCoder;
+  }
+
+  private static class GeneratedCoderConstructor implements Implementation {
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation stackManipulation =
+            new StackManipulation.Compound(
+                // Call the base constructor.
+                MethodVariableAccess.loadThis(),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    new ForLoadedType(Coder.class)
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()),
+                // Store the list of Coders as a member variable.
+                MethodVariableAccess.REFERENCE.loadFrom(1),
+                FieldAccess.forField(
+                        implementationTarget
+                            .getInstrumentedType()
+                            .getDeclaredFields()
+                            .filter(ElementMatchers.named(CODERS_FIELD_NAME))
+                            .getOnly())
+                    .write(),
+                MethodReturn.VOID);
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
   }
 
   private static DynamicType.Builder<Coder> implementMethods(
@@ -185,6 +215,7 @@ public abstract class RowCoderGenerator {
         StackManipulation manipulation =
             new StackManipulation.Compound(
                 // Array of coders.
+                MethodVariableAccess.loadThis(),
                 FieldAccess.forField(
                         implementationContext
                             .getInstrumentedType()
@@ -272,6 +303,7 @@ public abstract class RowCoderGenerator {
                         .filter(ElementMatchers.named("getSchema"))
                         .getOnly()),
                 // Array of coders.
+                MethodVariableAccess.loadThis(),
                 FieldAccess.forField(
                         implementationContext
                             .getInstrumentedType()
@@ -313,7 +345,8 @@ public abstract class RowCoderGenerator {
           if (nullFields.get(i)) {
             fieldValues.add(null);
           } else {
-            fieldValues.add(coders[i].decode(inputStream));
+            Object fieldValue = coders[i].decode(inputStream);
+            fieldValues.add(fieldValue);
           }
         }
       }
@@ -326,123 +359,7 @@ public abstract class RowCoderGenerator {
       // all values. Since we assume that decode is always being called on a previously-encoded
       // Row, the values should already be validated and of the correct type. So, we can save
       // some processing by simply transferring ownership of the list to the Row.
-      return Row.withSchema(schema).attachValues(fieldValues).build();
+      return Row.withSchema(schema).attachValues(fieldValues);
     }
-  }
-
-  private static DynamicType.Builder<Coder> createComponentCoders(
-      Schema schema, DynamicType.Builder<Coder> builder) {
-    List<StackManipulation> componentCoders =
-        Lists.newArrayListWithCapacity(schema.getFieldCount());
-    for (int i = 0; i < schema.getFieldCount(); i++) {
-      // We use withNullable(false) as nulls are handled by the RowCoder and the individual
-      // component coders therefore do not need to handle nulls.
-      componentCoders.add(getCoder(schema.getField(i).getType().withNullable(false)));
-    }
-
-    return builder
-        // private static final Coder[] FIELD_CODERS;
-        .defineField(
-            CODERS_FIELD_NAME,
-            Coder[].class,
-            Visibility.PRIVATE,
-            Ownership.STATIC,
-            FieldManifestation.FINAL)
-        // Static initializer.
-        .initializer(
-            (methodVisitor, implementationContext, instrumentedMethod) -> {
-              StackManipulation manipulation =
-                  new StackManipulation.Compound(
-                      // Initialize the array of coders.
-                      ArrayFactory.forType(CODER_TYPE.asGenericType()).withValues(componentCoders),
-                      FieldAccess.forField(
-                              implementationContext
-                                  .getInstrumentedType()
-                                  .getDeclaredFields()
-                                  .filter(ElementMatchers.named(CODERS_FIELD_NAME))
-                                  .getOnly())
-                          .write());
-              StackManipulation.Size size =
-                  manipulation.apply(methodVisitor, implementationContext);
-              return new ByteCodeAppender.Size(
-                  size.getMaximalSize(), instrumentedMethod.getStackSize());
-            });
-  }
-
-  private static StackManipulation getCoder(Schema.FieldType fieldType) {
-    if (TypeName.LOGICAL_TYPE.equals(fieldType.getTypeName())) {
-      return getCoder(fieldType.getLogicalType().getBaseType());
-    } else if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
-      return listCoder(fieldType.getCollectionElementType());
-    } else if (TypeName.ITERABLE.equals(fieldType.getTypeName())) {
-      return iterableCoder(fieldType.getCollectionElementType());
-    }
-    if (TypeName.MAP.equals(fieldType.getTypeName())) {;
-      return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
-    } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
-      checkState(fieldType.getRowSchema().getUUID() != null);
-      Coder<Row> nestedCoder = generate(fieldType.getRowSchema());
-      return rowCoder(nestedCoder.getClass());
-    } else {
-      StackManipulation primitiveCoder = coderForPrimitiveType(fieldType.getTypeName());
-
-      if (fieldType.getNullable()) {
-        primitiveCoder =
-            new Compound(
-                primitiveCoder,
-                MethodInvocation.invoke(
-                    NULLABLE_CODER
-                        .getDeclaredMethods()
-                        .filter(ElementMatchers.named("of"))
-                        .getOnly()));
-      }
-
-      return primitiveCoder;
-    }
-  }
-
-  private static StackManipulation listCoder(Schema.FieldType fieldType) {
-    StackManipulation componentCoder = getCoder(fieldType);
-    return new Compound(
-        componentCoder,
-        MethodInvocation.invoke(
-            LIST_CODER_TYPE.getDeclaredMethods().filter(ElementMatchers.named("of")).getOnly()));
-  }
-
-  private static StackManipulation iterableCoder(Schema.FieldType fieldType) {
-    StackManipulation componentCoder = getCoder(fieldType);
-    return new Compound(
-        componentCoder,
-        MethodInvocation.invoke(
-            ITERABLE_CODER_TYPE
-                .getDeclaredMethods()
-                .filter(ElementMatchers.named("of"))
-                .getOnly()));
-  }
-
-  static StackManipulation coderForPrimitiveType(Schema.TypeName typeName) {
-    return CODER_MAP.get(typeName);
-  }
-
-  static StackManipulation mapCoder(Schema.FieldType keyType, Schema.FieldType valueType) {
-    StackManipulation keyCoder = getCoder(keyType);
-    StackManipulation valueCoder = getCoder(valueType);
-    return new Compound(
-        keyCoder,
-        valueCoder,
-        MethodInvocation.invoke(
-            MAP_CODER_TYPE.getDeclaredMethods().filter(ElementMatchers.named("of")).getOnly()));
-  }
-
-  static StackManipulation rowCoder(Class coderClass) {
-    ForLoadedType loadedType = new ForLoadedType(coderClass);
-    return new Compound(
-        TypeCreation.of(loadedType),
-        Duplication.SINGLE,
-        MethodInvocation.invoke(
-            loadedType
-                .getDeclaredMethods()
-                .filter(ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                .getOnly()));
   }
 }

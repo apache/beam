@@ -23,13 +23,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
+import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.ReadStream;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -41,6 +40,7 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
@@ -55,21 +55,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
 
   public static <T> BigQueryStorageStreamSource<T> create(
       ReadSession readSession,
-      Stream stream,
+      ReadStream readStream,
       TableSchema tableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageStreamSource<>(
         readSession,
-        stream,
+        readStream,
         toJsonString(checkNotNull(tableSchema, "tableSchema")),
         parseFn,
         outputCoder,
@@ -78,15 +78,15 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   /**
    * Creates a new source with the same properties as this one, except with a different {@link
-   * Stream}.
+   * ReadStream}.
    */
-  public BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
-    return new BigQueryStorageStreamSource(
-        readSession, newStream, jsonTableSchema, parseFn, outputCoder, bqServices);
+  public BigQueryStorageStreamSource<T> fromExisting(ReadStream newReadStream) {
+    return new BigQueryStorageStreamSource<>(
+        readSession, newReadStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 
   private final ReadSession readSession;
-  private final Stream stream;
+  private final ReadStream readStream;
   private final String jsonTableSchema;
   private final SerializableFunction<SchemaAndRecord, T> parseFn;
   private final Coder<T> outputCoder;
@@ -94,13 +94,13 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   private BigQueryStorageStreamSource(
       ReadSession readSession,
-      Stream stream,
+      ReadStream readStream,
       String jsonTableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     this.readSession = checkNotNull(readSession, "readSession");
-    this.stream = checkNotNull(stream, "stream");
+    this.readStream = checkNotNull(readStream, "stream");
     this.jsonTableSchema = checkNotNull(jsonTableSchema, "jsonTableSchema");
     this.parseFn = checkNotNull(parseFn, "parseFn");
     this.outputCoder = checkNotNull(outputCoder, "outputCoder");
@@ -116,11 +116,9 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .addIfNotNull(
-            DisplayData.item("table", BigQueryHelpers.toTableSpec(readSession.getTableReference()))
-                .withLabel("Table"))
+        .add(DisplayData.item("table", readSession.getTable()).withLabel("Table"))
         .add(DisplayData.item("readSession", readSession.getName()).withLabel("Read session"))
-        .add(DisplayData.item("stream", stream.getName()).withLabel("Stream"));
+        .add(DisplayData.item("stream", readStream.getName()).withLabel("Stream"));
   }
 
   @Override
@@ -145,11 +143,11 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   @Override
   public String toString() {
-    return stream.toString();
+    return readStream.toString();
   }
 
   /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
     private final DatumReader<GenericRecord> datumReader;
@@ -167,10 +165,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     // Values used for progress reporting.
     private double fractionConsumed;
-    private double fractionConsumedFromPreviousResponse;
-    private double fractionConsumedFromCurrentResponse;
-    private long rowsReadFromCurrentResponse;
-    private long totalRowCountFromCurrentResponse;
+    private double progressAtResponseStart;
+    private double progressAtResponseEnd;
+    private long rowsConsumedFromCurrentResponse;
+    private long totalRowsInCurrentResponse;
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
@@ -182,10 +180,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
       this.fractionConsumed = 0d;
-      this.fractionConsumedFromPreviousResponse = 0d;
-      this.fractionConsumedFromCurrentResponse = 0d;
-      this.rowsReadFromCurrentResponse = 0L;
-      this.totalRowCountFromCurrentResponse = 0L;
+      this.progressAtResponseStart = 0d;
+      this.progressAtResponseEnd = 0d;
+      this.rowsConsumedFromCurrentResponse = 0L;
+      this.totalRowsInCurrentResponse = 0L;
     }
 
     @Override
@@ -194,13 +192,13 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       ReadRowsRequest request =
           ReadRowsRequest.newBuilder()
-              .setReadPosition(
-                  StreamPosition.newBuilder().setStream(source.stream).setOffset(currentOffset))
+              .setReadStream(source.readStream.getName())
+              .setOffset(currentOffset)
               .build();
 
       responseStream = storageClient.readRows(request);
       responseIterator = responseStream.iterator();
-      LOGGER.info("Started BigQuery Storage API read from stream {}.", source.stream.getName());
+      LOG.info("Started BigQuery Storage API read from stream {}.", source.readStream.getName());
       return readNextRecord();
     }
 
@@ -217,33 +215,31 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           return false;
         }
 
-        fractionConsumedFromPreviousResponse = fractionConsumedFromCurrentResponse;
-        ReadRowsResponse currentResponse = responseIterator.next();
+        ReadRowsResponse response = responseIterator.next();
+        progressAtResponseStart = response.getStats().getProgress().getAtResponseStart();
+        progressAtResponseEnd = response.getStats().getProgress().getAtResponseEnd();
+        totalRowsInCurrentResponse = response.getRowCount();
+        rowsConsumedFromCurrentResponse = 0L;
+
+        Preconditions.checkArgument(
+            totalRowsInCurrentResponse >= 0,
+            "Row count from current response (%s) must be non-negative.",
+            totalRowsInCurrentResponse);
+
+        Preconditions.checkArgument(
+            0f <= progressAtResponseStart && progressAtResponseStart <= 1f,
+            "Progress at response start (%s) is not in the range [0.0, 1.0].",
+            progressAtResponseStart);
+
+        Preconditions.checkArgument(
+            0f <= progressAtResponseEnd && progressAtResponseEnd <= 1f,
+            "Progress at response end (%s) is not in the range [0.0, 1.0].",
+            progressAtResponseEnd);
+
         decoder =
             DecoderFactory.get()
                 .binaryDecoder(
-                    currentResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
-
-        // Since we now have a new response, reset the row counter for the current response.
-        rowsReadFromCurrentResponse = 0L;
-
-        totalRowCountFromCurrentResponse = currentResponse.getAvroRows().getRowCount();
-        fractionConsumedFromCurrentResponse = getFractionConsumed(currentResponse);
-
-        Preconditions.checkArgument(
-            totalRowCountFromCurrentResponse >= 0L,
-            "Row count from current response (%s) must be greater than or equal to zero.",
-            totalRowCountFromCurrentResponse);
-        Preconditions.checkArgument(
-            0f <= fractionConsumedFromCurrentResponse && fractionConsumedFromCurrentResponse <= 1f,
-            "Fraction consumed from current response (%s) is not in the range [0.0, 1.0].",
-            fractionConsumedFromCurrentResponse);
-        Preconditions.checkArgument(
-            fractionConsumedFromPreviousResponse <= fractionConsumedFromCurrentResponse,
-            "Fraction consumed from the current response (%s) has to be larger than or equal to "
-                + "the fraction consumed from the previous response (%s).",
-            fractionConsumedFromCurrentResponse,
-            fractionConsumedFromPreviousResponse);
+                    response.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
       }
 
       record = datumReader.read(record, decoder);
@@ -253,13 +249,14 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       // the fraction consumed value from the previous server response (or zero if we're consuming
       // the first response) and the fractional value in the current response based on how many of
       // the rows in the current response have been consumed.
-      rowsReadFromCurrentResponse++;
+      rowsConsumedFromCurrentResponse++;
+
       fractionConsumed =
-          fractionConsumedFromPreviousResponse
-              + (fractionConsumedFromCurrentResponse - fractionConsumedFromPreviousResponse)
-                  * rowsReadFromCurrentResponse
+          progressAtResponseStart
+              + (progressAtResponseEnd - progressAtResponseStart)
+                  * rowsConsumedFromCurrentResponse
                   * 1.0
-                  / totalRowCountFromCurrentResponse;
+                  / totalRowsInCurrentResponse;
 
       return true;
     }
@@ -282,27 +279,32 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     @Override
     public BoundedSource<T> splitAtFraction(double fraction) {
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
-      LOGGER.debug(
+      LOG.debug(
           "Received BigQuery Storage API split request for stream {} at fraction {}.",
-          source.stream.getName(),
+          source.readStream.getName(),
           fraction);
+
+      if (fraction <= 0.0 || fraction >= 1.0) {
+        LOG.info("BigQuery Storage API does not support splitting at fraction {}", fraction);
+        return null;
+      }
 
       SplitReadStreamRequest splitRequest =
           SplitReadStreamRequest.newBuilder()
-              .setOriginalStream(source.stream)
+              .setName(source.readStream.getName())
               .setFraction((float) fraction)
               .build();
-      SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
 
+      SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
       if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
         // No more splits are possible!
         Metrics.counter(
                 BigQueryStorageStreamReader.class,
                 "split-at-fraction-calls-failed-due-to-impossible-split-point")
             .inc();
-        LOGGER.info(
+        LOG.info(
             "BigQuery Storage API stream {} cannot be split at {}.",
-            source.stream.getName(),
+            source.readStream.getName(),
             fraction);
         return null;
       }
@@ -317,10 +319,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           newResponseStream =
               storageClient.readRows(
                   ReadRowsRequest.newBuilder()
-                      .setReadPosition(
-                          StreamPosition.newBuilder()
-                              .setStream(splitResponse.getPrimaryStream())
-                              .setOffset(currentOffset + 1))
+                      .setReadStream(splitResponse.getPrimaryStream().getName())
+                      .setOffset(currentOffset + 1)
                       .build());
           newResponseIterator = newResponseStream.iterator();
           newResponseIterator.hasNext();
@@ -331,10 +331,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   BigQueryStorageStreamReader.class,
                   "split-at-fraction-calls-failed-due-to-bad-split-point")
               .inc();
-          LOGGER.info(
+          LOG.info(
               "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
                   + "the left of the split fraction {}.",
-              source.stream.getName(),
+              source.readStream.getName(),
               fraction);
           return null;
         } catch (Exception e) {
@@ -342,7 +342,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   BigQueryStorageStreamReader.class,
                   "split-at-fraction-calls-failed-due-to-other-reasons")
               .inc();
-          LOGGER.error("BigQuery Storage API stream split failed.", e);
+          LOG.error("BigQuery Storage API stream split failed.", e);
           return null;
         }
 
@@ -351,22 +351,12 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         source = source.fromExisting(splitResponse.getPrimaryStream());
         responseStream = newResponseStream;
         responseIterator = newResponseIterator;
-
-        // N.B.: Once #readNextRecord is called, this line has the effect of using the fraction
-        // consumed value at split time as the fraction consumed value of the previous response,
-        // leading to a better interpolation window start. Unfortunately, this is not the best value
-        // as it will lead to a significant speed up in the fraction consumed values while the first
-        // post-split response is being processed. In the future, if the server returns the start
-        // and end fraction consumed values in each response, then these interpolations will be
-        // easier to perform as state from the previous response will not need to be maintained.
-        fractionConsumedFromCurrentResponse = fractionConsumed;
-
         decoder = null;
       }
 
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
           .inc();
-      LOGGER.info(
+      LOG.info(
           "Successfully split BigQuery Storage API stream at {}. Split response: {}",
           fraction,
           splitResponse);
@@ -376,10 +366,6 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     @Override
     public synchronized Double getFractionConsumed() {
       return fractionConsumed;
-    }
-
-    private static float getFractionConsumed(ReadRowsResponse response) {
-      return response.getStatus().getFractionConsumed();
     }
   }
 }

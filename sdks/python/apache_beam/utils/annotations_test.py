@@ -29,6 +29,12 @@ from apache_beam.utils.annotations import experimental
 class AnnotationTests(unittest.TestCase):
   # Note: use different names for each of the the functions decorated
   # so that a warning is produced for each of them.
+
+  def setUp(self):
+    # This is necessary to ensure warnings are captured in all
+    # platforms (Windows/Unix).
+    warnings.resetwarnings()
+
   def test_deprecated_with_since_current_message(self):
     with warnings.catch_warnings(record=True) as w:
 

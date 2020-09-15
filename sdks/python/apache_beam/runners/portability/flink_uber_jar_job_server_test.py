@@ -27,15 +27,14 @@ import tempfile
 import unittest
 import zipfile
 
-import grpc
 import requests_mock
 
 from apache_beam.options import pipeline_options
-from apache_beam.portability.api import beam_artifact_api_pb2
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.portability import flink_runner
 from apache_beam.runners.portability import flink_uber_jar_job_server
+from apache_beam.runners.portability.local_job_service_test import TestJobServicePlan
 
 
 @contextlib.contextmanager
@@ -57,6 +56,42 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
     self.assertEqual(job_server.flink_version(), "3.1")
 
   @requests_mock.mock()
+  def test_get_job_metrics(self, http_mock):
+    response = {
+        "user-task-accumulators": [{
+            "name": "__metricscontainers",
+            "type": "MetricsAccumulator",
+            "value": "{\"metrics\": {\"attempted\": [{\"urn\": "
+            "\"metric_urn\", \"type\": \"beam:metrics:sum_int64:v1\", "
+            "\"payload\": \"AA==\", \"labels\": "
+            "{\"PTRANSFORM\": \"ptransform_id\"}}]}}"
+        }]
+    }
+    http_mock.get(
+        'http://flink/v1/jobs/flink_job_id/accumulators', json=response)
+    options = pipeline_options.FlinkRunnerOptions()
+    job_server = flink_uber_jar_job_server.FlinkUberJarJobServer(
+        'http://flink', options)
+    job = flink_uber_jar_job_server.FlinkBeamJob(
+        'http://flink', None, 'job_id', 'job_name', None, options)
+    job._flink_job_id = 'flink_job_id'
+    job_server._jobs['job_id'] = job
+    request = beam_job_api_pb2.GetJobMetricsRequest(job_id='job_id')
+    expected = beam_job_api_pb2.GetJobMetricsResponse(
+        metrics=beam_job_api_pb2.MetricResults(
+            attempted=[{
+                "urn": "metric_urn",
+                "type": "beam:metrics:sum_int64:v1",
+                "payload": b'\000',
+                "labels": {
+                    "PTRANSFORM": "ptransform_id"
+                }
+            }]))
+
+    actual = job_server.GetJobMetrics(request)
+    self.assertEqual(actual, expected)
+
+  @requests_mock.mock()
   def test_end_to_end(self, http_mock):
     with temp_name(suffix='fake.jar') as fake_jar:
       # Create the jar file with some trivial contents.
@@ -69,18 +104,14 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
       job_server = flink_uber_jar_job_server.FlinkUberJarJobServer(
           'http://flink', options)
 
+      plan = TestJobServicePlan(job_server)
+
       # Prepare the job.
-      prepare_response = job_server.Prepare(
-          beam_job_api_pb2.PrepareJobRequest(
-              job_name='job', pipeline=beam_runner_api_pb2.Pipeline()))
-      channel = grpc.insecure_channel(
-          prepare_response.artifact_staging_endpoint.url)
-      retrieval_token = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
-          channel).CommitManifest(
-              beam_artifact_api_pb2.CommitManifestRequest(
-                  staging_session_token=prepare_response.staging_session_token,
-                  manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
-      channel.close()
+      prepare_response = plan.prepare(beam_runner_api_pb2.Pipeline())
+      plan.stage(
+          beam_runner_api_pb2.Pipeline(),
+          prepare_response.artifact_staging_endpoint.url,
+          prepare_response.staging_session_token)
 
       # Now actually run the job.
       http_mock.post(
@@ -88,10 +119,9 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
           json={'filename': '/path/to/jar/nonce'})
       http_mock.post(
           'http://flink/v1/jars/nonce/run', json={'jobid': 'some_job_id'})
-      job_server.Run(
-          beam_job_api_pb2.RunJobRequest(
-              preparation_id=prepare_response.preparation_id,
-              retrieval_token=retrieval_token))
+
+      _, message_stream, state_stream = plan.run(
+          prepare_response.preparation_id)
 
       # Check the status until the job is "done" and get all error messages.
       http_mock.get(
@@ -119,13 +149,10 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
           'http://flink/v1/jobs/some_job_id', json={'state': 'FINISHED'})
       http_mock.delete('http://flink/v1/jars/nonce')
 
-      state_stream = job_server.GetStateStream(
-          beam_job_api_pb2.GetJobStateRequest(
-              job_id=prepare_response.preparation_id))
-
       self.assertEqual([s.state for s in state_stream],
                        [
                            beam_job_api_pb2.JobState.STOPPED,
+                           beam_job_api_pb2.JobState.RUNNING,
                            beam_job_api_pb2.JobState.RUNNING,
                            beam_job_api_pb2.JobState.DONE
                        ])
@@ -135,9 +162,6 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
           json={'all-exceptions': [{
               'exception': 'exc_text', 'timestamp': 0
           }]})
-      message_stream = job_server.GetMessageStream(
-          beam_job_api_pb2.JobMessagesRequest(
-              job_id=prepare_response.preparation_id))
 
       def get_item(x):
         if x.HasField('message_response'):
@@ -157,6 +181,21 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
                                message_text='exc_text'),
                            beam_job_api_pb2.JobState.DONE,
                        ])
+
+  def test_retain_unknown_options(self):
+    original_options = pipeline_options.PipelineOptions(
+        ['--unknown_option_foo', 'some_value'])
+    flink_options = original_options.view_as(
+        pipeline_options.FlinkRunnerOptions)
+    flink_options.flink_submit_uber_jar = True
+    flink_options.flink_master = 'http://host:port'
+    runner = flink_runner.FlinkRunner()
+
+    job_service_handle = runner.create_job_service(original_options)
+    options_proto = job_service_handle.get_pipeline_options()
+
+    self.assertEqual(
+        options_proto['beam:option:unknown_option_foo:v1'], 'some_value')
 
 
 if __name__ == '__main__':

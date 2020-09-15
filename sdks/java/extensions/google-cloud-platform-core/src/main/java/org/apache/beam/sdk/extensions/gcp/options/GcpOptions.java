@@ -41,7 +41,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,13 +91,19 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * operations.
    *
    * <p>Default is set on a per-service basis.
+   *
+   * @deprecated Use {@link #getWorkerZone()} instead.
    */
+  @Deprecated
   @Description(
       "GCP availability zone for running GCP operations. "
           + "and GCE availability zone for launching workers "
-          + "Default is up to the individual service.")
+          + "Default is up to the individual service. "
+          + "This option is deprecated, and will be replaced by workerZone.")
   String getZone();
 
+  /** @deprecated Use {@link #setWorkerZone} instead. */
+  @Deprecated
   void setZone(String value);
 
   /**
@@ -292,8 +298,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     static final Logger LOG = LoggerFactory.getLogger(GcpTempLocationFactory.class);
 
     @Override
-    @Nullable
-    public String create(PipelineOptions options) {
+    public @Nullable String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
       if (isNullOrEmpty(tempLocation)) {
         tempLocation =

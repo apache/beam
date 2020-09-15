@@ -18,8 +18,6 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -37,8 +35,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
 
@@ -53,42 +49,15 @@ class GroupByKeyTranslatorBatch<K, V>
 
     @SuppressWarnings("unchecked")
     final PCollection<KV<K, V>> inputPCollection = (PCollection<KV<K, V>>) context.getInput();
-
     Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(inputPCollection);
-
     WindowingStrategy<?, ?> windowingStrategy = inputPCollection.getWindowingStrategy();
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) inputPCollection.getCoder();
+    Coder<V> valueCoder = kvCoder.getValueCoder();
 
     // group by key only
     Coder<K> keyCoder = kvCoder.getKeyCoder();
     KeyValueGroupedDataset<K, WindowedValue<KV<K, V>>> groupByKeyOnly =
         input.groupByKey(KVHelpers.extractKey(), EncoderHelpers.fromBeamCoder(keyCoder));
-
-    // Materialize groupByKeyOnly values, potential OOM because of creation of new iterable
-    Coder<V> valueCoder = kvCoder.getValueCoder();
-    WindowedValue.WindowedValueCoder<V> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            valueCoder, inputPCollection.getWindowingStrategy().getWindowFn().windowCoder());
-    IterableCoder<WindowedValue<V>> iterableCoder = IterableCoder.of(wvCoder);
-    Dataset<KV<K, Iterable<WindowedValue<V>>>> materialized =
-        groupByKeyOnly.mapGroups(
-            (MapGroupsFunction<K, WindowedValue<KV<K, V>>, KV<K, Iterable<WindowedValue<V>>>>)
-                (key, iterator) -> {
-                  List<WindowedValue<V>> values = new ArrayList<>();
-                  while (iterator.hasNext()) {
-                    WindowedValue<KV<K, V>> next = iterator.next();
-                    values.add(
-                        WindowedValue.of(
-                            next.getValue().getValue(),
-                            next.getTimestamp(),
-                            next.getWindows(),
-                            next.getPane()));
-                  }
-                  KV<K, Iterable<WindowedValue<V>>> kv =
-                      KV.of(key, Iterables.unmodifiableIterable(values));
-                  return kv;
-                },
-            EncoderHelpers.fromBeamCoder(KvCoder.of(keyCoder, iterableCoder)));
 
     // group also by windows
     WindowedValue.FullWindowedValueCoder<KV<K, Iterable<V>>> outputCoder =
@@ -96,7 +65,7 @@ class GroupByKeyTranslatorBatch<K, V>
             KvCoder.of(keyCoder, IterableCoder.of(valueCoder)),
             windowingStrategy.getWindowFn().windowCoder());
     Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
-        materialized.flatMap(
+        groupByKeyOnly.flatMapGroups(
             new GroupAlsoByWindowViaOutputBufferFn<>(
                 windowingStrategy,
                 new InMemoryStateInternalsFactory<>(),

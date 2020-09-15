@@ -60,23 +60,17 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.client.json"),
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.services.bigquery.model"),
+            classesInPackage("com.google.api.services.healthcare"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
-            classesInPackage("com.google.cloud.bigquery.storage.v1beta1"),
+            classesInPackage("com.google.cloud.bigquery.storage.v1"),
             classesInPackage("com.google.cloud.bigtable.config"),
             classesInPackage("com.google.spanner.v1"),
             classesInPackage("com.google.pubsub.v1"),
+            classesInPackage("com.google.cloud.pubsublite"),
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
-            Matchers.<Class<?>>equalTo(com.google.api.gax.longrunning.OperationFuture.class),
-            Matchers.<Class<?>>equalTo(com.google.api.gax.longrunning.OperationSnapshot.class),
-            Matchers.<Class<?>>equalTo(com.google.api.gax.paging.Page.class),
-            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.RetryingFuture.class),
-            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.RetrySettings.class),
-            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.RetrySettings.Builder.class),
-            Matchers.<Class<?>>equalTo(com.google.api.gax.retrying.TimedAttemptSettings.class),
-            Matchers.<Class<?>>equalTo(
-                com.google.api.gax.retrying.TimedAttemptSettings.Builder.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
+            Matchers.<Class<?>>equalTo(com.google.common.base.Function.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
@@ -91,8 +85,15 @@ public class GcpApiSurfaceTest {
             Matchers.<Class<?>>equalTo(com.google.cloud.ByteArray.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Date.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Timestamp.class),
+            // TODO: remove the following classes once spanner updates APIs of AsyncResultSet:
+            // https://github.com/googleapis/java-spanner/issues/410
+            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableCollection.class),
+            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableCollection.Builder.class),
+            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableList.class),
+            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableList.Builder.class),
+            Matchers.<Class<?>>equalTo(com.google.common.collect.UnmodifiableIterator.class),
+            Matchers.<Class<?>>equalTo(com.google.common.collect.UnmodifiableListIterator.class),
             classesInPackage("com.google.cloud.spanner"),
-            classesInPackage("com.google.spanner.admin.database.v1"),
             classesInPackage("com.google.datastore.v1"),
             classesInPackage("com.google.protobuf"),
             classesInPackage("com.google.type"),
@@ -106,8 +107,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("org.apache.beam"),
             classesInPackage("org.apache.commons.logging"),
             classesInPackage("org.codehaus.jackson"),
-            classesInPackage("org.joda.time"),
-            classesInPackage("org.threeten.bp"));
+            classesInPackage("org.joda.time"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

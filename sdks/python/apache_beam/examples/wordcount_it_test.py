@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 import logging
+import os
 import time
 import unittest
 
@@ -29,6 +30,8 @@ from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
+from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -84,11 +87,45 @@ class WordCountIT(unittest.TestCase):
     # Register clean up before pipeline execution
     self.addCleanup(delete_files, [test_output + '*'])
 
+    publish_to_bq = bool(
+        test_pipeline.get_option('publish_to_big_query') or False)
+
+    # Start measure time for performance test
+    start_time = time.time()
+
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
     run_wordcount(
         test_pipeline.get_full_options_as_args(**extra_opts),
-        save_main_session=False)
+        save_main_session=False,
+    )
+
+    end_time = time.time()
+    run_time = end_time - start_time
+
+    if publish_to_bq:
+      self._publish_metrics(test_pipeline, run_time)
+
+  def _publish_metrics(self, pipeline, metric_value):
+    influx_options = InfluxDBMetricsPublisherOptions(
+        pipeline.get_option('influx_measurement'),
+        pipeline.get_option('influx_db_name'),
+        pipeline.get_option('influx_hostname'),
+        os.getenv('INFLUXDB_USER'),
+        os.getenv('INFLUXDB_USER_PASSWORD'),
+    )
+    metric_reader = MetricsReader(
+        project_name=pipeline.get_option('project'),
+        bq_table=pipeline.get_option('metrics_table'),
+        bq_dataset=pipeline.get_option('metrics_dataset'),
+        publish_to_bq=True,
+        influxdb_options=influx_options,
+    )
+
+    metric_reader.publish_values([(
+        'runtime',
+        metric_value,
+    )])
 
 
 if __name__ == '__main__':

@@ -62,7 +62,8 @@ public class ImmutableExecutableStageTest {
                             .setDoFn(RunnerApi.FunctionSpec.newBuilder())
                             .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
                             .putStateSpecs("user_state", RunnerApi.StateSpec.getDefaultInstance())
-                            .putTimerSpecs("timer", RunnerApi.TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs(
+                                "timer", RunnerApi.TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();

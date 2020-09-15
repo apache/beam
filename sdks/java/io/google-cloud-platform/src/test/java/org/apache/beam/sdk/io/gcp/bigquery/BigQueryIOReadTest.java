@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -40,7 +38,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -48,6 +46,7 @@ import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -66,7 +65,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -136,8 +134,9 @@ public class BigQueryIOReadTest implements Serializable {
     checkReadQueryObjectWithValidate(read, query, true);
   }
 
-  private void checkTypedReadQueryObject(BigQueryIO.TypedRead read, String query, String kmsKey) {
-    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, true);
+  private void checkTypedReadQueryObject(
+      BigQueryIO.TypedRead<?> read, String query, String kmsKey, String tempDataset) {
+    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, tempDataset, true);
   }
 
   private void checkReadTableObjectWithValidate(
@@ -157,10 +156,15 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   private void checkTypedReadQueryObjectWithValidate(
-      BigQueryIO.TypedRead read, String query, String kmsKey, boolean validate) {
+      BigQueryIO.TypedRead<?> read,
+      String query,
+      String kmsKey,
+      String tempDataset,
+      boolean validate) {
     assertNull(read.getTable());
     assertEquals(query, read.getQuery().get());
     assertEquals(kmsKey, read.getKmsKey());
+    assertEquals(tempDataset, read.getQueryTempDataset());
     assertEquals(validate, read.getValidate());
   }
 
@@ -219,9 +223,12 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBuildQueryBasedTypedReadSource() {
-    BigQueryIO.TypedRead read =
-        BigQueryIO.readTableRows().fromQuery("foo_query").withKmsKey("kms_key");
-    checkTypedReadQueryObject(read, "foo_query", "kms_key");
+    BigQueryIO.TypedRead<?> read =
+        BigQueryIO.readTableRows()
+            .fromQuery("foo_query")
+            .withKmsKey("kms_key")
+            .withQueryTempDataset("temp_dataset");
+    checkTypedReadQueryObject(read, "foo_query", "kms_key", "temp_dataset");
   }
 
   @Test
@@ -506,44 +513,6 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Test
-  public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read =
-        BigQueryIO.read()
-            .from("project:dataset.tableId")
-            .withTestServices(
-                new FakeBigQueryServices()
-                    .withDatasetService(new FakeDatasetService())
-                    .withJobService(new FakeJobService()))
-            .withoutValidation();
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat(
-        "BigQueryIO.Read should include the table spec in its primitive display data",
-        displayData,
-        hasItem(hasDisplayItem("table")));
-  }
-
-  @Test
-  public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read =
-        BigQueryIO.read()
-            .fromQuery("foobar")
-            .withTestServices(
-                new FakeBigQueryServices()
-                    .withDatasetService(new FakeDatasetService())
-                    .withJobService(new FakeJobService()))
-            .withoutValidation();
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat(
-        "BigQueryIO.Read should include the query in its primitive display data",
-        displayData,
-        hasItem(hasDisplayItem("query")));
-  }
-
-  @Test
   public void testBigQueryIOGetName() {
     assertEquals("BigQueryIO.Read", BigQueryIO.read().from("somedataset.sometable").getName());
   }
@@ -575,7 +544,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
+            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -624,7 +593,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
+            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -662,7 +631,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
+            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE, false);
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -691,8 +660,9 @@ public class BigQueryIOReadTest implements Serializable {
                 true, /* useLegacySql */
                 QueryPriority.BATCH,
                 null,
+                null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
+            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE, false);
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
@@ -745,7 +715,9 @@ public class BigQueryIOReadTest implements Serializable {
 
     TableReference tempTableReference =
         createTempTableReference(
-            bqOptions.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            bqOptions.getProject(),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
+            Optional.empty());
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
@@ -764,8 +736,9 @@ public class BigQueryIOReadTest implements Serializable {
                 true /* useLegacySql */,
                 QueryPriority.BATCH,
                 null,
+                null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
+            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE, false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
@@ -829,8 +802,9 @@ public class BigQueryIOReadTest implements Serializable {
                 true /* useLegacySql */,
                 QueryPriority.BATCH,
                 null,
+                null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
+            .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE, false);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 

@@ -19,7 +19,11 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.runners.samza')
+applyJavaNature(
+  exportJavadoc: false,
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.runners.samza')
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -33,12 +37,24 @@ evaluationDependsOn(":sdks:java:core")
 repositories {
   maven {
     url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
+    metadataSources {
+      mavenPom()
+      artifact()
+    }
   }
   maven {
     url "https://artifactory.corp.linkedin.com:8083/artifactory/mintdev-publish-repo/"
+    metadataSources {
+      mavenPom()
+      artifact()
+    }
   }
   maven {
     url "file://" + System.getProperty("user.home") + "/local-repo"
+    metadataSources {
+      mavenPom()
+      artifact()
+    }
   }
 }
 
@@ -64,10 +80,10 @@ dependencies {
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
+  compile project(":runners:java-job-service")
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile library.java.commons_compress
   compile library.java.commons_io
   compile library.java.commons_lang3
   compile library.java.args4j
@@ -119,6 +135,13 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+  }
+  filter {
+    // TODO(BEAM-10025)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
   }
   filter {
     // Re-enable the test after Samza runner supports same state id across DoFn(s).

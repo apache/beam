@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.common;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options common for IO integration tests. */
 public interface IOTestPipelineOptions extends TestPipelineOptions {
@@ -43,4 +43,22 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   String getBigQueryTable();
 
   void setBigQueryTable(@Nullable String tableName);
+
+  @Description("InfluxDB measurement to publish results to.")
+  @Nullable
+  String getInfluxMeasurement();
+
+  void setInfluxMeasurement(@Nullable String measurement);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxHost();
+
+  void setInfluxHost(@Nullable String host);
+
+  @Description("InfluxDB database.")
+  @Nullable
+  String getInfluxDatabase();
+
+  void setInfluxDatabase(@Nullable String database);
 }

@@ -50,6 +50,7 @@ python user_score.py \
     --output gs://$BUCKET/user_score/output \
     --runner DataflowRunner \
     --project $PROJECT_ID \
+    --region $REGION_ID \
     --temp_location gs://$BUCKET/user_score/temp
 """
 

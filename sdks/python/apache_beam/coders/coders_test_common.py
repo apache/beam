@@ -32,6 +32,7 @@ from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
 from apache_beam.internal import pickler
 from apache_beam.runners import pipeline_context
+from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils import timestamp
@@ -75,13 +76,14 @@ class CodersTest(unittest.TestCase):
         coders.Coder,
         coders.AvroGenericCoder,
         coders.DeterministicProtoCoder,
+        coders.ExternalCoder,
         coders.FastCoder,
         coders.ProtoCoder,
-        coders.RunnerAPICoderHolder,
-        coders.ToStringCoder
+        coders.ToBytesCoder
     ])
-    assert not standard - cls.seen, standard - cls.seen
-    assert not standard - cls.seen_nested, standard - cls.seen_nested
+    cls.seen_nested -= set([coders.ProtoCoder, CustomCoder])
+    assert not standard - cls.seen, str(standard - cls.seen)
+    assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
   @classmethod
   def _observe(cls, coder):
@@ -229,14 +231,25 @@ class CodersTest(unittest.TestCase):
 
   def test_timer_coder(self):
     self.check_coder(
-        coders._TimerCoder(coders.BytesCoder()),
-        *[{
-            'timestamp': timestamp.Timestamp(micros=x), 'payload': b'xyz'
-        } for x in (-3000, 0, 3000)])
-    self.check_coder(
-        coders.TupleCoder((coders._TimerCoder(coders.VarIntCoder()), )), ({
-            'timestamp': timestamp.Timestamp.of(37000), 'payload': 389
-        }, ))
+        coders._TimerCoder(coders.StrUtf8Coder(), coders.GlobalWindowCoder()),
+        *[
+            userstate.Timer(
+                user_key="key",
+                dynamic_timer_tag="tag",
+                windows=(GlobalWindow(), ),
+                clear_bit=True,
+                fire_timestamp=None,
+                hold_timestamp=None,
+                paneinfo=None),
+            userstate.Timer(
+                user_key="key",
+                dynamic_timer_tag="tag",
+                windows=(GlobalWindow(), ),
+                clear_bit=False,
+                fire_timestamp=timestamp.Timestamp.of(123),
+                hold_timestamp=timestamp.Timestamp.of(456),
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN)
+        ])
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
@@ -546,6 +559,16 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coder, coder)), ([1], [2, 3]),
         context=context,
         test_size_estimation=False)
+
+  def test_nullable_coder(self):
+    self.check_coder(coders.NullableCoder(coders.VarIntCoder()), None, 2 * 64)
+
+  def test_map_coder(self):
+    self.check_coder(
+        coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder()), {
+            1: "one", 300: "three hundred"
+        }, {}, {i: str(i)
+                for i in range(5000)})
 
 
 if __name__ == '__main__':

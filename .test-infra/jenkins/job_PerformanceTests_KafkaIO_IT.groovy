@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import CommonJobProperties as common
 import Kubernetes
+import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_Kafka_IO"
 
@@ -27,6 +29,7 @@ job(jobName) {
       delegate,
       'Java KafkaIO Performance Test',
       'Run Java KafkaIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
@@ -36,23 +39,26 @@ job(jobName) {
   (0..2).each { k8s.loadBalancerIP("outside-$it", "KAFKA_BROKER_$it") }
 
   Map pipelineOptions = [
-      tempRoot                     : 'gs://temp-storage-for-perf-tests',
-      project                      : 'apache-beam-testing',
-      runner                       : 'DataflowRunner',
-      sourceOptions                : """
-                                          {
-                                            "numRecords": "100000000",
-                                            "keySizeBytes": "1",
-                                            "valueSizeBytes": "90"
-                                          }
-                            """.trim().replaceAll("\\s", ""),
-      bigQueryDataset              : 'beam_performance',
-      bigQueryTable                : 'kafkaioit_results',
-      kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
-      kafkaTopic                   : 'beam',
-      readTimeout                  : '900',
-      numWorkers                   : '5',
-      autoscalingAlgorithm         : 'NONE'
+    tempRoot                     : 'gs://temp-storage-for-perf-tests',
+    project                      : 'apache-beam-testing',
+    runner                       : 'DataflowRunner',
+    sourceOptions                : """
+                                     {
+                                       "numRecords": "100000000",
+                                       "keySizeBytes": "1",
+                                       "valueSizeBytes": "90"
+                                     }
+                                   """.trim().replaceAll("\\s", ""),
+    bigQueryDataset              : 'beam_performance',
+    bigQueryTable                : 'kafkaioit_results',
+    influxMeasurement            : 'kafkaioit_results',
+    influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
+    kafkaTopic                   : 'beam',
+    readTimeout                  : '900',
+    numWorkers                   : '5',
+    autoscalingAlgorithm         : 'NONE'
   ]
 
   steps {

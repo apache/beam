@@ -348,7 +348,7 @@ class _TextSink(filebasedsink.FileBasedSink):
                append_trailing_newlines=True,
                num_shards=0,
                shard_name_template=None,
-               coder=coders.ToStringCoder(),  # type: coders.Coder
+               coder=coders.ToBytesCoder(),  # type: coders.Coder
                compression_type=CompressionTypes.AUTO,
                header=None):
     """Initialize a _TextSink.
@@ -400,7 +400,7 @@ class _TextSink(filebasedsink.FileBasedSink):
   def open(self, temp_path):
     file_handle = super(_TextSink, self).open(temp_path)
     if self._header is not None:
-      file_handle.write(coders.ToStringCoder().encode(self._header))
+      file_handle.write(coders.ToBytesCoder().encode(self._header))
       if self._append_trailing_newlines:
         file_handle.write(b'\n')
     return file_handle
@@ -438,7 +438,7 @@ def _create_text_source(
 class ReadAllFromText(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of text files.
 
-   Reads a ``PCollection`` of text files or file patterns and and produces a
+   Reads a ``PCollection`` of text files or file patterns and produces a
    ``PCollection`` of strings.
 
   Parses a text file as newline-delimited elements, by default assuming
@@ -586,7 +586,7 @@ class WriteToText(PTransform):
       append_trailing_newlines=True,
       num_shards=0,
       shard_name_template=None,  # type: Optional[str]
-      coder=coders.ToStringCoder(),  # type: coders.Coder
+      coder=coders.ToBytesCoder(),  # type: coders.Coder
       compression_type=CompressionTypes.AUTO,
       header=None):
     r"""Initialize a :class:`WriteToText` transform.

@@ -22,60 +22,12 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
 def pythonRootDir = "${rootDir}/sdks/python"
-def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
 /*************************************************************************************************/
 
 addPortableWordCountTasks()
 
-task preCommitPy2() {
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
-  dependsOn ':sdks:python:container:py2:docker'
-  dependsOn portableWordCountBatch
-  dependsOn portableWordCountStreaming
-}
-
-task postCommitPy2() {
-  dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server:shadowJar'
-  dependsOn portableWordCountFlinkRunnerBatch
-  dependsOn portableWordCountFlinkRunnerStreaming
-  dependsOn 'postCommitPy2IT'
-  dependsOn ':runners:spark:job-server:shadowJar'
-  dependsOn portableWordCountSparkRunnerBatch
-}
-
 // TODO: Move the rest of this file into ../common.gradle.
-
-// Before running this, you need to:
-//
-// 1. Build the SDK container:
-//
-//    ./gradlew -p sdks/python/container buildAll
-//
-// 2. Either a) or b)
-//  a) If you want the Job Server to run in a Docker container:
-//
-//    ./gradlew :runners:flink:1.9:job-server-container:docker
-//
-//  b) Otherwise, start a local JobService, for example, the Portable Flink runner
-//    (in a separate shell since it continues to run):
-//
-//    ./gradlew :runners:flink:1.9:job-server:runShadow
-//
-// Then you can run this example:
-//
-//  Docker (2a):
-//
-//    ./gradlew :sdks:python:test-suites:portable:py2:portableWordCount
-//
-//  Local JobService (2b):
-//
-//    ./gradlew :sdks:python:test-suites:portable:py2:portableWordCount -PjobEndpoint=localhost:8099
-//
-task portableWordCount {
-  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
-}
 
 /*************************************************************************************************/
 
@@ -98,7 +50,7 @@ task crossLanguagePythonJavaDirect {
 
 task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -106,9 +58,8 @@ task crossLanguagePythonJavaFlink {
   doLast {
     def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
-        "--runner=PortableRunner",
+        "--runner=FlinkRunner",
         "--parallelism=2",
-        "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
         "--expansion_service_port=8096",
         "--expansion_service_jar=${testServiceExpansionJar}",
@@ -120,9 +71,9 @@ task crossLanguagePythonJavaFlink {
   }
 }
 
-task crossLanguagePortableWordCount {
+task crossLanguagePortableWordCountFlink {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -132,9 +83,8 @@ task crossLanguagePortableWordCount {
     def options = [
         "--input=/etc/profile",
         "--output=/tmp/py-wordcount-portable",
-        "--runner=PortableRunner",
+        "--runner=FlinkRunner",
         "--parallelism=2",
-        "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
         "--expansion_service_jar=${testServiceExpansionJar}",
         // Writes to local filesystem might fail for multiple SDK workers.
@@ -148,31 +98,9 @@ task crossLanguagePortableWordCount {
   }
 }
 
-task postCommitPy2IT {
-  dependsOn 'installGcpTest'
-  dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server:shadowJar'
-
-  doLast {
-    def tests = [
-        "apache_beam.io.gcp.bigquery_read_it_test",
-    ]
-    def testOpts = ["--tests=${tests.join(',')}"]
-    def cmdArgs = mapToArgString([
-        "test_opts": testOpts,
-        "suite": "postCommitIT-flink-py2",
-        "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-    ])
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
-    }
-  }
-}
-
 task crossLanguageTests {
   dependsOn "crossLanguagePythonJavaFlink"
-  dependsOn "crossLanguagePortableWordCount"
+  dependsOn "crossLanguagePortableWordCountFlink"
 }
 
 task installChicagoTaxiExampleRequirements {
@@ -203,53 +131,5 @@ task chicagoTaxiExample {
 }
 
 /*************************************************************************************************/
-
-task createProcessWorker {
-  dependsOn ':sdks:python:container:build'
-  dependsOn 'setupVirtualenv'
-  def sdkWorkerFile = file("${buildDir}/sdk_worker.sh")
-  def osType = 'linux'
-  if (Os.isFamily(Os.FAMILY_MAC))
-    osType = 'darwin'
-  def workerScript = "${project(":sdks:python:container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
-  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${envdir}/bin/activate && ${workerScript} \$* \""
-  outputs.file sdkWorkerFile
-  doLast {
-    sdkWorkerFile.write sdkWorkerFileCode
-    exec {
-      commandLine('sh', '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test]")
-    }
-    exec {
-      commandLine('chmod', '+x', sdkWorkerFile)
-    }
-  }
-}
-
-task sparkValidatesRunner() {
-  dependsOn 'createProcessWorker'
-  dependsOn 'setupVirtualenv'
-  dependsOn ':runners:spark:job-server:shadowJar'
-  doLast {
-    def environment_config = "'{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'"
-    def argMap = [
-        "environment_type"    : "PROCESS",
-        "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
-        "environment_config": environment_config,
-        "environment_cache_millis": 10000,
-    ]
-    def argString = mapToArgString(argMap)
-
-    // Optionally specify test function names separated by space e.g.:
-    // ./gradlew :sdks:python:test-suites:portable:py2:sparkValidatesRunner -Ptests="test_external_transforms test_read"
-    // Otherwise run all test functions under SparkRunnerTest
-    def tests = project.hasProperty('tests') ?
-        project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
-
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
-    }
-  }
-}
 
 apply from: "../common.gradle"

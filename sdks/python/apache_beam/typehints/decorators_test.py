@@ -33,8 +33,6 @@ from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import decorators
 from apache_beam.typehints import typehints
 
-decorators._enable_from_callable = True
-
 
 class IOTypeHintsTest(unittest.TestCase):
   def test_get_signature(self):
@@ -110,10 +108,11 @@ class IOTypeHintsTest(unittest.TestCase):
     self._test_strip_iterable(typehints.Tuple[str, ...], str)
     self._test_strip_iterable(typehints.KV[str, int], typehints.Union[str, int])
     self._test_strip_iterable(typehints.Set[str], str)
+    self._test_strip_iterable(typehints.FrozenSet[str], str)
 
     self._test_strip_iterable_fail(typehints.Union[str, int])
     self._test_strip_iterable_fail(typehints.Optional[str])
-    self._test_strip_iterable_fail(typehints.WindowedValue[str])
+    self._test_strip_iterable_fail(typehints.WindowedValue[str])  # type: ignore[misc]
     self._test_strip_iterable_fail(typehints.Dict[str, int])
 
   def test_make_traceback(self):
@@ -130,6 +129,11 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertRegex(th.debug_str(), r'with_input_types')
     th = th.with_output_types(str)
     self.assertRegex(th.debug_str(), r'(?s)with_output_types.*with_input_types')
+
+    th = decorators.IOTypeHints.empty().with_output_types(str)
+    th2 = decorators.IOTypeHints.empty().with_input_types(int)
+    th = th.with_defaults(th2)
+    self.assertRegex(th.debug_str(), r'(?s)based on:.*\'str\'.*and:.*\'int\'')
 
   def test_with_defaults_noop_does_not_grow_origin(self):
     th = decorators.IOTypeHints.empty()
@@ -214,6 +218,16 @@ class WithTypeHintsTest(unittest.TestCase):
     self.assertEqual(Subclass().get_type_hints(), Subclass._type_hints)
     self.assertNotEqual(
         Subclass().with_input_types(str)._type_hints, Subclass._type_hints)
+
+
+class DecoratorsTest(unittest.TestCase):
+  def tearDown(self):
+    decorators._disable_from_callable = False
+
+  def test_disable_type_annotations(self):
+    self.assertFalse(decorators._disable_from_callable)
+    decorators.disable_type_annotations()
+    self.assertTrue(decorators._disable_from_callable)
 
 
 if __name__ == '__main__':

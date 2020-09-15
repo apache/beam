@@ -18,7 +18,7 @@
 package org.apache.beam.runners.portability.testing;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobServerDriver;
+import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;

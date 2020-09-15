@@ -24,27 +24,29 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDateValueToDateString;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTimeValueToTimeString;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
-import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.FUNCTION_FAMILY_DATE_ADD;
-import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.zetasql.ArrayType;
-import com.google.zetasql.EnumType;
+import com.google.zetasql.TVFRelation;
+import com.google.zetasql.TableValuedFunction;
+import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
-import com.google.zetasql.functions.ZetaSQLDateTime.DateTimestampPart;
 import com.google.zetasql.resolvedast.ResolvedColumn;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateScan;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedArgumentRef;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCast;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedColumnRef;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumn;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedExpr;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedFunctionCall;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedGetStructField;
@@ -52,38 +54,38 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
-import io.grpc.Status;
 import java.math.BigDecimal;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
-import org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelRecordType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlRowOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimestampString;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Extracts expressions (function calls, field accesses) from the resolve query nodes, converts them
@@ -91,8 +93,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimestampS
  */
 @Internal
 public class ExpressionConverter {
-
-  private static final String PRE_DEFINED_WINDOW_FUNCTIONS = "pre_defined_window_functions";
 
   // Constants of pre-defined functions.
   private static final String WINDOW_START = "_START";
@@ -133,24 +133,6 @@ public class ExpressionConverter {
           .put(TYPE_STRING, ImmutableSet.of(TYPE_BOOL, TYPE_DOUBLE))
           .build();
 
-  private static final ImmutableMap<Integer, TimeUnit> TIME_UNIT_CASTING_MAP =
-      ImmutableMap.<Integer, TimeUnit>builder()
-          .put(DateTimestampPart.YEAR.getNumber(), TimeUnit.YEAR)
-          .put(DateTimestampPart.MONTH.getNumber(), TimeUnit.MONTH)
-          .put(DateTimestampPart.DAY.getNumber(), TimeUnit.DAY)
-          .put(DateTimestampPart.DAYOFWEEK.getNumber(), TimeUnit.DOW)
-          .put(DateTimestampPart.DAYOFYEAR.getNumber(), TimeUnit.DOY)
-          .put(DateTimestampPart.QUARTER.getNumber(), TimeUnit.QUARTER)
-          .put(DateTimestampPart.HOUR.getNumber(), TimeUnit.HOUR)
-          .put(DateTimestampPart.MINUTE.getNumber(), TimeUnit.MINUTE)
-          .put(DateTimestampPart.SECOND.getNumber(), TimeUnit.SECOND)
-          .put(DateTimestampPart.MILLISECOND.getNumber(), TimeUnit.MILLISECOND)
-          .put(DateTimestampPart.MICROSECOND.getNumber(), TimeUnit.MICROSECOND)
-          .put(DateTimestampPart.NANOSECOND.getNumber(), TimeUnit.NANOSECOND)
-          .put(DateTimestampPart.ISOYEAR.getNumber(), TimeUnit.ISOYEAR)
-          .put(DateTimestampPart.ISOWEEK.getNumber(), TimeUnit.WEEK)
-          .build();
-
   private static final ImmutableSet<String> DATE_PART_UNITS_TO_MILLIS =
       ImmutableSet.of("DAY", "HOUR", "MINUTE", "SECOND");
   private static final ImmutableSet<String> DATE_PART_UNITS_TO_MONTHS = ImmutableSet.of("YEAR");
@@ -176,10 +158,16 @@ public class ExpressionConverter {
 
   private final RelOptCluster cluster;
   private final QueryParameters queryParams;
+  private int nullParamCount = 0;
+  private final Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions;
 
-  public ExpressionConverter(RelOptCluster cluster, QueryParameters params) {
+  public ExpressionConverter(
+      RelOptCluster cluster,
+      QueryParameters params,
+      Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions) {
     this.cluster = cluster;
     this.queryParams = params;
+    this.userDefinedFunctions = userDefinedFunctions;
   }
 
   /** Extract expressions from a project scan node. */
@@ -288,7 +276,10 @@ public class ExpressionConverter {
 
   /** Create a RexNode for a corresponding resolved expression node. */
   public RexNode convertRexNodeFromResolvedExpr(
-      ResolvedExpr expr, List<ResolvedColumn> columnList, List<RelDataTypeField> fieldList) {
+      ResolvedExpr expr,
+      List<ResolvedColumn> columnList,
+      List<RelDataTypeField> fieldList,
+      Map<String, RexNode> functionArguments) {
     if (columnList == null || fieldList == null) {
       return convertRexNodeFromResolvedExpr(expr);
     }
@@ -303,23 +294,33 @@ public class ExpressionConverter {
         ret = convertResolvedColumnRef((ResolvedColumnRef) expr, columnList, fieldList);
         break;
       case RESOLVED_FUNCTION_CALL:
-        ret = convertResolvedFunctionCall((ResolvedFunctionCall) expr, columnList, fieldList);
+        ret =
+            convertResolvedFunctionCall(
+                (ResolvedFunctionCall) expr, columnList, fieldList, functionArguments);
         break;
       case RESOLVED_CAST:
-        ret = convertResolvedCast((ResolvedCast) expr, columnList, fieldList);
+        ret = convertResolvedCast((ResolvedCast) expr, columnList, fieldList, functionArguments);
         break;
       case RESOLVED_PARAMETER:
         ret = convertResolvedParameter((ResolvedParameter) expr);
         break;
       case RESOLVED_GET_STRUCT_FIELD:
         ret =
-            convertResolvedStructFieldAccess((ResolvedGetStructField) expr, columnList, fieldList);
+            convertResolvedStructFieldAccess(
+                (ResolvedGetStructField) expr, columnList, fieldList, functionArguments);
+        break;
+      case RESOLVED_ARGUMENT_REF:
+        ret = convertResolvedArgumentRef((ResolvedArgumentRef) expr, functionArguments);
         break;
       default:
         ret = convertRexNodeFromResolvedExpr(expr);
     }
 
     return ret;
+  }
+
+  public RexNode convertRelNodeToRexRangeRef(RelNode rel) {
+    return rexBuilder().makeRangeReference(rel);
   }
 
   /** Create a RexNode for a corresponding resolved expression. */
@@ -335,11 +336,12 @@ public class ExpressionConverter {
         break;
       case RESOLVED_FUNCTION_CALL:
         // TODO: is there a better way to shared code for different cases of
-        // convertResolvedFunctionCall than passing into two nulls?
-        ret = convertResolvedFunctionCall((ResolvedFunctionCall) expr, null, null);
+        // convertResolvedFunctionCall than passing nulls?
+        ret =
+            convertResolvedFunctionCall((ResolvedFunctionCall) expr, null, null, ImmutableMap.of());
         break;
       case RESOLVED_CAST:
-        ret = convertResolvedCast((ResolvedCast) expr, null, null);
+        ret = convertResolvedCast((ResolvedCast) expr, null, null, ImmutableMap.of());
         break;
       case RESOLVED_PARAMETER:
         ret = convertResolvedParameter((ResolvedParameter) expr);
@@ -357,108 +359,14 @@ public class ExpressionConverter {
     return ret;
   }
 
-  /** Extract the RexNode from expression with ref scan. */
-  public RexNode convertRexNodeFromResolvedExprWithRefScan(
-      ResolvedExpr expr,
-      List<ResolvedColumn> refScanLeftColumnList,
-      List<RelDataTypeField> leftFieldList,
-      List<ResolvedColumn> originalLeftColumnList,
-      List<ResolvedColumn> refScanRightColumnList,
-      List<RelDataTypeField> rightFieldList,
-      List<ResolvedColumn> originalRightColumnList) {
-    RexNode ret;
-
-    switch (expr.nodeKind()) {
-      case RESOLVED_LITERAL:
-        ret = convertResolvedLiteral((ResolvedLiteral) expr);
-        break;
-      case RESOLVED_COLUMN_REF:
-        ResolvedColumnRef columnRef = (ResolvedColumnRef) expr;
-        // first look for column ref on the left side
-        Optional<RexNode> colRexNode =
-            convertRexNodeFromResolvedColumnRefWithRefScan(
-                columnRef, refScanLeftColumnList, originalLeftColumnList, leftFieldList);
-
-        if (colRexNode.isPresent()) {
-          ret = colRexNode.get();
-          break;
-        }
-
-        // if not found there look on the right
-        colRexNode =
-            convertRexNodeFromResolvedColumnRefWithRefScan(
-                columnRef, refScanRightColumnList, originalRightColumnList, rightFieldList);
-        if (colRexNode.isPresent()) {
-          ret = colRexNode.get();
-          break;
-        }
-
-        throw new IllegalArgumentException(
-            String.format(
-                "Could not find column reference %s in %s or %s",
-                columnRef, refScanLeftColumnList, refScanRightColumnList));
-      case RESOLVED_FUNCTION_CALL:
-        // JOIN only support equal join.
-        ResolvedFunctionCall resolvedFunctionCall = (ResolvedFunctionCall) expr;
-        List<RexNode> operands = new ArrayList<>();
-
-        for (ResolvedExpr resolvedExpr : resolvedFunctionCall.getArgumentList()) {
-          operands.add(
-              convertRexNodeFromResolvedExprWithRefScan(
-                  resolvedExpr,
-                  refScanLeftColumnList,
-                  leftFieldList,
-                  originalLeftColumnList,
-                  refScanRightColumnList,
-                  rightFieldList,
-                  originalRightColumnList));
-        }
-
-        SqlOperator op =
-            SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                resolvedFunctionCall.getFunction().getName());
-        ret = rexBuilder().makeCall(op, operands);
-        break;
-      case RESOLVED_CAST:
-        ResolvedCast resolvedCast = (ResolvedCast) expr;
-        RexNode operand =
-            convertRexNodeFromResolvedExprWithRefScan(
-                resolvedCast.getExpr(),
-                refScanLeftColumnList,
-                leftFieldList,
-                originalLeftColumnList,
-                refScanRightColumnList,
-                rightFieldList,
-                originalRightColumnList);
-
-        TypeKind fromType = resolvedCast.getExpr().getType().getKind();
-        TypeKind toType = resolvedCast.getType().getKind();
-        isCastingSupported(fromType, toType);
-
-        RelDataType outputType =
-            TypeUtils.toSimpleRelDataType(toType, rexBuilder(), operand.getType().isNullable());
-
-        if (isZetaSQLCast(fromType, toType)) {
-          ret = rexBuilder().makeCall(outputType, ZETASQL_CAST_OP, ImmutableList.of(operand));
-        } else {
-          ret = rexBuilder().makeCast(outputType, operand);
-        }
-        break;
-      default:
-        throw new UnsupportedOperationException(
-            "Does not support expr node kind " + expr.nodeKind());
-    }
-
-    return ret;
-  }
-
   private RexNode convertRexNodeFromComputedColumnWithFieldList(
       ResolvedComputedColumn column,
       List<ResolvedColumn> columnList,
       List<RelDataTypeField> fieldList,
       int windowFieldIndex) {
     if (column.getExpr().nodeKind() != RESOLVED_FUNCTION_CALL) {
-      return convertRexNodeFromResolvedExpr(column.getExpr(), columnList, fieldList);
+      return convertRexNodeFromResolvedExpr(
+          column.getExpr(), columnList, fieldList, ImmutableMap.of());
     }
 
     ResolvedFunctionCall functionCall = (ResolvedFunctionCall) column.getExpr();
@@ -473,7 +381,8 @@ public class ExpressionConverter {
 
     if (!functionCall.getFunction().getGroup().equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
       // non-window function should still go through normal FunctionCall conversion process.
-      return convertRexNodeFromResolvedExpr(column.getExpr(), columnList, fieldList);
+      return convertRexNodeFromResolvedExpr(
+          column.getExpr(), columnList, fieldList, ImmutableMap.of());
     }
 
     // ONLY window_start and window_end should arrive here.
@@ -496,196 +405,158 @@ public class ExpressionConverter {
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(0)));
-        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
+        return rexBuilder().makeCall(SqlOperators.ZETASQL_TIMESTAMP_ADD, operands);
       case SLIDING_WINDOW_END:
         operands.add(
             rexBuilder().makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex));
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(1)));
-        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
+        return rexBuilder().makeCall(SqlOperators.ZETASQL_TIMESTAMP_ADD, operands);
       default:
         throw new UnsupportedOperationException(
             "Does not support window start/end: " + functionCall.getFunction().getName());
     }
   }
 
+  public RexNode trueLiteral() {
+    return rexBuilder().makeLiteral(true);
+  }
+
   /** Convert a resolved literal to a RexNode. */
   public RexNode convertResolvedLiteral(ResolvedLiteral resolvedLiteral) {
-    TypeKind kind = resolvedLiteral.getType().getKind();
-    RexNode ret;
-    switch (kind) {
-      case TYPE_BOOL:
-      case TYPE_INT32:
-      case TYPE_INT64:
-      case TYPE_FLOAT:
-      case TYPE_DOUBLE:
-      case TYPE_STRING:
-      case TYPE_TIMESTAMP:
-      case TYPE_DATE:
-      case TYPE_TIME:
-        // case TYPE_DATETIME:
-      case TYPE_BYTES:
-      case TYPE_ARRAY:
-      case TYPE_STRUCT:
-      case TYPE_ENUM:
-        ret = convertValueToRexNode(resolvedLiteral.getType(), resolvedLiteral.getValue());
-        break;
-      default:
-        throw new UnsupportedOperationException(
-            MessageFormat.format(
-                "Unsupported ResolvedLiteral type: {0}, kind: {1}, value: {2}, class: {3}",
-                resolvedLiteral.getType().typeName(),
-                kind,
-                resolvedLiteral.getValue(),
-                resolvedLiteral.getClass()));
+    return ZetaSqlCalciteTranslationUtils.toRexNode(resolvedLiteral.getValue(), rexBuilder());
+  }
+
+  /** Convert a TableValuedFunction in ZetaSQL to a RexCall in Calcite. */
+  public RexCall convertTableValuedFunction(
+      RelNode input,
+      TableValuedFunction tvf,
+      List<ResolvedNodes.ResolvedTVFArgument> argumentList,
+      List<ResolvedColumn> inputTableColumns) {
+    ResolvedColumn wmCol;
+    // Handle builtin windowing TVF.
+    switch (tvf.getName()) {
+      case TVFStreamingUtils.FIXED_WINDOW_TVF:
+        // TUMBLE tvf's second argument is descriptor.
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+
+        return (RexCall)
+            rexBuilder()
+                .makeCall(
+                    new SqlWindowTableFunction(SqlKind.TUMBLE.name()),
+                    convertRelNodeToRexRangeRef(input),
+                    convertResolvedColumnToRexInputRef(wmCol, inputTableColumns),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(2).getExpr()));
+
+      case TVFStreamingUtils.SLIDING_WINDOW_TVF:
+        // HOP tvf's second argument is descriptor.
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+        return (RexCall)
+            rexBuilder()
+                .makeCall(
+                    new SqlWindowTableFunction(SqlKind.HOP.name()),
+                    convertRelNodeToRexRangeRef(input),
+                    convertResolvedColumnToRexInputRef(wmCol, inputTableColumns),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(2).getExpr()),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(3).getExpr()));
+
+      case TVFStreamingUtils.SESSION_WINDOW_TVF:
+        // SESSION tvf's second argument is descriptor.
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+        // SESSION tvf's third argument is descriptor.
+        List<ResolvedColumn> keyCol =
+            extractSessionKeyColumnFromDescriptor(argumentList.get(2).getDescriptorArg());
+        List<RexNode> operands = new ArrayList<>();
+        operands.add(convertRelNodeToRexRangeRef(input));
+        operands.add(convertResolvedColumnToRexInputRef(wmCol, inputTableColumns));
+        operands.add(
+            convertIntervalToRexIntervalLiteral((ResolvedLiteral) argumentList.get(3).getExpr()));
+        operands.addAll(convertResolvedColumnsToRexInputRef(keyCol, inputTableColumns));
+        return (RexCall)
+            rexBuilder().makeCall(new SqlWindowTableFunction(SqlKind.SESSION.name()), operands);
     }
 
+    if (tvf instanceof FixedOutputSchemaTVF) {
+      FixedOutputSchemaTVF fixedOutputSchemaTVF = (FixedOutputSchemaTVF) tvf;
+      return (RexCall)
+          rexBuilder()
+              .makeCall(
+                  new ZetaSqlUserDefinedSQLNativeTableValuedFunction(
+                      new SqlIdentifier(tvf.getName(), SqlParserPos.ZERO),
+                      opBinding -> {
+                        List<RelDataTypeField> relDataTypeFields =
+                            convertTVFRelationColumnsToRelDataTypeFields(
+                                fixedOutputSchemaTVF.getOutputSchema().getColumns());
+                        return new RelRecordType(relDataTypeFields);
+                      },
+                      null,
+                      null,
+                      null,
+                      null));
+    }
+
+    throw new UnsupportedOperationException(
+        "Does not support table-valued function: " + tvf.getName());
+  }
+
+  private List<RelDataTypeField> convertTVFRelationColumnsToRelDataTypeFields(
+      List<TVFRelation.Column> columns) {
+    return IntStream.range(0, columns.size())
+        .mapToObj(
+            i ->
+                new RelDataTypeFieldImpl(
+                    columns.get(i).getName(),
+                    i,
+                    ZetaSqlCalciteTranslationUtils.toCalciteType(
+                        columns.get(i).getType(), false, rexBuilder())))
+        .collect(Collectors.toList());
+  }
+
+  private List<RexInputRef> convertResolvedColumnsToRexInputRef(
+      List<ResolvedColumn> columns, List<ResolvedColumn> inputTableColumns) {
+    List<RexInputRef> ret = new ArrayList<>();
+    for (ResolvedColumn column : columns) {
+      ret.add(convertResolvedColumnToRexInputRef(column, inputTableColumns));
+    }
     return ret;
   }
 
-  private RexNode convertValueToRexNode(Type type, Value value) {
-    RexNode ret;
-    switch (type.getKind()) {
-      case TYPE_BOOL:
-      case TYPE_INT32:
-      case TYPE_INT64:
-      case TYPE_FLOAT:
-      case TYPE_DOUBLE:
-      case TYPE_STRING:
-      case TYPE_TIMESTAMP:
-      case TYPE_DATE:
-      case TYPE_TIME:
-        // case TYPE_DATETIME:
-      case TYPE_BYTES:
-        ret = convertSimpleValueToRexNode(type.getKind(), value);
-        break;
-      case TYPE_ARRAY:
-        ret = convertArrayValueToRexNode(type.asArray(), value);
-        break;
-      case TYPE_ENUM:
-        ret = convertEnumToRexNode(type.asEnum(), value);
-        break;
-      default:
-        // TODO: convert struct literal.
-        throw new UnsupportedOperationException(
-            "Unsupported ResolvedLiteral kind: " + type.getKind() + " type: " + type.typeName());
+  private RexInputRef convertResolvedColumnToRexInputRef(
+      ResolvedColumn column, List<ResolvedColumn> inputTableColumns) {
+    for (int i = 0; i < inputTableColumns.size(); i++) {
+      if (inputTableColumns.get(i).equals(column)) {
+        return rexBuilder()
+            .makeInputRef(
+                ZetaSqlCalciteTranslationUtils.toCalciteType(column.getType(), false, rexBuilder()),
+                i);
+      }
     }
 
-    return ret;
+    throw new IllegalArgumentException(
+        "ZetaSQL parser guarantees that wmCol can be found from inputTableColumns so it shouldn't reach here.");
   }
 
-  private RexNode convertSimpleValueToRexNode(TypeKind kind, Value value) {
-    if (value.isNull()) {
-      return rexBuilder().makeNullLiteral(TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
-    }
-
-    RexNode ret;
-    switch (kind) {
-      case TYPE_BOOL:
-        ret = rexBuilder().makeLiteral(value.getBoolValue());
-        break;
-      case TYPE_INT32:
-        ret =
-            rexBuilder()
-                .makeExactLiteral(
-                    new BigDecimal(value.getInt32Value()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
-        break;
-      case TYPE_INT64:
-        ret =
-            rexBuilder()
-                .makeExactLiteral(
-                    new BigDecimal(value.getInt64Value()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
-        break;
-      case TYPE_FLOAT:
-        ret =
-            rexBuilder()
-                .makeApproxLiteral(
-                    new BigDecimal(value.getFloatValue()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
-        break;
-      case TYPE_DOUBLE:
-        ret =
-            rexBuilder()
-                .makeApproxLiteral(
-                    new BigDecimal(value.getDoubleValue()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
-        break;
-      case TYPE_STRING:
-        // has to allow CAST because Calcite create CHAR type first and does a CAST to VARCHAR.
-        // If not allow cast, rexBuilder() will only build a literal with CHAR type.
-        ret =
-            rexBuilder()
-                .makeLiteral(
-                    value.getStringValue(), typeFactory().createSqlType(SqlTypeName.VARCHAR), true);
-        break;
-      case TYPE_TIMESTAMP:
-        ret =
-            rexBuilder()
-                .makeTimestampLiteral(
-                    TimestampString.fromMillisSinceEpoch(
-                        safeMicrosToMillis(value.getTimestampUnixMicros())),
-                    typeFactory().getTypeSystem().getMaxPrecision(SqlTypeName.TIMESTAMP));
-        break;
-      case TYPE_DATE:
-        ret = rexBuilder().makeDateLiteral(convertDateValueToDateString(value));
-        break;
-      case TYPE_TIME:
-        RelDataType timeType =
-            typeFactory()
-                .createSqlType(
-                    SqlTypeName.TIME,
-                    typeFactory().getTypeSystem().getMaxPrecision(SqlTypeName.TIME));
-        // TODO: Doing micro to mills truncation, need to throw exception.
-        ret = rexBuilder().makeLiteral(convertTimeValueToTimeString(value), timeType, false);
-        break;
-      case TYPE_BYTES:
-        ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));
-        break;
-      default:
-        throw new UnsupportedOperationException("Unsupported column type: " + kind);
-    }
-
-    return ret;
+  private ResolvedColumn extractWatermarkColumnFromDescriptor(
+      ResolvedNodes.ResolvedDescriptor descriptor) {
+    ResolvedColumn wmCol = descriptor.getDescriptorColumnList().get(0);
+    checkArgument(
+        wmCol.getType().getKind() == TYPE_TIMESTAMP,
+        "Watermarked column should be TIMESTAMP type: %s",
+        descriptor.getDescriptorColumnNameList().get(0));
+    return wmCol;
   }
 
-  private RexNode convertArrayValueToRexNode(ArrayType arrayType, Value value) {
-    if (value.isNull()) {
-      // TODO: should the nullable be false for a array?
-      return rexBuilder()
-          .makeNullLiteral(TypeUtils.toArrayRelDataType(rexBuilder(), arrayType, false));
-    }
+  private List<ResolvedColumn> extractSessionKeyColumnFromDescriptor(
+      ResolvedNodes.ResolvedDescriptor descriptor) {
+    checkArgument(
+        descriptor.getDescriptorColumnNameList().size() > 0,
+        "Session key descriptor should not be empty");
 
-    List<RexNode> operands = new ArrayList<>();
-    for (Value v : value.getElementList()) {
-      operands.add(convertValueToRexNode(arrayType.getElementType(), v));
-    }
-    return rexBuilder().makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
-  }
-
-  private RexNode convertEnumToRexNode(EnumType type, Value value) {
-    if ("zetasql.functions.DateTimestampPart".equals(type.getDescriptor().getFullName())) {
-      return convertTimeUnitRangeEnumToRexNode(type, value);
-    } else {
-      throw new UnsupportedOperationException(
-          MessageFormat.format(
-              "Unsupported enum. Kind: {0} Type: {1}", type.getKind(), type.typeName()));
-    }
-  }
-
-  private RexNode convertTimeUnitRangeEnumToRexNode(Type type, Value value) {
-    TimeUnit mappedUnit = TIME_UNIT_CASTING_MAP.get(value.getEnumValue());
-    if (mappedUnit == null) {
-      throw new UnsupportedOperationException(
-          MessageFormat.format(
-              "Unsupported enum value. Kind: {0} Type: {1} Value: {2} EnumName: {3}",
-              type.getKind(), type.typeName(), value.getEnumName(), value.getEnumValue()));
-    }
-
-    TimeUnitRange mappedRange = TimeUnitRange.of(mappedUnit, null);
-    return rexBuilder().makeFlag(mappedRange);
+    return descriptor.getDescriptorColumnList();
   }
 
   private RexNode convertResolvedColumnRef(
@@ -707,7 +578,7 @@ public class ExpressionConverter {
     // TODO: can join key be NULL?
     return rexBuilder()
         .makeInputRef(
-            TypeUtils.toRelDataType(rexBuilder(), columnRef.getType(), false),
+            ZetaSqlCalciteTranslationUtils.toCalciteType(columnRef.getType(), false, rexBuilder()),
             (int) columnRef.getColumn().getId() - 1);
   }
 
@@ -726,37 +597,39 @@ public class ExpressionConverter {
 
   private RexNode convertResolvedFunctionCall(
       ResolvedFunctionCall functionCall,
-      List<ResolvedColumn> columnList,
-      List<RelDataTypeField> fieldList) {
-    RexNode ret;
-    SqlOperator op;
+      @Nullable List<ResolvedColumn> columnList,
+      @Nullable List<RelDataTypeField> fieldList,
+      Map<String, RexNode> outerFunctionArguments) {
+    final String funGroup = functionCall.getFunction().getGroup();
+    final String funName = functionCall.getFunction().getName();
+    SqlOperator op = SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
     List<RexNode> operands = new ArrayList<>();
 
-    if (functionCall.getFunction().getGroup().equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
-      switch (functionCall.getFunction().getName()) {
+    if (funGroup.equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
+      switch (funName) {
         case FIXED_WINDOW:
         case SESSION_WINDOW:
-          op =
-              SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                  functionCall.getFunction().getName());
           // TODO: check size and type of window function argument list.
           // Add ts column reference to operands.
           operands.add(
               convertRexNodeFromResolvedExpr(
-                  functionCall.getArgumentList().get(0), columnList, fieldList));
+                  functionCall.getArgumentList().get(0),
+                  columnList,
+                  fieldList,
+                  outerFunctionArguments));
           // Add fixed window size or session window gap to operands.
           operands.add(
               convertIntervalToRexIntervalLiteral(
                   (ResolvedLiteral) functionCall.getArgumentList().get(1)));
           break;
         case SLIDING_WINDOW:
-          op =
-              SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                  SLIDING_WINDOW);
           // Add ts column reference to operands.
           operands.add(
               convertRexNodeFromResolvedExpr(
-                  functionCall.getArgumentList().get(0), columnList, fieldList));
+                  functionCall.getArgumentList().get(0),
+                  columnList,
+                  fieldList,
+                  outerFunctionArguments));
           // add sliding window emit frequency to operands.
           operands.add(
               convertIntervalToRexIntervalLiteral(
@@ -768,90 +641,52 @@ public class ExpressionConverter {
           break;
         default:
           throw new UnsupportedOperationException(
-              "Only support TUMBLE, HOP AND SESSION functions right now.");
+              "Unsupported function: " + funName + ". Only support TUMBLE, HOP, and SESSION now.");
       }
-    } else if (functionCall.getFunction().getGroup().equals("ZetaSQL")) {
-      op =
-          SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-              functionCall.getFunction().getName());
-
+    } else if (funGroup.equals("ZetaSQL")) {
       if (op == null) {
-        throw new UnsupportedOperationException(
-            "Does not support ZetaSQL function: " + functionCall.getFunction().getName());
-      }
-
-      // There are different processes to handle argument conversion because INTERVAL is not a
-      // type in ZetaSQL.
-      if (FUNCTION_FAMILY_DATE_ADD.contains(functionCall.getFunction().getName())) {
-        return convertTimestampAddFunction(functionCall, columnList, fieldList);
-      } else {
-        for (ResolvedExpr expr : functionCall.getArgumentList()) {
-          operands.add(convertRexNodeFromResolvedExpr(expr, columnList, fieldList));
+        Type returnType = functionCall.getSignature().getResultType().getType();
+        if (returnType != null) {
+          op =
+              SqlOperators.createZetaSqlFunction(
+                  funName,
+                  ZetaSqlCalciteTranslationUtils.toCalciteType(returnType, false, rexBuilder())
+                      .getSqlTypeName());
+        } else {
+          throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);
         }
       }
+
+      for (ResolvedExpr expr : functionCall.getArgumentList()) {
+        operands.add(
+            convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
+      }
+    } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
+      String fullName = functionCall.getFunction().getFullName();
+      ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(fullName);
+      ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
+      ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
+      for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
+        String argName = createFunctionStmt.getArgumentNameList().get(i);
+        ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
+        RexNode argNode =
+            convertRexNodeFromResolvedExpr(argExpr, columnList, fieldList, outerFunctionArguments);
+        innerFunctionArguments.put(argName, argNode);
+      }
+      return this.convertRexNodeFromResolvedExpr(
+          functionExpression, columnList, fieldList, innerFunctionArguments.build());
     } else {
-      throw new UnsupportedOperationException(
-          "Does not support function group: " + functionCall.getFunction().getGroup());
+      throw new UnsupportedOperationException("Does not support function group: " + funGroup);
     }
 
     SqlOperatorRewriter rewriter =
-        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(
-            functionCall.getFunction().getName());
+        SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(funName);
 
     if (rewriter != null) {
-      ret = rewriter.apply(rexBuilder(), operands);
+      return rewriter.apply(rexBuilder(), operands);
     } else {
-      ret = rexBuilder().makeCall(op, operands);
+      return rexBuilder().makeCall(op, operands);
     }
-    return ret;
-  }
-
-  private RexNode convertTimestampAddFunction(
-      ResolvedFunctionCall functionCall,
-      List<ResolvedColumn> columnList,
-      List<RelDataTypeField> fieldList) {
-
-    TimeUnit unit =
-        TIME_UNIT_CASTING_MAP.get(
-            ((ResolvedLiteral) functionCall.getArgumentList().get(2)).getValue().getEnumValue());
-
-    if ((unit == TimeUnit.MICROSECOND) || (unit == TimeUnit.NANOSECOND)) {
-      throw Status.UNIMPLEMENTED
-          .withDescription("Micro and Nanoseconds are not supported by Beam ZetaSQL")
-          .asRuntimeException();
-    }
-
-    SqlIntervalQualifier qualifier = new SqlIntervalQualifier(unit, null, SqlParserPos.ZERO);
-
-    RexNode intervalArgumentNode =
-        convertRexNodeFromResolvedExpr(
-            functionCall.getArgumentList().get(1), columnList, fieldList);
-
-    RexNode validatedIntervalArgument =
-        rexBuilder()
-            .makeCall(
-                SqlOperators.VALIDATE_TIME_INTERVAL,
-                intervalArgumentNode,
-                rexBuilder().makeFlag(unit));
-
-    RexNode intervalNode =
-        rexBuilder()
-            .makeCall(
-                SqlStdOperatorTable.MULTIPLY,
-                rexBuilder().makeIntervalLiteral(unit.multiplier, qualifier),
-                validatedIntervalArgument);
-
-    RexNode timestampNode =
-        convertRexNodeFromResolvedExpr(
-            functionCall.getArgumentList().get(0), columnList, fieldList);
-
-    RexNode dateTimePlusResult =
-        rexBuilder().makeCall(SqlStdOperatorTable.DATETIME_PLUS, timestampNode, intervalNode);
-
-    RexNode validatedTimestampResult =
-        rexBuilder().makeCall(SqlOperators.VALIDATE_TIMESTAMP, dateTimePlusResult);
-
-    return validatedTimestampResult;
   }
 
   private RexNode convertIntervalToRexIntervalLiteral(ResolvedLiteral resolvedLiteral) {
@@ -945,22 +780,28 @@ public class ExpressionConverter {
   private RexNode convertResolvedCast(
       ResolvedCast resolvedCast,
       List<ResolvedColumn> columnList,
-      List<RelDataTypeField> fieldList) {
+      List<RelDataTypeField> fieldList,
+      Map<String, RexNode> functionArguments) {
+    return convertResolvedCast(
+        resolvedCast,
+        convertRexNodeFromResolvedExpr(
+            resolvedCast.getExpr(), columnList, fieldList, functionArguments));
+  }
+
+  private RexNode convertResolvedCast(ResolvedCast resolvedCast, RexNode input) {
     TypeKind fromType = resolvedCast.getExpr().getType().getKind();
     TypeKind toType = resolvedCast.getType().getKind();
     isCastingSupported(fromType, toType);
 
-    RexNode inputNode =
-        convertRexNodeFromResolvedExpr(resolvedCast.getExpr(), columnList, fieldList);
     // nullability of the output type should match that of the input node's type
     RelDataType outputType =
-        TypeUtils.toSimpleRelDataType(
-            resolvedCast.getType().getKind(), rexBuilder(), inputNode.getType().isNullable());
+        ZetaSqlCalciteTranslationUtils.toCalciteType(
+            resolvedCast.getType(), input.getType().isNullable(), rexBuilder());
 
     if (isZetaSQLCast(fromType, toType)) {
-      return rexBuilder().makeCall(outputType, ZETASQL_CAST_OP, ImmutableList.of(inputNode));
+      return rexBuilder().makeCall(outputType, SqlOperators.CAST_OP, ImmutableList.of(input));
     } else {
-      return rexBuilder().makeCast(outputType, inputNode);
+      return rexBuilder().makeCast(outputType, input);
     }
   }
 
@@ -973,7 +814,7 @@ public class ExpressionConverter {
   }
 
   private static boolean isZetaSQLCast(TypeKind fromType, TypeKind toType) {
-    // TODO: Structure ZETASQL_CAST_OP so that we don't have to repeat the supported types
+    // TODO: Structure CAST_OP so that we don't have to repeat the supported types
     // here
     return (fromType.equals(TYPE_BYTES) && toType.equals(TYPE_STRING))
         || (fromType.equals(TYPE_INT64) && toType.equals(TYPE_BOOL))
@@ -981,75 +822,66 @@ public class ExpressionConverter {
         || (fromType.equals(TYPE_TIMESTAMP) && toType.equals(TYPE_STRING));
   }
 
-  private Optional<RexNode> convertRexNodeFromResolvedColumnRefWithRefScan(
-      ResolvedColumnRef columnRef,
-      List<ResolvedColumn> refScanColumnList,
-      List<ResolvedColumn> originalColumnList,
-      List<RelDataTypeField> fieldList) {
-
-    for (int i = 0; i < refScanColumnList.size(); i++) {
-      if (refScanColumnList.get(i).getId() == columnRef.getColumn().getId()) {
-        boolean nullable = fieldList.get(i).getType().isNullable();
-        int off = (int) originalColumnList.get(i).getId() - 1;
-        return Optional.of(
-            rexBuilder()
-                .makeInputRef(
-                    TypeUtils.toSimpleRelDataType(
-                        columnRef.getType().getKind(), rexBuilder(), nullable),
-                    off));
-      }
-    }
-
-    return Optional.empty();
-  }
-
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
     Value value;
-    String identifier;
     switch (queryParams.getKind()) {
       case NAMED:
         value = ((Map<String, Value>) queryParams.named()).get(parameter.getName());
-        identifier = parameter.getName();
         break;
       case POSITIONAL:
         // parameter is 1-indexed, while parameter list is 0-indexed.
         value = ((List<Value>) queryParams.positional()).get((int) parameter.getPosition() - 1);
-        identifier = Long.toString(parameter.getPosition());
         break;
       default:
         throw new IllegalArgumentException("Found unexpected parameter " + parameter);
     }
-    if (!parameter.getType().equals(value.getType())) {
-      throw new SqlConversionException(
-          String.format(
-              "Expected resolved parameter %s to have type %s, but it has type %s",
-              identifier, value.getType(), parameter.getType()));
+    Preconditions.checkState(parameter.getType().equals(value.getType()));
+    if (value.isNull()) {
+      // In some cases NULL parameter cannot be substituted with NULL literal
+      // Therefore we create a dynamic parameter placeholder here for each NULL parameter
+      return rexBuilder()
+          .makeDynamicParam(
+              ZetaSqlCalciteTranslationUtils.toCalciteType(value.getType(), true, rexBuilder()),
+              nullParamCount++);
+    } else {
+      // Substitute non-NULL parameter with literal
+      return ZetaSqlCalciteTranslationUtils.toRexNode(value, rexBuilder());
     }
-    return convertValueToRexNode(value.getType(), value);
+  }
+
+  private RexNode convertResolvedArgumentRef(
+      ResolvedArgumentRef resolvedArgumentRef, Map<String, RexNode> functionArguments) {
+    return functionArguments.get(resolvedArgumentRef.getName());
   }
 
   private RexNode convertResolvedStructFieldAccess(ResolvedGetStructField resolvedGetStructField) {
-    return rexBuilder()
-        .makeFieldAccess(
-            convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr()),
-            (int) resolvedGetStructField.getFieldIdx());
+    RexNode referencedExpr = convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr());
+    return convertResolvedStructFieldAccessInternal(
+        referencedExpr, (int) resolvedGetStructField.getFieldIdx());
   }
 
   private RexNode convertResolvedStructFieldAccess(
       ResolvedGetStructField resolvedGetStructField,
       List<ResolvedColumn> columnList,
-      List<RelDataTypeField> fieldList) {
-    return rexBuilder()
-        .makeFieldAccess(
-            convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr(), columnList, fieldList),
-            (int) resolvedGetStructField.getFieldIdx());
+      List<RelDataTypeField> fieldList,
+      Map<String, RexNode> functionArguments) {
+    RexNode referencedExpr =
+        convertRexNodeFromResolvedExpr(
+            resolvedGetStructField.getExpr(), columnList, fieldList, functionArguments);
+    return convertResolvedStructFieldAccessInternal(
+        referencedExpr, (int) resolvedGetStructField.getFieldIdx());
+  }
+
+  private RexNode convertResolvedStructFieldAccessInternal(RexNode referencedExpr, int fieldIdx) {
+    // Calcite SQL does not allow the ROW constructor to be dereferenced directly, so do it here.
+    if (referencedExpr instanceof RexCall
+        && ((RexCall) referencedExpr).getOperator() instanceof SqlRowOperator) {
+      return ((RexCall) referencedExpr).getOperands().get(fieldIdx);
+    }
+    return rexBuilder().makeFieldAccess(referencedExpr, fieldIdx);
   }
 
   private RexBuilder rexBuilder() {
     return cluster.getRexBuilder();
-  }
-
-  private RelDataTypeFactory typeFactory() {
-    return cluster.getTypeFactory();
   }
 }

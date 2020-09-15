@@ -39,7 +39,7 @@ public final class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {
   private CombineFn<InputT, AccumT, OutputT> combineFn;
 
-  UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
+  public UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;
   }
 

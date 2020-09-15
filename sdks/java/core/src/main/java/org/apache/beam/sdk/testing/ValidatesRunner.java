@@ -17,5 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /** Category tag for tests which validate that a Beam runner is correctly implemented. */
+@Internal
 public interface ValidatesRunner extends NeedsRunner {}

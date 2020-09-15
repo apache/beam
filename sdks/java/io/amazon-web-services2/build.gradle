@@ -19,7 +19,12 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws2')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.io.aws2')
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
@@ -31,19 +36,31 @@ dependencies {
   compile library.java.aws_java_sdk2_auth
   compile library.java.aws_java_sdk2_cloudwatch
   compile library.java.aws_java_sdk2_dynamodb
+  compile library.java.aws_java_sdk2_kinesis
   compile library.java.aws_java_sdk2_sdk_core
   compile library.java.aws_java_sdk2_sns
   compile library.java.aws_java_sdk2_sqs
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
+  compile library.java.jackson_dataformat_cbor
+  compile library.java.joda_time
   compile library.java.slf4j_api
-
+  compile "software.amazon.kinesis:amazon-kinesis-client:2.2.5"
+  compile "commons-lang:commons-lang:2.6"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
+  testCompile library.java.mockito_core
+  testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
-  testCompile 'org.testcontainers:testcontainers:1.11.3'
+  testCompile library.java.hamcrest_library
+  testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
+  testCompile library.java.testcontainers_localstack
+  testCompile "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
@@ -53,4 +70,6 @@ test {
       '--region=us-west-2',
       '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
   ])
+  // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
+  forkEvery 1
 }

@@ -17,6 +17,7 @@
 
 cimport cython
 
+from apache_beam.runners.common cimport DoFnRunner
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
@@ -72,8 +73,8 @@ cdef class Operation(object):
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
   cpdef execution_time_monitoring_infos(self, transform_id)
   cpdef user_monitoring_infos(self, transform_id)
-  cpdef pcollection_count_monitoring_infos(self, transform_id)
-  cpdef monitoring_infos(self, transform_id)
+  cpdef pcollection_count_monitoring_infos(self, tag_to_pcollection_id)
+  cpdef monitoring_infos(self, transform_id, tag_to_pcollection_id)
 
 
 cdef class ReadOperation(Operation):
@@ -88,8 +89,7 @@ cdef class ImpulseReadOperation(Operation):
 
 
 cdef class DoOperation(Operation):
-  cdef object dofn_runner
-  cdef Receiver dofn_receiver
+  cdef DoFnRunner dofn_runner
   cdef object tagged_receivers
   cdef object side_input_maps
   cdef object user_state_context
@@ -102,6 +102,8 @@ cdef class SdfProcessSizedElements(DoOperation):
   cdef object lock
   cdef object element_start_output_bytes
 
+cdef class SdfTruncateSizedRestrictions(DoOperation):
+  pass
 
 cdef class CombineOperation(Operation):
   cdef object phased_combine_fn

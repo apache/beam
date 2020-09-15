@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false)
+applyJavaNature(publish: false, exportJavadoc: false, enableChecker:false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")
@@ -33,6 +33,7 @@ dependencies {
   testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
 task windmillPreCommit(type: Test) {
@@ -43,6 +44,7 @@ task windmillPreCommit(type: Test) {
   // image, which handles a staged worker jar.
   def preCommitBeamTestPipelineOptions = [
      "--project=${gcpProject}",
+     "--region=${gcpRegion}",
      "--tempRoot=${gcsTempRoot}",
      "--runner=TestDataflowRunner",
      "--dataflowWorkerJar=${dataflowWorkerJar}",
@@ -65,6 +67,7 @@ task appliancePreCommit(type: Test) {
   // image, which handles a staged worker jar.
   def preCommitBeamTestPipelineOptions = [
      "--project=${gcpProject}",
+     "--region=${gcpRegion}",
      "--tempRoot=${gcsTempRoot}",
      "--runner=TestDataflowRunner",
      "--dataflowWorkerJar=${dataflowWorkerJar}",

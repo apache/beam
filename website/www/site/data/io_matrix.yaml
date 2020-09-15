@@ -1,0 +1,390 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+categories:
+  - name: File-based
+    description: These I/O connectors involve working with files.
+    rows:
+      - transform: FileIO
+        description: "General-purpose transforms for working with files: listing files (matching), reading and writing."
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.FileIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html
+          - language: py
+            name: apache_beam.io.FileIO
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html
+      - transform: AvroIO
+        description: PTransforms for reading from and writing to [Avro](https://avro.apache.org/) files.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.AvroIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/AvroIO.html
+          - language: py
+            name: apache_beam.io.avroio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/avroio
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/avroio
+      - transform: TextIO
+        description: PTransforms for reading and writing text files.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.TextIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html
+          - language: py
+            name: apache_beam.io.textio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/textio
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/textio
+      - transform: TFRecordIO
+        description: PTransforms for reading and writing [TensorFlow TFRecord](https://www.tensorflow.org/tutorials/load_data/tfrecord) files.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.TFRecordIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TFRecordIO.html
+          - language: py
+            name: apache_beam.io.tfrecordio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html
+      - transform: XmlIO
+        description: Transforms for reading and writing XML files using [JAXB](https://www.oracle.com/technical-resources/articles/javase/jaxb.html) mappers.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.xml.XmlIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/xml/XmlIO.html
+      - transform: TikaIO
+        description: Transforms for parsing arbitrary files using [Apache Tika](https://tika.apache.org/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.tika.TikaIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/tika/TikaIO.html
+      - transform: ParquetIO
+        description: IO for reading from and writing to [Parquet](https://parquet.apache.org/) files.
+        docs: /documentation/io/built-in/parquet/
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.parquet.ParquetIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.html
+          - language: py
+            name: apache_beam.io.parquetio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html
+      - transform: ThriftIO
+        description: PTransforms for reading and writing files containing [Thrift](https://thrift.apache.org/)-encoded data.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.thrift.ThriftIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/thrift/ThriftIO.html
+      - transform: VcfIO
+        description: A source for reading from [VCF files](https://samtools.github.io/hts-specs/VCFv4.2.pdf) (version 4.x).
+        implementations:
+          - language: py
+            name: apache_beam.io.vcfio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.vcfio.html
+      - transform: S3IO
+        description: A source for reading from and writing to [Amazon S3](https://aws.amazon.com/s3/).
+        implementations:
+          - language: py
+            name: apache_beam.io.aws.s3io
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.aws.s3io.html
+      - transform: GcsIO
+        description: A source for reading from and writing to [Google Cloud Storage](https://cloud.google.com/storage).
+        implementations:
+          - language: py
+            name: apache_beam.io.gcp.gcsio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsio.html
+  - name: FileSystem
+    description: Beam provides a File system interface that defines APIs for writing file systems agnostic code. Several I/O connectors are implemented as a FileSystem implementation.
+    rows:
+      - transform: HadoopFileSystem
+        description: "`FileSystem` implementation for accessing [Hadoop](https://hadoop.apache.org/) Distributed File System files."
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.hdfs.HadoopFileSystemRegistrar
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hdfs/HadoopFileSystemRegistrar.html
+          - language: py
+            name: apache_beam.io.hadoopfilesystem
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.hadoopfilesystem.html
+      - transform: GcsFileSystem
+        description: "`FileSystem` implementation for [Google Cloud Storage](https://cloud.google.com/storage)."
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystemRegistrar
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/gcp/storage/GcsFileSystemRegistrar.html
+          - language: py
+            name: apache_beam.io.gcp.gcsfilesystem
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsfilesystem.html
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs
+      - transform: LocalFileSystem
+        description: "`FileSystem` implementation for accessing files on disk."
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.LocalFileSystemRegistrar
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/LocalFileSystemRegistrar.html
+          - language: py
+            name: apache_beam.io.localfilesystem
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.localfilesystem.html
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local
+      - transform: S3FileSystem
+        description: "`FileSystem` implementation for [Amazon S3](https://aws.amazon.com/s3/)."
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html
+      - transform: In-memory
+        description: "`FileSystem` implementation in memory; useful for testing."
+        implementations:
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
+  - name: Messaging
+    description: These I/O connectors typically involve working with unbounded sources that come from messaging sources.
+    rows:
+      - transform: KinesisIO
+        description: PTransforms for reading from and writing to [Kinesis](https://aws.amazon.com/kinesis/) streams.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.kinesis.KinesisIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html
+      - transform: AmqpIO
+        description: AMQP 1.0 protocol using the Apache QPid Proton-J library
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.amqp.AmqpIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/amqp/AmqpIO.html
+      - transform: KafkaIO
+        description: Read and Write PTransforms for [Apache Kafka](https://kafka.apache.org/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.kafka.KafkaIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html
+          - language: py
+            name: apache_beam.io.external.kafka
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.kafka.html
+      - transform: PubSubIO
+        description: Read and Write PTransforms for [Google Cloud Pub/Sub](https://cloud.google.com/pubsub) streams.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.pubsub.PubsubIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html
+          - language: py
+            name: apache_beam.io.gcp.pubsub
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html
+          - language: py
+            name: apache_beam.io.external.gcp.pubsub
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.gcp.pubsub.html
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio
+      - transform: JmsIO
+        description: An unbounded source for [JMS](https://www.oracle.com/java/technologies/java-message-service.html) destinations (queues or topics).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.jms.JmsIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jms/JmsIO.html
+      - transform: MqttIO
+        description: An unbounded source for [MQTT](https://mqtt.org/) broker.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.mqtt.MqttIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mqtt/MqttIO.html
+      - transform: RabbitMqIO
+        description: A IO to publish or consume messages with a RabbitMQ broker.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.rabbitmq.RabbitMqIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.html
+      - transform: SqsIO
+        description: An unbounded source for [Amazon Simple Queue Service (SQS)](https://aws.amazon.com/sqs/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.aws.sqs.SqsIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sqs/SqsIO.html
+          - language: java
+            name: org.apache.beam.sdk.io.aws2.sqs.SqsIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html
+      - transform: SnsIO
+        description: PTransforms for writing to [Amazon Simple Notification Service (SNS)](https://aws.amazon.com/sns/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.aws.sns.SnsIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sns/SnsIO.html
+          - language: java
+            name: org.apache.beam.sdk.io.aws2.sns.SnsIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html
+  - name: Database
+    description: These I/O connectors are used to connect to database systems.
+    rows:
+      - transform: CassandraIO
+        description: An IO to read from [Apache Cassandra](https://cassandra.apache.org/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.cassandra.CassandraIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/cassandra/CassandraIO.html
+      - transform: HadoopFormatIO
+        description: Allows for reading data from any source or writing data to any sink which implements [Hadoop](https://hadoop.apache.org/) InputFormat or OutputFormat.
+        docs: /documentation/io/built-in/hadoop/
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hadoop/format/HadoopFormatIO.html
+      - transform: HBaseIO
+        description: A bounded source and sink for [HBase](https://hbase.apache.org/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.hbase.HBaseIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hbase/HBaseIO.html
+      - transform: HCatalogIO
+        description: HCatalog source supports reading of HCatRecord from a [HCatalog](https://cwiki.apache.org/confluence/display/Hive/HCatalog)-managed source, for example [Hive](https://hive.apache.org/).
+        docs: /documentation/io/built-in/hcatalog/
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.hcatalog.HCatalogIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hcatalog/HCatalogIO.html
+      - transform: KuduIO
+        description: A bounded source and sink for [Kudu](https://kudu.apache.org/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.kudu
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kudu/KuduIO.html
+      - transform: SolrIO
+        description: Transforms for reading and writing data from/to [Solr](https://lucene.apache.org/solr/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.solr.SolrIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/solr/SolrIO.html
+      - transform: ElasticsearchIO
+        description: Transforms for reading and writing data from/to [Elasticsearch](https://www.elastic.co/elasticsearch/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/elasticsearch/ElasticsearchIO.html
+      - transform: BigQueryIO
+        description: Read from and write to [Google Cloud BigQuery](https://cloud.google.com/bigquery).
+        docs: /documentation/io/built-in/google-bigquery/
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html
+          - language: py
+            name: apache_beam.io.gcp.bigquery
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
+      - transform: BigTableIO
+        description: Read from and write to [Google Cloud Bigtable](https://cloud.google.com/bigtable/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.bigtable.BigtableIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html
+          - language: py
+            name: apache_beam.io.gcp.bigtableio module
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html
+      - transform: DatastoreIO
+        description: Read from and write to [Google Cloud Datastore](https://cloud.google.com/datastore).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.datastore.DatastoreIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html
+          - language: py
+            name: apache_beam.io.gcp.datastore.v1new.datastoreio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html
+      - transform: SnowflakeIO
+        description: Experimental Transforms for reading from and writing to [Snowflake](https://www.snowflake.com/).
+        docs: /documentation/io/built-in/snowflake
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.snowflake.SnowflakeIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html
+      - transform: SpannerIO
+        description: Experimental Transforms for reading from and writing to [Google Cloud Spanner](https://cloud.google.com/spanner).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.spanner.SpannerIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html
+      - transform: JdbcIO
+        description: IO to read and write data on [JDBC](https://docs.oracle.com/javase/tutorial/jdbc/basics/index.html).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.jdbc.JdbcIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.html
+      - transform: MongoDbIO
+        description: IO to read and write data on [MongoDB](https://www.mongodb.com/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.mongodb.MongoDbIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mongodb/MongoDbIO.html
+          - language: py
+            name: apache_beam.io.mongodbio
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.mongodbio.html
+      - transform: MongoDbGridFSIO
+        description: IO to read and write data on [MongoDB GridFS](https://docs.mongodb.com/manual/core/gridfs/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mongodb/MongoDbGridFSIO.html
+      - transform: RedisIO
+        description: An IO to manipulate a [Redis](https://redis.io/) key/value database.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.redis.RedisIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/redis/RedisIO.html
+      - transform: DynamoDBIO
+        description: Read from and write to [Amazon DynamoDB](https://aws.amazon.com/dynamodb/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.aws.dynamodb.DynamoDBIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/dynamodb/DynamoDBIO.html
+          - language: java
+            name: org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html
+      - transform: ClickHouseIO
+        description: Transform for writing to [ClickHouse](https://clickhouse.tech/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.clickhouse.ClickHouseIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html
+      - transform: DatabaseIO
+        description: Package databaseio provides transformations and utilities to interact with a generic database / SQL API.
+        implementations:
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
+            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
+  - name: Miscellaneous
+    description: Miscellaneous I/O sources.
+    rows:
+      - transform: FlinkStreamingImpulseSource
+        description: A PTransform that provides an unbounded, streaming source of empty byte arrays. This can only be used with the Flink runner.
+        implementations:
+          - language: py
+            name: apache_beam.io.flink.flink_streaming_impulse_source
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.flink.flink_streaming_impulse_source.html
+      - transform: GenerateSequence
+        description: Generates a bounded or unbounded stream of integers.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.GenerateSequence
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html
+          - language: py
+            name: apache_beam.io.external.generate_sequence.GenerateSequence
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.generate_sequence.html
+      - transform: SplunkIO
+        description: A PTransform that provides an unbounded, streaming sink for Splunk's Http Event Collector (HEC).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.splunk.SplunkIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html

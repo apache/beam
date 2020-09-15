@@ -30,6 +30,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
   MESSAGES_MODULE = messages
   BASE_URL = u'https://dataflow.googleapis.com/'
+  MTLS_BASE_URL = u''
 
   _PACKAGE = u'dataflow'
   _SCOPES = [u'https://www.googleapis.com/auth/cloud-platform', u'https://www.googleapis.com/auth/compute', u'https://www.googleapis.com/auth/compute.readonly', u'https://www.googleapis.com/auth/userinfo.email']
@@ -60,6 +61,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     self.projects_jobs_messages = self.ProjectsJobsMessagesService(self)
     self.projects_jobs_workItems = self.ProjectsJobsWorkItemsService(self)
     self.projects_jobs = self.ProjectsJobsService(self)
+    self.projects_locations_flexTemplates = self.ProjectsLocationsFlexTemplatesService(self)
     self.projects_locations_jobs_debug = self.ProjectsLocationsJobsDebugService(self)
     self.projects_locations_jobs_messages = self.ProjectsLocationsJobsMessagesService(self)
     self.projects_locations_jobs_workItems = self.ProjectsLocationsJobsWorkItemsService(self)
@@ -430,6 +432,42 @@ of jobs that are running in `us-central1`.
         request_field=u'job',
         request_type_name=u'DataflowProjectsJobsUpdateRequest',
         response_type_name=u'Job',
+        supports_download=False,
+    )
+
+  class ProjectsLocationsFlexTemplatesService(base_api.BaseApiService):
+    """Service class for the projects_locations_flexTemplates resource."""
+
+    _NAME = u'projects_locations_flexTemplates'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsLocationsFlexTemplatesService, self).__init__(client)
+      self._upload_configs = {
+          }
+
+    def Launch(self, request, global_params=None):
+      r"""Launch a job with a FlexTemplate.
+
+      Args:
+        request: (DataflowProjectsLocationsFlexTemplatesLaunchRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (LaunchFlexTemplateResponse) The response message.
+      """
+      config = self.GetMethodConfig('Launch')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Launch.method_config = lambda: base_api.ApiMethodInfo(
+        http_method=u'POST',
+        method_id=u'dataflow.projects.locations.flexTemplates.launch',
+        ordered_params=[u'projectId', u'location'],
+        path_params=[u'location', u'projectId'],
+        query_params=[],
+        relative_path=u'v1b3/projects/{projectId}/locations/{location}/flexTemplates:launch',
+        request_field=u'launchFlexTemplateRequest',
+        request_type_name=u'DataflowProjectsLocationsFlexTemplatesLaunchRequest',
+        response_type_name=u'LaunchFlexTemplateResponse',
         supports_download=False,
     )
 

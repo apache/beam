@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
@@ -33,8 +34,9 @@ import (
 
 // MainInput is the main input and is unfolded in the invocation, if present.
 type MainInput struct {
-	Key    FullValue
-	Values []ReStream
+	Key      FullValue
+	Values   []ReStream
+	RTracker sdf.RTracker
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
@@ -75,7 +77,7 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	n := &invoker{
 		fn:   fn,
 		args: make([]interface{}, len(fn.Param)),
-		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit),
+		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit | funcx.FnRTracker),
 		out:  fn.Returns(funcx.RetValue),
 	}
 	var ok bool
@@ -139,6 +141,10 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	// (2) Main input from value, if any.
 	i := 0
 	if opt != nil {
+		if opt.RTracker != nil {
+			args[in[i]] = opt.RTracker
+			i++
+		}
 		if n.elmConvert == nil {
 			from := reflect.TypeOf(opt.Key.Elm)
 			n.elmConvert = ConvertFn(from, fn.Param[in[i]].T)

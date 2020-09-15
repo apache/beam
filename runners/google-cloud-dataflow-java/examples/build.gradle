@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false)
+applyJavaNature(publish: false, exportJavadoc: false, enableChecker: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")
@@ -37,10 +37,11 @@ dependencies {
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 def dockerImageName = project(':runners:google-cloud-dataflow-java').ext.dockerImageName
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
-def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
+def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
 
 def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additionalOptions = [] ->
    // return the preevaluated configuration closure
@@ -50,9 +51,10 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
        include "**/WindowedWordCountIT.class"
        forkEvery 1
        maxParallelForks 4
-   
+
        def preCommitBeamTestPipelineOptions = [
                "--project=${gcpProject}",
+               "--region=${gcpRegion}",
                "--tempRoot=${gcsTempRoot}",
                "--runner=TestDataflowRunner",
                "--dataflowWorkerJar=${dataflowWorkerJar}",
@@ -94,7 +96,8 @@ task preCommit() {
 }
 
 task verifyPortabilityApi() {
-  dependsOn verifyFnApiWorker
+  // TODO(BEAM-9668): Re-enable these tests once Dataflow worker container images are updated.
+  // dependsOn verifyFnApiWorker
 }
 
 afterEvaluate {

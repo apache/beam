@@ -126,7 +126,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null) {
+    if (sparkOptions.getFilesToStage() == null
+        && !SparkPipelineOptions.isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
           detectClassPathResourcesToStage(SparkRunner.class.getClassLoader(), options));
       LOG.info(

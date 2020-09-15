@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
+import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -60,7 +61,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.aws.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws.options.S3Options;
@@ -80,9 +80,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** {@link FileSystem} implementation for Amazon S3. */
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3FileSystem.class);
@@ -159,15 +161,23 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     ImmutableList.Builder<MatchResult> matchResults = ImmutableList.builder();
     for (Boolean isGlob : isGlobBooleans) {
       if (isGlob) {
-        checkState(globMatches.hasNext(), "Expect globMatches has next.");
+        checkState(
+            globMatches.hasNext(),
+            "Internal error encountered in S3Filesystem: expected more elements in globMatches.");
         matchResults.add(globMatches.next());
       } else {
-        checkState(nonGlobMatches.hasNext(), "Expect nonGlobMatches has next.");
+        checkState(
+            nonGlobMatches.hasNext(),
+            "Internal error encountered in S3Filesystem: expected more elements in nonGlobMatches.");
         matchResults.add(nonGlobMatches.next());
       }
     }
-    checkState(!globMatches.hasNext(), "Expect no more elements in globMatches.");
-    checkState(!nonGlobMatches.hasNext(), "Expect no more elements in nonGlobMatches.");
+    checkState(
+        !globMatches.hasNext(),
+        "Internal error encountered in S3Filesystem: expected no more elements in globMatches.");
+    checkState(
+        !nonGlobMatches.hasNext(),
+        "Internal error encountered in S3Filesystem: expected no more elements in nonGlobMatches.");
 
     return matchResults.build();
   }
@@ -239,11 +249,9 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
     abstract S3ResourceId getGlobPath();
 
-    @Nullable
-    abstract List<S3ResourceId> getExpandedPaths();
+    abstract @Nullable List<S3ResourceId> getExpandedPaths();
 
-    @Nullable
-    abstract IOException getException();
+    abstract @Nullable IOException getException();
 
     static ExpandedGlob create(S3ResourceId globPath, List<S3ResourceId> expandedPaths) {
       checkNotNull(globPath, "globPath");
@@ -263,11 +271,9 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
     abstract S3ResourceId getPath();
 
-    @Nullable
-    abstract String getContentEncoding();
+    abstract @Nullable String getContentEncoding();
 
-    @Nullable
-    abstract IOException getException();
+    abstract @Nullable IOException getException();
 
     static PathWithEncoding create(S3ResourceId path, String contentEncoding) {
       checkNotNull(path, "path");
@@ -381,7 +387,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static MatchResult.Metadata createBeamMetadata(
       S3ResourceId path, String contentEncoding) {
-    checkArgument(path.getSize().isPresent(), "path has size");
+    checkArgument(path.getSize().isPresent(), "The resource id should have a size.");
     checkNotNull(contentEncoding, "contentEncoding");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
 
@@ -391,68 +397,6 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         .setSizeBytes(path.getSize().get())
         .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L))
         .build();
-  }
-
-  /**
-   * Expands glob expressions to regular expressions.
-   *
-   * @param globExp the glob expression to expand
-   * @return a string with the regular expression this glob expands to
-   */
-  @VisibleForTesting
-  static String wildcardToRegexp(String globExp) {
-    StringBuilder dst = new StringBuilder();
-    char[] src = globExp.replace("**/*", "**").toCharArray();
-    int i = 0;
-    while (i < src.length) {
-      char c = src[i++];
-      switch (c) {
-        case '*':
-          // One char lookahead for **
-          if (i < src.length && src[i] == '*') {
-            dst.append(".*");
-            ++i;
-          } else {
-            dst.append("[^/]*");
-          }
-          break;
-        case '?':
-          dst.append("[^/]");
-          break;
-        case '.':
-        case '+':
-        case '{':
-        case '}':
-        case '(':
-        case ')':
-        case '|':
-        case '^':
-        case '$':
-          // These need to be escaped in regular expressions
-          dst.append('\\').append(c);
-          break;
-        case '\\':
-          i = doubleSlashes(dst, src, i);
-          break;
-        default:
-          dst.append(c);
-          break;
-      }
-    }
-    return dst.toString();
-  }
-
-  private static int doubleSlashes(StringBuilder dst, char[] src, int i) {
-    // Emit the next character without special interpretation
-    dst.append("\\\\");
-    if ((i - 1) != src.length) {
-      dst.append(src[i]);
-      i++;
-    } else {
-      // A backslash at the very end is treated like an escaped backslash
-      dst.append('\\');
-    }
-    return i;
   }
 
   @Override

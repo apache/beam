@@ -46,9 +46,9 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -81,6 +81,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
@@ -151,7 +152,7 @@ import org.slf4j.LoggerFactory;
  * socket timeout of 30000ms. {@code withConnectTimeout()} can be used to override the default
  * connect timeout of 1000ms.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ElasticsearchIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIO.class);
@@ -233,27 +234,21 @@ public class ElasticsearchIO {
 
     public abstract List<String> getAddresses();
 
-    @Nullable
-    public abstract String getUsername();
+    public abstract @Nullable String getUsername();
 
-    @Nullable
-    public abstract String getPassword();
+    public abstract @Nullable String getPassword();
 
-    @Nullable
-    public abstract String getKeystorePath();
+    public abstract @Nullable String getKeystorePath();
 
-    @Nullable
-    public abstract String getKeystorePassword();
+    public abstract @Nullable String getKeystorePassword();
 
     public abstract String getIndex();
 
     public abstract String getType();
 
-    @Nullable
-    public abstract Integer getSocketTimeout();
+    public abstract @Nullable Integer getSocketTimeout();
 
-    @Nullable
-    public abstract Integer getConnectTimeout();
+    public abstract @Nullable Integer getConnectTimeout();
 
     public abstract boolean isTrustSelfSignedCerts();
 
@@ -469,11 +464,9 @@ public class ElasticsearchIO {
 
     private static final long MAX_BATCH_SIZE = 10000L;
 
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
-    @Nullable
-    abstract ValueProvider<String> getQuery();
+    abstract @Nullable ValueProvider<String> getQuery();
 
     abstract boolean isWithMetadata();
 
@@ -607,10 +600,10 @@ public class ElasticsearchIO {
 
     private final Read spec;
     // shardPreference is the shard id where the source will read the documents
-    @Nullable private final String shardPreference;
-    @Nullable private final Integer numSlices;
-    @Nullable private final Integer sliceId;
-    @Nullable private Long estimatedByteSize;
+    private final @Nullable String shardPreference;
+    private final @Nullable Integer numSlices;
+    private final @Nullable Integer sliceId;
+    private @Nullable Long estimatedByteSize;
 
     // constructor used in split() when we know the backend version
     private BoundedElasticsearchSource(
@@ -1046,26 +1039,25 @@ public class ElasticsearchIO {
      */
     public interface FieldValueExtractFn extends SerializableFunction<JsonNode, String> {}
 
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    public interface BooleanFieldValueExtractFn extends SerializableFunction<JsonNode, Boolean> {}
+
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
     abstract long getMaxBatchSize();
 
     abstract long getMaxBatchSizeBytes();
 
-    @Nullable
-    abstract FieldValueExtractFn getIdFn();
+    abstract @Nullable FieldValueExtractFn getIdFn();
 
-    @Nullable
-    abstract FieldValueExtractFn getIndexFn();
+    abstract @Nullable FieldValueExtractFn getIndexFn();
 
-    @Nullable
-    abstract FieldValueExtractFn getTypeFn();
+    abstract @Nullable FieldValueExtractFn getTypeFn();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     abstract boolean getUsePartialUpdate();
+
+    abstract @Nullable BooleanFieldValueExtractFn getIsDeleteFn();
 
     abstract Builder builder();
 
@@ -1086,6 +1078,8 @@ public class ElasticsearchIO {
       abstract Builder setUsePartialUpdate(boolean usePartialUpdate);
 
       abstract Builder setRetryConfiguration(RetryConfiguration retryConfiguration);
+
+      abstract Builder setIsDeleteFn(BooleanFieldValueExtractFn isDeleteFn);
 
       abstract Write build();
     }
@@ -1213,10 +1207,30 @@ public class ElasticsearchIO {
       return builder().setRetryConfiguration(retryConfiguration).build();
     }
 
+    /**
+     * Provide a function to extract the target operation either upsert or delete from the document
+     * fields allowing dynamic bulk operation decision. While using withIsDeleteFn, it should be
+     * taken care that the document's id extraction is defined using the withIdFn function or else
+     * IllegalArgumentException is thrown. Should the function throw an Exception then the batch
+     * will fail and the exception propagated.
+     *
+     * @param isDeleteFn set to true for deleting the specific document
+     * @return the {@link Write} with the function set
+     */
+    public Write withIsDeleteFn(BooleanFieldValueExtractFn isDeleteFn) {
+      checkArgument(isDeleteFn != null, "deleteFn is required");
+      return builder().setIsDeleteFn(isDeleteFn).build();
+    }
+
     @Override
     public PDone expand(PCollection<String> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
+      FieldValueExtractFn idFn = getIdFn();
+      BooleanFieldValueExtractFn isDeleteFn = getIsDeleteFn();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
+      checkArgument(
+          isDeleteFn == null || idFn != null,
+          "Id needs to be specified by withIdFn for delete operation");
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -1280,6 +1294,11 @@ public class ElasticsearchIO {
                   .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
                   .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
         }
+        // configure a custom serializer for metadata to be able to change serialization based
+        // on ES version
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(DocumentMetadata.class, new DocumentMetadataSerializer());
+        OBJECT_MAPPER.registerModule(module);
       }
 
       @StartBundle
@@ -1320,34 +1339,23 @@ public class ElasticsearchIO {
       /**
        * Extracts the components that comprise the document address from the document using the
        * {@link FieldValueExtractFn} configured. This allows any or all of the index, type and
-       * document id to be controlled on a per document basis. If none are provided then an empty
-       * default of {@code {}} is returned. Sanitization of the index is performed, automatically
-       * lower-casing the value as required by Elasticsearch.
+       * document id to be controlled on a per document basis. Sanitization of the index is
+       * performed, automatically lower-casing the value as required by Elasticsearch.
        *
-       * @param document the json from which the index, type and id may be extracted
+       * @param parsedDocument the json from which the index, type and id may be extracted
        * @return the document address as JSON or the default
        * @throws IOException if the document cannot be parsed as JSON
        */
-      private String getDocumentMetadata(String document) throws IOException {
-        if (spec.getIndexFn() != null || spec.getTypeFn() != null || spec.getIdFn() != null) {
-          // parse once and reused for efficiency
-          JsonNode parsedDocument = OBJECT_MAPPER.readTree(document);
-
-          DocumentMetadata metadata =
-              new DocumentMetadata(
-                  spec.getIndexFn() != null
-                      ? lowerCaseOrNull(spec.getIndexFn().apply(parsedDocument))
-                      : null,
-                  spec.getTypeFn() != null ? spec.getTypeFn().apply(parsedDocument) : null,
-                  spec.getIdFn() != null ? spec.getIdFn().apply(parsedDocument) : null,
-                  spec.getUsePartialUpdate() ? DEFAULT_RETRY_ON_CONFLICT : null);
-          SimpleModule module = new SimpleModule();
-          module.addSerializer(DocumentMetadata.class, new DocumentMetadataSerializer());
-          OBJECT_MAPPER.registerModule(module);
-          return OBJECT_MAPPER.writeValueAsString(metadata);
-        } else {
-          return "{}"; // use configuration and auto-generated document IDs
-        }
+      private String getDocumentMetadata(JsonNode parsedDocument) throws IOException {
+        DocumentMetadata metadata =
+            new DocumentMetadata(
+                spec.getIndexFn() != null
+                    ? lowerCaseOrNull(spec.getIndexFn().apply(parsedDocument))
+                    : null,
+                spec.getTypeFn() != null ? spec.getTypeFn().apply(parsedDocument) : null,
+                spec.getIdFn() != null ? spec.getIdFn().apply(parsedDocument) : null,
+                spec.getUsePartialUpdate() ? DEFAULT_RETRY_ON_CONFLICT : null);
+        return OBJECT_MAPPER.writeValueAsString(metadata);
       }
 
       private static String lowerCaseOrNull(String input) {
@@ -1356,17 +1364,31 @@ public class ElasticsearchIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        String document = context.element();
-        String documentMetadata = getDocumentMetadata(document);
+        String document = context.element(); // use configuration and auto-generated document IDs
+        String documentMetadata = "{}";
+        boolean isDelete = false;
+        if (spec.getIndexFn() != null || spec.getTypeFn() != null || spec.getIdFn() != null) {
+          // parse once and reused for efficiency
+          JsonNode parsedDocument = OBJECT_MAPPER.readTree(document);
+          documentMetadata = getDocumentMetadata(parsedDocument);
+          if (spec.getIsDeleteFn() != null) {
+            isDelete = spec.getIsDeleteFn().apply(parsedDocument);
+          }
+        }
 
-        // index is an insert/upsert and update is a partial update (or insert if not existing)
-        if (spec.getUsePartialUpdate()) {
-          batch.add(
-              String.format(
-                  "{ \"update\" : %s }%n{ \"doc\" : %s, \"doc_as_upsert\" : true }%n",
-                  documentMetadata, document));
+        if (isDelete) {
+          // delete request used for deleting a document.
+          batch.add(String.format("{ \"delete\" : %s }%n", documentMetadata));
         } else {
-          batch.add(String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document));
+          // index is an insert/upsert and update is a partial update (or insert if not existing)
+          if (spec.getUsePartialUpdate()) {
+            batch.add(
+                String.format(
+                    "{ \"update\" : %s }%n{ \"doc\" : %s, \"doc_as_upsert\" : true }%n",
+                    documentMetadata, document));
+          } else {
+            batch.add(String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document));
+          }
         }
 
         currentBatchSizeBytes += document.getBytes(StandardCharsets.UTF_8).length;

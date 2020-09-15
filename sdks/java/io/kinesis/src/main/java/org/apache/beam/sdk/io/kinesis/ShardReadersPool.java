@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -52,14 +53,14 @@ class ShardReadersPool {
 
   /**
    * Executor service for running the threads that read records from shards handled by this pool.
-   * Each thread runs the {@link ShardReadersPool#readLoop(ShardRecordsIterator)} method and handles
-   * exactly one shard.
+   * Each thread runs the {@link ShardReadersPool#readLoop(ShardRecordsIterator, RateLimitPolicy)}
+   * method and handles exactly one shard.
    */
   private final ExecutorService executorService;
 
   /**
    * A Bounded buffer for read records. Records are added to this buffer within {@link
-   * ShardReadersPool#readLoop(ShardRecordsIterator)} method and removed in {@link
+   * ShardReadersPool#readLoop(ShardRecordsIterator, RateLimitPolicy)} method and removed in {@link
    * ShardReadersPool#nextRecord()}.
    */
   private BlockingQueue<KinesisRecord> recordsQueue;
@@ -75,6 +76,7 @@ class ShardReadersPool {
 
   private final SimplifiedKinesisClient kinesis;
   private final WatermarkPolicyFactory watermarkPolicyFactory;
+  private final RateLimitPolicyFactory rateLimitPolicyFactory;
   private final KinesisReaderCheckpoint initialCheckpoint;
   private final int queueCapacityPerShard;
   private final AtomicBoolean poolOpened = new AtomicBoolean(true);
@@ -83,10 +85,12 @@ class ShardReadersPool {
       SimplifiedKinesisClient kinesis,
       KinesisReaderCheckpoint initialCheckpoint,
       WatermarkPolicyFactory watermarkPolicyFactory,
+      RateLimitPolicyFactory rateLimitPolicyFactory,
       int queueCapacityPerShard) {
     this.kinesis = kinesis;
     this.initialCheckpoint = initialCheckpoint;
     this.watermarkPolicyFactory = watermarkPolicyFactory;
+    this.rateLimitPolicyFactory = rateLimitPolicyFactory;
     this.queueCapacityPerShard = queueCapacityPerShard;
     this.executorService = Executors.newCachedThreadPool();
     this.numberOfRecordsInAQueueByShard = new ConcurrentHashMap<>();
@@ -115,16 +119,29 @@ class ShardReadersPool {
   void startReadingShards(Iterable<ShardRecordsIterator> shardRecordsIterators) {
     for (final ShardRecordsIterator recordsIterator : shardRecordsIterators) {
       numberOfRecordsInAQueueByShard.put(recordsIterator.getShardId(), new AtomicInteger());
-      executorService.submit(() -> readLoop(recordsIterator));
+      executorService.submit(
+          () -> readLoop(recordsIterator, rateLimitPolicyFactory.getRateLimitPolicy()));
     }
   }
 
-  private void readLoop(ShardRecordsIterator shardRecordsIterator) {
+  private void readLoop(ShardRecordsIterator shardRecordsIterator, RateLimitPolicy rateLimiter) {
     while (poolOpened.get()) {
       try {
-        List<KinesisRecord> kinesisRecords;
         try {
-          kinesisRecords = shardRecordsIterator.readNextBatch();
+          List<KinesisRecord> kinesisRecords = shardRecordsIterator.readNextBatch();
+          try {
+            for (KinesisRecord kinesisRecord : kinesisRecords) {
+              recordsQueue.put(kinesisRecord);
+              numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
+            }
+          } finally {
+            // One of the paths into this finally block is recordsQueue.put() throwing
+            // InterruptedException so we should check the thread's interrupted status before
+            // calling onSuccess().
+            if (!Thread.currentThread().isInterrupted()) {
+              rateLimiter.onSuccess(kinesisRecords);
+            }
+          }
         } catch (KinesisShardClosedException e) {
           LOG.info(
               "Shard iterator for {} shard is closed, finishing the read loop",
@@ -139,14 +156,19 @@ class ShardReadersPool {
           readFromSuccessiveShards(shardRecordsIterator);
           break;
         }
-        for (KinesisRecord kinesisRecord : kinesisRecords) {
-          recordsQueue.put(kinesisRecord);
-          numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
+      } catch (KinesisClientThrottledException e) {
+        try {
+          rateLimiter.onThrottle(e);
+        } catch (InterruptedException ex) {
+          LOG.warn("Thread was interrupted, finishing the read loop", ex);
+          Thread.currentThread().interrupt();
+          break;
         }
       } catch (TransientKinesisException e) {
         LOG.warn("Transient exception occurred.", e);
       } catch (InterruptedException e) {
         LOG.warn("Thread was interrupted, finishing the read loop", e);
+        Thread.currentThread().interrupt();
         break;
       } catch (Throwable e) {
         LOG.error("Unexpected exception occurred", e);
@@ -207,8 +229,16 @@ class ShardReadersPool {
   }
 
   Instant getWatermark() {
+    return getMinTimestamp(ShardRecordsIterator::getShardWatermark);
+  }
+
+  Instant getLatestRecordTimestamp() {
+    return getMinTimestamp(ShardRecordsIterator::getLatestRecordTimestamp);
+  }
+
+  private Instant getMinTimestamp(Function<ShardRecordsIterator, Instant> timestampExtractor) {
     return shardIteratorsMap.get().values().stream()
-        .map(ShardRecordsIterator::getShardWatermark)
+        .map(timestampExtractor)
         .min(Comparator.naturalOrder())
         .orElse(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }

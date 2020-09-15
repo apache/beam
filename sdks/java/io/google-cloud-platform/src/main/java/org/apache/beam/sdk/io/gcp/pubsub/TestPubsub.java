@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -60,6 +60,7 @@ public class TestPubsub implements TestRule {
   private static final String TOPIC_PREFIX = "integ-test-";
   private static final String NO_ID_ATTRIBUTE = null;
   private static final String NO_TIMESTAMP_ATTRIBUTE = null;
+  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
 
   private final TestPubsubOptions pipelineOptions;
 
@@ -121,7 +122,7 @@ public class TestPubsub implements TestRule {
         pubsub.createRandomSubscription(
             projectPathFromPath(String.format("projects/%s", pipelineOptions.getProject())),
             topicPath(),
-            10);
+            DEFAULT_ACK_DEADLINE_SECONDS);
   }
 
   private void tearDown() throws IOException {
@@ -161,7 +162,9 @@ public class TestPubsub implements TestRule {
     }
 
     if (description.getMethodName() != null) {
-      topicName.append(description.getMethodName()).append("-");
+      // Remove braces (which are illegal in pubsub naming restrictions) in dynamic method names
+      // when using parameterized tests.
+      topicName.append(description.getMethodName().replaceAll("[\\[\\]]", "")).append("-");
     }
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
@@ -185,7 +188,9 @@ public class TestPubsub implements TestRule {
 
   private List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
       throws IOException {
-    return pubsub.listSubscriptions(projectPath, topicPath);
+    return pubsub.listSubscriptions(projectPath, topicPath).stream()
+        .filter((path) -> !path.equals(subscriptionPath))
+        .collect(ImmutableList.toImmutableList());
   }
 
   /** Publish messages to {@link #topicPath()}. */
@@ -272,9 +277,27 @@ public class TestPubsub implements TestRule {
    *
    * @param project GCP project identifier.
    * @param timeoutDuration Joda duration that sets a period of time before checking times out.
+   * @deprecated Use {@link #assertSubscriptionEventuallyCreated}.
    */
+  @Deprecated
   public void checkIfAnySubscriptionExists(String project, Duration timeoutDuration)
       throws InterruptedException, IllegalArgumentException, IOException, TimeoutException {
+    try {
+      assertSubscriptionEventuallyCreated(project, timeoutDuration);
+    } catch (AssertionError e) {
+      throw new TimeoutException(e.getMessage());
+    }
+  }
+
+  /**
+   * Block until a subscription is created for this test topic in the specified project. Throws
+   * {@link AssertionError} if {@code timeoutDuration} is reached before a subscription is created.
+   *
+   * @param project GCP project identifier.
+   * @param timeoutDuration Joda duration before timeout occurs.
+   */
+  public void assertSubscriptionEventuallyCreated(String project, Duration timeoutDuration)
+      throws InterruptedException, IllegalArgumentException, IOException {
     if (timeoutDuration.getMillis() <= 0) {
       throw new IllegalArgumentException(String.format("timeoutDuration should be greater than 0"));
     }
@@ -294,7 +317,7 @@ public class TestPubsub implements TestRule {
     if (sizeOfSubscriptionList > 0) {
       return;
     } else {
-      throw new TimeoutException("Timed out when checking if topics exist for " + topicPath());
+      throw new AssertionError("Timed out before subscription created for " + topicPath());
     }
   }
 

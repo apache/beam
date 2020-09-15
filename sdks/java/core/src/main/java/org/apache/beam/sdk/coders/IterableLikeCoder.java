@@ -66,8 +66,24 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   /**
    * Builds an instance of {@code IterableT}, this coder's associated {@link Iterable}-like subtype,
    * from a list of decoded elements.
+   *
+   * <p>Override {@link #decodeToIterable(List, long, InputStream)} if you need access to the
+   * terminator value and the {@link InputStream}.
    */
   protected abstract IterableT decodeToIterable(List<T> decodedElements);
+
+  /**
+   * Builds an instance of {@code IterableT}, this coder's associated {@link Iterable}-like subtype,
+   * from a list of decoded elements with the {@link InputStream} at the position where this coder
+   * detected the end of the stream.
+   */
+  protected IterableT decodeToIterable(
+      List<T> decodedElements, long terminatorValue, InputStream in) throws IOException {
+    throw new IllegalStateException(
+        String.format(
+            "%s does not support non zero terminator values. Received stream with terminator %s.",
+            iterableName, terminatorValue));
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
@@ -136,7 +152,11 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
         count = VarInt.decodeLong(dataInStream);
       }
     }
-    return decodeToIterable(elements);
+    if (count == 0) {
+      return decodeToIterable(elements);
+    } else {
+      return decodeToIterable(elements, count, inStream);
+    }
   }
 
   @Override

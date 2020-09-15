@@ -163,6 +163,7 @@ public class BoundedSourceRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             "pTransformId",
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -172,8 +173,11 @@ public class BoundedSourceRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null /* addResetFunction */,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     // This is testing a deprecated way of running sources and should be removed
     // once all source definitions are instead propagated along the input edge.

@@ -1,0 +1,239 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+enablePythonPerformanceTest()
+
+String pythonVersionSuffix = project.ext.pythonVersion
+        ? "-py${project.ext.pythonVersion.replace('.', '')}"
+        : ''
+
+dependencies {
+  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
+
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
+
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--nocapture",  // print stdout instantly
+    "--processes=8",  // run tests in parallel
+    "--process-timeout=4500", // timeout of whole command execution
+]
+
+def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
+  def suffix = runnerV2 ? '_V2' : ''
+  suffix = streaming ? "_streaming$suffix" : "_batch$suffix"
+  task "preCommitIT${suffix}" {
+    dependsOn 'installGcpTest'
+    dependsOn ':sdks:python:sdist'
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+    def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+    doLast {
+      // Basic integration tests to run in PreCommit
+      def precommitTests = streaming ? [
+              "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+      ] : [
+              "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+      ]
+      def testOpts = [
+              "--tests=${precommitTests.join(',')}",
+              "--nocapture",    // Print stdout instantly
+              "--processes=2",    // Number of tests running in parallel
+              "--process-timeout=1800",   // Timeout of whole command execution
+      ]
+
+      def argMap = [
+              "test_opts"   : testOpts,
+              "sdk_location": files(configurations.distTarBall.files).singleFile,
+              "worker_jar"  : dataflowWorkerJar,
+              "suite"       : "preCommitIT-df${pythonSuffix}"
+      ]
+
+      if (runnerV2) {
+        argMap.put("runner_v2", "true")
+        // KMS is not supported for streaming engine.
+        argMap.put("kms_key_name", "\"\"")
+      }
+      if (streaming){
+        argMap.put("streaming", "true")
+      }
+
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+  }
+}
+
+preCommitIT(runScriptsDir, envdir, false, false, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, true, false, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, false, true, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, true, true, pythonVersionSuffix)
+
+task preCommitIT{
+  dependsOn preCommitIT_batch
+  dependsOn preCommitIT_streaming
+}
+
+task preCommitIT_V2{
+  dependsOn preCommitIT_batch_V2
+  dependsOn preCommitIT_streaming_V2
+}
+
+task postCommitIT {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicTestOpts + ["--attr=IT"]
+
+    def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "worker_jar": dataflowWorkerJar,
+        "suite": "postCommitIT-df${pythonVersionSuffix}"
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerBatchTests {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-batch"]
+  def argMap = [
+          "test_opts"   : testOpts,
+          "worker_jar"  : dataflowWorkerJar,
+          "sdk_location": files(configurations.distTarBall.files).singleFile,
+          "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}"]
+
+  if (project.hasProperty('useRunnerV2')) {
+    argMap.put("runner_v2", "true")
+    // KMS is not supported for streaming engine.
+    argMap.put("kms_key_name", "\"\"")
+  }
+
+  doLast {
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerStreamingTests {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
+  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
+  def argMap = ["test_opts": testOpts,
+                "streaming": "true",
+                "sdk_location": files(configurations.distTarBall.files).singleFile,
+                "worker_jar": dataflowWorkerJar,
+                "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}"]
+  if (project.hasProperty('useRunnerV2')) {
+    argMap.put("runner_v2", "true")
+    // KMS is not supported for streaming engine.
+    argMap.put("kms_key_name", "\"\"")
+  }
+
+  doLast {
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task runPerformanceTest(type: Exec) {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  def test = project.findProperty('test')
+  def suite = "runPerformanceTest-df${pythonVersionSuffix}"
+  def xUnitFile ="nosetests-${suite}.xml"
+
+  def testOpts = project.findProperty('test-pipeline-options')
+  testOpts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+
+  setWorkingDir "${project.rootDir}/sdks/python"
+  commandLine 'sh', '-c', ". ${envdir}/bin/activate && ${envdir}/bin/python setup.py nosetests" +
+              " --tests=${test}  --test-pipeline-options=\"${testOpts}\" --with-xunitmp" +
+              " --xunitmp-file=${xUnitFile}"
+}
+
+task mongodbioIT {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def opts = findProperty('opts')
+  opts = String.format("%s %s", opts, "--sdk_location=${files(configurations.distTarBall.files).singleFile}")
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.io.mongodbio_it_test ${opts}"
+    }
+  }
+}
+
+task installChicagoTaxiExampleRequirements {
+  dependsOn 'installGcpTest'
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+    }
+  }
+}
+
+task chicagoTaxiExample {
+  dependsOn 'installChicagoTaxiExampleRequirements'
+  dependsOn ':sdks:python:sdist'
+
+  def gcsRoot = findProperty('gcsRoot')
+  def pipelineOptions = findProperty('pipelineOptions') ?: ""
+  pipelineOptions += " --sdk_location=\"${files(configurations.distTarBall.files).singleFile}\""
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} TestDataflowRunner ${pipelineOptions}"
+    }
+  }
+}

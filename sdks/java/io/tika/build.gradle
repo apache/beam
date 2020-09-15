@@ -17,12 +17,12 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.tika')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.tika')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
 ext.summary = "Tika Input to parse files."
 
-def tika_version = "1.20"
+def tika_version = "1.24.1"
 def bndlib_version = "1.43.0"
 
 dependencies {

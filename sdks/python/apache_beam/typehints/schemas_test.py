@@ -32,9 +32,12 @@ from typing import Optional
 from typing import Sequence
 
 import numpy as np
+from future.moves import pickle
 from past.builtins import unicode
 
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints.schemas import named_tuple_from_schema
+from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 
@@ -268,6 +271,30 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(
         expected.row_type.schema.fields,
         typing_to_runner_api(MyCuteClass).row_type.schema.fields)
+
+  def test_generated_class_pickle(self):
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+    instance = user_type(name="test")
+
+    self.assertEqual(instance, pickle.loads(pickle.dumps(instance)))
+
+  def test_user_type_annotated_with_id_after_conversion(self):
+    MyCuteClass = NamedTuple('MyCuteClass', [
+        ('name', unicode),
+    ])
+    self.assertFalse(hasattr(MyCuteClass, '_beam_schema_id'))
+
+    schema = named_tuple_to_schema(MyCuteClass)
+    self.assertTrue(hasattr(MyCuteClass, '_beam_schema_id'))
+    self.assertEqual(MyCuteClass._beam_schema_id, schema.id)
 
 
 if __name__ == '__main__':

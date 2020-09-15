@@ -21,7 +21,6 @@ import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedJoinScanEnums.JoinType;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedJoinScan;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedWithRefScan;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
@@ -52,8 +51,7 @@ class JoinScanConverter extends RelConverter<ResolvedJoinScan> {
 
   @Override
   public boolean canConvert(ResolvedJoinScan zetaNode) {
-    return !(zetaNode.getLeftScan() instanceof ResolvedWithRefScan)
-        && !(zetaNode.getRightScan() instanceof ResolvedWithRefScan);
+    return true;
   }
 
   @Override
@@ -78,10 +76,18 @@ class JoinScanConverter extends RelConverter<ResolvedJoinScan> {
             .addAll(convertedRightInput.getRowType().getFieldList())
             .build();
 
-    RexNode condition =
-        getExpressionConverter()
-            .convertRexNodeFromResolvedExpr(
-                zetaNode.getJoinExpr(), combinedZetaFieldsList, combinedCalciteFieldsList);
+    final RexNode condition;
+    if (zetaNode.getJoinExpr() == null) {
+      condition = getExpressionConverter().trueLiteral();
+    } else {
+      condition =
+          getExpressionConverter()
+              .convertRexNodeFromResolvedExpr(
+                  zetaNode.getJoinExpr(),
+                  combinedZetaFieldsList,
+                  combinedCalciteFieldsList,
+                  ImmutableMap.of());
+    }
 
     return LogicalJoin.create(
         convertedLeftInput,

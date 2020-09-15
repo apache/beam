@@ -213,6 +213,12 @@ public class BeamSqlDslBase {
                 "TO_HEX",
                 "abcABC".getBytes(UTF_8),
                 "TO_HEX",
+                "abcABCжщфЖЩФ".getBytes(UTF_8),
+                "HashingFn",
+                "foobar".getBytes(UTF_8),
+                "HashingFn",
+                " ".getBytes(UTF_8),
+                "HashingFn",
                 "abcABCжщфЖЩФ".getBytes(UTF_8))
             .getRows();
 

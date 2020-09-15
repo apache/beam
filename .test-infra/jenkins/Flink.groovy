@@ -17,8 +17,8 @@
  */
 
 class Flink {
-  private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.9.1/flink-1.9.1-bin-scala_2.11.tgz'
-  private static final String hadoopDownloadUrl = 'https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-7.0/flink-shaded-hadoop-2-uber-2.8.3-7.0.jar'
+  private static final String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.10.1/flink-1.10.1-bin-scala_2.11.tgz'
+  private static final String hadoopDownloadUrl = 'https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-9.0/flink-shaded-hadoop-2-uber-2.8.3-9.0.jar'
   private static final String FLINK_DIR = '"$WORKSPACE/src/.test-infra/dataproc"'
   private static final String FLINK_SCRIPT = 'flink_cluster.sh'
   private def job

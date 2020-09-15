@@ -82,7 +82,7 @@ public class RemoteGrpcPortWriteOperationTest {
         .thenReturn(recordingConsumer);
     when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
     operation.start();
-    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID), CODER);
+    verify(beamFnDataService).send(LogicalEndpoint.data(BUNDLE_ID, TRANSFORM_ID), CODER);
     assertFalse(recordingConsumer.closed);
 
     operation.process(valueInGlobalWindow("ABC"));
@@ -104,7 +104,7 @@ public class RemoteGrpcPortWriteOperationTest {
     when(beamFnDataService.send(any(), Matchers.<Coder<WindowedValue<String>>>any()))
         .thenReturn(recordingConsumer);
     operation.start();
-    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID_2, TRANSFORM_ID), CODER);
+    verify(beamFnDataService).send(LogicalEndpoint.data(BUNDLE_ID_2, TRANSFORM_ID), CODER);
 
     verifyNoMoreInteractions(beamFnDataService);
   }
@@ -116,7 +116,7 @@ public class RemoteGrpcPortWriteOperationTest {
         .thenReturn(recordingConsumer);
     when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
     operation.start();
-    verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID), CODER);
+    verify(beamFnDataService).send(LogicalEndpoint.data(BUNDLE_ID, TRANSFORM_ID), CODER);
     assertFalse(recordingConsumer.closed);
 
     operation.process(valueInGlobalWindow("ABC"));

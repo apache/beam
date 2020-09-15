@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink;
 import java.util.Map;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +38,10 @@ public class FlinkPortableRunnerResult extends FlinkRunnerResult implements Port
     Iterable<MetricsApi.MonitoringInfo> monitoringInfos =
         this.getMetricsContainerStepMap().getMonitoringInfos();
 
-    return JobApi.MetricResults.newBuilder().addAllAttempted(monitoringInfos).build();
+    return JobApi.MetricResults.newBuilder()
+        .addAllCommitted(monitoringInfos)
+        .addAllAttempted(monitoringInfos)
+        .build();
   }
 
   static class Detached extends FlinkDetachedRunnerResult implements PortablePipelineResult {

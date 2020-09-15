@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  id 'com.github.jk1.dependency-license-report' version '1.13'
+}
+
 applyGoNature()
 applyDockerNature()
 
@@ -59,6 +63,7 @@ task copyDockerfileDependencies(type: Copy) {
   into "build/target"
 }
 
+
 golang {
   packagePath = 'github.com/apache/beam/sdks/java/boot'
   goBuild {
@@ -68,16 +73,59 @@ golang {
   }
 }
 
+// command: ./gradlew generateLicenseReport
+import com.github.jk1.license.render.*
+licenseReport {
+  outputDir = 'java_third_party_licenses'
+  projects = [project,
+              project.rootProject.findProject(':sdks:java:harness'),
+              project.rootProject.findProject(':sdks:java:io:kafka')]
+  excludeOwnGroup = true
+  excludeGroups = ["beam.*"] // project dependencies do not match their maven coords
+  configurations = ALL
+  renderers = [new JsonReportRenderer()]
+}
+
 docker {
   name containerImageName(
-          name: "java_sdk",
+          name: project.docker_image_default_repo_prefix + "java_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] : "apachebeam",
+                  project.rootProject["docker-repository-root"] :
+                  project.docker_image_default_repo_root,
           tag: project.rootProject.hasProperty(["docker-tag"]) ?
                   project.rootProject["docker-tag"] : project.sdk_version)
   dockerfile project.file("./${dockerfileName}")
   files "./build/"
+  buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+                     project.rootProject.hasProperty(["isRelease"])])
 }
+
+if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+        project.rootProject.hasProperty(["isRelease"])) {
+  task pullLicenses(type: Exec) {
+    workingDir project.rootProject.projectDir
+    commandLine './sdks/java/container/license_scripts/license_script.sh'
+    doLast {
+      file('third_party_licenses').deleteDir()
+      file('java_third_party_licenses').deleteDir()
+    }
+  }
+  dockerPrepare.dependsOn pullLicenses
+
+  task copyGolangLicenses(type: Copy) {
+    from "${project(':release:go-licenses:java').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:java:createLicenses'
+  }
+  dockerPrepare.dependsOn 'copyGolangLicenses'
+} else {
+  task createFile(type: Exec) {
+      executable "sh"
+      args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+  }
+  dockerPrepare.dependsOn createFile
+}
+
 // Ensure that we build the required resources and copy and file dependencies from related projects
 dockerPrepare.dependsOn goBuild
 dockerPrepare.dependsOn copyDockerfileDependencies

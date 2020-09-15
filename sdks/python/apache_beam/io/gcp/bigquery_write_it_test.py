@@ -37,6 +37,7 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import FileFormat
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -196,8 +197,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       # pylint: disable=expression-not-assigned
@@ -208,7 +208,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
               schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+              temp_file_format=FileFormat.JSON))
 
   @attr('IT')
   def test_big_query_write_new_types(self):
@@ -350,7 +351,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           p | 'create' >> beam.Create(input_data)
           | 'write' >> beam.io.WriteToBigQuery(
               table_id,
-              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
+              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+              temp_file_format=FileFormat.JSON))
 
 
 if __name__ == '__main__':

@@ -42,6 +42,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -87,6 +88,8 @@ public class KafkaIOIT {
 
   private static Options options;
 
+  private static InfluxDBSettings settings;
+
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
@@ -101,6 +104,12 @@ public class KafkaIOIT {
             1000L, "4507649971ee7c51abbb446e65a5c660",
             100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
     expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   @Test
@@ -130,8 +139,8 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
 
     Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
-    IOITMetrics.publish(
-        TEST_ID, TIMESTAMP, options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+    IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+    IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
   }
 
   private Set<NamedTestResult> readMetrics(PipelineResult writeResult, PipelineResult readResult) {

@@ -30,6 +30,8 @@ def dependOnProjects = [":runners:core-construction-java",
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.direct',
+        enableChecker: false,
+        ignoreRawtypeErrors: true,
         shadowClosure: {
           dependencies {
             dependOnProjects.each {
@@ -95,6 +97,8 @@ task needsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
 
+  testLogging.showStandardStreams = true
+
   def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
@@ -110,6 +114,11 @@ task needsRunnerTests(type: Test) {
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+  }
+  testLogging {
+    outputs.upToDateWhen {false}
+    showStandardStreams = true
   }
 }
 

@@ -83,6 +83,8 @@ __all__ = [
     'FastPrimitivesCoder',
     'FloatCoder',
     'IterableCoder',
+    'MapCoder',
+    'NullableCoder',
     'PickleCoder',
     'ProtoCoder',
     'SingletonCoder',
@@ -359,19 +361,20 @@ class Coder(object):
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
-    try:
+    if (context.allow_proto_holders and
+        coder_proto.spec.urn not in cls._known_urns):
+      # We hold this in proto form since there's no coder available in Python
+      # SDK.
+      # This is potentially a coder that is only available in an external SDK.
+      return ExternalCoder(coder_proto)
+    else:
+      parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
       return constructor(
           proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type), [
               context.coders.get_by_id(c)
               for c in coder_proto.component_coder_ids
           ],
           context)
-    except Exception:
-      if context.allow_proto_holders:
-        return RunnerAPICoderHolder(
-            coder_proto)  # type: ignore  # too ambiguous
-      raise
 
   def to_runner_api_parameter(self, context):
     # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
@@ -423,7 +426,7 @@ class StrUtf8Coder(Coder):
 Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
 
 
-class ToStringCoder(Coder):
+class ToBytesCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   if sys.version_info.major == 2:
@@ -440,10 +443,14 @@ class ToStringCoder(Coder):
       return value if isinstance(value, bytes) else str(value).encode('utf-8')
 
   def decode(self, _):
-    raise NotImplementedError('ToStringCoder cannot be used for decoding.')
+    raise NotImplementedError('ToBytesCoder cannot be used for decoding.')
 
   def is_deterministic(self):
     return True
+
+
+# alias to the old class name for a courtesy to users who reference it
+ToStringCoder = ToBytesCoder
 
 
 class FastCoder(Coder):
@@ -515,6 +522,57 @@ class BooleanCoder(FastCoder):
 Coder.register_structured_urn(common_urns.coders.BOOL.urn, BooleanCoder)
 
 
+class MapCoder(FastCoder):
+  def __init__(self, key_coder, value_coder):
+    # type: (Coder, Coder) -> None
+    self._key_coder = key_coder
+    self._value_coder = value_coder
+
+  def _create_impl(self):
+    return coder_impl.MapCoderImpl(
+        self._key_coder.get_impl(), self._value_coder.get_impl())
+
+  def to_type_hint(self):
+    return typehints.Dict[self._key_coder.to_type_hint(),
+                          self._value_coder.to_type_hint()]
+
+  def is_deterministic(self):
+    # () -> bool
+    # Map ordering is non-deterministic
+    return False
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._key_coder == other._key_coder and
+        self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._key_coder) + hash(self._value_coder)
+
+
+class NullableCoder(FastCoder):
+  def __init__(self, value_coder):
+    # type: (Coder) -> None
+    self._value_coder = value_coder
+
+  def _create_impl(self):
+    return coder_impl.NullableCoderImpl(self._value_coder.get_impl())
+
+  def to_type_hint(self):
+    return typehints.Optional[self._value_coder.to_type_hint()]
+
+  def is_deterministic(self):
+    # () -> bool
+    return self._value_coder.is_deterministic()
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._value_coder)
+
+
 class VarIntCoder(FastCoder):
   """Variable-length integer coder."""
   def _create_impl(self):
@@ -584,28 +642,32 @@ class _TimerCoder(FastCoder):
   """A coder used for timer values.
 
   For internal use."""
-  def __init__(self, payload_coder):
-    # type: (Coder) -> None
-    self._payload_coder = payload_coder
+  def __init__(self, key_coder, window_coder):
+    # type: (Coder, Coder) -> None
+    self._key_coder = key_coder
+    self._window_coder = window_coder
 
   def _get_component_coders(self):
     # type: () -> List[Coder]
-    return [self._payload_coder]
+    return [self._key_coder, self._window_coder]
 
   def _create_impl(self):
-    return coder_impl.TimerCoderImpl(self._payload_coder.get_impl())
+    return coder_impl.TimerCoderImpl(
+        self._key_coder.get_impl(), self._window_coder.get_impl())
 
   def is_deterministic(self):
     # () -> bool
-    return self._payload_coder.is_deterministic()
+    return (
+        self._key_coder.is_deterministic() and
+        self._window_coder.is_deterministic())
 
   def __eq__(self, other):
     return (
-        type(self) == type(other) and
-        self._payload_coder == other._payload_coder)
+        type(self) == type(other) and self._key_coder == other._key_coder and
+        self._window_coder == other._window_coder)
 
   def __hash__(self):
-    return hash(type(self)) + hash(self._payload_coder)
+    return hash(type(self)) + hash(self._key_coder) + hash(self._window_coder)
 
 
 Coder.register_structured_urn(common_urns.coders.TIMER.urn, _TimerCoder)
@@ -697,9 +759,9 @@ class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
   def _create_impl(self):
     dumps = pickle.dumps
-    HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+    protocol = pickle.HIGHEST_PROTOCOL
     return coder_impl.CallbackCoderImpl(
-        lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
+        lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return DeterministicFastPrimitivesCoder(self, step_label)
@@ -1014,10 +1076,11 @@ class TupleCoder(FastCoder):
     if self.is_kv_coder():
       return common_urns.coders.KV.urn, None, self.coders()
     else:
-      return super(TupleCoder, self).to_runner_api_parameter(context)
+      return python_urns.TUPLE_CODER, None, self.coders()
 
   @staticmethod
   @Coder.register_urn(common_urns.coders.KV.urn, None)
+  @Coder.register_urn(python_urns.TUPLE_CODER, None)
   def from_runner_api_parameter(unused_payload, components, unused_context):
     return TupleCoder(components)
 
@@ -1324,12 +1387,15 @@ Coder.register_structured_urn(
 
 
 class StateBackedIterableCoder(FastCoder):
+
+  DEFAULT_WRITE_THRESHOLD = 1
+
   def __init__(
       self,
       element_coder,  # type: Coder
       read_state=None,  # type: Optional[coder_impl.IterableStateReader]
       write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
-      write_state_threshold=1):
+      write_state_threshold=DEFAULT_WRITE_THRESHOLD):
     self._element_coder = element_coder
     self._read_state = read_state
     self._write_state = write_state
@@ -1376,10 +1442,17 @@ class StateBackedIterableCoder(FastCoder):
         components[0],
         read_state=context.iterable_state_read,
         write_state=context.iterable_state_write,
-        write_state_threshold=int(payload))
+        write_state_threshold=int(payload)
+        if payload else StateBackedIterableCoder.DEFAULT_WRITE_THRESHOLD)
 
 
-class RunnerAPICoderHolder(Coder):
+class CoderElementType(typehints.TypeConstraint):
+  """An element type that just holds a coder."""
+  def __init__(self, coder):
+    self.coder = coder
+
+
+class ExternalCoder(Coder):
   """A `Coder` that holds a runner API `Coder` proto.
 
   This is used for coders for which corresponding objects cannot be
@@ -1387,14 +1460,34 @@ class RunnerAPICoderHolder(Coder):
   be available in Python SDK transform graph when expanding a cross-language
   transform.
   """
-  def __init__(self, proto):
-    self._proto = proto
+  def __init__(self, coder_proto):
+    self._coder_proto = coder_proto
 
-  def proto(self):
-    return self._proto
+  def as_cloud_object(self, coders_context=None):
+    if not coders_context:
+      raise Exception(
+          'coders_context must be specified to correctly encode external coders'
+      )
+    coder_id = coders_context.get_by_proto(self._coder_proto, deduplicate=True)
 
-  def to_runner_api(self, context):
-    return self._proto
+    # 'kind:external' is just a placeholder kind. Dataflow will get the actual
+    # coder from pipeline proto using the pipeline_proto_coder_id property.
+    return {'@type': 'kind:external', 'pipeline_proto_coder_id': coder_id}
+
+  @staticmethod
+  def from_type_hint(typehint, unused_registry):
+    if isinstance(typehint, CoderElementType):
+      return typehint.coder
+    else:
+      raise ValueError((
+          'Expected an instance of CoderElementType'
+          ', but got a %s' % typehint))
+
+  def to_runner_api_parameter(self, context):
+    return (
+        self._coder_proto.spec.urn,
+        self._coder_proto.spec.payload,
+        self._coder_proto.component_coder_ids)
 
   def to_type_hint(self):
-    return Any
+    return CoderElementType(self)

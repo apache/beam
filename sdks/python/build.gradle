@@ -91,16 +91,22 @@ task depSnapshot {
 
 task dependencyUpdates {
   dependsOn ':dependencyUpdates'
-
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', "./scripts/run_dependency_check.sh"
-    }
-  }
+  dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
 }
 
 task buildSnapshot() {
   dependsOn 'sdist'
   dependsOn 'depSnapshot'
+}
+
+task startPortableRunner {
+  dependsOn 'buildPython'
+
+  doLast {
+    def jobPort = project.findProperty("jobPort") ?: 8099
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort}"
+    }
+  }
 }

@@ -20,12 +20,13 @@ package org.apache.beam.sdk.io;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -103,7 +104,7 @@ public abstract class BoundedSource<T> extends Source<T> {
    * org.apache.beam.sdk.io.range.RangeTracker} to manage the (source-specific) range of positions
    * that is being split.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   public abstract static class BoundedReader<T> extends Source.Reader<T> {
     /**
      * Returns a value in [0, 1] representing approximately what fraction of the {@link
@@ -126,8 +127,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      * methods (including itself), and it is therefore critical for it to be implemented in a
      * thread-safe way.
      */
-    @Nullable
-    public Double getFractionConsumed() {
+    public @Nullable Double getFractionConsumed() {
       return null;
     }
 
@@ -385,8 +385,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>By default, returns null to indicate that splitting is not possible.
      */
-    @Nullable
-    public BoundedSource<T> splitAtFraction(double fraction) {
+    public @Nullable BoundedSource<T> splitAtFraction(double fraction) {
       return null;
     }
 

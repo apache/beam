@@ -41,9 +41,15 @@ import argparse
 import json
 import logging
 import math
+import os
+import sys
 import time
+from random import Random
+from typing import Tuple
 
 import apache_beam as beam
+from apache_beam import pvalue
+from apache_beam import typehints
 from apache_beam.io import WriteToText
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
@@ -53,12 +59,38 @@ from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
 
 try:
   import numpy as np
 except ImportError:
   np = None
+
+
+class _Random(Random):
+  """A subclass of `random.Random` from the Python Standard Library that
+  provides a method returning random bytes of arbitrary length.
+  """
+
+  # `numpy.random.RandomState` does not provide `random()` method, we keep this
+  # for compatibility reasons.
+  random_sample = Random.random
+
+  def bytes(self, length):
+    """Returns random bytes.
+
+    Args:
+      length (int): Number of random bytes.
+    """
+    return self.getrandbits(length * 8).to_bytes(length, sys.byteorder)
+
+
+Generator = _Random
+
+# TODO(BEAM-7372): Remove this when Beam drops Python 2.
+if np is not None and sys.version_info.major == 2:
+  Generator = np.random.RandomState
 
 
 def parse_byte_size(s):
@@ -415,25 +447,29 @@ class SyntheticSource(iobase.BoundedSource):
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
 
-  def _gen_kv_pair(self, index):
-    r = np.random.RandomState(index)
-    rand = r.random_sample()
+  def _gen_kv_pair(self, generator, index):
+    generator.seed(index)
+    rand = generator.random_sample()
 
     # Determines whether to generate hot key or not.
     if rand < self._hot_key_fraction:
       # Generate hot key.
       # An integer is randomly selected from the range [0, numHotKeys-1]
       # with equal probability.
-      r_hot = np.random.RandomState(index % self._num_hot_keys)
-      return r_hot.bytes(self._key_size), r.bytes(self._value_size)
+      generator_hot = Generator(index % self._num_hot_keys)
+      bytes_ = generator_hot.bytes(self._key_size), generator.bytes(
+        self._value_size)
     else:
-      return r.bytes(self._key_size), r.bytes(self._value_size)
+      bytes_ = generator.bytes(self.element_size)
+      bytes_ = bytes_[:self._key_size], bytes_[self._key_size:]
+    return bytes_
 
   def read(self, range_tracker):
     index = range_tracker.start_position()
+    generator = Generator()
     while range_tracker.try_claim(index):
       time.sleep(self._sleep_per_input_record_sec)
-      yield self._gen_kv_pair(index)
+      yield self._gen_kv_pair(generator, index)
       index += 1
 
   def default_output_coder(self):
@@ -551,7 +587,8 @@ class SyntheticSDFAsSource(beam.DoFn):
           SyntheticSDFSourceRestrictionProvider())):
     cur = restriction_tracker.current_restriction().start
     while restriction_tracker.try_claim(cur):
-      r = np.random.RandomState(cur)
+      r = Generator()
+      r.seed(cur)
       time.sleep(element['sleep_per_input_record_sec'])
       yield r.bytes(element['key_size']), r.bytes(element['value_size'])
       cur += 1
@@ -851,3 +888,67 @@ def run(argv=None, save_main_session=True):
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   run()
+
+
+class StatefulLoadGenerator(beam.PTransform):
+  """A PTransform for generating random data using Timers API."""
+  def __init__(self, input_options, num_keys=100):
+    self.num_records = input_options['num_records']
+    self.key_size = input_options['key_size']
+    self.value_size = input_options['value_size']
+    self.num_keys = num_keys
+
+  @typehints.with_output_types(Tuple[bytes, bytes])
+  class GenerateKeys(beam.DoFn):
+    def __init__(self, num_keys, key_size):
+      self.num_keys = num_keys
+      self.key_size = key_size
+
+    def process(self, impulse):
+      for _ in range(self.num_keys):
+        key = os.urandom(self.key_size)
+        yield key, b''
+
+  class GenerateLoad(beam.DoFn):
+    state_spec = userstate.CombiningValueStateSpec(
+        'bundles_remaining', combine_fn=sum)
+    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+    def __init__(self, num_records_per_key, value_size, bundle_size=1000):
+      self.num_records_per_key = num_records_per_key
+      self.payload = os.urandom(value_size)
+      self.bundle_size = bundle_size
+      self.time_fn = time.time
+
+    def process(
+        self,
+        _element,
+        records_remaining=beam.DoFn.StateParam(state_spec),
+        timer=beam.DoFn.TimerParam(timer_spec)):
+      records_remaining.add(self.num_records_per_key)
+      timer.set(0)
+
+    @userstate.on_timer(timer_spec)
+    def process_timer(
+        self,
+        key=beam.DoFn.KeyParam,
+        records_remaining=beam.DoFn.StateParam(state_spec),
+        timer=beam.DoFn.TimerParam(timer_spec)):
+      cur_bundle_size = min(self.bundle_size, records_remaining.read())
+      for _ in range(cur_bundle_size):
+        records_remaining.add(-1)
+        yield key, self.payload
+      if records_remaining.read() > 0:
+        timer.set(0)
+
+  def expand(self, pbegin):
+    assert isinstance(pbegin, pvalue.PBegin), (
+        'Input to transform must be a PBegin but found %s' % pbegin)
+    return (
+        pbegin
+        | 'Impulse' >> beam.Impulse()
+        | 'GenerateKeys' >> beam.ParDo(
+            StatefulLoadGenerator.GenerateKeys(self.num_keys, self.key_size))
+        | 'GenerateLoad' >> beam.ParDo(
+            StatefulLoadGenerator.GenerateLoad(
+                self.num_records // self.num_keys, self.value_size)))

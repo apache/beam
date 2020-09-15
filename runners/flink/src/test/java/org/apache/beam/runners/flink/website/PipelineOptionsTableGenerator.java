@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.website;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A main class which is called by the Gradle generatePipelineOptionsTable* tasks to update the list
@@ -84,8 +84,8 @@ public class PipelineOptionsTableGenerator {
     System.out.println(
         "<!--\n"
             + "This is an auto-generated file.\n"
-            + "Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively\n"
-            + "which should be called before running the tests.\n"
+            + "Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively.\n"
+            + "Should be called before running the tests.\n"
             + "-->");
   }
 

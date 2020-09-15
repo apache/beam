@@ -17,8 +17,10 @@
 ###############################################################################
 
 ARG py_version
-FROM python:"${py_version}"-stretch
+FROM python:"${py_version}"-buster
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
+
+ARG pull_licenses
 
 # Install native bindings required for dependencies.
 RUN apt-get update && \
@@ -51,16 +53,37 @@ RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
 RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=false
 
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
+RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+
+COPY target/license_scripts /tmp/license_scripts/
+
+# Add golang licenses. Because the go-license directory may be empty if
+# pull_licenses is false, and COPY fails if there are no files,
+# copy an extra LICENSE file then remove it.
+COPY target/LICENSE target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
+RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
+
+COPY target/license_scripts /tmp/license_scripts/
+RUN if [ "$pull_licenses" = "true" ] ; then \
+    pip install 'pip-licenses<3.0.0;python_version>="3.5"' && \
+    pip install 'pip-licenses==1.18.0;python_version<="2.7"' && \
+    python /tmp/license_scripts/pull_licenses_py.py && \
+    pip uninstall -y pip-licenses && \
     # Remove pip cache.
-    rm -rf /root/.cache/pip
+    rm -rf /root/.cache/pip ; \
+   else \
+    # Remove above golang license and dir if pull licenses false
+    rm -rf /opt/apache/beam/third_party_licenses ; \
+   fi
 
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all
+# Make sure there are no conflicting dependencies.
+RUN pip check
 
-ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 
 COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
 
+ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 ENTRYPOINT ["/opt/apache/beam/boot"]

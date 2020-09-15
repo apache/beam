@@ -38,8 +38,6 @@ from __future__ import absolute_import
 
 from builtins import object
 
-from apache_beam.portability.api import beam_fn_api_pb2
-
 __all__ = ['Metric', 'Counter', 'Distribution', 'Gauge', 'MetricName']
 
 
@@ -76,15 +74,6 @@ class MetricName(object):
 
   def __hash__(self):
     return hash((self.namespace, self.name))
-
-  # TODO: this proto structure is deprecated
-  def to_runner_api(self):
-    return beam_fn_api_pb2.Metrics.User.MetricName(
-        namespace=self.namespace, name=self.name)
-
-  @staticmethod
-  def from_runner_api(proto):
-    return MetricName(proto.namespace, proto.name)
 
 
 class Metric(object):

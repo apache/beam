@@ -209,11 +209,11 @@ public class MetricsContainerStepMapTest {
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder
-        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
         .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
         .setLabel(MonitoringInfoConstants.Labels.NAME, "name1");
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, STEP1);
-    builder.setInt64Value(7);
+    builder.setInt64SumValue(7);
     expected.add(builder.build());
 
     expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
@@ -221,7 +221,7 @@ public class MetricsContainerStepMapTest {
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
+      actual.add(mi);
     }
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }

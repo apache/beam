@@ -30,6 +30,8 @@ applyJavaNature(
   archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
   publish: false,
   exportJavadoc: false,
+  enableChecker:false,
+  ignoreRawtypeErrors: true,
   enableSpotbugs: true,
   validateShadowJar: false,
   shadowClosure: {
@@ -81,7 +83,7 @@ dependencies {
   compile library.java.avro
   compile library.java.google_api_client
   compile library.java.google_http_client
-  compile library.java.google_http_client_jackson
+  compile library.java.google_http_client_jackson2
   compile library.java.jackson_annotations
   compile library.java.jackson_core
   compile library.java.jackson_databind

@@ -24,8 +24,10 @@ from __future__ import print_function
 
 import itertools
 import logging
+import os
 import tempfile
 import time
+import urllib
 import zipfile
 
 import requests
@@ -62,9 +64,20 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     pass
 
   def executable_jar(self):
-    url = (
-        self._executable_jar or job_server.JavaJarJobServer.path_to_beam_jar(
-            'runners:spark:job-server:shadowJar'))
+    if self._executable_jar:
+      if not os.path.exists(self._executable_jar):
+        parsed = urllib.parse.urlparse(self._executable_jar)
+        if not parsed.scheme:
+          raise ValueError(
+              'Unable to parse jar URL "%s". If using a full URL, make sure '
+              'the scheme is specified. If using a local file path, make sure '
+              'the file exists; you may have to first build the job server '
+              'using `./gradlew runners:spark:job-server:shadowJar`.' %
+              self._executable_jar)
+      url = self._executable_jar
+    else:
+      url = job_server.JavaJarJobServer.path_to_beam_jar(
+          ':runners:spark:job-server:shadowJar')
     return job_server.JavaJarJobServer.local_jar(url)
 
   def create_beam_job(self, job_id, job_name, pipeline, options):
@@ -170,12 +183,6 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
 
   def run(self):
     self._stop_artifact_service()
-    # Move the artifact manifest to the expected location.
-    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
-      with z.open(self._artifact_manifest_location) as fin:
-        manifest_contents = fin.read()
-      with z.open(self.ARTIFACT_MANIFEST_PATH, 'w') as fout:
-        fout.write(manifest_contents)
 
     # Upload the jar and start the job.
     self._spark_submission_id = self.post(

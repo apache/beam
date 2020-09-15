@@ -25,10 +25,10 @@ import java.util.stream.StreamSupport;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.transforms.Count;
@@ -55,8 +55,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
@@ -166,8 +164,8 @@ public class TestExpansionService {
     private static Schema schema = new Schema.Parser().parse(rawSchema);
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder>> builder =
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> builder =
           ImmutableMap.builder();
       builder.put(TEST_PREFIX_URN, PrefixBuilder.class);
       builder.put(TEST_MULTI_URN, MultiBuilder.class);
@@ -343,13 +341,5 @@ public class TestExpansionService {
         };
       }
     }
-  }
-
-  public static void main(String[] args) throws Exception {
-    int port = Integer.parseInt(args[0]);
-    System.out.println("Starting expansion service at localhost:" + port);
-    Server server = ServerBuilder.forPort(port).addService(new ExpansionService()).build();
-    server.start();
-    server.awaitTermination();
   }
 }

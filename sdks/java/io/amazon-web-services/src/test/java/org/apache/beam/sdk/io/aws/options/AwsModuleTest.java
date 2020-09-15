@@ -30,6 +30,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
@@ -118,6 +119,30 @@ public class AwsModuleTest {
   }
 
   @Test
+  public void testSTSAssumeRoleSessionCredentialsProviderSerializationDeserialization()
+      throws Exception {
+    String roleArn = "arn:aws:iam::000111222333:role/TestRole";
+    String roleSessionName = "roleSessionName";
+    STSAssumeRoleSessionCredentialsProvider credentialsProvider =
+        new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, roleSessionName).build();
+    String serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    AWSCredentialsProvider deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
+
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+    Field fieldRole = STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleArn");
+    fieldRole.setAccessible(true);
+    String deserializedRoleArn = (String) fieldRole.get(deserializedCredentialsProvider);
+    assertEquals(roleArn, deserializedRoleArn);
+
+    Field fieldSession =
+        STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleSessionName");
+    fieldSession.setAccessible(true);
+    String deserializedRoleSessionName = (String) fieldSession.get(deserializedCredentialsProvider);
+    assertEquals(roleSessionName, deserializedRoleSessionName);
+  }
+
+  @Test
   public void testSingletonAWSCredentialsProviderSerializationDeserialization() throws Exception {
     AWSCredentialsProvider credentialsProvider;
     String serializedCredentialsProvider;
@@ -198,5 +223,20 @@ public class AwsModuleTest {
     assertEquals(1234, valueDes.getProxyPort());
     assertEquals("username", valueDes.getProxyUsername());
     assertEquals("password", valueDes.getProxyPassword());
+  }
+
+  @Test
+  public void testAwsHttpClientConfigurationSerializationDeserialization() throws Exception {
+    ClientConfiguration clientConfiguration = new ClientConfiguration();
+    clientConfiguration.setConnectionTimeout(100);
+    clientConfiguration.setConnectionMaxIdleMillis(1000);
+    clientConfiguration.setSocketTimeout(300);
+
+    final String valueAsJson = objectMapper.writeValueAsString(clientConfiguration);
+    final ClientConfiguration clientConfigurationDeserialized =
+        objectMapper.readValue(valueAsJson, ClientConfiguration.class);
+    assertEquals(100, clientConfigurationDeserialized.getConnectionTimeout());
+    assertEquals(1000, clientConfigurationDeserialized.getConnectionMaxIdleMillis());
+    assertEquals(300, clientConfigurationDeserialized.getSocketTimeout());
   }
 }

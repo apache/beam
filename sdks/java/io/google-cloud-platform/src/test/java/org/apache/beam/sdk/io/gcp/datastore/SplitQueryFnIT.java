@@ -22,10 +22,10 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.datastore.v1.Query;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

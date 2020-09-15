@@ -132,8 +132,9 @@ public class MultiDoFnFunction<InputT, OutputT>
     final InMemoryTimerInternals timerInternals;
     final StepContext context;
     // Now only implements the StatefulParDo in Batch mode.
+    Object key = null;
+
     if (stateful) {
-      Object key = null;
       if (iter.hasNext()) {
         WindowedValue<InputT> currentValue = iter.next();
         key = ((KV) currentValue.getValue()).getKey();
@@ -180,6 +181,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             doFn,
             doFnRunnerWithMetrics,
             outputManager,
+            key,
             stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator())
         .processPartition(iter)
         .iterator();

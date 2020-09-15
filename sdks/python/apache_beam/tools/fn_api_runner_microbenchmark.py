@@ -61,6 +61,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import logging
 import random
 from builtins import range
 
@@ -136,6 +137,7 @@ def run_benchmark(starting_point, num_runs, num_elements_step, verbose):
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   utils.check_compiled('apache_beam.runners.common')
 
   parser = argparse.ArgumentParser()

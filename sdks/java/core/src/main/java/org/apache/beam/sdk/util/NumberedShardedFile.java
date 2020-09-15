@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
  * Utility methods for working with sharded files. For internal use only; many parameters are just
  * hardcoded to allow existing uses to work OK.
  */
+@Internal
 public class NumberedShardedFile implements ShardedFile {
 
   private static final Logger LOG = LoggerFactory.getLogger(NumberedShardedFile.class);

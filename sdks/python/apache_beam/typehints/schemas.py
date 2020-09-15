@@ -57,12 +57,14 @@ import numpy as np
 from past.builtins import unicode
 
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import row_type
 from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_named_tuple
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
+from apache_beam.utils import proto_utils
 
 
 # Registry of typings for a schema by UUID
@@ -95,6 +97,7 @@ _PRIMITIVES = (
     (np.float64, schema_pb2.DOUBLE),
     (unicode, schema_pb2.STRING),
     (bool, schema_pb2.BOOLEAN),
+    # TODO(BEAM-7372): Use bytes instead of ByteString
     (bytes if sys.version_info.major >= 3 else ByteString, schema_pb2.BYTES),
 )
 
@@ -106,6 +109,7 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
     # In python 2, this is a no-op because we define it as the bi-directional
     # mapping above. This just ensures the one-way mapping is defined in python
     # 3.
+    # TODO(BEAM-7372): Use bytes instead of ByteString
     ByteString: schema_pb2.BYTES,
     # Allow users to specify a native int, and use INT64 as the cross-language
     # representation. Technically ints have unlimited precision, but RowCoder
@@ -114,12 +118,31 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
     float: schema_pb2.DOUBLE,
 })
 
+# Name of the attribute added to user types (existing and generated) to store
+# the corresponding schema ID
+_BEAM_SCHEMA_ID = "_beam_schema_id"
+
+
+def named_fields_to_schema(names_and_types):
+  return schema_pb2.Schema(
+      fields=[
+          schema_pb2.Field(name=name, type=typing_to_runner_api(type))
+          for (name, type) in names_and_types
+      ],
+      id=str(uuid4()))
+
+
+def named_fields_from_schema(
+    schema):  # (schema_pb2.Schema) -> typing.List[typing.Tuple[unicode, type]]
+  return [(field.name, typing_from_runner_api(field.type))
+          for field in schema.fields]
+
 
 def typing_to_runner_api(type_):
   if _match_is_named_tuple(type_):
     schema = None
-    if hasattr(type_, 'id'):
-      schema = SCHEMA_REGISTRY.get_schema_by_id(type_.id)
+    if hasattr(type_, _BEAM_SCHEMA_ID):
+      schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
     if schema is None:
       fields = [
           schema_pb2.Field(
@@ -128,6 +151,7 @@ def typing_to_runner_api(type_):
       ]
       type_id = str(uuid4())
       schema = schema_pb2.Schema(fields=fields, id=type_id)
+      setattr(type_, _BEAM_SCHEMA_ID, type_id)
       SCHEMA_REGISTRY.add(type_, schema)
 
     return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
@@ -161,6 +185,11 @@ def typing_to_runner_api(type_):
     return schema_pb2.FieldType(
         array_type=schema_pb2.ArrayType(element_type=element_type))
 
+  elif _safe_issubclass(type_, Mapping):
+    key_type, value_type = map(typing_to_runner_api, _get_args(type_))
+    return schema_pb2.FieldType(
+        map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
+
   raise ValueError("Unsupported type: %s" % type_)
 
 
@@ -191,18 +220,35 @@ def typing_from_runner_api(fieldtype_proto):
     user_type = SCHEMA_REGISTRY.get_typing_by_id(schema.id)
     if user_type is None:
       from apache_beam import coders
+
       type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
       user_type = NamedTuple(
           type_name,
           [(field.name, typing_from_runner_api(field.type))
            for field in schema.fields])
-      user_type.id = schema.id
+
+      setattr(user_type, _BEAM_SCHEMA_ID, schema.id)
+
+      # Define a reduce function, otherwise these types can't be pickled
+      # (See BEAM-9574)
+      def __reduce__(self):
+        return (
+            _hydrate_namedtuple_instance,
+            (schema.SerializeToString(), tuple(self)))
+
+      setattr(user_type, '__reduce__', __reduce__)
+
       SCHEMA_REGISTRY.add(user_type, schema)
       coders.registry.register_coder(user_type, coders.RowCoder)
     return user_type
 
   elif type_info == "logical_type":
     pass  # TODO
+
+
+def _hydrate_namedtuple_instance(encoded_schema, values):
+  return named_tuple_from_schema(
+      proto_utils.parse_Bytes(encoded_schema, schema_pb2.Schema))(*values)
 
 
 def named_tuple_from_schema(schema):
@@ -212,3 +258,24 @@ def named_tuple_from_schema(schema):
 
 def named_tuple_to_schema(named_tuple):
   return typing_to_runner_api(named_tuple).row_type.schema
+
+
+def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
+  """Get a schema for the given PCollection element_type.
+
+  Returns schema as a list of (name, python_type) tuples"""
+  if isinstance(element_type, row_type.RowTypeConstraint):
+    # TODO(BEAM-10722): Make sure beam.Row generated schemas are registered and
+    # de-duped
+    return named_fields_to_schema(element_type._fields)
+  elif _match_is_named_tuple(element_type):
+    return named_tuple_to_schema(element_type)
+  else:
+    raise TypeError(
+        "Attempted to determine schema for unsupported type '%s'" %
+        element_type)
+
+
+def named_fields_from_element_type(
+    element_type):  # (type) -> typing.List[typing.Tuple[unicode, type]]
+  return named_fields_from_schema(schema_from_element_type(element_type))

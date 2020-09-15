@@ -17,7 +17,10 @@
  */
 /** Contains classes needed to expose transforms to other SDKs. */
 @DefaultAnnotation(NonNull.class)
+@Experimental(Kind.PORTABILITY)
 package org.apache.beam.sdk.expansion;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.NonNull;

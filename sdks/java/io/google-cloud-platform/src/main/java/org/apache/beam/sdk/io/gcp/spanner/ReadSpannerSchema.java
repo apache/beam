@@ -39,7 +39,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   @Setup
   public void setup() throws Exception {
-    spannerAccessor = config.connectToSpanner();
+    spannerAccessor = SpannerAccessor.getOrCreate(config);
   }
 
   @Teardown

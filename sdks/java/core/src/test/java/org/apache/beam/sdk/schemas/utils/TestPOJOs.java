@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -40,7 +40,7 @@ public class TestPOJOs {
   /** A POJO containing one nullable and one non-nullable type. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJOWithNullables {
-    @Nullable public String str;
+    public @Nullable String str;
     public int anInt;
 
     public POJOWithNullables(@Nullable String str, int anInt) {
@@ -51,7 +51,7 @@ public class TestPOJOs {
     public POJOWithNullables() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -75,7 +75,7 @@ public class TestPOJOs {
   /** a POJO containing a nested nullable field. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJOWithNestedNullable {
-    @Nullable public POJOWithNullables nested;
+    public @Nullable POJOWithNullables nested;
 
     public POJOWithNestedNullable(@Nullable POJOWithNullables nested) {
       this.nested = nested;
@@ -84,7 +84,7 @@ public class TestPOJOs {
     public POJOWithNestedNullable() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -178,7 +178,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -273,7 +273,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -394,7 +394,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -465,7 +465,7 @@ public class TestPOJOs {
     public NestedPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -503,7 +503,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -545,7 +545,7 @@ public class TestPOJOs {
     public NestedArrayPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -578,7 +578,7 @@ public class TestPOJOs {
     public NestedArraysPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -613,7 +613,7 @@ public class TestPOJOs {
     public NestedCollectionPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -650,7 +650,7 @@ public class TestPOJOs {
     public PrimitiveMapPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -684,7 +684,7 @@ public class TestPOJOs {
     public NestedMapPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -728,7 +728,7 @@ public class TestPOJOs {
     public POJOWithBoxedFields() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -773,7 +773,7 @@ public class TestPOJOs {
     public POJOWithByteArray() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -807,7 +807,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -841,7 +841,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -872,14 +872,16 @@ public class TestPOJOs {
     };
 
     public final Color color;
+    public final List<Color> colors;
 
     @SchemaCreate
-    public PojoWithEnum(Color color) {
+    public PojoWithEnum(Color color, List<Color> colors) {
       this.color = color;
+      this.colors = colors;
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -887,18 +889,126 @@ public class TestPOJOs {
         return false;
       }
       PojoWithEnum that = (PojoWithEnum) o;
-      return color == that.color;
+      return color == that.color && Objects.equals(colors, that.colors);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(color);
+      return Objects.hash(color, colors);
     }
   }
 
   /** The schema for {@link PojoWithEnum}. */
+  public static final EnumerationType ENUMERATION = EnumerationType.create("RED", "GREEN", "BLUE");
+
   public static final Schema POJO_WITH_ENUM_SCHEMA =
       Schema.builder()
-          .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
+          .addLogicalTypeField("color", ENUMERATION)
+          .addArrayField("colors", FieldType.logicalType(ENUMERATION))
+          .build();
+
+  /** A simple POJO containing nullable basic types. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class NullablePOJO {
+    @Nullable public String str;
+    public @Nullable Byte aByte;
+    public @Nullable Short aShort;
+    public @Nullable Integer anInt;
+    public @Nullable Long aLong;
+    public @Nullable Boolean aBoolean;
+    public @Nullable DateTime dateTime;
+    public @Nullable Instant instant;
+    public byte @Nullable [] bytes;
+    public @Nullable ByteBuffer byteBuffer;
+    public @Nullable BigDecimal bigDecimal;
+    public @Nullable StringBuilder stringBuilder;
+
+    public NullablePOJO() {}
+
+    public NullablePOJO(
+        String str,
+        Byte aByte,
+        Short aShort,
+        Integer anInt,
+        Long aLong,
+        Boolean aBoolean,
+        DateTime dateTime,
+        Instant instant,
+        byte[] bytes,
+        ByteBuffer byteBuffer,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      this.str = str;
+      this.aByte = aByte;
+      this.aShort = aShort;
+      this.anInt = anInt;
+      this.aLong = aLong;
+      this.aBoolean = aBoolean;
+      this.dateTime = dateTime;
+      this.instant = instant;
+      this.bytes = bytes;
+      this.byteBuffer = byteBuffer;
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NullablePOJO that = (NullablePOJO) o;
+      return Objects.equals(aByte, that.aByte)
+          && Objects.equals(aShort, that.aShort)
+          && Objects.equals(anInt, that.anInt)
+          && Objects.equals(aLong, that.aLong)
+          && Objects.equals(aBoolean, that.aBoolean)
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+  }
+
+  /** The schema for {@link NullablePOJO}. * */
+  public static final Schema NULLABLE_POJO_SCHEMA =
+      Schema.builder()
+          .addNullableField("str", FieldType.STRING)
+          .addNullableField("aByte", FieldType.BYTE)
+          .addNullableField("aShort", FieldType.INT16)
+          .addNullableField("anInt", FieldType.INT32)
+          .addNullableField("aLong", FieldType.INT64)
+          .addNullableField("aBoolean", FieldType.BOOLEAN)
+          .addNullableField("dateTime", FieldType.DATETIME)
+          .addNullableField("instant", FieldType.DATETIME)
+          .addNullableField("bytes", FieldType.BYTES)
+          .addNullableField("byteBuffer", FieldType.BYTES)
+          .addNullableField("bigDecimal", FieldType.DECIMAL)
+          .addNullableField("stringBuilder", FieldType.STRING)
           .build();
 }

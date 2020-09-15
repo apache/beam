@@ -16,4 +16,8 @@
  * limitations under the License.
  */
 /** Defines IO connectors for Amazon Web Services S3. */
+@Experimental(Kind.FILESYSTEM)
 package org.apache.beam.sdk.io.aws.s3;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

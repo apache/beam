@@ -19,20 +19,15 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -43,7 +38,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -66,6 +60,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.Deserializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -81,57 +76,25 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public boolean start() throws IOException {
-    final int defaultPartitionInitTimeout = 60 * 1000;
-    final int kafkaRequestTimeoutMultiple = 2;
-
     Read<K, V> spec = source.getSpec();
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
-    SchemaRegistryClient registryClient = null;
-    if (spec.getCSRClientProvider() != null) {
-      registryClient = spec.getCSRClientProvider().getCSRClient();
-    }
-
-    try {
-      if (registryClient != null && spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
-        keyDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
-      } else {
-        keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
-      }
-
-      if (registryClient != null
-          && spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
-        valueDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
-      } else {
-        valueDeserializerInstance =
-            spec.getValueDeserializer().getDeclaredConstructor().newInstance();
-      }
-    } catch (InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException
-        | NoSuchMethodException e) {
-      throw new IOException("Could not instantiate deserializers", e);
-    }
-
-    keyDeserializerInstance.configure(spec.getConsumerConfig(), true);
-    valueDeserializerInstance.configure(spec.getConsumerConfig(), false);
+    keyDeserializerInstance =
+        spec.getKeyDeserializerProvider().getDeserializer(spec.getConsumerConfig(), true);
+    valueDeserializerInstance =
+        spec.getValueDeserializerProvider().getDeserializer(spec.getConsumerConfig(), false);
 
     // Seek to start offset for each partition. This is the first interaction with the server.
     // Unfortunately it can block forever in case of network issues like incorrect ACLs.
     // Initialize partition in a separate thread and cancel it if takes longer than a minute.
+    // This problem of blocking API calls to kafka is solved in higher versions of kafka
+    // client by `KIP-266`
     for (final PartitionState pState : partitionStates) {
       Future<?> future = consumerPollThread.submit(() -> setupInitialOffset(pState));
-
       try {
-        // Timeout : 1 minute OR 2 * Kafka consumer request timeout if it is set.
-        Integer reqTimeout =
-            (Integer) spec.getConsumerConfig().get(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG);
-        future.get(
-            reqTimeout != null
-                ? kafkaRequestTimeoutMultiple * reqTimeout
-                : defaultPartitionInitTimeout,
-            TimeUnit.MILLISECONDS);
+        Duration timeout = resolveDefaultApiTimeout(spec);
+        future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
       } catch (TimeoutException e) {
         consumer.wakeup(); // This unblocks consumer stuck on network I/O.
         // Likely reason : Kafka servers are configured to advertise internal ips, but
@@ -158,7 +121,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumerPollThread.submit(this::consumerPollLoop);
 
     // offsetConsumer setup :
-    Map<String, Object> offsetConsumerConfig = getOffsetConsumerConfig();
+    Map<String, Object> offsetConsumerConfig =
+        KafkaIOUtils.getOffsetConsumerConfig(
+            name, spec.getOffsetConsumerConfig(), spec.getConsumerConfig());
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
     consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
@@ -399,23 +364,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     return name;
   }
 
-  // Maintains approximate average over last 1000 elements
-  private static class MovingAvg {
-    private static final int MOVING_AVG_WINDOW = 1000;
-    private double avg = 0;
-    private long numUpdates = 0;
-
-    void update(double quantity) {
-      numUpdates++;
-      avg += (quantity - avg) / Math.min(MOVING_AVG_WINDOW, numUpdates);
-    }
-
-    double get() {
-      return avg;
-    }
-  }
-
-  private static class TimestampPolicyContext extends TimestampPolicy.PartitionContext {
+  static class TimestampPolicyContext extends TimestampPolicy.PartitionContext {
 
     private final long messageBacklog;
     private final Instant backlogCheckTime;
@@ -447,8 +396,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
-    private MovingAvg avgRecordSize = new MovingAvg();
-    private MovingAvg avgOffsetGap = new MovingAvg(); // > 0 only when log compaction is enabled.
+    private KafkaIOUtils.MovingAvg avgRecordSize = new KafkaIOUtils.MovingAvg();
+    private KafkaIOUtils.MovingAvg avgOffsetGap =
+        new KafkaIOUtils.MovingAvg(); // > 0 only when log compaction is enabled.
 
     PartitionState(
         TopicPartition partition, long nextOffset, TimestampPolicy<K, V> timestampPolicy) {
@@ -722,39 +672,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     return backlogCount;
   }
 
-  @VisibleForTesting
-  Map<String, Object> getOffsetConsumerConfig() {
-    Map<String, Object> offsetConsumerConfig = new HashMap<>(source.getSpec().getConsumerConfig());
-    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-
-    Object groupId = source.getSpec().getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
-    // override group_id and disable auto_commit so that it does not interfere with main consumer
-    String offsetGroupId =
-        String.format(
-            "%s_offset_consumer_%d_%s",
-            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
-    offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
-
-    if (source.getSpec().getOffsetConsumerConfig() != null) {
-      offsetConsumerConfig.putAll(source.getSpec().getOffsetConsumerConfig());
-    }
-
-    // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
-    // fetches latest offset for two reasons : (a) to calculate backlog (number of records
-    // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
-    // for (a) is to leave this config unchanged from the main config (i.e. if there are records
-    // that can't be read because of uncommitted records before them, they shouldn't
-    // ideally count towards backlog when "read_committed" is enabled. But (b)
-    // requires finding out if there are any records left to be read (committed or uncommitted).
-    // Rather than using two separate consumers we will go with better support for (b). If we do
-    // hit a case where a lot of records are not readable (due to some stuck transactions), the
-    // pipeline would report more backlog, but would not be able to consume it. It might be ok
-    // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
-    offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
-
-    return offsetConsumerConfig;
-  }
-
   @Override
   public void close() throws IOException {
     closed.set(true);
@@ -793,5 +710,37 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     Closeables.close(offsetConsumer, true);
     Closeables.close(consumer, true);
+  }
+
+  @VisibleForTesting
+  static Duration resolveDefaultApiTimeout(Read<?, ?> spec) {
+
+    // KIP-266 - let's allow to configure timeout in consumer settings. This is supported in
+    // higher versions of kafka client. We allow users to set this timeout and it will be
+    // respected
+    // in all places where Beam's KafkaIO handles possibility of API call being blocked.
+    // Later, we should replace the string with ConsumerConfig constant
+    Duration timeout =
+        tryParseDurationFromMillis(spec.getConsumerConfig().get("default.api.timeout.ms"));
+    if (timeout == null) {
+      Duration value =
+          tryParseDurationFromMillis(
+              spec.getConsumerConfig().get(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG));
+      if (value != null) {
+        // 2x request timeout to be compatible with previous version
+        timeout = Duration.millis(2 * value.getMillis());
+      }
+    }
+
+    return timeout == null ? Duration.standardSeconds(60) : timeout;
+  }
+
+  private static Duration tryParseDurationFromMillis(Object value) {
+    if (value == null) {
+      return null;
+    }
+    return value instanceof Integer
+        ? Duration.millis((Integer) value)
+        : Duration.millis(Integer.parseInt(value.toString()));
   }
 }

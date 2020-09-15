@@ -132,9 +132,10 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
@@ -147,6 +148,11 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
     sideInputFetcher.persist();
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    simpleDoFnRunner.onWindowExpiration(window, timestamp, key);
   }
 
   ValueState<K> keyValue() {

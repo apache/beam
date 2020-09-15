@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.withFieldNumber;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMITIVE_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_BOOL;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_INT32;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_PRIMITIVE;
@@ -33,6 +36,9 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_ROW
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_ROW_PRIMITIVE;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_ROW_STRING;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OPTIONAL_PRIMITIVE_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OPTIONAL_PRIMITIVE_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OPTIONAL_PRIMITIVE_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OUTER_ONEOF_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OUTER_ONEOF_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.OUTER_ONEOF_SCHEMA;
@@ -42,13 +48,19 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REPEATED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REPEATED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REPEATED_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_PRIMITIVE_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_PRIMITIVE_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_PRIMITIVE_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withFieldNumber;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withTypeName;
 import static org.junit.Assert.assertEquals;
 
+import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.OptionalPrimitive;
+import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage;
-import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage.Enum;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
@@ -91,6 +103,46 @@ public class ProtoMessageSchemaTest {
   }
 
   @Test
+  public void testOptionalPrimitiveSchema() {
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(OptionalPrimitive.class));
+    assertEquals(OPTIONAL_PRIMITIVE_SCHEMA, schema);
+  }
+
+  @Test
+  public void testOptionalPrimitiveProtoToRow() {
+    SerializableFunction<OptionalPrimitive, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(OptionalPrimitive.class));
+    assertEquals(OPTIONAL_PRIMITIVE_ROW, toRow.apply(OPTIONAL_PRIMITIVE_PROTO));
+  }
+
+  @Test
+  public void testOptionalPrimitiveRowToProto() {
+    SerializableFunction<Row, OptionalPrimitive> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(OptionalPrimitive.class));
+    assertEquals(OPTIONAL_PRIMITIVE_PROTO, fromRow.apply(OPTIONAL_PRIMITIVE_ROW));
+  }
+
+  @Test
+  public void testRequiredPrimitiveSchema() {
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(RequiredPrimitive.class));
+    assertEquals(REQUIRED_PRIMITIVE_SCHEMA, schema);
+  }
+
+  @Test
+  public void testRequiredPrimitiveProtoToRow() {
+    SerializableFunction<RequiredPrimitive, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(RequiredPrimitive.class));
+    assertEquals(REQUIRED_PRIMITIVE_ROW, toRow.apply(REQUIRED_PRIMITIVE_PROTO));
+  }
+
+  @Test
+  public void testRequiredPrimitiveRowToProto() {
+    SerializableFunction<Row, RequiredPrimitive> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(RequiredPrimitive.class));
+    assertEquals(REQUIRED_PRIMITIVE_PROTO, fromRow.apply(REQUIRED_PRIMITIVE_ROW));
+  }
+
+  @Test
   public void testRepeatedSchema() {
     Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(RepeatPrimitive.class));
     assertEquals(REPEATED_SCHEMA, schema);
@@ -108,6 +160,20 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, RepeatPrimitive> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
     assertEquals(REPEATED_PROTO, fromRow.apply(REPEATED_ROW));
+  }
+
+  @Test
+  public void testNullRepeatedProtoToRow() {
+    SerializableFunction<RepeatPrimitive, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
+    assertEquals(NULL_REPEATED_ROW, toRow.apply(NULL_REPEATED_PROTO));
+  }
+
+  @Test
+  public void testNullRepeatedRowToProto() {
+    SerializableFunction<Row, RepeatPrimitive> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
+    assertEquals(NULL_REPEATED_PROTO, fromRow.apply(NULL_REPEATED_ROW));
   }
 
   // Test map type
@@ -129,6 +195,20 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, MapPrimitive> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(MapPrimitive.class));
     assertEquals(MAP_PRIMITIVE_PROTO, fromRow.apply(MAP_PRIMITIVE_ROW));
+  }
+
+  @Test
+  public void testNullMapProtoToRow() {
+    SerializableFunction<MapPrimitive, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(MapPrimitive.class));
+    assertEquals(NULL_MAP_PRIMITIVE_ROW, toRow.apply(NULL_MAP_PRIMITIVE_PROTO));
+  }
+
+  @Test
+  public void testNullMapRowToProto() {
+    SerializableFunction<Row, MapPrimitive> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(MapPrimitive.class));
+    assertEquals(NULL_MAP_PRIMITIVE_PROTO, fromRow.apply(NULL_MAP_PRIMITIVE_ROW));
   }
 
   @Test
@@ -201,11 +281,13 @@ public class ProtoMessageSchemaTest {
       EnumerationType.create(ImmutableMap.of("ZERO", 0, "TWO", 2, "THREE", 3));
   private static final Schema ENUM_SCHEMA =
       Schema.builder()
-          .addField("enum", withFieldNumber(FieldType.logicalType(ENUM_TYPE).withNullable(true), 1))
+          .addField(withFieldNumber("enum", FieldType.logicalType(ENUM_TYPE), 1))
+          .setOptions(withTypeName("proto3_schema_messages.EnumMessage"))
           .build();
   private static final Row ENUM_ROW =
       Row.withSchema(ENUM_SCHEMA).addValues(ENUM_TYPE.valueOf("TWO")).build();
-  private static final EnumMessage ENUM_PROTO = EnumMessage.newBuilder().setEnum(Enum.TWO).build();
+  private static final EnumMessage ENUM_PROTO =
+      EnumMessage.newBuilder().setEnum(EnumMessage.Enum.TWO).build();
 
   @Test
   public void testEnumSchema() {

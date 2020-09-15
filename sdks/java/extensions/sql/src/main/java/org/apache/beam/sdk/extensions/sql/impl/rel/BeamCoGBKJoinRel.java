@@ -20,19 +20,22 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.joda.time.Duration.ZERO;
 
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.schemas.transforms.Join.FieldsEqual;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -44,6 +47,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Correl
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Join;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 
 /**
  * A {@code BeamJoinRel} which does CoGBK Join
@@ -87,16 +91,33 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
 
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
-      Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
+      Schema leftSchema = pinput.get(0).getSchema();
+      Schema rightSchema = pinput.get(1).getSchema();
 
-      PCollectionList<KV<Row, Row>> keyedInputs = pinput.apply(new ExtractJoinKeys());
+      PCollection<Row> leftRows =
+          pinput
+              .get(0)
+              .apply(
+                  "left_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
+      PCollection<Row> rightRows =
+          pinput
+              .get(1)
+              .apply(
+                  "right_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
 
-      PCollection<KV<Row, Row>> extractedLeftRows = keyedInputs.get(0);
-      PCollection<KV<Row, Row>> extractedRightRows = keyedInputs.get(1);
+      // extract the join fields
+      List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes(condition);
+      int leftRowColumnCount = BeamSqlRelUtils.getBeamRelInput(left).getRowType().getFieldCount();
 
-      WindowFn leftWinFn = extractedLeftRows.getWindowingStrategy().getWindowFn();
-      WindowFn rightWinFn = extractedRightRows.getWindowingStrategy().getWindowFn();
+      FieldAccessDescriptor leftKeyFields =
+          BeamJoinTransforms.getJoinColumns(true, pairs, 0, leftSchema);
+      FieldAccessDescriptor rightKeyFields =
+          BeamJoinTransforms.getJoinColumns(false, pairs, leftRowColumnCount, rightSchema);
+
+      WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
+      WindowFn rightWinFn = rightRows.getWindowingStrategy().getWindowFn();
 
       try {
         leftWinFn.verifyCompatibility(rightWinFn);
@@ -105,10 +126,10 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
             "WindowFns must match for a bounded-vs-bounded/unbounded-vs-unbounded join.", e);
       }
 
-      verifySupportedTrigger(extractedLeftRows);
-      verifySupportedTrigger(extractedRightRows);
+      verifySupportedTrigger(leftRows);
+      verifySupportedTrigger(rightRows);
 
-      return standardJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
+      return standardJoin(leftRows, rightRows, leftKeyFields, rightKeyFields);
     }
   }
 
@@ -135,68 +156,45 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
   }
 
   private PCollection<Row> standardJoin(
-      PCollection<KV<Row, Row>> extractedLeftRows,
-      PCollection<KV<Row, Row>> extractedRightRows,
-      Schema leftSchema,
-      Schema rightSchema) {
-    PCollection<KV<Row, KV<Row, Row>>> joinedRows = null;
+      PCollection<Row> leftRows,
+      PCollection<Row> rightRows,
+      FieldAccessDescriptor leftKeys,
+      FieldAccessDescriptor rightKeys) {
+    PCollection<Row> joinedRows = null;
 
     switch (joinType) {
       case LEFT:
-        {
-          Schema rigthNullSchema = buildNullSchema(rightSchema);
-          Row rightNullRow = Row.nullRow(rigthNullSchema);
-
-          extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rigthNullSchema));
-
-          joinedRows =
-              org.apache.beam.sdk.extensions.joinlibrary.Join.leftOuterJoin(
-                  extractedLeftRows, extractedRightRows, rightNullRow);
-
-          break;
-        }
+        joinedRows =
+            leftRows.apply(
+                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>leftOuterJoin(rightRows)
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
+        break;
       case RIGHT:
-        {
-          Schema leftNullSchema = buildNullSchema(leftSchema);
-          Row leftNullRow = Row.nullRow(leftNullSchema);
-
-          extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
-
-          joinedRows =
-              org.apache.beam.sdk.extensions.joinlibrary.Join.rightOuterJoin(
-                  extractedLeftRows, extractedRightRows, leftNullRow);
-          break;
-        }
+        joinedRows =
+            leftRows.apply(
+                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>rightOuterJoin(rightRows)
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
+        break;
       case FULL:
-        {
-          Schema leftNullSchema = buildNullSchema(leftSchema);
-          Schema rightNullSchema = buildNullSchema(rightSchema);
-
-          Row leftNullRow = Row.nullRow(leftNullSchema);
-          Row rightNullRow = Row.nullRow(rightNullSchema);
-
-          extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
-          extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rightNullSchema));
-
-          joinedRows =
-              org.apache.beam.sdk.extensions.joinlibrary.Join.fullOuterJoin(
-                  extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
-          break;
-        }
+        joinedRows =
+            leftRows.apply(
+                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>fullOuterJoin(rightRows)
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
+        break;
       case INNER:
       default:
         joinedRows =
-            org.apache.beam.sdk.extensions.joinlibrary.Join.innerJoin(
-                extractedLeftRows, extractedRightRows);
-        break;
+            leftRows.apply(
+                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>innerJoin(rightRows)
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
     }
 
-    Schema schema = CalciteUtils.toSchema(getRowType());
-    return joinedRows
-        .apply(
-            "JoinParts2WholeRow",
-            MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow(schema)))
-        .setRowSchema(schema);
+    // Flatten the lhs and rhs fields into a single row.
+    return joinedRows.apply(
+        Select.<Row>fieldNames(
+                org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*",
+                org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*")
+            .withOutputSchema(CalciteUtils.toSchema(getRowType())));
   }
 
   @Override

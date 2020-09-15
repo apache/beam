@@ -54,7 +54,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
    */
   public static void prepareFilesToStageForRemoteClusterExecution(
       SparkStructuredStreamingPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
+    if (!PipelineTranslator.isLocalSparkMaster(options)) {
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
               options.getFilesToStage(), options.getTempLocation()));
@@ -136,6 +136,11 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
       builder.append("|   ");
     }
     return builder.toString();
+  }
+
+  /** Detects if the pipeline is run in local spark mode. */
+  public static boolean isLocalSparkMaster(SparkStructuredStreamingPipelineOptions options) {
+    return options.getSparkMaster().matches("local\\[?\\d*]?");
   }
 
   /** Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}. */

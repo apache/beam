@@ -28,6 +28,7 @@ Usage:
         --test-pipeline-options="
           --runner=TestDataflowRunner
           --project=...
+          --region=...
           --staging_location=gs://...
           --temp_location=gs://...
           --output=gs://...
@@ -49,8 +50,6 @@ from __future__ import division
 
 import json
 import logging
-import os
-import sys
 import unittest
 import uuid
 
@@ -88,10 +87,6 @@ def record(i):
   }
 
 
-@unittest.skipIf(
-    sys.version_info[0] >= 3 and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-    'Due to a known issue in avro-python3 package, this'
-    'test is skipped until BEAM-6522 is addressed. ')
 class FastavroIT(unittest.TestCase):
 
   SCHEMA_STRING = '''
@@ -181,7 +176,7 @@ class FastavroIT(unittest.TestCase):
           if l != r:
             raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
 
-        assertEqual(v.keys(), ['avro', 'fastavro'])
+        assertEqual(sorted(v.keys()), ['avro', 'fastavro'])
         avro_values = v['avro']
         fastavro_values = v['fastavro']
         assertEqual(avro_values, fastavro_values)

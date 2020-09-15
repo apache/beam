@@ -18,7 +18,10 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.testing.expansion')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.testing.expansion')
 
 description = "Apache Beam :: SDKs :: Java :: Test Expansion Service"
 ext.summary = """Testing Expansion Service used for executing cross-language transform tests."""
@@ -28,10 +31,12 @@ dependencies {
   compile project(path: ":runners:core-construction-java")
   compile project(path: ":sdks:java:io:parquet")
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:expansion-service")
+  testRuntime library.java.hadoop_client
 }
 
 task runTestExpansionService (type: JavaExec) {
-  main = "org.apache.beam.sdk.testing.expansion.TestExpansionService"
+  main = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.test.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
@@ -43,10 +48,16 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
   mergeServiceFiles()
   manifest {
     attributes(
-            'Main-Class': 'org.apache.beam.sdk.testing.expansion.TestExpansionService'
+            'Main-Class': 'org.apache.beam.sdk.expansion.service.ExpansionService'
     )
   }
-  from { project.configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
+  exclude "META-INF/INDEX.LIST"
+  exclude "META-INF/*.SF"
+  exclude "META-INF/*.DSA"
+  exclude "META-INF/*.RSA"
+  configurations = [
+    project.configurations.testRuntime
+  ]
   from sourceSets.main.output
   from sourceSets.test.output
 }

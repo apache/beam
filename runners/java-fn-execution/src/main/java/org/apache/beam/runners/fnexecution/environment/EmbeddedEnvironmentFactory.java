@@ -87,14 +87,15 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
         executor.submit(
             () -> {
               try {
                 FnHarness.main(
-                    "id",
+                    workerId,
                     options,
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),

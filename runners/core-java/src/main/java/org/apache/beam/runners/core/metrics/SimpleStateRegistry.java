@@ -48,7 +48,7 @@ public class SimpleStateRegistry {
       for (Map.Entry<String, String> entry : state.getLabels().entrySet()) {
         builder.setLabel(entry.getKey(), entry.getValue());
       }
-      builder.setInt64Value(state.getTotalMillis());
+      builder.setInt64SumValue(state.getTotalMillis());
       monitoringInfos.add(builder.build());
     }
     return monitoringInfos;

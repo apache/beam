@@ -43,11 +43,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.hamcrest.Matchers;
@@ -980,7 +981,11 @@ public class GreedyPipelineFuserTest {
             .putEnvironments("common", Environments.createDockerEnvironment("common"))
             .build();
     FusedPipeline fused =
-        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+        GreedyPipelineFuser.fuse(
+            Pipeline.newBuilder()
+                .setComponents(components)
+                .addRequirements(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN)
+                .build());
 
     assertThat(
         fused.getRunnerExecutedTransforms(),
@@ -1036,7 +1041,7 @@ public class GreedyPipelineFuserTest {
                     .setPayload(
                         ParDoPayload.newBuilder()
                             .setDoFn(FunctionSpec.newBuilder())
-                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs("timer", TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .setEnvironmentId("common")
@@ -1054,7 +1059,11 @@ public class GreedyPipelineFuserTest {
             .build();
 
     FusedPipeline fused =
-        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+        GreedyPipelineFuser.fuse(
+            Pipeline.newBuilder()
+                .setComponents(components)
+                .addRequirements(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN)
+                .build());
 
     assertThat(
         fused.getRunnerExecutedTransforms(),
@@ -1091,7 +1100,7 @@ public class GreedyPipelineFuserTest {
                         ParDoPayload.newBuilder()
                             .setDoFn(FunctionSpec.newBuilder())
                             .putStateSpecs("state", StateSpec.getDefaultInstance())
-                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs("timer", TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .setEnvironmentId("common")
@@ -1107,7 +1116,11 @@ public class GreedyPipelineFuserTest {
             .build();
 
     FusedPipeline fused =
-        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+        GreedyPipelineFuser.fuse(
+            Pipeline.newBuilder()
+                .setComponents(components)
+                .addRequirements(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN)
+                .build());
 
     assertThat(
         fused.getRunnerExecutedTransforms(),

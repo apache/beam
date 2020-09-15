@@ -33,6 +33,11 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
+try:
+  from guppy import hpy
+except ImportError:
+  hpy = None
+
 
 def thread_dump():
   """Get a thread dump for the current SDK worker harness. """
@@ -41,11 +46,16 @@ def thread_dump():
   frames = sys._current_frames()  # pylint: disable=protected-access
 
   for t in threading.enumerate():
-    stack_trace = ''.join(traceback.format_stack(frames[t.ident]))
+    try:
+      stack_trace = ''.join(traceback.format_stack(frames[t.ident]))
+    except KeyError:
+      # the thread may have been destroyed already while enumerating, in such
+      # case, skip to next thread.
+      continue
     thread_ident_name = (t.ident, t.name)
     stack_traces[stack_trace].append(thread_ident_name)
 
-  all_traces = ['=' * 10 + 'THREAD DUMP' + '=' * 10]
+  all_traces = ['=' * 10 + ' THREAD DUMP ' + '=' * 10]
   for stack, identity in stack_traces.items():
     ident, name = identity[0]
     trace = '--- Thread #%s name: %s %s---\n' % (
@@ -61,13 +71,24 @@ def thread_dump():
   return '\n'.join(all_traces)
 
 
+def heap_dump():
+  """Get a heap dump for the current SDK worker harness. """
+  banner = '=' * 10 + ' HEAP DUMP ' + '=' * 10 + '\n'
+  if not hpy:
+    heap = 'Unable to import guppy, the heap dump will be skipped.\n'
+  else:
+    heap = '%s\n' % hpy().heap()
+  ending = '=' * 30
+  return banner + heap + ending
+
+
 def _active_processing_bundles_state(bundle_process_cache):
   """Gather information about the currently in-processing active bundles.
 
   The result only keeps the longest lasting 10 bundles to avoid excessive
   spamming.
   """
-  active_bundles = ['=' * 10 + 'ACTIVE PROCESSING BUNDLES' + '=' * 10]
+  active_bundles = ['=' * 10 + ' ACTIVE PROCESSING BUNDLES ' + '=' * 10]
   if not bundle_process_cache.active_bundle_processors:
     active_bundles.append("No active processing bundles.")
   else:
@@ -100,7 +121,8 @@ DONE = object()
 
 class FnApiWorkerStatusHandler(object):
   """FnApiWorkerStatusHandler handles worker status request from Runner. """
-  def __init__(self, status_address, bundle_process_cache=None):
+  def __init__(
+      self, status_address, bundle_process_cache=None, enable_heap_dump=False):
     """Initialize FnApiWorkerStatusHandler.
 
     Args:
@@ -118,6 +140,7 @@ class FnApiWorkerStatusHandler(object):
     self._server = threading.Thread(
         target=lambda: self._serve(), name='fn_api_status_handler')
     self._server.daemon = True
+    self._enable_heap_dump = enable_heap_dump
     self._server.start()
 
   def _get_responses(self):
@@ -147,7 +170,11 @@ class FnApiWorkerStatusHandler(object):
     all_status_sections = [
         _active_processing_bundles_state(self._bundle_process_cache)
     ] if self._bundle_process_cache else []
+
     all_status_sections.append(thread_dump())
+    if self._enable_heap_dump:
+      all_status_sections.append(heap_dump())
+
     return '\n'.join(all_status_sections)
 
   def close(self):

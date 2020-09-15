@@ -567,5 +567,6 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     size = 0
     for x in arrays:
       for b in x.buffers():
-        size = size + b.size
+        if b is not None:
+          size = size + b.size
     self._record_batches_byte_size = self._record_batches_byte_size + size

@@ -85,7 +85,7 @@ public class SamzaDoFnRunners {
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
-    if (signature.usesState()) {
+    if (DoFnSignatures.isStateful(doFn)) {
       keyedInternals = new KeyedInternals(stateInternalsFactory, timerInternalsFactory);
       stateInternals = keyedInternals.stateInternals();
       timerInternals = keyedInternals.timerInternals();
@@ -264,9 +264,10 @@ public class SamzaDoFnRunners {
     }
 
     @Override
-    public void onTimer(
+    public <KeyT> void onTimer(
         String timerId,
         String timerFamilyId,
+        KeyT key,
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
@@ -286,6 +287,9 @@ public class SamzaDoFnRunners {
         inputReceiver = null;
       }
     }
+
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
     @Override
     public DoFn<InT, FnOutT> getFn() {

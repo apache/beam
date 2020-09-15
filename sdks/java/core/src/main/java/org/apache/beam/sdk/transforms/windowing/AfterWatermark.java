@@ -21,11 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -46,16 +47,16 @@ import org.joda.time.Instant;
  * Thus, if absolute correctness over time is important to your use case, you may want to consider
  * using a trigger that accounts for late data. The default trigger, {@code
  * Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires once when the watermark passes
- * the end of the window and then immediately therafter when any late data arrives, is one such
+ * the end of the window and then immediately thereafter when any late data arrives, is one such
  * example.
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
- * <p>Additionaly firings before or after the watermark can be requested by calling {@code
+ * <p>Additionally firings before or after the watermark can be requested by calling {@code
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public class AfterWatermark {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
@@ -72,7 +73,7 @@ public class AfterWatermark {
   public static class AfterWatermarkEarlyAndLate extends Trigger {
 
     private final OnceTrigger earlyTrigger;
-    @Nullable private final OnceTrigger lateTrigger;
+    private final @Nullable OnceTrigger lateTrigger;
 
     public OnceTrigger getEarlyTrigger() {
       return earlyTrigger;
@@ -182,7 +183,7 @@ public class AfterWatermark {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof FromEndOfWindow;
     }
 

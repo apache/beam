@@ -36,14 +36,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
-from apache_beam.typehints import decorators
 from apache_beam.typehints.decorators import get_signature
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
 # pylint: disable=expression-not-assigned
-
-decorators._enable_from_callable = True
 
 
 class MainInputTest(unittest.TestCase):
@@ -103,12 +100,9 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
-  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
   def test_typed_callable_iterable_output(self):
-    # TODO(BEAM-7981): 2.7 and 3.x both erroneously strip the Iterable, but the
-    #   test only fails in 3.x.
     @typehints.with_input_types(int)
-    @typehints.with_output_types(typehints.Iterable[str])
+    @typehints.with_output_types(typehints.Iterable[typehints.Iterable[str]])
     def do_fn(element):
       return [[str(element)] * 2]
 
@@ -162,27 +156,26 @@ class MainInputTest(unittest.TestCase):
         else:
           yield beam.pvalue.TaggedOutput('even', element)
 
-    p = TestPipeline()
-    res = (
-        p
-        | beam.Create([1, 2, 3])
-        | beam.ParDo(MyDoFn()).with_outputs('odd', 'even'))
-    self.assertIsNotNone(res[None].element_type)
-    self.assertIsNotNone(res['even'].element_type)
-    self.assertIsNotNone(res['odd'].element_type)
-    res_main = (
-        res[None]
-        | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_even = (
-        res['even']
-        | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_odd = (
-        res['odd']
-        | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    assert_that(res_main, equal_to([]), label='none_check')
-    assert_that(res_even, equal_to([2]), label='even_check')
-    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
-    p.run()
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 3])
+          | beam.ParDo(MyDoFn()).with_outputs('odd', 'even'))
+      self.assertIsNotNone(res[None].element_type)
+      self.assertIsNotNone(res['even'].element_type)
+      self.assertIsNotNone(res['odd'].element_type)
+      res_main = (
+          res[None]
+          | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_even = (
+          res['even']
+          | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_odd = (
+          res['odd']
+          | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      assert_that(res_main, equal_to([]), label='none_check')
+      assert_that(res_even, equal_to([2]), label='even_check')
+      assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
     with self.assertRaises(ValueError):
       _ = res['undeclared tag']
@@ -195,24 +188,23 @@ class MainInputTest(unittest.TestCase):
         else:
           yield beam.pvalue.TaggedOutput('even', element)
 
-    p = TestPipeline()
-    res = (p | beam.Create([1, 2, 3]) | beam.ParDo(MyDoFn()).with_outputs())
-    self.assertIsNotNone(res[None].element_type)
-    self.assertIsNotNone(res['even'].element_type)
-    self.assertIsNotNone(res['odd'].element_type)
-    res_main = (
-        res[None]
-        | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_even = (
-        res['even']
-        | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_odd = (
-        res['odd']
-        | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    assert_that(res_main, equal_to([]), label='none_check')
-    assert_that(res_even, equal_to([2]), label='even_check')
-    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
-    p.run()
+    with TestPipeline() as p:
+      res = (p | beam.Create([1, 2, 3]) | beam.ParDo(MyDoFn()).with_outputs())
+      self.assertIsNotNone(res[None].element_type)
+      self.assertIsNotNone(res['even'].element_type)
+      self.assertIsNotNone(res['odd'].element_type)
+      res_main = (
+          res[None]
+          | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_even = (
+          res['even']
+          | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_odd = (
+          res['odd']
+          | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      assert_that(res_main, equal_to([]), label='none_check')
+      assert_that(res_even, equal_to([2]), label='even_check')
+      assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
 
 class NativeTypesTest(unittest.TestCase):
@@ -326,13 +318,7 @@ class SideInputTest(unittest.TestCase):
     #   with_output_types(...) when this bug is fixed.
     result = (['a', 'b', 'c']
               | beam.Map(lambda *args: args, 5).with_input_types(
-                  int, str).with_output_types(typehints.Tuple[str, int]))
-    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
-
-    # Type hint order doesn't matter for VAR_POSITIONAL.
-    result = (['a', 'b', 'c']
-              | beam.Map(lambda *args: args, 5).with_input_types(
-                  int, str).with_output_types(typehints.Tuple[str, int]))
+                  str, int).with_output_types(typehints.Tuple[str, int]))
     self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     if sys.version_info >= (3, ):

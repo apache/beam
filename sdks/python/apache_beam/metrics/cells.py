@@ -31,10 +31,6 @@ import time
 from builtins import object
 from typing import Optional
 
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import metrics_pb2
-from apache_beam.utils import proto_utils
-
 try:
   import cython
 except ImportError:
@@ -114,19 +110,12 @@ class CounterCell(MetricCell):
     with self._lock:
       return self.value
 
-  def to_runner_api_user_metric(self, metric_name):
-    return beam_fn_api_pb2.Metrics.User(
-        metric_name=metric_name.to_runner_api(),
-        counter_data=beam_fn_api_pb2.Metrics.User.CounterData(value=self.value))
-
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_counter(
         name.namespace,
         name.name,
-        metrics_pb2.Metric(
-            counter_data=metrics_pb2.CounterData(
-                int64_value=self.get_cumulative())),
+        self.get_cumulative(),
         ptransform=transform_id)
 
 
@@ -179,17 +168,12 @@ class DistributionCell(MetricCell):
     with self._lock:
       return self.data.get_cumulative()
 
-  def to_runner_api_user_metric(self, metric_name):
-    return beam_fn_api_pb2.Metrics.User(
-        metric_name=metric_name.to_runner_api(),
-        distribution_data=self.get_cumulative().to_runner_api())
-
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_distribution(
         name.namespace,
         name.name,
-        self.get_cumulative().to_runner_api_monitoring_info(),
+        self.get_cumulative(),
         ptransform=transform_id)
 
 
@@ -233,17 +217,12 @@ class GaugeCell(MetricCell):
     with self._lock:
       return self.data.get_cumulative()
 
-  def to_runner_api_user_metric(self, metric_name):
-    return beam_fn_api_pb2.Metrics.User(
-        metric_name=metric_name.to_runner_api(),
-        gauge_data=self.get_cumulative().to_runner_api())
-
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_gauge(
         name.namespace,
         name.name,
-        self.get_cumulative().to_runner_api_monitoring_info(),
+        self.get_cumulative(),
         ptransform=transform_id)
 
 
@@ -375,22 +354,6 @@ class GaugeData(object):
     # type: (...) -> GaugeData
     return GaugeData(value, timestamp=timestamp)
 
-  def to_runner_api(self):
-    # type: () -> beam_fn_api_pb2.Metrics.User.GaugeData
-    return beam_fn_api_pb2.Metrics.User.GaugeData(
-        value=self.value, timestamp=proto_utils.to_Timestamp(self.timestamp))
-
-  @staticmethod
-  def from_runner_api(proto):
-    # type: (beam_fn_api_pb2.Metrics.User.GaugeData) -> GaugeData
-    return GaugeData(
-        proto.value, timestamp=proto_utils.from_Timestamp(proto.timestamp))
-
-  def to_runner_api_monitoring_info(self):
-    """Returns a Metric with this value for use in a MonitoringInfo."""
-    return metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(int64_value=self.value))
-
 
 class DistributionData(object):
   """For internal use only; no backwards-compatibility guarantees.
@@ -448,23 +411,6 @@ class DistributionData(object):
   @staticmethod
   def singleton(value):
     return DistributionData(value, 1, value, value)
-
-  def to_runner_api(self):
-    # type: () -> beam_fn_api_pb2.Metrics.User.DistributionData
-    return beam_fn_api_pb2.Metrics.User.DistributionData(
-        count=self.count, sum=self.sum, min=self.min, max=self.max)
-
-  @staticmethod
-  def from_runner_api(proto):
-    # type: (beam_fn_api_pb2.Metrics.User.DistributionData) -> DistributionData
-    return DistributionData(proto.sum, proto.count, proto.min, proto.max)
-
-  def to_runner_api_monitoring_info(self):
-    """Returns a Metric with this value for use in a MonitoringInfo."""
-    return metrics_pb2.Metric(
-        distribution_data=metrics_pb2.DistributionData(
-            int_distribution_data=metrics_pb2.IntDistributionData(
-                count=self.count, sum=self.sum, min=self.min, max=self.max)))
 
 
 class MetricAggregator(object):

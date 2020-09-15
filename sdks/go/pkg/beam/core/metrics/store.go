@@ -28,6 +28,7 @@ import (
 // Labels provide the context for the given metric.
 type Labels struct {
 	transform, namespace, name string
+	pcollection                string
 }
 
 // Transform returns the transform context for this metric, if available.
@@ -38,6 +39,24 @@ func (l Labels) Namespace() string { return l.namespace }
 
 // Name returns the name for this metric.
 func (l Labels) Name() string { return l.name }
+
+// UserLabels builds a Labels for user metrics.
+// Intended for framework use.
+func UserLabels(transform, namespace, name string) Labels {
+	return Labels{transform: transform, namespace: namespace, name: name}
+}
+
+// PCollectionLabels builds a Labels for pcollection metrics.
+// Intended for framework use.
+func PCollectionLabels(pcollection string) Labels {
+	return Labels{pcollection: pcollection}
+}
+
+// PTransformLabels builds a Labels for transform metrics.
+// Intended for framework use.
+func PTransformLabels(transform string) Labels {
+	return Labels{transform: transform}
+}
 
 // Extractor allows users to access metrics programatically after
 // pipeline completion. Users assign functions to fields that

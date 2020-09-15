@@ -138,6 +138,7 @@ public class BeamFnDataWriteRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
@@ -148,8 +149,11 @@ public class BeamFnDataWriteRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null /* addResetFunction */,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(teardownFunctions, empty());
 
@@ -181,7 +185,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId, TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId, TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
@@ -210,7 +214,8 @@ public class BeamFnDataWriteRunnerTest {
             RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
             bundleId::get,
             COMPONENTS.getCodersMap(),
-            mockBeamFnDataClient);
+            mockBeamFnDataClient,
+            null /* beamFnStateClient */);
 
     // Process for bundle id 0
     writeRunner.registerForOutput();
@@ -218,7 +223,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
@@ -237,7 +242,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("GHI"));

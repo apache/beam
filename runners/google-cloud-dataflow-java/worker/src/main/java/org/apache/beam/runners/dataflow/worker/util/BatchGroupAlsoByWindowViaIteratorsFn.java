@@ -33,6 +33,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
@@ -154,7 +156,8 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
    * {@link Reiterable} representing a view of all elements in a base {@link Reiterator} that are in
    * a given window.
    */
-  private static class WindowReiterable<V> implements Reiterable<V> {
+  private static class WindowReiterable<V>
+      extends ElementByteSizeObservableIterable<V, WindowReiterator<V>> implements Reiterable<V> {
     private PeekingReiterator<WindowedValue<V>> baseIterator;
     private BoundedWindow window;
 
@@ -165,12 +168,17 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
     }
 
     @Override
-    public Reiterator<V> iterator() {
+    public WindowReiterator<V> iterator() {
+      return createIterator();
+    }
+
+    @Override
+    protected WindowReiterator<V> createIterator() {
       // We don't copy the baseIterator when creating the first WindowReiterator
       // so that the WindowReiterator can advance the baseIterator.  We have to
       // make a copy afterwards so that future calls to iterator() will start
       // at the right spot.
-      Reiterator<V> result = new WindowReiterator<V>(baseIterator, window);
+      WindowReiterator<V> result = new WindowReiterator<V>(baseIterator, window);
       baseIterator = baseIterator.copy();
       return result;
     }
@@ -184,7 +192,8 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
   /**
    * The {@link Reiterator} used by {@link BatchGroupAlsoByWindowViaIteratorsFn.WindowReiterable}.
    */
-  private static class WindowReiterator<V> implements Reiterator<V> {
+  private static class WindowReiterator<V> extends ElementByteSizeObservableIterator<V>
+      implements Reiterator<V> {
     private PeekingReiterator<WindowedValue<V>> iterator;
     private BoundedWindow window;
 

@@ -38,6 +38,7 @@ To execute this pipeline using the Google Cloud Dataflow service, specify
 pipeline configuration:::
 
   --project YOUR_PROJECT_ID
+  --region GCE_REGION
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME

@@ -29,6 +29,8 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 import "google/protobuf/descriptor.proto";
 
+import "proto3_schema_options.proto";
+
 option java_package = "org.apache.beam.sdk.extensions.protobuf";
 
 message Primitive {
@@ -121,3 +123,47 @@ message WktMessage {
     google.protobuf.Duration duration = 17;
 }
 
+message OptionMessage {
+    option (proto3_schema_options.message_option_int) = 42;
+    option (proto3_schema_options.message_option_string) = "this is a message string";
+    option (proto3_schema_options.message_option_message) = {
+		single_string: "foobar in message"
+		single_int32: 12
+		single_int64: 34
+	};
+    option (proto3_schema_options.message_option_repeated) = "string_1";
+    option (proto3_schema_options.message_option_repeated) = "string_2";
+    option (proto3_schema_options.message_option_repeated) = "string_3";
+    option (proto3_schema_options.message_option_repeated) = "string_3";
+    option (proto3_schema_options.message_option_repeated_message) = {
+		single_string: "string in message in option in message"
+	};
+    option (proto3_schema_options.message_option_repeated_message) = {
+		single_int32: 1
+	};
+    option (proto3_schema_options.message_option_repeated_message) = {
+		single_int64: 2
+	};
+
+    string field_one = 1 [
+        (proto3_schema_options.field_option_int) = 13,
+        (proto3_schema_options.field_option_string) = "this is a field string",
+        (proto3_schema_options.field_option_message) = {
+            single_string: "foobar in field"
+            single_int32: 56
+            single_int64: 78
+        },
+        (proto3_schema_options.field_option_repeated) = "field_string_1",
+        (proto3_schema_options.field_option_repeated) = "field_string_2",
+        (proto3_schema_options.field_option_repeated) = "field_string_3",
+
+        (proto3_schema_options.field_option_repeated_message) = {
+            single_string: "string in message in option in field"
+        },
+        (proto3_schema_options.field_option_repeated_message) = {
+            single_int32: 77
+        },
+        (proto3_schema_options.field_option_repeated_message) = {
+            single_int64: 88
+        }];
+}

@@ -38,6 +38,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from typing import Dict
 from typing import Optional
 from typing import Tuple
@@ -47,7 +48,7 @@ import grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import sdk_worker
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,7 +78,8 @@ class BeamFnExternalWorkerPoolServicer(
       container_executable=None  # type: Optional[str]
   ):
     # type: (...) -> Tuple[str, grpc.Server]
-    worker_server = grpc.server(UnboundedThreadPoolExecutor())
+    worker_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance())
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
     worker_pool = cls(
@@ -88,6 +90,7 @@ class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
         worker_pool, worker_server)
     worker_server.start()
+    _LOGGER.info('Listening for workers at %s', worker_address)
 
     # Register to kill the subprocesses on exit.
     def kill_worker_processes():
@@ -113,7 +116,7 @@ class BeamFnExternalWorkerPoolServicer(
             'SdkHarness('
             '"%s",'
             'worker_id="%s",'
-            'state_cache_size=%d'
+            'state_cache_size=%d,'
             'data_buffer_time_limit_ms=%d'
             ')'
             '.run()' % (
@@ -156,8 +159,8 @@ class BeamFnExternalWorkerPoolServicer(
         worker_thread.start()
 
       return beam_fn_api_pb2.StartWorkerResponse()
-    except Exception as exn:
-      return beam_fn_api_pb2.StartWorkerResponse(error=str(exn))
+    except Exception:
+      return beam_fn_api_pb2.StartWorkerResponse(error=traceback.format_exc())
 
   def StopWorker(self,
                  stop_worker_request,  # type: beam_fn_api_pb2.StopWorkerRequest

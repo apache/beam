@@ -23,13 +23,13 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 // Update merges a pipeline with the given components, which may add, replace
 // or delete its values. It returns the merged pipeline. The input is not
 // modified.
-func Update(p *pb.Pipeline, values *pb.Components) (*pb.Pipeline, error) {
+func Update(p *pipepb.Pipeline, values *pipepb.Components) (*pipepb.Pipeline, error) {
 	ret := shallowClonePipeline(p)
 	reflectx.UpdateMap(ret.Components.Transforms, values.Transforms)
 	reflectx.UpdateMap(ret.Components.Pcollections, values.Pcollections)
@@ -43,7 +43,7 @@ func Update(p *pb.Pipeline, values *pb.Components) (*pb.Pipeline, error) {
 // as roots and input/output for composite transforms. It also
 // ensures that unique names are so and topologically sorts each
 // subtransform list.
-func Normalize(p *pb.Pipeline) (*pb.Pipeline, error) {
+func Normalize(p *pipepb.Pipeline) (*pipepb.Pipeline, error) {
 	if len(p.GetComponents().GetTransforms()) == 0 {
 		return nil, errors.New("empty pipeline")
 	}
@@ -56,15 +56,15 @@ func Normalize(p *pb.Pipeline) (*pb.Pipeline, error) {
 }
 
 // TrimCoders returns the transitive closure of the given coders ids.
-func TrimCoders(coders map[string]*pb.Coder, ids ...string) map[string]*pb.Coder {
-	ret := make(map[string]*pb.Coder)
+func TrimCoders(coders map[string]*pipepb.Coder, ids ...string) map[string]*pipepb.Coder {
+	ret := make(map[string]*pipepb.Coder)
 	for _, id := range ids {
 		walkCoders(coders, ret, id)
 	}
 	return ret
 }
 
-func walkCoders(coders, accum map[string]*pb.Coder, id string) {
+func walkCoders(coders, accum map[string]*pipepb.Coder, id string) {
 	if _, ok := accum[id]; ok {
 		return // already visited
 	}
@@ -77,7 +77,7 @@ func walkCoders(coders, accum map[string]*pb.Coder, id string) {
 }
 
 // computeRoots returns the root (top-level) transform IDs.
-func computeRoots(xforms map[string]*pb.PTransform) []string {
+func computeRoots(xforms map[string]*pipepb.PTransform) []string {
 	var roots []string
 	parents := makeParentMap(xforms)
 	for id := range xforms {
@@ -89,7 +89,7 @@ func computeRoots(xforms map[string]*pb.PTransform) []string {
 	return TopologicalSort(xforms, roots)
 }
 
-func makeParentMap(xforms map[string]*pb.PTransform) map[string]string {
+func makeParentMap(xforms map[string]*pipepb.PTransform) map[string]string {
 	parent := make(map[string]string)
 	for id, t := range xforms {
 		for _, key := range t.Subtransforms {
@@ -101,8 +101,8 @@ func makeParentMap(xforms map[string]*pb.PTransform) map[string]string {
 
 // computeCompositeInputOutput computes the derived input/output maps
 // for composite transforms.
-func computeCompositeInputOutput(xforms map[string]*pb.PTransform) map[string]*pb.PTransform {
-	ret := reflectx.ShallowClone(xforms).(map[string]*pb.PTransform)
+func computeCompositeInputOutput(xforms map[string]*pipepb.PTransform) map[string]*pipepb.PTransform {
+	ret := reflectx.ShallowClone(xforms).(map[string]*pipepb.PTransform)
 
 	seen := make(map[string]bool)
 	for id := range xforms {
@@ -113,7 +113,7 @@ func computeCompositeInputOutput(xforms map[string]*pb.PTransform) map[string]*p
 
 // walk traverses the structure recursively to compute the input/output
 // maps of composite transforms. Update the transform map.
-func walk(id string, ret map[string]*pb.PTransform, seen map[string]bool) {
+func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool) {
 	t := ret[id]
 	if seen[id] || len(t.Subtransforms) == 0 {
 		return
@@ -126,14 +126,23 @@ func walk(id string, ret map[string]*pb.PTransform, seen map[string]bool) {
 
 	in := make(map[string]bool)
 	out := make(map[string]bool)
+	local := map[string]bool{id: true}
 	for _, sid := range t.Subtransforms {
 		walk(sid, ret, seen)
 		inout(ret[sid], in, out)
+		local[sid] = true
 	}
+
+	// At this point, we know all the inputs and outputs of this composite.
+	// However, outputs in this PTransform can also be used by PTransforms
+	// external to this composite. So we must check the inputs in the rest of
+	// the graph, and ensure they're counted.
+	extIn := make(map[string]bool)
+	externalIns(local, ret, extIn, out)
 
 	upd := ShallowClonePTransform(t)
 	upd.Inputs = diff(in, out)
-	upd.Outputs = diff(out, in)
+	upd.Outputs = diffAndMerge(out, in, extIn)
 	upd.Subtransforms = TopologicalSort(ret, upd.Subtransforms)
 
 	ret[id] = upd
@@ -158,7 +167,7 @@ func diff(a, b map[string]bool) map[string]string {
 }
 
 // inout adds the input and output pcollection ids to the accumulators.
-func inout(transform *pb.PTransform, in, out map[string]bool) {
+func inout(transform *pipepb.PTransform, in, out map[string]bool) {
 	for _, col := range transform.GetInputs() {
 		in[col] = true
 	}
@@ -166,15 +175,44 @@ func inout(transform *pb.PTransform, in, out map[string]bool) {
 		out[col] = true
 	}
 }
+func diffAndMerge(out, in, extIn map[string]bool) map[string]string {
+	ret := diff(out, in)
+	for key := range extIn {
+		if ret == nil {
+			ret = make(map[string]string)
+		}
+		ret[key] = key
+	}
+	return ret
+}
+
+// externalIns checks the unseen non-composite graph
+func externalIns(counted map[string]bool, xforms map[string]*pipepb.PTransform, extIn, out map[string]bool) {
+	for id, pt := range xforms {
+		// Ignore other composites or already counted transforms.
+		if counted[id] || len(pt.GetSubtransforms()) != 0 {
+			continue
+		}
+		// Check this PTransform's inputs for anything output by something
+		// the current composite.
+		for col := range out {
+			for _, incol := range pt.GetInputs() {
+				if col == incol {
+					extIn[col] = true
+				}
+			}
+		}
+	}
+}
 
 // ensureUniqueNames ensures that each name is unique. Any conflict is
 // resolved by adding '1, '2, etc to the name.
-func ensureUniqueNames(xforms map[string]*pb.PTransform) map[string]*pb.PTransform {
-	ret := reflectx.ShallowClone(xforms).(map[string]*pb.PTransform)
+func ensureUniqueNames(xforms map[string]*pipepb.PTransform) map[string]*pipepb.PTransform {
+	ret := reflectx.ShallowClone(xforms).(map[string]*pipepb.PTransform)
 
 	// Sort the transforms to make to make renaming deterministic.
 	var ordering []string
-	for id, _ := range xforms {
+	for id := range xforms {
 		ordering = append(ordering, id)
 	}
 	sort.Strings(ordering)

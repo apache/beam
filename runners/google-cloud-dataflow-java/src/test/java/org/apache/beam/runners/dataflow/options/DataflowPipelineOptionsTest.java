@@ -26,7 +26,6 @@ import static org.powermock.api.mockito.PowerMockito.when;
 
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.DefaultGcpRegionFactory;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -215,7 +214,7 @@ public class DataflowPipelineOptionsTest {
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
       when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-      assertEquals("us-central1", options.getRegion());
+      assertEquals("", options.getRegion());
     }
 
     @Test
@@ -225,7 +224,7 @@ public class DataflowPipelineOptionsTest {
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
       when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenThrow(new IOException());
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-      assertEquals("us-central1", options.getRegion());
+      assertEquals("", options.getRegion());
     }
 
     @Test

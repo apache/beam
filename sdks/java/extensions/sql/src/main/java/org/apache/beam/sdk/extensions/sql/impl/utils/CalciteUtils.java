@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -45,38 +47,11 @@ public class CalciteUtils {
   // SQL has schema types that do not directly correspond to Beam Schema types. We define
   // LogicalTypes to represent each of these types.
 
-  /** A LogicalType corresponding to DATE. */
-  public static class DateType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlDateType";
-
-    public DateType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
-
-  /** A LogicalType corresponding to TIME. */
-  public static class TimeType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlTimeType";
-
-    public TimeType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
-
   /** A LogicalType corresponding to TIME_WITH_LOCAL_TIME_ZONE. */
   public static class TimeWithLocalTzType extends PassThroughLogicalType<Instant> {
     public static final String IDENTIFIER = "SqlTimeWithLocalTzType";
 
     public TimeWithLocalTzType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
-
-  /** A LogicalType corresponding to TIMESTAMP_WITH_LOCAL_TIME_ZONE. */
-  public static class TimestampWithLocalTzType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
-
-    public TimestampWithLocalTzType() {
       super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
@@ -98,10 +73,10 @@ public class CalciteUtils {
 
     if (fieldType.getTypeName().isLogicalType()) {
       String logicalId = fieldType.getLogicalType().getIdentifier();
-      return logicalId.equals(DateType.IDENTIFIER)
-          || logicalId.equals(TimeType.IDENTIFIER)
+      return logicalId.equals(SqlTypes.DATE.getIdentifier())
+          || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
-          || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
+          || logicalId.equals(SqlTypes.DATETIME.getIdentifier());
     }
     return false;
   }
@@ -130,13 +105,19 @@ public class CalciteUtils {
   public static final FieldType VARBINARY = FieldType.BYTES;
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType CHAR = FieldType.logicalType(new CharType());
-  public static final FieldType DATE = FieldType.logicalType(new DateType());
-  public static final FieldType TIME = FieldType.logicalType(new TimeType());
+  public static final FieldType DATE = FieldType.logicalType(SqlTypes.DATE);
+  public static final FieldType NULLABLE_DATE =
+      FieldType.logicalType(SqlTypes.DATE).withNullable(true);
+  public static final FieldType TIME = FieldType.logicalType(SqlTypes.TIME);
+  public static final FieldType NULLABLE_TIME =
+      FieldType.logicalType(SqlTypes.TIME).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
-  public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
-      FieldType.logicalType(new TimestampWithLocalTzType());
+  public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
+  public static final FieldType TIMESTAMP_WITH_LOCAL_TZ = FieldType.logicalType(SqlTypes.DATETIME);
+  public static final FieldType NULLABLE_TIMESTAMP_WITH_LOCAL_TZ =
+      FieldType.logicalType(SqlTypes.DATETIME).withNullable(true);
 
   private static final BiMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
       ImmutableBiMap.<FieldType, SqlTypeName>builder()
@@ -211,12 +192,16 @@ public class CalciteUtils {
         }
 
         SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
-        if (typeName != null) {
-          return typeName;
-        } else {
+        if (typeName == null) {
           // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
           // type of SQL string we want. In this case, use the default mapping.
-          return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+          typeName = BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+        }
+        if (typeName == null) {
+          throw new IllegalArgumentException(
+              String.format("Cannot find a matching Calcite SqlTypeName for Beam type: %s", type));
+        } else {
+          return typeName;
         }
     }
   }
@@ -302,18 +287,26 @@ public class CalciteUtils {
 
   /**
    * SQL-Java type mapping, with specified Beam rules: <br>
-   * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it.
+   * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
+   * 2. For a list, the component type is needed to create a Sql array type.
    *
-   * @param rawType
-   * @return
+   * @param type
+   * @return Calcite RelDataType
    */
-  public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type rawType) {
+  public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type type) {
     // For Joda time types, return SQL type for java.util.Date.
-    if (rawType instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) rawType)) {
+    if (type instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(Date.class);
-    } else if (rawType instanceof Class && ByteString.class.isAssignableFrom((Class<?>) rawType)) {
+    } else if (type instanceof Class && ByteString.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(byte[].class);
+    } else if (type instanceof ParameterizedType
+        && java.util.List.class.isAssignableFrom(
+            (Class<?>) ((ParameterizedType) type).getRawType())) {
+      ParameterizedType parameterizedType = (ParameterizedType) type;
+      Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+      RelDataType collectionElementType = typeFactory.createJavaType(genericType);
+      return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
     }
-    return typeFactory.createJavaType((Class) rawType);
+    return typeFactory.createJavaType((Class) type);
   }
 }

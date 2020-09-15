@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.options;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -26,11 +27,12 @@ import org.apache.beam.sdk.options.Validation;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.utils.AttributeMap;
 
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public interface AwsOptions extends PipelineOptions {
 
   /** AWS region used by the AWS client. */
@@ -98,4 +100,30 @@ public interface AwsOptions extends PipelineOptions {
   ProxyConfiguration getProxyConfiguration();
 
   void setProxyConfiguration(ProxyConfiguration value);
+
+  /**
+   * The client configuration instance that should be used to configure AWS service clients. Please
+   * note that the configuration deserialization allows aws http client configuration settings.
+   *
+   * <p>For example, to set different timeout for aws client service : Note that all the below
+   * fields are optional, so only add those configurations that need to be set. <code>
+   * --attributeMap={
+   *   "connectionAcquisitionTimeout":"PT1000S",
+   *   "connectionMaxIdleTime":"PT3000S",
+   *   "connectionTimeout":"PT10000S",
+   *   "socketTimeout":"PT600S",
+   *   "maxConnections":"10",
+   *   "socketTimeout":"PT5000SS"
+   * }
+   * </code>
+   *
+   * @return
+   */
+  @Description(
+      "The attribute map instance that should be used to configure AWS http client configuration parameters."
+          + "Mentioned parameters are the available parameters that can be set. All above parameters are "
+          + "optional set only those that need custom changes.")
+  AttributeMap getAttributeMap();
+
+  void setAttributeMap(AttributeMap attributeMap);
 }

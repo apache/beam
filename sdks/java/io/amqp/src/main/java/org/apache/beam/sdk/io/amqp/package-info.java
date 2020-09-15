@@ -17,4 +17,8 @@
  */
 
 /** Transforms for reading and writing using AMQP 1.0 protocol. */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.amqp;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

@@ -19,9 +19,8 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -69,6 +68,7 @@ public class KinesisReaderTest {
         generator,
         kinesisSource,
         WatermarkPolicyFactory.withArrivalTimePolicy(),
+        RateLimitPolicyFactory.withoutLimiter(),
         Duration.ZERO,
         backlogBytesCheckThreshold,
         ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD) {
@@ -135,50 +135,50 @@ public class KinesisReaderTest {
   }
 
   @Test
-  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenKinesisExceptionsOccur()
+  public void getSplitBacklogBytesShouldReturnLastSeenValueWhenKinesisExceptionsOccur()
       throws TransientKinesisException, IOException {
     reader.start();
     when(kinesisSource.getStreamName()).thenReturn("stream1");
-    doReturn(Instant.now().minus(Duration.standardMinutes(1))).when(reader).getWatermark();
+    when(shardReadersPool.getLatestRecordTimestamp())
+        .thenReturn(Instant.now().minus(Duration.standardMinutes(1)));
     when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
         .thenReturn(10L)
         .thenThrow(TransientKinesisException.class)
         .thenReturn(20L);
 
-    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
-    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
-    assertThat(reader.getTotalBacklogBytes()).isEqualTo(20);
+    assertThat(reader.getSplitBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getSplitBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getSplitBacklogBytes()).isEqualTo(20);
   }
 
   @Test
-  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenCalledFrequently()
+  public void getSplitBacklogBytesShouldReturnLastSeenValueWhenCalledFrequently()
       throws TransientKinesisException, IOException {
     KinesisReader backlogCachingReader = spy(createReader(Duration.standardSeconds(30)));
     backlogCachingReader.start();
-    doReturn(Instant.now().minus(Duration.standardMinutes(1)))
-        .when(backlogCachingReader)
-        .getWatermark();
+    when(shardReadersPool.getLatestRecordTimestamp())
+        .thenReturn(Instant.now().minus(Duration.standardMinutes(1)));
     when(kinesisSource.getStreamName()).thenReturn("stream1");
     when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
         .thenReturn(10L)
         .thenReturn(20L);
 
-    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
-    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(backlogCachingReader.getSplitBacklogBytes()).isEqualTo(10);
+    assertThat(backlogCachingReader.getSplitBacklogBytes()).isEqualTo(10);
   }
 
   @Test
-  public void getTotalBacklogBytesShouldReturnBacklogUnknown()
+  public void getSplitBacklogBytesShouldReturnBacklogUnknown()
       throws IOException, TransientKinesisException {
     reader.start();
     when(kinesisSource.getStreamName()).thenReturn("stream1");
-    when(reader.getWatermark())
+    when(shardReadersPool.getLatestRecordTimestamp())
         .thenReturn(BoundedWindow.TIMESTAMP_MIN_VALUE)
         .thenReturn(Instant.now().minus(Duration.standardMinutes(1)));
     when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class))).thenReturn(10L);
 
-    assertThat(reader.getTotalBacklogBytes())
+    assertThat(reader.getSplitBacklogBytes())
         .isEqualTo(UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN);
-    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getSplitBacklogBytes()).isEqualTo(10);
   }
 }

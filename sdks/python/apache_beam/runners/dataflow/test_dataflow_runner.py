@@ -83,8 +83,8 @@ class TestDataflowRunner(DataflowRunner):
     region_id = options.view_as(GoogleCloudOptions).region
     job_id = self.result.job_id()
     return (
-        'https://console.cloud.google.com/dataflow/jobsDetail/locations'
-        '/%s/jobs/%s?project=%s' % (region_id, job_id, project))
+        'https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s' %
+        (region_id, job_id, project))
 
   def wait_until_in_state(self, expected_state, timeout=WAIT_IN_STATE_TIMEOUT):
     """Wait until Dataflow pipeline enters a certain state."""

@@ -22,6 +22,11 @@ from __future__ import absolute_import
 import unittest
 from builtins import object
 
+import hamcrest as hc
+from nose.plugins.attrib import attr
+
+import apache_beam as beam
+from apache_beam import metrics
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
@@ -31,6 +36,11 @@ from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.worker import statesampler
+from apache_beam.testing.metric_result_matchers import DistributionMatcher
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.utils import counters
 
 
@@ -126,6 +136,67 @@ class MetricsTest(unittest.TestCase):
   def test_distribution_empty_namespace(self):
     with self.assertRaises(ValueError):
       Metrics.distribution("", "names")
+
+  @attr('ValidatesRunner')
+  def test_user_counter_using_pardo(self):
+    class SomeDoFn(beam.DoFn):
+      """A custom dummy DoFn using yield."""
+      static_counter_elements = metrics.Metrics.counter(
+          "SomeDoFn", 'metrics_static_counter_element')
+
+      def __init__(self):
+        self.user_counter_elements = metrics.Metrics.counter(
+            self.__class__, 'metrics_user_counter_element')
+
+      def process(self, element):
+        self.static_counter_elements.inc(2)
+        self.user_counter_elements.inc()
+        distro = Metrics.distribution(self.__class__, 'element_dist')
+        distro.update(element)
+        yield element
+
+    pipeline = TestPipeline()
+    nums = pipeline | 'Input' >> beam.Create([1, 2, 3, 4])
+    results = nums | 'ApplyPardo' >> beam.ParDo(SomeDoFn())
+    assert_that(results, equal_to([1, 2, 3, 4]))
+
+    res = pipeline.run()
+    res.wait_until_finish()
+
+    # Verify static counter.
+    metric_results = (
+        res.metrics().query(
+            MetricsFilter().with_metric(SomeDoFn.static_counter_elements)))
+    outputs_static_counter = metric_results['counters'][0]
+
+    self.assertEqual(
+        outputs_static_counter.key.metric.name,
+        'metrics_static_counter_element')
+    self.assertEqual(outputs_static_counter.committed, 8)
+
+    # Verify user counter.
+    metric_results = (
+        res.metrics().query(
+            MetricsFilter().with_name('metrics_user_counter_element')))
+    outputs_user_counter = metric_results['counters'][0]
+
+    self.assertEqual(
+        outputs_user_counter.key.metric.name, 'metrics_user_counter_element')
+    self.assertEqual(outputs_user_counter.committed, 4)
+
+    # Verify user distribution counter.
+    metric_results = res.metrics().query()
+    matcher = MetricResultMatcher(
+        step='ApplyPardo',
+        namespace=hc.contains_string('SomeDoFn'),
+        name='element_dist',
+        committed=DistributionMatcher(
+            sum_value=hc.greater_than_or_equal_to(0),
+            count_value=hc.greater_than_or_equal_to(0),
+            min_value=hc.greater_than_or_equal_to(0),
+            max_value=hc.greater_than_or_equal_to(0)))
+    hc.assert_that(
+        metric_results['distributions'], hc.contains_inanyorder(matcher))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())

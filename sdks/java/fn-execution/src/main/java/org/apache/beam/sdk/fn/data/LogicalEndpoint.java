@@ -19,6 +19,7 @@ package org.apache.beam.sdk.fn.data;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A logical endpoint is a pair of an instruction ID corresponding to the {@link
@@ -32,7 +33,21 @@ public abstract class LogicalEndpoint {
 
   public abstract String getTransformId();
 
-  public static LogicalEndpoint of(String instructionId, String transformId) {
-    return new AutoValue_LogicalEndpoint(instructionId, transformId);
+  public abstract @Nullable String getTimerFamilyId();
+
+  public boolean isTimer() {
+    return getTimerFamilyId() != null;
+  }
+
+  public static LogicalEndpoint data(String instructionId, String transformId) {
+    return new AutoValue_LogicalEndpoint(instructionId, transformId, null);
+  }
+
+  public static LogicalEndpoint timer(
+      String instructionId, String transformId, String timerFamilyId) {
+    if (timerFamilyId == null) {
+      throw new NullPointerException("timerFamilyId");
+    }
+    return new AutoValue_LogicalEndpoint(instructionId, transformId, timerFamilyId);
   }
 }

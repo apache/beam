@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
@@ -36,10 +37,13 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -48,29 +52,38 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
+import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.FnAnalysisContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -114,10 +127,11 @@ public class DoFnSignaturesTest {
                   OutputReceiver<String> receiver,
                   PipelineOptions options,
                   @SideInput("tag1") String input1,
-                  @SideInput("tag2") Integer input2) {}
+                  @SideInput("tag2") Integer input2,
+                  BundleFinalizer bundleFinalizer) {}
             }.getClass());
 
-    assertThat(sig.processElement().extraParameters().size(), equalTo(8));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(9));
     assertThat(sig.processElement().extraParameters().get(0), instanceOf(ElementParameter.class));
     assertThat(sig.processElement().extraParameters().get(1), instanceOf(TimestampParameter.class));
     assertThat(sig.processElement().extraParameters().get(2), instanceOf(WindowParameter.class));
@@ -128,6 +142,8 @@ public class DoFnSignaturesTest {
         sig.processElement().extraParameters().get(5), instanceOf(PipelineOptionsParameter.class));
     assertThat(sig.processElement().extraParameters().get(6), instanceOf(SideInputParameter.class));
     assertThat(sig.processElement().extraParameters().get(7), instanceOf(SideInputParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(8), instanceOf(BundleFinalizerParameter.class));
   }
 
   @Test
@@ -292,8 +308,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testBadExtraContext() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Must take a single argument of type DoFn<Integer, String>.StartBundleContext");
+    thrown.expectMessage("int is not a valid context parameter");
 
     DoFnSignatures.analyzeStartBundleMethod(
         errors(),
@@ -302,7 +317,8 @@ public class DoFnSignaturesTest {
           void method(DoFn<Integer, String>.StartBundleContext c, int n) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
-        TypeDescriptor.of(String.class));
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 
   @Test
@@ -362,6 +378,29 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testStartBundleWithAllParameters() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void processElement() {}
+
+              @StartBundle
+              public void startBundle(
+                  StartBundleContext context,
+                  BundleFinalizer bundleFinalizer,
+                  PipelineOptions options) {}
+            }.getClass());
+    assertThat(sig.startBundle().extraParameters().size(), equalTo(3));
+    assertThat(
+        sig.startBundle().extraParameters().get(0), instanceOf(StartBundleContextParameter.class));
+    assertThat(
+        sig.startBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
+    assertThat(
+        sig.startBundle().extraParameters().get(2), instanceOf(PipelineOptionsParameter.class));
+  }
+
+  @Test
   public void testPrivateFinishBundle() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("finishBundle()");
@@ -375,6 +414,30 @@ public class DoFnSignaturesTest {
           @FinishBundle
           void finishBundle() {}
         }.getClass());
+  }
+
+  @Test
+  public void testFinishBundleWithAllParameters() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void processElement() {}
+
+              @FinishBundle
+              public void finishBundle(
+                  FinishBundleContext context,
+                  BundleFinalizer bundleFinalizer,
+                  PipelineOptions pipelineOptions) {}
+            }.getClass());
+    assertThat(sig.finishBundle().extraParameters().size(), equalTo(3));
+    assertThat(
+        sig.finishBundle().extraParameters().get(0),
+        instanceOf(FinishBundleContextParameter.class));
+    assertThat(
+        sig.finishBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
+    assertThat(
+        sig.finishBundle().extraParameters().get(2), instanceOf(PipelineOptionsParameter.class));
   }
 
   @Test
@@ -519,6 +582,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testWindowParamOnTimer() throws Exception {
     final String timerId = "some-timer-id";
+    final String timerDeclarationId = TimerDeclaration.PREFIX + timerId;
 
     DoFnSignature sig =
         DoFnSignatures.getSignature(
@@ -533,15 +597,16 @@ public class DoFnSignaturesTest {
               public void onTimer(BoundedWindow w) {}
             }.getClass());
 
-    assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(1));
+    assertThat(sig.onTimerMethods().get(timerDeclarationId).extraParameters().size(), equalTo(1));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
         instanceOf(WindowParameter.class));
   }
 
   @Test
   public void testAllParamsOnTimer() throws Exception {
     final String timerId = "some-timer-id";
+    final String timerDeclarationId = TimerDeclaration.PREFIX + timerId;
 
     DoFnSignature sig =
         DoFnSignatures.getSignature(
@@ -557,15 +622,15 @@ public class DoFnSignaturesTest {
                   @Timestamp Instant timestamp, TimeDomain timeDomain, BoundedWindow w) {}
             }.getClass());
 
-    assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(3));
+    assertThat(sig.onTimerMethods().get(timerDeclarationId).extraParameters().size(), equalTo(3));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
         instanceOf(TimestampParameter.class));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(1),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(1),
         instanceOf(TimeDomainParameter.class));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(2),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(2),
         instanceOf(WindowParameter.class));
   }
 
@@ -592,7 +657,8 @@ public class DoFnSignaturesTest {
     assertThat(sig.processElement().extraParameters().size(), equalTo(2));
 
     DoFnSignature.TimerDeclaration decl =
-        sig.timerDeclarations().get(DoFnOverridingAbstractTimerUse.TIMER_ID);
+        sig.timerDeclarations()
+            .get(TimerDeclaration.PREFIX + DoFnOverridingAbstractTimerUse.TIMER_ID);
     TimerParameter timerParam = (TimerParameter) sig.processElement().extraParameters().get(1);
 
     assertThat(
@@ -617,9 +683,11 @@ public class DoFnSignaturesTest {
     assertThat(sig.onTimerMethods().size(), equalTo(1));
 
     DoFnSignature.TimerDeclaration decl =
-        sig.timerDeclarations().get(DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
+        sig.timerDeclarations()
+            .get(TimerDeclaration.PREFIX + DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
     DoFnSignature.OnTimerMethod callback =
-        sig.onTimerMethods().get(DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
+        sig.onTimerMethods()
+            .get(TimerDeclaration.PREFIX + DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
 
     assertThat(
         decl.field(),
@@ -688,10 +756,11 @@ public class DoFnSignaturesTest {
               public void onFoo() {}
             }.getClass());
 
+    final String timerDeclarationId = TimerDeclaration.PREFIX + "foo";
     assertThat(sig.timerDeclarations().size(), equalTo(1));
-    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("foo");
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get(timerDeclarationId);
 
-    assertThat(decl.id(), equalTo("foo"));
+    assertThat(decl.id(), equalTo(timerDeclarationId));
     assertThat(decl.field().getName(), equalTo("bizzle"));
   }
 
@@ -710,14 +779,15 @@ public class DoFnSignaturesTest {
               public void onFoo(OnTimerContext c) {}
             }.getClass());
 
+    final String timerDeclarationId = TimerDeclaration.PREFIX + "foo";
     assertThat(sig.timerDeclarations().size(), equalTo(1));
-    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("foo");
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get(timerDeclarationId);
 
-    assertThat(decl.id(), equalTo("foo"));
+    assertThat(decl.id(), equalTo(timerDeclarationId));
     assertThat(decl.field().getName(), equalTo("bizzle"));
 
     assertThat(
-        sig.onTimerMethods().get("foo").extraParameters().get(0),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
         equalTo((Parameter) Parameter.onTimerContext()));
   }
 
@@ -757,10 +827,12 @@ public class DoFnSignaturesTest {
     // Test classes at the bottom of the file
     DoFnSignature sig = DoFnSignatures.signatureForDoFn(new DoFnForTestSimpleTimerIdNamedDoFn());
 
-    assertThat(sig.timerDeclarations().size(), equalTo(1));
-    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("foo");
+    final String timerDeclarationId = TimerDeclaration.PREFIX + "foo";
 
-    assertThat(decl.id(), equalTo("foo"));
+    assertThat(sig.timerDeclarations().size(), equalTo(1));
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get(timerDeclarationId);
+
+    assertThat(decl.id(), equalTo(timerDeclarationId));
     assertThat(
         decl.field(), equalTo(DoFnForTestSimpleTimerIdNamedDoFn.class.getDeclaredField("bizzle")));
   }
@@ -850,6 +922,43 @@ public class DoFnSignaturesTest {
           @ProcessElement
           public void myProcessElement(
               ProcessContext context, @StateId("my-id") ValueState<Integer> undeclared) {}
+        }.getClass());
+  }
+
+  @Test
+  public void testStateParameterAlwaysFetched() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("ReadableStates");
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-id")
+              private final StateSpec<MapState<Integer, Integer>> myfield =
+                  StateSpecs.map(VarIntCoder.of(), VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context,
+                  @AlwaysFetched @StateId("my-id") MapState<Integer, Integer> one) {}
+            }.getClass());
+    StateParameter stateParameter = (StateParameter) sig.processElement().extraParameters().get(1);
+    assertTrue(stateParameter.alwaysFetched());
+  }
+
+  @Test
+  public void testStateParameterAlwaysFetchNonReadableState() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("ReadableStates");
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @StateId("my-id")
+          private final StateSpec<MapState<Integer, Integer>> myfield =
+              StateSpecs.map(VarIntCoder.of(), VarIntCoder.of());
+
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context,
+              @AlwaysFetched @StateId("my-id") MapState<Integer, Integer> one) {}
         }.getClass());
   }
 
@@ -1004,7 +1113,7 @@ public class DoFnSignaturesTest {
     DoFnSignature.StateDeclaration decl =
         sig.stateDeclarations().get(DoFnOverridingAbstractStateUse.STATE_ID);
     StateParameter stateParam = (StateParameter) sig.processElement().extraParameters().get(1);
-
+    assertFalse(stateParam.alwaysFetched());
     assertThat(
         decl.field(),
         equalTo(DoFnDeclaringStateAndAbstractUse.class.getDeclaredField("myStateSpec")));
@@ -1214,6 +1323,239 @@ public class DoFnSignaturesTest {
     assertThat(params.get(2), instanceOf(PipelineOptionsParameter.class));
     assertThat(params.get(3), instanceOf(OutputReceiverParameter.class));
     assertThat(params.get(4), instanceOf(TaggedOutputReceiverParameter.class));
+  }
+
+  private interface FeatureTest {
+    void test();
+  }
+
+  private static class StatelessDoFn extends DoFn<String, String> implements FeatureTest {
+    @ProcessElement
+    public void process(@Element String input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+  }
+
+  private static class StatefulWithValueState extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+    @StateId("state")
+    private final StateSpec<ValueState<String>> state = StateSpecs.value();
+
+    @ProcessElement
+    public void process(@Element KV<String, String> input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+  }
+
+  private static class StatefulWithTimers extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+    @TimerId("timer")
+    private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    public void process(@Element KV<String, String> input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+
+    @OnTimer("timer")
+    public void onTimer() {}
+  }
+
+  private static class StatefulWithTimersAndValueState extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+    @TimerId("timer")
+    private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @StateId("state")
+    private final StateSpec<SetState<String>> state = StateSpecs.set();
+
+    @ProcessElement
+    public void process(@Element KV<String, String> input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+
+    @OnTimer("timer")
+    public void onTimer() {}
+  }
+
+  private static class StatefulWithSetState extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+    @StateId("state")
+    private final StateSpec<SetState<String>> spec = StateSpecs.set();
+
+    @ProcessElement
+    public void process(@Element KV<String, String> input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+  }
+
+  private static class StatefulWithMapState extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+    @StateId("state")
+    private final StateSpec<MapState<String, String>> spec = StateSpecs.map();
+
+    @ProcessElement
+    public void process(@Element KV<String, String> input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+  }
+
+  private static class StatefulWithWatermarkHoldState extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+    @StateId("state")
+    private final StateSpec<WatermarkHoldState> spec =
+        StateSpecs.watermarkStateInternal(TimestampCombiner.LATEST);
+
+    @ProcessElement
+    public void process(@Element KV<String, String> input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+  }
+
+  private static class RequiresTimeSortedInput extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+    @ProcessElement
+    @RequiresTimeSortedInput
+    public void process(@Element KV<String, String> input) {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(true));
+    }
+  }
+
+  private static class Splittable extends DoFn<KV<String, Long>, String> implements FeatureTest {
+    @ProcessElement
+    public void process(ProcessContext c, RestrictionTracker<OffsetRange, ?> tracker) {}
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRange(@Element KV<String, Long> element) {
+      return new OffsetRange(0L, element.getValue());
+    }
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+  }
+
+  private final List<FeatureTest> tests =
+      Lists.newArrayList(
+          new StatelessDoFn(),
+          new StatefulWithValueState(),
+          new StatefulWithTimers(),
+          new StatefulWithTimersAndValueState(),
+          new StatefulWithSetState(),
+          new StatefulWithMapState(),
+          new StatefulWithWatermarkHoldState(),
+          new RequiresTimeSortedInput(),
+          new Splittable());
+
+  @Test
+  public void testAllDoFnFeatures() {
+    tests.forEach(FeatureTest::test);
   }
 
   private Matcher<String> mentionsTimers() {

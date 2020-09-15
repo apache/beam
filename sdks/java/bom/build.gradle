@@ -67,9 +67,7 @@ assemble.dependsOn copyPom
 tasks.whenTaskAdded { task ->
   if (task.name == 'generatePomFileForMavenJavaPublication') {
     task.enabled = false
-  } else if (task.name == 'publishMavenJavaPublicationToMavenLocal') {
-    task.dependsOn copyPom
-  } else if (task.name == 'publishMavenJavaPublicationToMavenRepository') {
+  } else if (task.name.startsWith('publishMavenJavaPublication')) {
     task.dependsOn copyPom
   }
 }

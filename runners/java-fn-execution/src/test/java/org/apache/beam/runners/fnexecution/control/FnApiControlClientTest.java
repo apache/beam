@@ -25,6 +25,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -50,11 +52,13 @@ public class FnApiControlClientTest {
 
   @Mock public StreamObserver<BeamFnApi.InstructionRequest> mockObserver;
   private FnApiControlClient client;
+  private ConcurrentMap<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    client = FnApiControlClient.forRequestObserver("DUMMY", mockObserver);
+    processBundleDescriptors = new ConcurrentHashMap<>();
+    client = FnApiControlClient.forRequestObserver("DUMMY", mockObserver, processBundleDescriptors);
   }
 
   @Test

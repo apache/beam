@@ -23,32 +23,30 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import javax.annotation.Nullable;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
+import org.apache.beam.runners.core.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarUtils;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.DetachedEnvironment;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -99,7 +97,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
 
     // Don't let the fuser fuse any subcomponents of native transforms.
     Pipeline trimmedPipeline =
-        PipelineTrimmer.trim(pipelineWithSdfExpanded, translator.knownUrns());
+        TrivialNativeTransformExpander.forKnownUrns(
+            pipelineWithSdfExpanded, translator.knownUrns());
 
     // Fused pipeline proto.
     // TODO: Consider supporting partially-fused graphs.
@@ -120,7 +119,13 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
 
   private PortablePipelineResult createPortablePipelineResult(
       JobExecutionResult result, PipelineOptions options) {
-    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
+    // The package of DetachedJobExecutionResult has been changed in 1.10.
+    // Refer to https://github.com/apache/flink/commit/c36b35e6876ecdc717dade653e8554f9d8b543c9 for
+    // details.
+    String resultClassName = result.getClass().getCanonicalName();
+    if (resultClassName.equals(
+            "org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult")
+        || resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
       LOG.info("Pipeline submitted in Detached mode");
       // no metricsPusher because metrics are not supported in detached mode
       return new FlinkPortableRunnerResult.Detached();
@@ -164,13 +169,16 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     Pipeline pipeline = PortablePipelineJarUtils.getPipelineFromClasspath(baseJobName);
     Struct originalOptions = PortablePipelineJarUtils.getPipelineOptionsFromClasspath(baseJobName);
 
-    // Flink pipeline jars distribute and retrieve artifacts via the classpath.
-    PortablePipelineOptions portablePipelineOptions =
-        PipelineOptionsTranslation.fromProto(originalOptions).as(PortablePipelineOptions.class);
-    portablePipelineOptions.setRetrievalServiceType(RetrievalServiceType.CLASSLOADER);
-    String retrievalToken = PortablePipelineJarUtils.getArtifactManifestUri(baseJobName);
+    // The retrieval token is only required by the legacy artifact service, which the Flink runner
+    // no longer uses.
+    String retrievalToken =
+        ArtifactApi.CommitManifestResponse.Constants.NO_ARTIFACTS_STAGED_TOKEN
+            .getValueDescriptor()
+            .getOptions()
+            .getExtension(RunnerApi.beamConstant);
 
-    FlinkPipelineOptions flinkOptions = portablePipelineOptions.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions flinkOptions =
+        PipelineOptionsTranslation.fromProto(originalOptions).as(FlinkPipelineOptions.class);
     String invocationId =
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
 

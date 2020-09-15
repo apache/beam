@@ -24,20 +24,20 @@ import com.mongodb.lang.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.bson.BsonDocument;
 import org.bson.Document;
 
 /** Builds a MongoDB AggregateIterable object. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 @AutoValue
 public abstract class AggregationQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {
 
   abstract List<BsonDocument> mongoDbPipeline();
 
-  @Nullable
-  abstract BsonDocument bucket();
+  abstract @Nullable BsonDocument bucket();
 
   private static Builder builder() {
     return new AutoValue_AggregationQuery.Builder().setMongoDbPipeline(new ArrayList<>());

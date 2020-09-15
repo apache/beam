@@ -36,6 +36,7 @@ Example test run:
 python -m apache_beam.testing.load_tests.co_group_by_key_test \
     --test-pipeline-options="
       --project=big-query-project
+      --region=...
       --publish_to_big_query=true
       --metrics_dataset=python_load_tests
       --metrics_table=co_gbk
@@ -56,6 +57,7 @@ or:
 ./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=co_gbk
     --iterations=1
@@ -84,11 +86,11 @@ from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 
-INPUT_TAG = 'pc1'
-CO_INPUT_TAG = 'pc2'
-
 
 class CoGroupByKeyTest(LoadTest):
+  INPUT_TAG = 'pc1'
+  CO_INPUT_TAG = 'pc2'
+
   def __init__(self):
     super(CoGroupByKeyTest, self).__init__()
     self.co_input_options = json.loads(
@@ -96,10 +98,14 @@ class CoGroupByKeyTest(LoadTest):
     self.iterations = self.get_option_or_default('iterations', 1)
 
   class _UngroupAndReiterate(beam.DoFn):
+    def __init__(self, input_tag, co_input_tag):
+      self.input_tag = input_tag
+      self.co_input_tag = co_input_tag
+
     def process(self, element, iterations):
       values = element[1]
-      inputs = values.get(INPUT_TAG)
-      co_inputs = values.get(CO_INPUT_TAG)
+      inputs = values.get(self.input_tag)
+      co_inputs = values.get(self.co_input_tag)
       for i in range(iterations):
         for value in inputs:
           if i == iterations - 1:
@@ -108,31 +114,30 @@ class CoGroupByKeyTest(LoadTest):
           if i == iterations - 1:
             yield value
 
-  def testCoGroupByKey(self):
+  def test(self):
     pc1 = (
         self.pipeline
-        | 'Read ' + INPUT_TAG >> beam.io.Read(
+        | 'Read ' + self.INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options()))
-        | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc1' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
     pc2 = (
         self.pipeline
-        | 'Read ' + CO_INPUT_TAG >> beam.io.Read(
+        | 'Read ' + self.CO_INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options(self.co_input_options)))
-        | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc2' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned
     ({
-        INPUT_TAG: pc1, CO_INPUT_TAG: pc2
+        self.INPUT_TAG: pc1, self.CO_INPUT_TAG: pc2
     }
      | 'CoGroupByKey ' >> beam.CoGroupByKey()
      | 'Consume Joined Collections' >> beam.ParDo(
-         self._UngroupAndReiterate(), self.iterations)
+         self._UngroupAndReiterate(self.INPUT_TAG, self.CO_INPUT_TAG),
+         self.iterations)
      | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 

@@ -18,26 +18,27 @@
 package org.apache.beam.sdk.fn.data;
 
 import java.io.InputStream;
-import java.util.function.Consumer;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import java.util.function.BiConsumer;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Decodes individually consumed {@link BeamFnApi.Elements.Data} with the provided {@link Coder}
- * passing the individual decoded elements to the provided consumer.
+ * Decodes individually consumed {@link ByteString}s with the provided {@link Coder} passing the
+ * individual decoded elements to the provided consumer.
  */
 public class BeamFnDataInboundObserver<T>
-    implements Consumer<BeamFnApi.Elements.Data>, InboundDataClient {
+    implements BiConsumer<ByteString, Boolean>, InboundDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
 
   public static <T> BeamFnDataInboundObserver<T> forConsumer(
-      Coder<T> coder, FnDataReceiver<T> receiver) {
+      LogicalEndpoint endpoint, Coder<T> coder, FnDataReceiver<T> receiver) {
     return new BeamFnDataInboundObserver<>(
-        coder, receiver, CompletableFutureInboundDataClient.create());
+        endpoint, coder, receiver, CompletableFutureInboundDataClient.create());
   }
 
+  private final LogicalEndpoint endpoint;
   private final FnDataReceiver<T> consumer;
   private final Coder<T> coder;
   private final InboundDataClient readFuture;
@@ -45,33 +46,35 @@ public class BeamFnDataInboundObserver<T>
   private long counter;
 
   public BeamFnDataInboundObserver(
-      Coder<T> coder, FnDataReceiver<T> consumer, InboundDataClient readFuture) {
+      LogicalEndpoint endpoint,
+      Coder<T> coder,
+      FnDataReceiver<T> consumer,
+      InboundDataClient readFuture) {
+    this.endpoint = endpoint;
     this.coder = coder;
     this.consumer = consumer;
     this.readFuture = readFuture;
   }
 
   @Override
-  public void accept(BeamFnApi.Elements.Data t) {
+  public void accept(ByteString payload, Boolean isLast) {
     if (readFuture.isDone()) {
       // Drop any incoming data if the stream processing has finished.
       return;
     }
     try {
-      if (t.getData().isEmpty()) {
+      if (isLast) {
         LOG.debug(
-            "Closing stream for instruction {} and "
-                + "transform {} having consumed {} values {} bytes",
-            t.getInstructionId(),
-            t.getTransformId(),
+            "Closing stream for {} having consumed {} values {} bytes",
+            endpoint,
             counter,
             byteCounter);
         readFuture.complete();
         return;
       }
 
-      byteCounter += t.getData().size();
-      InputStream inputStream = t.getData().newInput();
+      byteCounter += payload.size();
+      InputStream inputStream = payload.newInput();
       while (inputStream.available() > 0) {
         counter += 1;
         T value = coder.decode(inputStream);

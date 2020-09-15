@@ -22,8 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -88,12 +87,12 @@ class CoderTranslators {
     return new SimpleStructuredCoderTranslator<Timer.Coder<?>>() {
       @Override
       public List<? extends Coder<?>> getComponents(Timer.Coder<?> from) {
-        return from.getCoderArguments();
+        return from.getComponents();
       }
 
       @Override
       public Timer.Coder<?> fromComponents(List<Coder<?>> components) {
-        return Timer.Coder.of(components.get(0));
+        return Timer.Coder.of(components.get(0), (Coder<BoundedWindow>) components.get(1));
       }
     };
   }
@@ -141,13 +140,12 @@ class CoderTranslators {
 
       @Override
       public WindowedValue.ParamWindowedValueCoder<?> fromComponents(
-          List<Coder<?>> components, byte[] payload) {
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
         return WindowedValue.ParamWindowedValueCoder.fromComponents(components, payload);
       }
     };
   }
 
-  @Experimental(Kind.SCHEMAS)
   static CoderTranslator<RowCoder> row() {
     return new CoderTranslator<RowCoder>() {
       @Override
@@ -161,12 +159,13 @@ class CoderTranslators {
       }
 
       @Override
-      public RowCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+      public RowCoder fromComponents(
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: " + components);
         Schema schema;
         try {
-          schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(payload));
+          schema = SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(payload));
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }
@@ -178,7 +177,8 @@ class CoderTranslators {
   public abstract static class SimpleStructuredCoderTranslator<T extends Coder<?>>
       implements CoderTranslator<T> {
     @Override
-    public final T fromComponents(List<Coder<?>> components, byte[] payload) {
+    public final T fromComponents(
+        List<Coder<?>> components, byte[] payload, TranslationContext context) {
       return fromComponents(components);
     }
 

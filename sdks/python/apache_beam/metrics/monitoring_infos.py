@@ -29,8 +29,8 @@ from typing import FrozenSet
 from typing import Hashable
 from typing import List
 
-from google.protobuf import timestamp_pb2
-
+from apache_beam.coders import coder_impl
+from apache_beam.coders import coders
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
@@ -48,9 +48,16 @@ PROCESS_BUNDLE_MSECS_URN = (
 FINISH_BUNDLE_MSECS_URN = (
     common_urns.monitoring_info_specs.FINISH_BUNDLE_MSECS.spec.urn)
 TOTAL_MSECS_URN = common_urns.monitoring_info_specs.TOTAL_MSECS.spec.urn
-USER_COUNTER_URN = (common_urns.monitoring_info_specs.USER_COUNTER.spec.urn)
-USER_DISTRIBUTION_COUNTER_URN = (
-    common_urns.monitoring_info_specs.USER_DISTRIBUTION_COUNTER.spec.urn)
+USER_COUNTER_URN = common_urns.monitoring_info_specs.USER_SUM_INT64.spec.urn
+USER_DISTRIBUTION_URN = (
+    common_urns.monitoring_info_specs.USER_DISTRIBUTION_INT64.spec.urn)
+USER_GAUGE_URN = common_urns.monitoring_info_specs.USER_LATEST_INT64.spec.urn
+USER_METRIC_URNS = set(
+    [USER_COUNTER_URN, USER_DISTRIBUTION_URN, USER_GAUGE_URN])
+WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
+WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
+DATA_CHANNEL_READ_INDEX = (
+    common_urns.monitoring_info_specs.DATA_CHANNEL_READ_INDEX.spec.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
@@ -59,6 +66,7 @@ SUM_INT64_TYPE = common_urns.monitoring_info_types.SUM_INT64_TYPE.urn
 DISTRIBUTION_INT64_TYPE = (
     common_urns.monitoring_info_types.DISTRIBUTION_INT64_TYPE.urn)
 LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
+PROGRESS_TYPE = common_urns.monitoring_info_types.PROGRESS_TYPE.urn
 
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
@@ -72,138 +80,126 @@ PTRANSFORM_LABEL = (
 NAMESPACE_LABEL = (
     common_urns.monitoring_info_labels.NAMESPACE.label_props.name)
 NAME_LABEL = (common_urns.monitoring_info_labels.NAME.label_props.name)
-TAG_LABEL = "TAG"
-
-
-def to_timestamp_proto(timestamp_secs):
-  """Converts seconds since epoch to a google.protobuf.Timestamp.
-
-  Args:
-    timestamp_secs: The timestamp in seconds since epoch.
-  """
-  seconds = int(timestamp_secs)
-  nanos = int((timestamp_secs - seconds) * 10**9)
-  return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
-
-
-def to_timestamp_secs(timestamp_proto):
-  """Converts a google.protobuf.Timestamp to seconds since epoch.
-
-  Args:
-    timestamp_proto: The google.protobuf.Timestamp.
-  """
-  return timestamp_proto.seconds + timestamp_proto.nanos * 10**-9
 
 
 def extract_counter_value(monitoring_info_proto):
-  """Returns the int coutner value of the monitoring info."""
-  if is_counter(monitoring_info_proto) or is_gauge(monitoring_info_proto):
-    return monitoring_info_proto.metric.counter_data.int64_value
-  return None
+  """Returns the counter value of the monitoring info."""
+  if not is_counter(monitoring_info_proto):
+    raise ValueError('Unsupported type %s' % monitoring_info_proto.type)
+
+  # Only SUM_INT64_TYPE is currently supported.
+  return coders.VarIntCoder().decode(monitoring_info_proto.payload)
+
+
+def extract_gauge_value(monitoring_info_proto):
+  """Returns a tuple containing (timestamp, value)"""
+  if not is_gauge(monitoring_info_proto):
+    raise ValueError('Unsupported type %s' % monitoring_info_proto.type)
+
+  # Only LATEST_INT64_TYPE is currently supported.
+  return _decode_gauge(coders.VarIntCoder(), monitoring_info_proto.payload)
 
 
 def extract_distribution(monitoring_info_proto):
-  """Returns the relevant DistributionInt64 or DistributionDouble.
+  """Returns a tuple of (count, sum, min, max).
 
   Args:
-    monitoring_info_proto: The monitoring infor for the distribution.
+    proto: The monitoring info for the distribution.
   """
-  if is_distribution(monitoring_info_proto):
-    return monitoring_info_proto.metric.distribution_data.int_distribution_data
-  return None
+  if not is_distribution(monitoring_info_proto):
+    raise ValueError('Unsupported type %s' % monitoring_info_proto.type)
+
+  # Only DISTRIBUTION_INT64_TYPE is currently supported.
+  return _decode_distribution(
+      coders.VarIntCoder(), monitoring_info_proto.payload)
 
 
-def create_labels(ptransform=None, tag=None, namespace=None, name=None):
-  """Create the label dictionary based on the provided tags.
+def create_labels(ptransform=None, namespace=None, name=None, pcollection=None):
+  """Create the label dictionary based on the provided values.
 
   Args:
-    ptransform: The ptransform/step name.
-    tag: he output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
+    pcollection: The pcollection id used as a label.
   """
   labels = {}
-  if tag:
-    labels[TAG_LABEL] = tag
   if ptransform:
     labels[PTRANSFORM_LABEL] = ptransform
   if namespace:
     labels[NAMESPACE_LABEL] = namespace
   if name:
     labels[NAME_LABEL] = name
+  if pcollection:
+    labels[PCOLLECTION_LABEL] = pcollection
   return labels
 
 
-def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
+def int64_user_counter(namespace, name, metric, ptransform=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
     urn: The URN of the monitoring info/metric.
-    metric: The metric proto field to use in the monitoring info.
-        Or an int value.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    metric: The payload field to use in the monitoring info or an int value.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(
-      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
   if isinstance(metric, int):
-    metric = metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(int64_value=metric))
+    metric = coders.VarIntCoder().encode(metric)
   return create_monitoring_info(
       USER_COUNTER_URN, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_counter(urn, metric, ptransform=None, tag=None):
+def int64_counter(urn, metric, ptransform=None, pcollection=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
     urn: The URN of the monitoring info/metric.
-    metric: The metric proto field to use in the monitoring info.
-        Or an int value.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    metric: The payload field to use in the monitoring info or an int value.
+    ptransform: The ptransform id used as a label.
+    pcollection: The pcollection id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
+  labels = create_labels(ptransform=ptransform, pcollection=pcollection)
   if isinstance(metric, int):
-    metric = metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(int64_value=metric))
+    metric = coders.VarIntCoder().encode(metric)
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_user_distribution(namespace, name, metric, ptransform=None, tag=None):
+def int64_user_distribution(namespace, name, metric, ptransform=None):
   """Return the distribution monitoring info for the URN, metric and labels.
 
   Args:
     urn: The URN of the monitoring info/metric.
-    metric: The metric proto field to use in the monitoring info.
-        Or an int value.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    metric: The DistributionData for the metric.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(
-      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
+  payload = _encode_distribution(
+      coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
   return create_monitoring_info(
-      USER_DISTRIBUTION_COUNTER_URN, DISTRIBUTION_INT64_TYPE, metric, labels)
+      USER_DISTRIBUTION_URN, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_distribution(urn, metric, ptransform=None, tag=None):
+def int64_distribution(urn, metric, ptransform=None, pcollection=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return a distribution monitoring info for the URN, metric and labels.
 
   Args:
     urn: The URN of the monitoring info/metric.
-    metric: The metric proto field to use in the monitoring info.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    metric: The DistributionData for the metric.
+    ptransform: The ptransform id used as a label.
+    pcollection: The pcollection id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
-  return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, metric, labels)
+  labels = create_labels(ptransform=ptransform, pcollection=pcollection)
+  payload = _encode_distribution(
+      coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
+  return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
+def int64_user_gauge(namespace, name, metric, ptransform=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the gauge monitoring info for the URN, metric and labels.
@@ -211,34 +207,48 @@ def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
   Args:
     namespace: User-defined namespace of counter.
     name: Name of counter.
-    metric: The metric proto field to use in the monitoring info.
-        Or an int value.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    metric: The GaugeData containing the metrics.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(
-      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
+  if isinstance(metric, GaugeData):
+    coder = coders.VarIntCoder()
+    value = metric.value
+    timestamp = metric.timestamp
+  else:
+    raise TypeError(
+        'Expected GaugeData metric type but received %s with value %s' %
+        (type(metric), metric))
+  payload = _encode_gauge(coder, timestamp, value)
   return create_monitoring_info(
-      USER_COUNTER_URN, LATEST_INT64_TYPE, metric, labels)
+      USER_GAUGE_URN, LATEST_INT64_TYPE, payload, labels)
 
 
-def int64_gauge(urn, metric, ptransform=None, tag=None):
+def int64_gauge(urn, metric, ptransform=None):
+  # type: (...) -> metrics_pb2.MonitoringInfo
+
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
     urn: The URN of the monitoring info/metric.
-    metric: The metric proto field to use in the monitoring info.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    metric: An int representing the value. The current time will be used for
+            the timestamp.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
+  labels = create_labels(ptransform=ptransform)
   if isinstance(metric, int):
-    metric = metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(int64_value=metric))
-  return create_monitoring_info(urn, LATEST_INT64_TYPE, metric, labels)
+    value = metric
+    time_ms = int(time.time()) * 1000
+  else:
+    raise TypeError(
+        'Expected int metric type but received %s with value %s' %
+        (type(metric), metric))
+  coder = coders.VarIntCoder()
+  payload = coder.encode(time_ms) + coder.encode(value)
+  return create_monitoring_info(urn, LATEST_INT64_TYPE, payload, labels)
 
 
-def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
+def create_monitoring_info(urn, type_urn, payload, labels=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the gauge monitoring info for the URN, type, metric and labels.
@@ -247,16 +257,11 @@ def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
     urn: The URN of the monitoring info/metric.
     type_urn: The URN of the type of the monitoring info/metric.
         i.e. beam:metrics:sum_int_64, beam:metrics:latest_int_64.
-    metric_proto: The metric proto field to use in the monitoring info.
-        Or an int value.
+    payload: The payload field to use in the monitoring info.
     labels: The label dictionary to use in the MonitoringInfo.
   """
   return metrics_pb2.MonitoringInfo(
-      urn=urn,
-      type=type_urn,
-      labels=labels or dict(),
-      metric=metric_proto,
-      timestamp=to_timestamp_proto(time.time()))
+      urn=urn, type=type_urn, labels=labels or dict(), payload=payload)
 
 
 def is_counter(monitoring_info_proto):
@@ -264,30 +269,19 @@ def is_counter(monitoring_info_proto):
   return monitoring_info_proto.type in COUNTER_TYPES
 
 
-def is_distribution(monitoring_info_proto):
-  """Returns true if the monitoring info is a distrbution metric."""
-  return monitoring_info_proto.type in DISTRIBUTION_TYPES
-
-
 def is_gauge(monitoring_info_proto):
   """Returns true if the monitoring info is a gauge metric."""
   return monitoring_info_proto.type in GAUGE_TYPES
 
 
-def _is_user_monitoring_info(monitoring_info_proto):
-  return monitoring_info_proto.urn == USER_COUNTER_URN
-
-
-def _is_user_distribution_monitoring_info(monitoring_info_proto):
-  return monitoring_info_proto.urn == USER_DISTRIBUTION_COUNTER_URN
+def is_distribution(monitoring_info_proto):
+  """Returns true if the monitoring info is a distrbution metric."""
+  return monitoring_info_proto.type in DISTRIBUTION_TYPES
 
 
 def is_user_monitoring_info(monitoring_info_proto):
   """Returns true if the monitoring info is a user metric."""
-
-  return _is_user_monitoring_info(
-      monitoring_info_proto) or _is_user_distribution_monitoring_info(
-          monitoring_info_proto)
+  return monitoring_info_proto.urn in USER_METRIC_URNS
 
 
 def extract_metric_result_map_value(monitoring_info_proto):
@@ -300,17 +294,11 @@ def extract_metric_result_map_value(monitoring_info_proto):
   if is_counter(monitoring_info_proto):
     return extract_counter_value(monitoring_info_proto)
   if is_distribution(monitoring_info_proto):
-    distribution_data = extract_distribution(monitoring_info_proto)
-    return DistributionResult(
-        DistributionData(
-            distribution_data.sum,
-            distribution_data.count,
-            distribution_data.min,
-            distribution_data.max))
+    (count, sum, min, max) = extract_distribution(monitoring_info_proto)
+    return DistributionResult(DistributionData(sum, count, min, max))
   if is_gauge(monitoring_info_proto):
-    timestamp_secs = to_timestamp_secs(monitoring_info_proto.timestamp)
-    return GaugeResult(
-        GaugeData(extract_counter_value(monitoring_info_proto), timestamp_secs))
+    (timestamp, value) = extract_gauge_value(monitoring_info_proto)
+    return GaugeResult(GaugeData(value, timestamp))
 
 
 def parse_namespace_and_name(monitoring_info_proto):
@@ -344,33 +332,27 @@ def to_key(monitoring_info_proto):
   return frozenset(key_items)
 
 
-def distribution_combiner(metric_a, metric_b):
-  a_data = metric_a.distribution_data.int_distribution_data
-  b_data = metric_b.distribution_data.int_distribution_data
-  return metrics_pb2.Metric(
-      distribution_data=metrics_pb2.DistributionData(
-          int_distribution_data=metrics_pb2.IntDistributionData(
-              count=a_data.count + b_data.count,
-              sum=a_data.sum + b_data.sum,
-              min=min(a_data.min, b_data.min),
-              max=max(a_data.max, b_data.max))))
+def sum_payload_combiner(payload_a, payload_b):
+  coder = coders.VarIntCoder()
+  return coder.encode(coder.decode(payload_a) + coder.decode(payload_b))
+
+
+def distribution_payload_combiner(payload_a, payload_b):
+  coder = coders.VarIntCoder()
+  (count_a, sum_a, min_a, max_a) = _decode_distribution(coder, payload_a)
+  (count_b, sum_b, min_b, max_b) = _decode_distribution(coder, payload_b)
+  return _encode_distribution(
+      coder,
+      count_a + count_b,
+      sum_a + sum_b,
+      min(min_a, min_b),
+      max(max_a, max_b))
 
 
 _KNOWN_COMBINERS = {
-    SUM_INT64_TYPE: lambda a,
-    b: metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=a.counter_data.int64_value + b.counter_data.int64_value)
-    ),
-    DISTRIBUTION_INT64_TYPE: distribution_combiner,
+    SUM_INT64_TYPE: sum_payload_combiner,
+    DISTRIBUTION_INT64_TYPE: distribution_payload_combiner,
 }
-
-
-def max_timestamp(a, b):
-  if a.ToNanoseconds() > b.ToNanoseconds():
-    return a
-  else:
-    return b
 
 
 def consolidate(metrics, key=to_key):
@@ -392,10 +374,48 @@ def consolidate(metrics, key=to_key):
               labels=dict((label, value) for label,
                           value in a.labels.items()
                           if b.labels.get(label) == value),
-              metric=combiner(a.metric, b.metric),
-              timestamp=max_timestamp(a.timestamp, b.timestamp))
+              payload=combiner(a.payload, b.payload))
 
         yield reduce(merge, values)
       else:
         for value in values:
           yield value
+
+
+def _decode_gauge(coder, payload):
+  """Returns a tuple of (timestamp, value)."""
+  timestamp_coder = coders.VarIntCoder().get_impl()
+  stream = coder_impl.create_InputStream(payload)
+  time_ms = timestamp_coder.decode_from_stream(stream, True)
+  return (time_ms / 1000.0, coder.get_impl().decode_from_stream(stream, True))
+
+
+def _encode_gauge(coder, timestamp, value):
+  timestamp_coder = coders.VarIntCoder().get_impl()
+  stream = coder_impl.create_OutputStream()
+  timestamp_coder.encode_to_stream(int(timestamp * 1000), stream, True)
+  coder.get_impl().encode_to_stream(value, stream, True)
+  return stream.get()
+
+
+def _decode_distribution(value_coder, payload):
+  """Returns a tuple of (count, sum, min, max)."""
+  count_coder = coders.VarIntCoder().get_impl()
+  value_coder = value_coder.get_impl()
+  stream = coder_impl.create_InputStream(payload)
+  return (
+      count_coder.decode_from_stream(stream, True),
+      value_coder.decode_from_stream(stream, True),
+      value_coder.decode_from_stream(stream, True),
+      value_coder.decode_from_stream(stream, True))
+
+
+def _encode_distribution(value_coder, count, sum, min, max):
+  count_coder = coders.VarIntCoder().get_impl()
+  value_coder = value_coder.get_impl()
+  stream = coder_impl.create_OutputStream()
+  count_coder.encode_to_stream(count, stream, True)
+  value_coder.encode_to_stream(sum, stream, True)
+  value_coder.encode_to_stream(min, stream, True)
+  value_coder.encode_to_stream(max, stream, True)
+  return stream.get()

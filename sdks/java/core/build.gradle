@@ -19,14 +19,14 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
   shadowClosure: {
     dependencies {
-      include(dependency(library.java.protobuf_java))
       include(dependency("org.apache.commons:.*"))
       include(dependency(library.java.antlr_runtime))
     }
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
-    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
   }
@@ -47,6 +47,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'pom.version': version,
     'pom.sdk_version': sdk_version,
+    'pom.docker_image_default_repo_root': docker_image_default_repo_root,
+    'pom.docker_image_default_repo_prefix': docker_image_default_repo_prefix,
     'timestamp': new Date().format("yyyy-MM-dd HH:mm")
   ]
 }
@@ -64,10 +66,10 @@ dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow library.java.vendored_bytebuddy_1_9_3
+  shadow library.java.vendored_bytebuddy_1_10_8
+  shadow library.java.vendored_grpc_1_26_0
   shadow library.java.vendored_guava_26_0_jre
   compile library.java.antlr_runtime
-  compile library.java.protobuf_java
   compile library.java.commons_compress
   compile library.java.commons_lang3
   shadow library.java.jsr305
@@ -82,6 +84,8 @@ dependencies {
   provided library.java.junit
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
+  provided 'io.airlift:aircompressor:0.16'
+  provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
   shadowTest library.java.mockito_core

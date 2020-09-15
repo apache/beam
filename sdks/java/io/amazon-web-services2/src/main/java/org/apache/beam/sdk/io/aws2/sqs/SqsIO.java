@@ -21,8 +21,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.net.URI;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -76,7 +77,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  *
  * <p>For more information on the available options see {@link AwsOptions}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class SqsIO {
 
   public static Read read() {
@@ -96,16 +97,13 @@ public class SqsIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<SqsMessage>> {
 
-    @Nullable
-    abstract String queueUrl();
+    abstract @Nullable String queueUrl();
 
     abstract long maxNumRecords();
 
-    @Nullable
-    abstract Duration maxReadTime();
+    abstract @Nullable Duration maxReadTime();
 
-    @Nullable
-    abstract SqsClientProvider sqsClientProvider();
+    abstract @Nullable SqsClientProvider sqsClientProvider();
 
     abstract Builder builder();
 
@@ -200,8 +198,7 @@ public class SqsIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SendMessageRequest>, PDone> {
 
-    @Nullable
-    abstract SqsClientProvider getSqsClientProvider();
+    abstract @Nullable SqsClientProvider getSqsClientProvider();
 
     abstract Builder builder();
 

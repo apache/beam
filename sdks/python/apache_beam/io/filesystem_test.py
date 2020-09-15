@@ -257,9 +257,9 @@ class TestFileSystem(unittest.TestCase):
         (join('d', '**', '*'), sep_re.join(['d', double_star, star])),
     ]
     for pattern, expected in pattern__expected:
-      expected += r'\Z(?ms)'
+      expected = r'(?ms)' + expected + r'\Z'
       result = self.fs.translate_pattern(pattern)
-      self.assertEqual(result, expected)
+      self.assertEqual(expected, result)
 
 
 class TestFileSystemWithDirs(TestFileSystem):

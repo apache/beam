@@ -23,8 +23,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.io.InputStream;
 import java.nio.channels.Channels;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
@@ -45,6 +45,7 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.ToTextContentHandler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.xml.sax.ContentHandler;
 
 /**
@@ -88,7 +89,7 @@ import org.xml.sax.ContentHandler;
  *    .apply(TikaIO.parseFiles());
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class TikaIO {
   /** Parses files matching a given filepattern. */
   public static Parse parse() {
@@ -103,8 +104,8 @@ public class TikaIO {
   /** Implementation of {@link #parse}. */
   @AutoValue
   public abstract static class Parse extends PTransform<PBegin, PCollection<ParseResult>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract Builder toBuilder();
 
@@ -147,14 +148,11 @@ public class TikaIO {
   public abstract static class ParseFiles
       extends PTransform<PCollection<ReadableFile>, PCollection<ParseResult>> {
 
-    @Nullable
-    abstract ValueProvider<String> getTikaConfigPath();
+    abstract @Nullable ValueProvider<String> getTikaConfigPath();
 
-    @Nullable
-    abstract String getContentTypeHint();
+    abstract @Nullable String getContentTypeHint();
 
-    @Nullable
-    abstract Metadata getInputMetadata();
+    abstract @Nullable Metadata getInputMetadata();
 
     abstract Builder toBuilder();
 

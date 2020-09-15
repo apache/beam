@@ -23,8 +23,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.StringUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A collection of static methods for manipulating datastructure representations transferred via the
@@ -43,16 +43,15 @@ public final class Structs {
   }
 
   public static byte[] getBytes(Map<String, Object> map, String name) {
-    @Nullable byte[] result = getBytes(map, name, null);
+    byte @Nullable [] result = getBytes(map, name, null);
     if (result == null) {
       throw new ParameterNotFoundException(name, map);
     }
     return result;
   }
 
-  @Nullable
-  public static byte[] getBytes(
-      Map<String, Object> map, String name, @Nullable byte[] defaultValue) {
+  public static byte @Nullable [] getBytes(
+      Map<String, Object> map, String name, byte @Nullable [] defaultValue) {
     @Nullable String jsonString = getString(map, name, null);
     if (jsonString == null) {
       return defaultValue;
@@ -67,8 +66,7 @@ public final class Structs {
     return getValue(map, name, Boolean.class, "a boolean");
   }
 
-  @Nullable
-  public static Boolean getBoolean(
+  public static @Nullable Boolean getBoolean(
       Map<String, Object> map, String name, @Nullable Boolean defaultValue) {
     return getValue(map, name, Boolean.class, "a boolean", defaultValue);
   }
@@ -77,8 +75,8 @@ public final class Structs {
     return getValue(map, name, Long.class, "a long");
   }
 
-  @Nullable
-  public static Long getLong(Map<String, Object> map, String name, @Nullable Long defaultValue) {
+  public static @Nullable Long getLong(
+      Map<String, Object> map, String name, @Nullable Long defaultValue) {
     return getValue(map, name, Long.class, "a long", defaultValue);
   }
 
@@ -86,14 +84,12 @@ public final class Structs {
     return getValue(map, name, Integer.class, "an int");
   }
 
-  @Nullable
-  public static Integer getInt(
+  public static @Nullable Integer getInt(
       Map<String, Object> map, String name, @Nullable Integer defaultValue) {
     return getValue(map, name, Integer.class, "an int", defaultValue);
   }
 
-  @Nullable
-  public static List<String> getStrings(
+  public static @Nullable List<String> getStrings(
       Map<String, Object> map, String name, @Nullable List<String> defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
@@ -135,8 +131,7 @@ public final class Structs {
     return result;
   }
 
-  @Nullable
-  public static Map<String, Object> getObject(
+  public static @Nullable Map<String, Object> getObject(
       Map<String, Object> map, String name, @Nullable Map<String, Object> defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
@@ -167,8 +162,7 @@ public final class Structs {
     return mapValue;
   }
 
-  @Nullable
-  public static List<Map<String, Object>> getListOfMaps(
+  public static @Nullable List<Map<String, Object>> getListOfMaps(
       Map<String, Object> map, String name, @Nullable List<Map<String, Object>> defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
@@ -217,8 +211,7 @@ public final class Structs {
     return result;
   }
 
-  @Nullable
-  public static Map<String, Object> getDictionary(
+  public static @Nullable Map<String, Object> getDictionary(
       Map<String, Object> map, String name, @Nullable Map<String, Object> defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
@@ -307,8 +300,7 @@ public final class Structs {
     return result;
   }
 
-  @Nullable
-  private static <T> T getValue(
+  private static @Nullable <T> T getValue(
       Map<String, Object> map, String name, Class<T> clazz, String type, @Nullable T defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
@@ -325,8 +317,7 @@ public final class Structs {
     return result;
   }
 
-  @Nullable
-  private static <T> T decodeValue(Object value, Class<T> clazz) {
+  private static @Nullable <T> T decodeValue(Object value, Class<T> clazz) {
     try {
       if (value.getClass() == clazz) {
         // decodeValue() is only called for final classes; if the class matches,

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.jet.processors;
 
+import com.hazelcast.function.SupplierEx;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ResettableSingletonTraverser;
-import com.hazelcast.jet.function.SupplierEx;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.jet.Utils;

@@ -26,3 +26,15 @@ func TestCoGBK(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestReshuffle(t *testing.T) {
+	if err := ptest.Run(Reshuffle()); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestReshuffleKV(t *testing.T) {
+	if err := ptest.Run(ReshuffleKV()); err != nil {
+		t.Error(err)
+	}
+}

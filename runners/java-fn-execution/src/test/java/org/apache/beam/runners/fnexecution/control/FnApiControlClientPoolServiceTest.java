@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.control;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -35,6 +36,8 @@ import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.junit.After;
@@ -119,5 +122,22 @@ public class FnApiControlClientPoolServiceTest {
 
     latch.await();
     assertThat(sawComplete.get(), is(true));
+  }
+
+  @Test
+  public void testUnknownBundle() throws Exception {
+    BeamFnApi.GetProcessBundleDescriptorRequest request =
+        BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+            .setProcessBundleDescriptorId("missing")
+            .build();
+    StreamObserver<BeamFnApi.ProcessBundleDescriptor> responseObserver = mock(StreamObserver.class);
+    controlService.getProcessBundleDescriptor(request, responseObserver);
+
+    verify(responseObserver)
+        .onError(
+            argThat(
+                e ->
+                    e instanceof StatusException
+                        && ((StatusException) e).getStatus().getCode() == Status.Code.NOT_FOUND));
   }
 }

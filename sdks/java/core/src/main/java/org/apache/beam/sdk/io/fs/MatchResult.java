@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystems;
 
 /** The result of {@link org.apache.beam.sdk.io.FileSystem#match}. */
@@ -107,7 +108,7 @@ public abstract class MatchResult {
      *     .apply(WithTimestamps.of(metadata -> new Instant(metadata.lastModifiedMillis())));
      * }</pre>
      */
-    @Experimental
+    @Experimental(Kind.FILESYSTEM)
     public abstract long lastModifiedMillis();
 
     public static Builder builder() {

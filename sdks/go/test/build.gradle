@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyGoNature()
+applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Go :: Test"
 
@@ -49,12 +50,12 @@ golang {
 
 task flinkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:flink:1.9:job-server:shadowJar"
+  dependsOn ":runners:flink:1.10:job-server:shadowJar"
   doLast {
     def options = [
             "--runner flink",
             "--parallel 1", // prevent memory overuse
-            "--flink_job_server_jar ${project(":runners:flink:1.9:job-server").shadowJar.archivePath}",
+            "--flink_job_server_jar ${project(":runners:flink:1.10:job-server").shadowJar.archivePath}",
     ]
     exec {
       executable "sh"
@@ -78,3 +79,26 @@ task sparkValidatesRunner {
     }
   }
 }
+
+
+task ulrValidatesRunner {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
+  dependsOn "setupVirtualenv"
+  dependsOn ":sdks:python:buildPython"
+  doLast {
+    def options = [
+            "--runner universal",
+    ]
+    exec {
+      executable "sh"
+      workingDir "${project.rootDir}/sdks/python"
+      args "-c", ". ${envdir}/bin/activate && pip install -e ."
+    }
+    exec {
+      executable "sh"
+      args "-c", ". ${envdir}/bin/activate && ./run_integration_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+

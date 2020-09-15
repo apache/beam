@@ -447,8 +447,8 @@ class AvroBase(object):
 
 @unittest.skipIf(
     sys.version_info[0] == 3 and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-    'This test still needs to be fixed on Python 3. '
-    'TODO: BEAM-6522.')
+    'This test requires that Beam depends on avro-python3>=1.9 or newer. '
+    'See: BEAM-6522.')
 class TestAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):
     super(TestAvro, self).__init__(methodName)

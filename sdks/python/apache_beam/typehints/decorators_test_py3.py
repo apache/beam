@@ -21,23 +21,26 @@
 
 from __future__ import absolute_import
 
+import functools
 import typing
 import unittest
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 
+from apache_beam import Map
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
 from apache_beam.typehints import List
 from apache_beam.typehints import Tuple
+from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import decorators
 
-decorators._enable_from_callable = True
 T = TypeVariable('T')
 # Name is 'T' so it converts to a beam type with the same name.
-T_typing = typing.TypeVar('T')
+# mypy requires that the name of the variable match, so we must ignore this.
+T_typing = typing.TypeVar('T')  # type: ignore
 
 
 class IOTypeHintsTest(unittest.TestCase):
@@ -94,7 +97,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_from_callable_convert_to_beam_types(self):
     def fn(
         a: typing.List[int],
-        b: str = None,
+        b: str = '',
         *args: typing.Tuple[T_typing],
         foo: typing.List[int],
         **kwargs: typing.Dict[str, str]) -> typing.Tuple[typing.Any, ...]:
@@ -107,6 +110,15 @@ class IOTypeHintsTest(unittest.TestCase):
             'foo': List[int], 'kwargs': Dict[str, str]
         }))
     self.assertEqual(th.output_types, ((Tuple[Any, ...], ), {}))
+
+  def test_from_callable_partial(self):
+    def fn(a: int) -> int:
+      return a
+
+    # functools.partial objects don't have __name__ attributes by default.
+    fn = functools.partial(fn, 1)
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertRegex(th.debug_str(), r'unknown')
 
   def test_getcallargs_forhints(self):
     def fn(
@@ -152,6 +164,51 @@ class IOTypeHintsTest(unittest.TestCase):
       decorators.getcallargs_forhints(fn, foo=List[int])
     with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'foo'"):
       decorators.getcallargs_forhints(fn, 5)
+
+  def test_origin(self):
+    def annotated(e: str) -> str:
+      return e
+
+    t = Map(annotated)
+    th = t.get_type_hints()
+    th = th.with_input_types(str)
+    self.assertRegex(th.debug_str(), r'with_input_types')
+    th = th.with_output_types(str)
+    self.assertRegex(
+        th.debug_str(),
+        r'(?s)with_output_types.*with_input_types.*Map.annotated')
+
+
+class DecoratorsTest(unittest.TestCase):
+  def test_no_annotations(self):
+    def fn(a: int) -> int:
+      return a
+
+    with self.assertRaisesRegex(TypeCheckError,
+                                r'requires .*int.* but got .*str'):
+      _ = ['a', 'b', 'c'] | Map(fn)
+
+    # Same pipeline doesn't raise without annotations on fn.
+    fn = decorators.no_annotations(fn)
+    _ = ['a', 'b', 'c'] | Map(fn)
+
+
+class DecoratorsTest(unittest.TestCase):
+  def test_no_annotations(self):
+    def fn(a: int) -> int:
+      return a
+
+    _ = [1, 2, 3] | Map(fn)  # Doesn't raise - correct types.
+
+    with self.assertRaisesRegex(TypeCheckError,
+                                r'requires .*int.* but got .*str'):
+      _ = ['a', 'b', 'c'] | Map(fn)
+
+    @decorators.no_annotations
+    def fn2(a: int) -> int:
+      return a
+
+    _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input type hints.
 
 
 if __name__ == '__main__':

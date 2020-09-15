@@ -26,7 +26,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.annotation.Nullable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
@@ -39,6 +40,8 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -48,7 +51,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for all load tests. Provides common operations such as initializing source/step
@@ -56,7 +62,9 @@ import org.joda.time.Duration;
  */
 abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
-  private String metricsNamespace;
+  private static final Logger LOG = LoggerFactory.getLogger(LoadTest.class);
+
+  private final String metricsNamespace;
 
   protected TimeMonitor<KV<byte[], byte[]>> runtimeMonitor;
 
@@ -66,13 +74,33 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   protected Pipeline pipeline;
 
+  private final String runner;
+
+  private final InfluxDBSettings settings;
+
   LoadTest(String[] args, Class<OptionsT> testOptions, String metricsNamespace) throws IOException {
     this.metricsNamespace = metricsNamespace;
     this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
     this.sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-
     this.pipeline = Pipeline.create(options);
+    this.runner = getRunnerName(options.getRunner().getName());
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
+  }
+
+  private static String getRunnerName(final String runnerName) {
+    final Matcher matcher = Pattern.compile("((.*)\\.)?(.*?)Runner").matcher(runnerName);
+    if (matcher.matches()) {
+      return matcher.group(3).toLowerCase() + "_";
+    } else {
+      LOG.warn("Unable to get runner name, no prefix used for metrics");
+      return "";
+    }
   }
 
   PTransform<PBegin, PCollection<KV<byte[], byte[]>>> readFromSource(
@@ -91,15 +119,15 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
    * Runs the load test, collects and publishes test results to various data store and/or console.
    */
   public PipelineResult run() throws IOException {
-    Timestamp timestamp = Timestamp.now();
+    final Timestamp timestamp = Timestamp.now();
 
     loadTest();
 
-    PipelineResult pipelineResult = pipeline.run();
+    final PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish(Duration.standardMinutes(options.getLoadTestTimeout()));
 
-    String testId = UUID.randomUUID().toString();
-    List metrics = readMetrics(timestamp, pipelineResult, testId);
+    final String testId = UUID.randomUUID().toString();
+    final List<NamedTestResult> metrics = readMetrics(timestamp, pipelineResult, testId);
 
     ConsoleResultPublisher.publish(metrics, testId, timestamp.toString());
 
@@ -107,6 +135,10 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
     if (options.getPublishToBigQuery()) {
       publishResultsToBigQuery(metrics);
+    }
+
+    if (options.getPublishToInfluxDB()) {
+      InfluxDBPublisher.publishWithSettings(metrics, settings);
     }
 
     return pipelineResult;
@@ -120,14 +152,14 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
         NamedTestResult.create(
             testId,
             timestamp.toString(),
-            "runtime_sec",
+            runner + "runtime_sec",
             (reader.getEndTimeMetric("runtime") - reader.getStartTimeMetric("runtime")) / 1000D);
 
     NamedTestResult totalBytes =
         NamedTestResult.create(
             testId,
             timestamp.toString(),
-            "total_bytes_count",
+            runner + "total_bytes_count",
             reader.getCounterMetric("totalBytes.count"));
 
     return Arrays.asList(runtime, totalBytes);

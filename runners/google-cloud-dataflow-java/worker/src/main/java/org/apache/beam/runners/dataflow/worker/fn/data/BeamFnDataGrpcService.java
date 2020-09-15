@@ -107,7 +107,7 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
               .thenCompose(
                   beamFnDataGrpcMultiplexer -> {
                     BeamFnDataInboundObserver<T> inboundObserver =
-                        BeamFnDataInboundObserver.forConsumer(coder, consumer);
+                        BeamFnDataInboundObserver.forConsumer(inputLocation, coder, consumer);
                     beamFnDataGrpcMultiplexer.registerConsumer(inputLocation, inboundObserver);
                     return CompletableFuture.completedFuture(inboundObserver);
                   });

@@ -19,12 +19,12 @@ package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform} for serializing objects to JSON {@link String Strings}. Transforms a {@code
@@ -79,7 +80,7 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <NewFailureT> AsJsonsWithFailures<NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
     return new AsJsonsWithFailures<>(null, failureTypeDescriptor);
@@ -106,7 +107,7 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    * PCollection<KV<MyPojo, Map<String, String>>> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <FailureT> AsJsonsWithFailures<FailureT> exceptionsVia(
       InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new AsJsonsWithFailures<>(exceptionHandler, exceptionHandler.getOutputTypeDescriptor());
@@ -135,7 +136,7 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
    * PCollection<KV<MyPojo, Map<String, String>>> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public AsJsonsWithFailures<KV<InputT, Map<String, String>>> exceptionsVia() {
     DefaultExceptionAsMapHandler<InputT> exceptionHandler =
         new DefaultExceptionAsMapHandler<InputT>() {};
@@ -168,10 +169,10 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
   public class AsJsonsWithFailures<FailureT>
       extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<String>, FailureT>> {
 
-    @Nullable
-    private InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler;
+    private @Nullable InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT>
+        exceptionHandler;
 
-    @Nullable private final transient TypeDescriptor<FailureT> failureType;
+    private final transient @Nullable TypeDescriptor<FailureT> failureType;
 
     AsJsonsWithFailures(
         InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler,

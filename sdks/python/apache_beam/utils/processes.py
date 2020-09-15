@@ -27,6 +27,7 @@ from __future__ import absolute_import
 import platform
 import subprocess
 import traceback
+from typing import TYPE_CHECKING
 
 # On Windows, we need to use shell=True when creating subprocesses for binary
 # paths to be resolved correctly.
@@ -37,68 +38,72 @@ PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
 CalledProcessError = subprocess.CalledProcessError
 
+if TYPE_CHECKING:
+  call = subprocess.call
+  check_call = subprocess.check_call
+  check_output = subprocess.check_output
+  Popen = subprocess.Popen
 
-def call(*args, **kwargs):
-  if force_shell:
-    kwargs['shell'] = True
-  try:
-    out = subprocess.call(*args, **kwargs)
-  except OSError:
-    raise RuntimeError("Executable {} not found".format(args[0]))
-  except subprocess.CalledProcessError as error:
-    if isinstance(args, tuple) and (args[0][2] == "pip"):
-      raise RuntimeError( \
-        "Full traceback: {}\n Pip install failed for package: {} \
-        \n Output from execution of subprocess: {}" \
-        .format(traceback.format_exc(), args[0][6], error. output))
-    else:
-      raise RuntimeError("Full trace: {}\
-         \n Output of the failed child process: {} " \
-        .format(traceback.format_exc(), error.output))
-  return out
+else:
 
+  def call(*args, **kwargs):
+    if force_shell:
+      kwargs['shell'] = True
+    try:
+      out = subprocess.call(*args, **kwargs)
+    except OSError:
+      raise RuntimeError("Executable {} not found".format(args[0]))
+    except subprocess.CalledProcessError as error:
+      if isinstance(args, tuple) and (args[0][2] == "pip"):
+        raise RuntimeError( \
+          "Full traceback: {}\n Pip install failed for package: {} \
+          \n Output from execution of subprocess: {}" \
+          .format(traceback.format_exc(), args[0][6], error. output))
+      else:
+        raise RuntimeError("Full trace: {}\
+           \n Output of the failed child process: {} " \
+          .format(traceback.format_exc(), error.output))
+    return out
 
-def check_call(*args, **kwargs):
-  if force_shell:
-    kwargs['shell'] = True
-  try:
-    out = subprocess.check_call(*args, **kwargs)
-  except OSError:
-    raise RuntimeError("Executable {} not found".format(args[0]))
-  except subprocess.CalledProcessError as error:
-    if isinstance(args, tuple) and (args[0][2] == "pip"):
-      raise RuntimeError( \
-        "Full traceback: {} \n Pip install failed for package: {} \
-        \n Output from execution of subprocess: {}" \
-        .format(traceback.format_exc(), args[0][6], error.output))
-    else:
-      raise RuntimeError("Full trace: {} \
-        \n Output of the failed child process: {}" \
-        .format(traceback.format_exc(), error.output))
-  return out
+  def check_call(*args, **kwargs):
+    if force_shell:
+      kwargs['shell'] = True
+    try:
+      out = subprocess.check_call(*args, **kwargs)
+    except OSError:
+      raise RuntimeError("Executable {} not found".format(args[0]))
+    except subprocess.CalledProcessError as error:
+      if isinstance(args, tuple) and (args[0][2] == "pip"):
+        raise RuntimeError( \
+          "Full traceback: {} \n Pip install failed for package: {} \
+          \n Output from execution of subprocess: {}" \
+          .format(traceback.format_exc(), args[0][6], error.output))
+      else:
+        raise RuntimeError("Full trace: {} \
+          \n Output of the failed child process: {}" \
+          .format(traceback.format_exc(), error.output))
+    return out
 
+  def check_output(*args, **kwargs):
+    if force_shell:
+      kwargs['shell'] = True
+    try:
+      out = subprocess.check_output(*args, **kwargs)
+    except OSError:
+      raise RuntimeError("Executable {} not found".format(args[0]))
+    except subprocess.CalledProcessError as error:
+      if isinstance(args, tuple) and (args[0][2] == "pip"):
+        raise RuntimeError( \
+          "Full traceback: {} \n Pip install failed for package: {} \
+          \n Output from execution of subprocess: {}" \
+          .format(traceback.format_exc(), args[0][6], error.output))
+      else:
+        raise RuntimeError("Full trace: {}, \
+           output of the failed child process {} "\
+          .format(traceback.format_exc(), error.output))
+    return out
 
-def check_output(*args, **kwargs):
-  if force_shell:
-    kwargs['shell'] = True
-  try:
-    out = subprocess.check_output(*args, **kwargs)
-  except OSError:
-    raise RuntimeError("Executable {} not found".format(args[0]))
-  except subprocess.CalledProcessError as error:
-    if isinstance(args, tuple) and (args[0][2] == "pip"):
-      raise RuntimeError( \
-        "Full traceback: {} \n Pip install failed for package: {} \
-        \n Output from execution of subprocess: {}" \
-        .format(traceback.format_exc(), args[0][6], error.output))
-    else:
-      raise RuntimeError("Full trace: {}, \
-         output of the failed child process {} "\
-        .format(traceback.format_exc(), error.output))
-  return out
-
-
-def Popen(*args, **kwargs):
-  if force_shell:
-    kwargs['shell'] = True
-  return subprocess.Popen(*args, **kwargs)
+  def Popen(*args, **kwargs):
+    if force_shell:
+      kwargs['shell'] = True
+    return subprocess.Popen(*args, **kwargs)

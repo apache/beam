@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -45,7 +44,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -56,6 +55,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.Visi
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Text table provider.
@@ -171,8 +171,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     public abstract Schema schema();
 
-    @Nullable
-    public abstract String deadLetterFile();
+    public abstract @Nullable String deadLetterFile();
 
     public static JsonToRow create(Schema schema, @Nullable String deadLetterFile) {
       return new AutoValue_TextTableProvider_JsonToRow(schema, deadLetterFile);

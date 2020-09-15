@@ -18,6 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    enableChecker:false,
+    ignoreRawtypeErrors: true,
     automaticModuleName: 'org.apache.beam.sdk.nexmark',
     exportJavadoc: false,
     archivesBaseName: 'beam-sdks-java-nexmark'
@@ -35,6 +37,7 @@ def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
         ?: ":runners:direct-java"
 def shouldProvideSpark = ":runners:spark".equals(nexmarkRunnerDependency)
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
+def runnerConfiguration = ":runners:direct-java".equals(nexmarkRunnerDependency) ? "shadow" : null
 
 if (isDataflowRunner) {
   /*
@@ -58,6 +61,7 @@ dependencies {
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:sql")
+  compile project(":sdks:java:extensions:sql:zetasql")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:testing:test-utils")
   compile library.java.google_api_services_bigquery
@@ -77,7 +81,7 @@ dependencies {
   testCompile library.java.hamcrest_library
 
   gradleRun project(project.path)
-  gradleRun project(nexmarkRunnerDependency)
+  gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)
 
   // The Spark runner requires the user to provide a Spark dependency. For self-contained
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
@@ -102,7 +106,7 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.9"
+//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.10"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args

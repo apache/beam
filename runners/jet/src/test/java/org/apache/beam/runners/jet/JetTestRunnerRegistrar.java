@@ -18,17 +18,17 @@
 package org.apache.beam.runners.jet;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
  * TestJetRunner}.
  *
- * <p>{@link AutoService} will register Apex's implementations of the {@link PipelineRunner} and
+ * <p>{@link AutoService} will register Jet's implementations of the {@link PipelineRunner} and
  * {@link PipelineOptions} as available pipeline runner services.
  */
 public final class JetTestRunnerRegistrar {
@@ -39,7 +39,7 @@ public final class JetTestRunnerRegistrar {
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.of(TestJetRunner.class);
+      return Collections.singletonList(TestJetRunner.class);
     }
   }
 
@@ -48,7 +48,7 @@ public final class JetTestRunnerRegistrar {
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.of(JetPipelineOptions.class);
+      return Collections.singletonList(JetPipelineOptions.class);
     }
   }
 }

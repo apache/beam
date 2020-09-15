@@ -40,7 +40,7 @@ var (
 
 	// EnvironmentType is the environment type to run the user code.
 	EnvironmentType = flag.String("environment_type", "DOCKER",
-		"Environment Type. Possible options are DOCKER and PROCESS.")
+		"Environment Type. Possible options are DOCKER, and LOOPBACK.")
 
 	// EnvironmentConfig is the environment configuration for running the user code.
 	EnvironmentConfig = flag.String("environment_config",
@@ -65,6 +65,10 @@ var (
 	// Strict mode applies additional validation to user pipelines before
 	// executing them and fails early if the pipelines don't pass.
 	Strict = flag.Bool("beam_strict", false, "Apply additional validation to pipelines.")
+
+	// Flag to retain docker containers created by the runner. If false, then
+	// containers are deleted once the job ends, even if it failed.
+	RetainDockerContainers = flag.Bool("retain_docker_containers", false, "Retain Docker containers created by the runner.")
 )
 
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners
@@ -95,6 +99,8 @@ func GetEnvironmentUrn(ctx context.Context) string {
 	switch env := strings.ToLower(*EnvironmentType); env {
 	case "process":
 		return "beam:env:process:v1"
+	case "loopback", "external":
+		return "beam:env:external:v1"
 	case "docker":
 		return "beam:env:docker:v1"
 	default:
@@ -103,12 +109,17 @@ func GetEnvironmentUrn(ctx context.Context) string {
 	}
 }
 
+// IsLoopback returns whether the EnvironmentType is loopback.
+func IsLoopback() bool {
+	return strings.ToLower(*EnvironmentType) == "loopback"
+}
+
 // GetEnvironmentConfig returns the specified configuration for specified SDK Harness,
 // if not present, the default development container for the current user.
 // Convenience function.
 func GetEnvironmentConfig(ctx context.Context) string {
 	if *EnvironmentConfig == "" {
-		*EnvironmentConfig = os.ExpandEnv("apachebeam/go_sdk:latest")
+		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:latest")
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig

@@ -99,3 +99,41 @@ func CoGBK() *beam.Pipeline {
 
 	return p
 }
+
+// Reshuffle tests Reshuffle.
+func Reshuffle() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	in := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+	in = beam.Reshuffle(s, in)
+	passert.Sum(s, in, "reshuffled", 9, 45)
+
+	return p
+}
+
+// ReshuffleKV tests Reshuffle with KV PCollections.
+func ReshuffleKV() *beam.Pipeline {
+	p, s := beam.NewPipelineWithRoot()
+
+	s2 := s.Scope("SubScope")
+	as := beam.ParDo(s2, genA, beam.Impulse(s))
+	bs := beam.ParDo(s2, genB, beam.Impulse(s))
+	cs := beam.ParDo(s2, genC, beam.Impulse(s))
+
+	as = beam.Reshuffle(s2, as)
+	cs = beam.Reshuffle(s2, cs)
+
+	grouped := beam.CoGroupByKey(s2, as, bs, cs)
+	joined := beam.ParDo(s2, joinFn, grouped)
+
+	joined = beam.Reshuffle(s, joined)
+
+	a, b, c, d := beam.ParDo4(s, splitFn, joined)
+
+	passert.Sum(s, a, "a", 1, 18)
+	passert.Sum(s, b, "b", 1, 17)
+	passert.Sum(s, c, "c", 1, 13)
+	passert.Sum(s, d, "d", 1, 14)
+
+	return p
+}

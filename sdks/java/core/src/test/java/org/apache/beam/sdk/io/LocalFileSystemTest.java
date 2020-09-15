@@ -23,7 +23,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -218,8 +220,12 @@ public class LocalFileSystemTest {
 
     List<String> expected = ImmutableList.of(expectedFile1.getAbsolutePath());
 
-    System.setProperty("user.dir", temporaryFolder.getRoot().toString());
-    List<MatchResult> matchResults = localFileSystem.match(ImmutableList.of("A/*"));
+    // This no longer works:
+    //     System.setProperty("user.dir", temporaryFolder.getRoot().toString());
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> matchResults =
+        localFileSystem.match(temporaryFolder.getRoot().toString(), ImmutableList.of("A/*"));
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
@@ -311,8 +317,11 @@ public class LocalFileSystemTest {
     }
     String directory = expectedFile.substring(0, slashIndex);
     String relative = expectedFile.substring(slashIndex + 1);
-    System.setProperty("user.dir", directory);
-    List<MatchResult> results = localFileSystem.match(ImmutableList.of(relative));
+    // This no longer works:
+    //     System.setProperty("user.dir", directory);
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> results = localFileSystem.match(directory, ImmutableList.of(relative));
     assertThat(
         toFilenames(results), containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
@@ -399,6 +408,8 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10741
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     Path pattern =
         LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
             .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
@@ -408,7 +419,9 @@ public class LocalFileSystemTest {
   }
 
   @Test
-  public void testMatchNewResource() throws Exception {
+  public void testMatchNewResource() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10742
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     LocalResourceId fileResource =
         localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
     LocalResourceId dirResource =
@@ -425,6 +438,12 @@ public class LocalFileSystemTest {
             .resolve("path", StandardResolveOptions.RESOLVE_DIRECTORY),
         equalTo(dirResource.getCurrentDirectory()));
     assertThat(dirResource.toString(), equalTo("/some/test/resource/path/"));
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> localFileSystem.matchNewResource("/some/test/resource/path/", false));
+    assertTrue(exception.getMessage().startsWith("Expected file path but received directory path"));
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {

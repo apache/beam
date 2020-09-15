@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -38,23 +36,23 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta1.AvroProto.AvroRows;
-import com.google.cloud.bigquery.storage.v1beta1.AvroProto.AvroSchema;
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ShardingStrategy;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamStatus;
+import com.google.cloud.bigquery.storage.v1.AvroRows;
+import com.google.cloud.bigquery.storage.v1.AvroSchema;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
+import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.ReadStream;
+import com.google.cloud.bigquery.storage.v1.StreamStats;
+import com.google.cloud.bigquery.storage.v1.StreamStats.Progress;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -69,6 +67,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
@@ -79,7 +78,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -224,21 +222,9 @@ public class BigQueryIOStorageQueryTest {
         .withMethod(Method.DIRECT_READ);
   }
 
-  private void checkTypedReadQueryObject(TypedRead typedRead, String query) {
+  private void checkTypedReadQueryObject(TypedRead<?> typedRead, String query) {
     assertNull(typedRead.getTable());
     assertEquals(query, typedRead.getQuery().get());
-  }
-
-  @Test
-  public void testBuildQueryBasedSourceWithReadOptions() throws Exception {
-    TableReadOptions readOptions = TableReadOptions.newBuilder().setRowRestriction("a > 5").build();
-    TypedRead<TableRow> typedRead = getDefaultTypedRead().withReadOptions(readOptions);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Invalid BigQueryIO.Read: Specifies table read options, "
-            + "which only applies when reading from a table");
-    p.apply(typedRead);
-    p.run();
   }
 
   @Test
@@ -269,14 +255,6 @@ public class BigQueryIOStorageQueryTest {
     TypedRead<TableRow> typedRead = getDefaultTypedRead();
     DisplayData displayData = DisplayData.from(typedRead);
     assertThat(displayData, hasDisplayItem("query", DEFAULT_QUERY));
-  }
-
-  @Test
-  public void testEvaluatedDisplayData() throws Exception {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    TypedRead<TableRow> typedRead = getDefaultTypedRead();
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(typedRead);
-    assertThat(displayData, hasItem(hasDisplayItem("query")));
   }
 
   @Test
@@ -317,6 +295,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -380,19 +359,40 @@ public class BigQueryIOStorageQueryTest {
 
     TableReference tempTableReference =
         createTempTableReference(
-            options.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            options.getProject(),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
+            Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
             .setParent("projects/" + options.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
-            .setRequestedStreams(requestedStreamCount)
-            .setShardingStrategy(ShardingStrategy.BALANCED)
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setDataFormat(DataFormat.AVRO))
+            .setMaxStreamCount(requestedStreamCount)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    Schema sessionSchema =
+        SchemaBuilder.record("__root__")
+            .fields()
+            .name("name")
+            .type()
+            .nullable()
+            .stringType()
+            .noDefault()
+            .name("number")
+            .type()
+            .nullable()
+            .longType()
+            .noDefault()
+            .endRecord();
+
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
     for (int i = 0; i < expectedStreamCount; i++) {
-      builder.addStreams(Stream.newBuilder().setName("stream-" + i));
+      builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
@@ -406,6 +406,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -451,19 +452,40 @@ public class BigQueryIOStorageQueryTest {
 
     TableReference tempTableReference =
         createTempTableReference(
-            options.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            options.getProject(),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
+            Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
             .setParent("projects/" + options.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
-            .setRequestedStreams(1024)
-            .setShardingStrategy(ShardingStrategy.BALANCED)
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setDataFormat(DataFormat.AVRO))
+            .setMaxStreamCount(1024)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    Schema sessionSchema =
+        SchemaBuilder.record("__root__")
+            .fields()
+            .name("name")
+            .type()
+            .nullable()
+            .stringType()
+            .noDefault()
+            .name("number")
+            .type()
+            .nullable()
+            .longType()
+            .noDefault()
+            .endRecord();
+
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
     for (int i = 0; i < 1024; i++) {
-      builder.addStreams(Stream.newBuilder().setName("stream-" + i));
+      builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
@@ -477,6 +499,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -494,8 +517,8 @@ public class BigQueryIOStorageQueryTest {
           + " \"type\": \"record\",\n"
           + " \"name\": \"RowRecord\",\n"
           + " \"fields\": [\n"
-          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
-          + "     {\"name\": \"number\", \"type\": \"long\"}\n"
+          + "     {\"name\": \"name\", \"type\": [\"null\", \"string\"]},\n"
+          + "     {\"name\": \"number\", \"type\": [\"null\", \"long\"]}\n"
           + " ]\n"
           + "}";
 
@@ -505,8 +528,8 @@ public class BigQueryIOStorageQueryTest {
       new TableSchema()
           .setFields(
               ImmutableList.of(
-                  new TableFieldSchema().setName("name").setType("STRING").setMode("REQUIRED"),
-                  new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED")));
+                  new TableFieldSchema().setName("name").setType("STRING"),
+                  new TableFieldSchema().setName("number").setType("INTEGER")));
 
   private static GenericRecord createRecord(String name, long number, Schema schema) {
     GenericRecord genericRecord = new Record(schema);
@@ -518,7 +541,10 @@ public class BigQueryIOStorageQueryTest {
   private static final EncoderFactory ENCODER_FACTORY = EncoderFactory.get();
 
   private static ReadRowsResponse createResponse(
-      Schema schema, Collection<GenericRecord> genericRecords, double fractionConsumed)
+      Schema schema,
+      Collection<GenericRecord> genericRecords,
+      double progressAtResponseStart,
+      double progressAtResponseEnd)
       throws Exception {
     GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(schema);
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -534,7 +560,13 @@ public class BigQueryIOStorageQueryTest {
             AvroRows.newBuilder()
                 .setSerializedBinaryRows(ByteString.copyFrom(outputStream.toByteArray()))
                 .setRowCount(genericRecords.size()))
-        .setStatus(StreamStatus.newBuilder().setFractionConsumed((float) fractionConsumed))
+        .setRowCount(genericRecords.size())
+        .setStats(
+            StreamStats.newBuilder()
+                .setProgress(
+                    Progress.newBuilder()
+                        .setAtResponseStart(progressAtResponseStart)
+                        .setAtResponseEnd(progressAtResponseEnd)))
         .build();
   }
 
@@ -562,15 +594,7 @@ public class BigQueryIOStorageQueryTest {
     fakeDatasetService.createTable(
         new Table().setTableReference(sourceTableRef).setLocation("asia-northeast1"));
 
-    Table queryResultTable =
-        new Table()
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER"))))
-            .setNumBytes(0L);
+    Table queryResultTable = new Table().setSchema(TABLE_SCHEMA).setNumBytes(0L);
 
     String encodedQuery = FakeBigQueryServices.encodeQueryResult(queryResultTable);
 
@@ -587,14 +611,18 @@ public class BigQueryIOStorageQueryTest {
 
     TableReference tempTableReference =
         createTempTableReference(
-            options.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            options.getProject(),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
+            Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
             .setParent("projects/" + options.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
-            .setRequestedStreams(10)
-            .setShardingStrategy(ShardingStrategy.BALANCED)
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setDataFormat(DataFormat.AVRO))
+            .setMaxStreamCount(10)
             .build();
 
     ReadSession emptyReadSession = ReadSession.newBuilder().build();
@@ -609,6 +637,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -631,6 +660,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ false,
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ "asia-northeast1",
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -665,15 +695,7 @@ public class BigQueryIOStorageQueryTest {
     fakeDatasetService.createTable(
         new Table().setTableReference(sourceTableRef).setLocation("asia-northeast1"));
 
-    Table queryResultTable =
-        new Table()
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER"))))
-            .setNumBytes(0L);
+    Table queryResultTable = new Table().setSchema(TABLE_SCHEMA).setNumBytes(0L);
 
     String encodedQuery = FakeBigQueryServices.encodeQueryResult(queryResultTable);
 
@@ -690,14 +712,11 @@ public class BigQueryIOStorageQueryTest {
         ReadSession.newBuilder()
             .setName("readSessionName")
             .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
-            .addStreams(Stream.newBuilder().setName("streamName"))
+            .addStreams(ReadStream.newBuilder().setName("streamName"))
             .build();
 
     ReadRowsRequest expectedReadRowsRequest =
-        ReadRowsRequest.newBuilder()
-            .setReadPosition(
-                StreamPosition.newBuilder().setStream(Stream.newBuilder().setName("streamName")))
-            .build();
+        ReadRowsRequest.newBuilder().setReadStream("streamName").build();
 
     List<GenericRecord> records =
         Lists.newArrayList(
@@ -708,8 +727,8 @@ public class BigQueryIOStorageQueryTest {
 
     List<ReadRowsResponse> readRowsResponses =
         Lists.newArrayList(
-            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.500),
-            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.875));
+            createResponse(AVRO_SCHEMA, records.subList(0, 2), 0.0, 0.500),
+            createResponse(AVRO_SCHEMA, records.subList(2, 4), 0.5, 0.875));
 
     //
     // Note that since the temporary table name is generated by the pipeline, we can't match the

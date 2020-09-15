@@ -216,6 +216,25 @@ def generate_urn_files(log, out_dir):
     sys.path.pop(0)
 
 
+def _find_protoc_gen_mypy():
+  # NOTE: this shouldn't be necessary if the virtualenv's environment
+  #  is passed to tasks below it, since protoc will search the PATH itself
+  fname = 'protoc-gen-mypy'
+  if platform.system() == 'Windows':
+    fname += ".exe"
+
+  pathstr = os.environ.get('PATH')
+  search_paths = pathstr.split(os.pathsep) if pathstr else []
+  # should typically be installed into the venv's bin dir
+  search_paths.insert(0, os.path.dirname(sys.executable))
+  for path in search_paths:
+    fullpath = os.path.join(path, fname)
+    if os.path.exists(fullpath):
+      return fullpath
+  raise RuntimeError("Could not find %s in %s" %
+                     (fname, ', '.join(search_paths)))
+
+
 def generate_proto_files(force=False, log=None):
 
   try:
@@ -224,7 +243,9 @@ def generate_proto_files(force=False, log=None):
     warnings.warn('Installing grpcio-tools is recommended for development.')
 
   if log is None:
+    logging.basicConfig()
     log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
 
   py_sdk_root = os.path.dirname(os.path.abspath(__file__))
   common = os.path.join(py_sdk_root, '..', 'common')
@@ -292,11 +313,18 @@ def generate_proto_files(force=False, log=None):
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
+
+      protoc_gen_mypy = _find_protoc_gen_mypy()
+
+      log.info('Found protoc_gen_mypy at %s' % protoc_gen_mypy)
+
       args = (
           [sys.executable] +  # expecting to be called from command line
           ['--proto_path=%s' % builtin_protos] +
           ['--proto_path=%s' % d for d in proto_dirs] +
           ['--python_out=%s' % out_dir] +
+          ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
+          ['--mypy_out=%s' % out_dir] +
           # TODO(robertwb): Remove the prefix once it's the default.
           ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
           proto_files)
@@ -309,11 +337,6 @@ def generate_proto_files(force=False, log=None):
       # copy resource files
       for path in MODEL_RESOURCES:
         shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
-
-      ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
-      if ret_code:
-        raise RuntimeError(
-            'Error installing future during proto generation')
 
       ret_code = subprocess.call(
           ["futurize", "--both-stages", "--write", "--no-diff", out_dir])

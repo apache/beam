@@ -31,8 +31,90 @@ option java_outer_classname = "ArtifactApi";
 
 import "beam_runner_api.proto";
 
-// A service to stage artifacts for use in a Job.
+// A service to retrieve artifacts for use in a Job.
+service ArtifactRetrievalService {
+  // Resolves the given artifact references into one or more replacement
+  // artifact references (e.g. a Maven dependency into a (transitive) set
+  // of jars.
+  rpc ResolveArtifacts(ResolveArtifactsRequest) returns (ResolveArtifactsResponse);
+
+  // Retrieves the given artifact as a stream of bytes.
+  rpc GetArtifact(GetArtifactRequest) returns (stream GetArtifactResponse);
+
+  // TODO(robertwb): Consider a MergeArtifacts rpc that takes a list of
+  // lists of artifacts and tries to consistently resolve them.
+}
+
+// A service that allows the client to act as an ArtifactRetrievalService,
+// for a particular job with the server initiating requests and receiving
+// responses.
+//
+// A client calls the service with an ArtifactResponseWrapper that has the
+// staging token set, and thereafter responds to the server's requests.
 service ArtifactStagingService {
+  rpc ReverseArtifactRetrievalService(stream ArtifactResponseWrapper)
+      returns (stream ArtifactRequestWrapper);
+}
+
+// A request for artifact resolution.
+message ResolveArtifactsRequest {
+  // An (ordered) set of artifacts to (jointly) resolve.
+  repeated org.apache.beam.model.pipeline.v1.ArtifactInformation artifacts = 1;
+
+  // A set of artifact type urns that are understood by the requester.
+  // An attempt should be made to resolve the artifacts in terms of these URNs,
+  // but other URNs may be used as well with the understanding that they must
+  // be fetch-able as bytes via GetArtifact.
+  repeated string preferred_urns = 2;
+}
+
+// A response for artifact resolution.
+message ResolveArtifactsResponse {
+  // A full (ordered) set of replacements for the set of requested artifacts,
+  // preferably in terms of the requested type URNs.  If there is no better
+  // resolution, the original list is returned.
+  repeated org.apache.beam.model.pipeline.v1.ArtifactInformation replacements = 1;
+}
+
+// A request to get an artifact.
+message GetArtifactRequest {
+  org.apache.beam.model.pipeline.v1.ArtifactInformation artifact = 1;
+}
+
+// Part of a response to getting an artifact.
+message GetArtifactResponse {
+  bytes data = 1;
+}
+
+// Wraps an ArtifactRetrievalService request for use in ReverseArtifactRetrievalService.
+message ArtifactRequestWrapper {
+  oneof request {
+    ResolveArtifactsRequest resolve_artifact = 1000;
+    GetArtifactRequest get_artifact = 1001;
+  }
+}
+
+// Wraps an ArtifactRetrievalService response for use in ReverseArtifactRetrievalService.
+message ArtifactResponseWrapper {
+  // A token indicating which job these artifacts are being staged for.
+  string staging_token = 1;
+
+  // Whether this is the last response for this request (for those responses that
+  // would typically be terminated by the end of the response stream.)
+  bool is_last = 2;
+
+  // The response itself.
+  oneof response {
+    ResolveArtifactsResponse resolve_artifact_response = 1000;
+    GetArtifactResponse get_artifact_response = 1001;
+  }
+}
+
+
+// Legacy artifact staging service for pipeline-level artifacts.
+
+// A service to stage artifacts for use in a Job.
+service LegacyArtifactStagingService {
   // Stage an artifact to be available during job execution. The first request must contain the
   // name of the artifact. All future requests must contain sequential chunks of the content of
   // the artifact.
@@ -46,12 +128,12 @@ service ArtifactStagingService {
 }
 
 // A service to retrieve artifacts for use in a Job.
-service ArtifactRetrievalService {
+service LegacyArtifactRetrievalService {
   // Get the manifest for the job
   rpc GetManifest(GetManifestRequest) returns (GetManifestResponse);
 
   // Get an artifact staged for the job. The requested artifact must be within the manifest
-  rpc GetArtifact(GetArtifactRequest) returns (stream ArtifactChunk);
+  rpc GetArtifact(LegacyGetArtifactRequest) returns (stream ArtifactChunk);
 }
 
 // An artifact identifier and associated metadata.
@@ -95,7 +177,7 @@ message GetManifestResponse {
 }
 
 // A request to get an artifact. The artifact must be present in the manifest for the job.
-message GetArtifactRequest {
+message LegacyGetArtifactRequest {
   // (Required) The name of the artifact to retrieve.
   string name = 1;
   // (Required) An opaque token representing the entirety of the staged artifacts.
@@ -150,6 +232,6 @@ message CommitManifestResponse {
   }
   // (Required) An opaque token representing the entirety of the staged artifacts.
   // This can be used to retrieve the manifest and artifacts from an associated
-  // ArtifactRetrievalService.
+  // LegacyArtifactRetrievalService.
   string retrieval_token = 1;
 }

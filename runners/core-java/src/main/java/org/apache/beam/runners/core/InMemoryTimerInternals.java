@@ -24,13 +24,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.TreeSet;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link TimerInternals} with all watermarks and processing clock simulated in-memory. */
@@ -40,19 +40,19 @@ public class InMemoryTimerInternals implements TimerInternals {
   Table<StateNamespace, String, TimerData> existingTimers = HashBasedTable.create();
 
   /** Pending input watermark timers, in timestamp order. */
-  private NavigableSet<TimerData> watermarkTimers = new TreeSet<>();
+  private final NavigableSet<TimerData> watermarkTimers = new TreeSet<>();
 
   /** Pending processing time timers, in timestamp order. */
-  private NavigableSet<TimerData> processingTimers = new TreeSet<>();
+  private final NavigableSet<TimerData> processingTimers = new TreeSet<>();
 
   /** Pending synchronized processing time timers, in timestamp order. */
-  private NavigableSet<TimerData> synchronizedProcessingTimers = new TreeSet<>();
+  private final NavigableSet<TimerData> synchronizedProcessingTimers = new TreeSet<>();
 
   /** Current input watermark. */
   private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   /** Current output watermark. */
-  @Nullable private Instant outputWatermarkTime = null;
+  private @Nullable Instant outputWatermarkTime = null;
 
   /** Current processing time. */
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -61,17 +61,20 @@ public class InMemoryTimerInternals implements TimerInternals {
   private Instant synchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   @Override
-  @Nullable
-  public Instant currentOutputWatermarkTime() {
+  public @Nullable Instant currentOutputWatermarkTime() {
     return outputWatermarkTime;
+  }
+
+  /** Returns true when there are still timers to be fired. */
+  public boolean hasPendingTimers() {
+    return !existingTimers.isEmpty();
   }
 
   /**
    * Returns when the next timer in the given time domain will fire, or {@code null} if there are no
    * timers scheduled in that time domain.
    */
-  @Nullable
-  public Instant getNextTimer(TimeDomain domain) {
+  public @Nullable Instant getNextTimer(TimeDomain domain) {
     try {
       switch (domain) {
         case EVENT_TIME:
@@ -160,9 +163,9 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Deprecated
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
-    TimerData existing = existingTimers.get(namespace, timerId + '+' + timerFamilyId);
-    if (existing != null) {
-      deleteTimer(existing);
+    TimerData removedTimer = existingTimers.remove(namespace, timerId + '+' + timerFamilyId);
+    if (removedTimer != null) {
+      timersForDomain(removedTimer.getDomain()).remove(removedTimer);
     }
   }
 
@@ -170,10 +173,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Deprecated
   @Override
   public void deleteTimer(TimerData timer) {
-    WindowTracing.trace("{}.deleteTimer: {}", getClass().getSimpleName(), timer);
-    existingTimers.remove(
-        timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
-    timersForDomain(timer.getDomain()).remove(timer);
+    deleteTimer(timer.getNamespace(), timer.getTimerId(), timer.getTimerFamilyId());
   }
 
   @Override
@@ -182,8 +182,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   @Override
-  @Nullable
-  public Instant currentSynchronizedProcessingTime() {
+  public @Nullable Instant currentSynchronizedProcessingTime() {
     return synchronizedProcessingTime;
   }
 
@@ -282,8 +281,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   /** Returns the next eligible event time timer, if none returns null. */
-  @Nullable
-  public TimerData removeNextEventTimer() {
+  public @Nullable TimerData removeNextEventTimer() {
     TimerData timer = removeNextTimer(inputWatermarkTime, TimeDomain.EVENT_TIME);
     if (timer != null) {
       WindowTracing.trace(
@@ -296,8 +294,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   /** Returns the next eligible processing time timer, if none returns null. */
-  @Nullable
-  public TimerData removeNextProcessingTimer() {
+  public @Nullable TimerData removeNextProcessingTimer() {
     TimerData timer = removeNextTimer(processingTime, TimeDomain.PROCESSING_TIME);
     if (timer != null) {
       WindowTracing.trace(
@@ -310,8 +307,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   /** Returns the next eligible synchronized processing time timer, if none returns null. */
-  @Nullable
-  public TimerData removeNextSynchronizedProcessingTimer() {
+  public @Nullable TimerData removeNextSynchronizedProcessingTimer() {
     TimerData timer =
         removeNextTimer(synchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     if (timer != null) {
@@ -324,8 +320,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     return timer;
   }
 
-  @Nullable
-  private TimerData removeNextTimer(Instant currentTime, TimeDomain domain) {
+  private @Nullable TimerData removeNextTimer(Instant currentTime, TimeDomain domain) {
     NavigableSet<TimerData> timers = timersForDomain(domain);
 
     if (!timers.isEmpty() && currentTime.isAfter(timers.first().getTimestamp())) {

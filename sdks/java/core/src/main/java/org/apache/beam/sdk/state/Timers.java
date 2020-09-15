@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.state;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Interface for interacting with time. */
-@Experimental(Experimental.Kind.TIMERS)
+@Experimental(Kind.TIMERS)
 public interface Timers {
   /**
    * Sets a timer to fire when the event time watermark, the current processing time, or the
@@ -40,6 +41,9 @@ public interface Timers {
    * @param timeDomain the domain that the {@code timestamp} applies to
    */
   void setTimer(Instant timestamp, TimeDomain timeDomain);
+
+  /** Set a timer with outputTimestamp. */
+  void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain);
 
   /** Removes the timer set in this context for the {@code timestmap} and {@code timeDomain}. */
   void deleteTimer(Instant timestamp, TimeDomain timeDomain);

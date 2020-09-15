@@ -34,7 +34,7 @@ from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipytho
 try:
   from unittest.mock import patch
 except ImportError:
-  from mock import patch
+  from mock import patch  # type: ignore[misc]
 
 # pylint: disable=range-builtin-not-iterating,unused-variable,possibly-unused-variable
 # Reason:
@@ -55,7 +55,7 @@ class PipelineGraphTest(unittest.TestCase):
     p = beam.Pipeline(ir.InteractiveRunner())
     # We are examining if literal `"` and trailing literal `\` are decorated
     # correctly.
-    pcoll = p | '"Cell 1": "Create\\"' >> beam.Create(range(1000))
+    pcoll = p | '"[1]": "Create\\"' >> beam.Create(range(1000))
     ib.watch(locals())
 
     self.assertEqual(
@@ -64,9 +64,9 @@ class PipelineGraphTest(unittest.TestCase):
             'node [color=blue, fontcolor=blue, shape=box];\n'
             # The py string literal from `\\\\\\"` is `\\\"` in dot and will be
             # rendered as `\"` because they are enclosed by `"`.
-            '"\\"Cell 1\\": \\"Create\\\\\\"";\n'
+            '"\\"[1]\\": \\"Create\\\\\\"";\n'
             'pcoll [shape=circle];\n'
-            '"\\"Cell 1\\": \\"Create\\\\\\"" -> pcoll;\n'
+            '"\\"[1]\\": \\"Create\\\\\\"" -> pcoll;\n'
             '}\n'),
         pipeline_graph.PipelineGraph(p).get_dot())
 
@@ -119,17 +119,17 @@ class PipelineGraphTest(unittest.TestCase):
     self.assertEqual((
         'digraph G {\n'
         'node [color=blue, fontcolor=blue, shape=box];\n'
-        '"Cell 2: Init";\n'
+        '"[2]: Init";\n'
         'init_pcoll [shape=circle];\n'
-        '"Cell 3: Square";\n'
+        '"[3]: Square";\n'
         'squares [shape=circle];\n'
-        '"Cell 4: Cube";\n'
+        '"[4]: Cube";\n'
         'cubes [shape=circle];\n'
-        '"Cell 2: Init" -> init_pcoll;\n'
-        'init_pcoll -> "Cell 3: Square";\n'
-        'init_pcoll -> "Cell 4: Cube";\n'
-        '"Cell 3: Square" -> squares;\n'
-        '"Cell 4: Cube" -> cubes;\n'
+        '"[2]: Init" -> init_pcoll;\n'
+        'init_pcoll -> "[3]: Square";\n'
+        'init_pcoll -> "[4]: Cube";\n'
+        '"[3]: Square" -> squares;\n'
+        '"[4]: Cube" -> cubes;\n'
         '}\n'),
                      pipeline_graph.PipelineGraph(p).get_dot())
 

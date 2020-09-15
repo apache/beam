@@ -6,7 +6,7 @@ package jobmanagement_v1
 import (
 	context "context"
 	fmt "fmt"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -45,7 +45,366 @@ func (x CommitManifestResponse_Constants) String() string {
 }
 
 func (CommitManifestResponse_Constants) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{11, 0}
+	return fileDescriptor_8ef4db42c81e3972, []int{17, 0}
+}
+
+// A request for artifact resolution.
+type ResolveArtifactsRequest struct {
+	// An (ordered) set of artifacts to (jointly) resolve.
+	Artifacts []*pipeline_v1.ArtifactInformation `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	// A set of artifact type urns that are understood by the requester.
+	// An attempt should be made to resolve the artifacts in terms of these URNs,
+	// but other URNs may be used as well with the understanding that they must
+	// be fetch-able as bytes via GetArtifact.
+	PreferredUrns        []string `protobuf:"bytes,2,rep,name=preferred_urns,json=preferredUrns,proto3" json:"preferred_urns,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ResolveArtifactsRequest) Reset()         { *m = ResolveArtifactsRequest{} }
+func (m *ResolveArtifactsRequest) String() string { return proto.CompactTextString(m) }
+func (*ResolveArtifactsRequest) ProtoMessage()    {}
+func (*ResolveArtifactsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ef4db42c81e3972, []int{0}
+}
+
+func (m *ResolveArtifactsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ResolveArtifactsRequest.Unmarshal(m, b)
+}
+func (m *ResolveArtifactsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ResolveArtifactsRequest.Marshal(b, m, deterministic)
+}
+func (m *ResolveArtifactsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveArtifactsRequest.Merge(m, src)
+}
+func (m *ResolveArtifactsRequest) XXX_Size() int {
+	return xxx_messageInfo_ResolveArtifactsRequest.Size(m)
+}
+func (m *ResolveArtifactsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveArtifactsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveArtifactsRequest proto.InternalMessageInfo
+
+func (m *ResolveArtifactsRequest) GetArtifacts() []*pipeline_v1.ArtifactInformation {
+	if m != nil {
+		return m.Artifacts
+	}
+	return nil
+}
+
+func (m *ResolveArtifactsRequest) GetPreferredUrns() []string {
+	if m != nil {
+		return m.PreferredUrns
+	}
+	return nil
+}
+
+// A response for artifact resolution.
+type ResolveArtifactsResponse struct {
+	// A full (ordered) set of replacements for the set of requested artifacts,
+	// preferably in terms of the requested type URNs.  If there is no better
+	// resolution, the original list is returned.
+	Replacements         []*pipeline_v1.ArtifactInformation `protobuf:"bytes,1,rep,name=replacements,proto3" json:"replacements,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
+	XXX_unrecognized     []byte                             `json:"-"`
+	XXX_sizecache        int32                              `json:"-"`
+}
+
+func (m *ResolveArtifactsResponse) Reset()         { *m = ResolveArtifactsResponse{} }
+func (m *ResolveArtifactsResponse) String() string { return proto.CompactTextString(m) }
+func (*ResolveArtifactsResponse) ProtoMessage()    {}
+func (*ResolveArtifactsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ef4db42c81e3972, []int{1}
+}
+
+func (m *ResolveArtifactsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ResolveArtifactsResponse.Unmarshal(m, b)
+}
+func (m *ResolveArtifactsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ResolveArtifactsResponse.Marshal(b, m, deterministic)
+}
+func (m *ResolveArtifactsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveArtifactsResponse.Merge(m, src)
+}
+func (m *ResolveArtifactsResponse) XXX_Size() int {
+	return xxx_messageInfo_ResolveArtifactsResponse.Size(m)
+}
+func (m *ResolveArtifactsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveArtifactsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveArtifactsResponse proto.InternalMessageInfo
+
+func (m *ResolveArtifactsResponse) GetReplacements() []*pipeline_v1.ArtifactInformation {
+	if m != nil {
+		return m.Replacements
+	}
+	return nil
+}
+
+// A request to get an artifact.
+type GetArtifactRequest struct {
+	Artifact             *pipeline_v1.ArtifactInformation `protobuf:"bytes,1,opt,name=artifact,proto3" json:"artifact,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                         `json:"-"`
+	XXX_unrecognized     []byte                           `json:"-"`
+	XXX_sizecache        int32                            `json:"-"`
+}
+
+func (m *GetArtifactRequest) Reset()         { *m = GetArtifactRequest{} }
+func (m *GetArtifactRequest) String() string { return proto.CompactTextString(m) }
+func (*GetArtifactRequest) ProtoMessage()    {}
+func (*GetArtifactRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ef4db42c81e3972, []int{2}
+}
+
+func (m *GetArtifactRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetArtifactRequest.Unmarshal(m, b)
+}
+func (m *GetArtifactRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetArtifactRequest.Marshal(b, m, deterministic)
+}
+func (m *GetArtifactRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetArtifactRequest.Merge(m, src)
+}
+func (m *GetArtifactRequest) XXX_Size() int {
+	return xxx_messageInfo_GetArtifactRequest.Size(m)
+}
+func (m *GetArtifactRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetArtifactRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetArtifactRequest proto.InternalMessageInfo
+
+func (m *GetArtifactRequest) GetArtifact() *pipeline_v1.ArtifactInformation {
+	if m != nil {
+		return m.Artifact
+	}
+	return nil
+}
+
+// Part of a response to getting an artifact.
+type GetArtifactResponse struct {
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetArtifactResponse) Reset()         { *m = GetArtifactResponse{} }
+func (m *GetArtifactResponse) String() string { return proto.CompactTextString(m) }
+func (*GetArtifactResponse) ProtoMessage()    {}
+func (*GetArtifactResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ef4db42c81e3972, []int{3}
+}
+
+func (m *GetArtifactResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetArtifactResponse.Unmarshal(m, b)
+}
+func (m *GetArtifactResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetArtifactResponse.Marshal(b, m, deterministic)
+}
+func (m *GetArtifactResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetArtifactResponse.Merge(m, src)
+}
+func (m *GetArtifactResponse) XXX_Size() int {
+	return xxx_messageInfo_GetArtifactResponse.Size(m)
+}
+func (m *GetArtifactResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetArtifactResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetArtifactResponse proto.InternalMessageInfo
+
+func (m *GetArtifactResponse) GetData() []byte {
+	if m != nil {
+		return m.Data
+	}
+	return nil
+}
+
+// Wraps an ArtifactRetrievalService request for use in ReverseArtifactRetrievalService.
+type ArtifactRequestWrapper struct {
+	// Types that are valid to be assigned to Request:
+	//	*ArtifactRequestWrapper_ResolveArtifact
+	//	*ArtifactRequestWrapper_GetArtifact
+	Request              isArtifactRequestWrapper_Request `protobuf_oneof:"request"`
+	XXX_NoUnkeyedLiteral struct{}                         `json:"-"`
+	XXX_unrecognized     []byte                           `json:"-"`
+	XXX_sizecache        int32                            `json:"-"`
+}
+
+func (m *ArtifactRequestWrapper) Reset()         { *m = ArtifactRequestWrapper{} }
+func (m *ArtifactRequestWrapper) String() string { return proto.CompactTextString(m) }
+func (*ArtifactRequestWrapper) ProtoMessage()    {}
+func (*ArtifactRequestWrapper) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ef4db42c81e3972, []int{4}
+}
+
+func (m *ArtifactRequestWrapper) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ArtifactRequestWrapper.Unmarshal(m, b)
+}
+func (m *ArtifactRequestWrapper) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ArtifactRequestWrapper.Marshal(b, m, deterministic)
+}
+func (m *ArtifactRequestWrapper) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArtifactRequestWrapper.Merge(m, src)
+}
+func (m *ArtifactRequestWrapper) XXX_Size() int {
+	return xxx_messageInfo_ArtifactRequestWrapper.Size(m)
+}
+func (m *ArtifactRequestWrapper) XXX_DiscardUnknown() {
+	xxx_messageInfo_ArtifactRequestWrapper.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ArtifactRequestWrapper proto.InternalMessageInfo
+
+type isArtifactRequestWrapper_Request interface {
+	isArtifactRequestWrapper_Request()
+}
+
+type ArtifactRequestWrapper_ResolveArtifact struct {
+	ResolveArtifact *ResolveArtifactsRequest `protobuf:"bytes,1000,opt,name=resolve_artifact,json=resolveArtifact,proto3,oneof"`
+}
+
+type ArtifactRequestWrapper_GetArtifact struct {
+	GetArtifact *GetArtifactRequest `protobuf:"bytes,1001,opt,name=get_artifact,json=getArtifact,proto3,oneof"`
+}
+
+func (*ArtifactRequestWrapper_ResolveArtifact) isArtifactRequestWrapper_Request() {}
+
+func (*ArtifactRequestWrapper_GetArtifact) isArtifactRequestWrapper_Request() {}
+
+func (m *ArtifactRequestWrapper) GetRequest() isArtifactRequestWrapper_Request {
+	if m != nil {
+		return m.Request
+	}
+	return nil
+}
+
+func (m *ArtifactRequestWrapper) GetResolveArtifact() *ResolveArtifactsRequest {
+	if x, ok := m.GetRequest().(*ArtifactRequestWrapper_ResolveArtifact); ok {
+		return x.ResolveArtifact
+	}
+	return nil
+}
+
+func (m *ArtifactRequestWrapper) GetGetArtifact() *GetArtifactRequest {
+	if x, ok := m.GetRequest().(*ArtifactRequestWrapper_GetArtifact); ok {
+		return x.GetArtifact
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ArtifactRequestWrapper) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*ArtifactRequestWrapper_ResolveArtifact)(nil),
+		(*ArtifactRequestWrapper_GetArtifact)(nil),
+	}
+}
+
+// Wraps an ArtifactRetrievalService response for use in ReverseArtifactRetrievalService.
+type ArtifactResponseWrapper struct {
+	// A token indicating which job these artifacts are being staged for.
+	StagingToken string `protobuf:"bytes,1,opt,name=staging_token,json=stagingToken,proto3" json:"staging_token,omitempty"`
+	// Whether this is the last response for this request (for those responses that
+	// would typically be terminated by the end of the response stream.)
+	IsLast bool `protobuf:"varint,2,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
+	// The response itself.
+	//
+	// Types that are valid to be assigned to Response:
+	//	*ArtifactResponseWrapper_ResolveArtifactResponse
+	//	*ArtifactResponseWrapper_GetArtifactResponse
+	Response             isArtifactResponseWrapper_Response `protobuf_oneof:"response"`
+	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
+	XXX_unrecognized     []byte                             `json:"-"`
+	XXX_sizecache        int32                              `json:"-"`
+}
+
+func (m *ArtifactResponseWrapper) Reset()         { *m = ArtifactResponseWrapper{} }
+func (m *ArtifactResponseWrapper) String() string { return proto.CompactTextString(m) }
+func (*ArtifactResponseWrapper) ProtoMessage()    {}
+func (*ArtifactResponseWrapper) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ef4db42c81e3972, []int{5}
+}
+
+func (m *ArtifactResponseWrapper) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ArtifactResponseWrapper.Unmarshal(m, b)
+}
+func (m *ArtifactResponseWrapper) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ArtifactResponseWrapper.Marshal(b, m, deterministic)
+}
+func (m *ArtifactResponseWrapper) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArtifactResponseWrapper.Merge(m, src)
+}
+func (m *ArtifactResponseWrapper) XXX_Size() int {
+	return xxx_messageInfo_ArtifactResponseWrapper.Size(m)
+}
+func (m *ArtifactResponseWrapper) XXX_DiscardUnknown() {
+	xxx_messageInfo_ArtifactResponseWrapper.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ArtifactResponseWrapper proto.InternalMessageInfo
+
+func (m *ArtifactResponseWrapper) GetStagingToken() string {
+	if m != nil {
+		return m.StagingToken
+	}
+	return ""
+}
+
+func (m *ArtifactResponseWrapper) GetIsLast() bool {
+	if m != nil {
+		return m.IsLast
+	}
+	return false
+}
+
+type isArtifactResponseWrapper_Response interface {
+	isArtifactResponseWrapper_Response()
+}
+
+type ArtifactResponseWrapper_ResolveArtifactResponse struct {
+	ResolveArtifactResponse *ResolveArtifactsResponse `protobuf:"bytes,1000,opt,name=resolve_artifact_response,json=resolveArtifactResponse,proto3,oneof"`
+}
+
+type ArtifactResponseWrapper_GetArtifactResponse struct {
+	GetArtifactResponse *GetArtifactResponse `protobuf:"bytes,1001,opt,name=get_artifact_response,json=getArtifactResponse,proto3,oneof"`
+}
+
+func (*ArtifactResponseWrapper_ResolveArtifactResponse) isArtifactResponseWrapper_Response() {}
+
+func (*ArtifactResponseWrapper_GetArtifactResponse) isArtifactResponseWrapper_Response() {}
+
+func (m *ArtifactResponseWrapper) GetResponse() isArtifactResponseWrapper_Response {
+	if m != nil {
+		return m.Response
+	}
+	return nil
+}
+
+func (m *ArtifactResponseWrapper) GetResolveArtifactResponse() *ResolveArtifactsResponse {
+	if x, ok := m.GetResponse().(*ArtifactResponseWrapper_ResolveArtifactResponse); ok {
+		return x.ResolveArtifactResponse
+	}
+	return nil
+}
+
+func (m *ArtifactResponseWrapper) GetGetArtifactResponse() *GetArtifactResponse {
+	if x, ok := m.GetResponse().(*ArtifactResponseWrapper_GetArtifactResponse); ok {
+		return x.GetArtifactResponse
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ArtifactResponseWrapper) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*ArtifactResponseWrapper_ResolveArtifactResponse)(nil),
+		(*ArtifactResponseWrapper_GetArtifactResponse)(nil),
+	}
 }
 
 // An artifact identifier and associated metadata.
@@ -66,7 +425,7 @@ func (m *ArtifactMetadata) Reset()         { *m = ArtifactMetadata{} }
 func (m *ArtifactMetadata) String() string { return proto.CompactTextString(m) }
 func (*ArtifactMetadata) ProtoMessage()    {}
 func (*ArtifactMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{0}
+	return fileDescriptor_8ef4db42c81e3972, []int{6}
 }
 
 func (m *ArtifactMetadata) XXX_Unmarshal(b []byte) error {
@@ -120,7 +479,7 @@ func (m *Manifest) Reset()         { *m = Manifest{} }
 func (m *Manifest) String() string { return proto.CompactTextString(m) }
 func (*Manifest) ProtoMessage()    {}
 func (*Manifest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{1}
+	return fileDescriptor_8ef4db42c81e3972, []int{7}
 }
 
 func (m *Manifest) XXX_Unmarshal(b []byte) error {
@@ -161,7 +520,7 @@ func (m *ProxyManifest) Reset()         { *m = ProxyManifest{} }
 func (m *ProxyManifest) String() string { return proto.CompactTextString(m) }
 func (*ProxyManifest) ProtoMessage()    {}
 func (*ProxyManifest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{2}
+	return fileDescriptor_8ef4db42c81e3972, []int{8}
 }
 
 func (m *ProxyManifest) XXX_Unmarshal(b []byte) error {
@@ -208,7 +567,7 @@ func (m *ProxyManifest_Location) Reset()         { *m = ProxyManifest_Location{}
 func (m *ProxyManifest_Location) String() string { return proto.CompactTextString(m) }
 func (*ProxyManifest_Location) ProtoMessage()    {}
 func (*ProxyManifest_Location) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{2, 0}
+	return fileDescriptor_8ef4db42c81e3972, []int{8, 0}
 }
 
 func (m *ProxyManifest_Location) XXX_Unmarshal(b []byte) error {
@@ -257,7 +616,7 @@ func (m *GetManifestRequest) Reset()         { *m = GetManifestRequest{} }
 func (m *GetManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*GetManifestRequest) ProtoMessage()    {}
 func (*GetManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{3}
+	return fileDescriptor_8ef4db42c81e3972, []int{9}
 }
 
 func (m *GetManifestRequest) XXX_Unmarshal(b []byte) error {
@@ -297,7 +656,7 @@ func (m *GetManifestResponse) Reset()         { *m = GetManifestResponse{} }
 func (m *GetManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*GetManifestResponse) ProtoMessage()    {}
 func (*GetManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{4}
+	return fileDescriptor_8ef4db42c81e3972, []int{10}
 }
 
 func (m *GetManifestResponse) XXX_Unmarshal(b []byte) error {
@@ -326,7 +685,7 @@ func (m *GetManifestResponse) GetManifest() *Manifest {
 }
 
 // A request to get an artifact. The artifact must be present in the manifest for the job.
-type GetArtifactRequest struct {
+type LegacyGetArtifactRequest struct {
 	// (Required) The name of the artifact to retrieve.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// (Required) An opaque token representing the entirety of the staged artifacts.
@@ -337,39 +696,39 @@ type GetArtifactRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetArtifactRequest) Reset()         { *m = GetArtifactRequest{} }
-func (m *GetArtifactRequest) String() string { return proto.CompactTextString(m) }
-func (*GetArtifactRequest) ProtoMessage()    {}
-func (*GetArtifactRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{5}
+func (m *LegacyGetArtifactRequest) Reset()         { *m = LegacyGetArtifactRequest{} }
+func (m *LegacyGetArtifactRequest) String() string { return proto.CompactTextString(m) }
+func (*LegacyGetArtifactRequest) ProtoMessage()    {}
+func (*LegacyGetArtifactRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8ef4db42c81e3972, []int{11}
 }
 
-func (m *GetArtifactRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetArtifactRequest.Unmarshal(m, b)
+func (m *LegacyGetArtifactRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_LegacyGetArtifactRequest.Unmarshal(m, b)
 }
-func (m *GetArtifactRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetArtifactRequest.Marshal(b, m, deterministic)
+func (m *LegacyGetArtifactRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_LegacyGetArtifactRequest.Marshal(b, m, deterministic)
 }
-func (m *GetArtifactRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetArtifactRequest.Merge(m, src)
+func (m *LegacyGetArtifactRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LegacyGetArtifactRequest.Merge(m, src)
 }
-func (m *GetArtifactRequest) XXX_Size() int {
-	return xxx_messageInfo_GetArtifactRequest.Size(m)
+func (m *LegacyGetArtifactRequest) XXX_Size() int {
+	return xxx_messageInfo_LegacyGetArtifactRequest.Size(m)
 }
-func (m *GetArtifactRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetArtifactRequest.DiscardUnknown(m)
+func (m *LegacyGetArtifactRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_LegacyGetArtifactRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetArtifactRequest proto.InternalMessageInfo
+var xxx_messageInfo_LegacyGetArtifactRequest proto.InternalMessageInfo
 
-func (m *GetArtifactRequest) GetName() string {
+func (m *LegacyGetArtifactRequest) GetName() string {
 	if m != nil {
 		return m.Name
 	}
 	return ""
 }
 
-func (m *GetArtifactRequest) GetRetrievalToken() string {
+func (m *LegacyGetArtifactRequest) GetRetrievalToken() string {
 	if m != nil {
 		return m.RetrievalToken
 	}
@@ -388,7 +747,7 @@ func (m *ArtifactChunk) Reset()         { *m = ArtifactChunk{} }
 func (m *ArtifactChunk) String() string { return proto.CompactTextString(m) }
 func (*ArtifactChunk) ProtoMessage()    {}
 func (*ArtifactChunk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{6}
+	return fileDescriptor_8ef4db42c81e3972, []int{12}
 }
 
 func (m *ArtifactChunk) XXX_Unmarshal(b []byte) error {
@@ -431,7 +790,7 @@ func (m *PutArtifactMetadata) Reset()         { *m = PutArtifactMetadata{} }
 func (m *PutArtifactMetadata) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactMetadata) ProtoMessage()    {}
 func (*PutArtifactMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{7}
+	return fileDescriptor_8ef4db42c81e3972, []int{13}
 }
 
 func (m *PutArtifactMetadata) XXX_Unmarshal(b []byte) error {
@@ -483,7 +842,7 @@ func (m *PutArtifactRequest) Reset()         { *m = PutArtifactRequest{} }
 func (m *PutArtifactRequest) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactRequest) ProtoMessage()    {}
 func (*PutArtifactRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{8}
+	return fileDescriptor_8ef4db42c81e3972, []int{14}
 }
 
 func (m *PutArtifactRequest) XXX_Unmarshal(b []byte) error {
@@ -559,7 +918,7 @@ func (m *PutArtifactResponse) Reset()         { *m = PutArtifactResponse{} }
 func (m *PutArtifactResponse) String() string { return proto.CompactTextString(m) }
 func (*PutArtifactResponse) ProtoMessage()    {}
 func (*PutArtifactResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{9}
+	return fileDescriptor_8ef4db42c81e3972, []int{15}
 }
 
 func (m *PutArtifactResponse) XXX_Unmarshal(b []byte) error {
@@ -597,7 +956,7 @@ func (m *CommitManifestRequest) Reset()         { *m = CommitManifestRequest{} }
 func (m *CommitManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitManifestRequest) ProtoMessage()    {}
 func (*CommitManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{10}
+	return fileDescriptor_8ef4db42c81e3972, []int{16}
 }
 
 func (m *CommitManifestRequest) XXX_Unmarshal(b []byte) error {
@@ -636,7 +995,7 @@ func (m *CommitManifestRequest) GetStagingSessionToken() string {
 type CommitManifestResponse struct {
 	// (Required) An opaque token representing the entirety of the staged artifacts.
 	// This can be used to retrieve the manifest and artifacts from an associated
-	// ArtifactRetrievalService.
+	// LegacyArtifactRetrievalService.
 	RetrievalToken       string   `protobuf:"bytes,1,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -647,7 +1006,7 @@ func (m *CommitManifestResponse) Reset()         { *m = CommitManifestResponse{}
 func (m *CommitManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitManifestResponse) ProtoMessage()    {}
 func (*CommitManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8ef4db42c81e3972, []int{11}
+	return fileDescriptor_8ef4db42c81e3972, []int{17}
 }
 
 func (m *CommitManifestResponse) XXX_Unmarshal(b []byte) error {
@@ -677,13 +1036,19 @@ func (m *CommitManifestResponse) GetRetrievalToken() string {
 
 func init() {
 	proto.RegisterEnum("org.apache.beam.model.job_management.v1.CommitManifestResponse_Constants", CommitManifestResponse_Constants_name, CommitManifestResponse_Constants_value)
+	proto.RegisterType((*ResolveArtifactsRequest)(nil), "org.apache.beam.model.job_management.v1.ResolveArtifactsRequest")
+	proto.RegisterType((*ResolveArtifactsResponse)(nil), "org.apache.beam.model.job_management.v1.ResolveArtifactsResponse")
+	proto.RegisterType((*GetArtifactRequest)(nil), "org.apache.beam.model.job_management.v1.GetArtifactRequest")
+	proto.RegisterType((*GetArtifactResponse)(nil), "org.apache.beam.model.job_management.v1.GetArtifactResponse")
+	proto.RegisterType((*ArtifactRequestWrapper)(nil), "org.apache.beam.model.job_management.v1.ArtifactRequestWrapper")
+	proto.RegisterType((*ArtifactResponseWrapper)(nil), "org.apache.beam.model.job_management.v1.ArtifactResponseWrapper")
 	proto.RegisterType((*ArtifactMetadata)(nil), "org.apache.beam.model.job_management.v1.ArtifactMetadata")
 	proto.RegisterType((*Manifest)(nil), "org.apache.beam.model.job_management.v1.Manifest")
 	proto.RegisterType((*ProxyManifest)(nil), "org.apache.beam.model.job_management.v1.ProxyManifest")
 	proto.RegisterType((*ProxyManifest_Location)(nil), "org.apache.beam.model.job_management.v1.ProxyManifest.Location")
 	proto.RegisterType((*GetManifestRequest)(nil), "org.apache.beam.model.job_management.v1.GetManifestRequest")
 	proto.RegisterType((*GetManifestResponse)(nil), "org.apache.beam.model.job_management.v1.GetManifestResponse")
-	proto.RegisterType((*GetArtifactRequest)(nil), "org.apache.beam.model.job_management.v1.GetArtifactRequest")
+	proto.RegisterType((*LegacyGetArtifactRequest)(nil), "org.apache.beam.model.job_management.v1.LegacyGetArtifactRequest")
 	proto.RegisterType((*ArtifactChunk)(nil), "org.apache.beam.model.job_management.v1.ArtifactChunk")
 	proto.RegisterType((*PutArtifactMetadata)(nil), "org.apache.beam.model.job_management.v1.PutArtifactMetadata")
 	proto.RegisterType((*PutArtifactRequest)(nil), "org.apache.beam.model.job_management.v1.PutArtifactRequest")
@@ -695,51 +1060,73 @@ func init() {
 func init() { proto.RegisterFile("beam_artifact_api.proto", fileDescriptor_8ef4db42c81e3972) }
 
 var fileDescriptor_8ef4db42c81e3972 = []byte{
-	// 690 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xcf, 0x4f, 0x13, 0x41,
-	0x18, 0x65, 0x0a, 0x62, 0xfb, 0x55, 0xb0, 0x19, 0x52, 0xa8, 0x4d, 0x4c, 0x9a, 0x35, 0x91, 0x9e,
-	0x36, 0x50, 0x23, 0x89, 0x11, 0x25, 0xa5, 0x22, 0x10, 0xf9, 0xe5, 0xb6, 0x5e, 0xf0, 0x30, 0x0e,
-	0xed, 0x50, 0x56, 0xd8, 0x99, 0xba, 0x3b, 0x6d, 0xf4, 0xee, 0xc1, 0x18, 0x2f, 0x5e, 0x3d, 0x79,
-	0x36, 0x1e, 0xbd, 0x78, 0xf5, 0xe6, 0x1f, 0xe3, 0x3f, 0xe0, 0xc9, 0xec, 0xec, 0xce, 0xd2, 0xa5,
-	0x25, 0xd9, 0x56, 0x6e, 0xd3, 0x99, 0xbe, 0x37, 0xef, 0x7b, 0xdf, 0x9b, 0x2f, 0x0b, 0x0b, 0x47,
-	0x8c, 0x3a, 0x84, 0xba, 0xd2, 0x3e, 0xa6, 0x4d, 0x49, 0x68, 0xc7, 0x36, 0x3b, 0xae, 0x90, 0x02,
-	0x2f, 0x0a, 0xb7, 0x6d, 0xd2, 0x0e, 0x6d, 0x9e, 0x30, 0xd3, 0xff, 0x8f, 0xe9, 0x88, 0x16, 0x3b,
-	0x33, 0x5f, 0x8b, 0x23, 0xe2, 0x50, 0x4e, 0xdb, 0xcc, 0x61, 0x5c, 0x9a, 0xbd, 0xe5, 0x62, 0x5e,
-	0x31, 0xb8, 0x5d, 0xce, 0x99, 0x7b, 0x8e, 0x37, 0x5e, 0x41, 0xae, 0x1a, 0xb2, 0xee, 0x32, 0x49,
-	0x5b, 0x54, 0x52, 0x8c, 0x61, 0x8a, 0x53, 0x87, 0x15, 0x50, 0x09, 0x95, 0x33, 0x96, 0x5a, 0xe3,
-	0x12, 0x64, 0x3b, 0xcc, 0x75, 0x6c, 0xcf, 0xb3, 0x05, 0xf7, 0x0a, 0xa9, 0x12, 0x2a, 0xcf, 0x58,
-	0xfd, 0x5b, 0x78, 0x1e, 0xa6, 0xbd, 0x13, 0x5a, 0xb9, 0xbf, 0x52, 0x98, 0x52, 0xb8, 0xf0, 0x97,
-	0x41, 0x21, 0xbd, 0x4b, 0xb9, 0x7d, 0xcc, 0x3c, 0x89, 0x5f, 0x40, 0x5a, 0xd7, 0x50, 0x40, 0xa5,
-	0xc9, 0x72, 0xb6, 0xf2, 0xc0, 0x4c, 0x58, 0x80, 0x79, 0x51, 0xa6, 0x15, 0x51, 0x19, 0x7f, 0x10,
-	0xcc, 0x1c, 0xb8, 0xe2, 0xed, 0xbb, 0xe8, 0xa2, 0x5d, 0x48, 0x3b, 0xe1, 0x5a, 0x95, 0x91, 0xad,
-	0x2c, 0x27, 0xbe, 0x48, 0x93, 0x58, 0x11, 0x05, 0x7e, 0x09, 0xe9, 0x33, 0xd1, 0xa4, 0xd2, 0x16,
-	0xbc, 0x90, 0x52, 0xba, 0xd7, 0x12, 0xd3, 0xc5, 0x84, 0x99, 0x3b, 0x21, 0x8d, 0x15, 0x11, 0x16,
-	0x97, 0x20, 0xad, 0x77, 0x87, 0x5a, 0x9f, 0x83, 0xc9, 0xae, 0x6b, 0x2b, 0xcb, 0x33, 0x96, 0xbf,
-	0x34, 0x1e, 0x01, 0xde, 0x64, 0x32, 0xd2, 0xc9, 0xde, 0x74, 0x7d, 0x91, 0x8b, 0x70, 0xd3, 0x65,
-	0xd2, 0xb5, 0x59, 0x8f, 0x9e, 0x11, 0x29, 0x4e, 0x19, 0x0f, 0x69, 0x66, 0xa3, 0xed, 0x86, 0xbf,
-	0x6b, 0xb4, 0x60, 0x2e, 0x06, 0xf7, 0x3a, 0x82, 0x7b, 0xec, 0x8a, 0x3d, 0x33, 0x9e, 0x2b, 0x91,
-	0xba, 0x6b, 0x5a, 0xe4, 0xb0, 0x02, 0x87, 0x08, 0x4f, 0x0d, 0x15, 0x7e, 0x07, 0x66, 0x34, 0x5f,
-	0xed, 0xa4, 0xcb, 0x4f, 0x7d, 0x36, 0x3f, 0x0a, 0x8a, 0xed, 0x86, 0xa5, 0xd6, 0xc6, 0x57, 0x04,
-	0x73, 0x07, 0x5d, 0x39, 0x90, 0xea, 0x0a, 0xe4, 0x3d, 0x49, 0xdb, 0x36, 0x6f, 0x13, 0x8f, 0xa9,
-	0xcc, 0xc6, 0x4c, 0x9a, 0x0b, 0x0f, 0xeb, 0xc1, 0x99, 0xba, 0xd0, 0xcf, 0xab, 0x13, 0xe2, 0x95,
-	0xa4, 0xff, 0xcb, 0xab, 0xa6, 0x32, 0x7e, 0x23, 0xc0, 0x7d, 0x12, 0xb5, 0x37, 0x87, 0x7d, 0xb7,
-	0x05, 0x0d, 0x58, 0x4d, 0x9e, 0xb2, 0xc1, 0x8a, 0xb7, 0x26, 0xce, 0xaf, 0xc4, 0x3b, 0xa1, 0x53,
-	0x41, 0x15, 0x2b, 0x23, 0x57, 0xa1, 0xfc, 0xde, 0x9a, 0x08, 0x3c, 0x5e, 0xcf, 0xc0, 0xf5, 0xa6,
-	0xe0, 0x92, 0x71, 0x69, 0xe4, 0x63, 0x6e, 0xeb, 0x30, 0x19, 0x5f, 0x10, 0xe4, 0x6b, 0xc2, 0x71,
-	0xec, 0x81, 0x98, 0x5e, 0xf1, 0xd3, 0xbc, 0xb4, 0xad, 0xa9, 0x4b, 0xdb, 0x6a, 0x7c, 0x42, 0x30,
-	0x7f, 0x51, 0x5c, 0xf8, 0x08, 0x12, 0x3f, 0xa2, 0x6d, 0xc8, 0xd4, 0x04, 0xf7, 0x24, 0xe5, 0xd2,
-	0xc3, 0xab, 0x70, 0x6b, 0x6f, 0x9f, 0x54, 0xad, 0xc6, 0xf6, 0xd3, 0x6a, 0xad, 0x51, 0x27, 0xf5,
-	0x46, 0x75, 0x73, 0xe3, 0x09, 0x69, 0xec, 0x3f, 0xdb, 0xd8, 0xcb, 0x4d, 0x14, 0x6f, 0x7f, 0xfb,
-	0xf1, 0xf7, 0xd7, 0xb5, 0x05, 0x42, 0xb8, 0x88, 0x66, 0xb8, 0x47, 0x7c, 0x65, 0xac, 0x45, 0x48,
-	0xe5, 0x67, 0x0a, 0xe6, 0xb5, 0x81, 0x75, 0x2d, 0xd7, 0xed, 0xd9, 0x4d, 0x86, 0x3f, 0x22, 0xc8,
-	0xf6, 0xd9, 0x8b, 0x1f, 0x8e, 0x13, 0x88, 0xd0, 0xf9, 0xe2, 0xea, 0x78, 0xe0, 0xc0, 0x99, 0x32,
-	0xc2, 0x9f, 0x11, 0xcc, 0xc6, 0x6d, 0xc3, 0x8f, 0x13, 0x53, 0x0e, 0x0d, 0x43, 0x71, 0x6d, 0x6c,
-	0x7c, 0xa0, 0xaa, 0xf2, 0x3d, 0x05, 0x85, 0x73, 0xa9, 0x61, 0x87, 0xb4, 0x7b, 0x1f, 0x10, 0x64,
-	0xfb, 0x26, 0xdd, 0x08, 0xee, 0x0d, 0x8e, 0xd7, 0x11, 0xdc, 0x1b, 0x36, 0x5c, 0xdf, 0x07, 0x52,
-	0xc6, 0x68, 0xe4, 0xe0, 0x10, 0x2d, 0x8e, 0xf9, 0x7c, 0x97, 0xd0, 0xfa, 0x26, 0xdc, 0xbd, 0x14,
-	0x1a, 0x43, 0xae, 0x67, 0x35, 0xb4, 0xda, 0xb1, 0x0f, 0x73, 0xb1, 0x63, 0xd2, 0x5b, 0x3e, 0x9a,
-	0x56, 0x9f, 0x0f, 0xf7, 0xfe, 0x05, 0x00, 0x00, 0xff, 0xff, 0x11, 0x85, 0xb1, 0xe8, 0x99, 0x08,
-	0x00, 0x00,
+	// 1044 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x57, 0xbf, 0x6f, 0x23, 0x45,
+	0x14, 0xf6, 0x38, 0x47, 0x62, 0x3f, 0x27, 0x39, 0x6b, 0x22, 0xc7, 0x3e, 0x8b, 0x1f, 0xd6, 0x9e,
+	0xe0, 0x4c, 0xb3, 0x4a, 0x8c, 0x38, 0x09, 0x11, 0xb8, 0x73, 0xc2, 0x11, 0x47, 0x24, 0x77, 0xa7,
+	0xb5, 0xa3, 0x93, 0x42, 0xb1, 0x4c, 0xec, 0x89, 0xb3, 0x9c, 0x77, 0x76, 0x99, 0x19, 0x5b, 0x5c,
+	0x47, 0x89, 0x10, 0x0d, 0x0d, 0x48, 0x54, 0x94, 0x88, 0x9a, 0x82, 0x0e, 0x01, 0x15, 0x7f, 0x03,
+	0xff, 0x00, 0x14, 0xb4, 0x14, 0x54, 0x68, 0x67, 0x7f, 0xd8, 0x6b, 0xef, 0x22, 0xff, 0xb8, 0x6e,
+	0x33, 0xe3, 0xf7, 0x7d, 0xef, 0x7d, 0xf3, 0xbe, 0x37, 0x13, 0x28, 0x5f, 0x52, 0x62, 0x9b, 0x84,
+	0x4b, 0xeb, 0x8a, 0x74, 0xa5, 0x49, 0x5c, 0x4b, 0x77, 0xb9, 0x23, 0x1d, 0x7c, 0xc7, 0xe1, 0x7d,
+	0x9d, 0xb8, 0xa4, 0x7b, 0x4d, 0x75, 0xef, 0x37, 0xba, 0xed, 0xf4, 0xe8, 0x40, 0xff, 0xd8, 0xb9,
+	0x34, 0x6d, 0xc2, 0x48, 0x9f, 0xda, 0x94, 0x49, 0x7d, 0xb4, 0x5f, 0x2d, 0x29, 0x04, 0x3e, 0x64,
+	0x8c, 0xf2, 0x71, 0xbc, 0xf6, 0x35, 0x82, 0xb2, 0x41, 0x85, 0x33, 0x18, 0xd1, 0x66, 0x80, 0x2e,
+	0x0c, 0xfa, 0xc9, 0x90, 0x0a, 0x89, 0x3b, 0x90, 0x0f, 0x19, 0x45, 0x05, 0xd5, 0xd6, 0xea, 0x85,
+	0xc6, 0x5d, 0x3d, 0x99, 0xcf, 0xb5, 0x5c, 0x3a, 0xb0, 0x18, 0xd5, 0x47, 0xfb, 0x7a, 0x88, 0x73,
+	0xc2, 0xae, 0x1c, 0x6e, 0x13, 0x69, 0x39, 0xcc, 0x18, 0x03, 0xe1, 0x57, 0x61, 0xdb, 0xe5, 0xf4,
+	0x8a, 0x72, 0x4e, 0x7b, 0xe6, 0x90, 0x33, 0x51, 0xc9, 0xd6, 0xd6, 0xea, 0x79, 0x63, 0x2b, 0x5a,
+	0x3d, 0xe7, 0x4c, 0x68, 0x23, 0xa8, 0xcc, 0xe6, 0x25, 0x5c, 0x87, 0x09, 0x8a, 0x2f, 0x60, 0x93,
+	0x53, 0x77, 0x40, 0xba, 0xaa, 0xba, 0x55, 0x73, 0x8b, 0x61, 0x69, 0xd7, 0x80, 0x8f, 0xa9, 0x0c,
+	0x7f, 0x17, 0x4a, 0x61, 0x40, 0x2e, 0xac, 0xa0, 0x82, 0x6a, 0x68, 0x05, 0xb6, 0x08, 0x47, 0x7b,
+	0x1d, 0x76, 0x62, 0x4c, 0x41, 0x71, 0x18, 0x6e, 0xf4, 0x88, 0x24, 0x8a, 0x66, 0xd3, 0x50, 0xdf,
+	0xda, 0x3f, 0x08, 0x76, 0xa7, 0x52, 0x7a, 0xc2, 0x89, 0xeb, 0x52, 0x8e, 0x19, 0x14, 0xb9, 0xaf,
+	0x53, 0xd4, 0x1e, 0x95, 0x3f, 0x37, 0x54, 0x8a, 0xf7, 0xf5, 0x39, 0x9b, 0x43, 0x4f, 0xe9, 0x80,
+	0x56, 0xc6, 0xb8, 0xc9, 0xe3, 0x5b, 0x98, 0xc0, 0x66, 0x9f, 0xca, 0x31, 0xd7, 0x5f, 0x3e, 0xd7,
+	0xdb, 0x73, 0x73, 0xcd, 0xaa, 0xdb, 0xca, 0x18, 0x85, 0xfe, 0x78, 0xf5, 0x30, 0x0f, 0x1b, 0xdc,
+	0xdf, 0xd1, 0xfe, 0xc8, 0x42, 0x79, 0x5a, 0xa1, 0xb0, 0xf2, 0xdb, 0xb0, 0x25, 0x24, 0xe9, 0x5b,
+	0xac, 0x6f, 0x4a, 0xe7, 0x29, 0x65, 0x4a, 0xb1, 0xbc, 0xb1, 0x19, 0x2c, 0x76, 0xbc, 0x35, 0x5c,
+	0x86, 0x0d, 0x4b, 0x98, 0x03, 0x22, 0x64, 0x25, 0x5b, 0x43, 0xf5, 0x9c, 0xb1, 0x6e, 0x89, 0x53,
+	0x22, 0x24, 0xfe, 0x0c, 0xc1, 0xad, 0x69, 0xe1, 0x4c, 0x1e, 0x50, 0x84, 0x0a, 0x36, 0x57, 0x50,
+	0xd0, 0x47, 0x6a, 0x65, 0x8c, 0xf2, 0x94, 0x84, 0xd1, 0x49, 0x0b, 0x28, 0x4d, 0x4a, 0x39, 0x66,
+	0x0f, 0x34, 0x3d, 0x58, 0x4e, 0xd3, 0x88, 0x78, 0xa7, 0x3f, 0xbb, 0x7c, 0x08, 0x90, 0x0b, 0x79,
+	0xb4, 0x8f, 0xa0, 0x18, 0xee, 0x9f, 0x51, 0x49, 0xbc, 0x56, 0xf3, 0xda, 0x8f, 0x11, 0x9b, 0x06,
+	0x62, 0xaa, 0x6f, 0x5c, 0x83, 0x82, 0x4b, 0xb9, 0x6d, 0x09, 0x61, 0x39, 0xca, 0xaf, 0xa8, 0xbe,
+	0x65, 0x4c, 0x2e, 0xe1, 0x5d, 0x58, 0x17, 0xd7, 0xa4, 0xf1, 0xe6, 0xdd, 0xca, 0x0d, 0x15, 0x17,
+	0xfc, 0xa5, 0x11, 0xc8, 0x9d, 0x11, 0x66, 0x5d, 0x79, 0x1e, 0x3a, 0x8f, 0x79, 0xc8, 0x73, 0xec,
+	0x5b, 0x73, 0x17, 0x38, 0x9d, 0xe6, 0x84, 0x8d, 0xfe, 0x46, 0xb0, 0xf5, 0x98, 0x3b, 0x9f, 0x3e,
+	0x8b, 0x88, 0xce, 0x20, 0x67, 0x07, 0xdf, 0x81, 0x59, 0xf7, 0xe7, 0x26, 0x0a, 0x41, 0x8c, 0x08,
+	0x02, 0x7f, 0x08, 0xb9, 0x81, 0xd3, 0x55, 0xee, 0x55, 0xa3, 0xaa, 0xd0, 0xb8, 0x37, 0x37, 0x5c,
+	0x2c, 0x31, 0xfd, 0x34, 0x80, 0x31, 0x22, 0xc0, 0xea, 0x1e, 0xe4, 0xc2, 0xd5, 0x44, 0xe9, 0x8b,
+	0xb0, 0x36, 0xe4, 0x96, 0x92, 0x3c, 0x6f, 0x78, 0x9f, 0xda, 0x3b, 0x6a, 0x40, 0x45, 0x79, 0x06,
+	0x03, 0xea, 0x0e, 0xdc, 0xe4, 0x54, 0x72, 0x8b, 0x8e, 0xc8, 0x20, 0x66, 0x87, 0xed, 0x68, 0x59,
+	0x19, 0x42, 0xeb, 0xa9, 0xa9, 0x33, 0x0e, 0x0f, 0x7a, 0xf1, 0xf9, 0x6a, 0xa6, 0x3d, 0x81, 0xca,
+	0x29, 0xed, 0x93, 0xee, 0xb3, 0x84, 0x59, 0x9a, 0x54, 0x66, 0x42, 0xfa, 0xd9, 0xc4, 0xf4, 0x6f,
+	0xc3, 0x56, 0x88, 0x77, 0x74, 0x3d, 0x64, 0x4f, 0x13, 0xc7, 0xe5, 0x77, 0x08, 0x76, 0x1e, 0x0f,
+	0xe5, 0x4c, 0x6f, 0x37, 0xa0, 0x14, 0x4e, 0x0c, 0x41, 0x55, 0xe7, 0xc6, 0xa4, 0xda, 0x09, 0x36,
+	0xdb, 0xfe, 0x9e, 0x3f, 0x40, 0xce, 0x21, 0x67, 0x07, 0xf1, 0x2a, 0xa5, 0xd5, 0xba, 0x36, 0x84,
+	0xd2, 0x7e, 0x47, 0x80, 0x27, 0x52, 0x0c, 0xb5, 0xb9, 0x98, 0x60, 0x43, 0x0b, 0x0e, 0x81, 0x84,
+	0x8a, 0x5b, 0x99, 0x31, 0x25, 0x3e, 0x0d, 0x94, 0xca, 0xfe, 0xef, 0xfd, 0x95, 0x5e, 0x85, 0xd2,
+	0xbb, 0x95, 0xf1, 0x35, 0xf6, 0x86, 0x74, 0xd7, 0x61, 0x92, 0x32, 0xa9, 0x95, 0x62, 0x6a, 0x87,
+	0x2d, 0xa5, 0x7d, 0x8b, 0xa0, 0x74, 0xe4, 0xd8, 0xb6, 0x35, 0xd3, 0xac, 0xcf, 0xd9, 0xa0, 0xa9,
+	0xc7, 0x9a, 0x4d, 0x3d, 0x56, 0xed, 0x4b, 0x04, 0xbb, 0xd3, 0xc9, 0x05, 0x56, 0x98, 0xdb, 0x4a,
+	0x27, 0x90, 0x3f, 0x72, 0x98, 0x90, 0x84, 0x49, 0x81, 0x0f, 0xe0, 0xd6, 0xc3, 0x47, 0x66, 0xd3,
+	0xe8, 0x9c, 0xbc, 0xdf, 0x3c, 0xea, 0xb4, 0xcd, 0x76, 0xa7, 0x79, 0xfc, 0xe0, 0x3d, 0xb3, 0xf3,
+	0xe8, 0x83, 0x07, 0x0f, 0x8b, 0x99, 0xea, 0x4b, 0x3f, 0xfc, 0xf8, 0xef, 0xaf, 0x2f, 0x94, 0x4d,
+	0x93, 0x39, 0xd1, 0xc0, 0x17, 0xa6, 0x97, 0x19, 0xed, 0x99, 0x66, 0xe3, 0x97, 0x2c, 0x54, 0xc6,
+	0x02, 0x06, 0x2c, 0x6d, 0xca, 0x47, 0x56, 0x97, 0xe2, 0x6f, 0x10, 0x14, 0xa7, 0xef, 0x17, 0xbc,
+	0xf2, 0xe5, 0x5e, 0x5d, 0xfd, 0x72, 0xc3, 0x5f, 0x20, 0x28, 0x4c, 0x38, 0x1c, 0xaf, 0xf2, 0x0a,
+	0xa8, 0xae, 0x74, 0xdd, 0xed, 0xa1, 0xc6, 0x6f, 0x13, 0x8f, 0xa4, 0x76, 0x78, 0xe4, 0xbe, 0x82,
+	0xdf, 0x23, 0x78, 0xc5, 0xa0, 0x23, 0xca, 0x05, 0x4d, 0x55, 0xf9, 0xfe, 0xc2, 0x86, 0x98, 0x7a,
+	0x90, 0x54, 0xef, 0x2d, 0x81, 0x30, 0xf9, 0x96, 0xab, 0xa3, 0x3d, 0xd4, 0xf8, 0x39, 0x0b, 0x2f,
+	0xfa, 0xa3, 0x33, 0xa5, 0x16, 0x4f, 0xf3, 0x09, 0xbb, 0x2d, 0xa0, 0xf9, 0xec, 0xbc, 0xa9, 0x1e,
+	0x2c, 0x17, 0xec, 0xd7, 0x5d, 0x47, 0xf8, 0x2b, 0x04, 0xdb, 0x71, 0x1b, 0xe1, 0x77, 0xe7, 0x86,
+	0x4c, 0x1c, 0x0e, 0x0b, 0xa8, 0x98, 0xec, 0xdf, 0xc6, 0x4f, 0x59, 0x78, 0x39, 0xae, 0xe0, 0xcc,
+	0x59, 0x7f, 0xee, 0xf7, 0x6d, 0x94, 0xf3, 0x42, 0x7d, 0x3b, 0x9d, 0xf0, 0xc1, 0x72, 0xc1, 0x29,
+	0x16, 0x9a, 0xdf, 0x95, 0x69, 0x17, 0x6c, 0x75, 0xc9, 0xd1, 0xbe, 0x87, 0x0e, 0x8f, 0xe1, 0xb5,
+	0xd4, 0xd0, 0x58, 0xe4, 0x61, 0x21, 0x0c, 0x6d, 0xba, 0xd6, 0x45, 0x31, 0xb6, 0x6d, 0x8e, 0xf6,
+	0x2f, 0xd7, 0xd5, 0x7f, 0x97, 0x6f, 0xfc, 0x17, 0x00, 0x00, 0xff, 0xff, 0x77, 0x41, 0xcb, 0x1a,
+	0xb8, 0x0e, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -750,170 +1137,15 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// ArtifactStagingServiceClient is the client API for ArtifactStagingService service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type ArtifactStagingServiceClient interface {
-	// Stage an artifact to be available during job execution. The first request must contain the
-	// name of the artifact. All future requests must contain sequential chunks of the content of
-	// the artifact.
-	PutArtifact(ctx context.Context, opts ...grpc.CallOption) (ArtifactStagingService_PutArtifactClient, error)
-	// Commit the manifest for a Job. All artifacts must have been successfully uploaded
-	// before this call is made.
-	//
-	// Throws error INVALID_ARGUMENT if not all of the members of the manifest are present
-	CommitManifest(ctx context.Context, in *CommitManifestRequest, opts ...grpc.CallOption) (*CommitManifestResponse, error)
-}
-
-type artifactStagingServiceClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewArtifactStagingServiceClient(cc *grpc.ClientConn) ArtifactStagingServiceClient {
-	return &artifactStagingServiceClient{cc}
-}
-
-func (c *artifactStagingServiceClient) PutArtifact(ctx context.Context, opts ...grpc.CallOption) (ArtifactStagingService_PutArtifactClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_ArtifactStagingService_serviceDesc.Streams[0], "/org.apache.beam.model.job_management.v1.ArtifactStagingService/PutArtifact", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &artifactStagingServicePutArtifactClient{stream}
-	return x, nil
-}
-
-type ArtifactStagingService_PutArtifactClient interface {
-	Send(*PutArtifactRequest) error
-	CloseAndRecv() (*PutArtifactResponse, error)
-	grpc.ClientStream
-}
-
-type artifactStagingServicePutArtifactClient struct {
-	grpc.ClientStream
-}
-
-func (x *artifactStagingServicePutArtifactClient) Send(m *PutArtifactRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *artifactStagingServicePutArtifactClient) CloseAndRecv() (*PutArtifactResponse, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	m := new(PutArtifactResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *artifactStagingServiceClient) CommitManifest(ctx context.Context, in *CommitManifestRequest, opts ...grpc.CallOption) (*CommitManifestResponse, error) {
-	out := new(CommitManifestResponse)
-	err := c.cc.Invoke(ctx, "/org.apache.beam.model.job_management.v1.ArtifactStagingService/CommitManifest", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// ArtifactStagingServiceServer is the server API for ArtifactStagingService service.
-type ArtifactStagingServiceServer interface {
-	// Stage an artifact to be available during job execution. The first request must contain the
-	// name of the artifact. All future requests must contain sequential chunks of the content of
-	// the artifact.
-	PutArtifact(ArtifactStagingService_PutArtifactServer) error
-	// Commit the manifest for a Job. All artifacts must have been successfully uploaded
-	// before this call is made.
-	//
-	// Throws error INVALID_ARGUMENT if not all of the members of the manifest are present
-	CommitManifest(context.Context, *CommitManifestRequest) (*CommitManifestResponse, error)
-}
-
-// UnimplementedArtifactStagingServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedArtifactStagingServiceServer struct {
-}
-
-func (*UnimplementedArtifactStagingServiceServer) PutArtifact(srv ArtifactStagingService_PutArtifactServer) error {
-	return status.Errorf(codes.Unimplemented, "method PutArtifact not implemented")
-}
-func (*UnimplementedArtifactStagingServiceServer) CommitManifest(ctx context.Context, req *CommitManifestRequest) (*CommitManifestResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CommitManifest not implemented")
-}
-
-func RegisterArtifactStagingServiceServer(s *grpc.Server, srv ArtifactStagingServiceServer) {
-	s.RegisterService(&_ArtifactStagingService_serviceDesc, srv)
-}
-
-func _ArtifactStagingService_PutArtifact_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ArtifactStagingServiceServer).PutArtifact(&artifactStagingServicePutArtifactServer{stream})
-}
-
-type ArtifactStagingService_PutArtifactServer interface {
-	SendAndClose(*PutArtifactResponse) error
-	Recv() (*PutArtifactRequest, error)
-	grpc.ServerStream
-}
-
-type artifactStagingServicePutArtifactServer struct {
-	grpc.ServerStream
-}
-
-func (x *artifactStagingServicePutArtifactServer) SendAndClose(m *PutArtifactResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *artifactStagingServicePutArtifactServer) Recv() (*PutArtifactRequest, error) {
-	m := new(PutArtifactRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _ArtifactStagingService_CommitManifest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CommitManifestRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ArtifactStagingServiceServer).CommitManifest(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/org.apache.beam.model.job_management.v1.ArtifactStagingService/CommitManifest",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArtifactStagingServiceServer).CommitManifest(ctx, req.(*CommitManifestRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _ArtifactStagingService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "org.apache.beam.model.job_management.v1.ArtifactStagingService",
-	HandlerType: (*ArtifactStagingServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "CommitManifest",
-			Handler:    _ArtifactStagingService_CommitManifest_Handler,
-		},
-	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "PutArtifact",
-			Handler:       _ArtifactStagingService_PutArtifact_Handler,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "beam_artifact_api.proto",
-}
-
 // ArtifactRetrievalServiceClient is the client API for ArtifactRetrievalService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ArtifactRetrievalServiceClient interface {
-	// Get the manifest for the job
-	GetManifest(ctx context.Context, in *GetManifestRequest, opts ...grpc.CallOption) (*GetManifestResponse, error)
-	// Get an artifact staged for the job. The requested artifact must be within the manifest
+	// Resolves the given artifact references into one or more replacement
+	// artifact references (e.g. a Maven dependency into a (transitive) set
+	// of jars.
+	ResolveArtifacts(ctx context.Context, in *ResolveArtifactsRequest, opts ...grpc.CallOption) (*ResolveArtifactsResponse, error)
+	// Retrieves the given artifact as a stream of bytes.
 	GetArtifact(ctx context.Context, in *GetArtifactRequest, opts ...grpc.CallOption) (ArtifactRetrievalService_GetArtifactClient, error)
 }
 
@@ -925,9 +1157,9 @@ func NewArtifactRetrievalServiceClient(cc *grpc.ClientConn) ArtifactRetrievalSer
 	return &artifactRetrievalServiceClient{cc}
 }
 
-func (c *artifactRetrievalServiceClient) GetManifest(ctx context.Context, in *GetManifestRequest, opts ...grpc.CallOption) (*GetManifestResponse, error) {
-	out := new(GetManifestResponse)
-	err := c.cc.Invoke(ctx, "/org.apache.beam.model.job_management.v1.ArtifactRetrievalService/GetManifest", in, out, opts...)
+func (c *artifactRetrievalServiceClient) ResolveArtifacts(ctx context.Context, in *ResolveArtifactsRequest, opts ...grpc.CallOption) (*ResolveArtifactsResponse, error) {
+	out := new(ResolveArtifactsResponse)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.job_management.v1.ArtifactRetrievalService/ResolveArtifacts", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -950,7 +1182,7 @@ func (c *artifactRetrievalServiceClient) GetArtifact(ctx context.Context, in *Ge
 }
 
 type ArtifactRetrievalService_GetArtifactClient interface {
-	Recv() (*ArtifactChunk, error)
+	Recv() (*GetArtifactResponse, error)
 	grpc.ClientStream
 }
 
@@ -958,8 +1190,8 @@ type artifactRetrievalServiceGetArtifactClient struct {
 	grpc.ClientStream
 }
 
-func (x *artifactRetrievalServiceGetArtifactClient) Recv() (*ArtifactChunk, error) {
-	m := new(ArtifactChunk)
+func (x *artifactRetrievalServiceGetArtifactClient) Recv() (*GetArtifactResponse, error) {
+	m := new(GetArtifactResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -968,9 +1200,11 @@ func (x *artifactRetrievalServiceGetArtifactClient) Recv() (*ArtifactChunk, erro
 
 // ArtifactRetrievalServiceServer is the server API for ArtifactRetrievalService service.
 type ArtifactRetrievalServiceServer interface {
-	// Get the manifest for the job
-	GetManifest(context.Context, *GetManifestRequest) (*GetManifestResponse, error)
-	// Get an artifact staged for the job. The requested artifact must be within the manifest
+	// Resolves the given artifact references into one or more replacement
+	// artifact references (e.g. a Maven dependency into a (transitive) set
+	// of jars.
+	ResolveArtifacts(context.Context, *ResolveArtifactsRequest) (*ResolveArtifactsResponse, error)
+	// Retrieves the given artifact as a stream of bytes.
 	GetArtifact(*GetArtifactRequest, ArtifactRetrievalService_GetArtifactServer) error
 }
 
@@ -978,8 +1212,8 @@ type ArtifactRetrievalServiceServer interface {
 type UnimplementedArtifactRetrievalServiceServer struct {
 }
 
-func (*UnimplementedArtifactRetrievalServiceServer) GetManifest(ctx context.Context, req *GetManifestRequest) (*GetManifestResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetManifest not implemented")
+func (*UnimplementedArtifactRetrievalServiceServer) ResolveArtifacts(ctx context.Context, req *ResolveArtifactsRequest) (*ResolveArtifactsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResolveArtifacts not implemented")
 }
 func (*UnimplementedArtifactRetrievalServiceServer) GetArtifact(req *GetArtifactRequest, srv ArtifactRetrievalService_GetArtifactServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetArtifact not implemented")
@@ -989,20 +1223,20 @@ func RegisterArtifactRetrievalServiceServer(s *grpc.Server, srv ArtifactRetrieva
 	s.RegisterService(&_ArtifactRetrievalService_serviceDesc, srv)
 }
 
-func _ArtifactRetrievalService_GetManifest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetManifestRequest)
+func _ArtifactRetrievalService_ResolveArtifacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveArtifactsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ArtifactRetrievalServiceServer).GetManifest(ctx, in)
+		return srv.(ArtifactRetrievalServiceServer).ResolveArtifacts(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/org.apache.beam.model.job_management.v1.ArtifactRetrievalService/GetManifest",
+		FullMethod: "/org.apache.beam.model.job_management.v1.ArtifactRetrievalService/ResolveArtifacts",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArtifactRetrievalServiceServer).GetManifest(ctx, req.(*GetManifestRequest))
+		return srv.(ArtifactRetrievalServiceServer).ResolveArtifacts(ctx, req.(*ResolveArtifactsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1016,7 +1250,7 @@ func _ArtifactRetrievalService_GetArtifact_Handler(srv interface{}, stream grpc.
 }
 
 type ArtifactRetrievalService_GetArtifactServer interface {
-	Send(*ArtifactChunk) error
+	Send(*GetArtifactResponse) error
 	grpc.ServerStream
 }
 
@@ -1024,7 +1258,7 @@ type artifactRetrievalServiceGetArtifactServer struct {
 	grpc.ServerStream
 }
 
-func (x *artifactRetrievalServiceGetArtifactServer) Send(m *ArtifactChunk) error {
+func (x *artifactRetrievalServiceGetArtifactServer) Send(m *GetArtifactResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -1033,14 +1267,415 @@ var _ArtifactRetrievalService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ArtifactRetrievalServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetManifest",
-			Handler:    _ArtifactRetrievalService_GetManifest_Handler,
+			MethodName: "ResolveArtifacts",
+			Handler:    _ArtifactRetrievalService_ResolveArtifacts_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "GetArtifact",
 			Handler:       _ArtifactRetrievalService_GetArtifact_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "beam_artifact_api.proto",
+}
+
+// ArtifactStagingServiceClient is the client API for ArtifactStagingService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ArtifactStagingServiceClient interface {
+	ReverseArtifactRetrievalService(ctx context.Context, opts ...grpc.CallOption) (ArtifactStagingService_ReverseArtifactRetrievalServiceClient, error)
+}
+
+type artifactStagingServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewArtifactStagingServiceClient(cc *grpc.ClientConn) ArtifactStagingServiceClient {
+	return &artifactStagingServiceClient{cc}
+}
+
+func (c *artifactStagingServiceClient) ReverseArtifactRetrievalService(ctx context.Context, opts ...grpc.CallOption) (ArtifactStagingService_ReverseArtifactRetrievalServiceClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_ArtifactStagingService_serviceDesc.Streams[0], "/org.apache.beam.model.job_management.v1.ArtifactStagingService/ReverseArtifactRetrievalService", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &artifactStagingServiceReverseArtifactRetrievalServiceClient{stream}
+	return x, nil
+}
+
+type ArtifactStagingService_ReverseArtifactRetrievalServiceClient interface {
+	Send(*ArtifactResponseWrapper) error
+	Recv() (*ArtifactRequestWrapper, error)
+	grpc.ClientStream
+}
+
+type artifactStagingServiceReverseArtifactRetrievalServiceClient struct {
+	grpc.ClientStream
+}
+
+func (x *artifactStagingServiceReverseArtifactRetrievalServiceClient) Send(m *ArtifactResponseWrapper) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *artifactStagingServiceReverseArtifactRetrievalServiceClient) Recv() (*ArtifactRequestWrapper, error) {
+	m := new(ArtifactRequestWrapper)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// ArtifactStagingServiceServer is the server API for ArtifactStagingService service.
+type ArtifactStagingServiceServer interface {
+	ReverseArtifactRetrievalService(ArtifactStagingService_ReverseArtifactRetrievalServiceServer) error
+}
+
+// UnimplementedArtifactStagingServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedArtifactStagingServiceServer struct {
+}
+
+func (*UnimplementedArtifactStagingServiceServer) ReverseArtifactRetrievalService(srv ArtifactStagingService_ReverseArtifactRetrievalServiceServer) error {
+	return status.Errorf(codes.Unimplemented, "method ReverseArtifactRetrievalService not implemented")
+}
+
+func RegisterArtifactStagingServiceServer(s *grpc.Server, srv ArtifactStagingServiceServer) {
+	s.RegisterService(&_ArtifactStagingService_serviceDesc, srv)
+}
+
+func _ArtifactStagingService_ReverseArtifactRetrievalService_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ArtifactStagingServiceServer).ReverseArtifactRetrievalService(&artifactStagingServiceReverseArtifactRetrievalServiceServer{stream})
+}
+
+type ArtifactStagingService_ReverseArtifactRetrievalServiceServer interface {
+	Send(*ArtifactRequestWrapper) error
+	Recv() (*ArtifactResponseWrapper, error)
+	grpc.ServerStream
+}
+
+type artifactStagingServiceReverseArtifactRetrievalServiceServer struct {
+	grpc.ServerStream
+}
+
+func (x *artifactStagingServiceReverseArtifactRetrievalServiceServer) Send(m *ArtifactRequestWrapper) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *artifactStagingServiceReverseArtifactRetrievalServiceServer) Recv() (*ArtifactResponseWrapper, error) {
+	m := new(ArtifactResponseWrapper)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _ArtifactStagingService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.job_management.v1.ArtifactStagingService",
+	HandlerType: (*ArtifactStagingServiceServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ReverseArtifactRetrievalService",
+			Handler:       _ArtifactStagingService_ReverseArtifactRetrievalService_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "beam_artifact_api.proto",
+}
+
+// LegacyArtifactStagingServiceClient is the client API for LegacyArtifactStagingService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type LegacyArtifactStagingServiceClient interface {
+	// Stage an artifact to be available during job execution. The first request must contain the
+	// name of the artifact. All future requests must contain sequential chunks of the content of
+	// the artifact.
+	PutArtifact(ctx context.Context, opts ...grpc.CallOption) (LegacyArtifactStagingService_PutArtifactClient, error)
+	// Commit the manifest for a Job. All artifacts must have been successfully uploaded
+	// before this call is made.
+	//
+	// Throws error INVALID_ARGUMENT if not all of the members of the manifest are present
+	CommitManifest(ctx context.Context, in *CommitManifestRequest, opts ...grpc.CallOption) (*CommitManifestResponse, error)
+}
+
+type legacyArtifactStagingServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewLegacyArtifactStagingServiceClient(cc *grpc.ClientConn) LegacyArtifactStagingServiceClient {
+	return &legacyArtifactStagingServiceClient{cc}
+}
+
+func (c *legacyArtifactStagingServiceClient) PutArtifact(ctx context.Context, opts ...grpc.CallOption) (LegacyArtifactStagingService_PutArtifactClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_LegacyArtifactStagingService_serviceDesc.Streams[0], "/org.apache.beam.model.job_management.v1.LegacyArtifactStagingService/PutArtifact", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &legacyArtifactStagingServicePutArtifactClient{stream}
+	return x, nil
+}
+
+type LegacyArtifactStagingService_PutArtifactClient interface {
+	Send(*PutArtifactRequest) error
+	CloseAndRecv() (*PutArtifactResponse, error)
+	grpc.ClientStream
+}
+
+type legacyArtifactStagingServicePutArtifactClient struct {
+	grpc.ClientStream
+}
+
+func (x *legacyArtifactStagingServicePutArtifactClient) Send(m *PutArtifactRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *legacyArtifactStagingServicePutArtifactClient) CloseAndRecv() (*PutArtifactResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(PutArtifactResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *legacyArtifactStagingServiceClient) CommitManifest(ctx context.Context, in *CommitManifestRequest, opts ...grpc.CallOption) (*CommitManifestResponse, error) {
+	out := new(CommitManifestResponse)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.job_management.v1.LegacyArtifactStagingService/CommitManifest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// LegacyArtifactStagingServiceServer is the server API for LegacyArtifactStagingService service.
+type LegacyArtifactStagingServiceServer interface {
+	// Stage an artifact to be available during job execution. The first request must contain the
+	// name of the artifact. All future requests must contain sequential chunks of the content of
+	// the artifact.
+	PutArtifact(LegacyArtifactStagingService_PutArtifactServer) error
+	// Commit the manifest for a Job. All artifacts must have been successfully uploaded
+	// before this call is made.
+	//
+	// Throws error INVALID_ARGUMENT if not all of the members of the manifest are present
+	CommitManifest(context.Context, *CommitManifestRequest) (*CommitManifestResponse, error)
+}
+
+// UnimplementedLegacyArtifactStagingServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedLegacyArtifactStagingServiceServer struct {
+}
+
+func (*UnimplementedLegacyArtifactStagingServiceServer) PutArtifact(srv LegacyArtifactStagingService_PutArtifactServer) error {
+	return status.Errorf(codes.Unimplemented, "method PutArtifact not implemented")
+}
+func (*UnimplementedLegacyArtifactStagingServiceServer) CommitManifest(ctx context.Context, req *CommitManifestRequest) (*CommitManifestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommitManifest not implemented")
+}
+
+func RegisterLegacyArtifactStagingServiceServer(s *grpc.Server, srv LegacyArtifactStagingServiceServer) {
+	s.RegisterService(&_LegacyArtifactStagingService_serviceDesc, srv)
+}
+
+func _LegacyArtifactStagingService_PutArtifact_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(LegacyArtifactStagingServiceServer).PutArtifact(&legacyArtifactStagingServicePutArtifactServer{stream})
+}
+
+type LegacyArtifactStagingService_PutArtifactServer interface {
+	SendAndClose(*PutArtifactResponse) error
+	Recv() (*PutArtifactRequest, error)
+	grpc.ServerStream
+}
+
+type legacyArtifactStagingServicePutArtifactServer struct {
+	grpc.ServerStream
+}
+
+func (x *legacyArtifactStagingServicePutArtifactServer) SendAndClose(m *PutArtifactResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *legacyArtifactStagingServicePutArtifactServer) Recv() (*PutArtifactRequest, error) {
+	m := new(PutArtifactRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _LegacyArtifactStagingService_CommitManifest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommitManifestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LegacyArtifactStagingServiceServer).CommitManifest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.apache.beam.model.job_management.v1.LegacyArtifactStagingService/CommitManifest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LegacyArtifactStagingServiceServer).CommitManifest(ctx, req.(*CommitManifestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _LegacyArtifactStagingService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.job_management.v1.LegacyArtifactStagingService",
+	HandlerType: (*LegacyArtifactStagingServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CommitManifest",
+			Handler:    _LegacyArtifactStagingService_CommitManifest_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "PutArtifact",
+			Handler:       _LegacyArtifactStagingService_PutArtifact_Handler,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "beam_artifact_api.proto",
+}
+
+// LegacyArtifactRetrievalServiceClient is the client API for LegacyArtifactRetrievalService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type LegacyArtifactRetrievalServiceClient interface {
+	// Get the manifest for the job
+	GetManifest(ctx context.Context, in *GetManifestRequest, opts ...grpc.CallOption) (*GetManifestResponse, error)
+	// Get an artifact staged for the job. The requested artifact must be within the manifest
+	GetArtifact(ctx context.Context, in *LegacyGetArtifactRequest, opts ...grpc.CallOption) (LegacyArtifactRetrievalService_GetArtifactClient, error)
+}
+
+type legacyArtifactRetrievalServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewLegacyArtifactRetrievalServiceClient(cc *grpc.ClientConn) LegacyArtifactRetrievalServiceClient {
+	return &legacyArtifactRetrievalServiceClient{cc}
+}
+
+func (c *legacyArtifactRetrievalServiceClient) GetManifest(ctx context.Context, in *GetManifestRequest, opts ...grpc.CallOption) (*GetManifestResponse, error) {
+	out := new(GetManifestResponse)
+	err := c.cc.Invoke(ctx, "/org.apache.beam.model.job_management.v1.LegacyArtifactRetrievalService/GetManifest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *legacyArtifactRetrievalServiceClient) GetArtifact(ctx context.Context, in *LegacyGetArtifactRequest, opts ...grpc.CallOption) (LegacyArtifactRetrievalService_GetArtifactClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_LegacyArtifactRetrievalService_serviceDesc.Streams[0], "/org.apache.beam.model.job_management.v1.LegacyArtifactRetrievalService/GetArtifact", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &legacyArtifactRetrievalServiceGetArtifactClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type LegacyArtifactRetrievalService_GetArtifactClient interface {
+	Recv() (*ArtifactChunk, error)
+	grpc.ClientStream
+}
+
+type legacyArtifactRetrievalServiceGetArtifactClient struct {
+	grpc.ClientStream
+}
+
+func (x *legacyArtifactRetrievalServiceGetArtifactClient) Recv() (*ArtifactChunk, error) {
+	m := new(ArtifactChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// LegacyArtifactRetrievalServiceServer is the server API for LegacyArtifactRetrievalService service.
+type LegacyArtifactRetrievalServiceServer interface {
+	// Get the manifest for the job
+	GetManifest(context.Context, *GetManifestRequest) (*GetManifestResponse, error)
+	// Get an artifact staged for the job. The requested artifact must be within the manifest
+	GetArtifact(*LegacyGetArtifactRequest, LegacyArtifactRetrievalService_GetArtifactServer) error
+}
+
+// UnimplementedLegacyArtifactRetrievalServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedLegacyArtifactRetrievalServiceServer struct {
+}
+
+func (*UnimplementedLegacyArtifactRetrievalServiceServer) GetManifest(ctx context.Context, req *GetManifestRequest) (*GetManifestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetManifest not implemented")
+}
+func (*UnimplementedLegacyArtifactRetrievalServiceServer) GetArtifact(req *LegacyGetArtifactRequest, srv LegacyArtifactRetrievalService_GetArtifactServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetArtifact not implemented")
+}
+
+func RegisterLegacyArtifactRetrievalServiceServer(s *grpc.Server, srv LegacyArtifactRetrievalServiceServer) {
+	s.RegisterService(&_LegacyArtifactRetrievalService_serviceDesc, srv)
+}
+
+func _LegacyArtifactRetrievalService_GetManifest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetManifestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LegacyArtifactRetrievalServiceServer).GetManifest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.apache.beam.model.job_management.v1.LegacyArtifactRetrievalService/GetManifest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LegacyArtifactRetrievalServiceServer).GetManifest(ctx, req.(*GetManifestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LegacyArtifactRetrievalService_GetArtifact_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(LegacyGetArtifactRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(LegacyArtifactRetrievalServiceServer).GetArtifact(m, &legacyArtifactRetrievalServiceGetArtifactServer{stream})
+}
+
+type LegacyArtifactRetrievalService_GetArtifactServer interface {
+	Send(*ArtifactChunk) error
+	grpc.ServerStream
+}
+
+type legacyArtifactRetrievalServiceGetArtifactServer struct {
+	grpc.ServerStream
+}
+
+func (x *legacyArtifactRetrievalServiceGetArtifactServer) Send(m *ArtifactChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+var _LegacyArtifactRetrievalService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "org.apache.beam.model.job_management.v1.LegacyArtifactRetrievalService",
+	HandlerType: (*LegacyArtifactRetrievalServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetManifest",
+			Handler:    _LegacyArtifactRetrievalService_GetManifest_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetArtifact",
+			Handler:       _LegacyArtifactRetrievalService_GetArtifact_Handler,
 			ServerStreams: true,
 		},
 	},

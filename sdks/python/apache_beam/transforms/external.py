@@ -26,32 +26,33 @@ from __future__ import print_function
 
 import contextlib
 import copy
+import functools
+import sys
 import threading
+from typing import ByteString
 from typing import Dict
 
+import grpc
+
 from apache_beam import pvalue
-from apache_beam.coders import registry
+from apache_beam.coders import RowCoder
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
+from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
-from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
+from apache_beam.typehints.schemas import named_fields_to_schema
+from apache_beam.typehints.schemas import named_tuple_from_schema
+from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
-
-# Protect against environments where grpc is not available.
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  import grpc
-  from apache_beam.portability.api import beam_expansion_api_pb2_grpc
-  from apache_beam.utils import subprocess_server
-except ImportError:
-  grpc = None
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+from apache_beam.utils import subprocess_server
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
@@ -82,18 +83,6 @@ class PayloadBuilder(object):
   """
   Abstract base class for building payloads to pass to ExternalTransform.
   """
-  @classmethod
-  def _config_value(cls, obj, typehint):
-    """
-    Helper to create a ConfigValue with an encoded value.
-    """
-    coder = registry.get_coder(typehint)
-    urns = list(iter_urns(coder))
-    if 'beam:coder:pickled_python:v1' in urns:
-      raise RuntimeError("Found non-portable coder for %s" % (typehint, ))
-    return ConfigValue(
-        coder_urn=urns, payload=coder.get_impl().encode_nested(obj))
-
   def build(self):
     """
     :return: ExternalConfigurationPayload
@@ -113,51 +102,15 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
   """
   Base class for building payloads based on a schema that provides
   type information for each configuration value to encode.
-
-  Note that if the schema defines a type as Optional, the corresponding value
-  will be omitted from the encoded payload, and thus the native transform
-  will determine the default.
   """
-  def __init__(self, values, schema):
-    """
-    :param values: mapping of config names to values
-    :param schema: mapping of config names to types
-    """
-    self._values = values
-    self._schema = schema
-
-  @classmethod
-  def _encode_config(cls, values, schema):
-    result = {}
-    for key, value in values.items():
-
-      try:
-        typehint = schema[key]
-      except KeyError:
-        raise RuntimeError("No typehint provided for key %r" % key)
-
-      typehint = convert_to_beam_type(typehint)
-
-      if value is None:
-        if not _is_optional_or_none(typehint):
-          raise RuntimeError(
-              "If value is None, typehint should be "
-              "optional. Got %r" % typehint)
-        # make it easy for user to filter None by default
-        continue
-      else:
-        # strip Optional from typehint so that pickled_python coder is not used
-        # for known types.
-        typehint = _strip_optional(typehint)
-      result[key] = cls._config_value(value, typehint)
-    return result
+  def _get_named_tuple_instance(self):
+    raise NotImplementedError()
 
   def build(self):
-    """
-    :return: ExternalConfigurationPayload
-    """
-    args = self._encode_config(self._values, self._schema)
-    return ExternalConfigurationPayload(configuration=args)
+    row = self._get_named_tuple_instance()
+    schema = named_tuple_to_schema(type(row))
+    return ExternalConfigurationPayload(
+        schema=schema, payload=RowCoder(schema).encode(row))
 
 
 class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -165,8 +118,38 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
   Build a payload that generates a schema from the provided values.
   """
   def __init__(self, values):
-    schema = {key: instance_to_type(value) for key, value in values.items()}
-    super(ImplicitSchemaPayloadBuilder, self).__init__(values, schema)
+    self._values = values
+
+  def _get_named_tuple_instance(self):
+    # omit fields with value=None since we can't infer their type
+    values = {
+        key: value
+        for key, value in self._values.items() if value is not None
+    }
+
+    # In python 2 named_fields_to_schema will not accept str because its
+    # ambiguous. This converts str hints to ByteString recursively so its clear
+    # we intend to use BYTES.
+    # TODO(BEAM-7372): Remove coercion to ByteString
+    def coerce_str_to_bytes(typ):
+      if typ == str:
+        return ByteString
+
+      elif hasattr(typ, '__args__') and hasattr(typ, '__origin__'):
+        # Create a new type rather than modifying the existing one
+        typ = typ.__origin__[tuple(map(coerce_str_to_bytes, typ.__args__))]
+
+      return typ
+
+    if sys.version_info[0] >= 3:
+      coerce_str_to_bytes = lambda x: x
+
+    schema = named_fields_to_schema([(
+        key,
+        coerce_str_to_bytes(convert_to_typing_type(instance_to_type(value))))
+                                     for key,
+                                     value in values.items()])
+    return named_tuple_from_schema(schema)(**values)
 
 
 class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -177,8 +160,11 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     """
     :param tuple_instance: an instance of a typing.NamedTuple
     """
-    super(NamedTupleBasedPayloadBuilder, self).__init__(
-        values=tuple_instance._asdict(), schema=tuple_instance._field_types)
+    super(NamedTupleBasedPayloadBuilder, self).__init__()
+    self._tuple_instance = tuple_instance
+
+  def _get_named_tuple_instance(self):
+    return self._tuple_instance
 
 
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -193,12 +179,16 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
                       be gathered from its __init__ method
     :param values: values to encode
     """
-    schema = {
-        k: v
-        for k,
-        v in transform.__init__.__annotations__.items() if k in values
-    }
-    super(AnnotationBasedPayloadBuilder, self).__init__(values, schema)
+    self._transform = transform
+    self._values = values
+
+  def _get_named_tuple_instance(self):
+    schema = named_fields_to_schema([
+        (k, convert_to_typing_type(v)) for k,
+        v in self._transform.__init__.__annotations__.items()
+        if k in self._values
+    ])
+    return named_tuple_from_schema(schema)(**self._values)
 
 
 class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -212,10 +202,16 @@ class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     :param transform: a dataclass-decorated PTransform instance from which to
                       gather type annotations and values
     """
+    self._transform = transform
+
+  def _get_named_tuple_instance(self):
     import dataclasses
-    schema = {field.name: field.type for field in dataclasses.fields(transform)}
-    super(DataclassBasedPayloadBuilder,
-          self).__init__(dataclasses.asdict(transform), schema)
+    schema = named_fields_to_schema([
+        (field.name, convert_to_typing_type(field.type))
+        for field in dataclasses.fields(self._transform)
+    ])
+    return named_tuple_from_schema(schema)(
+        **dataclasses.asdict(self._transform))
 
 
 class ExternalTransform(ptransform.PTransform):
@@ -226,7 +222,7 @@ class ExternalTransform(ptransform.PTransform):
     Experimental; no backwards compatibility guarantees.
   """
   _namespace_counter = 0
-  _namespace = threading.local()
+  _namespace = threading.local()  # type: ignore[assignment]
 
   _IMPULSE_PREFIX = 'impulse'
 
@@ -240,8 +236,6 @@ class ExternalTransform(ptransform.PTransform):
         or an address (as a str) to a grpc server that provides this method.
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
-    if grpc is None and isinstance(expansion_service, str):
-      raise NotImplementedError('Grpc required for external transforms.')
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
@@ -292,7 +286,8 @@ class ExternalTransform(ptransform.PTransform):
     pipeline = (
         next(iter(self._inputs.values())).pipeline
         if self._inputs else pvalueish.pipeline)
-    context = pipeline_context.PipelineContext()
+    context = pipeline_context.PipelineContext(
+        component_id_map=pipeline.component_id_map)
     transform_proto = beam_runner_api_pb2.PTransform(
         unique_name=pipeline._current_transform().full_label,
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -314,17 +309,20 @@ class ExternalTransform(ptransform.PTransform):
         namespace=self._namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
         transform=transform_proto)
 
-    if isinstance(self._expansion_service, str):
-      with grpc.insecure_channel(self._expansion_service) as channel:
-        response = beam_expansion_api_pb2_grpc.ExpansionServiceStub(
-            channel).Expand(request)
-    else:
-      response = self._expansion_service.Expand(request, None)
+    with self._service() as service:
+      response = service.Expand(request)
+      if response.error:
+        raise RuntimeError(response.error)
+      self._expanded_components = response.components
+      if any(env.dependencies
+             for env in self._expanded_components.environments.values()):
+        self._expanded_components = self._resolve_artifacts(
+            self._expanded_components,
+            service.artifact_service(),
+            pipeline.local_tempdir)
 
-    if response.error:
-      raise RuntimeError(response.error)
-    self._expanded_components = response.components
     self._expanded_transform = response.transform
+    self._expanded_requirements = response.requirements
     result_context = pipeline_context.PipelineContext(response.components)
 
     def fix_output(pcoll, tag):
@@ -339,6 +337,45 @@ class ExternalTransform(ptransform.PTransform):
     }
 
     return self._output_to_pvalueish(self._outputs)
+
+  @contextlib.contextmanager
+  def _service(self):
+    if isinstance(self._expansion_service, str):
+      channel_options = [("grpc.max_receive_message_length", -1),
+                         ("grpc.max_send_message_length", -1)]
+      if hasattr(grpc, 'local_channel_credentials'):
+        # Some environments may not support insecure channels. Hence use a
+        # secure channel with local credentials here.
+        # TODO: update this to support secure non-local channels.
+        channel_factory_fn = functools.partial(
+            grpc.secure_channel,
+            self._expansion_service,
+            grpc.local_channel_credentials(),
+            options=channel_options)
+      else:
+        # local_channel_credentials is an experimental API which is unsupported
+        # by older versions of grpc which may be pulled in due to other project
+        # dependencies.
+        channel_factory_fn = functools.partial(
+            grpc.insecure_channel,
+            self._expansion_service,
+            options=channel_options)
+      with channel_factory_fn() as channel:
+        yield ExpansionAndArtifactRetrievalStub(channel)
+    elif hasattr(self._expansion_service, 'Expand'):
+      yield self._expansion_service
+    else:
+      with self._expansion_service as stub:
+        yield stub
+
+  def _resolve_artifacts(self, components, service, dest):
+    for env in components.environments.values():
+      if env.dependencies:
+        resolved = list(
+            artifact_service.resolve_artifacts(env.dependencies, service, dest))
+        del env.dependencies[:]
+        env.dependencies.extend(resolved)
+    return components
 
   def _output_to_pvalueish(self, output_dict):
     if len(output_dict) == 1:
@@ -417,6 +454,9 @@ class ExternalTransform(ptransform.PTransform):
           environment_id=proto.environment_id)
       context.transforms.put_proto(id, new_proto)
 
+    for requirement in self._expanded_requirements:
+      context.add_requirement(requirement)
+
     return beam_runner_api_pb2.PTransform(
         unique_name=full_label,
         spec=self._expanded_transform.spec,
@@ -434,6 +474,18 @@ class ExternalTransform(ptransform.PTransform):
         environment_id=self._expanded_transform.environment_id)
 
 
+class ExpansionAndArtifactRetrievalStub(
+    beam_expansion_api_pb2_grpc.ExpansionServiceStub):
+  def __init__(self, channel, **kwargs):
+    self._channel = channel
+    self._kwargs = kwargs
+    super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
+
+  def artifact_service(self):
+    return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
+        self._channel, **self._kwargs)
+
+
 class JavaJarExpansionService(object):
   """An expansion service based on an Java Jar file.
 
@@ -446,24 +498,33 @@ class JavaJarExpansionService(object):
       extra_args = ['{{PORT}}']
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
+    self._service_count = 0
 
-  def Expand(self, request, context):
-    self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
-        self._path_to_jar)
-    # Consider memoizing these servers (with some timeout).
-    with subprocess_server.JavaJarServer(
-        beam_expansion_api_pb2_grpc.ExpansionServiceStub,
-        self._path_to_jar,
-        self._extra_args) as service:
-      return service.Expand(request, context)
+  def __enter__(self):
+    if self._service_count == 0:
+      self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
+          self._path_to_jar)
+      # Consider memoizing these servers (with some timeout).
+      self._service_provider = subprocess_server.JavaJarServer(
+          ExpansionAndArtifactRetrievalStub,
+          self._path_to_jar,
+          self._extra_args)
+      self._service = self._service_provider.__enter__()
+    self._service_count += 1
+    return self._service
+
+  def __exit__(self, *args):
+    self._service_count -= 1
+    if self._service_count == 0:
+      self._service_provider.__exit__(*args)
 
 
 class BeamJarExpansionService(JavaJarExpansionService):
   """An expansion service based on an Beam Java Jar file.
 
-  Attempts to use a locally-build copy of the jar based on the gradle target,
-  if it exists, otherwise attempts to download it (with caching) from the
-  apache maven repository.
+  Attempts to use a locally-built copy of the jar based on the gradle target,
+  if it exists, otherwise attempts to download and cache the released artifact
+  corresponding to this version of Beam from the apache maven repository.
   """
   def __init__(self, gradle_target, extra_args=None, gradle_appendix=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(

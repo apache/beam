@@ -22,7 +22,6 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
@@ -30,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleBatchRe
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ChunkingShuffleBatchReader reads data from a shuffle dataset using a ShuffleReader. */
 final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
@@ -50,8 +50,8 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
   public ShuffleBatchReader.Batch read(
       @Nullable ShufflePosition startShufflePosition, @Nullable ShufflePosition endShufflePosition)
       throws IOException {
-    @Nullable byte[] startPosition = ByteArrayShufflePosition.getPosition(startShufflePosition);
-    @Nullable byte[] endPosition = ByteArrayShufflePosition.getPosition(endShufflePosition);
+    byte @Nullable [] startPosition = ByteArrayShufflePosition.getPosition(startShufflePosition);
+    byte @Nullable [] endPosition = ByteArrayShufflePosition.getPosition(endShufflePosition);
 
     ShuffleReader.ReadChunkResult result;
     try (Closeable trackedReadState = tracker.enterState(readState)) {
@@ -59,18 +59,14 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
     }
     DataInputStream input = new DataInputStream(new ByteArrayInputStream(result.chunk));
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
-    long batchSize = 0;
     while (input.available() > 0) {
-      ShuffleEntry entry = getShuffleEntry(input);
-      batchSize += entry.length();
-      entries.add(entry);
+      entries.add(getShuffleEntry(input));
     }
     return new Batch(
         entries,
         result.nextStartPosition == null
             ? null
-            : ByteArrayShufflePosition.of(result.nextStartPosition),
-        batchSize);
+            : ByteArrayShufflePosition.of(result.nextStartPosition));
   }
 
   /**

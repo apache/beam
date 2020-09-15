@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.jet.processors;
 
+import com.hazelcast.function.SupplierEx;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Edge;
 import com.hazelcast.jet.core.Processor;
-import com.hazelcast.jet.function.SupplierEx;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nonnull;

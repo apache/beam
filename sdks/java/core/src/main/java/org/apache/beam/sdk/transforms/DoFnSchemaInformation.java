@@ -23,13 +23,15 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
-import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -37,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** Represents information about how a DoFn extracts schemas. */
 @Experimental(Kind.SCHEMAS)
 @AutoValue
+@Internal
 public abstract class DoFnSchemaInformation implements Serializable {
   /**
    * The schema of the @Element parameter. If the Java type does not match the input PCollection but
@@ -145,6 +148,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
     private final FieldAccessDescriptor selectDescriptor;
     private final Schema selectOutputSchema;
     private final boolean unbox;
+    private final RowSelector rowSelector;
 
     private ConversionFunction(
         Schema inputSchema,
@@ -159,6 +163,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
       this.selectDescriptor = selectDescriptor;
       this.selectOutputSchema = selectOutputSchema;
       this.unbox = unbox;
+      this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
     }
 
     public static <InputT, OutputT> ConversionFunction of(
@@ -175,8 +180,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
     @Override
     public OutputT apply(InputT input) {
       Row row = toRowFunction.apply(input);
-      Row selected =
-          SelectHelpers.selectRow(row, selectDescriptor, inputSchema, selectOutputSchema);
+      Row selected = rowSelector.select(row);
       if (unbox) {
         selected = selected.getRow(0);
       }
@@ -197,6 +201,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
     private final FieldType primitiveType;
     private final TypeDescriptor<?> primitiveOutputType;
     private transient SerializableFunction<InputT, OutputT> conversionFunction;
+    private final RowSelector rowSelector;
 
     private UnboxingConversionFunction(
         Schema inputSchema,
@@ -210,6 +215,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
       this.selectOutputSchema = selectOutputSchema;
       this.primitiveType = selectOutputSchema.getField(0).getType();
       this.primitiveOutputType = primitiveOutputType;
+      this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
     }
 
     public static <InputT, OutputT> UnboxingConversionFunction of(
@@ -225,8 +231,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
     @Override
     public OutputT apply(InputT input) {
       Row row = toRowFunction.apply(input);
-      Row selected =
-          SelectHelpers.selectRow(row, selectDescriptor, inputSchema, selectOutputSchema);
+      Row selected = rowSelector.select(row);
       return getConversionFunction().apply(selected.getValue(0));
     }
 

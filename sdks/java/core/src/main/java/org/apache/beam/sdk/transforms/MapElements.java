@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
@@ -34,14 +33,15 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
 public class MapElements<InputT, OutputT>
     extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  @Nullable private final transient TypeDescriptor<InputT> inputType;
-  @Nullable private final transient TypeDescriptor<OutputT> outputType;
-  @Nullable private final transient Object originalFnForDisplayData;
-  @Nullable private final Contextful<Fn<InputT, OutputT>> fn;
+  private final transient @Nullable TypeDescriptor<InputT> inputType;
+  private final transient @Nullable TypeDescriptor<OutputT> outputType;
+  private final transient @Nullable Object originalFnForDisplayData;
+  private final @Nullable Contextful<Fn<InputT, OutputT>> fn;
 
   private MapElements(
       @Nullable Contextful<Fn<InputT, OutputT>> fn,
@@ -182,7 +182,7 @@ public class MapElements<InputT, OutputT>
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <NewFailureT> MapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
     return new MapWithFailures<>(
@@ -212,7 +212,7 @@ public class MapElements<InputT, OutputT>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <FailureT> MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new MapWithFailures<>(
@@ -231,10 +231,10 @@ public class MapElements<InputT, OutputT>
 
     private final transient TypeDescriptor<InputT> inputType;
     private final transient TypeDescriptor<OutputT> outputType;
-    @Nullable private final transient TypeDescriptor<FailureT> failureType;
+    private final transient @Nullable TypeDescriptor<FailureT> failureType;
     private final transient Object originalFnForDisplayData;
     private final Contextful<Fn<InputT, OutputT>> fn;
-    @Nullable private final ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
+    private final @Nullable ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
 
     MapWithFailures(
         Contextful<Fn<InputT, OutputT>> fn,

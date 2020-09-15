@@ -88,6 +88,7 @@ defined, or before importing a module containing type-hinted functions.
 from __future__ import absolute_import
 
 import inspect
+import itertools
 import logging
 import sys
 import traceback
@@ -98,11 +99,13 @@ from builtins import zip
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -118,6 +121,8 @@ except ImportError:
   funcsigs = None
 
 __all__ = [
+    'disable_type_annotations',
+    'no_annotations',
     'with_input_types',
     'with_output_types',
     'WithTypeHints',
@@ -135,8 +140,7 @@ _MethodDescriptorType = type(str.upper)
 
 _ANY_VAR_POSITIONAL = typehints.Tuple[typehints.Any, ...]
 _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
-# TODO(BEAM-8280): Remove this when from_callable is ready to be enabled.
-_enable_from_callable = False
+_disable_from_callable = False
 
 try:
   _original_getfullargspec = inspect.getfullargspec
@@ -221,6 +225,23 @@ def get_signature(func):
   return signature
 
 
+def no_annotations(fn):
+  """Decorator that prevents Beam from using type hint annotations on a
+  callable."""
+  setattr(fn, '_beam_no_annotations', True)
+  return fn
+
+
+def disable_type_annotations():
+  """Prevent Beam from using type hint annotations to determine input and output
+  types of transforms.
+
+  This setting applies globally.
+  """
+  global _disable_from_callable
+  _disable_from_callable = True
+
+
 class IOTypeHints(NamedTuple(
     'IOTypeHints',
     [('input_types', Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]),
@@ -243,16 +264,30 @@ class IOTypeHints(NamedTuple(
   traceback_limit = 5
 
   @classmethod
-  def _make_traceback(cls, base):
-    # type: (Optional[IOTypeHints]) -> List[str]
-    # Omit this method and the IOTypeHints method that called it.
-    num_frames_skip = 2
-    tb = traceback.format_stack(limit=cls.traceback_limit + num_frames_skip)
-    tb_lines = 'TH>' + ''.join(tb[:-num_frames_skip]).replace('\n', '\nTH>')
+  def _make_origin(cls, bases, tb=True, msg=()):
+    # type: (List[IOTypeHints], bool, Iterable[str]) -> List[str]
+    if msg:
+      res = list(msg)
+    else:
+      res = []
+    if tb:
+      # Omit this method and the IOTypeHints method that called it.
+      num_frames_skip = 2
+      tbs = traceback.format_stack(limit=cls.traceback_limit +
+                                   num_frames_skip)[:-num_frames_skip]
+      # tb is a list of strings in the form of 'File ...\n[code]\n'. Split into
+      # single lines and flatten.
+      res += list(
+          itertools.chain.from_iterable(s.strip().split('\n') for s in tbs))
 
-    res = [tb_lines + '\nbased on: ' + str(base)]
-    if base is not None:
-      res += base.origin
+    bases = [base for base in bases if base.origin]
+    if bases:
+      res += ['', 'based on:']
+      for i, base in enumerate(bases):
+        if i > 0:
+          res += ['', 'and:']
+        res += ['  ' + str(base)]
+        res += ['  ' + s for s in base.origin]
     return res
 
   @classmethod
@@ -274,7 +309,7 @@ class IOTypeHints(NamedTuple(
     Returns:
       A new IOTypeHints or None if no annotations found.
     """
-    if not _enable_from_callable:
+    if _disable_from_callable or getattr(fn, '_beam_no_annotations', False):
       return None
     signature = get_signature(fn)
     if (all(param.annotation == param.empty
@@ -308,20 +343,26 @@ class IOTypeHints(NamedTuple(
     else:
       output_args.append(typehints.Any)
 
+    name = getattr(fn, '__name__', '<unknown>')
+    msg = ['from_callable(%s)' % name, '  signature: %s' % signature]
+    if hasattr(fn, '__code__'):
+      msg.append(
+          '  File "%s", line %d' %
+          (fn.__code__.co_filename, fn.__code__.co_firstlineno))
     return IOTypeHints(
         input_types=(tuple(input_args), input_kwargs),
         output_types=(tuple(output_args), {}),
-        origin=cls._make_traceback(None))
+        origin=cls._make_origin([], tb=False, msg=msg))
 
   def with_input_types(self, *args, **kwargs):
     # type: (...) -> IOTypeHints
     return self._replace(
-        input_types=(args, kwargs), origin=self._make_traceback(self))
+        input_types=(args, kwargs), origin=self._make_origin([self]))
 
   def with_output_types(self, *args, **kwargs):
     # type: (...) -> IOTypeHints
     return self._replace(
-        output_types=(args, kwargs), origin=self._make_traceback(self))
+        output_types=(args, kwargs), origin=self._make_origin([self]))
 
   def simple_output_type(self, context):
     if self._has_output_types():
@@ -337,6 +378,75 @@ class IOTypeHints(NamedTuple(
     return (
         self.output_types and len(self.output_types[0]) == 1 and
         not self.output_types[1])
+
+  def strip_pcoll(self):
+    from apache_beam.pipeline import Pipeline
+    from apache_beam.pvalue import PBegin
+    from apache_beam.pvalue import PDone
+
+    return self.strip_pcoll_helper(self.input_types,
+                                   self._has_input_types,
+                                   'input_types',
+                                    [Pipeline, PBegin],
+                                   'This input type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, input type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, or PBegin.',
+                                   'strip_pcoll_input()').\
+                strip_pcoll_helper(self.output_types,
+                                   self.has_simple_output_type,
+                                   'output_types',
+                                   [PDone, None],
+                                   'This output type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, output type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, PDone, or None.',
+                                   'strip_pcoll_output()')
+
+  def strip_pcoll_helper(
+      self,
+      my_type,            # type: any
+      has_my_type,        # type: Callable[[], bool]
+      my_key,             # type: str
+      special_containers,   # type: List[Union[PBegin, PDone, PCollection]]
+      error_str,          # type: str
+      source_str          # type: str
+      ):
+    # type: (...) -> IOTypeHints
+    from apache_beam.pvalue import PCollection
+
+    if not has_my_type() or not my_type or len(my_type[0]) != 1:
+      return self
+
+    my_type = my_type[0][0]
+
+    if isinstance(my_type, typehints.AnyTypeConstraint):
+      return self
+
+    special_containers += [PCollection]
+    kwarg_dict = {}
+
+    if (my_type not in special_containers and
+        getattr(my_type, '__origin__', None) != PCollection):
+      logging.warning(error_str + ' Got: %s instead.' % my_type)
+      kwarg_dict[my_key] = None
+      return self._replace(
+          origin=self._make_origin([self], tb=False, msg=[source_str]),
+          **kwarg_dict)
+
+    if (getattr(my_type, '__args__', -1) in [-1, None] or
+        len(my_type.__args__) == 0):
+      # e.g. PCollection (or PBegin/PDone)
+      kwarg_dict[my_key] = ((typehints.Any, ), {})
+    else:
+      # e.g. PCollection[type]
+      kwarg_dict[my_key] = ((convert_to_beam_type(my_type.__args__[0]), ), {})
+
+    return self._replace(
+        origin=self._make_origin([self], tb=False, msg=[source_str]),
+        **kwarg_dict)
 
   def strip_iterable(self):
     # type: () -> IOTypeHints
@@ -376,12 +486,15 @@ class IOTypeHints(NamedTuple(
 
     yielded_type = typehints.get_yielded_type(output_type)
     return self._replace(
-        output_types=((yielded_type, ), {}), origin=self._make_traceback(self))
+        output_types=((yielded_type, ), {}),
+        origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
   def with_defaults(self, hints):
     # type: (Optional[IOTypeHints]) -> IOTypeHints
     if not hints:
       return self
+    if not self:
+      return hints
     if self._has_input_types():
       input_types = self.input_types
     else:
@@ -390,7 +503,10 @@ class IOTypeHints(NamedTuple(
       output_types = self.output_types
     else:
       output_types = hints.output_types
-    res = IOTypeHints(input_types, output_types, self._make_traceback(self))
+    res = IOTypeHints(
+        input_types,
+        output_types,
+        self._make_origin([self, hints], tb=False, msg=['with_defaults()']))
     if res == self:
       return self  # Don't needlessly increase origin traceback length.
     else:
@@ -769,7 +885,7 @@ def with_input_types(*positional_hints, **keyword_hints):
   del positional_hints
   del keyword_hints
 
-  def annotate(f):
+  def annotate_input_types(f):
     if isinstance(f, types.FunctionType):
       for t in (list(converted_positional_hints) +
                 list(converted_keyword_hints.values())):
@@ -781,7 +897,7 @@ def with_input_types(*positional_hints, **keyword_hints):
     f._type_hints = th  # pylint: disable=protected-access
     return f
 
-  return annotate
+  return annotate_input_types
 
 
 def with_output_types(*return_type_hint, **kwargs):
@@ -862,12 +978,12 @@ def with_output_types(*return_type_hint, **kwargs):
   validate_composite_type_param(
       return_type_hint, error_msg_prefix='All type hint arguments')
 
-  def annotate(f):
+  def annotate_output_types(f):
     th = getattr(f, '_type_hints', IOTypeHints.empty())
     f._type_hints = th.with_output_types(return_type_hint)  # pylint: disable=protected-access
     return f
 
-  return annotate
+  return annotate_output_types
 
 
 def _check_instance_type(

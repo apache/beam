@@ -44,6 +44,7 @@ from typing import Union
 
 from past.builtins import unicode
 
+from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
@@ -66,6 +67,7 @@ __all__ = [
     'AsList',
     'AsDict',
     'EmptySideInput',
+    'Row',
 ]
 
 T = TypeVar('T')
@@ -86,7 +88,7 @@ class PValue(object):
   def __init__(self,
                pipeline,  # type: Pipeline
                tag=None,  # type: Optional[str]
-               element_type=None,  # type: Optional[type]
+               element_type=None,  # type: Optional[Union[type,typehints.TypeConstraint]]
                windowing=None,  # type: Optional[Windowing]
                is_bounded=True,
               ):
@@ -366,11 +368,20 @@ class AsSideInput(object):
     Returns:
       Tuple of options for the given view.
     """
-    return {'window_mapping_fn': self._window_mapping_fn}
+    return {
+        'window_mapping_fn': self._window_mapping_fn,
+        'coder': self._windowed_coder(),
+    }
 
   @property
   def element_type(self):
     return typehints.Any
+
+  def _windowed_coder(self):
+    return coders.WindowedValueCoder(
+        coders.registry.get_coder(
+            self.pvalue.element_type or self.element_type),
+        self.pvalue.windowing.windowfn.get_window_coder())
 
   # TODO(robertwb): Get rid of _from_runtime_iterable and _view_options
   # in favor of _side_input_data().
@@ -417,6 +428,7 @@ class _UnpickledSideInput(AsSideInput):
         'data': self._data,
         # For non-fn-api runners.
         'window_mapping_fn': self._data.window_mapping_fn,
+        'coder': self._windowed_coder(),
     }
 
   def _side_input_data(self):
@@ -628,3 +640,46 @@ class EmptySideInput(object):
   want to create new instances of this class themselves.
   """
   pass
+
+
+class Row(object):
+  """A dynamic schema'd row object.
+
+  This objects attributes are initialized from the keywords passed into its
+  constructor, e.g. Row(x=3, y=4) will create a Row with two attributes x and y.
+
+  More importantly, when a Row object is returned from a `Map`, `FlatMap`, or
+  `DoFn` type inference is able to deduce the schema of the resulting
+  PCollection, e.g.
+
+      pc | beam.Map(lambda x: Row(x=x, y=0.5 * x))
+
+  when applied to a PCollection of ints will produce a PCollection with schema
+  `(x=int, y=float)`.
+  """
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __iter__(self):
+    for _, value in sorted(self.__dict__.items()):
+      yield value
+
+  def __repr__(self):
+    return 'Row(%s)' % ', '.join(
+        '%s=%r' % kv for kv in sorted(self.__dict__.items()))
+
+  def __hash__(self):
+    return hash(type(sorted(self.__dict__.items())))
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __reduce__(self):
+    return _make_Row, tuple(sorted(self.__dict__.items()))
+
+
+def _make_Row(*items):
+  return Row(**dict(items))

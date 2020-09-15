@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.jet.metrics;
 
-import com.hazelcast.jet.IMapJet;
+import com.hazelcast.map.IMap;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Jet specific {@link MetricResults}. */
 public class JetMetricResults extends MetricResults {
@@ -50,9 +50,9 @@ public class JetMetricResults extends MetricResults {
   private final Gauges gauges = new Gauges();
 
   @GuardedBy("this")
-  private IMapJet<String, MetricUpdates> metricsAccumulator;
+  private IMap<String, MetricUpdates> metricsAccumulator;
 
-  public JetMetricResults(IMapJet<String, MetricUpdates> metricsAccumulator) {
+  public JetMetricResults(IMap<String, MetricUpdates> metricsAccumulator) {
     this.metricsAccumulator = metricsAccumulator;
   }
 
@@ -70,7 +70,7 @@ public class JetMetricResults extends MetricResults {
         counters.filter(filter), distributions.filter(filter), gauges.filter(filter));
   }
 
-  private synchronized void updateLocalMetrics(IMapJet<String, MetricUpdates> metricsAccumulator) {
+  private synchronized void updateLocalMetrics(IMap<String, MetricUpdates> metricsAccumulator) {
     counters.clear();
     distributions.clear();
     gauges.clear();

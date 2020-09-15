@@ -38,17 +38,19 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.runners.dataflow.internal import apiclient
+  from apache_beam.runners.dataflow.internal import apiclient as _apiclient
 except ImportError:
   apiclient = None
+else:
+  apiclient = _apiclient
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
 class JavaExternalTransformTest(object):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None
-  expansion_service_port = None
+  expansion_service_jar = None  # type: str
+  expansion_service_port = None  # type: int
 
   class _RunWithExpansion(object):
     def __init__(self):
@@ -93,6 +95,7 @@ class JavaExternalTransformTest(object):
         pipeline_options = PipelineOptions([
             '--runner=DataflowRunner',
             '--project=dummyproject',
+            '--region=some-region1',
             '--experiments=beam_fn_api',
             '--temp_location=gs://dummybucket/'
         ])

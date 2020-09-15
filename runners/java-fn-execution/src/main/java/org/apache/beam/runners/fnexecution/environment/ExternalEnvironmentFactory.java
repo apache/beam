@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc;
@@ -34,6 +35,7 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,7 +88,8 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   /** Creates a new, active {@link RemoteEnvironment} backed by an unmanaged worker. */
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     Preconditions.checkState(
         environment
             .getUrn()
@@ -94,7 +97,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         "The passed environment does not contain an ExternalPayload.");
     final RunnerApi.ExternalPayload externalPayload =
         RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
-    final String workerId = idGenerator.getId();
 
     BeamFnApi.StartWorkerRequest startWorkerRequest =
         BeamFnApi.StartWorkerRequest.newBuilder()
@@ -107,9 +109,10 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .build();
 
     LOG.debug("Requesting worker ID {}", workerId);
+    final ManagedChannel managedChannel =
+        ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint());
     BeamFnApi.StartWorkerResponse startWorkerResponse =
-        BeamFnExternalWorkerPoolGrpc.newBlockingStub(
-                ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
+        BeamFnExternalWorkerPoolGrpc.newBlockingStub(managedChannel)
             .startWorker(startWorkerRequest);
     if (!startWorkerResponse.getError().isEmpty()) {
       throw new RuntimeException(startWorkerResponse.getError());
@@ -127,6 +130,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             workerId);
       } catch (InterruptedException interruptEx) {
         Thread.currentThread().interrupt();
+        managedChannel.shutdownNow();
         throw new RuntimeException(interruptEx);
       }
     }
@@ -145,17 +149,23 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
       @Override
       public void close() throws Exception {
-        finalInstructionHandler.close();
-        BeamFnApi.StopWorkerRequest stopWorkerRequest =
-            BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
-        LOG.debug("Closing worker ID {}", workerId);
-        BeamFnApi.StopWorkerResponse stopWorkerResponse =
-            BeamFnExternalWorkerPoolGrpc.newBlockingStub(
-                    ManagedChannelFactory.createDefault()
-                        .forDescriptor(externalPayload.getEndpoint()))
-                .stopWorker(stopWorkerRequest);
-        if (!stopWorkerResponse.getError().isEmpty()) {
-          throw new RuntimeException(stopWorkerResponse.getError());
+        try {
+          finalInstructionHandler.close();
+          BeamFnApi.StopWorkerRequest stopWorkerRequest =
+              BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
+          LOG.debug("Closing worker ID {}", workerId);
+          BeamFnApi.StopWorkerResponse stopWorkerResponse =
+              BeamFnExternalWorkerPoolGrpc.newBlockingStub(managedChannel)
+                  .stopWorker(stopWorkerRequest);
+          if (!stopWorkerResponse.getError().isEmpty()) {
+            throw new RuntimeException(stopWorkerResponse.getError());
+          }
+        } finally {
+          managedChannel.shutdown();
+          managedChannel.awaitTermination(10, TimeUnit.SECONDS);
+          if (!managedChannel.isTerminated()) {
+            managedChannel.shutdownNow();
+          }
         }
       }
     };

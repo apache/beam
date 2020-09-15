@@ -14,5 +14,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-apache-beam==2.18.0
-apache-beam[test]==2.18.0
+apache-beam==2.19.0
+apache-beam[test]==2.19.0
+
+pytz~=2019.3

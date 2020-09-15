@@ -41,6 +41,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
@@ -88,6 +89,7 @@ public class TextIOIT {
   private static String bigQueryDataset;
   private static String bigQueryTable;
   private static boolean gatherGcsPerformanceMetrics;
+  private static InfluxDBSettings settings;
   private static final String FILEIOIT_NAMESPACE = TextIOIT.class.getName();
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -104,6 +106,12 @@ public class TextIOIT {
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
     gatherGcsPerformanceMetrics = options.getReportGcsPerformanceMetrics();
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   @Test
@@ -161,8 +169,10 @@ public class TextIOIT {
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp.toString());
 
-    new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString())
-        .publish(bigQueryDataset, bigQueryTable);
+    final IOITMetrics metrics =
+        new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString());
+    metrics.publish(bigQueryDataset, bigQueryTable);
+    metrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(

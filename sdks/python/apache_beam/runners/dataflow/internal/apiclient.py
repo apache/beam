@@ -32,9 +32,9 @@ import os
 import pkg_resources
 import re
 import sys
-import tempfile
 import time
 import warnings
+from copy import copy
 from datetime import datetime
 
 from builtins import object
@@ -53,6 +53,8 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -62,12 +64,13 @@ from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
+from apache_beam.utils import proto_utils
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
-_LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
-_FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
+_LEGACY_ENVIRONMENT_MAJOR_VERSION = '8'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -124,21 +127,26 @@ class Step(object):
     if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
-      name = '%s_%s' % (PropertyNames.OUT, tag)
-      if name not in outputs:
-        raise ValueError(
-            'Cannot find named output: %s in %s.' % (name, outputs))
-      return name
+      if tag not in outputs:
+        raise ValueError('Cannot find named output: %s in %s.' % (tag, outputs))
+      return tag
 
 
 class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
-  def __init__(self, packages, options, environment_version, pipeline_url):
+  def __init__(
+      self,
+      packages,
+      options,
+      environment_version,
+      proto_pipeline_staged_url,
+      proto_pipeline=None,
+      _sdk_image_overrides=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
     self.debug_options = options.view_as(DebugOptions)
-    self.pipeline_url = pipeline_url
+    self.pipeline_url = proto_pipeline_staged_url
     self.proto = dataflow.Environment()
     self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
     self.proto.dataset = '{}/cloud_dataflow'.format(
@@ -153,6 +161,8 @@ class Environment(object):
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
+    self._proto_pipeline = proto_pipeline
+    self._sdk_image_overrides = _sdk_image_overrides or dict()
 
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
@@ -185,11 +195,19 @@ class Environment(object):
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
+
+      if self.debug_options.lookup_experiment(
+          'runner_harness_container_image') or _use_unified_worker(options):
+        # Default image is not used if user provides a runner harness image.
+        # Default runner harness image is selected by the service for unified
+        # worker.
+        pass
+      else:
+        runner_harness_override = (get_runner_harness_container_image())
+        if runner_harness_override:
+          self.debug_options.add_experiment(
+              'runner_harness_container_image=' + runner_harness_override)
       debug_options_experiments = self.debug_options.experiments
-      runner_harness_override = (get_runner_harness_container_image())
-      if runner_harness_override:
-        debug_options_experiments.append(
-            'runner_harness_container_image=' + runner_harness_override)
       # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
@@ -256,6 +274,55 @@ class Environment(object):
       pool.subnetwork = self.worker_options.subnetwork
     pool.workerHarnessContainerImage = (
         get_container_image_from_options(options))
+
+    # Setting worker pool sdk_harness_container_images option for supported
+    # Dataflow workers.
+    # TODO: change the condition to just _use_unified_worker(options)
+    # when corresponding API change for Dataflow is
+    # rollback-safe.
+    environments_to_use = self._get_environments_from_tranforms()
+    if _use_unified_worker(options) and len(environments_to_use) > 1:
+      # Adding a SDK container image for the pipeline SDKs
+      container_image = dataflow.SdkHarnessContainerImage()
+      pipeline_sdk_container_image = get_container_image_from_options(options)
+      container_image.containerImage = pipeline_sdk_container_image
+      container_image.useSingleCorePerContainer = True  # True for Python SDK.
+      pool.sdkHarnessContainerImages.append(container_image)
+
+      already_added_containers = [pipeline_sdk_container_image]
+
+      # Adding container images for other SDKs that may be needed for
+      # cross-language pipelines.
+      for environment in environments_to_use:
+        if environment.urn != common_urns.environments.DOCKER.urn:
+          raise Exception(
+              'Dataflow can only execute pipeline steps in Docker environments.'
+              ' Received %r.' % environment)
+        environment_payload = proto_utils.parse_Bytes(
+            environment.payload, beam_runner_api_pb2.DockerPayload)
+        container_image_url = environment_payload.container_image
+        if container_image_url in already_added_containers:
+          # Do not add the pipeline environment again.
+
+          # Currently, Dataflow uses Docker container images to uniquely
+          # identify execution environments. Hence Dataflow executes all
+          # transforms that specify the the same Docker container image in a
+          # single container instance. Dependencies of all environments that
+          # specify a given container image will be staged in the container
+          # instance for that particular container image.
+          # TODO(BEAM-9455): loosen this restriction to support multiple
+          # environments with the same container image when Dataflow supports
+          # environment specific artifact provisioning.
+          continue
+        already_added_containers.append(container_image_url)
+
+        container_image = dataflow.SdkHarnessContainerImage()
+        container_image.containerImage = container_image_url
+        # Currently we only set following to True for Python SDK.
+        # TODO: set this correctly for remote environments that might be Python.
+        container_image.useSingleCorePerContainer = False
+        pool.sdkHarnessContainerImages.append(container_image)
+
     if self.debug_options.number_of_worker_harness_threads:
       pool.numThreadsPerWorker = (
           self.debug_options.number_of_worker_harness_threads)
@@ -287,7 +354,7 @@ class Environment(object):
           k: v
           for k, v in sdk_pipeline_options.items() if v is not None
       }
-      options_dict["pipelineUrl"] = pipeline_url
+      options_dict["pipelineUrl"] = proto_pipeline_staged_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -297,6 +364,20 @@ class Environment(object):
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
+
+  def _get_environments_from_tranforms(self):
+    if not self._proto_pipeline:
+      return []
+
+    environment_ids = set(
+        transform.environment_id
+        for transform in self._proto_pipeline.components.transforms.values()
+        if transform.environment_id)
+
+    return [
+        self._proto_pipeline.components.environments[id]
+        for id in environment_ids
+    ]
 
   def _get_python_sdk_name(self):
     python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
@@ -475,6 +556,13 @@ class DataflowApplicationClient(object):
         get_credentials=(not self.google_cloud_options.no_auth),
         http=http_client,
         response_encoding=get_response_encoding())
+    self._sdk_image_overrides = self._get_sdk_image_overrides(options)
+
+  def _get_sdk_image_overrides(self, pipeline_options):
+    worker_options = pipeline_options.view_as(WorkerOptions)
+    sdk_overrides = worker_options.sdk_harness_container_image_overrides
+    if sdk_overrides:
+      return dict(override_str.split(',', 1) for override_str in sdk_overrides)
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -484,19 +572,42 @@ class DataflowApplicationClient(object):
     with open(from_path, 'rb') as f:
       self.stage_file(to_folder, to_name, f, total_size=total_size)
 
-  def _stage_resources(self, options):
+  def _stage_resources(self, pipeline, options):
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.staging_location is None:
       raise RuntimeError('The --staging_location option must be specified.')
     if google_cloud_options.temp_location is None:
       raise RuntimeError('The --temp_location option must be specified.')
 
+    resources = []
+    hashs = {}
+    for _, env in sorted(pipeline.components.environments.items(),
+                         key=lambda kv: kv[0]):
+      for dep in env.dependencies:
+        if dep.type_urn != common_urns.artifact_types.FILE.urn:
+          raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
+        if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
+          raise RuntimeError('unsupported role type %s' % dep.role_urn)
+        type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+            dep.type_payload)
+        role_payload = (
+            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                dep.role_payload))
+        if type_payload.sha256 and type_payload.sha256 in hashs:
+          _LOGGER.info(
+              'Found duplicated artifact: %s (%s)',
+              type_payload.path,
+              type_payload.sha256)
+          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=hashs[type_payload.sha256]).SerializeToString()
+        else:
+          resources.append((type_payload.path, role_payload.staged_name))
+          hashs[type_payload.sha256] = role_payload.staged_name
+
     resource_stager = _LegacyDataflowStager(self)
-    _, resources = resource_stager.stage_job_resources(
-        options,
-        temp_dir=tempfile.mkdtemp(),
-        staging_location=google_cloud_options.staging_location)
-    return resources
+    staged_resources = resource_stager.stage_job_resources(
+        resources, staging_location=google_cloud_options.staging_location)
+    return staged_resources
 
   def stage_file(
       self,
@@ -556,6 +667,16 @@ class DataflowApplicationClient(object):
       self.stage_file(
           gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
 
+    if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
+      self.stage_file(
+          job.options.view_as(GoogleCloudOptions).staging_location,
+          "dataflow_graph.json",
+          io.BytesIO(job.json().encode('utf-8')))
+      del job.proto.steps[:]
+      job.proto.stepsLocation = FileSystems.join(
+          job.options.view_as(GoogleCloudOptions).staging_location,
+          "dataflow_graph.json")
+
     if not template_location:
       return self.submit_job_description(job)
 
@@ -563,25 +684,42 @@ class DataflowApplicationClient(object):
         'A template was just created at location %s', template_location)
     return None
 
+  @staticmethod
+  def _apply_sdk_environment_overrides(proto_pipeline, sdk_overrides):
+    # Update environments based on user provided overrides
+    if sdk_overrides:
+      for environment in proto_pipeline.components.environments.values():
+        docker_payload = proto_utils.parse_Bytes(
+            environment.payload, beam_runner_api_pb2.DockerPayload)
+        for pattern, override in sdk_overrides.items():
+          new_payload = copy(docker_payload)
+          new_payload.container_image = re.sub(
+              pattern, override, docker_payload.container_image)
+          environment.payload = new_payload.SerializeToString()
+
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
+    DataflowApplicationClient._apply_sdk_environment_overrides(
+        job.proto_pipeline, self._sdk_image_overrides)
 
-    # Stage the pipeline for the runner harness
+    # Stage proto pipeline.
     self.stage_file(
         job.google_cloud_options.staging_location,
         shared_names.STAGED_PIPELINE_FILENAME,
         io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
-    resources = self._stage_resources(job.options)
+    resources = self._stage_resources(job.proto_pipeline, job.options)
 
     job.proto.environment = Environment(
-        pipeline_url=FileSystems.join(
+        proto_pipeline_staged_url=FileSystems.join(
             job.google_cloud_options.staging_location,
             shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources,
         options=job.options,
-        environment_version=self.environment_version).proto
+        environment_version=self.environment_version,
+        proto_pipeline=job.proto_pipeline,
+        _sdk_image_overrides=self._sdk_image_overrides).proto
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
@@ -619,10 +757,10 @@ class DataflowApplicationClient(object):
     _LOGGER.info('Create job: %s', response)
     # The response is a Job proto with the id for the new job.
     _LOGGER.info('Created job with id: [%s]', response.id)
+    _LOGGER.info('Submitted job: %s', response.id)
     _LOGGER.info(
         'To access the Dataflow monitoring console, please navigate to '
-        'https://console.cloud.google.com/dataflow/jobsDetail'
-        '/locations/%s/jobs/%s?project=%s',
+        'https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s',
         self.google_cloud_options.region,
         response.id,
         self.google_cloud_options.project)
@@ -785,8 +923,10 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState ==
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING):
+        if (job.name == job_name and job.currentState in [
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
+        ]):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -898,12 +1038,12 @@ def _use_fnapi(pipeline_options):
 
 
 def _use_unified_worker(pipeline_options):
-  if not _use_fnapi(pipeline_options):
-    return False
   debug_options = pipeline_options.view_as(DebugOptions)
   use_unified_worker_flag = 'use_unified_worker'
+  use_runner_v2_flag = 'use_runner_v2'
 
-  if debug_options.lookup_experiment('use_runner_v2'):
+  if (debug_options.lookup_experiment(use_runner_v2_flag) and
+      not debug_options.lookup_experiment(use_unified_worker_flag)):
     debug_options.add_experiment(use_unified_worker_flag)
 
   return debug_options.lookup_experiment(use_unified_worker_flag)
@@ -929,7 +1069,7 @@ def get_container_image_from_options(pipeline_options):
 
     Returns:
       str: Container image for remote execution.
-    """
+  """
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.worker_harness_container_image:
     return worker_options.worker_harness_container_image
@@ -942,6 +1082,8 @@ def get_container_image_from_options(pipeline_options):
     version_suffix = '36'
   elif sys.version_info[0:2] == (3, 7):
     version_suffix = '37'
+  elif sys.version_info[0:2] == (3, 8):
+    version_suffix = '38'
   else:
     raise Exception(
         'Dataflow only supports Python versions 2 and 3.5+, got: %s' %
@@ -1006,7 +1148,7 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7), (3, 8)]:
     return
 
   debug_options = pipeline_options.view_as(DebugOptions)
@@ -1016,7 +1158,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   raise Exception(
       'Dataflow runner currently supports Python versions '
-      '2.7, 3.5, 3.6, and 3.7. To ignore this requirement and start a job '
+      '2.7, 3.5, 3.6, 3.7 and 3.8. To ignore this requirement and start a job '
       'using a different version of Python 3 interpreter, pass '
       '--experiment ignore_py3_minor_version pipeline option.')
 

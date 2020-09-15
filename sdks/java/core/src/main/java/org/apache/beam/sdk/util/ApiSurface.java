@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
@@ -48,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.ClassPath;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
@@ -84,6 +86,7 @@ import org.slf4j.LoggerFactory;
  * not interesting.
  */
 @SuppressWarnings("rawtypes")
+@Internal
 public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
@@ -200,7 +203,7 @@ public class ApiSurface {
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
-              "The following white-listed scopes did not have matching classes on the API surface:"
+              "The following allowed scopes did not have matching classes on the API surface:"
                   + "\n\t"
                   + Joiner.on("\n\t").join(messages));
         }
@@ -513,6 +516,7 @@ public class ApiSurface {
   private boolean pruned(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isArray()
+        || clazz.getCanonicalName().equals("jdk.internal.HotSpotIntrinsicCandidate")
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 

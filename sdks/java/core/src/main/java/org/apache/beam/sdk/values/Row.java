@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,33 +30,60 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collector;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
+import org.apache.beam.sdk.values.RowUtils.FieldOverride;
+import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
+import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
+import org.apache.beam.sdk.values.RowUtils.RowPosition;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
-import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 import org.joda.time.ReadableInstant;
-import org.joda.time.base.AbstractInstant;
 
 /**
  * {@link Row} is an immutable tuple-like schema to represent one element in a {@link PCollection}.
  * The fields are described with a {@link Schema}.
  *
- * <p>{@link Schema} contains the names for each field and the coder for the whole record,
- * {see @link Schema#getRowCoder()}.
+ * <p>{@link Schema} contains the names and types for each field.
+ *
+ * <p>There are several ways to build a new Row object. To build a row from scratch using a schema
+ * object, {@link Row#withSchema} can be used. Schema fields can be specified by name, and nested
+ * fields can be specified using the field selection syntax. For example:
+ *
+ * <pre>{@code
+ * Row row = Row.withSchema(schema)
+ *              .withFieldValue("userId", "user1)
+ *              .withFieldValue("location.city", "seattle")
+ *              .withFieldValue("location.state", "wa")
+ *              .build();
+ * }</pre>
+ *
+ * <p>The {@link Row#fromRow} builder can be used to base a row off of another row. The builder can
+ * be used to specify values for specific fields, and all the remaining values will be taken from
+ * the original row. For example, the following produces a row identical to the above row except for
+ * the location.city field.
+ *
+ * <pre>{@code
+ * Row modifiedRow =
+ *     Row.fromRow(row)
+ *        .withFieldValue("location.city", "tacoma")
+ *        .build();
+ * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
 public abstract class Row implements Serializable {
@@ -75,8 +102,16 @@ public abstract class Row implements Serializable {
 
   /** Return the size of data fields. */
   public abstract int getFieldCount();
+
   /** Return the list of data values. */
   public abstract List<Object> getValues();
+
+  /** Return a list of data values. Any LogicalType values are returned as base values. * */
+  public List<Object> getBaseValues() {
+    return IntStream.range(0, getFieldCount())
+        .mapToObj(i -> getBaseValue(i))
+        .collect(Collectors.toList());
+  }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
   @Nullable
@@ -89,8 +124,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTE} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Byte getByte(String fieldName) {
+  public @Nullable Byte getByte(String fieldName) {
     return getByte(getSchema().indexOf(fieldName));
   }
 
@@ -98,8 +132,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTES} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public byte[] getBytes(String fieldName) {
+  public byte @Nullable [] getBytes(String fieldName) {
     return getBytes(getSchema().indexOf(fieldName));
   }
 
@@ -107,8 +140,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Short getInt16(String fieldName) {
+  public @Nullable Short getInt16(String fieldName) {
     return getInt16(getSchema().indexOf(fieldName));
   }
 
@@ -116,8 +148,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT32} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Integer getInt32(String fieldName) {
+  public @Nullable Integer getInt32(String fieldName) {
     return getInt32(getSchema().indexOf(fieldName));
   }
 
@@ -125,8 +156,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT64} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Long getInt64(String fieldName) {
+  public @Nullable Long getInt64(String fieldName) {
     return getInt64(getSchema().indexOf(fieldName));
   }
 
@@ -134,8 +164,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DECIMAL} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public BigDecimal getDecimal(String fieldName) {
+  public @Nullable BigDecimal getDecimal(String fieldName) {
     return getDecimal(getSchema().indexOf(fieldName));
   }
 
@@ -143,8 +172,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#FLOAT} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Float getFloat(String fieldName) {
+  public @Nullable Float getFloat(String fieldName) {
     return getFloat(getSchema().indexOf(fieldName));
   }
 
@@ -152,8 +180,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DOUBLE} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Double getDouble(String fieldName) {
+  public @Nullable Double getDouble(String fieldName) {
     return getDouble(getSchema().indexOf(fieldName));
   }
 
@@ -161,8 +188,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#STRING} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public String getString(String fieldName) {
+  public @Nullable String getString(String fieldName) {
     return getString(getSchema().indexOf(fieldName));
   }
 
@@ -170,8 +196,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DATETIME} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public ReadableDateTime getDateTime(String fieldName) {
+  public @Nullable ReadableDateTime getDateTime(String fieldName) {
     return getDateTime(getSchema().indexOf(fieldName));
   }
 
@@ -179,8 +204,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BOOLEAN} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Boolean getBoolean(String fieldName) {
+  public @Nullable Boolean getBoolean(String fieldName) {
     return getBoolean(getSchema().indexOf(fieldName));
   }
 
@@ -188,8 +212,7 @@ public abstract class Row implements Serializable {
    * Get an array value by field name, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Collection<T> getArray(String fieldName) {
+  public @Nullable <T> Collection<T> getArray(String fieldName) {
     return getArray(getSchema().indexOf(fieldName));
   }
 
@@ -197,34 +220,46 @@ public abstract class Row implements Serializable {
    * Get an iterable value by field name, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Iterable<T> getIterable(String fieldName) {
+  public @Nullable <T> Iterable<T> getIterable(String fieldName) {
     return getIterable(getSchema().indexOf(fieldName));
   }
 
   /**
    * Get a MAP value by field name, {@link IllegalStateException} is thrown if schema doesn't match.
    */
-  @Nullable
-  public <T1, T2> Map<T1, T2> getMap(String fieldName) {
+  public @Nullable <T1, T2> Map<T1, T2> getMap(String fieldName) {
     return getMap(getSchema().indexOf(fieldName));
   }
 
-  /**
-   * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
+  /* Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public <T> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
+
+  public @Nullable <T> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
     return getLogicalTypeValue(getSchema().indexOf(fieldName), clazz);
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  public @Nullable <T> T getBaseValue(String fieldName, Class<T> clazz) {
+    return getBaseValue(getSchema().indexOf(fieldName), clazz);
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  public @Nullable Object getBaseValue(String fieldName) {
+    return getBaseValue(fieldName, Object.class);
   }
 
   /**
    * Get a {@link TypeName#ROW} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Row getRow(String fieldName) {
+  public @Nullable Row getRow(String fieldName) {
     return getRow(getSchema().indexOf(fieldName));
   }
 
@@ -232,8 +267,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTE} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Byte getByte(int idx) {
+  public @Nullable Byte getByte(int idx) {
     return getValue(idx);
   }
 
@@ -241,8 +275,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTES} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public byte[] getBytes(int idx) {
+  public byte @Nullable [] getBytes(int idx) {
     return getValue(idx);
   }
 
@@ -250,8 +283,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT16} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Short getInt16(int idx) {
+  public @Nullable Short getInt16(int idx) {
     return getValue(idx);
   }
 
@@ -259,8 +291,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT32} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Integer getInt32(int idx) {
+  public @Nullable Integer getInt32(int idx) {
     return getValue(idx);
   }
 
@@ -268,8 +299,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#FLOAT} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Float getFloat(int idx) {
+  public @Nullable Float getFloat(int idx) {
     return getValue(idx);
   }
 
@@ -277,8 +307,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DOUBLE} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Double getDouble(int idx) {
+  public @Nullable Double getDouble(int idx) {
     return getValue(idx);
   }
 
@@ -286,8 +315,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT64} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Long getInt64(int idx) {
+  public @Nullable Long getInt64(int idx) {
     return getValue(idx);
   }
 
@@ -295,8 +323,7 @@ public abstract class Row implements Serializable {
    * Get a {@link String} value by field index, {@link ClassCastException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public String getString(int idx) {
+  public @Nullable String getString(int idx) {
     return getValue(idx);
   }
 
@@ -304,8 +331,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DATETIME} value by field index, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
-  @Nullable
-  public ReadableDateTime getDateTime(int idx) {
+  public @Nullable ReadableDateTime getDateTime(int idx) {
     ReadableInstant instant = getValue(idx);
     return instant == null ? null : new DateTime(instant).withZone(instant.getZone());
   }
@@ -314,8 +340,7 @@ public abstract class Row implements Serializable {
    * Get a {@link BigDecimal} value by field index, {@link ClassCastException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public BigDecimal getDecimal(int idx) {
+  public @Nullable BigDecimal getDecimal(int idx) {
     return getValue(idx);
   }
 
@@ -323,8 +348,7 @@ public abstract class Row implements Serializable {
    * Get a {@link Boolean} value by field index, {@link ClassCastException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public Boolean getBoolean(int idx) {
+  public @Nullable Boolean getBoolean(int idx) {
     return getValue(idx);
   }
 
@@ -332,8 +356,7 @@ public abstract class Row implements Serializable {
    * Get an array value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Collection<T> getArray(int idx) {
+  public @Nullable <T> Collection<T> getArray(int idx) {
     return getValue(idx);
   }
 
@@ -341,8 +364,7 @@ public abstract class Row implements Serializable {
    * Get an iterable value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Iterable<T> getIterable(int idx) {
+  public @Nullable <T> Iterable<T> getIterable(int idx) {
     return getValue(idx);
   }
 
@@ -350,8 +372,7 @@ public abstract class Row implements Serializable {
    * Get a MAP value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T1, T2> Map<T1, T2> getMap(int idx) {
+  public @Nullable <T1, T2> Map<T1, T2> getMap(int idx) {
     return getValue(idx);
   }
 
@@ -359,18 +380,39 @@ public abstract class Row implements Serializable {
    * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
-    LogicalType logicalType = checkNotNull(getSchema().getField(idx).getType().getLogicalType());
-    return (T) logicalType.toInputType(getValue(idx));
+  public @Nullable <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
+    return (T) getValue(idx);
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  public @Nullable <T> T getBaseValue(int idx, Class<T> clazz) {
+    Object value = getValue(idx);
+    FieldType fieldType = getSchema().getField(idx).getType();
+    if (fieldType.getTypeName().isLogicalType() && value != null) {
+      while (fieldType.getTypeName().isLogicalType()) {
+        value = fieldType.getLogicalType().toBaseType(value);
+        fieldType = fieldType.getLogicalType().getBaseType();
+      }
+    }
+    return (T) value;
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  public @Nullable Object getBaseValue(int idx) {
+    return getBaseValue(idx, Object.class);
   }
 
   /**
    * Get a {@link Row} value by field index, {@link IllegalStateException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public Row getRow(int idx) {
+  public @Nullable Row getRow(int idx) {
     return getValue(idx);
   }
 
@@ -380,7 +422,7 @@ public abstract class Row implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -434,7 +476,7 @@ public abstract class Row implements Serializable {
       }
     }
 
-    static int deepHashCode(Object a, Schema.FieldType fieldType) {
+    public static int deepHashCode(Object a, Schema.FieldType fieldType) {
       if (a == null) {
         return 0;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
@@ -539,36 +581,149 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Creates a record builder with specified {@link #getSchema()}. {@link Builder#build()} will
-   * throw an {@link IllegalArgumentException} if number of fields in {@link #getSchema()} does not
-   * match the number of fields specified.
+   * Creates a row builder with specified {@link #getSchema()}. {@link Builder#build()} will throw
+   * an {@link IllegalArgumentException} if number of fields in {@link #getSchema()} does not match
+   * the number of fields specified. If any of the arguments don't match the expected types for the
+   * schema fields, {@link Builder#build()} will throw a {@link ClassCastException}.
    */
   public static Builder withSchema(Schema schema) {
     return new Builder(schema);
   }
 
-  /** Builder for {@link Row}. */
-  public static class Builder {
-    private List<Object> values = Lists.newArrayList();
-    private boolean attached = false;
-    @Nullable private Factory<List<FieldValueGetter>> fieldValueGetterFactory;
-    @Nullable private Object getterTarget;
-    private Schema schema;
+  /**
+   * Creates a row builder based on the specified row. Field values in the new row can be explicitly
+   * set using {@link FieldValueBuilder#withFieldValue}. Any values not so overridden will be the
+   * same as the values in the original row.
+   */
+  public static FieldValueBuilder fromRow(Row row) {
+    return new FieldValueBuilder(row.getSchema(), row);
+  }
 
-    Builder(Schema schema) {
+  /** Builder for {@link Row} that bases a row on another row. */
+  public static class FieldValueBuilder {
+    private final Schema schema;
+    private final @Nullable Row sourceRow;
+    private final FieldOverrides fieldOverrides;
+
+    private FieldValueBuilder(Schema schema, @Nullable Row sourceRow) {
       this.schema = schema;
-    }
-
-    public int nextFieldId() {
-      if (fieldValueGetterFactory != null) {
-        throw new RuntimeException("Not supported");
-      }
-      return values.size();
+      this.sourceRow = sourceRow;
+      this.fieldOverrides = new FieldOverrides(schema);
     }
 
     public Schema getSchema() {
       return schema;
     }
+
+    /**
+     * Set a field value using the field name. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValue(String fieldName, Object value) {
+      return withFieldValue(FieldAccessDescriptor.withFieldNames(fieldName), value);
+    }
+
+    /** Set a field value using the field id. */
+    public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
+      return withFieldValue(FieldAccessDescriptor.withFieldIds(fieldId), value);
+    }
+
+    /** Set a field value using a FieldAccessDescriptor. */
+    public FieldValueBuilder withFieldValue(
+        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+      FieldAccessDescriptor fieldAccess = fieldAccessDescriptor.resolve(getSchema());
+      checkArgument(fieldAccess.referencesSingleField(), "");
+      fieldOverrides.addOverride(fieldAccess, new FieldOverride(value));
+      return this;
+    }
+
+    /**
+     * Sets field values using the field names. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValues(Map<String, Object> values) {
+      values.entrySet().stream()
+          .forEach(
+              e ->
+                  fieldOverrides.addOverride(
+                      FieldAccessDescriptor.withFieldNames(e.getKey()).resolve(getSchema()),
+                      new FieldOverride(e.getValue())));
+      return this;
+    }
+
+    /**
+     * Sets field values using the FieldAccessDescriptors. Nested values can be set using the field
+     * selection syntax.
+     */
+    public FieldValueBuilder withFieldAccessDescriptors(Map<FieldAccessDescriptor, Object> values) {
+      values.entrySet().stream()
+          .forEach(e -> fieldOverrides.addOverride(e.getKey(), new FieldOverride(e.getValue())));
+      return this;
+    }
+
+    public Row build() {
+      Row row =
+          (Row)
+              new RowFieldMatcher()
+                  .match(
+                      new CapturingRowCases(getSchema(), this.fieldOverrides),
+                      FieldType.row(getSchema()),
+                      new RowPosition(FieldAccessDescriptor.create()),
+                      sourceRow);
+      return row;
+    }
+  }
+
+  /** Builder for {@link Row}. */
+  public static class Builder {
+    private List<Object> values = Lists.newArrayList();
+    private final Schema schema;
+    private Row nullRow;
+
+    Builder(Schema schema) {
+      this.schema = schema;
+    }
+
+    /** Return the schema for the row being built. */
+    public Schema getSchema() {
+      return schema;
+    }
+
+    /**
+     * Set a field value using the field name. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValue(String fieldName, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValue(fieldName, value);
+    }
+
+    /** Set a field value using the field id. */
+    public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValue(fieldId, value);
+    }
+
+    /** Set a field value using a FieldAccessDescriptor. */
+    public FieldValueBuilder withFieldValue(
+        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValue(fieldAccessDescriptor, value);
+    }
+    /**
+     * Sets field values using the field names. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValues(Map<String, Object> values) {
+      checkState(this.values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValues(values);
+    }
+
+    // The following methods allow appending a list of values to the Builder object. The values must
+    // be in the same
+    // order as the fields in the row. These methods cannot be used in conjunction with
+    // withFieldValue or
+    // withFieldValues.
 
     public Builder addValue(@Nullable Object values) {
       this.values.add(values);
@@ -599,253 +754,62 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-    // Values are attached. No verification is done, and no conversions are done. LogicalType
-    // values must be specified as the base type.
-    public Builder attachValues(List<Object> values) {
-      this.attached = true;
-      this.values = values;
-      return this;
+    // Values are attached. No verification is done, and no conversions are done. LogicalType values
+    // must be specified as the base type. This method should be used with great care, as no
+    // validation is done. If
+    // incorrect values are passed in, it could result in strange errors later in the pipeline. This
+    // method is largely
+    // used internal to Beam.
+    @Internal
+    public Row attachValues(List<Object> attachedValues) {
+      checkState(this.values.isEmpty());
+      return new RowWithStorage(schema, attachedValues);
     }
 
-    public Builder withFieldValueGetters(
+    public Row attachValues(Object... values) {
+      return attachValues(Arrays.asList(values));
+    }
+
+    public int nextFieldId() {
+      return values.size();
+    }
+
+    @Internal
+    public Row withFieldValueGetters(
         Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
-      this.fieldValueGetterFactory = fieldValueGetterFactory;
-      this.getterTarget = getterTarget;
-      return this;
-    }
-
-    private List<Object> verify(Schema schema, List<Object> values) {
-      List<Object> verifiedValues = Lists.newArrayListWithCapacity(values.size());
-      if (schema.getFieldCount() != values.size()) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Field count in Schema (%s) (%d) and values (%s) (%d)  must match",
-                schema.getFieldNames(), schema.getFieldCount(), values, values.size()));
-      }
-      for (int i = 0; i < values.size(); ++i) {
-        Object value = values.get(i);
-        Schema.Field field = schema.getField(i);
-        if (value == null) {
-          if (!field.getType().getNullable()) {
-            throw new IllegalArgumentException(
-                String.format("Field %s is not nullable", field.getName()));
-          }
-          verifiedValues.add(null);
-        } else {
-          verifiedValues.add(verify(value, field.getType(), field.getName()));
-        }
-      }
-      return verifiedValues;
-    }
-
-    private Object verify(Object value, FieldType type, String fieldName) {
-      if (TypeName.ARRAY.equals(type.getTypeName())) {
-        return verifyArray(value, type.getCollectionElementType(), fieldName);
-      } else if (TypeName.ITERABLE.equals(type.getTypeName())) {
-        return verifyIterable(value, type.getCollectionElementType(), fieldName);
-      }
-      if (TypeName.MAP.equals(type.getTypeName())) {
-        return verifyMap(value, type.getMapKeyType(), type.getMapValueType(), fieldName);
-      } else if (TypeName.ROW.equals(type.getTypeName())) {
-        return verifyRow(value, fieldName);
-      } else if (TypeName.LOGICAL_TYPE.equals(type.getTypeName())) {
-        return verifyLogicalType(value, type.getLogicalType(), fieldName);
-      } else {
-        return verifyPrimitiveType(value, type.getTypeName(), fieldName);
-      }
-    }
-
-    private Object verifyLogicalType(Object value, LogicalType logicalType, String fieldName) {
-      return verify(logicalType.toBaseType(value), logicalType.getBaseType(), fieldName);
-    }
-
-    private List<Object> verifyArray(
-        Object value, FieldType collectionElementType, String fieldName) {
-      boolean collectionElementTypeNullable = collectionElementType.getNullable();
-      if (!(value instanceof Collection)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and array type expected Collection class. Instead "
-                    + "class type was %s.",
-                fieldName, value.getClass()));
-      }
-      Collection<Object> valueCollection = (Collection<Object>) value;
-      List<Object> verifiedList = Lists.newArrayListWithCapacity(valueCollection.size());
-      for (Object listValue : valueCollection) {
-        if (listValue == null) {
-          if (!collectionElementTypeNullable) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "%s is not nullable in Array field %s", collectionElementType, fieldName));
-          }
-          verifiedList.add(null);
-        } else {
-          verifiedList.add(verify(listValue, collectionElementType, fieldName));
-        }
-      }
-      return verifiedList;
-    }
-
-    private Iterable<Object> verifyIterable(
-        Object value, FieldType collectionElementType, String fieldName) {
-      boolean collectionElementTypeNullable = collectionElementType.getNullable();
-      if (!(value instanceof Iterable)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and iterable type expected class extending Iterable. Instead "
-                    + "class type was %s.",
-                fieldName, value.getClass()));
-      }
-      Iterable<Object> valueIterable = (Iterable<Object>) value;
-      for (Object listValue : valueIterable) {
-        if (listValue == null) {
-          if (!collectionElementTypeNullable) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "%s is not nullable in Array field %s", collectionElementType, fieldName));
-          }
-        } else {
-          verify(listValue, collectionElementType, fieldName);
-        }
-      }
-      return valueIterable;
-    }
-
-    private Map<Object, Object> verifyMap(
-        Object value, FieldType keyType, FieldType valueType, String fieldName) {
-      boolean valueTypeNullable = valueType.getNullable();
-      if (!(value instanceof Map)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and map type expected Map class. Instead "
-                    + "class type was %s.",
-                fieldName, value.getClass()));
-      }
-      Map<Object, Object> valueMap = (Map<Object, Object>) value;
-      Map<Object, Object> verifiedMap = Maps.newHashMapWithExpectedSize(valueMap.size());
-      for (Entry<Object, Object> kv : valueMap.entrySet()) {
-        if (kv.getValue() == null) {
-          if (!valueTypeNullable) {
-            throw new IllegalArgumentException(
-                String.format("%s is not nullable in Map field %s", valueType, fieldName));
-          }
-          verifiedMap.put(verify(kv.getKey(), keyType, fieldName), null);
-        } else {
-          verifiedMap.put(
-              verify(kv.getKey(), keyType, fieldName), verify(kv.getValue(), valueType, fieldName));
-        }
-      }
-      return verifiedMap;
-    }
-
-    private Row verifyRow(Object value, String fieldName) {
-      if (!(value instanceof Row)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "For field name %s expected Row type. " + "Instead class type was %s.",
-                fieldName, value.getClass()));
-      }
-      // No need to recursively validate the nested Row, since there's no way to build the
-      // Row object without it validating.
-      return (Row) value;
-    }
-
-    private Object verifyPrimitiveType(Object value, TypeName type, String fieldName) {
-      if (type.isDateType()) {
-        return verifyDateTime(value, fieldName);
-      } else {
-        switch (type) {
-          case BYTE:
-            if (value instanceof Byte) {
-              return value;
-            }
-            break;
-          case BYTES:
-            if (value instanceof ByteBuffer) {
-              return ((ByteBuffer) value).array();
-            } else if (value instanceof byte[]) {
-              return (byte[]) value;
-            }
-            break;
-          case INT16:
-            if (value instanceof Short) {
-              return value;
-            }
-            break;
-          case INT32:
-            if (value instanceof Integer) {
-              return value;
-            }
-            break;
-          case INT64:
-            if (value instanceof Long) {
-              return value;
-            }
-            break;
-          case DECIMAL:
-            if (value instanceof BigDecimal) {
-              return value;
-            }
-            break;
-          case FLOAT:
-            if (value instanceof Float) {
-              return value;
-            }
-            break;
-          case DOUBLE:
-            if (value instanceof Double) {
-              return value;
-            }
-            break;
-          case STRING:
-            if (value instanceof String) {
-              return value;
-            }
-            break;
-          case BOOLEAN:
-            if (value instanceof Boolean) {
-              return value;
-            }
-            break;
-          default:
-            // Shouldn't actually get here, but we need this case to satisfy linters.
-            throw new IllegalArgumentException(
-                String.format("Not a primitive type for field name %s: %s", fieldName, type));
-        }
-        throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and type %s found incorrect class type %s",
-                fieldName, type, value.getClass()));
-      }
-    }
-
-    private Instant verifyDateTime(Object value, String fieldName) {
-      // We support the following classes for datetimes.
-      if (value instanceof AbstractInstant) {
-        return ((AbstractInstant) value).toInstant();
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and DATETIME type got unexpected class %s ",
-                fieldName, value.getClass()));
-      }
+      checkState(getterTarget != null, "getters require withGetterTarget.");
+      return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
     }
 
     public Row build() {
       checkNotNull(schema);
-      if (!this.values.isEmpty() && fieldValueGetterFactory != null) {
-        throw new IllegalArgumentException("Cannot specify both values and getters.");
+
+      if (!values.isEmpty() && values.size() != schema.getFieldCount()) {
+        throw new IllegalArgumentException(
+            "Row expected "
+                + schema.getFieldCount()
+                + " fields. initialized with "
+                + values.size()
+                + " fields.");
       }
-      if (!this.values.isEmpty()) {
-        List<Object> storageValues = attached ? this.values : verify(schema, this.values);
-        checkState(getterTarget == null, "withGetterTarget requires getters.");
-        return new RowWithStorage(schema, storageValues);
-      } else if (fieldValueGetterFactory != null) {
-        checkState(getterTarget != null, "getters require withGetterTarget.");
-        return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+
+      FieldOverrides fieldOverrides = new FieldOverrides(schema);
+      fieldOverrides.setOverrides(this.values);
+
+      Row row;
+      if (!fieldOverrides.isEmpty()) {
+        row =
+            (Row)
+                new RowFieldMatcher()
+                    .match(
+                        new CapturingRowCases(schema, fieldOverrides),
+                        FieldType.row(schema),
+                        new RowPosition(FieldAccessDescriptor.create()),
+                        null);
       } else {
-        return new RowWithStorage(schema, Collections.emptyList());
+        row = new RowWithStorage(schema, Collections.emptyList());
       }
+      return row;
     }
   }
 

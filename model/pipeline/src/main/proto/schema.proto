@@ -19,6 +19,9 @@
 // ** Experimental **
 // Protocol Buffers describing Beam Schemas, a portable representation for
 // complex types.
+//
+// The primary application of Schema is as the payload for the standard coder
+// "beam:coder:row:v1", defined in beam_runner_api.proto
 
 syntax = "proto3";
 
@@ -31,6 +34,7 @@ option java_outer_classname = "SchemaApi";
 message Schema {
   repeated Field fields = 1;
   string id = 2;
+  repeated Option options = 3;
 }
 
 message Field {
@@ -39,6 +43,7 @@ message Field {
   FieldType type = 3;
   int32 id = 4;
   int32 encoding_position = 5;
+  repeated Option options = 6;
 }
 
 message FieldType {
@@ -89,6 +94,12 @@ message LogicalType {
   FieldType representation = 3;
   FieldType argument_type = 4;
   FieldValue argument = 5;
+}
+
+message Option {
+  string name = 1;
+  FieldType type = 2;
+  FieldValue value = 3;
 }
 
 message Row {

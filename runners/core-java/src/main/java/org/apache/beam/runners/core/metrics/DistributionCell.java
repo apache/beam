@@ -19,12 +19,10 @@ package org.apache.beam.runners.core.metrics;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Tracks the current value (and delta) for a Distribution metric.
@@ -34,7 +32,6 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
  * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
  * of indirection.
  */
-@Experimental(Kind.METRICS)
 public class DistributionCell implements Distribution, MetricCell<DistributionData> {
 
   private final DirtyState dirty = new DirtyState();
@@ -47,7 +44,6 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
    * MetricsContainerImpl}, unless they need to define their own version of {@link
    * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
-  @Internal
   public DistributionCell(MetricName name) {
     this.name = name;
   }
@@ -93,7 +89,7 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof DistributionCell) {
       DistributionCell distributionCell = (DistributionCell) object;
       return Objects.equals(dirty, distributionCell.dirty)

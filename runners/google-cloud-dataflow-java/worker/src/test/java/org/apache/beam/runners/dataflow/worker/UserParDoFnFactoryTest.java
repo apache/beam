@@ -363,6 +363,7 @@ public class UserParDoFnFactoryTest {
             SimpleParDoFn.CLEANUP_TIMER_ID,
             firstWindow,
             IntervalWindow.getCoder(),
+            firstWindow.maxTimestamp().plus(1L),
             firstWindow.maxTimestamp().plus(1L));
   }
 
@@ -382,6 +383,7 @@ public class UserParDoFnFactoryTest {
     // The user step context that the DoFnRunner gets a handle on
     DataflowStepContext userStepContext = mock(DataflowStepContext.class);
     when(stepContext.namespacedToUser()).thenReturn(userStepContext);
+    when(stepContext.stateInternals()).thenReturn(stateInternals);
     when(userStepContext.stateInternals()).thenReturn((StateInternals) stateInternals);
 
     DataflowExecutionContext<DataflowStepContext> executionContext =
@@ -426,6 +428,7 @@ public class UserParDoFnFactoryTest {
                 SimpleParDoFn.CLEANUP_TIMER_ID,
                 firstWindowNamespace,
                 firstWindow.maxTimestamp().plus(1L),
+                firstWindow.maxTimestamp().plus(1L),
                 TimeDomain.EVENT_TIME))
         .thenReturn(null);
 
@@ -440,6 +443,7 @@ public class UserParDoFnFactoryTest {
             TimerData.of(
                 SimpleParDoFn.CLEANUP_TIMER_ID,
                 secondWindowNamespace,
+                secondWindow.maxTimestamp().plus(1L),
                 secondWindow.maxTimestamp().plus(1L),
                 TimeDomain.EVENT_TIME))
         .thenReturn(null);

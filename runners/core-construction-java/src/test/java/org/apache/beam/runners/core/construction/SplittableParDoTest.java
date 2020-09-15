@@ -19,10 +19,23 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -75,6 +88,11 @@ public class SplittableParDoTest {
 
     @Override
     public void checkDone() {}
+
+    @Override
+    public IsBounded isBounded() {
+      return IsBounded.BOUNDED;
+    }
   }
 
   private static class BoundedFakeFn extends DoFn<Integer, String> {
@@ -161,5 +179,73 @@ public class SplittableParDoTest {
         applySplittableParDo(
                 "unbounded to unbounded", makeUnboundedCollection(pipeline), unboundedFn)
             .isBounded());
+  }
+
+  private static class FakeBoundedSource extends BoundedSource<String> {
+    @Override
+    public List<? extends BoundedSource<String>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      return Collections.singletonList(this);
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return 0;
+    }
+
+    @Override
+    public BoundedReader<String> createReader(PipelineOptions options) throws IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Coder<String> getOutputCoder() {
+      return StringUtf8Coder.of();
+    }
+  }
+
+  @Test
+  public void testValidateNoPrimitiveReadsIsSkippedWhenUsingDeprecatedRead() {
+    PipelineOptions deprecatedReadOptions = PipelineOptionsFactory.create();
+    deprecatedReadOptions.setRunner(CrashingRunner.class);
+    ExperimentalOptions.addExperiment(
+        deprecatedReadOptions.as(ExperimentalOptions.class), "use_deprecated_read");
+
+    Pipeline deprecatedReadAllowed = Pipeline.create(deprecatedReadOptions);
+    deprecatedReadAllowed.apply(Read.from(new FakeBoundedSource()));
+    deprecatedReadAllowed.apply(
+        Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
+    // We expect that the experiment will skip validation.
+    SplittableParDo.validateNoPrimitiveReads(deprecatedReadAllowed);
+  }
+
+  @Test
+  public void testValidateNoPrimitiveReadsWhenThereAreNone() {
+    PipelineOptions sdfOptions = PipelineOptionsFactory.create();
+    sdfOptions.setRunner(CrashingRunner.class);
+    ExperimentalOptions.addExperiment(sdfOptions.as(ExperimentalOptions.class), "beam_fn_api");
+    Pipeline sdf = Pipeline.create(sdfOptions);
+    sdf.apply(Read.from(new FakeBoundedSource()));
+    sdf.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
+    // We expect that the experiment will have caused the transform to use SDF wrappers during
+    // execution.
+    SplittableParDo.validateNoPrimitiveReads(sdf);
+  }
+
+  @Test
+  public void testValidateNoPrimitiveReadsFindsPrimitiveReads() {
+    PipelineOptions noSdfOptions = PipelineOptionsFactory.create();
+    noSdfOptions.setRunner(CrashingRunner.class);
+    Pipeline boundedRead = Pipeline.create(noSdfOptions);
+    boundedRead.apply(Read.from(new FakeBoundedSource()));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SplittableParDo.validateNoPrimitiveReads(boundedRead));
+
+    Pipeline unboundedRead = Pipeline.create(noSdfOptions);
+    unboundedRead.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SplittableParDo.validateNoPrimitiveReads(unboundedRead));
   }
 }

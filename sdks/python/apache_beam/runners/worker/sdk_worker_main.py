@@ -151,19 +151,21 @@ def main(unused_argv):
       text_format.Merge(
           os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
           status_service_descriptor)
-    # TODO(robertwb): Support credentials.
-    assert not control_service_descriptor.oauth2_client_credentials_grant.url
+    # TODO(robertwb): Support authentication.
+    assert not control_service_descriptor.HasField('authentication')
+
+    experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+    enable_heap_dump = 'enable_heap_dump' in experiments
     SdkHarness(
         control_address=control_service_descriptor.url,
         status_address=status_service_descriptor.url,
         worker_id=_worker_id,
-        state_cache_size=_get_state_cache_size(sdk_pipeline_options),
-        data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(
-            sdk_pipeline_options),
+        state_cache_size=_get_state_cache_size(experiments),
+        data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(experiments),
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(ProfilingOptions)),
-        token=token
-    ).run()
+        token=token,
+        enable_heap_dump=enable_heap_dump).run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     _LOGGER.exception('Python sdk harness failed: ')
@@ -189,7 +191,7 @@ def _parse_pipeline_options(options_json):
     })
 
 
-def _get_state_cache_size(pipeline_options):
+def _get_state_cache_size(experiments):
   """Defines the upper number of state items to cache.
 
   Note: state_cache_size is an experimental flag and might not be available in
@@ -199,8 +201,6 @@ def _get_state_cache_size(pipeline_options):
     an int indicating the maximum number of items to cache.
       Default is 0 (disabled)
   """
-  experiments = pipeline_options.view_as(DebugOptions).experiments
-  experiments = experiments if experiments else []
 
   for experiment in experiments:
     # There should only be 1 match so returning from the loop
@@ -211,7 +211,7 @@ def _get_state_cache_size(pipeline_options):
   return 0
 
 
-def _get_data_buffer_time_limit_ms(pipeline_options):
+def _get_data_buffer_time_limit_ms(experiments):
   """Defines the time limt of the outbound data buffering.
 
   Note: data_buffer_time_limit_ms is an experimental flag and might
@@ -221,8 +221,6 @@ def _get_data_buffer_time_limit_ms(pipeline_options):
     an int indicating the time limit in milliseconds of the the outbound
       data buffering. Default is 0 (disabled)
   """
-  experiments = pipeline_options.view_as(DebugOptions).experiments
-  experiments = experiments if experiments else []
 
   for experiment in experiments:
     # There should only be 1 match so returning from the loop

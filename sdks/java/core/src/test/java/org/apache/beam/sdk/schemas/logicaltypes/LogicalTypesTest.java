@@ -38,9 +38,9 @@ public class LogicalTypesTest {
     EnumerationType enumeration = EnumerationType.create(enumMap);
     assertEquals(enumeration.valueOf(1), enumeration.valueOf("FIRST"));
     assertEquals(enumeration.valueOf(2), enumeration.valueOf("SECOND"));
-    assertEquals("FIRST", enumeration.valueOf(1).toString());
+    assertEquals("FIRST", enumeration.toString(enumeration.valueOf(1)));
     assertEquals(1, enumeration.valueOf("FIRST").getValue());
-    assertEquals("SECOND", enumeration.valueOf(2).toString());
+    assertEquals("SECOND", enumeration.toString(enumeration.valueOf(2)));
     assertEquals(2, enumeration.valueOf("SECOND").getValue());
 
     Schema schema =
@@ -65,12 +65,12 @@ public class LogicalTypesTest {
     Row stringOneOf =
         Row.withSchema(schema).addValue(oneOf.createValue("string", "stringValue")).build();
     Value union = stringOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
-    assertEquals("string", union.getCaseType().toString());
+    assertEquals("string", oneOf.getCaseEnumType().toString(union.getCaseType()));
     assertEquals("stringValue", union.getValue());
 
     Row intOneOf = Row.withSchema(schema).addValue(oneOf.createValue("int32", 42)).build();
     union = intOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
-    assertEquals("int32", union.getCaseType().toString());
+    assertEquals("int32", oneOf.getCaseEnumType().toString(union.getCaseType()));
     assertEquals(42, (int) union.getValue());
   }
 
@@ -83,7 +83,7 @@ public class LogicalTypesTest {
     Schema schema = Schema.builder().addLogicalTypeField("now", new NanosInstant()).build();
     Row row = Row.withSchema(schema).addValues(now).build();
     assertEquals(now, row.getLogicalTypeValue(0, NanosInstant.class));
-    assertEquals(nowAsRow, row.getValue(0));
+    assertEquals(nowAsRow, row.getBaseValue(0, Row.class));
   }
 
   @Test
@@ -95,6 +95,6 @@ public class LogicalTypesTest {
     Schema schema = Schema.builder().addLogicalTypeField("duration", new NanosDuration()).build();
     Row row = Row.withSchema(schema).addValues(duration).build();
     assertEquals(duration, row.getLogicalTypeValue(0, NanosDuration.class));
-    assertEquals(durationAsRow, row.getValue(0));
+    assertEquals(durationAsRow, row.getBaseValue(0, Row.class));
   }
 }

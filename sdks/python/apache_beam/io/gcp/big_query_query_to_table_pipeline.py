@@ -63,6 +63,11 @@ def run_bq_pipeline(argv=None):
       default=False,
       action='store_true',
       help='Use NativeSources and Sinks.')
+  parser.add_argument(
+      '--use_json_exports',
+      default=False,
+      action='store_true',
+      help='Use JSON as the file format for exports.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   table_schema = parse_table_schema_from_json(known_args.output_schema)
@@ -80,10 +85,11 @@ def run_bq_pipeline(argv=None):
             use_standard_sql=known_args.use_standard_sql,
             kms_key=kms_key))
   else:
-    data = p | 'read' >> beam.io.gcp.bigquery._ReadFromBigQuery(
+    data = p | 'read' >> beam.io.gcp.bigquery.ReadFromBigQuery(
         query=known_args.query,
         project=options.view_as(GoogleCloudOptions).project,
         use_standard_sql=known_args.use_standard_sql,
+        use_json_exports=known_args.use_json_exports,
         kms_key=kms_key)
   if known_args.native:
     _ = data | 'write' >> beam.io.Write(
@@ -94,11 +100,14 @@ def run_bq_pipeline(argv=None):
             write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
             kms_key=kms_key))
   else:
+    temp_file_format = (
+        'NEWLINE_DELIMITED_JSON' if known_args.use_json_exports else 'AVRO')
     _ = data | 'write' >> beam.io.WriteToBigQuery(
         known_args.output,
         schema=table_schema,
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+        temp_file_format=temp_file_format,
         kms_key=kms_key)
 
   result = p.run()

@@ -23,8 +23,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A logical type representing a union of fields. This logical type is initialized with a set of
@@ -54,9 +55,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
 
   private OneOfType(List<Field> fields, @Nullable Map<String, Integer> enumMap) {
     List<Field> nullableFields =
-        fields.stream()
-            .map(f -> Field.nullable(f.getName(), f.getType()))
-            .collect(Collectors.toList());
+        fields.stream().map(f -> f.withNullable(true)).collect(Collectors.toList());
     if (enumMap != null) {
       nullableFields.stream().forEach(f -> checkArgument(enumMap.containsKey(f.getName())));
       enumerationType = EnumerationType.create(enumMap);
@@ -118,19 +117,28 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
-  public <T> Value createValue(String caseType, T value) {
-    return createValue(getCaseEnumType().valueOf(caseType), value);
+  public <T> Value createValue(String caseValue, T value) {
+    return createValue(getCaseEnumType().valueOf(caseValue), value);
+  }
+
+  /** Create a {@link Value} specifying which field to set and the value to set. */
+  public <T> Value createValue(int caseValue, T value) {
+    return createValue(getCaseEnumType().valueOf(caseValue), value);
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
   public <T> Value createValue(EnumerationType.Value caseType, T value) {
-    return new Value(caseType, oneOfSchema.getField(caseType.toString()).getType(), value);
+    return new Value(caseType, value);
+  }
+
+  public FieldType getFieldType(OneOfType.Value oneOneValue) {
+    return oneOfSchema.getField(enumerationType.toString(oneOneValue.getCaseType())).getType();
   }
 
   @Override
   public Row toBaseType(Value input) {
     EnumerationType.Value caseType = input.getCaseType();
-    int setFieldIndex = oneOfSchema.indexOf(caseType.toString());
+    int setFieldIndex = oneOfSchema.indexOf(enumerationType.toString(caseType));
     Row.Builder builder = Row.withSchema(oneOfSchema);
     for (int i = 0; i < oneOfSchema.getFieldCount(); ++i) {
       Object value = (i == setFieldIndex) ? input.getValue() : null;
@@ -166,12 +174,10 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
    */
   public static class Value {
     private final EnumerationType.Value caseType;
-    private final FieldType fieldType;
     private final Object value;
 
-    public Value(EnumerationType.Value caseType, FieldType fieldType, Object value) {
+    public Value(EnumerationType.Value caseType, Object value) {
       this.caseType = caseType;
-      this.fieldType = fieldType;
       this.value = value;
     }
 
@@ -190,14 +196,26 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
       return value;
     }
 
-    /** Return the type of this union field. */
-    public FieldType getFieldType() {
-      return fieldType;
-    }
-
     @Override
     public String toString() {
       return "caseType: " + caseType + " Value: " + value;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      Value value1 = (Value) o;
+      return Objects.equals(caseType, value1.caseType) && Objects.equals(value, value1.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(caseType, value);
     }
   }
 }

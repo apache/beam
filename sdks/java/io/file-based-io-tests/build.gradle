@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, publish: false)
+applyJavaNature(enableChecker:false,exportJavadoc: false, publish: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -30,7 +30,9 @@ dependencies {
   testCompile project(path: ":sdks:java:io:xml", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:io:parquet", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testCompile library.java.jaxb_api
+  testCompile library.java.jaxb_impl
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
-  testCompile library.java.jaxb_api
+  testCompile library.java.hadoop_client
 }

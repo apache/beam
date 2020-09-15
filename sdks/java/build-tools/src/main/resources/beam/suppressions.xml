@@ -87,11 +87,36 @@
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*TableScanConverter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ExpressionConverter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ZetaSQLPlannerImpl\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*SqlAnalyzer\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*pubsublite.*BufferingPullSubscriberTest\.java" />
+
+  <!-- gRPC/protobuf exceptions -->
+  <!-- Non-vendored gRPC/protobuf imports are allowed for files that depend on libraries that expose gRPC/protobuf in its public API -->
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*protobuf.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*ml.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*gcp.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakeBatchTransactionId\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakePartitionFactory\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtils\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlDialectSpecTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlTimeFunctionsTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtilsTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*TableResolutionTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLPushDownTest\.java" />
 
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
+  <suppress checks="JavadocPackage" files=".*runners.flink.*AbstractStreamOperatorCompat\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*CoderTypeSerializer\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*EncodedTypeSerializer\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*BeamStoppableFunction\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*BeamFlinkRemoteStreamEnvironment\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*FlinkCapabilities\.java"/>
+
+  <!-- ThriftIO -->
+  <!-- Suppress Checkstyle for Thrift generated test files. -->
+  <suppress files="org.apache.beam.sdk.io.thrift.TestThriftStruct.java" checks="[a-zA-Z0-9]*"/>
 
 </suppressions>

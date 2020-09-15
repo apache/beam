@@ -35,12 +35,14 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
@@ -70,6 +72,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link WindmillStateInternals}. */
 @RunWith(JUnit4.class)
 public class WindmillStateInternalsTest {
+
   private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");
   private static final String STATE_FAMILY = "family";
 
@@ -79,6 +82,8 @@ public class WindmillStateInternalsTest {
   private final Coder<int[]> accumCoder =
       Sum.ofIntegers().getAccumulatorCoder(null, VarIntCoder.of());
   private long workToken = 0;
+
+  DataflowWorkerHarnessOptions options;
 
   @Mock private WindmillStateReader mockReader;
 
@@ -99,7 +104,8 @@ public class WindmillStateInternalsTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    cache = new WindmillStateCache();
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    cache = new WindmillStateCache(options.getWorkerCacheMb());
     resetUnderTest();
   }
 
@@ -111,7 +117,13 @@ public class WindmillStateInternalsTest {
             STATE_FAMILY,
             mockReader,
             false,
-            cache.forComputation("comp").forKey(ByteString.EMPTY, STATE_FAMILY, 17L, workToken),
+            cache
+                .forComputation("comp")
+                .forKey(
+                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    STATE_FAMILY,
+                    17L,
+                    workToken),
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -119,7 +131,13 @@ public class WindmillStateInternalsTest {
             STATE_FAMILY,
             mockReader,
             true,
-            cache.forComputation("comp").forKey(ByteString.EMPTY, STATE_FAMILY, 17L, workToken),
+            cache
+                .forComputation("comp")
+                .forKey(
+                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    STATE_FAMILY,
+                    17L,
+                    workToken),
             readStateSupplier);
   }
 

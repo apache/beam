@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.util.common;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * An {@link Iterable} that returns {@link Reiterator} iterators.
  *
  * @param <T> the type of elements returned by the iterator
  */
+@Internal
 public interface Reiterable<T> extends Iterable<T> {
   @Override
   Reiterator<T> iterator();

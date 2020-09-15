@@ -25,8 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
 import org.apache.beam.sdk.metrics.Counter;
@@ -35,6 +35,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,11 +114,10 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  *
  * Nullable row columns are supported through Nullable type in ClickHouse.
  *
- * <p>Nested rows should be unnested using {@link org.apache.beam.sdk.schemas.transforms.Unnest}.
- * Type casting should be done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before
- * {@link ClickHouseIO}.
+ * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
+ * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ClickHouseIO {
 
   public static final long DEFAULT_MAX_INSERT_BLOCK_SIZE = 1000000;
@@ -156,14 +157,11 @@ public class ClickHouseIO {
 
     public abstract Duration initialBackoff();
 
-    @Nullable
-    public abstract Boolean insertDistributedSync();
+    public abstract @Nullable Boolean insertDistributedSync();
 
-    @Nullable
-    public abstract Long insertQuorum();
+    public abstract @Nullable Long insertQuorum();
 
-    @Nullable
-    public abstract Boolean insertDeduplicate();
+    public abstract @Nullable Boolean insertDeduplicate();
 
     abstract Builder<T> toBuilder();
 

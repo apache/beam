@@ -28,7 +28,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -52,14 +52,34 @@ func main() {
 	if *id == "" {
 		log.Fatal("No id provided.")
 	}
+	if *provisionEndpoint == "" {
+		log.Fatal("No provision endpoint provided.")
+	}
+
+	ctx := grpcx.WriteWorkerID(context.Background(), *id)
+
+	info, err := provision.Info(ctx, *provisionEndpoint)
+	if err != nil {
+		log.Fatalf("Failed to obtain provisioning information: %v", err)
+	}
+	log.Printf("Provision info:\n%v", info)
+
+	// TODO(BEAM-8201): Simplify once flags are no longer used.
+	if info.GetLoggingEndpoint().GetUrl() != "" {
+		*loggingEndpoint = info.GetLoggingEndpoint().GetUrl()
+	}
+	if info.GetArtifactEndpoint().GetUrl() != "" {
+		*artifactEndpoint = info.GetArtifactEndpoint().GetUrl()
+	}
+	if info.GetControlEndpoint().GetUrl() != "" {
+		*controlEndpoint = info.GetControlEndpoint().GetUrl()
+	}
+
 	if *loggingEndpoint == "" {
 		log.Fatal("No logging endpoint provided.")
 	}
 	if *artifactEndpoint == "" {
 		log.Fatal("No artifact endpoint provided.")
-	}
-	if *provisionEndpoint == "" {
-		log.Fatal("No provision endpoint provided.")
 	}
 	if *controlEndpoint == "" {
 		log.Fatal("No control endpoint provided.")
@@ -67,14 +87,8 @@ func main() {
 
 	log.Printf("Initializing java harness: %v", strings.Join(os.Args, " "))
 
-	ctx := grpcx.WriteWorkerID(context.Background(), *id)
-
 	// (1) Obtain the pipeline options
 
-	info, err := provision.Info(ctx, *provisionEndpoint)
-	if err != nil {
-		log.Fatalf("Failed to obtain provisioning information: %v", err)
-	}
 	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
 		log.Fatalf("Failed to convert pipeline options: %v", err)
@@ -85,7 +99,7 @@ func main() {
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 
-	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
+	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}
@@ -94,8 +108,8 @@ func main() {
 
 	os.Setenv("HARNESS_ID", *id)
 	os.Setenv("PIPELINE_OPTIONS", options)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
 
 	if info.GetStatusEndpoint() != nil {
 		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
@@ -141,9 +155,6 @@ func main() {
 // ensure there is memory for non-heap use and other overhead, while also not
 // underutilizing the machine.
 func heapSizeLimit(info *fnpb.ProvisionInfo) uint64 {
-	if provided := info.GetResourceLimits().GetMemory().GetSize(); provided > 0 {
-		return (provided * 80) / 100
-	}
 	if size, err := syscallx.PhysicalMemorySize(); err == nil {
 		return (size * 70) / 100
 	}

@@ -203,6 +203,7 @@ public class StreamingSideInputFetcherTest {
     return TimerData.of(
         StateNamespaces.window(IntervalWindow.getCoder(), createWindow(timestamp)),
         new Instant(timestamp),
+        new Instant(timestamp),
         TimeDomain.EVENT_TIME);
   }
 

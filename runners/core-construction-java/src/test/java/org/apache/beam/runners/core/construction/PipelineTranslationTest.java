@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -212,7 +214,9 @@ public class PipelineTranslationTest {
             .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
     Components components = sdkComponents.toComponents();
     return CoderTranslation.fromProto(
-        components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
+        components.getCodersOrThrow(id),
+        RehydratedComponents.forComponents(components),
+        TranslationContext.DEFAULT);
   }
 
   private static Optional<CombinePayload> getCombinePayload(
@@ -227,5 +231,23 @@ public class PipelineTranslationTest {
     } else {
       return Optional.empty();
     }
+  }
+
+  // Static, out-of-line for serialization.
+  private static class DoFnRequiringStableInput extends DoFn<Integer, String> {
+    @RequiresStableInput
+    @ProcessElement
+    public void process(ProcessContext c) {
+      // actually never executed and no effect on translation
+    }
+  }
+
+  @Test
+  public void testRequirements() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new DoFnRequiringStableInput()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto.getRequirementsList(), hasItem(ParDoTranslation.REQUIRES_STABLE_INPUT_URN));
   }
 }

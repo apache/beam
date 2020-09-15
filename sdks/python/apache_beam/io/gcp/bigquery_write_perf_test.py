@@ -31,6 +31,7 @@ python -m apache_beam.io.gcp.bigquery_write_perf_test \
     --test-pipeline-options="
     --runner=TestDataflowRunner
     --project=...
+    --region=...
     --staging_location=gs://...
     --temp_location=gs://...
     --sdk_location=.../dist/apache-beam-x.x.x.dev0.tar.gz
@@ -52,7 +53,6 @@ This setup will result in a table of 1MB size.
 
 from __future__ import absolute_import
 
-import base64
 import logging
 
 from apache_beam import Map
@@ -81,6 +81,7 @@ class BigQueryWritePerfTest(LoadTest):
     def format_record(record):
       # Since Synthetic Source returns data as a dictionary, we should skip one
       # of the part
+      import base64
       return {'data': base64.b64encode(record[1])}
 
     (  # pylint: disable=expression-not-assigned

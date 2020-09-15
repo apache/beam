@@ -68,17 +68,18 @@ public class BeamSqlDataCatalogExample {
 
     validateArgs(options);
 
-    pipeline
-        .apply(
-            "SQL Query",
-            SqlTransform.query(options.getQueryString())
-                .withDefaultTableProvider(
-                    "datacatalog",
-                    DataCatalogTableProvider.create(options.as(DataCatalogPipelineOptions.class))))
-        .apply("Convert to Strings", rowsToStrings())
-        .apply("Write output", TextIO.write().to(options.getOutputFilePrefix()));
+    try (DataCatalogTableProvider tableProvider =
+        DataCatalogTableProvider.create(options.as(DataCatalogPipelineOptions.class))) {
+      pipeline
+          .apply(
+              "SQL Query",
+              SqlTransform.query(options.getQueryString())
+                  .withDefaultTableProvider("datacatalog", tableProvider))
+          .apply("Convert to Strings", rowsToStrings())
+          .apply("Write output", TextIO.write().to(options.getOutputFilePrefix()));
 
-    pipeline.run().waitUntilFinish();
+      pipeline.run().waitUntilFinish();
+    }
   }
 
   private static MapElements<Row, String> rowsToStrings() {

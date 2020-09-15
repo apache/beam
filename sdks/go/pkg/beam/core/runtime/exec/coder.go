@@ -57,6 +57,8 @@ func EncodeElement(c ElementEncoder, val interface{}) ([]byte, error) {
 type ElementDecoder interface {
 	// Decode deserializes a value from the given reader.
 	Decode(io.Reader) (*FullValue, error)
+	// DecodeTo deserializes a value from the given reader into the provided FullValue.
+	DecodeTo(io.Reader, *FullValue) error
 }
 
 // MakeElementEncoder returns a ElementCoder for the given coder. It panics
@@ -74,6 +76,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 
 	case coder.Double:
 		return &doubleEncoder{}
+
+	case coder.String:
+		return &stringEncoder{}
 
 	case coder.Custom:
 		return &customEncoder{
@@ -107,6 +112,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 
 	case coder.Double:
 		return &doubleDecoder{}
+
+	case coder.String:
+		return &stringDecoder{}
 
 	case coder.Custom:
 		return &customDecoder{
@@ -145,18 +153,27 @@ func (*bytesEncoder) Encode(val *FullValue, w io.Writer) error {
 
 type bytesDecoder struct{}
 
-func (*bytesDecoder) Decode(r io.Reader) (*FullValue, error) {
+func (*bytesDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: size (varint) + raw data
 
 	size, err := coder.DecodeVarInt(r)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	data, err := ioutilx.ReadN(r, (int)(size))
 	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: data}
+	return nil
+}
+
+func (d *bytesDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
 		return nil, err
 	}
-	return &FullValue{Elm: data}, nil
+	return fv, nil
 }
 
 type boolEncoder struct{}
@@ -177,22 +194,32 @@ func (*boolEncoder) Encode(val *FullValue, w io.Writer) error {
 
 type boolDecoder struct{}
 
-func (*boolDecoder) Decode(r io.Reader) (*FullValue, error) {
+func (*boolDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: false = 0, true = 1
 	b := make([]byte, 1, 1)
 	if err := ioutilx.ReadNBufUnsafe(r, b); err != nil {
 		if err == io.EOF {
-			return nil, err
+			return err
 		}
-		return nil, fmt.Errorf("error decoding bool: %v", err)
+		return fmt.Errorf("error decoding bool: %v", err)
 	}
 	switch b[0] {
 	case 0:
-		return &FullValue{Elm: false}, nil
+		*fv = FullValue{Elm: false}
+		return nil
 	case 1:
-		return &FullValue{Elm: true}, nil
+		*fv = FullValue{Elm: true}
+		return nil
 	}
-	return nil, fmt.Errorf("error decoding bool: received invalid value %v", b)
+	return fmt.Errorf("error decoding bool: received invalid value %v", b)
+}
+
+func (d *boolDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
 }
 
 type varIntEncoder struct{}
@@ -204,13 +231,22 @@ func (*varIntEncoder) Encode(val *FullValue, w io.Writer) error {
 
 type varIntDecoder struct{}
 
-func (*varIntDecoder) Decode(r io.Reader) (*FullValue, error) {
+func (*varIntDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: beam varint
 	n, err := coder.DecodeVarInt(r)
 	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: n}
+	return nil
+}
+
+func (d *varIntDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
 		return nil, err
 	}
-	return &FullValue{Elm: n}, nil
+	return fv, nil
 }
 
 type doubleEncoder struct{}
@@ -222,13 +258,49 @@ func (*doubleEncoder) Encode(val *FullValue, w io.Writer) error {
 
 type doubleDecoder struct{}
 
-func (*doubleDecoder) Decode(r io.Reader) (*FullValue, error) {
+func (*doubleDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: beam double (big-endian 64-bit IEEE 754 double)
 	f, err := coder.DecodeDouble(r)
 	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: f}
+	return nil
+}
+
+func (d *doubleDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
 		return nil, err
 	}
-	return &FullValue{Elm: f}, nil
+	return fv, nil
+}
+
+type stringEncoder struct{}
+
+func (*stringEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: beam utf8 string (length prefix + run of bytes)
+	return coder.EncodeStringUTF8(val.Elm.(string), w)
+}
+
+type stringDecoder struct{}
+
+func (*stringDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	// Encoding: beam utf8 string (length prefix + run of bytes)
+	f, err := coder.DecodeStringUTF8(r)
+	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: f}
+	return nil
+}
+
+func (d *stringDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
 }
 
 type customEncoder struct {
@@ -259,40 +331,67 @@ type customDecoder struct {
 	dec Decoder
 }
 
-func (c *customDecoder) Decode(r io.Reader) (*FullValue, error) {
+func (c *customDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// (1) Read length-prefixed encoded data
 
 	size, err := coder.DecodeVarInt(r)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	data, err := ioutilx.ReadN(r, (int)(size))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// (2) Call decode
 
 	val, err := c.dec.Decode(c.t, data)
 	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: val}
+	return nil
+}
+
+func (c *customDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := c.DecodeTo(r, fv); err != nil {
 		return nil, err
 	}
-	return &FullValue{Elm: val}, err
+	return fv, nil
 }
 
 type kvEncoder struct {
 	fst, snd ElementEncoder
+	cached   FullValue
 }
 
 func (c *kvEncoder) Encode(val *FullValue, w io.Writer) error {
-	if err := c.fst.Encode(convertIfNeeded(val.Elm), w); err != nil {
+	defer func() {
+		// clear the cached FullValue after use to avoid leaks.
+		c.cached = FullValue{}
+	}()
+	if err := c.fst.Encode(convertIfNeeded(val.Elm, &c.cached), w); err != nil {
 		return err
 	}
-	return c.snd.Encode(convertIfNeeded(val.Elm2), w)
+	return c.snd.Encode(convertIfNeeded(val.Elm2, &c.cached), w)
 }
 
 type kvDecoder struct {
 	fst, snd ElementDecoder
+}
+
+func (c *kvDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	var key FullValue
+	if err := c.fst.DecodeTo(r, &key); err != nil {
+		return err
+	}
+	var value FullValue
+	if err := c.snd.DecodeTo(r, &value); err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: elideSingleElmFV(&key), Elm2: elideSingleElmFV(&value)}
+	return nil
 }
 
 // Decode returns a *FullValue containing the contents of the decoded KV. If
@@ -303,15 +402,11 @@ type kvDecoder struct {
 // Example:
 //   KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
 func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
-	key, err := c.fst.Decode(r)
-	if err != nil {
+	fv := &FullValue{}
+	if err := c.DecodeTo(r, fv); err != nil {
 		return nil, err
 	}
-	value, err := c.snd.Decode(r)
-	if err != nil {
-		return nil, err
-	}
-	return &FullValue{Elm: elideSingleElmFV(key), Elm2: elideSingleElmFV(value)}, nil
+	return fv, nil
 }
 
 // elideSingleElmFV elides a FullValue if it has only one element, returning
@@ -325,6 +420,18 @@ func elideSingleElmFV(fv *FullValue) interface{} {
 		return fv.Elm
 	}
 	return fv
+}
+
+// convertIfNeeded reuses Wrapped KVs if needed, but accepts pointer
+// to a pre-allocated non-nil *FullValue for overwriting and use.
+func convertIfNeeded(v interface{}, allocated *FullValue) *FullValue {
+	if fv, ok := v.(*FullValue); ok {
+		return fv
+	} else if _, ok := v.(FullValue); ok {
+		panic("Nested FullValues must be nested as pointers.")
+	}
+	*allocated = FullValue{Elm: v}
+	return allocated
 }
 
 // WindowEncoder handles Window serialization to a byte stream. The encoder
@@ -447,6 +554,8 @@ func (*intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 	return ret, err
 }
 
+var paneNoFiring = []byte{0xf}
+
 // EncodeWindowedValueHeader serializes a windowed value header.
 func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.EventTime, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
@@ -457,7 +566,7 @@ func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.Eve
 	if err := enc.Encode(ws, w); err != nil {
 		return err
 	}
-	_, err := w.Write([]byte{0xf}) // NO_FIRING pane
+	_, err := w.Write(paneNoFiring)
 	return err
 }
 
@@ -478,13 +587,4 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 		return nil, mtime.ZeroTimestamp, err
 	}
 	return ws, t, nil
-}
-
-func convertIfNeeded(v interface{}) *FullValue {
-	if fv, ok := v.(*FullValue); ok {
-		return fv
-	} else if _, ok := v.(FullValue); ok {
-		panic("Nested FullValues must be nested as pointers.")
-	}
-	return &FullValue{Elm: v}
 }

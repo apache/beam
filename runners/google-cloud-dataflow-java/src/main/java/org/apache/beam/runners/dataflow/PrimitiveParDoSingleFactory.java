@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerFamilySpec;
-import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
@@ -30,7 +29,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,6 +42,7 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -51,9 +50,12 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
@@ -183,11 +185,22 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
           parDo.getSideInputs().values().stream()
               .map(s -> s.getTagInternal().getId())
               .collect(Collectors.toSet());
-      Set<String> timerInputs = signature.timerDeclarations().keySet();
-      String mainInputName =
-          Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
+      String mainInputName = Iterables.getOnlyElement(Sets.difference(allInputs, sideInputs));
       PCollection<?> mainInput =
           (PCollection<?>) transform.getInputs().get(new TupleTag<>(mainInputName));
+
+      Coder<BoundedWindow> windowCoder =
+          (Coder<BoundedWindow>) mainInput.getWindowingStrategy().getWindowFn().windowCoder();
+      Coder<?> keyCoder;
+      if (signature.usesState() || signature.usesTimers()) {
+        checkArgument(
+            mainInput.getCoder() instanceof KvCoder,
+            "DoFn's that use state or timers must have an input PCollection with a KvCoder but received %s",
+            mainInput.getCoder());
+        keyCoder = ((KvCoder) mainInput.getCoder()).getKeyCoder();
+      } else {
+        keyCoder = null;
+      }
 
       final DoFnSchemaInformation doFnSchemaInformation =
           ParDo.getDoFnSchemaInformation(doFn, mainInput);
@@ -202,12 +215,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                   parDo.getSideInputs(),
                   doFnSchemaInformation,
                   newComponents);
-            }
-
-            @Override
-            public List<RunnerApi.Parameter> translateParameters() {
-              return ParDoTranslation.translateParameters(
-                  signature.processElement().extraParameters());
             }
 
             @Override
@@ -231,19 +238,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public Map<String, RunnerApi.TimerSpec> translateTimerSpecs(
-                SdkComponents newComponents) {
-              Map<String, RunnerApi.TimerSpec> timerSpecs = new HashMap<>();
-              for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
-                  signature.timerDeclarations().entrySet()) {
-                RunnerApi.TimerSpec spec =
-                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
-                timerSpecs.put(timer.getKey(), spec);
-              }
-              return timerSpecs;
-            }
-
-            @Override
             public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
                 SdkComponents newComponents) {
               Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
@@ -251,10 +245,30 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                   signature.timerFamilyDeclarations().entrySet()) {
                 RunnerApi.TimerFamilySpec spec =
                     translateTimerFamilySpec(
-                        getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn), newComponents);
+                        getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
                 timerFamilySpecs.put(timerFamily.getKey(), spec);
               }
+              for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
+                  signature.timerDeclarations().entrySet()) {
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        getTimerSpecOrThrow(timer.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
+                timerFamilySpecs.put(timer.getKey(), spec);
+              }
               return timerFamilySpecs;
+            }
+
+            @Override
+            public boolean isStateful() {
+              return !signature.stateDeclarations().isEmpty()
+                  || !signature.timerDeclarations().isEmpty()
+                  || !signature.timerFamilyDeclarations().isEmpty();
             }
 
             @Override
@@ -263,18 +277,46 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
+            public boolean isRequiresStableInput() {
+              return signature.processElement().requiresStableInput();
+            }
+
+            @Override
             public boolean isRequiresTimeSortedInput() {
               return signature.processElement().requiresTimeSortedInput();
             }
 
             @Override
+            public boolean requestsFinalization() {
+              return (signature.startBundle() != null
+                      && signature
+                          .startBundle()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()))
+                  || (signature.processElement() != null
+                      && signature
+                          .processElement()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()))
+                  || (signature.finishBundle() != null
+                      && signature
+                          .finishBundle()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()));
+            }
+
+            @Override
             public String translateRestrictionCoderId(SdkComponents newComponents) {
               if (signature.processElement().isSplittable()) {
-                Coder<?> restrictionCoder =
-                    DoFnInvokers.invokerFor(doFn)
-                        .invokeGetRestrictionCoder(transform.getPipeline().getCoderRegistry());
+                DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+                final Coder<?> restrictionAndWatermarkStateCoder =
+                    KvCoder.of(
+                        doFnInvoker.invokeGetRestrictionCoder(
+                            transform.getPipeline().getCoderRegistry()),
+                        doFnInvoker.invokeGetWatermarkEstimatorStateCoder(
+                            transform.getPipeline().getCoderRegistry()));
                 try {
-                  return newComponents.registerCoder(restrictionCoder);
+                  return newComponents.registerCoder(restrictionAndWatermarkStateCoder);
                 } catch (IOException e) {
                   throw new IllegalStateException(
                       String.format(

@@ -18,29 +18,20 @@
 -->
 # BeamMonitoring
 This folder contains resources required to deploy the Beam metrics stack.
-There are two types of metrics in Beam project:
-* Community metrics
-* Metrics published by tests (IO Performance tests, Load tests and Nexmark tests) 
 
-Both types of metrics are presented in [Grafana dashboard available here.](https://s.apache.org/beam-community-metrics)
-
-## Community metrics
-
-This includes
-* Python scripts for ingesting data from sources (Jenkins, JIRA,
+There are two types of metrics in Beam:
+* Community metrics. The stack includes:
+  * Python scripts for ingesting data from sources (Jenkins, JIRA,
   GitHub)
-* Postgres analytics database
-* [Grafana](https://grafana.com) dashboarding UI
+  * Postgres analytics database
 
-## Test metrics
-Beam uses Prometheus to store metrics published by tests running on Jenkins.
+* Test Results, i.e. metrics published by tests (IO Performance tests, Load tests and Nexmark tests). Beam uses InfluxDB time series database to store test metrics.
 
-Prometheus stack consists of the following components
-* the main Prometheus server
-* Alertmanager
-* Pushgateway
+
+Both types of metrics are presented in [Grafana dashboard available here.](http://metrics.beam.apache.org)
 
 Both stacks can be deployed on your local machine.
+
 All components run within Docker containers. These are composed together via
 docker-compose for local hosting, and Kubernetes for the production instance on
 GCP.
@@ -101,16 +92,14 @@ After running these commands, you can access the services running on your local
 machine:
 
 * Grafana: http://localhost:3000
-* Postgres DB: http://localhost:5432
-* Prometheus: http://localhost:9090
-* Pushgateway: http://localhost:9091
-* Alertmanager: http://localhost:9093
+* Postgres DB: localhost:5432
+* InfluxDB: http://localhost:8086
 
 If you're deploying for the first time on your machine, follow the wiki instructions
 on how to manually [configure
 Grafana](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics#CommunityMetrics-GrafanaUI).
 
-Grafana, Postgres and Prometheus containers persist data to Docker volumes, which will be
+Grafana, Postgres and InfluxDB containers persist data to Docker volumes, which will be
 restored on subsequent runs. To start from a clean state, you must also wipe out
 these volumes. (List volumes via `docker volume ls`)
 
@@ -118,4 +107,4 @@ these volumes. (List volumes via `docker volume ls`)
 
 Kubernetes deployment instructions are maintained in the wiki:
 * [Community metrics](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics)
-* [Test metrics]() <!-- TODO(BEAM-8130): add a link to instructions -->
+* [Test Results Monitoring](https://cwiki.apache.org/confluence/display/BEAM/Test+Results+Monitoring)

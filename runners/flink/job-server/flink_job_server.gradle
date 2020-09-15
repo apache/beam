@@ -86,10 +86,14 @@ dependencies {
   runtime project(":sdks:java:extensions:google-cloud-platform-core")
   runtime library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
-  // For resolving external transform requests
-  runtime project(":sdks:java:io:kafka")
-  runtime library.java.kafka_clients
-  runtime project(":sdks:java:io:google-cloud-platform")
+  // External transform expansion
+  // Kafka
+  runtimeOnly project(":sdks:java:io:kafka")
+  runtimeOnly library.java.kafka_clients
+  // PubSub
+  runtimeOnly project(":sdks:java:io:google-cloud-platform")
+  // SqlTransform
+  runtimeOnly project(":sdks:java:extensions:sql:expansion-service")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -122,7 +126,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
-      "--shutdownSourcesOnFinalWatermark",
   ]
   if (streaming) {
     pipelineOptions += "--streaming"
@@ -147,19 +150,28 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
       //SplitableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    },
+    testFilter: {
+      // TODO(BEAM-10016)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
     },
   )
 }
@@ -195,11 +207,10 @@ createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
   jobEndpoint: "localhost:${jobPort}",
-  testClasspathConfiguration: configurations.validatesPortableRunner,
+  classpath: configurations.validatesPortableRunner,
   numParallelTests: 1,
   pipelineOpts: [
     "--parallelism=2",
-    "--shutdownSourcesOnFinalWatermark",
   ]
 )
 
@@ -212,13 +223,16 @@ def addTestJavaJarCreator(String pyVersion) {
       exec {
         executable "sh"
         def options = [
-                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--runner FlinkRunner",
+                "--job_server_jar ${shadowJar.archivePath}",
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + "${project.docker_image_default_repo_prefix}"
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
-        args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+        args "-c", "../../../portability/test_pipeline_jar.sh ${options.join(' ')}"
       }
     }
   }
@@ -243,9 +257,9 @@ task miniCluster(type: Jar, dependsOn: shadowJar) {
   zip64 true // jar needs to contain more than 65535 files
 }
 
-def addTestFlinkUberJarPy(String pyVersion) {
+def addTestFlinkUberJarPy(String pyVersion, boolean saveMainSession) {
   def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
-  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}") {
+  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}${saveMainSession ? 'saveMainSession' : ''}") {
     dependsOn miniCluster
     dependsOn shadowJar
     dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
@@ -258,8 +272,13 @@ def addTestFlinkUberJarPy(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + "${project.docker_image_default_repo_prefix}"
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
+        if (saveMainSession) {
+          options.add('--save_main_session')
+        }
         args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
       }
     }
@@ -268,11 +287,14 @@ def addTestFlinkUberJarPy(String pyVersion) {
 
 ["2.7", "3.5", "3.6", "3.7"].each{ pyVersion ->
   addTestJavaJarCreator(pyVersion)
-  addTestFlinkUberJarPy(pyVersion)
+  addTestFlinkUberJarPy(pyVersion, false)
+  addTestFlinkUberJarPy(pyVersion, true)
 }
 
 task testPipelineJar() {
   dependsOn testJavaJarCreatorPy37
   dependsOn testFlinkUberJarPy36
+  dependsOn testFlinkUberJarPy36saveMainSession
   dependsOn testFlinkUberJarPy37
+  dependsOn testFlinkUberJarPy37saveMainSession
 }

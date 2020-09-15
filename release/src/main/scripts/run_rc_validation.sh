@@ -140,6 +140,7 @@ if [[ -z `which gcloud` ]]; then
 
     gcloud init
     gcloud config set project ${USER_GCP_PROJECT}
+    gcloud config set compute/region ${USER_GCP_REGION}
 
     echo "-----------------Setting Up Service Account-----------------"
     if [[ ! -z "${USER_SERVICE_ACCOUNT_EMAIL}" ]]; then
@@ -192,24 +193,12 @@ else
   echo "* Skip Java quickstart with direct runner"
 fi
 
-echo "[Current task] Java quickstart with Apex local runner"
-if [[ "$java_quickstart_apex_local" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with Apex local runner"
-  echo "*************************************************************"
-  ./gradlew :runners:apex:runQuickstartJavaApex \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with Apex local runner"
-fi
-
 echo "[Current task] Java quickstart with Flink local runner"
 if [[ "$java_quickstart_flink_local" = true ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Flink local runner"
   echo "*************************************************************"
-  ./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER}
 else
@@ -468,6 +457,7 @@ if [[ ("$python_leaderboard_direct" = true \
       . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
       python -m apache_beam.examples.complete.game.leader_board \
       --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
       --topic projects/${USER_GCP_PROJECT}/topics/${SHARED_PUBSUB_TOPIC} \
       --dataset ${LEADERBOARD_DF_DATASET} \
       --runner DataflowRunner \
@@ -542,6 +532,7 @@ if [[ ("$python_leaderboard_direct" = true \
       . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
       python -m apache_beam.examples.complete.game.game_stats \
       --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
       --topic projects/${USER_GCP_PROJECT}/topics/${SHARED_PUBSUB_TOPIC} \
       --dataset ${GAMESTATS_DF_DATASET} \
       --runner DataflowRunner \

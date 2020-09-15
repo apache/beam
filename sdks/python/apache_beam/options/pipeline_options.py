@@ -24,8 +24,6 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
-import os
-import subprocess
 from builtins import list
 from builtins import object
 from typing import Any
@@ -40,7 +38,6 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.utils import processes
 
 __all__ = [
     'PipelineOptions',
@@ -248,6 +245,8 @@ class PipelineOptions(HasDisplayData):
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
+      elif isinstance(v, dict):
+        flags.append('--%s=%s' % (k, json.dumps(v)))
       else:
         flags.append('--%s=%s' % (k, v))
 
@@ -256,7 +255,8 @@ class PipelineOptions(HasDisplayData):
   def get_all_options(
       self,
       drop_default=False,
-      add_extra_args_fn=None  # type: Optional[Callable[[_BeamArgumentParser], None]]
+      add_extra_args_fn=None,  # type: Optional[Callable[[_BeamArgumentParser], None]]
+      retain_unknown_options=False
   ):
     # type: (...) -> Dict[str, Any]
 
@@ -270,6 +270,9 @@ class PipelineOptions(HasDisplayData):
         values, are not returned as part of the result dictionary.
       add_extra_args_fn: Callback to populate additional arguments, can be used
         by runner to supply otherwise unknown args.
+      retain_unknown_options: If set to true, options not recognized by any
+        known pipeline options class will still be included in the result. If
+        set to false, they will be discarded.
 
     Returns:
       Dictionary of all args and values.
@@ -285,10 +288,29 @@ class PipelineOptions(HasDisplayData):
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
       add_extra_args_fn(parser)
+
     known_args, unknown_args = parser.parse_known_args(self._flags)
-    if unknown_args:
-      _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
-    result = vars(known_args)
+    if retain_unknown_options:
+      i = 0
+      while i < len(unknown_args):
+        # Treat all unary flags as booleans, and all binary argument values as
+        # strings.
+        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+          split = unknown_args[i].split('=', 1)
+          if len(split) == 1:
+            parser.add_argument(unknown_args[i], action='store_true')
+          else:
+            parser.add_argument(split[0], type=str)
+          i += 1
+        else:
+          parser.add_argument(unknown_args[i], type=str)
+          i += 2
+      parsed_args = parser.parse_args(self._flags)
+    else:
+      if unknown_args:
+        _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
+      parsed_args = known_args
+    result = vars(parsed_args)
 
     overrides = self._all_options.copy()
     # Apply the overrides if any
@@ -405,6 +427,24 @@ class StandardOptions(PipelineOptions):
         help='Whether to enable streaming mode.')
 
 
+class CrossLanguageOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--beam_services',
+        type=json.loads,
+        default={},
+        help=(
+            'For convienience, Beam provides the ability to automatically '
+            'download and start various services (such as expansion services) '
+            'used at pipeline construction and execution. These services are '
+            'identified by gradle target. This option provides the ability to '
+            'use pre-started services or non-default pre-existing artifacts to '
+            'start the given service. '
+            'Should be a json mapping of gradle build targets to pre-built '
+            'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
+
+
 class TypeOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -428,6 +468,13 @@ class TypeOptions(PipelineOptions):
         help='Enable type checking at pipeline execution '
         'time. NOTE: only supported with the '
         'DirectRunner')
+    parser.add_argument(
+        '--performance_runtime_type_check',
+        default=False,
+        action='store_true',
+        help='Enable faster type checking via sampling at pipeline execution '
+        'time. NOTE: only supported with portable runners '
+        '(including the DirectRunner)')
 
 
 class DirectOptions(PipelineOptions):
@@ -498,8 +545,7 @@ class GoogleCloudOptions(PipelineOptions):
         help='GCS path for saving temporary workflow jobs.')
     # The Google Compute Engine region for creating Dataflow jobs. See
     # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
-    # list of valid options. Currently defaults to us-central1, but future
-    # releases of Beam will require the user to set the region explicitly.
+    # list of valid options.
     parser.add_argument(
         '--region',
         default=None,
@@ -563,46 +609,32 @@ class GoogleCloudOptions(PipelineOptions):
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
 
-  def _get_default_gcp_region(self):
-    """Get a default value for Google Cloud region according to
-    https://cloud.google.com/compute/docs/gcloud-compute/#default-properties.
-    If no other default can be found, returns 'us-central1'.
-    """
-    environment_region = os.environ.get('CLOUDSDK_COMPUTE_REGION')
-    if environment_region:
-      _LOGGER.info(
-          'Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
-          environment_region)
-      return environment_region
+  def _create_default_gcs_bucket(self):
     try:
-      cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      # Use subprocess.DEVNULL in Python 3.3+.
-      if hasattr(subprocess, 'DEVNULL'):
-        DEVNULL = subprocess.DEVNULL
-      else:
-        DEVNULL = open(os.devnull, 'ab')
-      raw_output = processes.check_output(cmd, stderr=DEVNULL)
-      formatted_output = raw_output.decode('utf-8').strip()
-      if formatted_output:
-        _LOGGER.info(
-            'Using default GCP region %s from `%s`',
-            formatted_output,
-            ' '.join(cmd))
-        return formatted_output
-    except RuntimeError:
-      pass
-    _LOGGER.warning(
-        '--region not set; will default to us-central1. Future releases of '
-        'Beam will require the user to set --region explicitly, or else have a '
-        'default set via the gcloud tool. '
-        'https://cloud.google.com/compute/docs/regions-zones')
-    return 'us-central1'
+      from apache_beam.io.gcp import gcsio
+    except ImportError:
+      _LOGGER.warning('Unable to create default GCS bucket.')
+      return None
+    bucket = gcsio.get_or_create_default_gcs_bucket(self)
+    if bucket:
+      return 'gs://%s' % bucket.id
+    else:
+      return None
 
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
-      errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+
+      # Validating temp_location, or adding a default if there are issues
+      temp_location_errors = validator.validate_gcs_path(self, 'temp_location')
+      if temp_location_errors:
+        default_bucket = self._create_default_gcs_bucket()
+        if default_bucket is None:
+          errors.extend(temp_location_errors)
+        else:
+          setattr(self, 'temp_location', default_bucket)
+
       if getattr(self, 'staging_location',
                  None) or getattr(self, 'temp_location', None) is None:
         errors.extend(validator.validate_gcs_path(self, 'staging_location'))
@@ -612,11 +644,6 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append(
             '--dataflow_job_file and --template_location '
             'are mutually exclusive.')
-
-    runner = self.view_as(StandardOptions).runner
-    if runner == 'DataflowRunner' or runner == 'TestDataflowRunner':
-      if self.view_as(GoogleCloudOptions).region is None:
-        self.view_as(GoogleCloudOptions).region = self._get_default_gcp_region()
 
     return errors
 
@@ -633,10 +660,39 @@ class HadoopFileSystemOptions(PipelineOptions):
         '--hdfs_port', default=None, help=('Port of the HDFS namenode.'))
     parser.add_argument(
         '--hdfs_user', default=None, help=('HDFS username to use.'))
+    parser.add_argument(
+        '--hdfs_full_urls',
+        default=False,
+        action='store_true',
+        help=(
+            'If set, URLs will be parsed as "hdfs://server/path/...", instead '
+            'of "hdfs://path/...". The "server" part will be unused (use '
+            '--hdfs_host and --hdfs_port).'))
 
   def validate(self, validator):
     errors = []
     errors.extend(validator.validate_optional_argument_positive(self, 'port'))
+    return errors
+
+
+class BigQueryOptions(PipelineOptions):
+  """BigQueryIO configuration options."""
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--latency_logging_frequency_sec',
+        type=int,
+        default=180,
+        help=(
+            'The minimum duration in seconds between percentile latencies '
+            'logging. The interval might be longer than the specified value '
+            'due to each bundle processing time.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(
+        validator.validate_optional_argument_positive(
+            self, 'latency_logging_frequency_sec'))
     return errors
 
 
@@ -716,7 +772,8 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'GCE availability zone for launching workers. Default is up to the '
-            'Dataflow service.'))
+            'Dataflow service. This flag is deprecated, and will be replaced '
+            'by worker_zone.'))
     parser.add_argument(
         '--network',
         default=None,
@@ -740,6 +797,17 @@ class WorkerOptions(PipelineOptions):
             'worker harness. Default is the container for the version of the '
             'SDK. Note: currently, only approved Google Cloud Dataflow '
             'container images may be used here.'))
+    parser.add_argument(
+        '--sdk_harness_container_image_overrides',
+        action='append',
+        default=None,
+        help=(
+            'Overrides for SDK harness container images. Could be for the '
+            'local SDK or for a remote SDK that pipeline has to support due '
+            'to a cross-language transform. Each entry consist of two values '
+            'separated by a comma where first value gives a regex to '
+            'identify the container image to override and the second value '
+            'gives the replacement container image.'))
     parser.add_argument(
         '--use_public_ips',
         default=None,
@@ -1029,7 +1097,7 @@ class JobServerOptions(PipelineOptions):
 
 class FlinkRunnerOptions(PipelineOptions):
 
-  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
+  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9', '1.10']
 
   @classmethod
   def _add_argparse_args(cls, parser):

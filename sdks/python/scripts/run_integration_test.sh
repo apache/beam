@@ -29,6 +29,7 @@
 #     runner        -> Runner that execute pipeline job.
 #                      e.g. TestDataflowRunner, TestDirectRunner
 #     project       -> Project name of the cloud service.
+#     region        -> Compute Engine region to create the Dataflow job.
 #     gcs_location  -> Base location on GCS. Some pipeline options are
 #                      derived from it including output, staging_location
 #                      and temp_location.
@@ -68,6 +69,7 @@
 # Default pipeline options
 PROJECT=apache-beam-testing
 RUNNER=TestDataflowRunner
+REGION=us-central1
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 SDK_LOCATION=build/apache-beam.tar.gz
 NUM_WORKERS=1
@@ -93,6 +95,11 @@ case $key in
         ;;
     --project)
         PROJECT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --region)
+        REGION="$2"
         shift # past argument
         shift # past value
         ;;
@@ -123,6 +130,11 @@ case $key in
         ;;
     --worker_jar)
         WORKER_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --runner_v2)
+        RUNNER_V2="$2"
         shift # past argument
         shift # past value
         ;;
@@ -198,12 +210,14 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # See: https://github.com/hamcrest/PyHamcrest/issues/131.
   echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
   echo "mock<3.0.0" >> postcommit_requirements.txt
+  echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).
   opts=(
     "--runner=$RUNNER"
     "--project=$PROJECT"
+    "--region=$REGION"
     "--staging_location=$GCS_LOCATION/staging-it"
     "--temp_location=$GCS_LOCATION/temp-it"
     "--output=$GCS_LOCATION/py-it-cloud/output"
@@ -221,6 +235,18 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Add --dataflow_worker_jar if provided
   if [[ ! -z "$WORKER_JAR" ]]; then
     opts+=("--dataflow_worker_jar=$WORKER_JAR")
+  fi
+
+  # Add --runner_v2 if provided
+  if [[ "$RUNNER_V2" = true ]]; then
+    opts+=("--experiments=use_runner_v2")
+    if [[ "$STREAMING" = true ]]; then
+      # Dataflow Runner V2 only supports streaming engine.
+      opts+=("--enable_streaming_engine")
+    else
+      opts+=("--experiments=beam_fn_api")
+    fi
+
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then

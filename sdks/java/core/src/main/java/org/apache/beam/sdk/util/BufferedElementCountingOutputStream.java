@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
@@ -67,6 +68,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * <p>The counts are encoded as variable length longs. See {@link VarInt#encode(long, OutputStream)}
  * for more details. The end of the iterable is detected by reading a count of 0.
  */
+@Internal
 @NotThreadSafe
 public class BufferedElementCountingOutputStream extends OutputStream {
   private static final int MAX_POOLED = 12;
@@ -77,6 +79,7 @@ public class BufferedElementCountingOutputStream extends OutputStream {
   public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private final ByteBuffer buffer;
   private final OutputStream os;
+  private final long terminatorValue;
   private boolean finished;
   private long count;
 
@@ -85,15 +88,20 @@ public class BufferedElementCountingOutputStream extends OutputStream {
    * manner.
    */
   public BufferedElementCountingOutputStream(OutputStream os) {
-    this(os, DEFAULT_BUFFER_SIZE);
+    this(os, DEFAULT_BUFFER_SIZE, 0);
+  }
+
+  public BufferedElementCountingOutputStream(OutputStream os, long terminatorValue) {
+    this(os, DEFAULT_BUFFER_SIZE, terminatorValue);
   }
 
   /**
    * Creates an output stream which encodes the number of elements output to it in a streaming
    * manner with the given {@code bufferSize}.
    */
-  BufferedElementCountingOutputStream(OutputStream os, int bufferSize) {
+  BufferedElementCountingOutputStream(OutputStream os, int bufferSize, long terminatorValue) {
     this.os = os;
+    this.terminatorValue = terminatorValue;
     this.finished = false;
     this.count = 0;
     ByteBuffer buffer = BUFFER_POOL.poll();
@@ -109,8 +117,8 @@ public class BufferedElementCountingOutputStream extends OutputStream {
       return;
     }
     flush();
-    // Finish the stream by stating that there are 0 elements that follow.
-    VarInt.encode(0, os);
+    // Finish the stream with the terminatorValue.
+    VarInt.encode(terminatorValue, os);
     if (!BUFFER_POOL.offer(buffer)) {
       // The pool is full, we can't store the buffer. We just drop the buffer.
     }

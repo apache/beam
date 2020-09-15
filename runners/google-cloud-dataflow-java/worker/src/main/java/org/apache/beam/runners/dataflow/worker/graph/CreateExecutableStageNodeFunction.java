@@ -41,11 +41,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
-import org.apache.beam.runners.core.construction.*;
+import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -85,6 +90,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -94,9 +100,9 @@ import org.joda.time.Duration;
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
-  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
 
-  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
+  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
@@ -114,7 +120,7 @@ public class CreateExecutableStageNodeFunction
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final IdGenerator idGenerator;
-  private final @Nullable RunnerApi.Pipeline pipeline;
+  private final RunnerApi.@Nullable Pipeline pipeline;
 
   public CreateExecutableStageNodeFunction(RunnerApi.Pipeline pipeline, IdGenerator idGenerator) {
     this.pipeline = pipeline;
@@ -174,7 +180,7 @@ public class CreateExecutableStageNodeFunction
     String intervalWindowEncodingWindowingStrategyId =
         "generatedIntervalWindowEncodingWindowingStrategy" + idGenerator.getId();
 
-    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents(), null);
     try {
       registerWindowingStrategy(
           globalWindowingStrategyId,
@@ -344,8 +350,8 @@ public class CreateExecutableStageNodeFunction
 
             // Build the necessary components to inform the SDK Harness of the pipeline's
             // user timers and user state.
-            for (Map.Entry<String, RunnerApi.TimerSpec> entry :
-                parDoPayload.getTimerSpecsMap().entrySet()) {
+            for (Map.Entry<String, RunnerApi.TimerFamilySpec> entry :
+                parDoPayload.getTimerFamilySpecsMap().entrySet()) {
               timerIds.add(entry.getKey());
             }
             for (Map.Entry<String, RunnerApi.StateSpec> entry :

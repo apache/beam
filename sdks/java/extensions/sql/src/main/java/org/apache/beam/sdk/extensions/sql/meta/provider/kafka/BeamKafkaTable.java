@@ -59,7 +59,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   private List<TopicPartition> topicPartitions;
   private Map<String, Object> configUpdates;
   private BeamTableStatistics rowCountStatistics = null;
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamKafkaTable.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamKafkaTable.class);
   // This is the number of records looked from each partition when the rate is estimated
   protected int numberOfRecordsForRate = 50;
 
@@ -163,7 +163,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
             BeamTableStatistics.createUnboundedTableStatistics(
                 this.computeRate(numberOfRecordsForRate));
       } catch (Exception e) {
-        LOGGER.warn("Could not get the row count for the topics " + getTopics(), e);
+        LOG.warn("Could not get the row count for the topics " + getTopics(), e);
         rowCountStatistics = BeamTableStatistics.UNBOUNDED_UNKNOWN;
       }
     }

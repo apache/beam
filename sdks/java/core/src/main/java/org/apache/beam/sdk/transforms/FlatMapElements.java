@@ -20,8 +20,8 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for mapping a simple function that returns iterables over the elements of a
@@ -39,10 +40,10 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class FlatMapElements<InputT, OutputT>
     extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  @Nullable private final transient TypeDescriptor<InputT> inputType;
-  @Nullable private final transient TypeDescriptor<OutputT> outputType;
-  @Nullable private final transient Object originalFnForDisplayData;
-  @Nullable private final Contextful<Fn<InputT, Iterable<OutputT>>> fn;
+  private final transient @Nullable TypeDescriptor<InputT> inputType;
+  private final transient @Nullable TypeDescriptor<OutputT> outputType;
+  private final transient @Nullable Object originalFnForDisplayData;
+  private final @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn;
 
   private FlatMapElements(
       @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,
@@ -71,7 +72,7 @@ public class FlatMapElements<InputT, OutputT>
    * PCollection<String> lines = ...;
    * PCollection<String> words = lines.apply(FlatMapElements.via(
    *     new InferableFunction<String, List<String>>() {
-   *       public Integer apply(String line) throws Exception {
+   *       public List<String> apply(String line) throws Exception {
    *         return Arrays.asList(line.split(" "));
    *       }
    *     });
@@ -130,7 +131,7 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /** Like {@link #via(ProcessFunction)}, but allows access to additional context. */
-  @Experimental(Experimental.Kind.CONTEXTFUL)
+  @Experimental(Kind.CONTEXTFUL)
   public <NewInputT> FlatMapElements<NewInputT, OutputT> via(
       Contextful<Fn<NewInputT, Iterable<OutputT>>> fn) {
     return new FlatMapElements<>(
@@ -196,7 +197,7 @@ public class FlatMapElements<InputT, OutputT>
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <NewFailureT> FlatMapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
     return new FlatMapWithFailures<>(
@@ -227,7 +228,7 @@ public class FlatMapElements<InputT, OutputT>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <FailureT> FlatMapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new FlatMapWithFailures<>(
@@ -240,16 +241,16 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /** A {@code PTransform} that adds exception handling to {@link FlatMapElements}. */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public static class FlatMapWithFailures<InputT, OutputT, FailureT>
       extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
     private final transient TypeDescriptor<InputT> inputType;
     private final transient TypeDescriptor<OutputT> outputType;
-    @Nullable private final transient TypeDescriptor<FailureT> failureType;
+    private final transient @Nullable TypeDescriptor<FailureT> failureType;
     private final transient Object originalFnForDisplayData;
-    @Nullable private final Contextful<Fn<InputT, Iterable<OutputT>>> fn;
-    @Nullable private final ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
+    private final @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn;
+    private final @Nullable ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
 
     FlatMapWithFailures(
         @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,

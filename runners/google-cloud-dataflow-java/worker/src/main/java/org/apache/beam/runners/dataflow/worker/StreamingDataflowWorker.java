@@ -30,6 +30,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -60,7 +61,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -118,11 +118,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.Commi
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -144,6 +146,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -151,6 +154,7 @@ import org.slf4j.LoggerFactory;
 
 /** Implements a Streaming Dataflow worker. */
 public class StreamingDataflowWorker {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
 
   /** The idGenerator to generate unique id globally. */
@@ -203,6 +207,12 @@ public class StreamingDataflowWorker {
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
 
+  // TODO(BEAM-7863): Update throttling counters to use generic throttling-msecs metric.
+  public static final MetricName BIGQUERY_STREAMING_INSERT_THROTTLE_TIME =
+      MetricName.named(
+          "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl",
+          "throttling-msecs");
+
   private final AtomicLong counterAggregationErrorCount = new AtomicLong();
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
@@ -217,6 +227,7 @@ public class StreamingDataflowWorker {
   }
 
   private static class KeyCommitTooLargeException extends Exception {
+
     public static KeyCommitTooLargeException causedBy(
         String computationId, long byteLimit, WorkItemCommitRequest request) {
       StringBuilder message = new StringBuilder();
@@ -279,6 +290,7 @@ public class StreamingDataflowWorker {
 
   /** Bounded set of queues, with a maximum total weight. */
   private static class WeightedBoundedQueue<V> {
+
     private final LinkedBlockingQueue<V> queue = new LinkedBlockingQueue<>();
     private final int maxWeight;
     private final Semaphore limit;
@@ -300,8 +312,7 @@ public class StreamingDataflowWorker {
     }
 
     /** Returns and removes the next value, or null if there is no such value. */
-    @Nullable
-    public V poll() {
+    public @Nullable V poll() {
       V result = queue.poll();
       if (result != null) {
         limit.release(weigher.apply(result));
@@ -319,8 +330,7 @@ public class StreamingDataflowWorker {
      *     an element is available
      * @throws InterruptedException if interrupted while waiting
      */
-    @Nullable
-    public V poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public @Nullable V poll(long timeout, TimeUnit unit) throws InterruptedException {
       V result = queue.poll(timeout, unit);
       if (result != null) {
         limit.release(weigher.apply(result));
@@ -329,8 +339,7 @@ public class StreamingDataflowWorker {
     }
 
     /** Returns and removes the next value, or blocks until one is available. */
-    @Nullable
-    public V take() throws InterruptedException {
+    public @Nullable V take() throws InterruptedException {
       V result = queue.take();
       limit.release(weigher.apply(result));
       return result;
@@ -348,6 +357,7 @@ public class StreamingDataflowWorker {
 
   // Value class for a queued commit.
   static class Commit {
+
     private Windmill.WorkItemCommitRequest request;
     private ComputationState computationState;
     private Work work;
@@ -393,7 +403,7 @@ public class StreamingDataflowWorker {
   private final ConcurrentMap<String, String> systemNameToComputationIdMap =
       new ConcurrentHashMap<>();
 
-  private final WindmillStateCache stateCache = new WindmillStateCache();
+  private final WindmillStateCache stateCache;
 
   private final ThreadFactory threadFactory;
   private DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
@@ -522,8 +532,14 @@ public class StreamingDataflowWorker {
     private void translateKnownStepCounters(CounterUpdate stepCounterUpdate) {
       CounterStructuredName structuredName =
           stepCounterUpdate.getStructuredNameAndMetadata().getName();
-      if (THROTTLING_MSECS_METRIC_NAME.getNamespace().equals(structuredName.getOriginNamespace())
-          && THROTTLING_MSECS_METRIC_NAME.getName().equals(structuredName.getName())) {
+      if ((THROTTLING_MSECS_METRIC_NAME.getNamespace().equals(structuredName.getOriginNamespace())
+              && THROTTLING_MSECS_METRIC_NAME.getName().equals(structuredName.getName()))
+          || (BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
+                  .getNamespace()
+                  .equals(structuredName.getOriginNamespace())
+              && BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
+                  .getName()
+                  .equals(structuredName.getName()))) {
         long msecs = DataflowCounterUpdateExtractor.splitIntToLong(stepCounterUpdate.getInteger());
         if (msecs > 0) {
           throttledMsecs.addValue(msecs);
@@ -536,7 +552,7 @@ public class StreamingDataflowWorker {
       List<MapTask> mapTasks,
       WorkUnitClient workUnitClient,
       DataflowWorkerHarnessOptions options,
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry)
       throws IOException {
     return new StreamingDataflowWorker(
@@ -571,11 +587,12 @@ public class StreamingDataflowWorker {
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       WorkUnitClient workUnitClient,
       StreamingDataflowWorkerOptions options,
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
       boolean publishCounters,
       HotKeyLogger hotKeyLogger)
       throws IOException {
+    this.stateCache = new WindmillStateCache(options.getWorkerCacheMb());
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;
@@ -690,9 +707,14 @@ public class StreamingDataflowWorker {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
-                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                  idGenerator,
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
-                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  pipeline,
+                  idGenerator,
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor());
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
@@ -1004,8 +1026,7 @@ public class StreamingDataflowWorker {
         final Instant inputDataWatermark =
             WindmillTimeUtils.windmillToHarnessWatermark(computationWork.getInputDataWatermark());
         Preconditions.checkNotNull(inputDataWatermark);
-        @Nullable
-        final Instant synchronizedProcessingTime =
+        final @Nullable Instant synchronizedProcessingTime =
             WindmillTimeUtils.windmillToHarnessWatermark(
                 computationWork.getDependentRealtimeInputWatermark());
         for (final Windmill.WorkItem workItem : computationWork.getWorkList()) {
@@ -1026,7 +1047,7 @@ public class StreamingDataflowWorker {
                   .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
               (String computation,
-                  @Nullable Instant inputDataWatermark,
+                  Instant inputDataWatermark,
                   Instant synchronizedProcessingTime,
                   Windmill.WorkItem workItem) -> {
                 memoryMonitor.waitForResources("GetWork");
@@ -1056,8 +1077,7 @@ public class StreamingDataflowWorker {
       final Windmill.WorkItem workItem) {
     Preconditions.checkNotNull(inputDataWatermark);
     // May be null if output watermark not yet known.
-    @Nullable
-    final Instant outputDataWatermark =
+    final @Nullable Instant outputDataWatermark =
         WindmillTimeUtils.windmillToHarnessWatermark(workItem.getOutputDataWatermark());
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
@@ -1091,14 +1111,33 @@ public class StreamingDataflowWorker {
             }
           }
         };
-    if (!computationState.activateWork(workItem.getKey(), work)) {
+    if (!computationState.activateWork(
+        ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), work)) {
       // Free worker if the work was not activated.
       // This can happen if it's duplicate work or some other reason.
       sdkHarnessRegistry.completeWork(worker);
     }
   }
 
+  @AutoValue
+  abstract static class ShardedKey {
+
+    public static ShardedKey create(ByteString key, long shardingKey) {
+      return new AutoValue_StreamingDataflowWorker_ShardedKey(key, shardingKey);
+    }
+
+    public abstract ByteString key();
+
+    public abstract long shardingKey();
+
+    @Override
+    public String toString() {
+      return String.format("%s-%d", TextFormat.escapeBytes(key()), shardingKey());
+    }
+  }
+
   abstract static class Work implements Runnable {
+
     enum State {
       QUEUED,
       PROCESSING,
@@ -1143,8 +1182,7 @@ public class StreamingDataflowWorker {
    * Extracts the userland key coder, if any, from the coder used in the initial read step of a
    * stage. This encodes many assumptions about how the streaming execution context works.
    */
-  @Nullable
-  private Coder<?> extractKeyCoder(Coder<?> readCoder) {
+  private @Nullable Coder<?> extractKeyCoder(Coder<?> readCoder) {
     if (!(readCoder instanceof WindowedValueCoder)) {
       throw new RuntimeException(
           String.format(
@@ -1155,6 +1193,10 @@ public class StreamingDataflowWorker {
     // Note that TimerOrElementCoder is a backwards-compatibility class
     // that is really a FakeKeyedWorkItemCoder
     Coder<?> valueCoder = ((WindowedValueCoder<?>) readCoder).getValueCoder();
+
+    if (valueCoder instanceof KvCoder<?, ?>) {
+      return ((KvCoder<?, ?>) valueCoder).getKeyCoder();
+    }
     if (!(valueCoder instanceof WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<?, ?>)) {
       return null;
     }
@@ -1195,8 +1237,8 @@ public class StreamingDataflowWorker {
       final SdkWorkerHarness worker,
       final ComputationState computationState,
       final Instant inputDataWatermark,
-      @Nullable final Instant outputDataWatermark,
-      @Nullable final Instant synchronizedProcessingTime,
+      final @Nullable Instant outputDataWatermark,
+      final @Nullable Instant synchronizedProcessingTime,
       final Work work) {
     final Windmill.WorkItem workItem = work.getWorkItem();
     final String computationId = computationState.getComputationId();
@@ -1376,7 +1418,7 @@ public class StreamingDataflowWorker {
 
       // Detect overflow of integer serialized size or if the byte limit was exceeded.
       windmillMaxObservedWorkItemCommitBytes.addValue(estimatedCommitSize);
-      if (estimatedCommitSize > byteLimit) {
+      if (commitSize < 0 || commitSize > byteLimit) {
         KeyCommitTooLargeException e =
             KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
         reportFailure(computationId, workItem, e);
@@ -1459,7 +1501,8 @@ public class StreamingDataflowWorker {
       } else {
         // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
         // be processed.
-        computationState.completeWork(key, workItem.getWorkToken());
+        computationState.completeWork(
+            ShardedKey.create(key, workItem.getShardingKey()), workItem.getWorkToken());
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
@@ -1534,7 +1577,9 @@ public class StreamingDataflowWorker {
           computationRequestMap.entrySet()) {
         ComputationState computationState = entry.getKey();
         for (Windmill.WorkItemCommitRequest workRequest : entry.getValue().getRequestsList()) {
-          computationState.completeWork(workRequest.getKey(), workRequest.getWorkToken());
+          computationState.completeWork(
+              ShardedKey.create(workRequest.getKey(), workRequest.getShardingKey()),
+              workRequest.getWorkToken());
         }
       }
     }
@@ -1553,12 +1598,16 @@ public class StreamingDataflowWorker {
         request,
         (Windmill.CommitStatus status) -> {
           if (status != Windmill.CommitStatus.OK) {
-            stateCache.forComputation(state.computationId).invalidate(request.getKey());
+            stateCache
+                .forComputation(state.computationId)
+                .invalidate(request.getKey(), request.getShardingKey());
           }
           activeCommitBytes.addAndGet(-size);
           // This may throw an exception if the commit was not active, which is possible if it
           // was deemed stuck.
-          state.completeWork(request.getKey(), request.getWorkToken());
+          state.completeWork(
+              ShardedKey.create(request.getKey(), request.getShardingKey()),
+              request.getWorkToken());
         })) {
       return true;
     } else {
@@ -2112,12 +2161,13 @@ public class StreamingDataflowWorker {
    * not be heavily contended. Still, blocking work should not be done by it.
    */
   static class ComputationState implements AutoCloseable {
+
     private final String computationId;
     private final MapTask mapTask;
     private final ImmutableMap<String, String> transformUserNameToStateFamily;
     // Map from key to work for the key.  The first item in the queue is
     // actively processing.  Synchronized by itself.
-    private final Map<ByteString, Deque<Work>> activeWork = new HashMap<>();
+    private final Map<ShardedKey, Deque<Work>> activeWork = new HashMap<>();
     private final BoundedQueueExecutor executor;
     private final ConcurrentMap<SdkWorkerHarness, ConcurrentLinkedQueue<ExecutionState>>
         executionStateQueues = new ConcurrentHashMap<>();
@@ -2159,10 +2209,10 @@ public class StreamingDataflowWorker {
           sdkWorkerHarness, key -> new ConcurrentLinkedQueue<>());
     }
 
-    /** Mark the given key and work as active. */
-    public boolean activateWork(ByteString key, Work work) {
+    /** Mark the given shardedKey and work as active. */
+    public boolean activateWork(ShardedKey shardedKey, Work work) {
       synchronized (activeWork) {
-        Deque<Work> queue = activeWork.get(key);
+        Deque<Work> queue = activeWork.get(shardedKey);
         if (queue != null) {
           Preconditions.checkState(!queue.isEmpty());
           // Ensure we don't already have this work token queueud.
@@ -2177,7 +2227,7 @@ public class StreamingDataflowWorker {
         } else {
           queue = new ArrayDeque<>();
           queue.addLast(work);
-          activeWork.put(key, queue);
+          activeWork.put(shardedKey, queue);
           // Fall through to execute without the lock held.
         }
       }
@@ -2185,11 +2235,14 @@ public class StreamingDataflowWorker {
       return true;
     }
 
-    /** Marks the work for a the given key as complete. Schedules queued work for the key if any. */
-    public void completeWork(ByteString key, long workToken) {
+    /**
+     * Marks the work for a the given shardedKey as complete. Schedules queued work for the key if
+     * any.
+     */
+    public void completeWork(ShardedKey shardedKey, long workToken) {
       Work nextWork;
       synchronized (activeWork) {
-        Queue<Work> queue = activeWork.get(key);
+        Queue<Work> queue = activeWork.get(shardedKey);
         Preconditions.checkNotNull(queue);
         Work completedWork = queue.peek();
         // avoid Preconditions.checkNotNull and checkState here to prevent eagerly evaluating the
@@ -2197,21 +2250,18 @@ public class StreamingDataflowWorker {
         if (completedWork == null) {
           throw new NullPointerException(
               String.format(
-                  "No active state for key %s, expected token %s",
-                  TextFormat.escapeBytes(key), workToken));
+                  "No active state for key %s, expected token %s", shardedKey, workToken));
         }
         if (completedWork.getWorkItem().getWorkToken() != workToken) {
           throw new IllegalStateException(
               String.format(
                   "Token mismatch for key %s: %s and %s",
-                  TextFormat.escapeBytes(key),
-                  completedWork.getWorkItem().getWorkToken(),
-                  workToken));
+                  shardedKey, completedWork.getWorkItem().getWorkToken(), workToken));
         }
         queue.remove(); // We consumed the matching work item.
         nextWork = queue.peek();
         if (nextWork == null) {
-          Preconditions.checkState(queue == activeWork.remove(key));
+          Preconditions.checkState(queue == activeWork.remove(shardedKey));
         }
       }
       if (nextWork != null) {
@@ -2223,20 +2273,21 @@ public class StreamingDataflowWorker {
       synchronized (activeWork) {
         // Determine the stuck commit keys but complete them outside of iterating over
         // activeWork as completeWork may delete the entry from activeWork.
-        Map<ByteString, Long> stuckCommits = new HashMap<>();
-        for (Map.Entry<ByteString, Deque<Work>> entry : activeWork.entrySet()) {
-          ByteString key = entry.getKey();
+        Map<ShardedKey, Long> stuckCommits = new HashMap<>();
+        for (Map.Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
+          ShardedKey shardedKey = entry.getKey();
           Work work = entry.getValue().peek();
           if (work.getState() == State.COMMITTING
               && work.getStateStartTime().isBefore(stuckCommitDeadline)) {
             LOG.error(
-                "Detected key with sharding key {} stuck in COMMITTING state, completing it with error. Key ",
+                "Detected key with sharding key {} stuck in COMMITTING state, completing it with error.",
                 work.workItem.getShardingKey());
-            stuckCommits.put(key, work.getWorkItem().getWorkToken());
+            stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());
           }
         }
-        for (Map.Entry<ByteString, Long> stuckCommit : stuckCommits.entrySet()) {
-          computationStateCache.invalidate(stuckCommit.getKey());
+        for (Map.Entry<ShardedKey, Long> stuckCommit : stuckCommits.entrySet()) {
+          computationStateCache.invalidate(
+              stuckCommit.getKey().key(), stuckCommit.getKey().shardingKey());
           completeWork(stuckCommit.getKey(), stuckCommit.getValue());
         }
       }
@@ -2246,14 +2297,14 @@ public class StreamingDataflowWorker {
     public List<Windmill.KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline) {
       List<Windmill.KeyedGetDataRequest> result = new ArrayList<>();
       synchronized (activeWork) {
-        for (Map.Entry<ByteString, Deque<Work>> entry : activeWork.entrySet()) {
-          ByteString key = entry.getKey();
+        for (Map.Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
+          ShardedKey shardedKey = entry.getKey();
           for (Work work : entry.getValue()) {
             if (work.getStartTime().isBefore(refreshDeadline)) {
               result.add(
                   Windmill.KeyedGetDataRequest.newBuilder()
-                      .setKey(key)
-                      .setShardingKey(work.getWorkItem().getShardingKey())
+                      .setKey(shardedKey.key())
+                      .setShardingKey(shardedKey.shardingKey())
                       .setWorkToken(work.getWorkItem().getWorkToken())
                       .build());
             }
@@ -2283,7 +2334,7 @@ public class StreamingDataflowWorker {
       // PrintWriter may block when flushing.
       StringBuilder builder = new StringBuilder();
       synchronized (activeWork) {
-        for (Map.Entry<ByteString, Deque<Work>> entry : activeWork.entrySet()) {
+        for (Map.Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
           Queue<Work> queue = entry.getValue();
           Preconditions.checkNotNull(queue);
           Work work = queue.peek();
@@ -2299,14 +2350,14 @@ public class StreamingDataflowWorker {
           builder.append("<td>");
           builder.append(String.format("%016x", workItem.getShardingKey()));
           builder.append("</td><td>");
-          builder.append(workItem.getWorkToken());
+          builder.append(String.format("%016x", workItem.getWorkToken()));
           builder.append("</td><td>");
           builder.append(queue.size() - 1);
           builder.append("</td><td>");
           builder.append(elapsedString(work.getStartTime(), now));
           builder.append("</td><td>");
           builder.append(state);
-          builder.append("</td></tr>\n");
+          builder.append("</td><td>");
           builder.append(elapsedString(work.getStateStartTime(), now));
           builder.append("</td></tr>\n");
         }
@@ -2334,9 +2385,10 @@ public class StreamingDataflowWorker {
   }
 
   private static class ExecutionState {
+
     public final DataflowWorkExecutor workExecutor;
     public final StreamingModeExecutionContext context;
-    @Nullable public final Coder<?> keyCoder;
+    public final @Nullable Coder<?> keyCoder;
     private final ExecutionStateTracker executionStateTracker;
 
     public ExecutionState(
@@ -2362,13 +2414,13 @@ public class StreamingDataflowWorker {
       return executionStateTracker;
     }
 
-    @Nullable
-    public Coder<?> getKeyCoder() {
+    public @Nullable Coder<?> getKeyCoder() {
       return keyCoder;
     }
   }
 
   private class HarnessDataProvider implements StatusDataProvider {
+
     @Override
     public void appendSummaryHtml(PrintWriter writer) {
       writer.println("Running: " + running.get() + "<br>");
@@ -2377,6 +2429,7 @@ public class StreamingDataflowWorker {
   }
 
   private class SpecsServlet extends BaseStatusServlet {
+
     public SpecsServlet() {
       super("/specs");
     }
@@ -2395,6 +2448,7 @@ public class StreamingDataflowWorker {
   }
 
   private class MetricsDataProvider implements StatusDataProvider {
+
     @Override
     public void appendSummaryHtml(PrintWriter writer) {
       writer.println(

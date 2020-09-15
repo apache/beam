@@ -72,7 +72,7 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
       super.start();
       inboundDataClient =
           beamFnDataService.receive(
-              LogicalEndpoint.of(bundleId, ptransformId), coder, this::consumeOutput);
+              LogicalEndpoint.data(bundleId, ptransformId), coder, this::consumeOutput);
     }
   }
 

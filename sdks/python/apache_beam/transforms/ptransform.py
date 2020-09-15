@@ -68,13 +68,16 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.portability import python_urns
+from apache_beam.pvalue import DoOutputsTuple
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
+from apache_beam.typehints.decorators import IOTypeHints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
+from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
@@ -95,7 +98,8 @@ __all__ = [
 
 T = TypeVar('T')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
-ConstructorFn = Callable[[Optional[Any], 'PipelineContext'], Any]
+ConstructorFn = Callable[
+    ['beam_runner_api_pb2.PTransform', Optional[Any], 'PipelineContext'], Any]
 
 
 class _PValueishTransform(object):
@@ -241,35 +245,29 @@ class _FinalizeMaterialization(_PValueishTransform):
       return self.visit_nested(node)
 
 
-class _GetPValues(_PValueishTransform):
-  def visit(self, node, pvalues):
-    if isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
-      pvalues.append(node)
+def get_named_nested_pvalues(pvalueish):
+  if isinstance(pvalueish, tuple):
+    # Check to see if it's a named tuple.
+    fields = getattr(pvalueish, '_fields', None)
+    if fields and len(fields) == len(pvalueish):
+      tagged_values = zip(fields, pvalueish)
     else:
-      self.visit_nested(node, pvalues)
-
-
-def get_nested_pvalues(pvalueish):
-  pvalues = []
-  _GetPValues().visit(pvalueish, pvalues)
-  return pvalues
-
-
-def get_nested_pvalues0(pvalueish):
-  if isinstance(pvalueish, (tuple, list)):
+      tagged_values = enumerate(pvalueish)
+  elif isinstance(pvalueish, list):
     tagged_values = enumerate(pvalueish)
-  if isinstance(pvalueish, dict):
+  elif isinstance(pvalueish, dict):
     tagged_values = pvalueish.items()
   else:
-    yield None, pvalueish
+    if isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
+      yield None, pvalueish
     return
 
   for tag, subvalue in tagged_values:
-    for subtag, subsubvalue in get_nested_pvalues(subvalue):
+    for subtag, subsubvalue in get_named_nested_pvalues(subvalue):
       if subtag is None:
         yield tag, subsubvalue
       else:
-        yield '%s.%s' % (tag, subsubvalue), subsubvalue
+        yield '%s.%s' % (tag, subtag), subsubvalue
 
 
 class _ZipPValues(object):
@@ -355,6 +353,14 @@ class PTransform(WithTypeHints, HasDisplayData):
     # type: () -> str
     return self.__class__.__name__
 
+  def default_type_hints(self):
+    fn_type_hints = IOTypeHints.from_callable(self.expand)
+    if fn_type_hints is not None:
+      fn_type_hints = fn_type_hints.strip_pcoll()
+
+    # Prefer class decorator type hints for backwards compatibility.
+    return get_type_hints(self.__class__).with_defaults(fn_type_hints)
+
   def with_input_types(self, input_type_hint):
     """Annotates the input type of a :class:`PTransform` with a type-hint.
 
@@ -411,7 +417,8 @@ class PTransform(WithTypeHints, HasDisplayData):
     self.type_check_inputs_or_outputs(pvalueish, 'output')
 
   def type_check_inputs_or_outputs(self, pvalueish, input_or_output):
-    hints = getattr(self.get_type_hints(), input_or_output + '_types')
+    type_hints = self.get_type_hints()
+    hints = getattr(type_hints, input_or_output + '_types')
     if hints is None or not any(hints):
       return
     arg_hints, kwarg_hints = hints
@@ -423,18 +430,22 @@ class PTransform(WithTypeHints, HasDisplayData):
     root_hint = (
         arg_hints[0] if len(arg_hints) == 1 else arg_hints or kwarg_hints)
     for context, pvalue_, hint in _ZipPValues().visit(pvalueish, root_hint):
+      if isinstance(pvalue_, DoOutputsTuple):
+        continue
       if pvalue_.element_type is None:
         # TODO(robertwb): It's a bug that we ever get here. (typecheck)
         continue
       if hint and not typehints.is_consistent_with(pvalue_.element_type, hint):
         at_context = ' %s %s' % (input_or_output, context) if context else ''
         raise TypeCheckError(
-            '%s type hint violation at %s%s: expected %s, got %s' % (
-                input_or_output.title(),
-                self.label,
-                at_context,
-                hint,
-                pvalue_.element_type))
+            '{type} type hint violation at {label}{context}: expected {hint}, '
+            'got {actual_type}\nFull type hint:\n{debug_str}'.format(
+                type=input_or_output.title(),
+                label=self.label,
+                context=at_context,
+                hint=hint,
+                actual_type=pvalue_.element_type,
+                debug_str=type_hints.debug_str()))
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
@@ -601,7 +612,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       urn,  # type: str
       parameter_type,  # type: Type[T]
   ):
-    # type: (...) -> Callable[[Union[type, Callable[[T, PipelineContext], Any]]], Callable[[T, PipelineContext], Any]]
+    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]]], Callable[[T, PipelineContext], Any]]
     pass
 
   @classmethod
@@ -611,7 +622,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       urn,  # type: str
       parameter_type,  # type: None
   ):
-    # type: (...) -> Callable[[Union[type, Callable[[bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
+    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
     pass
 
   @classmethod
@@ -619,7 +630,7 @@ class PTransform(WithTypeHints, HasDisplayData):
   def register_urn(cls,
                    urn,  # type: str
                    parameter_type,  # type: Type[T]
-                   constructor  # type: Callable[[T, PipelineContext], Any]
+                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
                   ):
     # type: (...) -> None
     pass
@@ -629,7 +640,7 @@ class PTransform(WithTypeHints, HasDisplayData):
   def register_urn(cls,
                    urn,  # type: str
                    parameter_type,  # type: None
-                   constructor  # type: Callable[[bytes, PipelineContext], Any]
+                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
                   ):
     # type: (...) -> None
     pass
@@ -651,10 +662,10 @@ class PTransform(WithTypeHints, HasDisplayData):
       # Used as a decorator.
       return register
 
-  def to_runner_api(self, context, has_parts=False):
-    # type: (PipelineContext, bool) -> beam_runner_api_pb2.FunctionSpec
+  def to_runner_api(self, context, has_parts=False, **extra_kwargs):
+    # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
-    urn, typed_param = self.to_runner_api_parameter(context)
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(BEAM-3812): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
@@ -666,23 +677,25 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   @classmethod
   def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.FunctionSpec]
+                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
                       context  # type: PipelineContext
                      ):
     # type: (...) -> Optional[PTransform]
-    if proto is None or not proto.urn:
+    if proto is None or proto.spec is None or not proto.spec.urn:
       return None
-    parameter_type, constructor = cls._known_urns[proto.urn]
+    parameter_type, constructor = cls._known_urns[proto.spec.urn]
 
     try:
       return constructor(
-          proto_utils.parse_Bytes(proto.payload, parameter_type), context)
+          proto,
+          proto_utils.parse_Bytes(proto.spec.payload, parameter_type),
+          context)
     except Exception:
       if context.allow_proto_holders:
         # For external transforms we cannot build a Python ParDo object so
         # we build a holder transform instead.
         from apache_beam.transforms.core import RunnerAPIPTransformHolder
-        return RunnerAPIPTransformHolder(proto, context)
+        return RunnerAPIPTransformHolder(proto.spec, context)
       raise
 
   def to_runner_api_parameter(
@@ -702,16 +715,24 @@ class PTransform(WithTypeHints, HasDisplayData):
   def runner_api_requires_keyed_input(self):
     return False
 
+  def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
+    # type: (str, Tuple[str, Any]) -> None
+
+    """Adds a consumer transform's input type hints to our output type
+    constraints, which is used during performance runtime type-checking.
+    """
+    pass
+
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
-def _create_transform(payload, unused_context):
+def _create_transform(unused_ptransform, payload, unused_context):
   empty_transform = PTransform()
   empty_transform._fn_api_payload = payload
   return empty_transform
 
 
 @PTransform.register_urn(python_urns.PICKLED_TRANSFORM, None)
-def _unpickle_transform(pickled_bytes, unused_context):
+def _unpickle_transform(unused_ptransform, pickled_bytes, unused_context):
   return pickler.loads(pickled_bytes)
 
 
@@ -827,8 +848,9 @@ class PTransformWithSideInputs(PTransform):
         self, input_type_hint, *side_inputs_arg_hints, **side_input_kwarg_hints)
 
   def type_check_inputs(self, pvalueish):
-    type_hints = self.get_type_hints().input_types
-    if type_hints:
+    type_hints = self.get_type_hints()
+    input_types = type_hints.input_types
+    if input_types:
       args, kwargs = self.raw_side_inputs
 
       def element_type(side_input):
@@ -840,7 +862,8 @@ class PTransformWithSideInputs(PTransform):
       kwargs_types = {k: element_type(v) for (k, v) in kwargs.items()}
       argspec_fn = self._process_argspec_fn()
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
-      hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
+      hints = getcallargs_forhints(
+          argspec_fn, *input_types[0], **input_types[1])
       for arg, hint in hints.items():
         if arg.startswith('__unknown__'):
           continue
@@ -849,8 +872,13 @@ class PTransformWithSideInputs(PTransform):
         if not typehints.is_consistent_with(bindings.get(arg, typehints.Any),
                                             hint):
           raise TypeCheckError(
-              'Type hint violation for \'%s\': requires %s but got %s for %s' %
-              (self.label, hint, bindings[arg], arg))
+              'Type hint violation for \'{label}\': requires {hint} but got '
+              '{actual_type} for {arg}\nFull type hint:\n{debug_str}'.format(
+                  label=self.label,
+                  hint=hint,
+                  actual_type=bindings[arg],
+                  arg=arg,
+                  debug_str=type_hints.debug_str()))
 
   def _process_argspec_fn(self):
     """Returns an argspec of the function actually consuming the data.

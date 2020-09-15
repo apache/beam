@@ -42,6 +42,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -97,6 +98,7 @@ public class ParquetIOIT {
   private static Integer numberOfTextLines;
   private static Integer datasetSize;
   private static String expectedHash;
+  private static InfluxDBSettings settings;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
   private static final String PARQUET_NAMESPACE = ParquetIOIT.class.getName();
@@ -110,6 +112,12 @@ public class ParquetIOIT {
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   @Test
@@ -169,8 +177,10 @@ public class ParquetIOIT {
     String timestamp = Timestamp.now().toString();
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp)
-        .publish(bigQueryDataset, bigQueryTable);
+    final IOITMetrics metrics =
+        new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp);
+    metrics.publish(bigQueryDataset, bigQueryTable);
+    metrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(

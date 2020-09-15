@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/test/integration/primitives"
+	"github.com/apache/beam/sdks/go/test/integration/synthetic"
 	"github.com/apache/beam/sdks/go/test/integration/wordcount"
 )
 
@@ -58,12 +59,16 @@ func main() {
 	pipelines := []namedPipeline{
 		{"wordcount:memfs", wordcount.WordCount(old_pond, "+Qj8iAnV5BI2A4sbzUbb6Q==", 8)},
 		{"wordcount:kinglear", wordcount.WordCount("gs://apache-beam-samples/shakespeare/kinglear.txt", "7ZCh5ih9m8IW1w+iS8sRKg==", 4749)},
+		{"synthetic:simple", synthetic.SimplePipeline()},
+		{"synthetic:splittable", synthetic.SplittablePipeline()},
 		{"pardo:multioutput", primitives.ParDoMultiOutput()},
 		{"pardo:sideinput", primitives.ParDoSideInput()},
 		{"pardo:kvsideinput", primitives.ParDoKVSideInput()},
 		{"cogbk:cogbk", primitives.CoGBK()},
 		{"flatten:flatten", primitives.Flatten()},
 		// {"flatten:dup", primitives.FlattenDup()},
+		{"reshuffle:reshuffle", primitives.Reshuffle()},
+		{"reshuffle:reshufflekv", primitives.ReshuffleKV()},
 	}
 
 	re := regexp.MustCompile(*filter)

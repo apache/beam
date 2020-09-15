@@ -22,18 +22,19 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -52,7 +53,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       org.apache.beam.sdk.coders.Coder windowedInputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
       OperatorStateBackend operatorStateBackend,
-      @Nullable KeyedStateBackend<Object> keyedStateBackend)
+      @Nullable KeyedStateBackend<Object> keyedStateBackend,
+      int maxConcurrentCheckpoints)
       throws Exception {
     return new BufferingDoFnRunner<>(
         doFnRunner,
@@ -60,18 +62,20 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         windowedInputCoder,
         windowCoder,
         operatorStateBackend,
-        keyedStateBackend);
+        keyedStateBackend,
+        maxConcurrentCheckpoints);
   }
 
   /** The underlying DoFnRunner that any buffered data will be handed over to eventually. */
   private final DoFnRunner<InputT, OutputT> underlying;
   /** A union list state which contains all to-be-acknowledged snapshot ids. */
-  private final ListState<CheckpointElement> notYetAcknowledgedSnapshots;
+  private final ListState<CheckpointIdentifier> notYetAcknowledgedSnapshots;
   /** A factory for constructing new BufferingElementsHandler scoped by an internal id. */
   private final BufferingElementsHandlerFactory bufferingElementsHandlerFactory;
-
-  /** The current active state id which is later linked to a checkpoint id. */
-  private String currentStateId;
+  /** The maximum number of buffers for data of not yet acknowledged checkpoints. */
+  final int numCheckpointBuffers;
+  /** The current active state id which, on checkpoint, is linked to a checkpoint id. */
+  int currentStateIndex;
   /** The current handler used for buffering. */
   private BufferingElementsHandler currentBufferingElementsHandler;
 
@@ -81,19 +85,25 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       org.apache.beam.sdk.coders.Coder inputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
       OperatorStateBackend operatorStateBackend,
-      @Nullable KeyedStateBackend keyedStateBackend)
+      @Nullable KeyedStateBackend keyedStateBackend,
+      int maxConcurrentCheckpoints)
       throws Exception {
+    Preconditions.checkArgument(
+        maxConcurrentCheckpoints > 0 && maxConcurrentCheckpoints < Short.MAX_VALUE,
+        "Maximum number of concurrent checkpoints not within the bounds of 0 and %s",
+        Short.MAX_VALUE);
 
     this.underlying = underlying;
     this.notYetAcknowledgedSnapshots =
         operatorStateBackend.getUnionListState(
-            new ListStateDescriptor<>("notYetAcknowledgedSnapshots", CheckpointElement.class));
+            new ListStateDescriptor<>("notYetAcknowledgedSnapshots", CheckpointIdentifier.class));
     this.bufferingElementsHandlerFactory =
         (stateId) -> {
           ListStateDescriptor<BufferedElement> stateDescriptor =
               new ListStateDescriptor<>(
                   stateName + stateId,
-                  new CoderTypeSerializer<>(new BufferedElements.Coder(inputCoder, windowCoder)));
+                  new CoderTypeSerializer<>(
+                      new BufferedElements.Coder(inputCoder, windowCoder, null)));
           if (keyedStateBackend != null) {
             return KeyedBufferingElementsHandler.create(keyedStateBackend, stateDescriptor);
           } else {
@@ -101,8 +111,30 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
                 operatorStateBackend.getListState(stateDescriptor));
           }
         };
-    this.currentStateId = generateNewId();
-    this.currentBufferingElementsHandler = bufferingElementsHandlerFactory.get(currentStateId);
+    this.numCheckpointBuffers = initializeState(maxConcurrentCheckpoints);
+    this.currentBufferingElementsHandler =
+        bufferingElementsHandlerFactory.get(rotateAndGetStateIndex());
+  }
+
+  /**
+   * Initialize the state index and the max checkpoint buffers based on previous not yet
+   * acknowledged checkpoints.
+   */
+  private int initializeState(int maxConcurrentCheckpoints) throws Exception {
+    List<CheckpointIdentifier> pendingSnapshots = new ArrayList<>();
+    Iterables.addAll(pendingSnapshots, notYetAcknowledgedSnapshots.get());
+    int lastUsedIndex = -1;
+    int maxIndex = 0;
+    if (!pendingSnapshots.isEmpty()) {
+      for (CheckpointIdentifier checkpointIdentifier : pendingSnapshots) {
+        maxIndex = Math.max(maxIndex, checkpointIdentifier.internalId);
+      }
+      lastUsedIndex = pendingSnapshots.get(pendingSnapshots.size() - 1).internalId;
+    }
+    this.currentStateIndex = lastUsedIndex;
+    // If a previous run had a higher number of concurrent checkpoints we need to use this number to
+    // not break the buffering/flushing logic.
+    return Math.max(maxConcurrentCheckpoints, maxIndex) + 1;
   }
 
   @Override
@@ -116,22 +148,26 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     currentBufferingElementsHandler.buffer(
-        new BufferedElements.Timer(
-            timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain));
+        new BufferedElements.Timer<>(
+            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain));
   }
 
   @Override
   public void finishBundle() {
     // Do not finish a bundle, finish it later when emitting elements
   }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
   @Override
   public DoFn<InputT, OutputT> getFn() {
@@ -143,15 +179,15 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
     // We are about to get checkpointed. The elements buffered thus far
     // have to be added to the global CheckpointElement state which will
     // be used to emit elements later when this checkpoint is acknowledged.
-    addToBeAcknowledgedCheckpoint(checkpointId, currentStateId);
-    currentStateId = generateNewId();
-    currentBufferingElementsHandler = bufferingElementsHandlerFactory.get(currentStateId);
+    addToBeAcknowledgedCheckpoint(checkpointId, getStateIndex());
+    int newStateIndex = rotateAndGetStateIndex();
+    currentBufferingElementsHandler = bufferingElementsHandlerFactory.get(newStateIndex);
   }
 
   /** Should be called when a checkpoint is completed. */
   public void checkpointCompleted(long checkpointId) throws Exception {
-    List<CheckpointElement> toAck = removeToBeAcknowledgedCheckpoints(checkpointId);
-    for (CheckpointElement toBeAcked : toAck) {
+    List<CheckpointIdentifier> allToAck = gatherToBeAcknowledgedCheckpoints(checkpointId);
+    for (CheckpointIdentifier toBeAcked : allToAck) {
       BufferingElementsHandler bufferingElementsHandler =
           bufferingElementsHandlerFactory.get(toBeAcked.internalId);
       Iterator<BufferedElement> iterator = bufferingElementsHandler.getElements().iterator();
@@ -170,44 +206,48 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
     }
   }
 
-  private void addToBeAcknowledgedCheckpoint(long checkpointId, String internalId)
-      throws Exception {
+  private void addToBeAcknowledgedCheckpoint(long checkpointId, int internalId) throws Exception {
     notYetAcknowledgedSnapshots.addAll(
-        Collections.singletonList(new CheckpointElement(internalId, checkpointId)));
+        Collections.singletonList(new CheckpointIdentifier(internalId, checkpointId)));
   }
 
-  private List<CheckpointElement> removeToBeAcknowledgedCheckpoints(long checkpointId)
+  private List<CheckpointIdentifier> gatherToBeAcknowledgedCheckpoints(long checkpointId)
       throws Exception {
-    List<CheckpointElement> toBeAcknowledged = new ArrayList<>();
-    List<CheckpointElement> checkpoints = new ArrayList<>();
-    for (CheckpointElement element : notYetAcknowledgedSnapshots.get()) {
+    List<CheckpointIdentifier> toBeAcknowledged = new ArrayList<>();
+    List<CheckpointIdentifier> remaining = new ArrayList<>();
+    for (CheckpointIdentifier element : notYetAcknowledgedSnapshots.get()) {
       if (element.checkpointId <= checkpointId) {
         toBeAcknowledged.add(element);
       } else {
-        checkpoints.add(element);
+        remaining.add(element);
       }
     }
-    notYetAcknowledgedSnapshots.update(checkpoints);
+    notYetAcknowledgedSnapshots.update(remaining);
     // Sort by checkpoint id to preserve order
     toBeAcknowledged.sort(Comparator.comparingLong(o -> o.checkpointId));
     return toBeAcknowledged;
   }
 
-  private static String generateNewId() {
-    return UUID.randomUUID().toString();
+  private int rotateAndGetStateIndex() {
+    currentStateIndex = (currentStateIndex + 1) % numCheckpointBuffers;
+    return currentStateIndex;
+  }
+
+  private int getStateIndex() {
+    return currentStateIndex;
   }
 
   /** Constructs a new instance of BufferingElementsHandler with a provided state namespace. */
   private interface BufferingElementsHandlerFactory {
-    BufferingElementsHandler get(String stateId) throws Exception;
+    BufferingElementsHandler get(int stateIndex) throws Exception;
   }
 
-  private static class CheckpointElement {
+  static class CheckpointIdentifier {
 
-    final String internalId;
+    final int internalId;
     final long checkpointId;
 
-    CheckpointElement(String internalId, long checkpointId) {
+    CheckpointIdentifier(int internalId, long checkpointId) {
       this.internalId = internalId;
       this.checkpointId = checkpointId;
     }

@@ -28,11 +28,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobMetricsResponse;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Metrics containers by step.
@@ -93,7 +98,7 @@ public class MetricsContainerStepMap implements Serializable {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsContainerStepMap) {
       MetricsContainerStepMap metricsContainerStepMap = (MetricsContainerStepMap) object;
       return Objects.equals(metricsContainers, metricsContainerStepMap.metricsContainers)
@@ -173,7 +178,15 @@ public class MetricsContainerStepMap implements Serializable {
 
   @Override
   public String toString() {
-    return asAttemptedOnlyMetricResults(this).toString();
+    JobApi.MetricResults results =
+        JobApi.MetricResults.newBuilder().addAllAttempted(getMonitoringInfos()).build();
+    GetJobMetricsResponse response = GetJobMetricsResponse.newBuilder().setMetrics(results).build();
+    try {
+      JsonFormat.Printer printer = JsonFormat.printer();
+      return printer.print(response);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private Iterable<MetricsContainerImpl> getMetricsContainers() {

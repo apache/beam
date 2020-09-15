@@ -27,8 +27,10 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -240,6 +242,236 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
+
+  /** GROUP-BY with the any_value aggregation function. */
+  @Test
+  public void testAnyValueFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema = Schema.builder().addInt32Field("key").addInt32Field("col").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql = "SELECT key, any_value(col) as any_value FROM PCOLLECTION GROUP BY key";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Map<Integer, List<Integer>> allowedTuples = new HashMap<>();
+    allowedTuples.put(0, Arrays.asList(1, 2));
+    allowedTuples.put(1, Arrays.asList(3));
+    allowedTuples.put(2, Arrays.asList(4, 5));
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              Iterator<Row> iter = input.iterator();
+              while (iter.hasNext()) {
+                Row row = iter.next();
+                List<Integer> values = allowedTuples.remove(row.getInt32("key"));
+                assertTrue(values != null);
+                assertTrue(values.contains(row.getInt32("any_value")));
+              }
+              assertTrue(allowedTuples.isEmpty());
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testBitOrFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                0xF001L, 0,
+                0x00A1L, 0,
+                44L, 0)
+            .getRows();
+
+    String sql = "SELECT bit_or(f_long) as bitor " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(61613L).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)
+   *
+   * <p>Comment the following tests for BitAnd for now
+   */
+  //  @Test
+  //  public void testBitAndFunction() throws Exception {
+  //    pipeline.enableAbandonedNodeEnforcement(false);
+  //
+  //    Schema schemaInTableA =
+  //        Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+  //
+  //    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+  //
+  //    List<Row> rowsInTableA =
+  //        TestUtils.RowsBuilder.of(schemaInTableA)
+  //            .addRows(
+  //                0xF001L, 0,
+  //                0x00A1L, 0)
+  //            .getRows();
+  //
+  //    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+  //
+  //    Row rowResult = Row.withSchema(resultType).addValues(1L).build();
+  //
+  //    PCollection<Row> inputRows =
+  //        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+  //    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+  //
+  //    PAssert.that(result).containsInAnyOrder(rowResult);
+  //
+  //    pipeline.run().waitUntilFinish();
+  //  }
+  //
+  //  @Test
+  //  public void testBitAndFunctionWithEmptyTable() throws Exception {
+  //    pipeline.enableAbandonedNodeEnforcement(false);
+  //
+  //    Schema schemaInTableA =
+  //        Schema.builder()
+  //            .addNullableField("f_long", Schema.FieldType.INT64)
+  //            .addNullableField("f_int2", Schema.FieldType.INT32)
+  //            .build();
+  //
+  //    List<Row> rowsInTableA = TestUtils.RowsBuilder.of(schemaInTableA).getRows();
+  //
+  //    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+  //
+  //    PCollection<Row> inputRows =
+  //        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+  //    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+  //
+  //    PAssert.that(result).empty();
+  //
+  //    pipeline.run().waitUntilFinish();
+  //  }
+  //
+  //  @Test
+  //  public void testBitAndFunctionWithOnlyNullInput() throws Exception {
+  //    pipeline.enableAbandonedNodeEnforcement(false);
+  //
+  //    Schema schemaInTableA =
+  //        Schema.builder()
+  //            .addNullableField("f_long", Schema.FieldType.INT64)
+  //            .addNullableField("f_int2", Schema.FieldType.INT32)
+  //            .build();
+  //
+  //    Schema resultType =
+  //        Schema.builder().addNullableField("finalAnswer", Schema.FieldType.INT64).build();
+  //
+  //    List<Row> rowsInTableA = TestUtils.RowsBuilder.of(schemaInTableA).addRows(null,
+  // 0).getRows();
+  //
+  //    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+  //
+  //    Row rowResult = Row.withSchema(resultType).addValues((Long) null).build();
+  //
+  //    PCollection<Row> inputRows =
+  //        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+  //    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+  //
+  //    PAssert.that(result).containsInAnyOrder(rowResult);
+  //
+  //    //    The following attempts which try printing the rows in PCollection failed even if using
+  //    // setCoder() or setRowSchema() at the end.
+  //    //    To try running them, uncomment the code and import required data structures such as
+  // ParDo
+  //    // and DoFn.
+  //
+  //    //    PCollection<Row> a = result.apply(ParDo.of(new DoFn<Row, Row>() {    // a DoFn as an
+  //    // anonymous inner class instance
+  //    //      @ProcessElement
+  //    //      public void processElement(@Element Row row, OutputReceiver<Row> out) {
+  //    //        System.out.println(row);
+  //    //        out.output(row);
+  //    //      }
+  //    //    })).setCoder(result.getCoder());
+  //    //    PAssert.that(a).containsInAnyOrder(rowResult);
+  //    //
+  //    //    PCollection<Row> b = result.apply(ParDo.of(new DoFn<Row, Row>() {    // a DoFn as an
+  //    // anonymous inner class instance
+  //    //      @ProcessElement
+  //    //      public void processElement(@Element Row row, OutputReceiver<Row> out) {
+  //    //        System.out.println(row);
+  //    //        out.output(row);
+  //    //      }
+  //    //    })).setRowSchema(result.getSchema());
+  //    //    PAssert.that(b).containsInAnyOrder(rowResult);
+  //
+  //    pipeline.run().waitUntilFinish();
+  //  }
+  //
+  //  /**
+  //   * The following commented test checks the condition when inputs contain both null value and
+  // valid
+  //   * INT64 values.
+  //   *
+  //   * <p>It never passes, when null value and valid value both exist, null values seemed to be
+  //   * directly ignored.
+  //   */
+  //  //  @Test
+  //  //  public void testBitAndFunctionWithNullInputAndValueInput() throws Exception {
+  //  //    pipeline.enableAbandonedNodeEnforcement(false);
+  //  //
+  //  //    Schema schemaInTableA =
+  //  //            Schema.builder()
+  //  //                    .addNullableField("f_long", Schema.FieldType.INT64)
+  //  //                    .addNullableField("f_int2", Schema.FieldType.INT32)
+  //  //                    .build();
+  //  //
+  //  //    Schema resultType = Schema.builder().addNullableField("finalAnswer",
+  //  // Schema.FieldType.INT64).build();
+  //  //
+  //  //    List<Row> rowsInTableA =
+  //  //            TestUtils.RowsBuilder.of(schemaInTableA)
+  //  //                    .addRows(null, 0)
+  //  //                    .addRows(1L, 0)
+  //  //                    .getRows();
+  //  //
+  //  //    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+  //  //
+  //  //    Row rowResult = Row.withSchema(resultType).addValues((Long) null).build();
+  //  //
+  //  //    PCollection<Row> inputRows =
+  //  //            pipeline.apply("longVals",
+  // Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+  //  //    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+  //  //
+  //  //    PAssert.that(result).containsInAnyOrder(rowResult);
+  //  //
+  //  //    pipeline.run().waitUntilFinish();
+  //  //  }
 
   private static class CheckerBigDecimalDivide
       implements SerializableFunction<Iterable<Row>, Void> {

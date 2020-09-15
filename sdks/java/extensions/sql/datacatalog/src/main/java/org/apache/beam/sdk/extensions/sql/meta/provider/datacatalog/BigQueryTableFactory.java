@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.cloud.datacatalog.Entry;
+import com.google.cloud.datacatalog.v1beta1.Entry;
 import java.net.URI;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -43,7 +43,7 @@ class BigQueryTableFactory implements TableFactory {
 
   @Override
   public Optional<Builder> tableBuilder(Entry entry) {
-    if (!URI.create(entry.getLinkedResource()).getAuthority().toLowerCase().equals(BIGQUERY_API)) {
+    if (!URI.create(entry.getLinkedResource()).getAuthority().equalsIgnoreCase(BIGQUERY_API)) {
       return Optional.empty();
     }
 

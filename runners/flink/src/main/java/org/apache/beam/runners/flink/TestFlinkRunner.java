@@ -32,7 +32,6 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   private TestFlinkRunner(FlinkPipelineOptions options) {
     options.setRunner(TestFlinkRunner.class);
-    options.setShutdownSourcesOnFinalWatermark(true);
     if (options.getParallelism() == -1) {
       // Limit parallelism to avoid too much memory consumption during local execution
       options.setParallelism(1);

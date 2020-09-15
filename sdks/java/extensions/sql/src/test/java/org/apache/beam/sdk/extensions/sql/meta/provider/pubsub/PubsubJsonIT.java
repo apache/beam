@@ -68,11 +68,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -154,24 +152,20 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 5, "bar"),
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
-    // Send the start signal to make sure the signaling topic is initialized
-    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply(resultSignal.signalStart());
-
     // Start the pipeline
     pipeline.run();
 
-    // Wait until got the start response from the signalling topic
-    start.get();
+    // Block until a subscription for this topic exists
+    eventsTopic.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
 
     // Start publishing the messages when main pipeline is started and signaling topic is ready
     eventsTopic.publish(messages);
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardSeconds(60));
+    resultSignal.waitForSuccess(Duration.standardMinutes(5));
   }
 
-  @Ignore("Disable flake tracked at https://issues.apache.org/jira/browse/BEAM-5122")
   @Test
   public void testUsesDlq() throws Exception {
     String createTableString =
@@ -225,15 +219,12 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 5, "bar"),
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
-    // Send the start signal to make sure the signaling topic is initialized
-    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply("signal query results started", resultSignal.signalStart());
-
     // Start the pipeline
     pipeline.run();
 
-    // Wait until got the response from the signalling topics
-    start.get();
+    // Block until a subscription for this topic exists
+    eventsTopic.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
 
     // Start publishing the messages when main pipeline is started and signaling topics are ready
     eventsTopic.publish(messages);
@@ -246,7 +237,6 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSQLLimit() throws Exception {
     String createTableString =
         "CREATE EXTERNAL TABLE message (\n"
@@ -304,8 +294,8 @@ public class PubsubJsonIT implements Serializable {
                   return result.build();
                 });
 
-    eventsTopic.checkIfAnySubscriptionExists(
-        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(1));
+    eventsTopic.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
     eventsTopic.publish(messages);
     assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
     pool.shutdown();
@@ -386,21 +376,18 @@ public class PubsubJsonIT implements Serializable {
                         row(PAYLOAD_SCHEMA, 5, "bar"),
                         row(PAYLOAD_SCHEMA, 7, "baz")))));
 
-    // Send the start signal to make sure the signaling topic is initialized
-    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply(resultSignal.signalStart());
-
     // Start the pipeline
     pipeline.run();
 
-    // Wait until got the start response from the signalling topic
-    start.get();
+    // Block until a subscription for this topic exists
+    eventsTopic.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
 
     // Start publishing the messages when main pipeline is started and signaling topic is ready
     eventsTopic.publish(messages);
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardSeconds(60));
+    resultSignal.waitForSuccess(Duration.standardMinutes(5));
   }
 
   @Test
@@ -552,13 +539,12 @@ public class PubsubJsonIT implements Serializable {
     // Apply the PTransform to inject the input data
     query(sqlEnv, pipeline, injectQueryString);
 
-    // Send the start signal to make sure the signaling topic is initialized
-    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
-    filterPipeline.begin().apply("signal filter pipeline started", resultSignal.signalStart());
-
     // Start the filter pipeline and wait until it has started.
     filterPipeline.run();
-    start.get();
+
+    // Block until a subscription for this topic exists
+    eventsTopic.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
 
     // .. then run the injector pipeline
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));

@@ -23,13 +23,13 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 )
 
 // Execute executes a pipeline on the universal runner serving the given endpoint.
 // Convenience function.
-func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptions, async bool) (string, error) {
+func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobOptions, async bool) (string, error) {
 	// (1) Prepare job to obtain artifact staging instructions.
 
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)

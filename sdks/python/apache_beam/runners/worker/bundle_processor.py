@@ -24,6 +24,7 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
+import bisect
 import collections
 import json
 import logging
@@ -69,21 +70,24 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.transforms import TimeDomain
+from apache_beam.transforms import core
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
-from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam import pvalue
   from apache_beam.portability.api import metrics_pb2
+  from apache_beam.runners.sdf_utils import SplitResultPrimary
+  from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker import data_plane
   from apache_beam.runners.worker import sdk_worker
   from apache_beam.transforms import window
-  from apache_beam.utils.timestamp import Timestamp
+  from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 T = TypeVar('T')
@@ -97,8 +101,8 @@ ConstructorFn = Callable[[
                          operations.Operation]
 OperationT = TypeVar('OperationT', bound=operations.Operation)
 
-DATA_INPUT_URN = 'beam:source:runner:0.1'
-DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
+DATA_INPUT_URN = 'beam:runner:source:v1'
+DATA_OUTPUT_URN = 'beam:runner:sink:v1'
 IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
@@ -186,17 +190,18 @@ class DataInputOperation(RunnerIOOperation):
             self.name_context.step_name,
             0,
             next(iter(itervalues(consumers))),
-            self.windowed_coder)
+            self.windowed_coder,
+            self._get_runtime_performance_hints())
     ]
     self.splitting_lock = threading.Lock()
+    self.index = -1
+    self.stop = float('inf')
     self.started = False
 
   def start(self):
     # type: () -> None
     super(DataInputOperation, self).start()
     with self.splitting_lock:
-      self.index = -1
-      self.stop = float('inf')
       self.started = True
 
   def process(self, windowed_value):
@@ -215,15 +220,24 @@ class DataInputOperation(RunnerIOOperation):
           input_stream, True)
       self.output(decoded_value)
 
-  def try_split(self, fraction_of_remainder, total_buffer_size):
-    # type: (...) -> Optional[Tuple[int, Optional[Tuple[operations.DoOperation, common.SplitResultType]], Optional[Tuple[operations.DoOperation, common.SplitResultType]], int]]
+  def monitoring_infos(self, transform_id, tag_to_pcollection_id):
+    # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+    all_monitoring_infos = super(DataInputOperation, self).monitoring_infos(
+        transform_id, tag_to_pcollection_id)
+    read_progress_info = monitoring_infos.int64_counter(
+        monitoring_infos.DATA_CHANNEL_READ_INDEX,
+        self.index,
+        ptransform=transform_id)
+    all_monitoring_infos[monitoring_infos.to_key(
+        read_progress_info)] = read_progress_info
+    return all_monitoring_infos
+
+  def try_split(
+      self, fraction_of_remainder, total_buffer_size, allowed_split_points):
+    # type: (...) -> Optional[Tuple[int, Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual], int]]
     with self.splitting_lock:
       if not self.started:
         return None
-      if total_buffer_size < self.index + 1:
-        total_buffer_size = self.index + 1
-      elif self.stop and total_buffer_size > self.stop:
-        total_buffer_size = self.stop
       if self.index == -1:
         # We are "finished" with the (non-existent) previous element.
         current_element_progress = 1.0
@@ -236,43 +250,84 @@ class DataInputOperation(RunnerIOOperation):
           current_element_progress = (
               current_element_progress_object.fraction_completed)
       # Now figure out where to split.
-      # The units here (except for keep_of_element_remainder) are all in
-      # terms of number of (possibly fractional) elements.
-      remainder = total_buffer_size - self.index - current_element_progress
-      keep = remainder * fraction_of_remainder
-      if current_element_progress < 1:
-        keep_of_element_remainder = keep / (1 - current_element_progress)
-        # If it's less than what's left of the current element,
-        # try splitting at the current element.
-        if keep_of_element_remainder < 1:
-          split = self.receivers[0].try_split(keep_of_element_remainder)
-          if split:
-            element_primary, element_residual = split
-            self.stop = self.index + 1
-            return self.index - 1, element_primary, element_residual, self.stop
-      # Otherwise, split at the closest element boundary.
-      # pylint: disable=round-builtin
-      stop_index = (
-          self.index + max(1, int(round(current_element_progress + keep))))
-      if stop_index < self.stop:
-        self.stop = stop_index
-        return self.stop - 1, None, None, self.stop
-    return None
+      split = self._compute_split(
+          self.index,
+          current_element_progress,
+          self.stop,
+          fraction_of_remainder,
+          total_buffer_size,
+          allowed_split_points,
+          self.receivers[0].try_split)
+      if split:
+        self.stop = split[-1]
+      return split
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    with self.splitting_lock:
-      metrics = super(DataInputOperation, self).progress_metrics()
-      current_element_progress = self.receivers[0].current_element_progress()
-    if current_element_progress:
-      metrics.active_elements.fraction_remaining = (
-          current_element_progress.fraction_remaining)
-    return metrics
+  @staticmethod
+  def _compute_split(
+      index,
+      current_element_progress,
+      stop,
+      fraction_of_remainder,
+      total_buffer_size,
+      allowed_split_points=(),
+      try_split=lambda fraction: None):
+    def is_valid_split_point(index):
+      return not allowed_split_points or index in allowed_split_points
+
+    if total_buffer_size < index + 1:
+      total_buffer_size = index + 1
+    elif total_buffer_size > stop:
+      total_buffer_size = stop
+    # The units here (except for keep_of_element_remainder) are all in
+    # terms of number of (possibly fractional) elements.
+    remainder = total_buffer_size - index - current_element_progress
+    keep = remainder * fraction_of_remainder
+    if current_element_progress < 1:
+      keep_of_element_remainder = keep / (1 - current_element_progress)
+      # If it's less than what's left of the current element,
+      # try splitting at the current element.
+      if (keep_of_element_remainder < 1 and is_valid_split_point(index) and
+          is_valid_split_point(index + 1)):
+        split = try_split(
+            keep_of_element_remainder
+        )  # type: Optional[Tuple[Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual]]]
+        if split:
+          element_primaries, element_residuals = split
+          return index - 1, element_primaries, element_residuals, index + 1
+    # Otherwise, split at the closest element boundary.
+    # pylint: disable=round-builtin
+    stop_index = index + max(1, int(round(current_element_progress + keep)))
+    if allowed_split_points and stop_index not in allowed_split_points:
+      # Choose the closest allowed split point.
+      allowed_split_points = sorted(allowed_split_points)
+      closest = bisect.bisect(allowed_split_points, stop_index)
+      if closest == 0:
+        stop_index = allowed_split_points[0]
+      elif closest == len(allowed_split_points):
+        stop_index = allowed_split_points[-1]
+      else:
+        prev = allowed_split_points[closest - 1]
+        next = allowed_split_points[closest]
+        if index < prev and stop_index - prev < next - stop_index:
+          stop_index = prev
+        else:
+          stop_index = next
+    if index < stop_index < stop:
+      return stop_index - 1, [], [], stop_index
+    else:
+      return None
 
   def finish(self):
     # type: () -> None
     with self.splitting_lock:
+      self.index += 1
       self.started = False
+
+  def reset(self):
+    # type: () -> None
+    self.index = -1
+    self.stop = float('inf')
+    super(DataInputOperation, self).reset()
 
 
 class _StateBackedIterable(object):
@@ -280,7 +335,6 @@ class _StateBackedIterable(object):
                state_handler,  # type: sdk_worker.CachingStateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                coder_or_impl,  # type: Union[coders.Coder, coder_impl.CoderImpl]
-               is_cached=False
               ):
     # type: (...) -> None
     self._state_handler = state_handler
@@ -289,12 +343,11 @@ class _StateBackedIterable(object):
       self._coder_impl = coder_or_impl.get_impl()
     else:
       self._coder_impl = coder_or_impl
-    self._is_cached = is_cached
 
   def __iter__(self):
     # type: () -> Iterator[Any]
-    return self._state_handler.blocking_get(
-        self._state_key, self._coder_impl, is_cached=self._is_cached)
+    return iter(
+        self._state_handler.blocking_get(self._state_key, self._coder_impl))
 
   def __reduce__(self):
     return list, (list(self), )
@@ -383,6 +436,27 @@ class StateBackedSideInputMap(object):
     self._cache = {}
 
 
+class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
+  def __init__(self, underlying_bag_state):
+    self._underlying_bag_state = underlying_bag_state
+
+  def read(self):  # type: () -> Any
+    values = list(self._underlying_bag_state.read())
+    if not values:
+      return None
+    return values[0]
+
+  def write(self, value):  # type: (Any) -> None
+    self.clear()
+    self._underlying_bag_state.add(value)
+
+  def clear(self):  # type: () -> None
+    self._underlying_bag_state.clear()
+
+  def commit(self):  # type: () -> None
+    self._underlying_bag_state.commit()
+
+
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
   def __init__(self, underlying_bag_state, combinefn):
     self._combinefn = combinefn
@@ -461,10 +535,7 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
     return _ConcatIterable([] if self._cleared else cast(
         'Iterable[Any]',
         _StateBackedIterable(
-            self._state_handler,
-            self._state_key,
-            self._value_coder,
-            is_cached=True)),
+            self._state_handler, self._state_key, self._value_coder)),
                            self._added_elements)
 
   def add(self, value):
@@ -479,13 +550,10 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def commit(self):
     to_await = None
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key, is_cached=True)
+      to_await = self._state_handler.clear(self._state_key)
     if self._added_elements:
       to_await = self._state_handler.extend(
-          self._state_key,
-          self._value_coder.get_impl(),
-          self._added_elements,
-          is_cached=True)
+          self._state_key, self._value_coder.get_impl(), self._added_elements)
     if to_await:
       # To commit, we need to wait on the last state request future to complete.
       to_await.get()
@@ -509,19 +577,13 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     accumulator = set(
         _ConcatIterable(
             set() if self._cleared else _StateBackedIterable(
-                self._state_handler,
-                self._state_key,
-                self._value_coder,
-                is_cached=True),
+                self._state_handler, self._state_key, self._value_coder),
             self._added_elements))
 
     if rewrite and accumulator:
-      self._state_handler.clear(self._state_key, is_cached=True)
+      self._state_handler.clear(self._state_key)
       self._state_handler.extend(
-          self._state_key,
-          self._value_coder.get_impl(),
-          accumulator,
-          is_cached=True)
+          self._state_key, self._value_coder.get_impl(), accumulator)
 
       # Since everthing is already committed so we can safely reinitialize
       # added_elements here.
@@ -537,7 +599,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     # type: (Any) -> None
     if self._cleared:
       # This is a good time explicitly clear.
-      self._state_handler.clear(self._state_key, is_cached=True)
+      self._state_handler.clear(self._state_key)
       self._cleared = False
 
     self._added_elements.add(value)
@@ -553,13 +615,10 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     # type: () -> None
     to_await = None
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key, is_cached=True)
+      to_await = self._state_handler.clear(self._state_key)
     if self._added_elements:
       to_await = self._state_handler.extend(
-          self._state_key,
-          self._value_coder.get_impl(),
-          self._added_elements,
-          is_cached=True)
+          self._state_key, self._value_coder.get_impl(), self._added_elements)
     if to_await:
       # To commit, we need to wait on the last state request future to complete.
       to_await.get()
@@ -569,25 +628,55 @@ class OutputTimer(object):
   def __init__(self,
                key,
                window,  # type: windowed_value.BoundedWindow
-               receiver  # type: operations.ConsumerSet
+               timestamp,  # type: timestamp.Timestamp
+               paneinfo,  # type: windowed_value.PaneInfo
+               time_domain, # type: str
+               timer_family_id,  # type: str
+               timer_coder_impl,  # type: coder_impl.TimerCoderImpl
+               output_stream  # type: data_plane.ClosableOutputStream
               ):
     self._key = key
     self._window = window
-    self._receiver = receiver
+    self._input_timestamp = timestamp
+    self._paneinfo = paneinfo
+    self._time_domain = time_domain
+    self._timer_family_id = timer_family_id
+    self._output_stream = output_stream
+    self._timer_coder_impl = timer_coder_impl
 
   def set(self, ts):
     ts = timestamp.Timestamp.of(ts)
-    self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=ts)),
-                                     ts, (self._window, )))
+    timer = userstate.Timer(
+        user_key=self._key,
+        dynamic_timer_tag='',
+        windows=(self._window, ),
+        clear_bit=False,
+        fire_timestamp=ts,
+        hold_timestamp=ts if TimeDomain.is_event_time(self._time_domain) else
+        self._input_timestamp,
+        paneinfo=self._paneinfo)
+    self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
+    self._output_stream.maybe_flush()
 
   def clear(self):
     # type: () -> None
-    dummy_millis = int(common_urns.constants.MAX_TIMESTAMP_MILLIS.constant) + 1
-    clear_ts = timestamp.Timestamp(micros=dummy_millis * 1000)
-    self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=clear_ts)),
-                                     0, (self._window, )))
+    timer = userstate.Timer(
+        user_key=self._key,
+        dynamic_timer_tag='',
+        windows=(self._window, ),
+        clear_bit=True,
+        fire_timestamp=None,
+        hold_timestamp=None,
+        paneinfo=None)
+    self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
+    self._output_stream.maybe_flush()
+
+
+class TimerInfo(object):
+  """A data class to store information related to a timer."""
+  def __init__(self, timer_coder_impl, output_stream=None):
+    self.timer_coder_impl = timer_coder_impl
+    self.output_stream = output_stream
 
 
 class FnApiUserStateContext(userstate.UserStateContext):
@@ -598,7 +687,6 @@ class FnApiUserStateContext(userstate.UserStateContext):
                transform_id,  # type: str
                key_coder,  # type: coders.Coder
                window_coder,  # type: coders.Coder
-               timer_specs  # type: Mapping[str, beam_runner_api_pb2.TimerSpec]
               ):
     # type: (...) -> None
 
@@ -609,35 +697,38 @@ class FnApiUserStateContext(userstate.UserStateContext):
       transform_id: The name of the PTransform that this context is associated.
       key_coder:
       window_coder:
-      timer_specs: A list of ``userstate.TimerSpec`` objects specifying the
-        timers associated with this operation.
+      timer_family_specs: A list of ``userstate.TimerSpec`` objects specifying
+        the timers associated with this operation.
     """
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
     self._window_coder = window_coder
-    self._timer_specs = timer_specs
-    self._timer_receivers = None  # type: Optional[Dict[str, operations.ConsumerSet]]
-    self._all_states = {
-    }  # type: Dict[tuple, userstate.AccumulatingRuntimeState]
+    # A mapping of {timer_family_id: TimerInfo}
+    self._timers_info = {}
+    self._all_states = {}  # type: Dict[tuple, userstate.RuntimeState]
 
-  def update_timer_receivers(self, receivers):
-    # type: (operations._TaggedReceivers) -> None
-
-    """TODO"""
-    self._timer_receivers = {}
-    for tag in self._timer_specs:
-      self._timer_receivers[tag] = receivers.pop(tag)
+  def add_timer_info(self, timer_family_id, timer_info):
+    self._timers_info[timer_family_id] = timer_info
 
   def get_timer(
       self,
       timer_spec,
       key,
-      window  # type: windowed_value.BoundedWindow
-  ):
+      window,  # type: windowed_value.BoundedWindow
+      timestamp,
+      pane):
     # type: (...) -> OutputTimer
-    assert self._timer_receivers is not None
-    return OutputTimer(key, window, self._timer_receivers[timer_spec.name])
+    assert self._timers_info[timer_spec.name].output_stream is not None
+    return OutputTimer(
+        key,
+        window,
+        timestamp,
+        pane,
+        timer_spec.time_domain,
+        timer_spec.name,
+        self._timers_info[timer_spec.name].timer_coder_impl,
+        self._timers_info[timer_spec.name].output_stream)
 
   def get_state(self, *args):
     state_handle = self._all_states.get(args)
@@ -650,9 +741,11 @@ class FnApiUserStateContext(userstate.UserStateContext):
                     key,
                     window  # type: windowed_value.BoundedWindow
                    ):
-    # type: (...) -> userstate.AccumulatingRuntimeState
+    # type: (...) -> userstate.RuntimeState
     if isinstance(state_spec,
-                  (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
+                  (userstate.BagStateSpec,
+                   userstate.CombiningValueStateSpec,
+                   userstate.ReadModifyWriteStateSpec)):
       bag_state = SynchronousBagRuntimeState(
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
@@ -665,6 +758,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
+      elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+        return ReadModifyWriteRuntimeState(bag_state)
       else:
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
     elif isinstance(state_spec, userstate.SetStateSpec):
@@ -688,8 +783,9 @@ class FnApiUserStateContext(userstate.UserStateContext):
 
   def reset(self):
     # type: () -> None
-    # TODO(BEAM-5428): Implement cross-bundle state caching.
     self._all_states = {}
+    self._timer_output_streams = {}
+    self._timer_coders_impl = {}
 
 
 def memoize(func):
@@ -732,6 +828,23 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
+
+    # There is no guarantee that the runner only set
+    # timer_api_service_descriptor when having timers. So this field cannot be
+    # used as an indicator of timers.
+    if self.process_bundle_descriptor.timer_api_service_descriptor.url:
+      self.timer_data_channel = (
+          data_channel_factory.create_data_channel_from_url(
+              self.process_bundle_descriptor.timer_api_service_descriptor.url))
+    else:
+      self.timer_data_channel = None
+
+    # A mapping of
+    # {(transform_id, timer_family_id): TimerInfo}
+    # The mapping is empty when there is no timer_family_specs in the
+    # ProcessBundleDescriptor.
+    self.timers_info = {}
+
     # TODO(robertwb): Figure out the correct prefix to use for output counters
     # from StateSampler.
     self.counter_factory = counters.CounterFactory()
@@ -754,6 +867,8 @@ class BundleProcessor(object):
         self.counter_factory,
         self.state_sampler,
         self.state_handler)
+
+    self.timers_info = transform_factory.extract_timers_info()
 
     def is_side_input(transform_proto, tag):
       if transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
@@ -804,7 +919,9 @@ class BundleProcessor(object):
 
   def process_bundle(self, instruction_id):
     # type: (str) -> Tuple[List[beam_fn_api_pb2.DelayedBundleApplication], bool]
+
     expected_inputs = []
+
     for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
@@ -824,24 +941,58 @@ class BundleProcessor(object):
         op.execution_context = execution_context
         op.start()
 
-      # Inject inputs from data plane.
+      # Each data_channel is mapped to a list of expected inputs which includes
+      # both data input and timer input. The data input is identied by
+      # transform_id. The data input is identified by
+      # (transform_id, timer_family_id).
       data_channels = collections.defaultdict(
           list
       )  # type: DefaultDict[data_plane.GrpcClientDataChannel, List[str]]
+
+      # Add expected data inputs for each data channel.
       input_op_by_transform_id = {}
       for input_op in expected_inputs:
         data_channels[input_op.data_channel].append(input_op.transform_id)
         input_op_by_transform_id[input_op.transform_id] = input_op
 
-      for data_channel, expected_transforms in data_channels.items():
-        for data in data_channel.input_elements(instruction_id,
-                                                expected_transforms):
-          input_op_by_transform_id[data.transform_id].process_encoded(data.data)
+      # Update timer_data channel with expected timer inputs.
+      if self.timer_data_channel:
+        data_channels[self.timer_data_channel].extend(
+            list(self.timers_info.keys()))
+
+      # Set up timer output stream for DoOperation.
+      for ((transform_id, timer_family_id),
+           timer_info) in self.timers_info.items():
+        output_stream = self.timer_data_channel.output_timer_stream(
+            instruction_id, transform_id, timer_family_id)
+        timer_info.output_stream = output_stream
+        self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
+
+      # Process data and timer inputs
+      for data_channel, expected_inputs in data_channels.items():
+        for element in data_channel.input_elements(instruction_id,
+                                                   expected_inputs):
+          if isinstance(element, beam_fn_api_pb2.Elements.Timers):
+            timer_coder_impl = (
+                self.timers_info[(
+                    element.transform_id,
+                    element.timer_family_id)].timer_coder_impl)
+            for timer_data in timer_coder_impl.decode_all(element.timers):
+              self.ops[element.transform_id].process_timer(
+                  element.timer_family_id, timer_data)
+          elif isinstance(element, beam_fn_api_pb2.Elements.Data):
+            input_op_by_transform_id[element.transform_id].process_encoded(
+                element.data)
 
       # Finish all operations.
       for op in self.ops.values():
         _LOGGER.debug('finish %s', op)
         op.finish()
+
+      # Close every timer output stream
+      for timer_info in self.timers_info.values():
+        assert timer_info.output_stream is not None
+        timer_info.output_stream.close()
 
       return ([
           self.delayed_bundle_application(op, residual) for op,
@@ -876,18 +1027,19 @@ class BundleProcessor(object):
           if desired_split:
             split = op.try_split(
                 desired_split.fraction_of_remainder,
-                desired_split.estimated_input_elements)
+                desired_split.estimated_input_elements,
+                desired_split.allowed_split_points)
             if split:
               (
                   primary_end,
-                  element_primary,
-                  element_residual,
+                  element_primaries,
+                  element_residuals,
                   residual_start,
               ) = split
-              if element_primary:
+              for element_primary in element_primaries:
                 split_response.primary_roots.add().CopyFrom(
                     self.bundle_application(*element_primary))
-              if element_residual:
+              for element_residual in element_residuals:
                 split_response.residual_roots.add().CopyFrom(
                     self.delayed_bundle_application(*element_residual))
               split_response.channel_splits.extend([
@@ -901,38 +1053,47 @@ class BundleProcessor(object):
 
   def delayed_bundle_application(self,
                                  op,  # type: operations.DoOperation
-                                 deferred_remainder  # type: common.SplitResultType
+                                 deferred_remainder  # type: SplitResultResidual
                                 ):
     # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
     assert op.input_info is not None
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
-    ((element_and_restriction, output_watermark),
-     deferred_watermark) = deferred_remainder
-    if deferred_watermark:
-      assert isinstance(deferred_watermark, timestamp.Duration)
-      proto_deferred_watermark = duration_pb2.Duration()
-      proto_deferred_watermark.FromMicroseconds(deferred_watermark.micros)
+    (element_and_restriction, current_watermark, deferred_timestamp) = (
+        deferred_remainder)
+    if deferred_timestamp:
+      assert isinstance(deferred_timestamp, timestamp.Duration)
+      proto_deferred_watermark = proto_utils.from_micros(
+          duration_pb2.Duration,
+          deferred_timestamp.micros)  # type: Optional[duration_pb2.Duration]
     else:
       proto_deferred_watermark = None
     return beam_fn_api_pb2.DelayedBundleApplication(
         requested_time_delay=proto_deferred_watermark,
         application=self.construct_bundle_application(
-            op, output_watermark, element_and_restriction))
+            op, current_watermark, element_and_restriction))
 
   def bundle_application(self,
                          op,  # type: operations.DoOperation
-                         primary  # type: common.SplitResultType
+                         primary  # type: SplitResultPrimary
                         ):
-    ((element_and_restriction, output_watermark), _) = primary
-    return self.construct_bundle_application(
-        op, output_watermark, element_and_restriction)
+    # type: (...) -> beam_fn_api_pb2.BundleApplication
+    return self.construct_bundle_application(op, None, primary.primary_value)
 
-  def construct_bundle_application(self, op, output_watermark, element):
+  def construct_bundle_application(self,
+                                   op,  # type: operations.DoOperation
+                                   output_watermark,  # type: Optional[timestamp.Timestamp]
+                                   element
+                                  ):
+    # type: (...) -> beam_fn_api_pb2.BundleApplication
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
+
     if output_watermark:
-      proto_output_watermark = timestamp_pb2.Timestamp()
-      proto_output_watermark.FromMicroseconds(output_watermark.micros)
-      output_watermarks = {output: proto_output_watermark for output in outputs}
+      proto_output_watermark = proto_utils.from_micros(
+          timestamp_pb2.Timestamp, output_watermark.micros)
+      output_watermarks = {
+          output: proto_output_watermark
+          for output in outputs
+      }  # type: Optional[Dict[str, timestamp_pb2.Timestamp]]
     else:
       output_watermarks = None
     return beam_fn_api_pb2.BundleApplication(
@@ -941,42 +1102,6 @@ class BundleProcessor(object):
         output_watermarks=output_watermarks,
         element=main_input_coder.get_impl().encode_nested(element))
 
-  def metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics
-    # DEPRECATED
-    return beam_fn_api_pb2.Metrics(
-        # TODO(robertwb): Rename to progress?
-        ptransforms={
-            transform_id: self._fix_output_tags(
-                transform_id, op.progress_metrics())
-            for transform_id,
-            op in self.ops.items()
-        })
-
-  def _fix_output_tags(self, transform_id, metrics):
-    # DEPRECATED
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
-
-    # Outputs are still referred to by index, not by name, in many Operations.
-    # However, if there is exactly one output, we can fix up the name here.
-
-    def fix_only_output_tag(actual_output_tag, mapping):
-      if len(mapping) == 1:
-        fake_output_tag, count = only_element(list(mapping.items()))
-        if fake_output_tag != actual_output_tag:
-          del mapping[fake_output_tag]
-          mapping[actual_output_tag] = count
-
-    if len(actual_output_tags) == 1:
-      fix_only_output_tag(
-          actual_output_tags[0],
-          metrics.processed_elements.measured.output_element_counts)
-      fix_only_output_tag(
-          actual_output_tags[0],
-          metrics.active_elements.measured.output_element_counts)
-    return metrics
-
   def monitoring_infos(self):
     # type: () -> List[metrics_pb2.MonitoringInfo]
 
@@ -984,59 +1109,12 @@ class BundleProcessor(object):
     # Construct a new dict first to remove duplicates.
     all_monitoring_infos_dict = {}
     for transform_id, op in self.ops.items():
-      for mi in op.monitoring_infos(transform_id).values():
-        fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
-        all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
+      tag_to_pcollection_id = self.process_bundle_descriptor.transforms[
+          transform_id].outputs
+      all_monitoring_infos_dict.update(
+          op.monitoring_infos(transform_id, dict(tag_to_pcollection_id)))
 
-    infos_list = list(all_monitoring_infos_dict.values())
-
-    def inject_pcollection(monitoring_info):
-      """
-      If provided metric is element count metric:
-      Finds relevant transform output info in current process_bundle_descriptor
-      and adds tag with PCOLLECTION_LABEL and pcollection_id into monitoring
-      info.
-      """
-      if monitoring_info.urn in URNS_NEEDING_PCOLLECTIONS:
-        if not monitoring_infos.PTRANSFORM_LABEL in monitoring_info.labels:
-          return
-        ptransform_label = monitoring_info.labels[
-            monitoring_infos.PTRANSFORM_LABEL]
-        if not monitoring_infos.TAG_LABEL in monitoring_info.labels:
-          return
-        tag_label = monitoring_info.labels[monitoring_infos.TAG_LABEL]
-
-        if not ptransform_label in self.process_bundle_descriptor.transforms:
-          return
-        if not tag_label in self.process_bundle_descriptor.transforms[
-            ptransform_label].outputs:
-          return
-
-        pcollection_name = (
-            self.process_bundle_descriptor.transforms[ptransform_label].
-            outputs[tag_label])
-
-        monitoring_info.labels[
-            monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
-
-        # Cleaning up labels that are not in specification.
-        monitoring_info.labels.pop(monitoring_infos.PTRANSFORM_LABEL)
-        monitoring_info.labels.pop(monitoring_infos.TAG_LABEL)
-
-    for mi in infos_list:
-      inject_pcollection(mi)
-
-    return infos_list
-
-  def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
-    # type: (str, metrics_pb2.MonitoringInfo) -> metrics_pb2.MonitoringInfo
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
-    if ('TAG' in monitoring_info.labels and
-        monitoring_info.labels['TAG'] == 'ONLY_OUTPUT'):
-      if len(actual_output_tags) == 1:
-        monitoring_info.labels['TAG'] = actual_output_tags[0]
-    return monitoring_info
+    return list(all_monitoring_infos_dict.values())
 
   def shutdown(self):
     # type: () -> None
@@ -1102,6 +1180,21 @@ class BeamTransformFactory(object):
     payload = proto_utils.parse_Bytes(
         transform_proto.spec.payload, parameter_type)
     return creator(self, transform_id, transform_proto, payload, consumers)
+
+  def extract_timers_info(self):
+    timers_info = {}
+    for transform_id, transform_proto in self.descriptor.transforms.items():
+      if transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+        pardo_payload = proto_utils.parse_Bytes(
+            transform_proto.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for (timer_family_id,
+             timer_family_spec) in pardo_payload.timer_family_specs.items():
+          timer_coder_impl = self.get_coder(
+              timer_family_spec.timer_family_coder_id).get_impl()
+          # The output_stream should be updated when processing a bundle.
+          timers_info[(transform_id, timer_family_id)] = TimerInfo(
+              timer_coder_impl=timer_coder_impl)
+    return timers_info
 
   def get_coder(self, coder_id):
     # type: (str) -> coders.Coder
@@ -1172,16 +1265,6 @@ class BeamTransformFactory(object):
     return op
 
 
-class TimerConsumer(operations.Operation):
-  def __init__(self, timer_tag, do_op):
-    self._timer_tag = timer_tag
-    self._do_op = do_op
-
-  def process(self, windowed_value):
-    # type: (windowed_value.WindowedValue) -> None
-    self._do_op.process_timer(self._timer_tag, windowed_value)
-
-
 @BeamTransformFactory.register_urn(
     DATA_INPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
 def create_source_runner(
@@ -1192,18 +1275,6 @@ def create_source_runner(
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   # type: (...) -> DataInputOperation
-  # Timers are the one special case where we don't want to call the
-  # (unlabeled) operation.process() method, which we detect here.
-  # TODO(robertwb): Consider generalizing if there are any more cases.
-  output_pcoll = only_element(transform_proto.outputs.values())
-  output_consumers = only_element(consumers.values())
-  if len(output_consumers) == 1:
-    do_op = only_element(output_consumers)
-    if isinstance(do_op, operations.DoOperation):
-      for tag, pcoll_id in do_op.timer_inputs.items():
-        if pcoll_id == output_pcoll:
-          output_consumers[:] = [TimerConsumer(tag, do_op)]
-          break
 
   output_coder = factory.get_coder(grpc_port.coder_id)
   return DataInputOperation(
@@ -1323,17 +1394,20 @@ def create_dofn_javasdk(
     beam_runner_api_pb2.ParDoPayload)
 def create_pair_with_restriction(*args):
   class PairWithRestriction(beam.DoFn):
-    def __init__(self, fn, restriction_provider):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
+      self.watermark_estimator_provider = watermark_estimator_provider
 
-    # An unused window is requested to force explosion of multi-window
-    # WindowedValues.
-    def process(
-        self, element, _unused_window=beam.DoFn.WindowParam, *args, **kwargs):
+    def process(self, element, *args, **kwargs):
       # TODO(SDF): Do we want to allow mutation of the element?
       # (E.g. it could be nice to shift bulky description to the portion
       # that can be distributed.)
-      yield element, self.restriction_provider.initial_restriction(element)
+      initial_restriction = self.restriction_provider.initial_restriction(
+          element)
+      initial_estimator_state = (
+          self.watermark_estimator_provider.initial_estimator_state(
+              element, initial_restriction))
+      yield (element, (initial_restriction, initial_estimator_state))
 
   return _create_sdf_operation(PairWithRestriction, *args)
 
@@ -1343,16 +1417,45 @@ def create_pair_with_restriction(*args):
     beam_runner_api_pb2.ParDoPayload)
 def create_split_and_size_restrictions(*args):
   class SplitAndSizeRestrictions(beam.DoFn):
-    def __init__(self, fn, restriction_provider):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
+      self.restriction_provider = restriction_provider
+      self.watermark_estimator_provider = watermark_estimator_provider
+
+    def process(self, element_restriction, *args, **kwargs):
+      element, (restriction, _) = element_restriction
+      for part, size in self.restriction_provider.split_and_size(
+          element, restriction):
+        estimator_state = (
+            self.watermark_estimator_provider.initial_estimator_state(
+                element, part))
+        yield ((element, (part, estimator_state)), size)
+
+  return _create_sdf_operation(SplitAndSizeRestrictions, *args)
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create_truncate_sized_restriction(*args):
+  class TruncateAndSizeRestriction(beam.DoFn):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
 
     def process(self, element_restriction, *args, **kwargs):
-      element, restriction = element_restriction
-      for part, size in self.restriction_provider.split_and_size(
-          element, restriction):
-        yield ((element, part), size)
+      ((element, (restriction, estimator_state)), _) = element_restriction
+      truncated_restriction = self.restriction_provider.truncate(
+          element, restriction)
+      if truncated_restriction:
+        truncated_restriction_size = (
+            self.restriction_provider.restriction_size(
+                element, truncated_restriction))
+        yield ((element, (truncated_restriction, estimator_state)),
+               truncated_restriction_size)
 
-  return _create_sdf_operation(SplitAndSizeRestrictions, *args)
+  return _create_sdf_operation(
+      TruncateAndSizeRestriction,
+      *args,
+      operation_cls=operations.SdfTruncateSizedRestrictions)
 
 
 @BeamTransformFactory.register_urn(
@@ -1365,8 +1468,34 @@ def create_process_sized_elements_and_restrictions(
     parameter,  # type: beam_runner_api_pb2.ParDoPayload
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
-  assert parameter.do_fn.urn == python_urns.PICKLED_DOFN_INFO
-  serialized_fn = parameter.do_fn.payload
+  return _create_pardo_operation(
+      factory,
+      transform_id,
+      transform_proto,
+      consumers,
+      core.DoFnInfo.from_runner_api(parameter.do_fn,
+                                    factory.context).serialized_dofn_data(),
+      parameter,
+      operation_cls=operations.SdfProcessSizedElements)
+
+
+def _create_sdf_operation(
+    proxy_dofn,
+    factory,
+    transform_id,
+    transform_proto,
+    parameter,
+    consumers,
+    operation_cls=operations.DoOperation):
+
+  dofn_data = pickler.loads(parameter.do_fn.payload)
+  dofn = dofn_data[0]
+  restriction_provider = common.DoFnSignature(dofn).get_restriction_provider()
+  watermark_estimator_provider = (
+      common.DoFnSignature(dofn).get_watermark_estimator_provider())
+  serialized_fn = pickler.dumps(
+      (proxy_dofn(dofn, restriction_provider, watermark_estimator_provider), ) +
+      dofn_data[1:])
   return _create_pardo_operation(
       factory,
       transform_id,
@@ -1374,24 +1503,7 @@ def create_process_sized_elements_and_restrictions(
       consumers,
       serialized_fn,
       parameter,
-      operation_cls=operations.SdfProcessSizedElements)
-
-
-def _create_sdf_operation(
-    proxy_dofn, factory, transform_id, transform_proto, parameter, consumers):
-
-  dofn_data = pickler.loads(parameter.do_fn.payload)
-  dofn = dofn_data[0]
-  restriction_provider = common.DoFnSignature(dofn).get_restriction_provider()
-  serialized_fn = pickler.dumps((proxy_dofn(dofn, restriction_provider), ) +
-                                dofn_data[1:])
-  return _create_pardo_operation(
-      factory,
-      transform_id,
-      transform_proto,
-      consumers,
-      serialized_fn,
-      parameter)
+      operation_cls=operation_cls)
 
 
 @BeamTransformFactory.register_urn(
@@ -1404,14 +1516,13 @@ def create_par_do(
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   # type: (...) -> operations.DoOperation
-  assert parameter.do_fn.urn == python_urns.PICKLED_DOFN_INFO
-  serialized_fn = parameter.do_fn.payload
   return _create_pardo_operation(
       factory,
       transform_id,
       transform_proto,
       consumers,
-      serialized_fn,
+      core.DoFnInfo.from_runner_api(parameter.do_fn,
+                                    factory.context).serialized_dofn_data(),
       parameter)
 
 
@@ -1448,23 +1559,13 @@ def _create_pardo_operation(
 
   output_tags = list(transform_proto.outputs.keys())
 
-  # Hack to match out prefix injected by dataflow runner.
-  def mutate_tag(tag):
-    if 'None' in output_tags:
-      if tag == 'None':
-        return 'out'
-      else:
-        return 'out_' + tag
-    else:
-      return tag
-
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
     if pardo_proto:
       other_input_tags = set.union(
           set(pardo_proto.side_inputs),
-          set(pardo_proto.timer_specs))  # type: Container[str]
+          set(pardo_proto.timer_family_specs))  # type: Container[str]
     else:
       other_input_tags = ()
     pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
@@ -1473,15 +1574,11 @@ def _create_pardo_operation(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing, ))
 
-  timer_inputs = None  # type: Optional[Dict[str, str]]
-  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs or
-                      pardo_proto.splittable):
+  if pardo_proto and (pardo_proto.timer_family_specs or pardo_proto.state_specs
+                      or pardo_proto.restriction_coder_id):
     main_input_coder = None  # type: Optional[WindowedValueCoder]
-    timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
-      if tag in pardo_proto.timer_specs:
-        timer_inputs[tag] = pcoll_id
-      elif tag in pardo_proto.side_inputs:
+      if tag in pardo_proto.side_inputs:
         pass
       else:
         # Must be the main input
@@ -1490,13 +1587,12 @@ def _create_pardo_operation(
         main_input_coder = factory.get_windowed_coder(pcoll_id)
     assert main_input_coder is not None
 
-    if pardo_proto.timer_specs or pardo_proto.state_specs:
+    if pardo_proto.timer_family_specs or pardo_proto.state_specs:
       user_state_context = FnApiUserStateContext(
           factory.state_handler,
           transform_id,
           main_input_coder.key_coder(),
-          main_input_coder.window_coder,
-          timer_specs=pardo_proto.timer_specs
+          main_input_coder.window_coder
       )  # type: Optional[FnApiUserStateContext]
     else:
       user_state_context = None
@@ -1506,7 +1602,7 @@ def _create_pardo_operation(
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
       serialized_fn=serialized_fn,
-      output_tags=[mutate_tag(tag) for tag in output_tags],
+      output_tags=output_tags,
       input=None,
       side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])
@@ -1518,12 +1614,11 @@ def _create_pardo_operation(
           factory.counter_factory,
           factory.state_sampler,
           side_input_maps,
-          user_state_context,
-          timer_inputs=timer_inputs),
+          user_state_context),
       transform_proto.unique_name,
       consumers,
       output_tags)
-  if pardo_proto and pardo_proto.splittable:
+  if pardo_proto and pardo_proto.restriction_coder_id:
     result.input_info = (
         transform_id,
         main_input_tag,
@@ -1653,6 +1748,20 @@ def create_combine_per_key_extract_outputs(
 
 
 @BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create_combine_per_key_convert_to_accumulators(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    payload,  # type: beam_runner_api_pb2.CombinePayload
+    consumers  # type: Dict[str, List[operations.Operation]]
+):
+  return _create_combine_phase_operation(
+      factory, transform_id, transform_proto, payload, consumers, 'convert')
+
+
+@BeamTransformFactory.register_urn(
     common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
     beam_runner_api_pb2.CombinePayload)
 def create_combine_grouped_values(
@@ -1711,7 +1820,7 @@ def create_map_windows(
     factory,  # type: BeamTransformFactory
     transform_id,  # type: str
     transform_proto,  # type: beam_runner_api_pb2.PTransform
-    mapping_fn_spec,  # type: beam_runner_api_pb2.SdkFunctionSpec
+    mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN

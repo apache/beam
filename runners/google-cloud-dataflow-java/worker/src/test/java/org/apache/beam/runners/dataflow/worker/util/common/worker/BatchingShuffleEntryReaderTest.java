@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static com.google.api.client.util.Lists.newArrayList;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -68,9 +68,8 @@ public final class BatchingShuffleEntryReaderTest {
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
     entries.add(e1);
     entries.add(e2);
-    long batchSize = (long) e1.length() + e2.length();
     when(batchReader.read(START_POSITION, END_POSITION))
-        .thenReturn(new ShuffleBatchReader.Batch(entries, null, batchSize));
+        .thenReturn(new ShuffleBatchReader.Batch(entries, null));
     List<ShuffleEntry> results = newArrayList(reader.read(START_POSITION, END_POSITION));
     assertThat(results, contains(e1, e2));
   }
@@ -82,9 +81,8 @@ public final class BatchingShuffleEntryReaderTest {
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
     entries.add(e1);
     entries.add(e2);
-    long batchSize = (long) e1.length() + e2.length();
     when(batchReader.read(START_POSITION, END_POSITION))
-        .thenReturn(new ShuffleBatchReader.Batch(entries, null, batchSize));
+        .thenReturn(new ShuffleBatchReader.Batch(entries, null));
     Reiterator<ShuffleEntry> it = reader.read(START_POSITION, END_POSITION);
     assertThat(it.hasNext(), equalTo(Boolean.TRUE));
     assertThat(it.next(), equalTo(e1));
@@ -104,9 +102,9 @@ public final class BatchingShuffleEntryReaderTest {
     ShuffleEntry e2 = new ShuffleEntry(KEY, SKEY, VALUE);
     List<ShuffleEntry> e2s = Collections.singletonList(e2);
     when(batchReader.read(START_POSITION, END_POSITION))
-        .thenReturn(new ShuffleBatchReader.Batch(e1s, NEXT_START_POSITION, e1.length()));
+        .thenReturn(new ShuffleBatchReader.Batch(e1s, NEXT_START_POSITION));
     when(batchReader.read(NEXT_START_POSITION, END_POSITION))
-        .thenReturn(new ShuffleBatchReader.Batch(e2s, null, e2.length()));
+        .thenReturn(new ShuffleBatchReader.Batch(e2s, null));
     List<ShuffleEntry> results = newArrayList(reader.read(START_POSITION, END_POSITION));
     assertThat(results, contains(e1, e2));
 
@@ -122,11 +120,11 @@ public final class BatchingShuffleEntryReaderTest {
     ShuffleEntry e3 = new ShuffleEntry(KEY, SKEY, VALUE);
     List<ShuffleEntry> e3s = Collections.singletonList(e3);
     when(batchReader.read(START_POSITION, END_POSITION))
-        .thenReturn(new ShuffleBatchReader.Batch(e1s, NEXT_START_POSITION, 0));
+        .thenReturn(new ShuffleBatchReader.Batch(e1s, NEXT_START_POSITION));
     when(batchReader.read(NEXT_START_POSITION, END_POSITION))
-        .thenReturn(new ShuffleBatchReader.Batch(e2s, SECOND_NEXT_START_POSITION, 0));
+        .thenReturn(new ShuffleBatchReader.Batch(e2s, SECOND_NEXT_START_POSITION));
     when(batchReader.read(SECOND_NEXT_START_POSITION, END_POSITION))
-        .thenReturn(new ShuffleBatchReader.Batch(e3s, null, e3.length()));
+        .thenReturn(new ShuffleBatchReader.Batch(e3s, null));
     List<ShuffleEntry> results = newArrayList(reader.read(START_POSITION, END_POSITION));
     assertThat(results, contains(e3));
 

@@ -22,16 +22,18 @@
 
 from __future__ import absolute_import
 
+import typing
 import unittest
 
 import apache_beam as beam
 from apache_beam import typehints
-from apache_beam.typehints import decorators
-
-decorators._enable_from_callable = True
 
 
 class MainInputTest(unittest.TestCase):
+  def assertStartswith(self, msg, prefix):
+    self.assertTrue(
+        msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
+
   def test_typed_dofn_method(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: int) -> typehints.Tuple[str]:
@@ -155,18 +157,18 @@ class MainInputTest(unittest.TestCase):
 
   def test_typed_callable_not_iterable(self):
     def do_fn(element: int) -> int:
-      return [element]  # Return a list to not fail the pipeline.
+      return element
 
-    with self.assertLogs() as cm:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.ParDo(do_fn)
-    self.assertRegex(''.join(cm.output), r'int.*is not iterable')
 
   def test_typed_dofn_kwonly(self):
     class MyDoFn(beam.DoFn):
       # TODO(BEAM-5878): A kwonly argument like
       #   timestamp=beam.DoFn.TimestampParam would not work here.
       def process(self, element: int, *, side_input: str) -> \
-          typehints.Generator[typehints.Optional[int]]:
+          typehints.Generator[typehints.Optional[str]]:
         yield str(element) if side_input else None
 
     my_do_fn = MyDoFn()
@@ -181,7 +183,7 @@ class MainInputTest(unittest.TestCase):
   def test_typed_dofn_var_kwargs(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: int, **side_inputs: typehints.Dict[str, str]) \
-          -> typehints.Generator[typehints.Optional[int]]:
+          -> typehints.Generator[typehints.Optional[str]]:
         yield str(element) if side_inputs else None
 
     my_do_fn = MyDoFn()
@@ -235,15 +237,16 @@ class MainInputTest(unittest.TestCase):
     def fn(element: int) -> int:
       return element * 2
 
-    # TODO(BEAM-8466): This case currently only generates a warning instead of a
-    #   typehints.TypeCheckError.
-    with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
+    # This is raised (originally) in strip_iterable.
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.FlatMap(fn)
 
   def test_typed_flatmap_output_value_not_iterable(self):
     def fn(element: int) -> typehints.Iterable[int]:
       return element * 2
 
+    # This is raised in runners/common.py (process_outputs).
     with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.FlatMap(fn)
 
@@ -258,6 +261,135 @@ class MainInputTest(unittest.TestCase):
 
     result = [1, 2, 3] | beam.FlatMap(fn) | beam.Map(fn2)
     self.assertCountEqual([4, 6], result)
+
+  def test_typed_ptransform_with_no_error(self):
+    class StrToInt(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    _ = ['1', '2', '3'] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_bad_typehints(self):
+    class StrToInt(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                "Input type hint violation at IntToStr: "
+                                "expected <class 'str'>, got <class 'int'>"):
+      _ = ['1', '2', '3'] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_bad_input(self):
+    class StrToInt(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                "Input type hint violation at StrToInt: "
+                                "expected <class 'str'>, got <class 'int'>"):
+      # Feed integers to a PTransform that expects strings
+      _ = [1, 2, 3] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_partial_typehints(self):
+    class StrToInt(beam.PTransform):
+      def expand(self, pcoll) -> beam.pvalue.PCollection[int]:
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    # Feed integers to a PTransform that should expect strings
+    # but has no typehints so it expects any
+    _ = [1, 2, 3] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_bare_wrappers(self):
+    class StrToInt(beam.PTransform):
+      def expand(
+          self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    _ = [1, 2, 3] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_no_typehints(self):
+    class StrToInt(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    # Feed integers to a PTransform that should expect strings
+    # but has no typehints so it expects any
+    _ = [1, 2, 3] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_generic_annotations(self):
+    T = typing.TypeVar('T')
+
+    class IntToInt(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[T]) -> beam.pvalue.PCollection[T]:
+        return pcoll | beam.Map(lambda x: x)
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[T]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    _ = [1, 2, 3] | IntToInt() | IntToStr()
+
+  def test_typed_ptransform_with_do_outputs_tuple_compiles(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element: int, *args, **kwargs):
+        if element % 2:
+          yield beam.pvalue.TaggedOutput('odd', 1)
+        else:
+          yield beam.pvalue.TaggedOutput('even', 1)
+
+    class MyPTransform(beam.PTransform):
+      def expand(self, pcoll: beam.pvalue.PCollection[int]):
+        return pcoll | beam.ParDo(MyDoFn()).with_outputs('odd', 'even')
+
+    # This test fails if you remove the following line from ptransform.py
+    # if isinstance(pvalue_, DoOutputsTuple): continue
+    _ = [1, 2, 3] | MyPTransform()
 
 
 class AnnotationsTest(unittest.TestCase):
@@ -300,9 +432,9 @@ class AnnotationsTest(unittest.TestCase):
     def do_fn(element: int) -> str:
       return str(element)
 
-    with self.assertLogs() as cm:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'str.*is not iterable'):
       _ = beam.ParDo(do_fn).get_type_hints()
-    self.assertRegex(''.join(cm.output), r'do_fn.* not iterable')
 
   def test_flat_map_wrapper(self):
     def map_fn(element: int) -> typehints.Iterable[int]:

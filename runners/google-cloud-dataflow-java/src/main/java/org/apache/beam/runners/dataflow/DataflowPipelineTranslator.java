@@ -49,11 +49,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformInputs;
@@ -72,6 +70,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -90,6 +89,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -109,10 +109,10 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,21 +173,11 @@ public class DataflowPipelineTranslator {
 
   /** Translates a {@link Pipeline} into a {@code JobSpecification}. */
   public JobSpecification translate(
-      Pipeline pipeline, DataflowRunner runner, List<DataflowPackage> packages) {
-
-    // Capture the sdkComponents for look up during step translations
-    SdkComponents sdkComponents = SdkComponents.create();
-
-    String workerHarnessContainerImageURL =
-        DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
-    RunnerApi.Environment defaultEnvironmentForDataflow =
-        Environments.createDockerEnvironment(workerHarnessContainerImageURL);
-    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
-
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-
-    LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
-
+      Pipeline pipeline,
+      RunnerApi.Pipeline pipelineProto,
+      SdkComponents sdkComponents,
+      DataflowRunner runner,
+      List<DataflowPackage> packages) {
     Translator translator = new Translator(pipeline, runner, sdkComponents);
     Job result = translator.translate(packages);
     return new JobSpecification(
@@ -976,12 +966,16 @@ public class DataflowPipelineTranslator {
             if (context.isFnApi()) {
               DoFnSignature signature = DoFnSignatures.signatureForDoFn(transform.getFn());
               if (signature.processElement().isSplittable()) {
-                Coder<?> restrictionCoder =
-                    DoFnInvokers.invokerFor(transform.getFn())
-                        .invokeGetRestrictionCoder(
-                            context.getInput(transform).getPipeline().getCoderRegistry());
+                DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(transform.getFn());
+                Coder<?> restrictionAndWatermarkStateCoder =
+                    KvCoder.of(
+                        doFnInvoker.invokeGetRestrictionCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry()),
+                        doFnInvoker.invokeGetWatermarkEstimatorStateCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry()));
                 stepContext.addInput(
-                    PropertyNames.RESTRICTION_ENCODING, translateCoder(restrictionCoder, context));
+                    PropertyNames.RESTRICTION_ENCODING,
+                    translateCoder(restrictionAndWatermarkStateCoder, context));
               }
             }
           }
@@ -1037,12 +1031,16 @@ public class DataflowPipelineTranslator {
             if (context.isFnApi()) {
               DoFnSignature signature = DoFnSignatures.signatureForDoFn(transform.getFn());
               if (signature.processElement().isSplittable()) {
-                Coder<?> restrictionCoder =
-                    DoFnInvokers.invokerFor(transform.getFn())
-                        .invokeGetRestrictionCoder(
-                            context.getInput(transform).getPipeline().getCoderRegistry());
+                DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(transform.getFn());
+                Coder<?> restrictionAndWatermarkStateCoder =
+                    KvCoder.of(
+                        doFnInvoker.invokeGetRestrictionCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry()),
+                        doFnInvoker.invokeGetWatermarkEstimatorStateCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry()));
                 stepContext.addInput(
-                    PropertyNames.RESTRICTION_ENCODING, translateCoder(restrictionCoder, context));
+                    PropertyNames.RESTRICTION_ENCODING,
+                    translateCoder(restrictionAndWatermarkStateCoder, context));
               }
             }
           }
@@ -1086,6 +1084,9 @@ public class DataflowPipelineTranslator {
           private <T> void translateTyped(TestStream<T> transform, TranslationContext context) {
             try {
               StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+              String ptransformId =
+                  context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+              stepContext.addInput(PropertyNames.SERIALIZED_FN, ptransformId);
               stepContext.addInput(PropertyNames.FORMAT, "test_stream");
               RunnerApi.TestStreamPayload.Builder payloadBuilder =
                   RunnerApi.TestStreamPayload.newBuilder();
@@ -1147,8 +1148,10 @@ public class DataflowPipelineTranslator {
             translateTyped(transform, context);
           }
 
-          private <InputT, OutputT, RestrictionT> void translateTyped(
-              SplittableParDo.ProcessKeyedElements<InputT, OutputT, RestrictionT> transform,
+          private <InputT, OutputT, RestrictionT, WatermarkEstimatorStateT> void translateTyped(
+              SplittableParDo.ProcessKeyedElements<
+                      InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
+                  transform,
               TranslationContext context) {
             DoFnSchemaInformation doFnSchemaInformation;
             doFnSchemaInformation =
@@ -1182,7 +1185,11 @@ public class DataflowPipelineTranslator {
 
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
-                translateCoder(transform.getRestrictionCoder(), context));
+                translateCoder(
+                    KvCoder.of(
+                        transform.getRestrictionCoder(),
+                        transform.getWatermarkEstimatorStateCoder()),
+                    context));
           }
         });
   }
@@ -1224,10 +1231,10 @@ public class DataflowPipelineTranslator {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
-    if (signature.usesState() || signature.usesTimers()) {
-      DataflowRunner.verifyStateSupported(fn);
+    boolean isStateful = DoFnSignatures.isStateful(fn);
+    if (isStateful) {
+      DataflowRunner.verifyDoFnSupported(fn, context.getPipelineOptions().isStreaming());
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 
@@ -1255,8 +1262,7 @@ public class DataflowPipelineTranslator {
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works
     // in streaming but does not work in batch
-    if (context.getPipelineOptions().isStreaming()
-        && (signature.usesState() || signature.usesTimers())) {
+    if (context.getPipelineOptions().isStreaming() && isStateful) {
       stepContext.addInput(PropertyNames.USES_KEYED_STATE, "true");
     }
   }

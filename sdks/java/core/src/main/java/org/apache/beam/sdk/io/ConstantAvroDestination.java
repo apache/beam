@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import java.io.Serializable;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -30,6 +29,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Always returns a constant {@link FilenamePolicy}, {@link Schema}, metadata, and codec. */
 class ConstantAvroDestination<UserT, OutputT>
@@ -48,6 +48,7 @@ class ConstantAvroDestination<UserT, OutputT>
   private final Map<String, Object> metadata;
   private final SerializableAvroCodecFactory codec;
   private final SerializableFunction<UserT, OutputT> formatFunction;
+  private final AvroSink.DatumWriterFactory<OutputT> datumWriterFactory;
 
   private class Metadata implements HasDisplayData {
     @Override
@@ -74,11 +75,22 @@ class ConstantAvroDestination<UserT, OutputT>
       Map<String, Object> metadata,
       CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction) {
+    this(filenamePolicy, schema, metadata, codec, formatFunction, null);
+  }
+
+  public ConstantAvroDestination(
+      FilenamePolicy filenamePolicy,
+      Schema schema,
+      Map<String, Object> metadata,
+      CodecFactory codec,
+      SerializableFunction<UserT, OutputT> formatFunction,
+      AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory) {
     this.filenamePolicy = filenamePolicy;
     this.schema = Suppliers.compose(new SchemaFunction(), Suppliers.ofInstance(schema.toString()));
     this.metadata = metadata;
     this.codec = new SerializableAvroCodecFactory(codec);
     this.formatFunction = formatFunction;
+    this.datumWriterFactory = datumWriterFactory;
   }
 
   @Override
@@ -87,14 +99,12 @@ class ConstantAvroDestination<UserT, OutputT>
   }
 
   @Override
-  @Nullable
-  public Void getDestination(UserT element) {
+  public @Nullable Void getDestination(UserT element) {
     return (Void) null;
   }
 
   @Override
-  @Nullable
-  public Void getDefaultDestination() {
+  public @Nullable Void getDefaultDestination() {
     return (Void) null;
   }
 
@@ -116,6 +126,11 @@ class ConstantAvroDestination<UserT, OutputT>
   @Override
   public CodecFactory getCodec(Void destination) {
     return codec.getCodec();
+  }
+
+  @Override
+  public AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory(Void destination) {
+    return datumWriterFactory;
   }
 
   @Override

@@ -52,7 +52,7 @@ public class TextTable extends SchemaBaseBeamTable {
       new TextRowCountEstimator.LimitNumberOfTotalBytes(1024 * 1024L);
   private final String filePattern;
   private BeamTableStatistics rowCountStatistics = null;
-  private static final Logger LOGGER = LoggerFactory.getLogger(TextTable.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TextTable.class);
 
   /** Text table with the specified read and write transforms. */
   public TextTable(
@@ -90,7 +90,7 @@ public class TextTable extends SchemaBaseBeamTable {
       Double rows = textRowCountEstimator.estimateRowCount(options);
       return BeamTableStatistics.createBoundedTableStatistics(rows);
     } catch (IOException | TextRowCountEstimator.NoEstimationException e) {
-      LOGGER.warn("Could not get the row count for the text table " + filePattern, e);
+      LOG.warn("Could not get the row count for the text table " + filePattern, e);
     }
     return BeamTableStatistics.BOUNDED_UNKNOWN;
   }

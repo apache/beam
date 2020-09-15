@@ -19,9 +19,10 @@ package org.apache.beam.runners.flink;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.utils.CountingPipelineVisitor;
+import org.apache.beam.runners.flink.translation.utils.LookupPipelineVisitor;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -32,7 +33,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -57,9 +57,12 @@ class FlinkBatchTranslationContext {
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
+  private final CountingPipelineVisitor countingPipelineVisitor = new CountingPipelineVisitor();
+  private final LookupPipelineVisitor lookupPipelineVisitor = new LookupPipelineVisitor();
+
   // ------------------------------------------------------------------------
 
-  public FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
+  FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
     this.env = env;
     this.options = options;
     this.dataSets = new HashMap<>();
@@ -68,13 +71,18 @@ class FlinkBatchTranslationContext {
     this.danglingDataSets = new HashMap<>();
   }
 
+  void init(Pipeline pipeline) {
+    pipeline.traverseTopologically(countingPipelineVisitor);
+    pipeline.traverseTopologically(lookupPipelineVisitor);
+  }
+
   // ------------------------------------------------------------------------
 
-  public Map<PValue, DataSet<?>> getDanglingDataSets() {
+  Map<PValue, DataSet<?>> getDanglingDataSets() {
     return danglingDataSets;
   }
 
-  public ExecutionEnvironment getExecutionEnvironment() {
+  ExecutionEnvironment getExecutionEnvironment() {
     return env;
   }
 
@@ -83,13 +91,13 @@ class FlinkBatchTranslationContext {
   }
 
   @SuppressWarnings("unchecked")
-  public <T> DataSet<WindowedValue<T>> getInputDataSet(PValue value) {
+  <T> DataSet<WindowedValue<T>> getInputDataSet(PValue value) {
     // assume that the DataSet is used as an input if retrieved here
     danglingDataSets.remove(value);
     return (DataSet<WindowedValue<T>>) dataSets.get(value);
   }
 
-  public <T> void setOutputDataSet(PValue value, DataSet<WindowedValue<T>> set) {
+  <T> void setOutputDataSet(PValue value, DataSet<WindowedValue<T>> set) {
     if (!dataSets.containsKey(value)) {
       dataSets.put(value, set);
       danglingDataSets.put(value, set);
@@ -99,41 +107,37 @@ class FlinkBatchTranslationContext {
   /**
    * Sets the AppliedPTransform which carries input/output.
    *
-   * @param currentTransform
+   * @param currentTransform Current transformation.
    */
-  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
+  void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
     this.currentTransform = currentTransform;
   }
 
-  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
+  AppliedPTransform<?, ?, ?> getCurrentTransform() {
     return currentTransform;
   }
 
-  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
-    return currentTransform.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
-        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+  Map<TupleTag<?>, Coder<?>> getOutputCoders(PTransform<?, ?> transform) {
+    return lookupPipelineVisitor.getOutputCoders(transform);
   }
 
   @SuppressWarnings("unchecked")
-  public <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
+  <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
     return (DataSet<T>) broadcastDataSets.get(value);
   }
 
-  public <ViewT, ElemT> void setSideInputDataSet(
+  <ViewT, ElemT> void setSideInputDataSet(
       PCollectionView<ViewT> value, DataSet<WindowedValue<ElemT>> set) {
     if (!broadcastDataSets.containsKey(value)) {
       broadcastDataSets.put(value, set);
     }
   }
 
-  @SuppressWarnings("unchecked")
-  public <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
+  <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
     return getTypeInfo(collection.getCoder(), collection.getWindowingStrategy());
   }
 
-  @SuppressWarnings("unchecked")
-  public <T> TypeInformation<WindowedValue<T>> getTypeInfo(
+  <T> TypeInformation<WindowedValue<T>> getTypeInfo(
       Coder<T> coder, WindowingStrategy<?, ?> windowingStrategy) {
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
         WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
@@ -142,20 +146,23 @@ class FlinkBatchTranslationContext {
   }
 
   Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
-    return currentTransform.getInputs();
+    return lookupPipelineVisitor.getInputs(transform);
   }
 
-  @SuppressWarnings("unchecked")
   <T extends PValue> T getInput(PTransform<T, ?> transform) {
-    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
+    return lookupPipelineVisitor.getInput(transform);
   }
 
   Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
-    return currentTransform.getOutputs();
+    return lookupPipelineVisitor.getOutputs(transform);
   }
 
-  @SuppressWarnings("unchecked")
   <T extends PValue> T getOutput(PTransform<?, T> transform) {
-    return (T) Iterables.getOnlyElement(currentTransform.getOutputs().values());
+    return lookupPipelineVisitor.getOutput(transform);
+  }
+
+  /** {@link CountingPipelineVisitor#getNumConsumers(PValue)}. */
+  int getNumConsumers(PValue value) {
+    return countingPipelineVisitor.getNumConsumers(value);
   }
 }

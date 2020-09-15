@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -56,6 +57,11 @@ public class NexmarkConfiguration implements Serializable {
    * overall query pipeline.
    */
   @JsonProperty public NexmarkUtils.PubSubMode pubSubMode = NexmarkUtils.PubSubMode.COMBINED;
+
+  /** Control the serialization/deserialization method from event object to pubsub messages. */
+  @JsonProperty
+  public NexmarkUtils.PubsubMessageSerializationMethod pubsubMessageSerializationMethod =
+      NexmarkUtils.PubsubMessageSerializationMethod.CODER;
 
   /** The type of side input to use. */
   @JsonProperty public NexmarkUtils.SideInputType sideInputType = NexmarkUtils.SideInputType.DIRECT;
@@ -219,6 +225,9 @@ public class NexmarkConfiguration implements Serializable {
     if (options.getPubSubMode() != null) {
       pubSubMode = options.getPubSubMode();
     }
+    if (options.getPubsubMessageSerializationMethod() != null) {
+      pubsubMessageSerializationMethod = options.getPubsubMessageSerializationMethod();
+    }
     if (options.getNumEvents() != null) {
       numEvents = options.getNumEvents();
     }
@@ -330,6 +339,7 @@ public class NexmarkConfiguration implements Serializable {
     result.sinkType = sinkType;
     result.exportSummaryToBigQuery = exportSummaryToBigQuery;
     result.pubSubMode = pubSubMode;
+    result.pubsubMessageSerializationMethod = pubsubMessageSerializationMethod;
     result.numEvents = numEvents;
     result.numEventGenerators = numEventGenerators;
     result.rateShape = rateShape;
@@ -387,6 +397,10 @@ public class NexmarkConfiguration implements Serializable {
     }
     if (pubSubMode != DEFAULT.pubSubMode) {
       sb.append(String.format("; pubSubMode:%s", pubSubMode));
+    }
+    if (pubsubMessageSerializationMethod != DEFAULT.pubsubMessageSerializationMethod) {
+      sb.append(
+          String.format("; pubsubMessageSerializationMethod:%s", pubsubMessageSerializationMethod));
     }
     if (numEvents != DEFAULT.numEvents) {
       sb.append(String.format("; numEvents:%d", numEvents));
@@ -516,6 +530,7 @@ public class NexmarkConfiguration implements Serializable {
         sinkType,
         exportSummaryToBigQuery,
         pubSubMode,
+        pubsubMessageSerializationMethod,
         numEvents,
         numEventGenerators,
         rateShape,
@@ -552,7 +567,7 @@ public class NexmarkConfiguration implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }
@@ -643,6 +658,9 @@ public class NexmarkConfiguration implements Serializable {
       return false;
     }
     if (pubSubMode != other.pubSubMode) {
+      return false;
+    }
+    if (pubsubMessageSerializationMethod != other.pubsubMessageSerializationMethod) {
       return false;
     }
     if (ratePeriodSec != other.ratePeriodSec) {

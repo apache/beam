@@ -83,6 +83,7 @@ public class MapFnRunnersTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
@@ -92,8 +93,11 @@ public class MapFnRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null /* addResetFunction */,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
@@ -128,6 +132,7 @@ public class MapFnRunnersTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
@@ -137,8 +142,11 @@ public class MapFnRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null /* addResetFunction */,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
@@ -172,6 +180,7 @@ public class MapFnRunnersTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
@@ -181,8 +190,11 @@ public class MapFnRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null /* addResetFunction */,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());

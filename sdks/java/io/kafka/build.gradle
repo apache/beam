@@ -17,7 +17,14 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.kafka')
+applyJavaNature(
+  enableChecker:false,
+  ignoreRawtypeErrors:true,
+  automaticModuleName: 'org.apache.beam.sdk.io.kafka',
+  mavenRepositories: [
+    [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
+  ]
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -27,6 +34,7 @@ ext.summary = "Library to read Kafka topics."
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:expansion-service")
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
   compile library.java.slf4j_api
@@ -38,15 +46,17 @@ dependencies {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
-    // "kafka-clients" has to be provided since user can use its own version. 
+    // "kafka-clients" has to be provided since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
+  provided library.java.jackson_dataformat_csv
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:io:synthetic")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   // For testing Cross-language transforms
   testCompile project(":runners:core-construction-java")
+  testCompile library.java.avro
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit

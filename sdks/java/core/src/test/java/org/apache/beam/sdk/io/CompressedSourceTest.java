@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -43,7 +44,6 @@ import java.util.Random;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -58,6 +58,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.LzoCompression;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -68,6 +69,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,6 +82,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CompressedSourceTest {
 
+  private final double delta = 1e-6;
+
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -89,6 +93,20 @@ public class CompressedSourceTest {
   public void testReadGzip() throws Exception {
     byte[] input = generateInput(5000);
     runReadTest(input, CompressionMode.GZIP);
+  }
+
+  /** Test reading nonempty input with lzo. */
+  @Test
+  public void testReadLzo() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, CompressionMode.LZO);
+  }
+
+  /** Test reading nonempty input with lzop. */
+  @Test
+  public void testReadLzop() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, CompressionMode.LZOP);
   }
 
   /** Test splittability of files in AUTO mode. */
@@ -122,6 +140,17 @@ public class CompressedSourceTest {
     source = CompressedSource.from(new ByteSource("input.zstd", 1));
     assertFalse(source.isSplittable());
 
+    // LZO files are not splittable
+    source = CompressedSource.from(new ByteSource("input.lzo_deflate", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.LZO_DEFLATE", 1));
+    assertFalse(source.isSplittable());
+    // LZOP files are not splittable
+    source = CompressedSource.from(new ByteSource("input.lzo", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.LZO", 1));
+    assertFalse(source.isSplittable());
+
     // DEFLATE files are not splittable
     source = CompressedSource.from(new ByteSource("input.deflate", 1));
     assertFalse(source.isSplittable());
@@ -144,6 +173,7 @@ public class CompressedSourceTest {
     source =
         CompressedSource.from(new ByteSource("input.gz", 1))
             .withDecompression(CompressionMode.GZIP);
+
     assertFalse(source.isSplittable());
     source =
         CompressedSource.from(new ByteSource("input.GZ", 1))
@@ -158,6 +188,50 @@ public class CompressedSourceTest {
     source =
         CompressedSource.from(new ByteSource("input.csv", 1))
             .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+  }
+
+  /** Test splittability of files in LZO mode -- none should be splittable. */
+  @Test
+  public void testLzoSplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    // LZO files are not splittable
+    source =
+        CompressedSource.from(new ByteSource("input.lzo_deflate", 1))
+            .withDecompression(CompressionMode.LZO);
+    assertFalse(source.isSplittable());
+
+    // Other extensions are also not splittable.
+    source =
+        CompressedSource.from(new ByteSource("input.txt", 1))
+            .withDecompression(CompressionMode.LZO);
+    assertFalse(source.isSplittable());
+    source =
+        CompressedSource.from(new ByteSource("input.csv", 1))
+            .withDecompression(CompressionMode.LZO);
+    assertFalse(source.isSplittable());
+  }
+
+  /** Test splittability of files in LZOP mode -- none should be splittable. */
+  @Test
+  public void testLzopSplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    // LZO files are not splittable
+    source =
+        CompressedSource.from(new ByteSource("input.lzo", 1))
+            .withDecompression(CompressionMode.LZOP);
+    assertFalse(source.isSplittable());
+
+    // Other extensions are also not splittable.
+    source =
+        CompressedSource.from(new ByteSource("input.txt", 1))
+            .withDecompression(CompressionMode.LZOP);
+    assertFalse(source.isSplittable());
+    source =
+        CompressedSource.from(new ByteSource("input.csv", 1))
+            .withDecompression(CompressionMode.LZOP);
     assertFalse(source.isSplittable());
   }
 
@@ -196,10 +270,40 @@ public class CompressedSourceTest {
     runReadTest(input, CompressionMode.ZSTD);
   }
 
+  /** Test reading empty input with lzo. */
+  @Test
+  public void testEmptyReadLzo() throws Exception {
+    byte[] input = generateInput(0);
+    runReadTest(input, CompressionMode.LZO);
+  }
+
+  /** Test reading empty input with lzop. */
+  @Test
+  public void testEmptyReadLzop() throws Exception {
+    byte[] input = generateInput(0);
+    runReadTest(input, CompressionMode.LZOP);
+  }
+
   private static byte[] compressGzip(byte[] input) throws IOException {
     ByteArrayOutputStream res = new ByteArrayOutputStream();
     try (GZIPOutputStream gzipStream = new GZIPOutputStream(res)) {
       gzipStream.write(input);
+    }
+    return res.toByteArray();
+  }
+
+  private static byte[] compressLzo(byte[] input) throws IOException {
+    ByteArrayOutputStream res = new ByteArrayOutputStream();
+    try (OutputStream lzoStream = LzoCompression.createLzoOutputStream(res)) {
+      lzoStream.write(input);
+    }
+    return res.toByteArray();
+  }
+
+  private static byte[] compressLzop(byte[] input) throws IOException {
+    ByteArrayOutputStream res = new ByteArrayOutputStream();
+    try (OutputStream lzopStream = LzoCompression.createLzopOutputStream(res)) {
+      lzopStream.write(input);
     }
     return res.toByteArray();
   }
@@ -236,6 +340,53 @@ public class CompressedSourceTest {
   }
 
   /**
+   * Using Lzo Codec Test a concatenation of lzo files is correctly decompressed.
+   *
+   * <p>A concatenation of lzo files as one file is a valid lzo file and should decompress to be the
+   * concatenation of those individual files.
+   */
+  @Test
+  public void testReadConcatenatedLzo() throws IOException {
+    byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
+    byte[] body = "1,2,3\n4,5,6\n7,8,9\n".getBytes(StandardCharsets.UTF_8);
+    byte[] expected = concat(header, body);
+    byte[] totalLzo = concat(compressLzo(header), compressLzo(body));
+    File tmpFile = tmpFolder.newFile();
+    try (FileOutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(totalLzo);
+    }
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
+            .withDecompression(CompressionMode.LZO);
+    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+    assertEquals(Bytes.asList(expected), actual);
+  }
+
+  /**
+   * Using Lzop Codec Test a concatenation of lzop files is not correctly decompressed.
+   *
+   * <p>The current behaviour of LZOP codec returns the contents of the first file only
+   */
+  @Test
+  public void testFalseReadConcatenatedLzop() throws IOException {
+    byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
+    byte[] body = "1,2,3\n4,5,6\n7,8,9\n".getBytes(StandardCharsets.UTF_8);
+    byte[] expected = concat(header, body);
+    byte[] totalLzop = concat(compressLzop(header), compressLzop(body));
+    File tmpFile = tmpFolder.newFile();
+    try (FileOutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(totalLzop);
+    }
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
+            .withDecompression(CompressionMode.LZOP);
+    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+    assertNotEquals(Bytes.asList(expected), actual);
+  }
+
+  /**
    * Test a bzip2 file containing multiple streams is correctly decompressed.
    *
    * <p>A bzip2 file may contain multiple streams and should decompress as the concatenation of
@@ -264,6 +415,69 @@ public class CompressedSourceTest {
     }
 
     byte[] output = Bytes.concat(input1, input2);
+    verifyReadContents(output, tmpFile, mode);
+  }
+
+  /**
+   * Test a lzo file containing multiple streams is correctly decompressed.
+   *
+   * <p>A lzo file may contain multiple streams and should decompress as the concatenation of those
+   * streams.
+   */
+  @Test
+  public void testReadMultiStreamLzo() throws IOException {
+    CompressionMode mode = CompressionMode.LZO;
+    byte[] input1 = generateInput(5, 587973);
+    byte[] input2 = generateInput(5, 387374);
+
+    ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForMode(mode, stream1)) {
+      os.write(input1);
+    }
+
+    ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForMode(mode, stream2)) {
+      os.write(input2);
+    }
+
+    File tmpFile = tmpFolder.newFile();
+    try (OutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(stream1.toByteArray());
+      os.write(stream2.toByteArray());
+    }
+
+    byte[] output = Bytes.concat(input1, input2);
+    verifyReadContents(output, tmpFile, mode);
+  }
+
+  /**
+   * Test a lzop file containing multiple streams is not correctly decompressed. The current
+   * behavior is it only reads the contents of the first file.
+   */
+  @Test
+  public void testFalseReadMultiStreamLzop() throws IOException {
+    CompressionMode mode = CompressionMode.LZOP;
+    byte[] input1 = generateInput(5, 587973);
+    byte[] input2 = generateInput(5, 387374);
+
+    ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForMode(mode, stream1)) {
+      os.write(input1);
+    }
+
+    ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForMode(mode, stream2)) {
+      os.write(input2);
+    }
+
+    File tmpFile = tmpFolder.newFile();
+    try (OutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(stream1.toByteArray());
+      os.write(stream2.toByteArray());
+    }
+
+    byte[] output = Bytes.concat(input1, input2);
+    thrown.expectMessage("expected");
     verifyReadContents(output, tmpFile, mode);
   }
 
@@ -308,6 +522,24 @@ public class CompressedSourceTest {
     verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
   }
 
+  /** Test reading according to filepattern when the file is lzo compressed using LZO Codec. */
+  @Test
+  public void testCompressedAccordingToFilepatternLzo() throws Exception {
+    byte[] input = generateInput(100);
+    File tmpFile = tmpFolder.newFile("test.lzo_deflate");
+    writeFile(tmpFile, input, CompressionMode.LZO);
+    verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
+  }
+
+  /** Test reading according to filepattern when the file is lzo compressed using LZOP Codec. */
+  @Test
+  public void testCompressedAccordingToFilepatternLzop() throws Exception {
+    byte[] input = generateInput(100);
+    File tmpFile = tmpFolder.newFile("test.lzo");
+    writeFile(tmpFile, input, CompressionMode.LZOP);
+    verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
+  }
+
   /** Test reading multiple files with different compression. */
   @Test
   public void testHeterogeneousCompression() throws Exception {
@@ -336,6 +568,11 @@ public class CompressedSourceTest {
     File zstdFile = tmpFolder.newFile(baseName + ".zst");
     generated = generateInput(1000, 4);
     writeFile(zstdFile, generated, CompressionMode.ZSTD);
+    expected.addAll(Bytes.asList(generated));
+
+    File lzoFile = tmpFolder.newFile(baseName + ".lzo_deflate");
+    generated = generateInput(1000, 4);
+    writeFile(lzoFile, generated, CompressionMode.LZO);
     expected.addAll(Bytes.asList(generated));
 
     String filePattern = new File(tmpFolder.getRoot().toString(), baseName + ".*").toString();
@@ -408,6 +645,30 @@ public class CompressedSourceTest {
     assertFalse(source.isSplittable());
   }
 
+  @Test
+  public void testLzoFileIsNotSplittable() throws Exception {
+    String baseName = "test-input";
+
+    File compressedFile = tmpFolder.newFile(baseName + ".lzo_deflate");
+    writeFile(compressedFile, generateInput(10), CompressionMode.LZO);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    assertFalse(source.isSplittable());
+  }
+
+  @Test
+  public void testLzopFileIsNotSplittable() throws Exception {
+    String baseName = "test-input";
+
+    File compressedFile = tmpFolder.newFile(baseName + ".lzo");
+    writeFile(compressedFile, generateInput(10), CompressionMode.LZOP);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    assertFalse(source.isSplittable());
+  }
+
   /**
    * Test reading an uncompressed file with {@link CompressionMode#GZIP}, since we must support this
    * due to properties of services that we read from.
@@ -440,6 +701,26 @@ public class CompressedSourceTest {
     Files.write(input, tmpFile);
     thrown.expectMessage("Decompression error: Unknown frame descriptor");
     verifyReadContents(input, tmpFile, CompressionMode.ZSTD);
+  }
+
+  /** Test reading an uncompressed file with {@link Compression#LZO}, and show that we fail. */
+  @Test
+  public void testFalseLzoStream() throws Exception {
+    byte[] input = generateInput(1000);
+    File tmpFile = tmpFolder.newFile("test.lzo_deflate");
+    Files.write(input, tmpFile);
+    thrown.expectMessage("expected:");
+    verifyReadContents(input, tmpFile, CompressionMode.LZO);
+  }
+
+  /** Test reading an uncompressed file with {@link Compression#LZOP}, and show that we fail. */
+  @Test
+  public void testFalseLzopStream() throws Exception {
+    byte[] input = generateInput(1000);
+    File tmpFile = tmpFolder.newFile("test.lzo");
+    Files.write(input, tmpFile);
+    thrown.expectMessage("Not an LZOP file");
+    verifyReadContents(input, tmpFile, CompressionMode.LZOP);
   }
 
   /**
@@ -484,6 +765,50 @@ public class CompressedSourceTest {
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(filePattern, 1))
             .withDecompression(CompressionMode.GZIP);
+    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+    assertEquals(HashMultiset.create(expected), HashMultiset.create(actual));
+  }
+
+  /** Test reading multiple files. LZO Codec */
+  @Test
+  public void testCompressedReadMultipleLzoFiles() throws Exception {
+    int numFiles = 3;
+    String baseName = "test_input-";
+    String filePattern = new File(tmpFolder.getRoot().toString(), baseName + "*").toString();
+    List<Byte> expected = new ArrayList<>();
+
+    for (int i = 0; i < numFiles; i++) {
+      byte[] generated = generateInput(100);
+      File tmpFile = tmpFolder.newFile(baseName + i);
+      writeFile(tmpFile, generated, CompressionMode.LZO);
+      expected.addAll(Bytes.asList(generated));
+    }
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(filePattern, 1))
+            .withDecompression(CompressionMode.LZO);
+    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+    assertEquals(HashMultiset.create(expected), HashMultiset.create(actual));
+  }
+
+  /** Test reading multiple files. LZOP Codec */
+  @Test
+  public void testCompressedReadMultipleLzopFiles() throws Exception {
+    int numFiles = 3;
+    String baseName = "test_input-";
+    String filePattern = new File(tmpFolder.getRoot().toString(), baseName + "*").toString();
+    List<Byte> expected = new ArrayList<>();
+
+    for (int i = 0; i < numFiles; i++) {
+      byte[] generated = generateInput(100);
+      File tmpFile = tmpFolder.newFile(baseName + i);
+      writeFile(tmpFile, generated, CompressionMode.LZOP);
+      expected.addAll(Bytes.asList(generated));
+    }
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(filePattern, 1))
+            .withDecompression(CompressionMode.LZOP);
     List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
     assertEquals(HashMultiset.create(expected), HashMultiset.create(actual));
   }
@@ -539,6 +864,10 @@ public class CompressedSourceTest {
         return new ZstdCompressorOutputStream(stream);
       case DEFLATE:
         return new DeflateCompressorOutputStream(stream);
+      case LZO:
+        return LzoCompression.createLzoOutputStream(stream);
+      case LZOP:
+        return LzoCompression.createLzopOutputStream(stream);
       default:
         throw new RuntimeException("Unexpected compression mode");
     }
@@ -711,7 +1040,7 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
 
@@ -719,7 +1048,7 @@ public class CompressedSourceTest {
       assertFalse(reader.start());
 
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -738,7 +1067,7 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
 
@@ -754,8 +1083,134 @@ public class CompressedSourceTest {
       }
       assertFalse(reader.advance());
 
+      // after reading source
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+    }
+  }
+
+  @Test
+  public void testEmptyLzoProgress() throws IOException {
+    File tmpFile = tmpFolder.newFile("empty.lzo_deflate");
+    String filename = tmpFile.toPath().toString();
+    writeFile(tmpFile, new byte[0], CompressionMode.LZO);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.LZO);
+    try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
+      assertThat(readerOrig, instanceOf(CompressedReader.class));
+      CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
+      // before starting
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
+      // confirm empty
+      assertFalse(reader.start());
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+    }
+  }
+
+  @Test
+  public void testLzoProgress() throws IOException {
+    int numRecords = 3;
+    File tmpFile = tmpFolder.newFile("nonempty.lzo");
+    String filename = tmpFile.toPath().toString();
+    writeFile(tmpFile, new byte[numRecords], CompressionMode.LZO);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.LZO);
+    try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
+      assertThat(readerOrig, instanceOf(CompressedReader.class));
+      CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
+      // before starting
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
+
+      // confirm has three records
+      for (int i = 0; i < numRecords; ++i) {
+        if (i == 0) {
+          assertTrue(reader.start());
+        } else {
+          assertTrue(reader.advance());
+        }
+        assertEquals(0, reader.getSplitPointsConsumed());
+        assertEquals(1, reader.getSplitPointsRemaining());
+      }
+      assertFalse(reader.advance());
+
+      // after reading source
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+    }
+  }
+
+  @Test
+  public void testEmptyLzopProgress() throws IOException {
+    File tmpFile = tmpFolder.newFile("empty.lzo");
+    String filename = tmpFile.toPath().toString();
+    writeFile(tmpFile, new byte[0], CompressionMode.LZOP);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.LZOP);
+    try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
+      assertThat(readerOrig, instanceOf(CompressedReader.class));
+      CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
+      // before starting
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
+
+      // confirm empty
+      assertFalse(reader.start());
+
+      // after reading empty source
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+    }
+  }
+
+  @Test
+  public void testLzopProgress() throws IOException {
+    int numRecords = 3;
+    File tmpFile = tmpFolder.newFile("nonempty.lzo");
+    String filename = tmpFile.toPath().toString();
+    writeFile(tmpFile, new byte[numRecords], CompressionMode.LZOP);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.LZOP);
+    try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
+      assertThat(readerOrig, instanceOf(CompressedReader.class));
+      CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
+      // before starting
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
+
+      // confirm has three records
+      for (int i = 0; i < numRecords; ++i) {
+        if (i == 0) {
+          assertTrue(reader.start());
+        } else {
+          assertTrue(reader.advance());
+        }
+        assertEquals(0, reader.getSplitPointsConsumed());
+        assertEquals(1, reader.getSplitPointsRemaining());
+      }
+      assertFalse(reader.advance());
+
+      // after reading source
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -806,7 +1261,7 @@ public class CompressedSourceTest {
       FileBasedReader<Byte> reader = (FileBasedReader<Byte>) readerOrig;
 
       // Check preconditions before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
@@ -822,7 +1277,7 @@ public class CompressedSourceTest {
 
       // Confirm empty and check post-conditions
       assertFalse(reader.advance());
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
       assertEquals(2, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }

@@ -47,10 +47,22 @@ golang {
 
 docker {
   name containerImageName(
-          name: "go_sdk",
+          name: project.docker_image_default_repo_prefix + "go_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] : "apachebeam")
+                  project.rootProject["docker-repository-root"] :
+                  project.docker_image_default_repo_root)
   files "./build/"
+  buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+                     project.rootProject.hasProperty(["isRelease"])])
 }
-// Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn goBuild
+
+// Ensure that making the docker image builds any required artifacts
+if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+  task copyGolangLicenses(type: Copy) {
+    from "${project(':release:go-licenses:go').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:go:createLicenses'
+  }
+  dockerPrepare.dependsOn 'copyGolangLicenses'
+}

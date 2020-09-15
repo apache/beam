@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -30,10 +30,17 @@ import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link FileBasedSink} for Avro files. */
-class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, DestinationT, OutputT> {
+public class AvroSink<UserT, DestinationT, OutputT>
+    extends FileBasedSink<UserT, DestinationT, OutputT> {
   private final boolean genericRecords;
+
+  @FunctionalInterface
+  public interface DatumWriterFactory<T> extends Serializable {
+    DatumWriter<T> apply(Schema writer);
+  }
 
   AvroSink(
       ValueProvider<ResourceId> outputPrefix,
@@ -57,7 +64,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
   /** A {@link WriteOperation WriteOperation} for Avro files. */
   private static class AvroWriteOperation<DestinationT, OutputT>
       extends WriteOperation<DestinationT, OutputT> {
-    private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
+    private final DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations;
     private final boolean genericRecords;
 
     private AvroWriteOperation(AvroSink<?, DestinationT, OutputT> sink, boolean genericRecords) {
@@ -76,14 +83,14 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
   private static class AvroWriter<DestinationT, OutputT> extends Writer<DestinationT, OutputT> {
 
     // Initialized in prepareWrite
-    @Nullable private DataFileWriter<OutputT> dataFileWriter;
+    private @Nullable DataFileWriter<OutputT> dataFileWriter;
 
-    private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
+    private final DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations;
     private final boolean genericRecords;
 
     public AvroWriter(
         WriteOperation<DestinationT, OutputT> writeOperation,
-        DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations,
+        DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations,
         boolean genericRecords) {
       super(writeOperation, MimeTypes.BINARY);
       this.dynamicDestinations = dynamicDestinations;
@@ -97,9 +104,17 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
       CodecFactory codec = dynamicDestinations.getCodec(destination);
       Schema schema = dynamicDestinations.getSchema(destination);
       Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);
+      DatumWriter<OutputT> datumWriter;
+      DatumWriterFactory<OutputT> datumWriterFactory =
+          dynamicDestinations.getDatumWriterFactory(destination);
 
-      DatumWriter<OutputT> datumWriter =
-          genericRecords ? new GenericDatumWriter<>(schema) : new ReflectDatumWriter<>(schema);
+      if (datumWriterFactory == null) {
+        datumWriter =
+            genericRecords ? new GenericDatumWriter<>(schema) : new ReflectDatumWriter<>(schema);
+      } else {
+        datumWriter = datumWriterFactory.apply(schema);
+      }
+
       dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();

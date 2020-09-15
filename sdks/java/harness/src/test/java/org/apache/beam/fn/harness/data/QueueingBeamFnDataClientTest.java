@@ -72,9 +72,9 @@ public class QueueingBeamFnDataClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
-  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.of("12L", "34L");
+  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.data("12L", "34L");
 
-  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.of("56L", "78L");
+  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.data("56L", "78L");
 
   private static final BeamFnApi.Elements ELEMENTS_A_1;
   private static final BeamFnApi.Elements ELEMENTS_A_2;
@@ -106,7 +106,8 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_A.getInstructionId())
-                      .setTransformId(ENDPOINT_A.getTransformId()))
+                      .setTransformId(ENDPOINT_A.getTransformId())
+                      .setIsLast(true))
               .build();
       ELEMENTS_B_1 =
           BeamFnApi.Elements.newBuilder()
@@ -122,7 +123,8 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_B.getInstructionId())
-                      .setTransformId(ENDPOINT_B.getTransformId()))
+                      .setTransformId(ENDPOINT_B.getTransformId())
+                      .setIsLast(true))
               .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);

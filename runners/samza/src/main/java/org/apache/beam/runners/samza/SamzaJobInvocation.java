@@ -29,7 +29,7 @@ import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.UPDATE
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
+import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

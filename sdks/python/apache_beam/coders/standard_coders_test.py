@@ -29,6 +29,7 @@ import os.path
 import sys
 import unittest
 from builtins import map
+from copy import deepcopy
 from typing import Dict
 from typing import Tuple
 
@@ -38,6 +39,7 @@ from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.typehints import schemas
@@ -59,7 +61,8 @@ def _load_test_cases(test_yaml):
   if not os.path.exists(test_yaml):
     raise ValueError('Could not find the test spec: %s' % test_yaml)
   with open(test_yaml, 'rb') as coder_spec:
-    for ix, spec in enumerate(yaml.load_all(coder_spec)):
+    for ix, spec in enumerate(
+        yaml.load_all(coder_spec, Loader=yaml.SafeLoader)):
       spec['index'] = ix
       name = spec.get('name', spec['coder']['urn'].split(':')[-2])
       yield [name, spec]
@@ -76,16 +79,26 @@ def parse_float(s):
 
 def value_parser_from_schema(schema):
   def attribute_parser_from_type(type_):
+    parser = nonnull_attribute_parser_from_type(type_)
+    if type_.nullable:
+      return lambda x: None if x is None else parser(x)
+    else:
+      return parser
+
+  def nonnull_attribute_parser_from_type(type_):
     # TODO: This should be exhaustive
     type_info = type_.WhichOneof("type_info")
     if type_info == "atomic_type":
-      return schemas.ATOMIC_TYPE_TO_PRIMITIVE[type_.atomic_type]
+      if type_.atomic_type == schema_pb2.BYTES:
+        return lambda x: x.encode("utf-8")
+      else:
+        return schemas.ATOMIC_TYPE_TO_PRIMITIVE[type_.atomic_type]
     elif type_info == "array_type":
       element_parser = attribute_parser_from_type(type_.array_type.element_type)
       return lambda x: list(map(element_parser, x))
     elif type_info == "map_type":
-      key_parser = attribute_parser_from_type(type_.array_type.key_type)
-      value_parser = attribute_parser_from_type(type_.array_type.value_type)
+      key_parser = attribute_parser_from_type(type_.map_type.key_type)
+      value_parser = attribute_parser_from_type(type_.map_type.value_type)
       return lambda x: dict(
           (key_parser(k), value_parser(v)) for k, v in x.items())
 
@@ -96,6 +109,7 @@ def value_parser_from_schema(schema):
 
   def value_parser(x):
     result = []
+    x = deepcopy(x)
     for name, parser in parsers:
       value = x.pop(name)
       result.append(None if value is None else parser(value))
@@ -145,9 +159,27 @@ class StandardCodersTest(unittest.TestCase):
               x['pane']['index'],
               x['pane']['on_time_index'])),
       'beam:coder:timer:v1': lambda x,
-      payload_parser: dict(
-          payload=payload_parser(x['payload']),
-          timestamp=Timestamp(micros=x['timestamp'] * 1000)),
+      value_parser,
+      window_parser: userstate.Timer(
+          user_key=value_parser(x['userKey']),
+          dynamic_timer_tag=x['dynamicTimerTag'],
+          clear_bit=x['clearBit'],
+          windows=tuple([window_parser(w) for w in x['windows']]),
+          fire_timestamp=None,
+          hold_timestamp=None,
+          paneinfo=None) if x['clearBit'] else userstate.Timer(
+              user_key=value_parser(x['userKey']),
+              dynamic_timer_tag=x['dynamicTimerTag'],
+              clear_bit=x['clearBit'],
+              fire_timestamp=Timestamp(micros=x['fireTimestamp'] * 1000),
+              hold_timestamp=Timestamp(micros=x['holdTimestamp'] * 1000),
+              windows=tuple([window_parser(w) for w in x['windows']]),
+              paneinfo=PaneInfo(
+                  x['pane']['is_first'],
+                  x['pane']['is_last'],
+                  PaneInfoTiming.from_string(x['pane']['timing']),
+                  x['pane']['index'],
+                  x['pane']['on_time_index'])),
       'beam:coder:double:v1': parse_float,
   }
 

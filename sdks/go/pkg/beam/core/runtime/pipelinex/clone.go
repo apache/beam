@@ -17,34 +17,35 @@ package pipelinex
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-func shallowClonePipeline(p *pb.Pipeline) *pb.Pipeline {
-	ret := &pb.Pipeline{
-		Components: shallowCloneComponents(p.GetComponents()),
+func shallowClonePipeline(p *pipepb.Pipeline) *pipepb.Pipeline {
+	ret := &pipepb.Pipeline{
+		Components:   shallowCloneComponents(p.GetComponents()),
+		Requirements: reflectx.ShallowClone(p.GetRequirements()).([]string),
 	}
 	ret.RootTransformIds, _ = reflectx.ShallowClone(p.GetRootTransformIds()).([]string)
 	return ret
 }
 
-func shallowCloneComponents(comp *pb.Components) *pb.Components {
-	ret := &pb.Components{}
-	ret.Transforms, _ = reflectx.ShallowClone(comp.GetTransforms()).(map[string]*pb.PTransform)
-	ret.Pcollections, _ = reflectx.ShallowClone(comp.GetPcollections()).(map[string]*pb.PCollection)
-	ret.WindowingStrategies, _ = reflectx.ShallowClone(comp.GetWindowingStrategies()).(map[string]*pb.WindowingStrategy)
-	ret.Coders, _ = reflectx.ShallowClone(comp.GetCoders()).(map[string]*pb.Coder)
-	ret.Environments, _ = reflectx.ShallowClone(comp.GetEnvironments()).(map[string]*pb.Environment)
+func shallowCloneComponents(comp *pipepb.Components) *pipepb.Components {
+	ret := &pipepb.Components{}
+	ret.Transforms, _ = reflectx.ShallowClone(comp.GetTransforms()).(map[string]*pipepb.PTransform)
+	ret.Pcollections, _ = reflectx.ShallowClone(comp.GetPcollections()).(map[string]*pipepb.PCollection)
+	ret.WindowingStrategies, _ = reflectx.ShallowClone(comp.GetWindowingStrategies()).(map[string]*pipepb.WindowingStrategy)
+	ret.Coders, _ = reflectx.ShallowClone(comp.GetCoders()).(map[string]*pipepb.Coder)
+	ret.Environments, _ = reflectx.ShallowClone(comp.GetEnvironments()).(map[string]*pipepb.Environment)
 	return ret
 }
 
 // ShallowClonePTransform makes a shallow copy of the given PTransform.
-func ShallowClonePTransform(t *pb.PTransform) *pb.PTransform {
+func ShallowClonePTransform(t *pipepb.PTransform) *pipepb.PTransform {
 	if t == nil {
 		return nil
 	}
 
-	ret := &pb.PTransform{
+	ret := &pipepb.PTransform{
 		UniqueName:  t.UniqueName,
 		Spec:        t.Spec,
 		DisplayData: t.DisplayData,
@@ -57,39 +58,37 @@ func ShallowClonePTransform(t *pb.PTransform) *pb.PTransform {
 }
 
 // ShallowCloneParDoPayload makes a shallow copy of the given ParDoPayload.
-func ShallowCloneParDoPayload(p *pb.ParDoPayload) *pb.ParDoPayload {
+func ShallowCloneParDoPayload(p *pipepb.ParDoPayload) *pipepb.ParDoPayload {
 	if p == nil {
 		return nil
 	}
 
-	ret := &pb.ParDoPayload{
+	ret := &pipepb.ParDoPayload{
 		DoFn:               p.DoFn,
-		Splittable:         p.Splittable,
 		RestrictionCoderId: p.RestrictionCoderId,
 	}
-	ret.Parameters, _ = reflectx.ShallowClone(p.Parameters).([]*pb.Parameter)
-	ret.SideInputs, _ = reflectx.ShallowClone(p.SideInputs).(map[string]*pb.SideInput)
-	ret.StateSpecs, _ = reflectx.ShallowClone(p.StateSpecs).(map[string]*pb.StateSpec)
-	ret.TimerSpecs, _ = reflectx.ShallowClone(p.TimerSpecs).(map[string]*pb.TimerSpec)
+	ret.SideInputs, _ = reflectx.ShallowClone(p.SideInputs).(map[string]*pipepb.SideInput)
+	ret.StateSpecs, _ = reflectx.ShallowClone(p.StateSpecs).(map[string]*pipepb.StateSpec)
+	ret.TimerFamilySpecs, _ = reflectx.ShallowClone(p.TimerFamilySpecs).(map[string]*pipepb.TimerFamilySpec)
 	return ret
 }
 
 // ShallowCloneSideInput makes a shallow copy of the given SideInput.
-func ShallowCloneSideInput(p *pb.SideInput) *pb.SideInput {
+func ShallowCloneSideInput(p *pipepb.SideInput) *pipepb.SideInput {
 	if p == nil {
 		return nil
 	}
-	var ret pb.SideInput
+	var ret pipepb.SideInput
 	ret = *p
 	return &ret
 }
 
 // ShallowCloneFunctionSpec makes a shallow copy of the given FunctionSpec.
-func ShallowCloneFunctionSpec(p *pb.FunctionSpec) *pb.FunctionSpec {
+func ShallowCloneFunctionSpec(p *pipepb.FunctionSpec) *pipepb.FunctionSpec {
 	if p == nil {
 		return nil
 	}
-	var ret pb.FunctionSpec
+	var ret pipepb.FunctionSpec
 	ret = *p
 	return &ret
 }

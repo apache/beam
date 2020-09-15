@@ -29,7 +29,6 @@ import random
 import re
 import sys
 import time
-import warnings
 from builtins import filter
 from builtins import object
 from builtins import range
@@ -63,7 +62,7 @@ from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.trigger import AccumulationMode
-from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import Always
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import TimerSpec
@@ -632,8 +631,8 @@ class _IdentityWindowFn(NonMergingWindowFn):
 class ReshufflePerKey(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
@@ -658,7 +657,6 @@ class ReshufflePerKey(PTransform):
             window.GlobalWindows.windowed_value((key, value), timestamp)
             for (value, timestamp) in values
         ]
-
     else:
 
       def reify_timestamps(
@@ -678,7 +676,7 @@ class ReshufflePerKey(PTransform):
     # accept only standard coders.
     ungrouped._windowing = Windowing(
         window.GlobalWindows(),
-        triggerfn=AfterCount(1),
+        triggerfn=Always(),
         accumulation_mode=AccumulationMode.DISCARDING,
         timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
     result = (
@@ -694,8 +692,8 @@ class ReshufflePerKey(PTransform):
 class Reshuffle(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
@@ -710,11 +708,12 @@ class Reshuffle(PTransform):
       KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
-            32), t)).with_input_types(T).with_output_types(KeyedT)
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
+        with_input_types(T).with_output_types(KeyedT)  # type: ignore[misc]
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >>
-        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
+        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+            KeyedT).with_output_types(T)  # type: ignore[misc]
+    )
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
@@ -722,7 +721,8 @@ class Reshuffle(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Reshuffle()
 
 
@@ -740,6 +740,7 @@ def WithKeys(pcoll, k):
 
 @experimental()
 @typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which
@@ -756,9 +757,6 @@ class GroupIntoBatches(PTransform):
     Arguments:
       batch_size: (required) How many elements should be in a batch
     """
-    warnings.warn(
-        'Use of GroupIntoBatches transform requires State/Timer '
-        'support from the runner')
     self.batch_size = batch_size
 
   def expand(self, pcoll):
@@ -788,7 +786,9 @@ def _pardo_group_into_batches(batch_size, input_coder):
       count = count_state.read()
       if count >= batch_size:
         batch = [element for element in element_state.read()]
-        yield batch
+        key, _ = batch[0]
+        batch_values = [v for (k, v) in batch]
+        yield (key, batch_values)
         element_state.clear()
         count_state.clear()
 
@@ -799,7 +799,9 @@ def _pardo_group_into_batches(batch_size, input_coder):
         count_state=DoFn.StateParam(COUNT_STATE)):
       batch = [element for element in element_state.read()]
       if batch:
-        yield batch
+        key, _ = batch[0]
+        batch_values = [v for (k, v) in batch]
+        yield (key, batch_values)
         element_state.clear()
         count_state.clear()
 
@@ -811,53 +813,30 @@ class ToString(object):
   PTransform for converting a PCollection element, KV or PCollection Iterable
   to string.
   """
-  class Kvs(PTransform):
-    """
-    Transforms each element of the PCollection to a string on the key followed
-    by the specific delimiter and the value.
-    """
-    def __init__(self, delimiter=None):
-      self.delimiter = delimiter or ","
 
-    def expand(self, pcoll):
-      input_type = Tuple[Any, Any]
-      output_type = str
-      return (
-          pcoll | (
-              '%s:KeyVaueToString' % self.label >>
-              (Map(lambda x: "{}{}{}".format(x[0], self.delimiter, x[1]))
-               ).with_input_types(input_type)  # type: ignore[misc]
-              .with_output_types(output_type)))
-
-  class Element(PTransform):
+  # pylint: disable=invalid-name
+  @staticmethod
+  def Element():
     """
     Transforms each element of the PCollection to a string.
     """
-    def expand(self, pcoll):
-      input_type = T
-      output_type = str
-      return (
-          pcoll | (
-              '%s:ElementToString' % self.label >>
-              (Map(lambda x: str(x))
-               ).with_input_types(input_type).with_output_types(output_type)))
+    return 'ElementToString' >> Map(str)
 
-  class Iterables(PTransform):
+  @staticmethod
+  def Iterables(delimiter=None):
     """
     Transforms each item in the iterable of the input of PCollection to a
     string. There is no trailing delimiter.
     """
-    def __init__(self, delimiter=None):
-      self.delimiter = delimiter or ","
+    if delimiter is None:
+      delimiter = ','
+    return (
+        'IterablesToString' >>
+        Map(lambda xs: delimiter.join(str(x) for x in xs)).with_input_types(
+            Iterable[Any]).with_output_types(str))
 
-    def expand(self, pcoll):
-      input_type = Iterable[Any]
-      output_type = str
-      return (
-          pcoll | (
-              '%s:IterablesToString' % self.label >>
-              (Map(lambda x: self.delimiter.join(str(_x) for _x in x))
-               ).with_input_types(input_type).with_output_types(output_type)))
+  # An alias for Iterables.
+  Kvs = Iterables
 
 
 class Reify(object):

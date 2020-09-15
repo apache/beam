@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
@@ -37,6 +36,7 @@ import static org.apache.beam.sdk.util.RowJsonValueExtractors.longValueExtractor
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.shortValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.stringValueExtractor;
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -51,7 +51,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -60,7 +59,10 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
@@ -80,10 +82,115 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 @Experimental(Kind.SCHEMAS)
 public class RowJson {
+  private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
+      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
+
+  /**
+   * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field
+   * type.
+   */
+  public static void verifySchemaSupported(Schema schema) {
+    ImmutableList<UnsupportedField> unsupportedFields = findUnsupportedFields(schema);
+    if (!unsupportedFields.isEmpty()) {
+      throw new UnsupportedRowJsonException(
+          String.format(
+              "Field type%s %s not supported when converting between JSON and Rows. Supported types are: %s",
+              unsupportedFields.size() > 1 ? "s" : "",
+              unsupportedFields.toString(),
+              SUPPORTED_TYPES.toString()));
+    }
+  }
+
+  private static class UnsupportedField {
+    final String descriptor;
+    final TypeName typeName;
+
+    UnsupportedField(String descriptor, TypeName typeName) {
+      this.descriptor = descriptor;
+      this.typeName = typeName;
+    }
+
+    @Override
+    public String toString() {
+      return this.descriptor + "=" + this.typeName;
+    }
+  }
+
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(Schema schema) {
+    return schema.getFields().stream()
+        .flatMap((field) -> findUnsupportedFields(field).stream())
+        .collect(toImmutableList());
+  }
+
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(Field field) {
+    return findUnsupportedFields(field.getType(), field.getName());
+  }
+
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(
+      FieldType fieldType, String fieldName) {
+    TypeName fieldTypeName = fieldType.getTypeName();
+
+    if (fieldTypeName.isCompositeType()) {
+      return fieldType.getRowSchema().getFields().stream()
+          .flatMap(
+              (field) ->
+                  findUnsupportedFields(field.getType(), fieldName + "." + field.getName())
+                      .stream())
+          .collect(toImmutableList());
+    }
+
+    if (fieldTypeName.isCollectionType()) {
+      return findUnsupportedFields(fieldType.getCollectionElementType(), fieldName + "[]");
+    }
+
+    if (fieldTypeName.isLogicalType()) {
+      return findUnsupportedFields(fieldType.getLogicalType().getBaseType(), fieldName);
+    }
+
+    if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
+      return ImmutableList.of(new UnsupportedField(fieldName, fieldTypeName));
+    }
+
+    return ImmutableList.of();
+  }
+
   /** Jackson deserializer for parsing JSON into {@link Row Rows}. */
   public static class RowJsonDeserializer extends StdDeserializer<Row> {
 
     private static final boolean SEQUENTIAL = false;
+
+    /**
+     * An enumeration type for specifying how {@link RowJsonDeserializer} should expect null values
+     * to be represented.
+     *
+     * <p>For example, when parsing JSON for the Schema {@code (str: REQUIRED STRING, int: NULLABLE
+     * INT64)}:
+     *
+     * <ul>
+     *   <li>If configured with {@code REQUIRE_NULL}, {@code {"str": "foo", "int": null}} would be
+     *       accepted.
+     *   <li>If configured with {@code REQUIRE_MISSING}, {@code {"str": "bar"}} would be accepted,
+     *       and would yield a {@link Row} with {@code null} for the {@code int} field.
+     *   <li>If configured with {@code ALLOW_MISSING_OR_NULL}, either JSON string would be accepted.
+     * </ul>
+     */
+    public enum NullBehavior {
+      /**
+       * Specifies that a null value may be represented as either a missing field or a null value in
+       * the input JSON.
+       */
+      ACCEPT_MISSING_OR_NULL,
+      /**
+       * Specifies that a null value must be represented with a null value in JSON. If the field is
+       * missing an {@link UnsupportedRowJsonException} will be thrown.
+       */
+      REQUIRE_NULL,
+      /**
+       * Specifies that a null value must be represented with a missing field in JSON. If the field
+       * has a null value an {@link UnsupportedRowJsonException} will be thrown.
+       */
+      REQUIRE_MISSING,
+    }
 
     private static final ImmutableMap<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
         ImmutableMap.<TypeName, ValueExtractor<?>>builder()
@@ -99,16 +206,27 @@ public class RowJson {
             .build();
 
     private final Schema schema;
+    private NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
     public static RowJsonDeserializer forSchema(Schema schema) {
-      schema.getFields().forEach(RowJsonValidation::verifyFieldTypeSupported);
+      verifySchemaSupported(schema);
       return new RowJsonDeserializer(schema);
     }
 
     private RowJsonDeserializer(Schema schema) {
       super(Row.class);
       this.schema = schema;
+    }
+
+    /**
+     * Sets the behaviour of the deserializer when retrieving null values in the input JSON. See
+     * {@link NullBehavior} for a description of the options. Default value is {@code
+     * ACCEPT_MISSING_OR_NULL}.
+     */
+    public RowJsonDeserializer withNullBehavior(NullBehavior behavior) {
+      this.nullBehavior = behavior;
+      return this;
     }
 
     @Override
@@ -121,14 +239,38 @@ public class RowJson {
               FieldValue.of("root", FieldType.row(schema), jsonParser.readValueAsTree()));
     }
 
-    private static Object extractJsonNodeValue(FieldValue fieldValue) {
-      if (!fieldValue.isJsonValuePresent()) {
-        throw new UnsupportedRowJsonException(
-            "Field '" + fieldValue.name() + "' is not present in the JSON object");
-      }
+    private Object extractJsonNodeValue(FieldValue fieldValue) {
+      if (fieldValue.type().getNullable()) {
+        if (!fieldValue.isJsonValuePresent()) {
+          switch (this.nullBehavior) {
+            case ACCEPT_MISSING_OR_NULL:
+            case REQUIRE_MISSING:
+              return null;
+            case REQUIRE_NULL:
+              throw new UnsupportedRowJsonException(
+                  "Field '" + fieldValue.name() + "' is not present in the JSON object.");
+          }
+        }
 
-      if (fieldValue.isJsonNull()) {
-        return null;
+        if (fieldValue.isJsonNull()) {
+          switch (this.nullBehavior) {
+            case ACCEPT_MISSING_OR_NULL:
+            case REQUIRE_NULL:
+              return null;
+            case REQUIRE_MISSING:
+              throw new UnsupportedRowJsonException(
+                  "Field '" + fieldValue.name() + "' has a null value in the JSON object.");
+          }
+        }
+      } else {
+        // field is not nullable
+        if (!fieldValue.isJsonValuePresent()) {
+          throw new UnsupportedRowJsonException(
+              "Non-nullable field '" + fieldValue.name() + "' is not present in the JSON object.");
+        } else if (fieldValue.isJsonNull()) {
+          throw new UnsupportedRowJsonException(
+              "Non-nullable field '" + fieldValue.name() + "' has value null in the JSON object.");
+        }
       }
 
       if (fieldValue.isRowType()) {
@@ -150,7 +292,7 @@ public class RowJson {
       return extractJsonPrimitiveValue(fieldValue);
     }
 
-    private static Row jsonObjectToRow(FieldValue rowFieldValue) {
+    private Row jsonObjectToRow(FieldValue rowFieldValue) {
       if (!rowFieldValue.isJsonObject()) {
         throw new UnsupportedRowJsonException(
             "Expected JSON object for field '"
@@ -171,7 +313,7 @@ public class RowJson {
           .collect(toRow(rowFieldValue.rowSchema()));
     }
 
-    private static Object jsonArrayToList(FieldValue arrayFieldValue) {
+    private Object jsonArrayToList(FieldValue arrayFieldValue) {
       if (!arrayFieldValue.isJsonArray()) {
         throw new UnsupportedRowJsonException(
             "Expected JSON array for field '"
@@ -189,7 +331,7 @@ public class RowJson {
                           arrayFieldValue.name() + "[]",
                           arrayFieldValue.arrayElementType(),
                           jsonArrayElement)))
-          .collect(toList());
+          .collect(toImmutableList());
     }
 
     private static Object extractJsonPrimitiveValue(FieldValue fieldValue) {
@@ -271,34 +413,29 @@ public class RowJson {
         return new AutoValue_RowJson_RowJsonDeserializer_FieldValue(name, type, jsonValue);
       }
     }
-
-    /** Gets thrown when Row parsing fails for any reason. */
-    public static class UnsupportedRowJsonException extends RuntimeException {
-
-      UnsupportedRowJsonException(String message, Throwable reason) {
-        super(message, reason);
-      }
-
-      UnsupportedRowJsonException(String message) {
-        super(message);
-      }
-    }
   }
 
   /** Jackson serializer for converting {@link Row Rows} to JSON. */
   public static class RowJsonSerializer extends StdSerializer<Row> {
 
     private final Schema schema;
+    private Boolean dropNullsOnWrite = false;
 
     /** Creates a serializer for a {@link Row} {@link Schema}. */
     public static RowJsonSerializer forSchema(Schema schema) {
-      schema.getFields().forEach(RowJsonValidation::verifyFieldTypeSupported);
+      verifySchemaSupported(schema);
       return new RowJsonSerializer(schema);
     }
 
     private RowJsonSerializer(Schema schema) {
       super(Row.class);
       this.schema = schema;
+    }
+
+    /** Serializer drops nulls on write if set to true instead of writing fieldName: null. */
+    public RowJsonSerializer withDropNullsOnWrite(Boolean dropNullsOnWrite) {
+      this.dropNullsOnWrite = dropNullsOnWrite;
+      return this;
     }
 
     @Override
@@ -313,6 +450,9 @@ public class RowJson {
       for (int i = 0; i < schema.getFieldCount(); ++i) {
         Field field = schema.getField(i);
         Object value = row.getValue(i);
+        if (dropNullsOnWrite && value == null && field.getType().getNullable()) {
+          continue;
+        }
         gen.writeFieldName(field.getName());
         if (field.getType().getNullable() && value == null) {
           gen.writeNull();
@@ -369,6 +509,18 @@ public class RowJson {
         default:
           throw new IllegalArgumentException("Unsupported field type: " + type);
       }
+    }
+  }
+
+  /** Gets thrown when Row parsing or serialization fails for any reason. */
+  public static class UnsupportedRowJsonException extends RuntimeException {
+
+    UnsupportedRowJsonException(String message, Throwable reason) {
+      super(message, reason);
+    }
+
+    UnsupportedRowJsonException(String message) {
+      super(message);
     }
   }
 }

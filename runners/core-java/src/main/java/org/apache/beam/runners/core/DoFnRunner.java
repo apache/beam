@@ -21,10 +21,11 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** An wrapper interface that represents the execution of a {@link DoFn}. */
-public interface DoFnRunner<InputT, OutputT> {
+public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nullable Object> {
   /** Prepares and calls a {@link DoFn DoFn's} {@link DoFn.StartBundle @StartBundle} method. */
   void startBundle();
 
@@ -38,9 +39,10 @@ public interface DoFnRunner<InputT, OutputT> {
    * Calls a {@link DoFn DoFn's} {@link DoFn.OnTimer @OnTimer} method for the given timer in the
    * given window.
    */
-  void onTimer(
+  <KeyT extends @Nullable Object> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
@@ -51,6 +53,13 @@ public interface DoFnRunner<InputT, OutputT> {
    * additional tasks, such as flushing in-memory states.
    */
   void finishBundle();
+
+  /**
+   * Calls a {@link DoFn DoFn's} {@link DoFn.OnWindowExpiration @OnWindowExpiration} method and
+   * performs additional task, such as extracts a value saved in a state before garbage collection.
+   */
+  <KeyT extends @Nullable Object> void onWindowExpiration(
+      BoundedWindow window, Instant timestamp, KeyT key);
 
   /**
    * @since 2.5.0

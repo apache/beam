@@ -28,15 +28,16 @@ import unittest
 import zipfile
 
 import freezegun
-import grpc
 import requests_mock
 
 from apache_beam.options import pipeline_options
-from apache_beam.portability.api import beam_artifact_api_pb2
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SparkRunnerOptions
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.portability import spark_runner
 from apache_beam.runners.portability import spark_uber_jar_job_server
+from apache_beam.runners.portability.local_job_service_test import TestJobServicePlan
 
 
 @contextlib.contextmanager
@@ -132,17 +133,14 @@ class SparkUberJarJobServerTest(unittest.TestCase):
           'http://host:6066', options)
 
       # Prepare the job.
-      prepare_response = job_server.Prepare(
-          beam_job_api_pb2.PrepareJobRequest(
-              job_name='job', pipeline=beam_runner_api_pb2.Pipeline()))
-      channel = grpc.insecure_channel(
-          prepare_response.artifact_staging_endpoint.url)
-      retrieval_token = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
-          channel).CommitManifest(
-              beam_artifact_api_pb2.CommitManifestRequest(
-                  staging_session_token=prepare_response.staging_session_token,
-                  manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
-      channel.close()
+      plan = TestJobServicePlan(job_server)
+
+      # Prepare the job.
+      prepare_response = plan.prepare(beam_runner_api_pb2.Pipeline())
+      retrieval_token = plan.stage(
+          beam_runner_api_pb2.Pipeline(),
+          prepare_response.artifact_staging_endpoint.url,
+          prepare_response.staging_session_token)
 
       # Now actually run the job.
       http_mock.post(
@@ -213,6 +211,19 @@ class SparkUberJarJobServerTest(unittest.TestCase):
                                message_text="oops"),
                            beam_job_api_pb2.JobState.FAILED,
                        ])
+
+  def test_retain_unknown_options(self):
+    original_options = PipelineOptions(['--unknown_option_foo', 'some_value'])
+    spark_options = original_options.view_as(SparkRunnerOptions)
+    spark_options.spark_submit_uber_jar = True
+    spark_options.spark_rest_url = 'spark://localhost:6066'
+    runner = spark_runner.SparkRunner()
+
+    job_service_handle = runner.create_job_service(original_options)
+    options_proto = job_service_handle.get_pipeline_options()
+
+    self.assertEqual(
+        options_proto['beam:option:unknown_option_foo:v1'], 'some_value')
 
 
 if __name__ == '__main__':

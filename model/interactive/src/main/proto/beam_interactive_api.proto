@@ -46,14 +46,6 @@ message TestStreamFileHeader {
 // give enough information to create a faithful recreation of the original
 // stream of data.
 message TestStreamFileRecord {
-  oneof recorded_event {
-    // The recorded element with its event timestamp (when it was produced).
-    org.apache.beam.model.pipeline.v1.TestStreamPayload.TimestampedElement element = 1;
-
-    // Indicating the output watermark of the source changed.
-    google.protobuf.Timestamp watermark = 2;
-  }
-
-  // The wall-time timestamp of either the new element or watermark change.
-  google.protobuf.Timestamp processing_time = 3;
+  // The recorded event from an element stream.
+  org.apache.beam.model.pipeline.v1.TestStreamPayload.Event recorded_event = 1;
 }

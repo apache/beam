@@ -28,6 +28,23 @@
 #             one of a few standard JSON types such as numbers, strings, dicts that map naturally
 #             to the type encoded by the coder.
 #
+# Java code snippet to generate example bytes:
+#   Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+#   Instant now = new Instant(1000L);
+#   Timer<String> timer = Timer.of(
+#     "key",
+#     "tag",
+#     Collections.singletonList(GlobalWindow.INSTANCE),
+#     now,
+#     now,
+#     PaneInfo.NO_FIRING);
+#   byte[] bytes = CoderUtils.encodeToByteArray(coder, timer);
+#   String str = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+#   String example = "";
+#   for(int i = 0; i < str.length(); i++){
+#      example += CharUtils.unicodeEscaped(str.charAt(i));
+#   }
+#
 # These choices were made to strike a balance between portability, ease of use, and simple
 # legibility of this file itself.
 #
@@ -207,15 +224,24 @@ examples:
 
 coder:
   urn: "beam:coder:timer:v1"
-  components: [{urn: "beam:coder:bytes:v1"}]
+  components: [{urn: "beam:coder:string_utf8:v1"},
+               {urn: "beam:coder:global_window:v1"}]
 examples:
-  "\0\0\0\0\0\0\0\0\u0003abc": {timestamp: -9223372036854775808, payload: abc}
-  "\x7fÿÿÿÿÿÿ\x01\u0003abc": {timestamp: -255, payload: abc}
-  "\x7fÿÿÿÿÿÿÿ\u0003abc": {timestamp: -1, payload: abc}
-  "\x80\0\0\0\0\0\0\0\u0003abc": {timestamp: 0, payload: abc}
-  "\x80\0\0\0\0\0\0\x01\u0003abc": {timestamp: 1, payload: abc}
-  "\x80\0\0\0\0\0\x01\0\u0003abc": {timestamp: 256, payload: abc}
-  "ÿÿÿÿÿÿÿÿ\u0003abc": {timestamp: 9223372036854775807, payload: abc}
+  "\u0003\u006b\u0065\u0079\u0003\u0074\u0061\u0067\u0000\u0000\u0000\u0001\u0000\u0080\u0000\u0000\u0000\u0000\u0000\u0004\u00d2\u0080\u0000\u0000\u0000\u0000\u0000\u0016\u002e\u000f": {
+    userKey: key,
+    dynamicTimerTag: tag,
+    windows: ["global"],
+    clearBit: False,
+    fireTimestamp: 1234,
+    holdTimestamp: 5678,
+    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+  }
+  "\u0003\u006b\u0065\u0079\u0003\u0074\u0061\u0067\u0000\u0000\u0000\u0001\u0001": {
+    userKey: key,
+    dynamicTimerTag: tag,
+    windows: ["global"],
+    clearBit: True,
+  }
 
 ---
 
@@ -321,7 +347,6 @@ coder:
   urn: "beam:coder:row:v1"
   # str: string, i32: int32, f64: float64, arr: array[string]
   payload: "\n\t\n\x03str\x1a\x02\x10\x07\n\t\n\x03i32\x1a\x02\x10\x03\n\t\n\x03f64\x1a\x02\x10\x06\n\r\n\x03arr\x1a\x06\x1a\x04\n\x02\x10\x07\x12$4e5e554c-d4c1-4a5d-b5e1-f3293a6b9f05"
-nested: false
 examples:
     "\u0004\u0000\u0003foo\u00a9\u0046\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a\0\0\0\u0003\u0003foo\u0003bar\u0003baz": {str: "foo", i32: 9001, f64: "0.1", arr: ["foo", "bar", "baz"]}
 
@@ -331,8 +356,55 @@ coder:
   urn: "beam:coder:row:v1"
   # str: nullable string, i32: nullable int32, f64: nullable float64
   payload: "\n\x0b\n\x03str\x1a\x04\x08\x01\x10\x07\n\x0b\n\x03i32\x1a\x04\x08\x01\x10\x03\n\x0b\n\x03f64\x1a\x04\x08\x01\x10\x06\x12$b20c6545-57af-4bc8-b2a9-51ace21c7393"
-nested: false
 examples:
   "\u0003\u0001\u0007": {str: null, i32: null, f64: null}
   "\u0003\u0001\u0004\u0003foo\u00a9\u0046": {str: "foo", i32: 9001, f64: null}
   "\u0003\u0000\u0003foo\u00a9\u0046\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a": {str: "foo", i32: 9001, f64: "0.1"}
+
+---
+
+# Binary data generated with the python SDK:
+#
+# import typing
+# import apache_beam as beam
+# class Test(typing.NamedTuple):
+#   f_bool: bool
+#   f_byte: typing.Optional[bytes]
+# schema = beam.typehints.schemas.named_tuple_to_schema(Test)
+# coder = beam.coders.row_coder.RowCoder(schema)
+# print("payload = %s" % schema.SerializeToString())
+# print("example = %s" % coder.encode(Test(f_bool=True, f_nullable=None)))
+coder:
+  urn: "beam:coder:row:v1"
+  # f_bool: boolean, f_bytes: nullable bytes
+  payload: "\n\x0c\n\x06f_bool\x1a\x02\x10\x08\n\x0f\n\x07f_bytes\x1a\x04\x08\x01\x10\t\x12$eea1b747-7571-43d3-aafa-9255afdceafb"
+examples:
+  "\x02\x01\x02\x01": {f_bool: True, f_bytes: null}
+  "\x02\x00\x00\x04ab\x00c": {f_bool: False, f_bytes: "ab\0c"}
+
+---
+
+# Binary data generated with the python SDK:
+#
+# import typing
+# import apache_beam as beam
+# class Test(typing.NamedTuple):
+#   f_map: typing.Mapping[str,int]
+# schema = beam.typehints.schemas.named_tuple_to_schema(Test)
+# coder = beam.coders.row_coder.RowCoder(schema)
+# print("payload = %s" % schema.SerializeToString())
+# examples = (Test(f_map={}),
+#             Test(f_map={"foo": 9001, "bar": 9223372036854775807}),
+#             Test(f_map={"everything": None, "is": None, "null!": None, "¯\_(ツ)_/¯": None}))
+# for example in examples:
+#   print("example = %s" % coder.encode(example))
+coder:
+  urn: "beam:coder:row:v1"
+  # f_map: map<str, nullable int64>
+  payload: "\n\x15\n\x05f_map\x1a\x0c*\n\n\x02\x10\x07\x12\x04\x08\x01\x10\x04\x12$d8c8f969-14e6-457f-a8b5-62a1aec7f1cd"
+  # map ordering is non-deterministic
+  non_deterministic: True
+examples:
+  "\x01\x00\x00\x00\x00\x00": {f_map: {}}
+  "\x01\x00\x00\x00\x00\x02\x03foo\x01\xa9F\x03bar\x01\xff\xff\xff\xff\xff\xff\xff\xff\x7f": {f_map: {"foo": 9001, "bar": 9223372036854775807}}
+  "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything":null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}

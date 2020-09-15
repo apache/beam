@@ -59,9 +59,10 @@ public class GroupingTables {
       PairInfo pairInfo,
       SizeEstimator<? super K> keySizer,
       SizeEstimator<? super V> valueSizer,
-      double sizeEstimatorSampleRate) {
+      double sizeEstimatorSampleRate,
+      long maxSizeBytes) {
     return new BufferingGroupingTable<>(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES,
+        maxSizeBytes,
         groupingKeyCreator,
         pairInfo,
         new SamplingSizeEstimator<>(keySizer, sizeEstimatorSampleRate, 1.0),
@@ -94,9 +95,10 @@ public class GroupingTables {
       Combiner<? super K, InputT, AccumT, ?> combineFn,
       SizeEstimator<? super K> keySizer,
       SizeEstimator<? super AccumT> accumulatorSizer,
-      double sizeEstimatorSampleRate) {
+      double sizeEstimatorSampleRate,
+      long maxSizeBytes) {
     return new CombiningGroupingTable<>(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES,
+        maxSizeBytes,
         groupingKeyCreator,
         pairInfo,
         combineFn,

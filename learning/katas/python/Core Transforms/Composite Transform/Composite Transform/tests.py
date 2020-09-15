@@ -14,19 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from test_helper import failed, passed, \
-    get_answer_placeholders, get_file_output, test_is_not_empty, \
-    test_answer_placeholders_text_deleted
-
-
-def test_composite_expand_method():
-    placeholders = get_answer_placeholders()
-    placeholder = placeholders[0]
-
-    if 'def expand(' in placeholder:
-        passed()
-    else:
-        failed('Override "expand" method')
+from test_helper import failed, passed, get_file_output, test_is_not_empty
 
 
 def test_output():
@@ -42,6 +30,4 @@ def test_output():
 
 if __name__ == '__main__':
     test_is_not_empty()
-    test_answer_placeholders_text_deleted()
-    test_composite_expand_method()
     test_output()

@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Execution context for the Dataflow worker. */
@@ -186,11 +186,15 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      * <p>The {@code windowCoder} is passed here as it is more convenient than doing so when the
      * {@link DataflowStepContext} is created.
      */
-    @Nullable
-    public abstract <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder);
+    public abstract @Nullable <W extends BoundedWindow> TimerData getNextFiredTimer(
+        Coder<W> windowCoder);
 
     public abstract <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime);
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp);
 
     public abstract DataflowStepContext namespacedToUser();
   }

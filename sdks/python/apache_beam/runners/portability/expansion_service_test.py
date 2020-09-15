@@ -29,14 +29,14 @@ from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
-from apache_beam.coders import StrUtf8Coder
+from apache_beam.coders import RowCoder
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners.portability import expansion_service
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 # This script provides an expansion service and example ptransforms for running
 # external transform test cases. See external_test.py for details.
@@ -62,7 +62,8 @@ class CountPerElementTransform(ptransform.PTransform):
     return 'beam:transforms:xlang:count', None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CountPerElementTransform()
 
 
@@ -82,7 +83,7 @@ class FilterLessThanTransform(ptransform.PTransform):
         'beam:transforms:xlang:filter_less_than', self._payload.encode('utf8'))
 
   @staticmethod
-  def from_runner_api_parameter(payload, unused_context):
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
     return FilterLessThanTransform(payload.decode('utf8'))
 
 
@@ -101,7 +102,7 @@ class PrefixTransform(ptransform.PTransform):
         {'data': self._payload}).payload()
 
   @staticmethod
-  def from_runner_api_parameter(payload, unused_context):
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
     return PrefixTransform(parse_string_payload(payload)['data'])
 
 
@@ -121,7 +122,8 @@ class MutltiTransform(ptransform.PTransform):
     return TEST_MULTI_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return MutltiTransform()
 
 
@@ -134,7 +136,8 @@ class GBKTransform(ptransform.PTransform):
     return TEST_GBK_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return GBKTransform()
 
 
@@ -155,7 +158,8 @@ class CoGBKTransform(ptransform.PTransform):
     return TEST_CGBK_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CoGBKTransform()
 
 
@@ -169,7 +173,8 @@ class CombineGloballyTransform(ptransform.PTransform):
     return TEST_COMGL_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CombineGloballyTransform()
 
 
@@ -184,7 +189,8 @@ class CombinePerKeyTransform(ptransform.PTransform):
     return TEST_COMPK_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CombinePerKeyTransform()
 
 
@@ -197,7 +203,8 @@ class FlattenTransform(ptransform.PTransform):
     return TEST_FLATTEN_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return FlattenTransform()
 
 
@@ -214,7 +221,8 @@ class PartitionTransform(ptransform.PTransform):
     return TEST_PARTITION_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return PartitionTransform()
 
 
@@ -230,7 +238,7 @@ class PayloadTransform(ptransform.PTransform):
     return b'payload', self._payload.encode('ascii')
 
   @staticmethod
-  def from_runner_api_parameter(payload, unused_context):
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
     return PayloadTransform(payload.decode('ascii'))
 
 
@@ -259,19 +267,15 @@ class FibTransform(ptransform.PTransform):
     return 'fib', str(self._level).encode('ascii')
 
   @staticmethod
-  def from_runner_api_parameter(level, unused_context):
+  def from_runner_api_parameter(unused_ptransform, level, unused_context):
     return FibTransform(int(level.decode('ascii')))
 
 
 def parse_string_payload(input_byte):
   payload = ExternalConfigurationPayload()
   payload.ParseFromString(input_byte)
-  coder = StrUtf8Coder()
-  return {
-      k: coder.decode_nested(v.payload)
-      for k,
-      v in payload.configuration.items()
-  }
+
+  return RowCoder(payload.schema).decode(payload.payload)._asdict()
 
 
 server = None
@@ -288,10 +292,11 @@ def main(unused_argv):
       '-p', '--port', type=int, help='port on which to serve the job api')
   options = parser.parse_args()
   global server
-  server = grpc.server(UnboundedThreadPoolExecutor())
+  server = grpc.server(thread_pool_executor.shared_unbounded_instance())
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
       expansion_service.ExpansionServiceServicer(
-          PipelineOptions(["--experiments", "beam_fn_api"])),
+          PipelineOptions(
+              ["--experiments", "beam_fn_api", "--sdk_location", "container"])),
       server)
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()

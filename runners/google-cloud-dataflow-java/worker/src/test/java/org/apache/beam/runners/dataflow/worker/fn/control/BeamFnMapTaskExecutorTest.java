@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.hamcrest.Matchers.contains;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -32,13 +32,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metrics;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateInternals;
@@ -64,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -97,13 +95,6 @@ public class BeamFnMapTaskExecutorTest {
   private static final String FAKE_OUTPUT_NAME = "fake_output_name";
   private static final String FAKE_OUTPUT_PCOLLECTION_ID = "fake_pcollection_id";
 
-  private static final Metrics.PTransform FAKE_ELEMENT_COUNT_METRICS =
-      Metrics.PTransform.newBuilder()
-          .setProcessedElements(
-              Metrics.PTransform.ProcessedElements.newBuilder()
-                  .setMeasured(Metrics.PTransform.Measured.getDefaultInstance()))
-          .build();
-
   private static final BeamFnApi.RegisterRequest REGISTER_REQUEST =
       BeamFnApi.RegisterRequest.newBuilder()
           .addProcessBundleDescriptor(
@@ -118,358 +109,20 @@ public class BeamFnMapTaskExecutorTest {
                           .build()))
           .build();
 
-  @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
-  public void testTentativeUserMetrics() throws Exception {
-    final String stepName = "fakeStepNameWithUserMetrics";
-    final String namespace = "sdk/whatever";
-    final String name = "someCounter";
-    final int counterValue = 42;
-    final CountDownLatch progressSentLatch = new CountDownLatch(1);
-    final CountDownLatch processBundleLatch = new CountDownLatch(1);
-
-    final Metrics.User.MetricName metricName =
-        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
-
-    InstructionRequestHandler instructionRequestHandler =
-        new InstructionRequestHandler() {
-          @Override
-          public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
-            switch (request.getRequestCase()) {
-              case REGISTER:
-                return CompletableFuture.completedFuture(responseFor(request).build());
-              case PROCESS_BUNDLE:
-                return MoreFutures.supplyAsync(
-                    () -> {
-                      processBundleLatch.await();
-                      return responseFor(request).build();
-                    });
-              case PROCESS_BUNDLE_PROGRESS:
-                progressSentLatch.countDown();
-                return CompletableFuture.completedFuture(
-                    responseFor(request)
-                        .setProcessBundleProgress(
-                            BeamFnApi.ProcessBundleProgressResponse.newBuilder()
-                                .setMetrics(
-                                    Metrics.newBuilder()
-                                        .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
-                                        .putPtransforms(
-                                            stepName,
-                                            Metrics.PTransform.newBuilder()
-                                                .addUser(
-                                                    Metrics.User.newBuilder()
-                                                        .setMetricName(metricName)
-                                                        .setCounterData(
-                                                            Metrics.User.CounterData.newBuilder()
-                                                                .setValue(counterValue)))
-                                                .build())))
-                        .build());
-              default:
-                // block forever
-                return new CompletableFuture<>();
-            }
-          }
-
-          @Override
-          public void close() {}
-        };
-
-    RegisterAndProcessBundleOperation processOperation =
-        new RegisterAndProcessBundleOperation(
-            IdGenerators.decrementingLongs(),
-            instructionRequestHandler,
-            mockBeamFnStateDelegator,
-            REGISTER_REQUEST,
-            ImmutableMap.of(),
-            ImmutableMap.of(),
-            ImmutableMap.of(),
-            ImmutableTable.of(),
-            ImmutableMap.of(),
-            mockContext);
-
-    BeamFnMapTaskExecutor mapTaskExecutor =
-        BeamFnMapTaskExecutor.forOperations(
-            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
-            executionStateTracker);
-
-    // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
-    // tentative update
-    CompletionStage<Void> doneFuture = MoreFutures.runAsync(mapTaskExecutor::execute);
-    progressSentLatch.await();
-
-    Iterable<CounterUpdate> metricsCounterUpdates = Collections.emptyList();
-    while (Iterables.size(metricsCounterUpdates) == 0) {
-      Thread.sleep(ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS);
-      metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
-    }
-
-    assertThat(
-        metricsCounterUpdates,
-        contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(counterValue)));
-
-    // Now let it finish and clean up
-    processBundleLatch.countDown();
-    MoreFutures.get(doneFuture);
-  }
-
-  /** Tests that successive metric updates overwrite the previous. */
-  @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
-  public void testTentativeUserMetricsOverwrite() throws Exception {
-    final String stepName = "fakeStepNameWithUserMetrics";
-    final String namespace = "sdk/whatever";
-    final String name = "someCounter";
-    final int firstCounterValue = 42;
-    final int secondCounterValue = 77;
-    final CountDownLatch progressSentTwiceLatch = new CountDownLatch(2);
-    final CountDownLatch processBundleLatch = new CountDownLatch(1);
-
-    final Metrics.User.MetricName metricName =
-        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
-
-    InstructionRequestHandler instructionRequestHandler =
-        new InstructionRequestHandler() {
-          @Override
-          public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
-            switch (request.getRequestCase()) {
-              case REGISTER:
-                return CompletableFuture.completedFuture(responseFor(request).build());
-              case PROCESS_BUNDLE:
-                return MoreFutures.supplyAsync(
-                    () -> {
-                      processBundleLatch.await();
-                      return responseFor(request).build();
-                    });
-              case PROCESS_BUNDLE_PROGRESS:
-                progressSentTwiceLatch.countDown();
-                return CompletableFuture.completedFuture(
-                    responseFor(request)
-                        .setProcessBundleProgress(
-                            BeamFnApi.ProcessBundleProgressResponse.newBuilder()
-                                .setMetrics(
-                                    Metrics.newBuilder()
-                                        .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
-                                        .putPtransforms(
-                                            stepName,
-                                            Metrics.PTransform.newBuilder()
-                                                .addUser(
-                                                    Metrics.User.newBuilder()
-                                                        .setMetricName(metricName)
-                                                        .setCounterData(
-                                                            Metrics.User.CounterData.newBuilder()
-                                                                .setValue(
-                                                                    progressSentTwiceLatch
-                                                                                .getCount()
-                                                                            > 0
-                                                                        ? firstCounterValue
-                                                                        : secondCounterValue)))
-                                                .build())))
-                        .build());
-              default:
-                // block forever
-                return new CompletableFuture<>();
-            }
-          }
-
-          @Override
-          public void close() {}
-        };
-
-    when(grpcPortWriteOperation.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
-
-    RegisterAndProcessBundleOperation processOperation =
-        new RegisterAndProcessBundleOperation(
-            IdGenerators.decrementingLongs(),
-            instructionRequestHandler,
-            mockBeamFnStateDelegator,
-            REGISTER_REQUEST,
-            ImmutableMap.of(),
-            ImmutableMap.of(),
-            ImmutableMap.of(),
-            ImmutableTable.of(),
-            ImmutableMap.of(),
-            mockContext);
-
-    BeamFnMapTaskExecutor mapTaskExecutor =
-        BeamFnMapTaskExecutor.forOperations(
-            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
-            executionStateTracker);
-
-    // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
-    // tentative update
-    CompletionStage<Void> doneFuture = MoreFutures.runAsync(mapTaskExecutor::execute);
-    progressSentTwiceLatch.await();
-
-    Iterable<CounterUpdate> metricsCounterUpdates = Collections.emptyList();
-    while (Iterables.size(metricsCounterUpdates) == 0) {
-      Thread.sleep(ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS);
-      metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
-    }
-
-    assertThat(
-        metricsCounterUpdates,
-        contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(secondCounterValue)));
-
-    // Now let it finish and clean up
-    processBundleLatch.countDown();
-    MoreFutures.get(doneFuture);
-  }
-
-  @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
-  public void testFinalUserMetricsDeprecated() throws Exception {
-    final String stepName = "fakeStepNameWithUserMetrics";
-    final String namespace = "sdk/whatever";
-    final String name = "someCounter";
-    final int counterValue = 42;
-    final int finalCounterValue = 77;
-    final CountDownLatch progressSentLatch = new CountDownLatch(1);
-    final CountDownLatch processBundleLatch = new CountDownLatch(1);
-
-    final Metrics.User.MetricName metricName =
-        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
-
-    InstructionRequestHandler instructionRequestHandler =
-        new InstructionRequestHandler() {
-          @Override
-          public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
-            switch (request.getRequestCase()) {
-              case REGISTER:
-                return CompletableFuture.completedFuture(responseFor(request).build());
-              case PROCESS_BUNDLE:
-                return MoreFutures.supplyAsync(
-                    () -> {
-                      processBundleLatch.await();
-                      return responseFor(request)
-                          .setProcessBundle(
-                              BeamFnApi.ProcessBundleResponse.newBuilder()
-                                  .setMetrics(
-                                      Metrics.newBuilder()
-                                          .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
-                                          .putPtransforms(
-                                              stepName,
-                                              Metrics.PTransform.newBuilder()
-                                                  .addUser(
-                                                      Metrics.User.newBuilder()
-                                                          .setMetricName(metricName)
-                                                          .setCounterData(
-                                                              Metrics.User.CounterData.newBuilder()
-                                                                  .setValue(finalCounterValue)))
-                                                  .build())))
-                          .build();
-                    });
-              case PROCESS_BUNDLE_PROGRESS:
-                progressSentLatch.countDown();
-                return CompletableFuture.completedFuture(
-                    responseFor(request)
-                        .setProcessBundleProgress(
-                            BeamFnApi.ProcessBundleProgressResponse.newBuilder()
-                                .setMetrics(
-                                    Metrics.newBuilder()
-                                        .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
-                                        .putPtransforms(
-                                            stepName,
-                                            Metrics.PTransform.newBuilder()
-                                                .addUser(
-                                                    Metrics.User.newBuilder()
-                                                        .setMetricName(metricName)
-                                                        .setCounterData(
-                                                            Metrics.User.CounterData.newBuilder()
-                                                                .setValue(counterValue)))
-                                                .build())))
-                        .build());
-              default:
-                // block forever
-                return new CompletableFuture<>();
-            }
-          }
-
-          @Override
-          public void close() {}
-        };
-
-    RegisterAndProcessBundleOperation processOperation =
-        new RegisterAndProcessBundleOperation(
-            IdGenerators.decrementingLongs(),
-            instructionRequestHandler,
-            mockBeamFnStateDelegator,
-            REGISTER_REQUEST,
-            ImmutableMap.of(),
-            ImmutableMap.of(),
-            ImmutableMap.of(),
-            ImmutableTable.of(),
-            ImmutableMap.of(),
-            mockContext);
-
-    BeamFnMapTaskExecutor mapTaskExecutor =
-        BeamFnMapTaskExecutor.forOperations(
-            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
-            executionStateTracker);
-
-    // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
-    // tentative update
-    CompletionStage<Void> doneFuture = MoreFutures.runAsync(mapTaskExecutor::execute);
-    progressSentLatch.await();
-
-    // TODO: add ability to wait for tentative progress update
-    Iterable<CounterUpdate> metricsCounterUpdates = Collections.emptyList();
-    while (Iterables.size(metricsCounterUpdates) == 0) {
-      Thread.sleep(ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS);
-      metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
-    }
-
-    // Get the final metrics
-    processBundleLatch.countDown();
-    MoreFutures.get(doneFuture);
-    metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
-
-    assertThat(Iterables.size(metricsCounterUpdates), equalTo(1));
-
-    assertThat(
-        metricsCounterUpdates,
-        contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(finalCounterValue)));
-  }
-
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 60)
   public void testExtractCounterUpdatesReturnsValidProgressTrackerCounterUpdatesIfPresent()
       throws Exception {
-    final String stepName = "fakeStepNameWithUserMetrics";
-    final String namespace = "sdk/whatever";
-    final String name = "someCounter";
-    final int counterValue = 42;
-    final int finalCounterValue = 77;
     final CountDownLatch progressSentLatch = new CountDownLatch(1);
     final CountDownLatch processBundleLatch = new CountDownLatch(1);
-
-    final Metrics.User.MetricName metricName =
-        Metrics.User.MetricName.newBuilder().setNamespace(namespace).setName(name).build();
-
-    final Metrics deprecatedMetrics =
-        Metrics.newBuilder()
-            .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
-            .putPtransforms(
-                stepName,
-                Metrics.PTransform.newBuilder()
-                    .addUser(
-                        Metrics.User.newBuilder()
-                            .setMetricName(metricName)
-                            .setCounterData(
-                                Metrics.User.CounterData.newBuilder().setValue(finalCounterValue)))
-                    .build())
-            .build();
-
     final int expectedCounterValue = 5;
     final MonitoringInfo expectedMonitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+            .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
             .putLabels(MonitoringInfoConstants.Labels.NAME, "ExpectedCounter")
             .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyString")
-            .setType(MonitoringInfoConstants.TypeUrns.SUM_INT64)
+            .setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "ExpectedPTransform")
-            .setMetric(
-                Metric.newBuilder()
-                    .setCounterData(
-                        MetricsApi.CounterData.newBuilder()
-                            .setInt64Value(expectedCounterValue)
-                            .build())
-                    .build())
+            .setPayload(encodeInt64Counter(expectedCounterValue))
             .build();
 
     InstructionRequestHandler instructionRequestHandler =
@@ -486,7 +139,6 @@ public class BeamFnMapTaskExecutorTest {
                       return responseFor(request)
                           .setProcessBundle(
                               BeamFnApi.ProcessBundleResponse.newBuilder()
-                                  .setMetrics(deprecatedMetrics)
                                   .addMonitoringInfos(expectedMonitoringInfo))
                           .build();
                     });
@@ -496,13 +148,15 @@ public class BeamFnMapTaskExecutorTest {
                     responseFor(request)
                         .setProcessBundleProgress(
                             BeamFnApi.ProcessBundleProgressResponse.newBuilder()
-                                .setMetrics(deprecatedMetrics)
                                 .addMonitoringInfos(expectedMonitoringInfo))
                         .build());
               default:
                 throw new RuntimeException("Reached unexpected code path");
             }
           }
+
+          @Override
+          public void registerProcessBundleDescriptor(ProcessBundleDescriptor descriptor) {}
 
           @Override
           public void close() {}
@@ -598,7 +252,11 @@ public class BeamFnMapTaskExecutorTest {
 
           @Override
           public <W extends BoundedWindow> void setStateCleanupTimer(
-              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
+              String timerId,
+              W window,
+              Coder<W> windowCoder,
+              Instant cleanupTime,
+              Instant cleanupOutputTimestamp) {}
 
           @Override
           public DataflowStepContext namespacedToUser() {

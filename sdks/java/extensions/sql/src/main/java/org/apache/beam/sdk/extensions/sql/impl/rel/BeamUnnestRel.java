@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Collection;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -41,6 +40,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncoll
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link BeamRelNode} to implement UNNEST, supporting specifically only {@link Correlate} with
@@ -108,7 +108,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       // The set of rows where we run the correlated unnest for each row
       PCollection<Row> outer = pinput.get(0);
 
-      Schema joinedSchema = CalciteUtils.toSchema(rowType);
+      Schema joinedSchema = CalciteUtils.toSchema(getRowType());
 
       return outer
           .apply(ParDo.of(new UnnestFn(joinedSchema, unnestIndex)))
@@ -142,13 +142,13 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
           Row nestedRow = (Row) uncollectedValue;
           out.output(
               Row.withSchema(outputSchema)
-                  .addValues(row.getValues())
-                  .addValues(nestedRow.getValues())
+                  .addValues(row.getBaseValues())
+                  .addValues(nestedRow.getBaseValues())
                   .build());
         } else {
           out.output(
               Row.withSchema(outputSchema)
-                  .addValues(row.getValues())
+                  .addValues(row.getBaseValues())
                   .addValue(uncollectedValue)
                   .build());
         }

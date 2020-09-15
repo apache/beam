@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -25,6 +24,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Command line flags. */
 public interface NexmarkOptions
@@ -42,8 +42,7 @@ public interface NexmarkOptions
   void setMonitorJobs(boolean monitorJobs);
 
   @Description("Where the events come from.")
-  @Nullable
-  NexmarkUtils.SourceType getSourceType();
+  NexmarkUtils.@Nullable SourceType getSourceType();
 
   void setSourceType(NexmarkUtils.SourceType sourceType);
 
@@ -54,8 +53,7 @@ public interface NexmarkOptions
   void setInputPath(String inputPath);
 
   @Description("Where results go.")
-  @Nullable
-  NexmarkUtils.SinkType getSinkType();
+  NexmarkUtils.@Nullable SinkType getSinkType();
 
   void setSinkType(NexmarkUtils.SinkType sinkType);
 
@@ -66,10 +64,15 @@ public interface NexmarkOptions
   void setExportSummaryToBigQuery(Boolean exportSummaryToBigQuery);
 
   @Description("Which mode to run in when source is PUBSUB.")
-  @Nullable
-  NexmarkUtils.PubSubMode getPubSubMode();
+  NexmarkUtils.@Nullable PubSubMode getPubSubMode();
 
   void setPubSubMode(NexmarkUtils.PubSubMode pubSubMode);
+
+  @Description("How to serialize event objects to pubsub messages.")
+  NexmarkUtils.@Nullable PubsubMessageSerializationMethod getPubsubMessageSerializationMethod();
+
+  void setPubsubMessageSerializationMethod(
+      NexmarkUtils.PubsubMessageSerializationMethod pubsubMessageSerializationMethod);
 
   @Description("Which query to run.")
   @Nullable
@@ -139,6 +142,12 @@ public interface NexmarkOptions
 
   void setStreamTimeout(Integer streamTimeout);
 
+  @Description("Proactively cancels streaming job after query is completed")
+  @Default.Boolean(false)
+  boolean getCancelStreamingJobAfterFinish();
+
+  void setCancelStreamingJobAfterFinish(boolean cancelStreamingJobAfterFinish);
+
   @Description("Number of unbounded sources to create events.")
   @Nullable
   Integer getNumEventGenerators();
@@ -146,8 +155,7 @@ public interface NexmarkOptions
   void setNumEventGenerators(Integer numEventGenerators);
 
   @Description("Shape of event rate curve.")
-  @Nullable
-  NexmarkUtils.RateShape getRateShape();
+  NexmarkUtils.@Nullable RateShape getRateShape();
 
   void setRateShape(NexmarkUtils.RateShape rateShape);
 
@@ -164,8 +172,7 @@ public interface NexmarkOptions
   void setNextEventRate(Integer nextEventRate);
 
   @Description("Unit for rates.")
-  @Nullable
-  NexmarkUtils.RateUnit getRateUnit();
+  NexmarkUtils.@Nullable RateUnit getRateUnit();
 
   void setRateUnit(NexmarkUtils.RateUnit rateUnit);
 
@@ -303,8 +310,7 @@ public interface NexmarkOptions
   void setJustModelResultRate(boolean justModelResultRate);
 
   @Description("Coder strategy to use.")
-  @Nullable
-  NexmarkUtils.CoderStrategy getCoderStrategy();
+  NexmarkUtils.@Nullable CoderStrategy getCoderStrategy();
 
   void setCoderStrategy(NexmarkUtils.CoderStrategy coderStrategy);
 
@@ -338,8 +344,8 @@ public interface NexmarkOptions
   void setFanout(Integer fanout);
 
   @Description(
-      "Maximum waiting time to clean personState in query3 "
-          + "(ie maximum waiting of the auctions related to person in state in seconds in event time).")
+      "Maximum waiting time to clean personState in query3 (ie maximum waiting of the auctions"
+          + " related to person in state in seconds in event time).")
   @Nullable
   Integer getMaxAuctionsWaitingTime();
 
@@ -423,7 +429,10 @@ public interface NexmarkOptions
 
   void setWatermarkValidationDelaySeconds(Long value);
 
-  @Description("Specify 'sql' to use Beam SQL queries. Otherwise Java transforms will be used")
+  @Description(
+      "Specify 'sql' to use Calcite SQL queries "
+          + "or 'zetasql' to use ZetaSQL queries."
+          + "Otherwise Java transforms will be used")
   @Nullable
   String getQueryLanguage();
 
@@ -464,4 +473,41 @@ public interface NexmarkOptions
   int getNexmarkParallel();
 
   void setNexmarkParallel(int value);
+
+  @Description("InfluxDB measurement to publish results to.")
+  @Nullable
+  String getInfluxMeasurement();
+
+  void setInfluxMeasurement(@Nullable String measurement);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxHost();
+
+  void setInfluxHost(@Nullable String host);
+
+  @Description("InfluxDB database.")
+  @Nullable
+  String getInfluxDatabase();
+
+  void setInfluxDatabase(@Nullable String database);
+
+  @Description("Shall we export the summary to InfluxDB.")
+  @Default.Boolean(false)
+  boolean getExportSummaryToInfluxDB();
+
+  void setExportSummaryToInfluxDB(boolean exportSummaryToInfluxDB);
+
+  @Description("Base name of measurement name if using InfluxDB output.")
+  @Nullable
+  @Default.String("nexmark")
+  String getBaseInfluxMeasurement();
+
+  void setBaseInfluxMeasurement(String influxDBMeasurement);
+
+  @Description("Name of retention policy for Influx data.")
+  @Nullable
+  String getInfluxRetentionPolicy();
+
+  void setInfluxRetentionPolicy(String influxRetentionPolicy);
 }

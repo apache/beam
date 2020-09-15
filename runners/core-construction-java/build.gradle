@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.core.construction')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.runners.core.construction')
 
 description = "Apache Beam :: Runners :: Core Construction Java"
 ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
@@ -36,6 +39,7 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":sdks:java:fn-execution")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
   compile library.java.classgraph
@@ -52,10 +56,4 @@ dependencies {
   testCompile project(path: ":model:fn-execution", configuration: "shadow")
   testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
   testRuntimeOnly library.java.slf4j_jdk14
-}
-
-task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.runners.core.construction.expansion.ExpansionService"
-  classpath = sourceSets.main.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
 }

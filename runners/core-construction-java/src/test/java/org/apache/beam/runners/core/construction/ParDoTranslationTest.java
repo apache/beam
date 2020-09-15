@@ -20,19 +20,22 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.BagState;
@@ -51,25 +54,30 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link ParDoTranslation}. */
+@RunWith(Enclosed.class)
 public class ParDoTranslationTest {
 
   /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
@@ -118,13 +126,26 @@ public class ParDoTranslationTest {
       SdkComponents components = SdkComponents.create();
       components.registerEnvironment(Environments.createDockerEnvironment("java"));
       ParDoPayload payload =
-          ParDoTranslation.translateParDo(parDo, DoFnSchemaInformation.create(), p, components);
+          ParDoTranslation.translateParDo(
+              parDo,
+              PCollection.createPrimitiveOutputInternal(
+                  p,
+                  WindowingStrategy.globalDefault(),
+                  IsBounded.BOUNDED,
+                  KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of())),
+              DoFnSchemaInformation.create(),
+              p,
+              components);
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
       for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
+      assertFalse(payload.getRequestsFinalization());
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn,
+          components.requirements().contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
     }
 
     @Test
@@ -172,33 +193,19 @@ public class ParDoTranslationTest {
           equalTo(components.getPcollectionsOrThrow(mainInputId)));
       assertThat(ParDoTranslation.getMainInputName(protoTransform), equalTo("mainInputName"));
 
-      // Validate that the timer PCollections are added correctly.
-      DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());
-
-      for (String localTimerName : signature.timerDeclarations().keySet()) {
-        RunnerApi.PCollection timerPCollection =
-            components.getPcollectionsOrThrow(String.format("foo.%s", localTimerName));
-        assertEquals(
-            components.getPcollectionsOrThrow(mainInputId).getIsBounded(),
-            timerPCollection.getIsBounded());
-        assertEquals(
-            components.getPcollectionsOrThrow(mainInputId).getWindowingStrategyId(),
-            timerPCollection.getWindowingStrategyId());
-        ModelCoders.KvCoderComponents timerKvCoderComponents =
-            ModelCoders.getKvCoderComponents(
-                components.getCodersOrThrow(timerPCollection.getCoderId()));
-        Coder<?> timerKeyCoder =
+      // Ensure the correct timer coder components are used from the main input PCollection's key
+      // and window coders.
+      for (RunnerApi.TimerFamilySpec timerFamilySpec :
+          parDoPayload.getTimerFamilySpecsMap().values()) {
+        Coder<?> timerCoder =
             CoderTranslation.fromProto(
-                components.getCodersOrThrow(timerKvCoderComponents.keyCoderId()),
-                rehydratedComponents);
-        assertEquals(VarLongCoder.of(), timerKeyCoder);
-        Coder<?> timerValueCoder =
-            CoderTranslation.fromProto(
-                components.getCodersOrThrow(timerKvCoderComponents.valueCoderId()),
-                rehydratedComponents);
+                components.getCodersOrThrow(timerFamilySpec.getTimerFamilyCoderId()),
+                rehydratedComponents,
+                TranslationContext.DEFAULT);
         assertEquals(
-            org.apache.beam.runners.core.construction.Timer.Coder.of(VoidCoder.of()),
-            timerValueCoder);
+            org.apache.beam.runners.core.construction.Timer.Coder.of(
+                VarLongCoder.of(), GlobalWindow.Coder.INSTANCE),
+            timerCoder);
       }
     }
   }
@@ -243,7 +250,7 @@ public class ParDoTranslationTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof DropElementsFn;
     }
 
@@ -270,7 +277,7 @@ public class ParDoTranslationTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof SplittableDropElementsFn;
     }
 
@@ -329,13 +336,91 @@ public class ParDoTranslationTest {
     public void onProcessingTime(OnTimerContext context) {}
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof StateTimerDropElementsFn;
     }
 
     @Override
     public int hashCode() {
       return StateTimerDropElementsFn.class.hashCode();
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class BundleFinalizerTranslation {
+    private static class StartBundleDoFn extends DoFn<String, String> {
+      @StartBundle
+      public void startBundle(BundleFinalizer bundleFinalizer) {}
+
+      @ProcessElement
+      public void processElement() {}
+    }
+
+    private static class ProcessContextDoFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(BundleFinalizer finalizer) {}
+    }
+
+    private static class FinishBundleDoFn extends DoFn<String, String> {
+      @FinishBundle
+      public void finishBundle(BundleFinalizer bundleFinalizer) {}
+
+      @ProcessElement
+      public void processElement(BundleFinalizer finalizer) {}
+    }
+
+    @Test
+    public void testStartBundle() throws Exception {
+      Pipeline p = Pipeline.create();
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(
+              ParDo.of(new StartBundleDoFn())
+                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+              PCollection.createPrimitiveOutputInternal(
+                  p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of()),
+              DoFnSchemaInformation.create(),
+              TestPipeline.create(),
+              sdkComponents);
+
+      assertTrue(payload.getRequestsFinalization());
+    }
+
+    @Test
+    public void testProcessContext() throws Exception {
+      Pipeline p = Pipeline.create();
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(
+              ParDo.of(new ProcessContextDoFn())
+                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+              PCollection.createPrimitiveOutputInternal(
+                  p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of()),
+              DoFnSchemaInformation.create(),
+              TestPipeline.create(),
+              sdkComponents);
+
+      assertTrue(payload.getRequestsFinalization());
+    }
+
+    @Test
+    public void testFinishBundle() throws Exception {
+      Pipeline p = Pipeline.create();
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(
+              ParDo.of(new FinishBundleDoFn())
+                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+              PCollection.createPrimitiveOutputInternal(
+                  p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of()),
+              DoFnSchemaInformation.create(),
+              TestPipeline.create(),
+              sdkComponents);
+
+      assertTrue(payload.getRequestsFinalization());
     }
   }
 }

@@ -59,6 +59,7 @@ python hourly_team_score.py \
 # DataflowRunner
 python hourly_team_score.py \
     --project $PROJECT_ID \
+    --region $REGION_ID \
     --dataset $BIGQUERY_DATASET \
     --runner DataflowRunner \
     --temp_location gs://$BUCKET/user_score/temp

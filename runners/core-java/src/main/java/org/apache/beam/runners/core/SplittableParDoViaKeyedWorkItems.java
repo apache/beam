@@ -19,7 +19,6 @@ package org.apache.beam.runners.core;
 
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
@@ -42,8 +41,10 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -103,11 +105,11 @@ public class SplittableParDoViaKeyedWorkItems {
   }
 
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessViaKeyedWorkItems}. */
-  public static class OverrideFactory<InputT, OutputT, RestrictionT>
+  public static class OverrideFactory<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
       implements PTransformOverrideFactory<
           PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
           PCollectionTuple,
-          ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
+          ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>> {
     @Override
     public PTransformReplacement<
             PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple>
@@ -115,7 +117,7 @@ public class SplittableParDoViaKeyedWorkItems {
             AppliedPTransform<
                     PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
                     PCollectionTuple,
-                    ProcessKeyedElements<InputT, OutputT, RestrictionT>>
+                    ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>>
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
@@ -133,12 +135,14 @@ public class SplittableParDoViaKeyedWorkItems {
    * Runner-specific primitive {@link PTransform} that invokes the {@link DoFn.ProcessElement}
    * method for a splittable {@link DoFn}.
    */
-  public static class SplittableProcessViaKeyedWorkItems<InputT, OutputT, RestrictionT>
+  public static class SplittableProcessViaKeyedWorkItems<
+          InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
       extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
-    private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
+    private final ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
+        original;
 
     public SplittableProcessViaKeyedWorkItems(
-        ProcessKeyedElements<InputT, OutputT, RestrictionT> original) {
+        ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT> original) {
       this.original = original;
     }
 
@@ -156,21 +160,25 @@ public class SplittableParDoViaKeyedWorkItems {
   }
 
   /** A primitive transform wrapping around {@link ProcessFn}. */
-  public static class ProcessElements<InputT, OutputT, RestrictionT, PositionT>
+  public static class ProcessElements<
+          InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       extends PTransform<
           PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
-    private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
+    private final ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
+        original;
 
-    public ProcessElements(ProcessKeyedElements<InputT, OutputT, RestrictionT> original) {
+    public ProcessElements(
+        ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT> original) {
       this.original = original;
     }
 
-    public ProcessFn<InputT, OutputT, RestrictionT, PositionT> newProcessFn(
-        DoFn<InputT, OutputT> fn) {
+    public ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+        newProcessFn(DoFn<InputT, OutputT> fn) {
       return new ProcessFn<>(
           fn,
           original.getElementCoder(),
           original.getRestrictionCoder(),
+          original.getWatermarkEstimatorStateCoder(),
           original.getInputWindowingStrategy());
     }
 
@@ -216,7 +224,7 @@ public class SplittableParDoViaKeyedWorkItems {
    * <p>See also: https://issues.apache.org/jira/browse/BEAM-1983
    */
   @VisibleForTesting
-  public static class ProcessFn<InputT, OutputT, RestrictionT, PositionT>
+  public static class ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       extends DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
@@ -245,6 +253,8 @@ public class SplittableParDoViaKeyedWorkItems {
      */
     private StateTag<ValueState<RestrictionT>> restrictionTag;
 
+    private StateTag<ValueState<WatermarkEstimatorStateT>> watermarkEstimatorStateTag;
+
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
@@ -253,7 +263,7 @@ public class SplittableParDoViaKeyedWorkItems {
     private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
     private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
     private transient @Nullable SplittableProcessElementInvoker<
-            InputT, OutputT, RestrictionT, PositionT>
+            InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
         processElementInvoker;
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
@@ -262,6 +272,7 @@ public class SplittableParDoViaKeyedWorkItems {
         DoFn<InputT, OutputT> fn,
         Coder<InputT> elementCoder,
         Coder<RestrictionT> restrictionCoder,
+        Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder,
         WindowingStrategy<InputT, ?> inputWindowingStrategy) {
       this.fn = fn;
       this.elementCoder = elementCoder;
@@ -273,6 +284,8 @@ public class SplittableParDoViaKeyedWorkItems {
               WindowedValue.getFullCoder(
                   elementCoder, inputWindowingStrategy.getWindowFn().windowCoder()));
       this.restrictionTag = StateTags.value("restriction", restrictionCoder);
+      this.watermarkEstimatorStateTag =
+          StateTags.value("watermarkEstimatorState", watermarkEstimatorStateCoder);
     }
 
     public void setStateInternalsFactory(StateInternalsFactory<byte[]> stateInternalsFactory) {
@@ -284,7 +297,9 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     public void setProcessElementInvoker(
-        SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT> invoker) {
+        SplittableProcessElementInvoker<
+                InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+            invoker) {
       this.processElementInvoker = invoker;
     }
 
@@ -333,7 +348,7 @@ public class SplittableParDoViaKeyedWorkItems {
      * <p>Uses a watermark hold to control watermark advancement.
      */
     @ProcessElement
-    public void processElement(final ProcessContext c) {
+    public void processElement(final ProcessContext c, BoundedWindow boundedWindow) {
       byte[] key = c.element().key();
       StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
       TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
@@ -359,29 +374,142 @@ public class SplittableParDoViaKeyedWorkItems {
           stateInternals.state(stateNamespace, elementTag);
       ValueState<RestrictionT> restrictionState =
           stateInternals.state(stateNamespace, restrictionTag);
+      ValueState<WatermarkEstimatorStateT> watermarkEstimatorState =
+          stateInternals.state(stateNamespace, watermarkEstimatorStateTag);
       WatermarkHoldState holdState = stateInternals.state(stateNamespace, watermarkHoldTag);
 
       KV<WindowedValue<InputT>, RestrictionT> elementAndRestriction;
+      WatermarkEstimatorStateT watermarkEstimatorStateT;
       if (isSeedCall) {
         WindowedValue<KV<InputT, RestrictionT>> windowedValue =
             Iterables.getOnlyElement(c.element().elementsIterable());
         WindowedValue<InputT> element = windowedValue.withValue(windowedValue.getValue().getKey());
         elementState.write(element);
         elementAndRestriction = KV.of(element, windowedValue.getValue().getValue());
+        watermarkEstimatorStateT =
+            invoker.invokeGetInitialWatermarkEstimatorState(
+                new BaseArgumentProvider<InputT, OutputT>() {
+                  @Override
+                  public InputT element(DoFn<InputT, OutputT> doFn) {
+                    return elementAndRestriction.getKey().getValue();
+                  }
+
+                  @Override
+                  public Object restriction() {
+                    return elementAndRestriction.getValue();
+                  }
+
+                  @Override
+                  public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                    return c.timestamp();
+                  }
+
+                  @Override
+                  public PipelineOptions pipelineOptions() {
+                    return c.getPipelineOptions();
+                  }
+
+                  @Override
+                  public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                    return c.pane();
+                  }
+
+                  @Override
+                  public BoundedWindow window() {
+                    return boundedWindow;
+                  }
+
+                  @Override
+                  public String getErrorContext() {
+                    return ProcessFn.class.getSimpleName()
+                        + ".invokeGetInitialWatermarkEstimatorState";
+                  }
+                });
       } else {
         // This is not the first ProcessElement call for this element/restriction - rather,
         // this is a timer firing, so we need to fetch the element and restriction from state.
         elementState.readLater();
         restrictionState.readLater();
+        watermarkEstimatorState.readLater();
         elementAndRestriction = KV.of(elementState.read(), restrictionState.read());
+        watermarkEstimatorStateT = watermarkEstimatorState.read();
       }
+
+      final WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator =
+          invoker.invokeNewWatermarkEstimator(
+              new BaseArgumentProvider<InputT, OutputT>() {
+                @Override
+                public InputT element(DoFn<InputT, OutputT> doFn) {
+                  return elementAndRestriction.getKey().getValue();
+                }
+
+                @Override
+                public Object restriction() {
+                  return elementAndRestriction.getValue();
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return c.timestamp();
+                }
+
+                @Override
+                public PipelineOptions pipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+
+                @Override
+                public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                  return c.pane();
+                }
+
+                @Override
+                public BoundedWindow window() {
+                  return boundedWindow;
+                }
+
+                @Override
+                public Object watermarkEstimatorState() {
+                  return watermarkEstimatorStateT;
+                }
+
+                @Override
+                public String getErrorContext() {
+                  return ProcessFn.class.getSimpleName() + ".invokeNewWatermarkEstimator";
+                }
+              });
 
       final RestrictionTracker<RestrictionT, PositionT> tracker =
           invoker.invokeNewTracker(
               new BaseArgumentProvider<InputT, OutputT>() {
                 @Override
+                public InputT element(DoFn<InputT, OutputT> doFn) {
+                  return elementAndRestriction.getKey().getValue();
+                }
+
+                @Override
                 public Object restriction() {
                   return elementAndRestriction.getValue();
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return c.timestamp();
+                }
+
+                @Override
+                public PipelineOptions pipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+
+                @Override
+                public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                  return c.pane();
+                }
+
+                @Override
+                public BoundedWindow window() {
+                  return boundedWindow;
                 }
 
                 @Override
@@ -389,19 +517,25 @@ public class SplittableParDoViaKeyedWorkItems {
                   return ProcessFn.class.getSimpleName() + ".invokeNewTracker";
                 }
               });
-      SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
-          processElementInvoker.invokeProcessElement(
-              invoker, elementAndRestriction.getKey(), tracker);
+      SplittableProcessElementInvoker<
+                  InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+              .Result
+          result =
+              processElementInvoker.invokeProcessElement(
+                  invoker, elementAndRestriction.getKey(), tracker, watermarkEstimator);
 
       // Save state for resuming.
       if (result.getResidualRestriction() == null) {
         // All work for this element/restriction is completed. Clear state and release hold.
         elementState.clear();
         restrictionState.clear();
+        watermarkEstimatorState.clear();
         holdState.clear();
         return;
       }
+
       restrictionState.write(result.getResidualRestriction());
+      watermarkEstimatorState.write(result.getFutureWatermarkEstimatorState());
       @Nullable Instant futureOutputWatermark = result.getFutureOutputWatermark();
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
@@ -411,42 +545,76 @@ public class SplittableParDoViaKeyedWorkItems {
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
-          TimerInternals.TimerData.of(stateNamespace, wakeupTime, TimeDomain.PROCESSING_TIME));
+          TimerInternals.TimerData.of(
+              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
     }
 
-    private DoFn<InputT, OutputT>.StartBundleContext wrapContextAsStartBundle(
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsStartBundle(
         final StartBundleContext baseContext) {
-      return fn.new StartBundleContext() {
+      return new BaseArgumentProvider<InputT, OutputT>() {
         @Override
-        public PipelineOptions getPipelineOptions() {
+        public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+            DoFn<InputT, OutputT> doFn) {
+          return fn.new StartBundleContext() {
+            @Override
+            public PipelineOptions getPipelineOptions() {
+              return baseContext.getPipelineOptions();
+            }
+          };
+        }
+
+        @Override
+        public PipelineOptions pipelineOptions() {
           return baseContext.getPipelineOptions();
+        }
+
+        @Override
+        public String getErrorContext() {
+          return "SplittableParDoViaKeyedWorkItems/StartBundle";
         }
       };
     }
 
-    private DoFn<InputT, OutputT>.FinishBundleContext wrapContextAsFinishBundle(
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsFinishBundle(
         final FinishBundleContext baseContext) {
-      return fn.new FinishBundleContext() {
+      return new BaseArgumentProvider<InputT, OutputT>() {
         @Override
-        public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-          throwUnsupportedOutput();
+        public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+            DoFn<InputT, OutputT> doFn) {
+          return fn.new FinishBundleContext() {
+            @Override
+            public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+              throwUnsupportedOutput();
+            }
+
+            @Override
+            public <T> void output(
+                TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+              throwUnsupportedOutput();
+            }
+
+            @Override
+            public PipelineOptions getPipelineOptions() {
+              return baseContext.getPipelineOptions();
+            }
+
+            private void throwUnsupportedOutput() {
+              throw new UnsupportedOperationException(
+                  String.format(
+                      "KWI Splittable DoFn can only output from @%s",
+                      ProcessElement.class.getSimpleName()));
+            }
+          };
         }
 
         @Override
-        public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public PipelineOptions getPipelineOptions() {
+        public PipelineOptions pipelineOptions() {
           return baseContext.getPipelineOptions();
         }
 
-        private void throwUnsupportedOutput() {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Splittable DoFn can only output from @%s",
-                  ProcessElement.class.getSimpleName()));
+        @Override
+        public String getErrorContext() {
+          return "SplittableParDoViaKeyedWorkItems/FinishBundle";
         }
       };
     }

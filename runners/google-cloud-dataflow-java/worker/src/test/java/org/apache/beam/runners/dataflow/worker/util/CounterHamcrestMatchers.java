@@ -26,12 +26,12 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.NameAndKind;
 import com.google.api.services.dataflow.model.SplitInt64;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 
@@ -65,8 +65,8 @@ public final class CounterHamcrestMatchers {
 
   /** Matcher for {@link CounterUpdate} structured name. */
   public static class CounterStructuredNameMatcher extends TypeSafeMatcher<CounterUpdate> {
-    @Nullable private final CounterName name;
-    @Nullable private final String kind;
+    private final @Nullable CounterName name;
+    private final @Nullable String kind;
 
     private CounterStructuredNameMatcher(@Nullable CounterName name, @Nullable String kind) {
       this.name = name;

@@ -28,12 +28,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -280,8 +280,7 @@ public class ReadOperation extends Operation {
    * Relays the checkpoint request to {@code ReaderIterator}. This method is called concurrently to
    * the readLoop.
    */
-  @Nullable
-  public NativeReader.DynamicSplitResult requestCheckpoint() {
+  public NativeReader.@Nullable DynamicSplitResult requestCheckpoint() {
     synchronized (initializationStateLock) {
       if (isFinished() || isAborted()) {
         LOG.info(
@@ -301,8 +300,7 @@ public class ReadOperation extends Operation {
    * Relays the split request to {@code ReaderIterator}. This method is called concurrently to the
    * readLoop.
    */
-  @Nullable
-  public NativeReader.DynamicSplitResult requestDynamicSplit(
+  public NativeReader.@Nullable DynamicSplitResult requestDynamicSplit(
       NativeReader.DynamicSplitRequest splitRequest) {
     synchronized (initializationStateLock) {
       if (isFinished() || isAborted()) {

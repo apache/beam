@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static java.lang.Thread.sleep;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -27,18 +28,22 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
+import org.apache.beam.sdk.testing.UsesBundleFinalizer;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
@@ -47,7 +52,9 @@ import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
@@ -73,7 +80,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} behavior.
+ * Tests for <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} behavior.
  */
 @RunWith(JUnit4.class)
 public class SplittableDoFnTest implements Serializable {
@@ -285,11 +292,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesBoundedSplittableParDo.class,
-    DataflowPortabilityApiUnsupported.class
-  })
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testOutputAfterCheckpointBounded() {
     testOutputAfterCheckpoint(IsBounded.BOUNDED);
   }
@@ -805,6 +808,83 @@ public class SplittableDoFnTest implements Serializable {
                   }));
       assertEquals(PCollection.IsBounded.UNBOUNDED, res.isBounded());
     }
+  }
+
+  /**
+   * While the finalization callback hasn't been invoked, this DoFn will keep requesting
+   * finalization, wait one second and then checkpoint upto MAX_ATTEMPTS amount of times. Once the
+   * callback has been invoked, the DoFn will output the element and stop.
+   */
+  public static class BundleFinalizingSplittableDoFn extends DoFn<String, String> {
+    private static final long MAX_ATTEMPTS = 3000;
+    // We use the UUID to uniquely identify this DoFn in case this test is run with
+    // other tests in the same JVM.
+    private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
+    private final UUID uuid = UUID.randomUUID();
+
+    @NewTracker
+    public RestrictionTracker<OffsetRange, Long> newTracker(@Restriction OffsetRange restriction) {
+      // Use a modified OffsetRangeTracker with only support for checkpointing.
+      return new OffsetRangeTracker(restriction) {
+        @Override
+        public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+          return super.trySplit(0);
+        }
+      };
+    }
+
+    @ProcessElement
+    public ProcessContinuation process(
+        @Element String element,
+        OutputReceiver<String> receiver,
+        RestrictionTracker<OffsetRange, Long> tracker,
+        BundleFinalizer bundleFinalizer)
+        throws InterruptedException {
+      if (WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).get()) {
+        tracker.tryClaim(tracker.currentRestriction().getFrom() + 1);
+        receiver.output(element);
+        // Claim beyond the end now that we know we have been finalized.
+        tracker.tryClaim(Long.MAX_VALUE);
+        return stop();
+      }
+      if (tracker.tryClaim(tracker.currentRestriction().getFrom() + 1)) {
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(Duration.standardSeconds(MAX_ATTEMPTS)),
+            () -> WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).set(true));
+        // We sleep here instead of setting a resume time since the resume time doesn't need to
+        // be honored.
+        sleep(100L);
+        return resume();
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction() {
+      return new OffsetRange(0, MAX_ATTEMPTS);
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesBundleFinalizer.class})
+  public void testBundleFinalizationOccursOnBoundedSplittableDoFn() throws Exception {
+    @BoundedPerElement
+    class BoundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
+    PCollection<String> foo = p.apply(Create.of("foo"));
+    PCollection<String> res = foo.apply(ParDo.of(new BoundedBundleFinalizingSplittableDoFn()));
+    PAssert.that(res).containsInAnyOrder("foo");
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, UsesBundleFinalizer.class})
+  public void testBundleFinalizationOccursOnUnboundedSplittableDoFn() throws Exception {
+    @UnboundedPerElement
+    class UnboundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
+    PCollection<String> foo = p.apply(Create.of("foo"));
+    PCollection<String> res = foo.apply(ParDo.of(new UnboundedBundleFinalizingSplittableDoFn()));
+    PAssert.that(res).containsInAnyOrder("foo");
+    p.run();
   }
 
   // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn

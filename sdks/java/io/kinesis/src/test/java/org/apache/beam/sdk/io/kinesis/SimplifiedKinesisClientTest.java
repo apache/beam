@@ -116,13 +116,13 @@ public class SimplifiedKinesisClientTest {
   @Test
   public void shouldHandleLimitExceededExceptionForGetShardIterator() {
     shouldHandleGetShardIteratorError(
-        new LimitExceededException(""), TransientKinesisException.class);
+        new LimitExceededException(""), KinesisClientThrottledException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForGetShardIterator() {
     shouldHandleGetShardIteratorError(
-        new ProvisionedThroughputExceededException(""), TransientKinesisException.class);
+        new ProvisionedThroughputExceededException(""), KinesisClientThrottledException.class);
   }
 
   @Test
@@ -190,13 +190,14 @@ public class SimplifiedKinesisClientTest {
 
   @Test
   public void shouldHandleLimitExceededExceptionForShardListing() {
-    shouldHandleShardListingError(new LimitExceededException(""), TransientKinesisException.class);
+    shouldHandleShardListingError(
+        new LimitExceededException(""), KinesisClientThrottledException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
     shouldHandleShardListingError(
-        new ProvisionedThroughputExceededException(""), TransientKinesisException.class);
+        new ProvisionedThroughputExceededException(""), KinesisClientThrottledException.class);
   }
 
   @Test
@@ -281,13 +282,13 @@ public class SimplifiedKinesisClientTest {
   @Test
   public void shouldHandleLimitExceededExceptionForGetBacklogBytes() {
     shouldHandleGetBacklogBytesError(
-        new LimitExceededException(""), TransientKinesisException.class);
+        new LimitExceededException(""), KinesisClientThrottledException.class);
   }
 
   @Test
   public void shouldHandleProvisionedThroughputExceededExceptionForGetBacklogBytes() {
     shouldHandleGetBacklogBytesError(
-        new ProvisionedThroughputExceededException(""), TransientKinesisException.class);
+        new ProvisionedThroughputExceededException(""), KinesisClientThrottledException.class);
   }
 
   @Test

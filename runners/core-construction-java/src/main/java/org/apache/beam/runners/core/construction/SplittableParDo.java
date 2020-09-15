@@ -21,28 +21,31 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
 import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -56,7 +59,9 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -68,6 +73,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -87,8 +93,7 @@ import org.joda.time.Instant;
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
  * ParDo.of(splittable DoFn)}, but not for direct use by pipeline writers.
  */
-@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
-public class SplittableParDo<InputT, OutputT, RestrictionT>
+public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
   /**
    * A {@link PTransformOverrideFactory} that overrides a <a
@@ -147,7 +152,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * ParDo}. Instead {@link ParDoTranslation} will be used to extract fields.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?> forAppliedParDo(
+  public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?, ?> forAppliedParDo(
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> parDo) {
     checkArgument(parDo != null, "parDo must not be null");
 
@@ -172,6 +177,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     Coder<RestrictionT> restrictionCoder =
         DoFnInvokers.invokerFor(doFn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
+    Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder =
+        DoFnInvokers.invokerFor(doFn)
+            .invokeGetWatermarkEstimatorStateCoder(input.getPipeline().getCoderRegistry());
     Coder<KV<InputT, RestrictionT>> splitCoder = KvCoder.of(input.getCoder(), restrictionCoder);
 
     PCollection<KV<byte[], KV<InputT, RestrictionT>>> keyedRestrictions =
@@ -194,6 +202,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             doFn,
             input.getCoder(),
             restrictionCoder,
+            watermarkEstimatorStateCoder,
             (WindowingStrategy<InputT, ?>) input.getWindowingStrategy(),
             sideInputs,
             mainOutputTag,
@@ -223,11 +232,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * method for a splittable {@link DoFn} on each {@link KV} of the input {@link PCollection} of
    * {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
-  public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
+  public static class ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
       extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
+    private final Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder;
     private final WindowingStrategy<InputT, ?> windowingStrategy;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
@@ -247,6 +257,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         DoFn<InputT, OutputT> fn,
         Coder<InputT> elementCoder,
         Coder<RestrictionT> restrictionCoder,
+        Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder,
         WindowingStrategy<InputT, ?> windowingStrategy,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
@@ -255,6 +266,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
+      this.watermarkEstimatorStateCoder = watermarkEstimatorStateCoder;
       this.windowingStrategy = windowingStrategy;
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
@@ -272,6 +284,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     public Coder<RestrictionT> getRestrictionCoder() {
       return restrictionCoder;
+    }
+
+    public Coder<WatermarkEstimatorStateT> getWatermarkEstimatorStateCoder() {
+      return watermarkEstimatorStateCoder;
     }
 
     public WindowingStrategy<InputT, ?> getInputWindowingStrategy() {
@@ -342,7 +358,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   /** A translator for {@link ProcessKeyedElements}. */
   public static class ProcessKeyedElementsTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<ProcessKeyedElements<?, ?, ?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<
+          ProcessKeyedElements<?, ?, ?, ?>> {
 
     public static TransformPayloadTranslator create() {
       return new ProcessKeyedElementsTranslator();
@@ -351,15 +368,16 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     private ProcessKeyedElementsTranslator() {}
 
     @Override
-    public String getUrn(ProcessKeyedElements<?, ?, ?> transform) {
+    public String getUrn(ProcessKeyedElements<?, ?, ?, ?> transform) {
       return PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?>> transform, SdkComponents components)
+        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?, ?>> transform,
+        SdkComponents components)
         throws IOException {
-      ProcessKeyedElements<?, ?, ?> pke = transform.getTransform();
+      ProcessKeyedElements<?, ?, ?, ?> pke = transform.getTransform();
       final DoFn<?, ?> fn = pke.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       final String restrictionCoderId = components.registerCoder(pke.getRestrictionCoder());
@@ -379,12 +397,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
-                public List<Parameter> translateParameters() {
-                  return ParDoTranslation.translateParameters(
-                      signature.processElement().extraParameters());
-                }
-
-                @Override
                 public Map<String, SideInput> translateSideInputs(SdkComponents components) {
                   return ParDoTranslation.translateSideInputs(pke.getSideInputs(), components);
                 }
@@ -396,16 +408,17 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
-                public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
+                public Map<String, TimerFamilySpec> translateTimerFamilySpecs(
+                    SdkComponents newComponents) {
                   // SDFs don't have timers.
                   return ImmutableMap.of();
                 }
 
                 @Override
-                public Map<String, TimerFamilySpec> translateTimerFamilySpecs(
-                    SdkComponents newComponents) {
-                  // SDFs don't have timers.
-                  return ImmutableMap.of();
+                public boolean isStateful() {
+                  return !signature.stateDeclarations().isEmpty()
+                      || !signature.timerDeclarations().isEmpty()
+                      || !signature.timerFamilyDeclarations().isEmpty();
                 }
 
                 @Override
@@ -414,8 +427,32 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
+                public boolean isRequiresStableInput() {
+                  return signature.processElement().requiresStableInput();
+                }
+
+                @Override
                 public boolean isRequiresTimeSortedInput() {
-                  return false;
+                  return signature.processElement().requiresTimeSortedInput();
+                }
+
+                @Override
+                public boolean requestsFinalization() {
+                  return (signature.startBundle() != null
+                          && signature
+                              .startBundle()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()))
+                      || (signature.processElement() != null
+                          && signature
+                              .processElement()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()))
+                      || (signature.finishBundle() != null
+                          && signature
+                              .finishBundle()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()));
                 }
 
                 @Override
@@ -466,7 +503,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(ProcessContext context, BoundedWindow w) {
       context.output(
           KV.of(
               context.element(),
@@ -475,6 +512,26 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                     @Override
                     public InputT element(DoFn<InputT, OutputT> doFn) {
                       return context.element();
+                    }
+
+                    @Override
+                    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                      return context.timestamp();
+                    }
+
+                    @Override
+                    public PipelineOptions pipelineOptions() {
+                      return context.getPipelineOptions();
+                    }
+
+                    @Override
+                    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                      return context.pane();
+                    }
+
+                    @Override
+                    public BoundedWindow window() {
+                      return w;
                     }
 
                     @Override
@@ -511,7 +568,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @ProcessElement
-    public void processElement(final ProcessContext c) {
+    public void processElement(final ProcessContext c, BoundedWindow w) {
       invoker.invokeSplitRestriction(
           (ArgumentProvider)
               new BaseArgumentProvider<InputT, RestrictionT>() {
@@ -523,6 +580,31 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 @Override
                 public Object restriction() {
                   return c.element().getValue();
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return invoker.invokeNewTracker((DoFnInvoker.BaseArgumentProvider) this);
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, RestrictionT> doFn) {
+                  return c.timestamp();
+                }
+
+                @Override
+                public PipelineOptions pipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+
+                @Override
+                public PaneInfo paneInfo(DoFn<InputT, RestrictionT> doFn) {
+                  return c.pane();
+                }
+
+                @Override
+                public BoundedWindow window() {
+                  return w;
                 }
 
                 @Override
@@ -552,6 +634,47 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public void tearDown() {
       invoker.invokeTeardown();
       invoker = null;
+    }
+  }
+
+  /**
+   * Throws an {@link IllegalArgumentException} if the pipeline contains any primitive read
+   * transforms that have not been expanded to be executed as {@link DoFn splittable DoFns} as long
+   * as the experiment {@code use_deprecated_read} is not specified.
+   */
+  public static void validateNoPrimitiveReads(Pipeline pipeline) {
+    // TODO(BEAM-10670): Remove the deprecated Read and make the splittable DoFn the only option.
+    if (!(ExperimentalOptions.hasExperiment(
+            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read"))) {
+
+      pipeline.traverseTopologically(new ValidateNoPrimitiveReads());
+    }
+  }
+
+  /**
+   * A {@link org.apache.beam.sdk.Pipeline.PipelineVisitor} that ensures that the pipeline does not
+   * contain any primitive reads.
+   */
+  private static class ValidateNoPrimitiveReads extends PipelineVisitor.Defaults {
+    public final List<PTransform<?, ?>> foundPrimitiveReads = new ArrayList<>();
+
+    @Override
+    public void visitPrimitiveTransform(Node node) {
+      if (node.getTransform() instanceof Read.Bounded
+          || node.getTransform() instanceof Read.Unbounded) {
+        foundPrimitiveReads.add(node.getTransform());
+      }
+    }
+
+    @Override
+    public void leavePipeline(Pipeline pipeline) {
+      if (!foundPrimitiveReads.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Found primitive read transforms %s within the pipeline when only Splittable DoFns were expected. If you would like to use the deprecated behavior, please specify the experiment 'use_deprecated_read'. For example '--experiements=use_deprecated_read' on the command line.",
+                foundPrimitiveReads));
+      }
     }
   }
 }

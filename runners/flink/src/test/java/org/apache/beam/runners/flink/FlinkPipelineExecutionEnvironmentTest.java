@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -56,6 +58,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.hamcrest.BaseMatcher;
@@ -70,6 +73,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
+import org.powermock.reflect.exceptions.FieldNotFoundException;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
@@ -107,7 +111,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldPrepareFilesToStageWhenFlinkMasterIsSetExplicitly() throws IOException {
-    FlinkPipelineOptions options = testPreparingResourcesToStage("localhost:8081", false);
+    FlinkPipelineOptions options = testPreparingResourcesToStage("localhost:8081", true, false);
 
     assertThat(options.getFilesToStage().size(), is(2));
     assertThat(options.getFilesToStage().get(0), matches(".*\\.jar"));
@@ -118,14 +122,14 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     assertThrows(
         "To-be-staged file does not exist: ",
         IllegalStateException.class,
-        () -> testPreparingResourcesToStage("localhost:8081", true));
+        () -> testPreparingResourcesToStage("localhost:8081", true, true));
   }
 
   @Test
   public void shouldNotPrepareFilesToStageWhenFlinkMasterIsSetToAuto() throws IOException {
     FlinkPipelineOptions options = testPreparingResourcesToStage("[auto]");
 
-    assertThat(options.getFilesToStage().size(), is(3));
+    assertThat(options.getFilesToStage().size(), is(2));
     assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
   }
 
@@ -133,7 +137,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   public void shouldNotPrepareFilesToStagewhenFlinkMasterIsSetToCollection() throws IOException {
     FlinkPipelineOptions options = testPreparingResourcesToStage("[collection]");
 
-    assertThat(options.getFilesToStage().size(), is(3));
+    assertThat(options.getFilesToStage().size(), is(2));
     assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
   }
 
@@ -141,7 +145,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   public void shouldNotPrepareFilesToStageWhenFlinkMasterIsSetToLocal() throws IOException {
     FlinkPipelineOptions options = testPreparingResourcesToStage("[local]");
 
-    assertThat(options.getFilesToStage().size(), is(3));
+    assertThat(options.getFilesToStage().size(), is(2));
     assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
   }
 
@@ -175,8 +179,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     ExecutionEnvironment executionEnvironment = flinkEnv.getBatchExecutionEnvironment();
     assertThat(executionEnvironment, instanceOf(RemoteEnvironment.class));
 
-    @SuppressWarnings("unchecked")
-    List<URL> jarFiles = (List<URL>) Whitebox.getInternalState(executionEnvironment, "jarFiles");
+    List<URL> jarFiles = getJars(executionEnvironment);
 
     List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
 
@@ -199,9 +202,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
         flinkEnv.getStreamExecutionEnvironment();
     assertThat(streamExecutionEnvironment, instanceOf(RemoteStreamEnvironment.class));
 
-    @SuppressWarnings("unchecked")
-    List<URL> jarFiles =
-        (List<URL>) Whitebox.getInternalState(streamExecutionEnvironment, "jarFiles");
+    List<URL> jarFiles = getJars(streamExecutionEnvironment);
 
     List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
 
@@ -369,22 +370,30 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   private FlinkPipelineOptions testPreparingResourcesToStage(String flinkMaster)
       throws IOException {
-    return testPreparingResourcesToStage(flinkMaster, true);
+    return testPreparingResourcesToStage(flinkMaster, false, true);
   }
 
   private FlinkPipelineOptions testPreparingResourcesToStage(
-      String flinkMaster, boolean includeNonExisting) throws IOException {
+      String flinkMaster, boolean includeIndividualFile, boolean includeNonExisting)
+      throws IOException {
     Pipeline pipeline = Pipeline.create();
     String tempLocation = tmpFolder.newFolder().getAbsolutePath();
 
     List<String> filesToStage = new ArrayList<>();
 
     File stagingDir = tmpFolder.newFolder();
-    stagingDir.createNewFile();
+    File stageFile = new File(stagingDir, "stage");
+    stageFile.createNewFile();
     filesToStage.add(stagingDir.getAbsolutePath());
 
-    File individualStagingFile = tmpFolder.newFile();
-    filesToStage.add(individualStagingFile.getAbsolutePath());
+    if (includeIndividualFile) {
+      String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
+      List<String> filesToZip = new ArrayList<>();
+      filesToZip.add(stagingDir.getAbsolutePath());
+      File individualStagingFile =
+          new File(PipelineResources.prepareFilesForStaging(filesToZip, temporaryLocation).get(0));
+      filesToStage.add(individualStagingFile.getAbsolutePath());
+    }
 
     if (includeNonExisting) {
       filesToStage.add("/path/to/not/existing/dir");
@@ -417,5 +426,21 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
               }
             })
         .collect(Collectors.toList());
+  }
+
+  private List<URL> getJars(Object env) throws Exception {
+    try {
+      return (List<URL>) Whitebox.getInternalState(env, "jarFiles");
+    } catch (FieldNotFoundException t) {
+      // for flink 1.10+
+      Configuration config = Whitebox.getInternalState(env, "configuration");
+      Class accesorClass = Class.forName("org.apache.flink.client.cli.ExecutionConfigAccessor");
+      Method fromConfigurationMethod =
+          accesorClass.getDeclaredMethod("fromConfiguration", Configuration.class);
+      Object accesor = fromConfigurationMethod.invoke(null, config);
+
+      Method getJarsMethod = accesorClass.getDeclaredMethod("getJars");
+      return (List<URL>) getJarsMethod.invoke(accesor);
+    }
   }
 }

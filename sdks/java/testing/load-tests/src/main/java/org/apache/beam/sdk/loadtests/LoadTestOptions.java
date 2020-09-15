@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -25,6 +24,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Common interface for all load test options. */
 public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
@@ -67,6 +67,30 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
   Long getInputWindowDurationSec();
 
   void setInputWindowDurationSec(Long windowSizeSec);
+
+  @Description("InfluxDB measurement to publish results to.")
+  @Nullable
+  String getInfluxMeasurement();
+
+  void setInfluxMeasurement(@Nullable String measurement);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxHost();
+
+  void setInfluxHost(@Nullable String host);
+
+  @Description("InfluxDB database.")
+  @Nullable
+  String getInfluxDatabase();
+
+  void setInfluxDatabase(@Nullable String database);
+
+  @Description("Whether the results should be published to InfluxDB")
+  @Default.Boolean(false)
+  Boolean getPublishToInfluxDB();
+
+  void setPublishToInfluxDB(Boolean publishToInfluxDB);
 
   static <T extends LoadTestOptions> T readFromArgs(String[] args, Class<T> optionsClass) {
     return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsClass);
