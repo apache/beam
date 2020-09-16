@@ -795,7 +795,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     except HttpError:
       pass
 
-    class Contains(object):
+    class RegexMatch(object):
       def __init__(self, regex):
         self.regex = regex
 
@@ -806,7 +806,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         return self.regex.__hash__()
 
     mock_logger.info.assert_called_once_with(
-        Contains(r'\[Streaming Insert API Statistics since .*\]'))
+        RegexMatch(r'\[Streaming Insert API Statistics since .*\]'))
 
     fn.start_bundle()
     fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
@@ -817,7 +817,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     self.assertEqual(2, mock_logger.info.call_count)
     mock_logger.info.assert_called_with(
-        Contains(
+        RegexMatch(
             r'\[Streaming Insert API Statistics since .*\]\n'
             r'Total number of streaming insert requests: 1, '
             r'P99: \d+ms, P90: \d+ms, P50: \d+ms\n'

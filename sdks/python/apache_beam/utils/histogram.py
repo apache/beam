@@ -85,7 +85,7 @@ class Histogram(object):
       elif f == float('inf'):
         return '>=%s' % self._bucket_type.range_to()
       else:
-        return str(round(f))  # pylint: disable=round-builtin
+        return str(int(round(f)))  # pylint: disable=round-builtin
 
     with self._lock:
       return (
