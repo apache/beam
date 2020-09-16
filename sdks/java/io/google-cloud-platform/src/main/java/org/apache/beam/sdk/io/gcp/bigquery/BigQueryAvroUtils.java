@@ -337,7 +337,7 @@ class BigQueryAvroUtils {
             new Conversions.DecimalConversion()
                 .fromBytes((ByteBuffer) v, Schema.create(avroType), avroLogicalType);
         return numericValue.toString();
-      case "BOOLEAN":
+      case "BOOL":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;
       case "TIMESTAMP":
