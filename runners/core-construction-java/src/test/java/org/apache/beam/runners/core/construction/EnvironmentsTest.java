@@ -170,7 +170,9 @@ public class EnvironmentsTest implements Serializable {
   @Test
   public void testJavaVersion() {
     assertEquals(JavaVersion.v8, JavaVersion.forSpecification("1.8"));
+    assertEquals("java8", JavaVersion.v8.toString());
     assertEquals(JavaVersion.v11, JavaVersion.forSpecification("11"));
+    assertEquals("java11", JavaVersion.v11.toString());
   }
 
   @Test(expected = UnsupportedOperationException.class)

@@ -86,7 +86,7 @@ public class Environments {
 
     @Override
     public String toString() {
-      return this.name();
+      return this.name;
     }
 
     public String specification() {
@@ -348,7 +348,7 @@ public class Environments {
     return capabilities.build();
   }
 
-  public static JavaVersion getJavaSpecification() {
+  public static JavaVersion getJavaVersion() {
     return JavaVersion.forSpecification(System.getProperty("java.specification.version"));
   }
 
@@ -396,7 +396,7 @@ public class Environments {
         "%s/%s_%s_sdk:%s",
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
-        getJavaSpecification().toString(),
+        getJavaVersion().toString(),
         ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }
