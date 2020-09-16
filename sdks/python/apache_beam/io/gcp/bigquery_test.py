@@ -37,6 +37,7 @@ import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 import pytz
+from mock import patch
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -752,6 +753,75 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.finish_bundle()
     # InsertRows called in finish bundle
     self.assertTrue(client.tabledata.InsertAll.called)
+
+  @patch('apache_beam.io.gcp.bigquery._LOGGER')
+  def test_dofn_client_finish_bundle_log_statistics(self, mock_logger):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.side_effect = HttpError(
+        response={'status': '404'},
+        url='',
+        content='''{
+          "error": {
+            "code": 400,
+            "message": "The destination table has no schema.",
+            "errors": [
+              {
+                "message": "The destination table has no schema.",
+                "domain": "global",
+                "reason": "invalid"
+              }
+            ],
+            "status": "INVALID_ARGUMENT"
+          }
+        }''')
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        batch_size=2,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        kms_key=None,
+        test_client=client,
+        streaming_api_logging_frequency_sec=0.0001)
+
+    fn.start_bundle()
+    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
+    try:
+      fn.finish_bundle()
+    except HttpError:
+      pass
+
+    class Contains(object):
+      def __init__(self, regex):
+        self.regex = regex
+
+      def __eq__(self, other):
+        return re.match(self.regex, other) is not None
+
+      def __hash__(self):
+        return self.regex.__hash__()
+
+    mock_logger.info.assert_called_once_with(
+        Contains(r'\[Streaming Insert API Statistics since .*\]'))
+
+    fn.start_bundle()
+    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
+    try:
+      fn.finish_bundle()
+    except HttpError:
+      pass
+
+    self.assertEqual(2, mock_logger.info.call_count)
+    mock_logger.info.assert_called_with(
+        Contains(
+            r'\[Streaming Insert API Statistics since .*\]\n'
+            r'Total number of streaming insert requests: 1, '
+            r'P99: \d+ms, P90: \d+ms, P50: \d+ms\n'
+            r'HttpError counts: \{\n    "invalid\(404\)": 1\n\}'))
 
   def test_dofn_client_no_records(self):
     client = mock.Mock()
