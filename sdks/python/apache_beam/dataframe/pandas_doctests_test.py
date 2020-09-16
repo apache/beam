@@ -44,11 +44,16 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.itertuples': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ['*'],
             'pandas.core.frame.DataFrame.iteritems': ['*'],
+            # default keep is 'first'
             'pandas.core.frame.DataFrame.nlargest': [
+                "df.nlargest(3, 'population')",
+                "df.nlargest(3, ['population', 'GDP'])",
                 "df.nlargest(3, 'population', keep='last')"
             ],
             'pandas.core.frame.DataFrame.nsmallest': [
-                "df.nsmallest(3, 'population', keep='last')"
+                "df.nsmallest(3, 'population')",
+                "df.nsmallest(3, ['population', 'GDP'])",
+                "df.nsmallest(3, 'population', keep='last')",
             ],
             'pandas.core.frame.DataFrame.nunique': ['*'],
             'pandas.core.frame.DataFrame.to_records': ['*'],
@@ -132,11 +137,16 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.diff': ['*'],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
+            # default keep is 'first'
             'pandas.core.series.Series.nlargest': [
-                "s.nlargest(3, keep='last')"
+                "s.nlargest()",
+                "s.nlargest(3)",
+                "s.nlargest(3, keep='last')",
             ],
             'pandas.core.series.Series.nsmallest': [
-                "s.nsmallest(3, keep='last')"
+                "s.nsmallest()",
+                "s.nsmallest(3)",
+                "s.nsmallest(3, keep='last')",
             ],
             'pandas.core.series.Series.searchsorted': ['*'],
             'pandas.core.series.Series.shift': ['*'],
@@ -187,69 +197,39 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
-    # TODO(BEAM-10720)
     result = doctests.testmod(
         pd.core.strings,
         use_beam=False,
         skip={
-            'pandas.core.strings.StringMethods': ['*'],
-            'pandas.core.strings.StringMethods.capitalize': ['*'],
-            'pandas.core.strings.StringMethods.casefold': ['*'],
             'pandas.core.strings.StringMethods.cat': ['*'],
-            'pandas.core.strings.StringMethods.contains': ['*'],
-            'pandas.core.strings.StringMethods.count': ['*'],
-            'pandas.core.strings.StringMethods.endswith': ['*'],
-            'pandas.core.strings.StringMethods.extract': ['*'],
-            'pandas.core.strings.StringMethods.extractall': ['*'],
-            'pandas.core.strings.StringMethods.findall': ['*'],
-            'pandas.core.strings.StringMethods.get': ['*'],
-            'pandas.core.strings.StringMethods.get_dummies': ['*'],
-            'pandas.core.strings.StringMethods.isalnum': ['*'],
-            'pandas.core.strings.StringMethods.isalpha': ['*'],
-            'pandas.core.strings.StringMethods.isdecimal': ['*'],
-            'pandas.core.strings.StringMethods.isdigit': ['*'],
-            'pandas.core.strings.StringMethods.islower': ['*'],
-            'pandas.core.strings.StringMethods.isnumeric': ['*'],
-            'pandas.core.strings.StringMethods.isspace': ['*'],
-            'pandas.core.strings.StringMethods.istitle': ['*'],
-            'pandas.core.strings.StringMethods.isupper': ['*'],
-            'pandas.core.strings.StringMethods.join': ['*'],
-            'pandas.core.strings.StringMethods.len': ['*'],
-            'pandas.core.strings.StringMethods.lower': ['*'],
-            'pandas.core.strings.StringMethods.lstrip': ['*'],
-            'pandas.core.strings.StringMethods.pad': ['*'],
-            'pandas.core.strings.StringMethods.partition': ['*'],
             'pandas.core.strings.StringMethods.repeat': ['*'],
-            'pandas.core.strings.StringMethods.replace': ['*'],
-            'pandas.core.strings.StringMethods.rpartition': ['*'],
-            'pandas.core.strings.StringMethods.rsplit': ['*'],
-            'pandas.core.strings.StringMethods.rstrip': ['*'],
-            'pandas.core.strings.StringMethods.slice': ['*'],
-            'pandas.core.strings.StringMethods.slice_replace': ['*'],
-            'pandas.core.strings.StringMethods.split': ['*'],
-            'pandas.core.strings.StringMethods.startswith': ['*'],
-            'pandas.core.strings.StringMethods.strip': ['*'],
-            'pandas.core.strings.StringMethods.swapcase': ['*'],
-            'pandas.core.strings.StringMethods.title': ['*'],
-            'pandas.core.strings.StringMethods.upper': ['*'],
-            'pandas.core.strings.StringMethods.wrap': ['*'],
-            'pandas.core.strings.StringMethods.zfill': ['*'],
-            'pandas.core.strings.str_contains': ['*'],
-            'pandas.core.strings.str_count': ['*'],
-            'pandas.core.strings.str_endswith': ['*'],
-            'pandas.core.strings.str_extract': ['*'],
-            'pandas.core.strings.str_extractall': ['*'],
-            'pandas.core.strings.str_findall': ['*'],
-            'pandas.core.strings.str_get': ['*'],
-            'pandas.core.strings.str_get_dummies': ['*'],
-            'pandas.core.strings.str_join': ['*'],
-            'pandas.core.strings.str_pad': ['*'],
             'pandas.core.strings.str_repeat': ['*'],
-            'pandas.core.strings.str_replace': ['*'],
-            'pandas.core.strings.str_slice': ['*'],
-            'pandas.core.strings.str_slice_replace': ['*'],
-            'pandas.core.strings.str_startswith': ['*'],
-            'pandas.core.strings.str_wrap': ['*'],
+
+            # The rest of the skipped tests represent bad test strings,
+            # fixed upstream in
+            # https://github.com/pandas-dev/pandas/commit/d095ac899da953d759992824592a72a1e6ff5e09
+            'pandas.core.strings.StringMethods': [
+                "s.str.split('_')", "s.str.replace('_', '')"
+            ],
+            'pandas.core.strings.str_split': ["s.str.split(expand=True)"],
+            'pandas.core.strings.str_replace': [
+                "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
+            ],
+            'pandas.core.strings.StringMethods.replace': [
+                "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
+            ],
+            'pandas.core.strings.StringMethods.partition': [
+                'idx.str.partition()'
+            ],
+            'pandas.core.strings.StringMethods.rpartition': [
+                'idx.str.partition()'
+            ],
+            # rsplit/split are particularly troublesome because the first test,
+            # defining a test series, is bad and must be skipped. But skipping
+            # it breaks every other test. To run the rest we would need to
+            # execute the first test but ignore the output.
+            'pandas.core.strings.StringMethods.rsplit': ["*"],
+            'pandas.core.strings.StringMethods.split': ["*"],
         })
     self.assertEqual(result.failed, 0)
 

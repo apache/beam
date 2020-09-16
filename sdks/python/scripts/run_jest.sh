@@ -20,6 +20,12 @@
 
 set -e
 
+# jlpm needs Node.js to work.
+if ! command -v node; then
+  echo "Node.js is not installed. Cannot execute the tests."
+  exit 1
+fi
+
 echo "Running jest tests..."
 
 # Source needed to run tests are copied to this build dir by copySourceForJest

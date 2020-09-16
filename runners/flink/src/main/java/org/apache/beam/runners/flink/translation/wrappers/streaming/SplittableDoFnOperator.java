@@ -157,9 +157,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
                 executorService,
                 10000,
                 Duration.standardSeconds(10),
-                () -> {
-                  throw new UnsupportedOperationException("BundleFinalizer unsupported by Flink.");
-                }));
+                this::getBundleFinalizer));
   }
 
   @Override

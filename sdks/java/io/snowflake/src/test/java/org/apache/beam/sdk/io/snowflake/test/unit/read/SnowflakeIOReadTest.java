@@ -30,8 +30,8 @@ import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
-import org.apache.beam.sdk.io.snowflake.test.unit.TestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,8 +50,8 @@ public class SnowflakeIOReadTest implements Serializable {
   public static final String FAKE_QUERY = "SELECT * FROM FAKE_TABLE";
   public static final String BUCKET_NAME = "BUCKET/";
 
-  private static final TestPipelineOptions options =
-      TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);;
+  private static final TestSnowflakePipelineOptions options =
+      TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();

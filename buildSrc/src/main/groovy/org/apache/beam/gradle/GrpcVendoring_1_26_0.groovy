@@ -89,7 +89,7 @@ class GrpcVendoring_1_26_0 {
       'com.google.errorprone:error_prone_annotations:2.3.3',
       'commons-logging:commons-logging:1.2',
       'org.apache.logging.log4j:log4j-api:2.6.2',
-      'org.slf4j:slf4j-api:1.7.21',
+      'org.slf4j:slf4j-api:1.7.30',
       // TODO(BEAM-9288): Enable relocation for conscrypt
       "org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version"
     ]

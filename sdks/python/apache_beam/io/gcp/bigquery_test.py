@@ -831,6 +831,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               None,
               None, [],
               ignore_insert_ids=False,
+              latency_logging_frequency_sec=None,
               test_client=client))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
@@ -1160,6 +1161,11 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
   def test_avro_file_load(self):
     # Construct elements such that they can be written via Avro but not via
     # JSON. See BEAM-8841.
+    from apache_beam.io.gcp import bigquery_file_loads
+    old_max_files = bigquery_file_loads._MAXIMUM_SOURCE_URIS
+    old_max_file_size = bigquery_file_loads._DEFAULT_MAX_FILE_SIZE
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = 1
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = 100
     elements = [
         {
             'name': u'Negative infinity',
@@ -1219,6 +1225,8 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
               method='FILE_LOADS',
               temp_file_format=bigquery_tools.FileFormat.AVRO,
           ))
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = old_max_files
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = old_max_file_size
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(

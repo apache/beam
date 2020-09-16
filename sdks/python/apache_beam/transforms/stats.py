@@ -15,15 +15,26 @@
 # limitations under the License.
 #
 
-"""This module has all statistic related transforms."""
+"""This module has all statistic related transforms.
+
+This ApproximateUnique class will be deprecated [1]. PLease look into using
+HLLCount in the zetasketch extension module [2].
+
+[1] https://lists.apache.org/thread.html/501605df5027567099b81f18c080469661fb426
+4a002615fa1510502%40%3Cdev.beam.apache.org%3E
+[2] https://beam.apache.org/releases/javadoc/2.16.0/org/apache/beam/sdk/extensio
+ns/zetasketch/HllCount.html
+"""
 
 # pytype: skip-file
 
 from __future__ import absolute_import
 from __future__ import division
 
+import hashlib
 import heapq
 import itertools
+import logging
 import math
 import sys
 import typing
@@ -44,6 +55,31 @@ __all__ = [
 T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
+
+
+def _get_default_hash_fn():
+  """Returns either murmurhash or md5 based on installation."""
+  try:
+    import mmh3  # pylint: disable=import-error
+
+    def _mmh3_hash(value):
+      # mmh3.hash64 returns two 64-bit unsigned integers
+      return mmh3.hash64(value, seed=0, signed=False)[0]
+
+    return _mmh3_hash
+
+  except ImportError:
+    logging.warning(
+        'Couldn\'t find murmurhash. Install mmh3 for a faster implementation of'
+        'ApproximateUnique.')
+
+    def _md5_hash(value):
+      # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
+      # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
+      # integer fingerprint.
+      return int(hashlib.md5(value).hexdigest()[:16], 16)
+
+    return _md5_hash
 
 
 class ApproximateUnique(object):
@@ -137,11 +173,12 @@ class _LargestUnique(object):
   An object to keep samples and calculate sample hash space. It is an
   accumulator of a combine function.
   """
-  _HASH_SPACE_SIZE = 2.0 * sys.maxsize
+  # We use unsigned 64-bit integer hashes.
+  _HASH_SPACE_SIZE = 2.0**64
 
   def __init__(self, sample_size):
     self._sample_size = sample_size
-    self._min_hash = sys.maxsize
+    self._min_hash = 2.0**64
     self._sample_heap = []
     self._sample_set = set()
 
@@ -166,7 +203,6 @@ class _LargestUnique(object):
         self._min_hash = self._sample_heap[0]
       elif element < self._min_hash:
         self._min_hash = element
-
     return True
 
   def get_estimate(self):
@@ -188,16 +224,14 @@ class _LargestUnique(object):
     est = log1p(-sample_size/sample_space) / log1p(-1/sample_space)
       * hash_space / sample_space
     """
-
     if len(self._sample_heap) < self._sample_size:
       return len(self._sample_heap)
     else:
-      sample_space_size = sys.maxsize - 1.0 * self._min_hash
+      sample_space_size = self._HASH_SPACE_SIZE - 1.0 * self._min_hash
       est = (
           math.log1p(-self._sample_size / sample_space_size) /
           math.log1p(-1 / sample_space_size) * self._HASH_SPACE_SIZE /
           sample_space_size)
-
       return round(est)
 
 
@@ -208,17 +242,22 @@ class ApproximateUniqueCombineFn(CombineFn):
   """
   def __init__(self, sample_size, coder):
     self._sample_size = sample_size
+    coder = coders.typecoders.registry.verify_deterministic(
+        coder, 'ApproximateUniqueCombineFn')
+
     self._coder = coder
+    self._hash_fn = _get_default_hash_fn()
 
   def create_accumulator(self, *args, **kwargs):
     return _LargestUnique(self._sample_size)
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      accumulator.add(hash(self._coder.encode(element)))
+      hashed_value = self._hash_fn(self._coder.encode(element))
+      accumulator.add(hashed_value)
       return accumulator
     except Exception as e:
-      raise RuntimeError("Runtime exception: %s", e)
+      raise RuntimeError("Runtime exception: %s" % e)
 
   # created an issue https://issues.apache.org/jira/browse/BEAM-7285 to speed up
   # merge process.
@@ -683,27 +722,6 @@ class ApproximateQuantilesCombineFn(CombineFn):
     elif self._comparator(value, quantile_state.max_val) > 0:
       quantile_state.max_val = value
     self._add_unbuffered(quantile_state, elements=[element])
-    return quantile_state
-
-  def add_inputs(self, quantile_state, elements):
-    """Add new elements to the collection being summarized by quantile state.
-    """
-    if not elements:
-      return quantile_state
-
-    values = [
-        element[0] for element in elements
-    ] if self._weighted else elements
-    min_val = min(values)
-    max_val = max(values)
-    if quantile_state.is_empty():
-      quantile_state.min_val = min_val
-      quantile_state.max_val = max_val
-    elif self._comparator(min_val, quantile_state.min_val) < 0:
-      quantile_state.min_val = min_val
-    elif self._comparator(max_val, quantile_state.max_val) > 0:
-      quantile_state.max_val = max_val
-    self._add_unbuffered(quantile_state, elements=elements)
     return quantile_state
 
   def merge_accumulators(self, accumulators):

@@ -108,7 +108,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       // The set of rows where we run the correlated unnest for each row
       PCollection<Row> outer = pinput.get(0);
 
-      Schema joinedSchema = CalciteUtils.toSchema(rowType);
+      Schema joinedSchema = CalciteUtils.toSchema(getRowType());
 
       return outer
           .apply(ParDo.of(new UnnestFn(joinedSchema, unnestIndex)))

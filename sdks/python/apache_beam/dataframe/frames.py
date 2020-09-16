@@ -69,6 +69,8 @@ class DeferredSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing()))
 
+  to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
+
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
 
@@ -112,10 +114,19 @@ class DeferredSeries(frame_base.DeferredFrame):
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
 
+  head = tail = frame_base.wont_implement_method('order-sensitive')
+
   @frame_base.args_to_kwargs(pd.Series)
-  def nlargest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.Series)
+  def nlargest(self, keep, **kwargs):
+    # TODO(robertwb): Document 'any' option.
+    # TODO(robertwb): Consider (conditionally) defaulting to 'any' if no
+    # explicit keep parameter is requested.
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
         'nlargest-per-partition',
         lambda df: df.nlargest(**kwargs), [self._expr],
@@ -130,9 +141,13 @@ class DeferredSeries(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.Series)
-  def nsmallest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.Series)
+  def nsmallest(self, keep, **kwargs):
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
         'nsmallest-per-partition',
         lambda df: df.nsmallest(**kwargs), [self._expr],
@@ -199,6 +214,15 @@ class DeferredSeries(frame_base.DeferredFrame):
   values = property(frame_base.wont_implement_method('non-deferred'))
 
   view = frame_base.wont_implement_method('memory sharing semantics')
+
+  @property
+  def str(self):
+    expr = expressions.ComputedExpression(
+        'str',
+        lambda df: df.str, [self._expr],
+        requires_partition_by=partitionings.Nothing(),
+        preserves_partition_by=partitionings.Singleton())
+    return _DeferredStringMethods(expr)
 
 
 for base in ['add',
@@ -365,6 +389,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
+
+  head = tail = frame_base.wont_implement_method('order-sensitive')
 
   max = frame_base._agg_method('max')
   min = frame_base._agg_method('min')
@@ -542,9 +568,13 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       return merged.reset_index(drop=True)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
-  def nlargest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.DataFrame)
+  def nlargest(self, keep, **kwargs):
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
             'nlargest-per-partition',
             lambda df: df.nlargest(**kwargs),
@@ -561,9 +591,13 @@ class DeferredDataFrame(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
-  def nsmallest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.DataFrame)
+  def nsmallest(self, keep, **kwargs):
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
             'nsmallest-per-partition',
             lambda df: df.nsmallest(**kwargs),
@@ -869,3 +903,54 @@ class _DeferredLoc(object):
                 if len(args) > 1
                 else partitionings.Nothing()),
             preserves_partition_by=partitionings.Singleton()))
+
+class _DeferredStringMethods(frame_base.DeferredBase):
+  pass
+
+ELEMENTWISE_STRING_METHODS = [
+            'capitalize',
+            'casefold',
+            'contains',
+            'count',
+            'endswith',
+            'extract',
+            'extractall',
+            'findall',
+            'get',
+            'get_dummies',
+            'isalpha',
+            'isalnum',
+            'isdecimal',
+            'isdigit',
+            'islower',
+            'isnumeric',
+            'isspace',
+            'istitle',
+            'isupper',
+            'join',
+            'len',
+            'lower',
+            'lstrip',
+            'pad',
+            'partition',
+            'replace',
+            'rpartition',
+            'rsplit',
+            'rstrip',
+            'slice',
+            'slice_replace',
+            'split',
+            'startswith',
+            'strip',
+            'swapcase',
+            'title',
+            'upper',
+            'wrap',
+            'zfill',
+            '__getitem__',
+]
+
+for method in ELEMENTWISE_STRING_METHODS:
+  setattr(_DeferredStringMethods,
+          method,
+          frame_base._elementwise_method(method))

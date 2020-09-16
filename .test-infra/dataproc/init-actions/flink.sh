@@ -37,10 +37,6 @@ readonly FLINK_YARN_SCRIPT='/usr/bin/flink-yarn-daemon'
 readonly FLINK_WORKING_USER='yarn'
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 
-# The number of buffers for the network stack.
-# Flink config entry: taskmanager.network.numberOfBuffers.
-readonly FLINK_NETWORK_NUM_BUFFERS=2048
-
 # Heap memory used by the job manager (master) determined by the physical (free) memory of the server.
 # Flink config entry: jobmanager.heap.mb.
 readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
@@ -160,10 +156,10 @@ jobmanager.rpc.address: ${master_hostname}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
 taskmanager.memory.process.size: "${flink_taskmanager_memory} mb"
 taskmanager.memory.jvm-metaspace.size: 512 mb
+taskmanager.memory.task.off-heap.size: 256 mb
 taskmanager.memory.managed.fraction: 0.5
 taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
 parallelism.default: ${flink_parallelism}
-taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 state.backend: filesystem
 state.checkpoints.dir: ${checkpoints_dir}

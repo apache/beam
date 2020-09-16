@@ -77,6 +77,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  mmh3:
+    license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
   mock:
     license: "https://raw.githubusercontent.com/testing-cabal/mock/master/LICENSE.txt"
   monotonic:
@@ -95,6 +97,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE"
   protorpc:
     license: "https://raw.githubusercontent.com/google/protorpc/master/LICENSE"
+  pbr:
+    license: "https://opendev.org/openstack/pbr/raw/branch/master/LICENSE"
   pyarrow:
     license: "https://raw.githubusercontent.com/apache/arrow/master/LICENSE.txt"
     notice: "https://raw.githubusercontent.com/apache/arrow/master/NOTICE.txt"

@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -52,8 +53,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -232,13 +231,16 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     Pipeline pipeline = PortablePipelineJarUtils.getPipelineFromClasspath(baseJobName);
     Struct originalOptions = PortablePipelineJarUtils.getPipelineOptionsFromClasspath(baseJobName);
 
-    // Spark pipeline jars distribute and retrieve artifacts via the classpath.
-    PortablePipelineOptions portablePipelineOptions =
-        PipelineOptionsTranslation.fromProto(originalOptions).as(PortablePipelineOptions.class);
-    portablePipelineOptions.setRetrievalServiceType(RetrievalServiceType.CLASSLOADER);
-    String retrievalToken = PortablePipelineJarUtils.getArtifactManifestUri(baseJobName);
+    // The retrieval token is only required by the legacy artifact service, which the Spark runner
+    // no longer uses.
+    String retrievalToken =
+        ArtifactApi.CommitManifestResponse.Constants.NO_ARTIFACTS_STAGED_TOKEN
+            .getValueDescriptor()
+            .getOptions()
+            .getExtension(RunnerApi.beamConstant);
 
-    SparkPipelineOptions sparkOptions = portablePipelineOptions.as(SparkPipelineOptions.class);
+    SparkPipelineOptions sparkOptions =
+        PipelineOptionsTranslation.fromProto(originalOptions).as(SparkPipelineOptions.class);
     String invocationId =
         String.format("%s_%s", sparkOptions.getJobName(), UUID.randomUUID().toString());
     if (sparkOptions.getAppName() == null) {

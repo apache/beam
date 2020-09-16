@@ -388,14 +388,14 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.8.0"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
-    def gax_version = "1.54.0"
+    def gax_version = "1.57.1"
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.3"
-    def google_cloud_core_version = "1.92.2"
+    def google_cloud_core_version = "1.93.7"
     def google_cloud_pubsublite_version = "0.1.6"
-    def google_cloud_spanner_version = "1.49.1"
+    def google_cloud_spanner_version = "1.59.0"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_code_gson_version = "2.8.6"
     def google_http_clients_version = "1.34.0"
@@ -414,8 +414,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
+    def slf4j_version = "1.7.30"
     def spark_version = "2.4.6"
     def spotbugs_version = "4.0.6"
+    def testcontainers_kafka_version = "1.14.3"
     def testcontainers_localstack_version = "1.14.3"
 
     // A map of maps containing common libraries used per language. To use:
@@ -481,7 +483,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.108.0",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.125.0-beta",
-        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.13.0",
+        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.16.0",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog:$google_cloud_datacatalog_version",
@@ -556,10 +558,10 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$google_cloud_spanner_version",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
-        slf4j_api                                   : "org.slf4j:slf4j-api:1.7.25",
-        slf4j_simple                                : "org.slf4j:slf4j-simple:1.7.25",
-        slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:1.7.25",
-        slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:1.7.25",
+        slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
+        slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
+        slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
+        slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
@@ -567,6 +569,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_localstack_version",
+        testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_kafka_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
@@ -646,7 +649,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * checkstyle
     //  * spotbugs
     //  * shadow (conditional on shadowClosure being specified)
-    //  * com.diffplug.gradle.spotless (code style plugin)
+    //  * com.diffplug.spotless (code style plugin)
     //
     // Dependency Management for Java Projects
     // ---------------------------------------
@@ -886,7 +889,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt-eclipse"
 
       // Enables a plugin which can apply code formatting to source.
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       // scan CVE
       project.apply plugin: "net.ossindex.audit"
       project.audit { rateLimitAsError = false }
@@ -906,6 +909,11 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableSpotbugs) {
+        project.tasks.whenTaskAdded {task ->
+          if(task.name.contains("spotbugsTest")) {
+            task.enabled = false
+          }
+        }
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
@@ -914,9 +922,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
-          sourceSets = [sourceSets.main]
         }
-        project.tasks.withType(com.github.spotbugs.SpotBugsTask) {
+        project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
             html.enabled = !project.jenkins.isCIBuild
             xml.enabled = project.jenkins.isCIBuild
@@ -1518,7 +1525,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyGroovyNature = {
       project.apply plugin: "groovy"
 
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
           project.disableSpotlessCheck == 'true'
       project.spotless {
