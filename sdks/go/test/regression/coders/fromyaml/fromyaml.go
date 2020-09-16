@@ -81,6 +81,11 @@ func (s *Spec) testStandardCoder() (err error) {
 		log.Printf("skipping unimplemented coder urn: %v", s.Coder.Urn)
 		return nil
 	}
+	// TODO(BEAM-9615): Support Logical types, and produce a better error message.
+	if strings.Contains(s.Coder.Payload, "logical") {
+		log.Printf("skipping coder with logical type. Unsupported in the Go SDK for now. Payload: %v", s.Coder.Payload)
+		return nil
+	}
 	// Construct the coder proto equivalents.
 
 	// Only nested tests need to be run, since nestedness is a pre-portability
