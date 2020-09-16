@@ -1236,6 +1236,10 @@ class BigQueryWriteFn(DoFn):
       return self._flush_all_batches()
 
   def finish_bundle(self):
+    self._report_streaming_api_logging()
+    return self._flush_all_batches()
+
+  def _report_streaming_api_logging(self):
     if BigQueryWriteFn.STREAMING_API_LOGGING_LOCK.acquire(False):
       try:
         current_millis = int(time.time() * 1000)
@@ -1262,7 +1266,6 @@ class BigQueryWriteFn(DoFn):
               current_millis)
       finally:
         BigQueryWriteFn.STREAMING_API_LOGGING_LOCK.release()
-    return self._flush_all_batches()
 
   def _flush_all_batches(self):
     _LOGGER.debug(
