@@ -930,7 +930,13 @@ public class Read {
    */
   private static final Set<String> SPLITTABLE_DOFN_PREFERRED_RUNNERS =
       ImmutableSet.of(
-          "DirectRunner", "FlinkRunner", "TestFlinkRunner", "Twister2Runner", "Twister2TestRunner");
+          "DirectRunner",
+          "FlinkRunner",
+          "TestFlinkRunner",
+          "SamzaRunner",
+          "TestSamzaRunner",
+          "Twister2Runner",
+          "Twister2TestRunner");
 
   private static boolean useSdf(PipelineOptions options) {
     // TODO(BEAM-10670): Make this by default true and have runners opt-out instead.
