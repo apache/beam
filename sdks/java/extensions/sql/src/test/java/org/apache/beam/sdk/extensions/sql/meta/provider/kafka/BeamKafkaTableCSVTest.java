@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import java.util.List;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -32,10 +33,12 @@ public class BeamKafkaTableCSVTest extends BeamKafkaTableTest {
 
   @Override
   protected KafkaTestRecord<?> createKafkaTestRecord(
-      String key, boolean useFixedKey, int i, int timestamp, boolean useFixedTimestamp) {
-    key = useFixedKey ? key : key + i;
-    timestamp = useFixedTimestamp ? timestamp : timestamp * i;
-    return KafkaTestRecord.create(key, i + ",1,2", "topic1", timestamp);
+      String key, List<Object> values, long timestamp) {
+    StringBuilder csv = new StringBuilder();
+    values.forEach(value -> csv.append(value).append(","));
+    csv.deleteCharAt(csv.length() - 1);
+    csv.trimToSize();
+    return KafkaTestRecord.create(key, csv.toString(), "topic1", timestamp);
   }
 
   @Override
