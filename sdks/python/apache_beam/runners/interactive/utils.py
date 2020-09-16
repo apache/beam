@@ -35,7 +35,7 @@ def to_element_list(
     coder,  # type: Coder
     include_window_info,  # type: bool
     n=None,  # type: int
-    include_teststream_events=False, # type: bool
+    include_time_events=False, # type: bool
 ):
   # type: (...) -> List[WindowedValue]
 
@@ -49,7 +49,7 @@ def to_element_list(
       if isinstance(e, TestStreamPayload.Event):
         if (e.HasField('watermark_event') or
             e.HasField('processing_time_event')):
-          if include_teststream_events:
+          if include_time_events:
             yield e
         else:
           for tv in e.element_event.elements:

@@ -179,21 +179,17 @@ class ElementStreamTest(unittest.TestCase):
     # The following tests a progression of reading different durations from the
     # cache.
 
-    # Small convienence function for getting the values.
-    def get_elements(events):
-      return [e.value for e in events]
-
     stream = ElementStream(
         self.pcoll, '', self.cache_key, max_n=100, max_duration_secs=1)
-    self.assertSequenceEqual(get_elements(stream.read()), [0])
+    self.assertSequenceEqual([e.value for e in stream.read()], [0])
 
     stream = ElementStream(
         self.pcoll, '', self.cache_key, max_n=100, max_duration_secs=2)
-    self.assertSequenceEqual(get_elements(stream.read()), [0, 1])
+    self.assertSequenceEqual([e.value for e in stream.read()], [0, 1])
 
     stream = ElementStream(
         self.pcoll, '', self.cache_key, max_n=100, max_duration_secs=10)
-    self.assertSequenceEqual(get_elements(stream.read()), [0, 1, 2, 3, 4])
+    self.assertSequenceEqual([e.value for e in stream.read()], [0, 1, 2, 3, 4])
 
 
 class RecordingTest(unittest.TestCase):

@@ -120,7 +120,11 @@ class ElementStream:
                                    coder,
                                    include_window_info=True,
                                    n=self._n,
-                                   include_teststream_events=True):
+                                   include_time_events=True):
+
+      # From the to_element_list we either get TestStreamPayload.Events if
+      # include_time_events or decoded elements from the reader. Make sure we
+      # only count the decoded elements to break early.
       if isinstance(e, TestStreamPayload.Event):
         time_limiter.update(e)
       else:
@@ -343,10 +347,7 @@ class RecordingManager:
     capture_size = getattr(cache_manager, 'capture_size', 0)
 
     descriptions = [r.describe() for r in self._recordings]
-    if descriptions:
-      size = sum(d['size'] for d in descriptions) + capture_size
-    else:
-      size = capture_size
+    size = sum(d['size'] for d in descriptions) + capture_size
     start = self._start_time_sec
     bcj = ie.current_env().get_background_caching_job(self.user_pipeline)
     if bcj:
