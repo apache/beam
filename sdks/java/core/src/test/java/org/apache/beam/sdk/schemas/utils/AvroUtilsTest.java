@@ -507,6 +507,7 @@ public class AvroUtilsTest {
 
     unionFields.add(org.apache.avro.Schema.create(Type.INT));
     unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+
     fields.add(
         new org.apache.avro.Schema.Field(
             "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
