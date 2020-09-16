@@ -18,8 +18,10 @@ package graphx
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
@@ -41,6 +43,9 @@ const (
 	urnIterableCoder            = "beam:coder:iterable:v1"
 	urnStateBackedIterableCoder = "beam:coder:state_backed_iterable:v1"
 	urnWindowedValueCoder       = "beam:coder:windowed_value:v1"
+	urnParamWindowedValueCoder  = "beam:coder:param_windowed_value:v1"
+	urnTimerCoder               = "beam:coder:timer:v1"
+	urnRowCoder                 = "beam:coder:row:v1"
 
 	urnGlobalWindow   = "beam:coder:global_window:v1"
 	urnIntervalWindow = "beam:coder:interval_window:v1"
@@ -65,6 +70,8 @@ func knownStandardCoders() []string {
 		urnWindowedValueCoder,
 		urnGlobalWindow,
 		urnIntervalWindow,
+		// TODO(BEAM-9615): Add urnRowCoder once finalized.
+		// TODO(BEAM-10660): Add urnTimerCoder once finalized.
 	}
 }
 
@@ -132,7 +139,7 @@ func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 		return nil, errors.WithContextf(err, "unmarshalling coder %v", id)
 	}
 
-	ret, err := b.makeCoder(c)
+	ret, err := b.makeCoder(id, c)
 	if err != nil {
 		return nil, errors.WithContextf(err, "unmarshalling coder %v", id)
 	}
@@ -169,7 +176,7 @@ func urnToWindowCoder(urn string) *coder.WindowCoder {
 	}
 }
 
-func (b *CoderUnmarshaller) makeCoder(c *pipepb.Coder) (*coder.Coder, error) {
+func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder, error) {
 	urn := c.GetSpec().GetUrn()
 	components := c.GetComponentCoderIds()
 
@@ -249,31 +256,34 @@ func (b *CoderUnmarshaller) makeCoder(c *pipepb.Coder) (*coder.Coder, error) {
 			return nil, err
 		}
 
-		// No payload means this coder was length prefixed by the runner
-		// but is likely self describing - AKA a beam coder.
-		if len(sub.GetSpec().GetPayload()) == 0 {
-			return b.makeCoder(sub)
-		}
 		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
 		// the portable pipeline model directly (BEAM-2885)
-		if sub.GetSpec().GetUrn() != "" && sub.GetSpec().GetUrn() != urnCustomCoder {
-			// TODO(herohde) 11/17/2017: revisit this restriction
-			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a custom coder as a sub component but got %v", c, sub)
+		switch u := sub.GetSpec().GetUrn(); u {
+		case "", urnCustomCoder:
+			var ref v1pb.CustomCoder
+			if err := protox.DecodeBase64(string(sub.GetSpec().GetPayload()), &ref); err != nil {
+				return nil, err
+			}
+			custom, err := decodeCustomCoder(&ref)
+			if err != nil {
+				return nil, err
+			}
+			custom.ID = components[0]
+			t := typex.New(custom.Type)
+			cc := &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}
+			return cc, nil
+		case urnBytesCoder, urnStringCoder: // implicitly length prefixed types.
+			return b.makeCoder(components[0], sub)
+		default:
+			// Handle Length prefixing dictated by the runner.
+			cc, err := b.makeCoder(components[0], sub)
+			if err != nil {
+				return nil, err
+			}
+			return &coder.Coder{Kind: coder.LP, T: cc.T, Components: []*coder.Coder{cc}}, nil
 		}
 
-		var ref v1pb.CustomCoder
-		if err := protox.DecodeBase64(string(sub.GetSpec().GetPayload()), &ref); err != nil {
-			return nil, err
-		}
-		custom, err := decodeCustomCoder(&ref)
-		if err != nil {
-			return nil, err
-		}
-		custom.ID = components[0]
-		t := typex.New(custom.Type)
-		return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
-
-	case urnWindowedValueCoder:
+	case urnWindowedValueCoder, urnParamWindowedValueCoder:
 		if len(components) != 2 {
 			return nil, errors.Errorf("could not unmarshal windowed value coder from %v, expected two components but got %d", c, len(components))
 		}
@@ -287,7 +297,13 @@ func (b *CoderUnmarshaller) makeCoder(c *pipepb.Coder) (*coder.Coder, error) {
 			return nil, err
 		}
 		t := typex.New(typex.WindowedValueType, elm.T)
-		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}, nil
+		wvc := &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}
+		if urn == urnWindowedValueCoder {
+			return wvc, nil
+		}
+		wvc.Kind = coder.ParamWindowedValue
+		wvc.Window.Payload = string(c.GetSpec().GetPayload())
+		return wvc, nil
 
 	case streamType:
 		return nil, errors.Errorf("could not unmarshal stream type coder from %v, stream must be pair value", c)
@@ -307,6 +323,57 @@ func (b *CoderUnmarshaller) makeCoder(c *pipepb.Coder) (*coder.Coder, error) {
 			return nil, errors.Wrapf(err, "could not unmarshal CoderRef from %v, failed to decode CoderRef \"%v\"", c, string(payload))
 		}
 		return c, nil
+
+	case urnIterableCoder:
+		if len(components) != 1 {
+			return nil, errors.Errorf("could not unmarshal iterable coder from %v, expected one component but got %d", c, len(components))
+		}
+		elm, err := b.Coder(components[0])
+		if err != nil {
+			return nil, err
+		}
+		return coder.NewI(elm), nil
+	case urnTimerCoder:
+		if len(components) != 2 {
+			return nil, errors.Errorf("could not unmarshal timer coder from %v, expected two component but got %d", c, len(components))
+		}
+		elm, err := b.Coder(components[0])
+		if err != nil {
+			return nil, err
+		}
+		w, err := b.WindowCoder(components[1])
+		if err != nil {
+			return nil, err
+		}
+		return coder.NewT(elm, w), nil
+	case urnRowCoder:
+		var s pipepb.Schema
+		if err := proto.Unmarshal(c.GetSpec().GetPayload(), &s); err != nil {
+			return nil, err
+		}
+		t, err := schema.ToType(&s)
+		if err != nil {
+			return nil, err
+		}
+		return coder.NewR(typex.New(t)), nil
+
+	// Special handling for window coders so they can be treated as
+	// a general coder. Generally window coders are not used outside of
+	// specific contexts, but this enables improved testing.
+	// Window types are not permitted to be fulltypes, so
+	// we use assignably equivalent anonymous struct types.
+	case urnIntervalWindow:
+		w, err := b.WindowCoder(id)
+		if err != nil {
+			return nil, err
+		}
+		return &coder.Coder{Kind: coder.Window, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem()), Window: w}, nil
+	case urnGlobalWindow:
+		w, err := b.WindowCoder(id)
+		if err != nil {
+			return nil, err
+		}
+		return &coder.Coder{Kind: coder.Window, T: typex.New(reflect.TypeOf((*struct{})(nil)).Elem()), Window: w}, nil
 
 	default:
 		return nil, errors.Errorf("could not unmarshal coder from %v, unknown URN %v", c, urn)
@@ -417,8 +484,18 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 	case coder.String:
 		return b.internBuiltInCoder(urnStringCoder)
 
+	case coder.Row:
+		rt := c.T.Type()
+		s, err := schema.FromType(rt)
+		if err != nil {
+			panic(errors.SetTopLevelMsgf(err, "Failed to convert type %v to a schema.", rt))
+		}
+		return b.internRowCoder(s)
+
+	// TODO(BEAM-10660): Handle coder.Timer support.
+
 	default:
-		panic(fmt.Sprintf("Failed to marshal custom coder %v, unexpected coder kind: %v", c, c.Kind))
+		panic(fmt.Sprintf("Failed to marshal coder %v, unexpected coder kind: %v", c, c.Kind))
 	}
 }
 
@@ -455,6 +532,16 @@ func (b *CoderMarshaller) internBuiltInCoder(urn string, components ...string) s
 			Urn: urn,
 		},
 		ComponentCoderIds: components,
+	})
+}
+
+func (b *CoderMarshaller) internRowCoder(schema *pipepb.Schema) string {
+	payload := protox.MustEncode(schema)
+	return b.internCoder(&pipepb.Coder{
+		Spec: &pipepb.FunctionSpec{
+			Urn:     urnRowCoder,
+			Payload: payload,
+		},
 	})
 }
 
