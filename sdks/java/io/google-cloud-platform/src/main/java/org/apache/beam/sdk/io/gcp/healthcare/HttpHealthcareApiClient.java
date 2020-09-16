@@ -37,6 +37,7 @@ import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1b
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.ImportResourcesRequest;
+import com.google.api.services.healthcare.v1beta1.model.ExportResourcesRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListFhirStoresResponse;
