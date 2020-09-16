@@ -44,11 +44,16 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.itertuples': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ['*'],
             'pandas.core.frame.DataFrame.iteritems': ['*'],
+            # default keep is 'first'
             'pandas.core.frame.DataFrame.nlargest': [
+                "df.nlargest(3, 'population')",
+                "df.nlargest(3, ['population', 'GDP'])",
                 "df.nlargest(3, 'population', keep='last')"
             ],
             'pandas.core.frame.DataFrame.nsmallest': [
-                "df.nsmallest(3, 'population', keep='last')"
+                "df.nsmallest(3, 'population')",
+                "df.nsmallest(3, ['population', 'GDP'])",
+                "df.nsmallest(3, 'population', keep='last')",
             ],
             'pandas.core.frame.DataFrame.nunique': ['*'],
             'pandas.core.frame.DataFrame.to_records': ['*'],
@@ -132,11 +137,16 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.diff': ['*'],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
+            # default keep is 'first'
             'pandas.core.series.Series.nlargest': [
-                "s.nlargest(3, keep='last')"
+                "s.nlargest()",
+                "s.nlargest(3)",
+                "s.nlargest(3, keep='last')",
             ],
             'pandas.core.series.Series.nsmallest': [
-                "s.nsmallest(3, keep='last')"
+                "s.nsmallest()",
+                "s.nsmallest(3)",
+                "s.nsmallest(3, keep='last')",
             ],
             'pandas.core.series.Series.searchsorted': ['*'],
             'pandas.core.series.Series.shift': ['*'],

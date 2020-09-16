@@ -39,7 +39,7 @@ export type IOptions = IShowOptions;
  */
 export class InspectableViewModel implements IHtmlProvider {
   constructor(sessionContext: ISessionContext) {
-    this._model = new KernelModel(sessionContext, true);
+    this._model = new KernelModel(sessionContext);
   }
 
   buildShowGraphQuery(): string {

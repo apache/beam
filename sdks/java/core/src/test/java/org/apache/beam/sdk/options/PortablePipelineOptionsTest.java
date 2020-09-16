@@ -37,8 +37,5 @@ public class PortablePipelineOptionsTest {
     assertThat(options.getEnvironmentCacheMillis(), is(0));
     assertThat(options.getEnvironmentExpirationMillis(), is(0));
     assertThat(options.getOutputExecutablePath(), is(nullValue()));
-    assertThat(
-        options.getRetrievalServiceType(),
-        is(PortablePipelineOptions.RetrievalServiceType.FILE_SYSTEM));
   }
 }

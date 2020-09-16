@@ -75,6 +75,23 @@ class DeferredBase(object):
   def _elementwise(self, func, name=None, other_args=(), inplace=False):
     return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
 
+  def __reduce__(self):
+    return UnusableUnpickledDeferredBase, (str(self), )
+
+
+class UnusableUnpickledDeferredBase(object):
+  """Placeholder object used to break the transitive pickling chain in case a
+  DeferredBase accidentially gets pickled (e.g. as part of globals).
+
+  Trying to use this object after unpickling is a bug and will result in an
+  error.
+  """
+  def __init__(self, name):
+    self._name = name
+
+  def __repr__(self):
+    return 'UnusablePickledDeferredBase(%r)' % self.name
+
 
 class DeferredFrame(DeferredBase):
   @property
@@ -196,11 +213,20 @@ def _proxy_function(
         full_args[ix] = arg
       return actual_func(*full_args, **kwargs)
 
+    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+           for arg in deferred_arg_exprs
+           ) and not requires_partition_by.is_subpartitioning_of(
+               partitionings.Index()):
+      # Implicit join on index.
+      actual_requires_partition_by = partitionings.Index()
+    else:
+      actual_requires_partition_by = requires_partition_by
+
     result_expr = expressions.ComputedExpression(
         name,
         apply,
         deferred_arg_exprs,
-        requires_partition_by=requires_partition_by,
+        requires_partition_by=actual_requires_partition_by,
         preserves_partition_by=preserves_partition_by)
     if inplace:
       args[0]._expr = result_expr

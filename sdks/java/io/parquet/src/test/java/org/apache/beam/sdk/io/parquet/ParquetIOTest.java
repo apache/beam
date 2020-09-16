@@ -69,11 +69,55 @@ public class ParquetIOTest implements Serializable {
 
   private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
 
+  private static final String REQUESTED_SCHEMA_STRING =
+      "{"
+          + "\"type\":\"record\", "
+          + "\"name\":\"testrecord\","
+          + "\"fields\":["
+          + "    {\"name\":\"id\",\"type\":\"string\"}"
+          + "  ]"
+          + "}";
+
+  private static final String REQUESTED_SCHEMA_ENCODER_STRING =
+      "{"
+          + "\"type\":\"record\", "
+          + "\"name\":\"testrecord\","
+          + "\"fields\":["
+          + "    {\"name\":\"name\",\"type\":[\"string\",\"null\"]},"
+          + "    {\"name\":\"id\",\"type\":\"string\"}"
+          + "  ]"
+          + "}";
+
+  private static final Schema REQUESTED_ENCODER_SCHEMA =
+      new Schema.Parser().parse(REQUESTED_SCHEMA_ENCODER_STRING);
+  private static final Schema REQUESTED_SCHEMA = new Schema.Parser().parse(REQUESTED_SCHEMA_STRING);
   private static final String[] SCIENTISTS =
       new String[] {
         "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie",
         "Faraday", "Newton", "Bohr", "Galilei", "Maxwell"
       };
+
+  @Test
+  public void testWriteAndReadWithProjection() {
+    List<GenericRecord> requestRecords = generateRequestedRecords(1000);
+    List<GenericRecord> records = generateGenericRecords(1000);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withProjection(REQUESTED_SCHEMA, REQUESTED_ENCODER_SCHEMA));
+    PAssert.that(readBack).containsInAnyOrder(requestRecords);
+    readPipeline.run().waitUntilFinish();
+  }
 
   @Test
   public void testBlockTracker() throws Exception {
@@ -89,7 +133,7 @@ public class ParquetIOTest implements Serializable {
 
   @Test
   public void testSplitBlockWithLimit() {
-    ParquetIO.ReadFiles.SplitReadFn testFn = new ParquetIO.ReadFiles.SplitReadFn(null);
+    ParquetIO.ReadFiles.SplitReadFn testFn = new ParquetIO.ReadFiles.SplitReadFn(null, null);
     ArrayList<BlockMetaData> blockList = new ArrayList<BlockMetaData>();
     ArrayList<OffsetRange> rangeList;
     BlockMetaData testBlock = mock(BlockMetaData.class);
@@ -176,6 +220,17 @@ public class ParquetIOTest implements Serializable {
       int index = i % SCIENTISTS.length;
       GenericRecord record =
           builder.set("name", SCIENTISTS[index]).set("id", Integer.toString(i)).build();
+      data.add(record);
+    }
+    return data;
+  }
+
+  private List<GenericRecord> generateRequestedRecords(long count) {
+    ArrayList<GenericRecord> data = new ArrayList<>();
+    GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_ENCODER_SCHEMA);
+    for (int i = 0; i < count; i++) {
+      int index = i % SCIENTISTS.length;
+      GenericRecord record = builder.set("id", Integer.toString(i)).set("name", null).build();
       data.add(record);
     }
     return data;

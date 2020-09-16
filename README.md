@@ -25,7 +25,7 @@
 
 [![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.beam/beam-sdks-java-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.beam")
 [![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
-[![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
+[![Python coverage](https://codecov.io/gh/apache/beam/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/beam)
 [![Compat Check PyPI](https://python-compatibility-tools.appspot.com/one_badge_image?package=apache-beam%5Bgcp%5D)](https://python-compatibility-tools.appspot.com/one_badge_target?package=apache-beam%5Bgcp%5D)
 [![Compat Check at master](https://python-compatibility-tools.appspot.com/one_badge_image?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)](https://python-compatibility-tools.appspot.com/one_badge_target?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)
 [![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Build+python+source+distribution+and+wheels%22+branch%3Amaster+event%3Aschedule)

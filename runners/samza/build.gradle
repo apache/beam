@@ -85,8 +85,6 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
@@ -99,6 +97,15 @@ task validatesRunner(type: Test) {
   filter {
     // TODO(BEAM-10025)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
+
+    // These tests fail since there is no support for side inputs in Samza's unbounded splittable DoFn integration
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testSideInputUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputUnbounded'
+    // These tests produce the output but either the pipeline doesn't shutdown or PAssert fails
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testAdditionalOutputUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded'
   }
 }
 

@@ -77,6 +77,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  mmh3:
+    license: "https://raw.githubusercontent.com/hajimes/mmh3/master/LICENSE"
   mock:
     license: "https://raw.githubusercontent.com/testing-cabal/mock/master/LICENSE.txt"
   monotonic:

@@ -401,6 +401,12 @@ public interface NexmarkOptions
 
   void setDebug(Boolean value);
 
+  @Description("if provided, only generate events and write them to local file with this prefix.")
+  @Nullable
+  String getGenerateEventFilePathPrefix();
+
+  void setGenerateEventFilePathPrefix(String value);
+
   @Description("If set, cancel running pipelines after this long")
   @Nullable
   Long getRunningTimeMinutes();
