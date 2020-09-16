@@ -20,7 +20,7 @@
 plugins {
   id 'java-gradle-plugin'
   id 'groovy'
-  id "com.diffplug.spotless" version "5.1.1"
+  id "com.diffplug.spotless" version "5.1.2"
 }
 
 // Define the set of repositories required to fetch and enable plugins.
@@ -37,14 +37,14 @@ repositories {
 dependencies {
   compile gradleApi()
   compile localGroovy()
-  compile 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+  compile 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
   compile "gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:4.5.0"
 
   runtime "net.ltgt.gradle:gradle-apt-plugin:0.21"                                                    // Enable a Java annotation processor
-  runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.8"                                          // Enable proto code generation
+  runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.13"                                          // Enable proto code generation
   runtime "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                            // Enable provided and optional configurations
   runtime "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                   // Enable Avro code generation
-  runtime "com.diffplug.spotless:spotless-plugin-gradle:5.1.1"                                       // Enable a code formatting plugin
+  runtime "com.diffplug.spotless:spotless-plugin-gradle:5.1.2"                                       // Enable a code formatting plugin
   runtime "gradle.plugin.com.github.blindpirate:gogradle:0.11.4"                                      // Enable Go code compilation
   runtime "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.22.0"                             // Enable building Docker containers
   runtime "gradle.plugin.com.dorongold.plugins:task-tree:1.5"                                       // Adds a 'taskTree' task to print task dependency tree
