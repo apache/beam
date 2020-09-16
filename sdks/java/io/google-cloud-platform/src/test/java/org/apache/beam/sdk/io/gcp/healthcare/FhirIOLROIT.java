@@ -100,7 +100,7 @@ public class FhirIOLROIT {
     String destinationFhirStoreId = fhirStoreId + "_deid";
     client.createFhirStore(healthcareDataset, destinationFhirStoreId, version, null);
     String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + destinationFhirStoreId;
-    DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig.
+    DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
     pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
     pipeline.run();
   }
