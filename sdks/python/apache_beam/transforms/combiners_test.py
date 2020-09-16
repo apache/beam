@@ -21,7 +21,6 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import functools
 import itertools
 import random
 import sys
@@ -253,8 +252,7 @@ class CombineTest(unittest.TestCase):
   def test_sharded_top_combine_fn(self):
     def test_combine_fn(combine_fn, shards, expected):
       accumulators = [
-          functools.reduce(
-              combine_fn.add_input, shard, combine_fn.create_accumulator())
+          combine_fn.add_inputs(combine_fn.create_accumulator(), shard)
           for shard in shards
       ]
       final_accumulator = combine_fn.merge_accumulators(accumulators)
