@@ -393,7 +393,7 @@ public class Environments {
 
   private static String getDefaultJavaSdkHarnessContainerUrl() {
     return String.format(
-        "%s/%s_%s_sdk:%s",
+        "%s/%s%s_sdk:%s",
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
         getJavaVersion().toString(),
