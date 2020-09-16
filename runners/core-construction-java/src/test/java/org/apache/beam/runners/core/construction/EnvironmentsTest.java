@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
@@ -33,6 +34,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.runners.core.construction.Environments.JavaVersion;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -163,5 +165,16 @@ public class EnvironmentsTest implements Serializable {
     assertThat(
         env1,
         equalTo(components.toComponents().getEnvironmentsOrThrow(ptransform.getEnvironmentId())));
+  }
+
+  @Test
+  public void testJavaVersion() {
+    assertEquals(JavaVersion.v8, JavaVersion.forSpecification("1.8"));
+    assertEquals(JavaVersion.v11, JavaVersion.forSpecification("11"));
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testJavaVersionInvalid() {
+    assertEquals(JavaVersion.v8, JavaVersion.forSpecification("invalid"));
   }
 }

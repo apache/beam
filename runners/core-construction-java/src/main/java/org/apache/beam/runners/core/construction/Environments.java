@@ -72,6 +72,38 @@ public class Environments {
   public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
   public static final String ENVIRONMENT_LOOPBACK = "LOOPBACK"; // Non Public urn for testing
 
+  public enum JavaVersion {
+    v8("java8", "1.8"),
+    v11("java11", "11");
+
+    private final String name;
+    private final String specification;
+
+    JavaVersion(final String name, final String specification) {
+      this.name = name;
+      this.specification = specification;
+    }
+
+    @Override
+    public String toString() {
+      return this.name();
+    }
+
+    public String specification() {
+      return this.specification;
+    }
+
+    public static JavaVersion forSpecification(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+      throw new UnsupportedOperationException(
+          String.format("unsupported Java version: %s", specification));
+    }
+  }
+
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
    * container during a release.
@@ -316,6 +348,10 @@ public class Environments {
     return capabilities.build();
   }
 
+  public static JavaVersion getJavaSpecification() {
+    return JavaVersion.forSpecification(System.getProperty("java.specification.version"));
+  }
+
   public static String createStagingFileName(File path, HashCode hash) {
     String encodedHash = Base64Variants.MODIFIED_FOR_URL.encode(hash.asBytes());
     String fileName = Files.getNameWithoutExtension(path.getAbsolutePath());
@@ -356,12 +392,11 @@ public class Environments {
   }
 
   private static String getDefaultJavaSdkHarnessContainerUrl() {
-    String javaVersionId =
-        Float.parseFloat(System.getProperty("java.specification.version")) >= 9 ? "java11" : "java8";
-    return String.format("%s/%s_%s_sdk:%s",
+    return String.format(
+        "%s/%s_%s_sdk:%s",
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
-        javaVersionId,
+        getJavaSpecification().toString(),
         ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }
