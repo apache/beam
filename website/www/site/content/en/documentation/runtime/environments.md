@@ -117,7 +117,7 @@ By default, no licenses/notices are added to the docker images.
 To examine the containers that you built, run `docker images` from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:
 ```
 REPOSITORY                         TAG                 IMAGE ID            CREATED           SIZE
-apache/beam_java_8sdk              latest              16ca619d489e        2 weeks ago        550MB
+apache/beam_java8_sdk              latest              16ca619d489e        2 weeks ago        550MB
 apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
 apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
 apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
