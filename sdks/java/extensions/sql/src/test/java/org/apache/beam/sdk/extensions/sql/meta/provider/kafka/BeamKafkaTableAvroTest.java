@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import java.util.List;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -35,10 +36,8 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
 
   @Override
   protected KafkaTestRecord<?> createKafkaTestRecord(
-      String key, boolean useFixedKey, int i, int timestamp, boolean useFixedTimestamp) {
-    key = useFixedKey ? key : key + i;
-    timestamp = useFixedTimestamp ? timestamp : timestamp * i;
-    Row row = Row.withSchema(SCHEMA).attachValues((long) i, 1, 2.0d);
+      String key, List<Object> values, long timestamp) {
+    Row row = Row.withSchema(SCHEMA).attachValues(values);
     return KafkaTestRecord.create(key, AvroUtils.rowToAvroBytes(row), "topic1", timestamp);
   }
 

@@ -61,16 +61,16 @@ public abstract class BeamKafkaTableTest {
 
   protected static final Schema SCHEMA = genSchema();
 
-  protected static final Row ROW1 = Row.withSchema(SCHEMA).addValues(1L, 1, 1.0).build();
+  protected static final Row ROW1 = Row.withSchema(SCHEMA).addValues(1L, 1, 1d).build();
 
-  protected static final Row ROW2 = Row.withSchema(SCHEMA).addValues(2L, 2, 2.0).build();
+  protected static final Row ROW2 = Row.withSchema(SCHEMA).addValues(2L, 2, 2d).build();
 
   private static final Map<String, BeamSqlTable> tables = new HashMap<>();
 
   protected static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
 
   protected abstract KafkaTestRecord<?> createKafkaTestRecord(
-      String key, boolean useFixedKey, int i, int timestamp, boolean useFixedTimestamp);
+      String key, List<Object> values, long timestamp);
 
   protected abstract KafkaTestTable getTable(int numberOfPartitions);
 
@@ -81,8 +81,8 @@ public abstract class BeamKafkaTableTest {
   @Test
   public void testOrderedArrivalSinglePartitionRate() {
     KafkaTestTable table = getTable(1);
-    for (int i = 0; i < 100; i++) {
-      table.addRecord(createKafkaTestRecord("k", false, i, 500, false));
+    for (long i = 0; i < 100; i++) {
+      table.addRecord(createKafkaTestRecord("k" + i, ImmutableList.of(i, 1, 2d), 500L * i));
     }
 
     BeamTableStatistics stats = table.getTableStatistics(null);
@@ -92,8 +92,8 @@ public abstract class BeamKafkaTableTest {
   @Test
   public void testOrderedArrivalMultiplePartitionsRate() {
     KafkaTestTable table = getTable(3);
-    for (int i = 0; i < 100; i++) {
-      table.addRecord(createKafkaTestRecord("k", false, i, 500, false));
+    for (long i = 0; i < 100; i++) {
+      table.addRecord(createKafkaTestRecord("k" + i, ImmutableList.of(i, 1, 2d), 500L * i));
     }
 
     BeamTableStatistics stats = table.getTableStatistics(null);
@@ -103,9 +103,9 @@ public abstract class BeamKafkaTableTest {
   @Test
   public void testOnePartitionAheadRate() {
     KafkaTestTable table = getTable(3);
-    for (int i = 0; i < 100; i++) {
-      table.addRecord(createKafkaTestRecord("1", true, i, 1000, false));
-      table.addRecord(createKafkaTestRecord("2", true, i, 500, false));
+    for (long i = 0; i < 100; i++) {
+      table.addRecord(createKafkaTestRecord("1", ImmutableList.of(i, 1, 2d), 1000L * i));
+      table.addRecord(createKafkaTestRecord("2", ImmutableList.of(i, 1, 2d), 500L * i));
     }
 
     table.setNumberOfRecordsForRate(20);
@@ -117,11 +117,11 @@ public abstract class BeamKafkaTableTest {
   public void testLateRecords() {
     KafkaTestTable table = getTable(3);
 
-    table.addRecord(createKafkaTestRecord("1", true, 132, 1000, true));
-    for (int i = 0; i < 98; i++) {
-      table.addRecord(createKafkaTestRecord("1", true, i, 500, true));
+    table.addRecord(createKafkaTestRecord("1", ImmutableList.of(132L, 1, 2d), 1000L));
+    for (long i = 0; i < 98; i++) {
+      table.addRecord(createKafkaTestRecord("1", ImmutableList.of(i, 1, 2d), 500L));
     }
-    table.addRecord(createKafkaTestRecord("1", true, 133, 2000, true));
+    table.addRecord(createKafkaTestRecord("1", ImmutableList.of(133L, 1, 2d), 2000L));
 
     table.setNumberOfRecordsForRate(200);
     BeamTableStatistics stats = table.getTableStatistics(null);
@@ -132,9 +132,9 @@ public abstract class BeamKafkaTableTest {
   public void testAllLate() {
     KafkaTestTable table = getTable(3);
 
-    table.addRecord(createKafkaTestRecord("1", true, 132, 1000, true));
-    for (int i = 0; i < 98; i++) {
-      table.addRecord(createKafkaTestRecord("1", true, i, 500, true));
+    table.addRecord(createKafkaTestRecord("1", ImmutableList.of(132L, 1, 2d), 1000L));
+    for (long i = 0; i < 98; i++) {
+      table.addRecord(createKafkaTestRecord("1", ImmutableList.of(i, 1, 2d), 500L));
     }
 
     table.setNumberOfRecordsForRate(200);
@@ -152,8 +152,8 @@ public abstract class BeamKafkaTableTest {
   @Test
   public void allTheRecordsSameTimeRate() {
     KafkaTestTable table = getTable(3);
-    for (int i = 0; i < 100; i++) {
-      table.addRecord(createKafkaTestRecord("key", false, i, 1000, true));
+    for (long i = 0; i < 100; i++) {
+      table.addRecord(createKafkaTestRecord("key" + i, ImmutableList.of(i, 1, 2d), 1000L));
     }
     BeamTableStatistics stats = table.getTableStatistics(null);
     Assert.assertTrue(stats.isUnknown());
