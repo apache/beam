@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
-import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import java.io.IOException;
 import java.security.SecureRandom;
 import org.apache.beam.sdk.testing.TestPipeline;
