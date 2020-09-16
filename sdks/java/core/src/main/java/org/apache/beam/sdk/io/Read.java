@@ -933,6 +933,8 @@ public class Read {
           "DirectRunner",
           "FlinkRunner",
           "TestFlinkRunner",
+          "JetRunner",
+          "TestJetRunner",
           "SamzaRunner",
           "TestSamzaRunner",
           "Twister2Runner",
