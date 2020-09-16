@@ -251,7 +251,7 @@ public class FhirIO {
   /**
    * Export resources to GCS. Intended for use on non-empty FHIR stores
    *
-   * @param fhirStore the fhir store, in the format:
+   * @param fhirStore the FHIR store, in the format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
    *     gs://YOUR_BUCKET_NAME/path/to/a/dir
@@ -266,7 +266,7 @@ public class FhirIO {
   /**
    * Export resources to GCS. Intended for use on non-empty FHIR stores
    *
-   * @param fhirStore the fhir store, in the format:
+   * @param fhirStore the FHIR store, in the format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
    *     gs://YOUR_BUCKET_NAME/path/to/a/dir
@@ -281,9 +281,9 @@ public class FhirIO {
   /**
    * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
    *
-   * @param sourceFhirStore the source fhir store, in the format:
+   * @param sourceFhirStore the source FHIR store, in the format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
-   * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
+   * @param destinationFhirStore the destination FHIR store to write de-identified resources, in the
    *     format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param deidConfig the DeidentifyConfig
@@ -301,9 +301,9 @@ public class FhirIO {
   /**
    * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
    *
-   * @param sourceFhirStore the source fhir store, in the format:
+   * @param sourceFhirStore the source FHIR store, in the format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
-   * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
+   * @param destinationFhirStore the destination FHIR store to write de-identified resources, in the
    *     format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
    * @param deidConfig the DeidentifyConfig
