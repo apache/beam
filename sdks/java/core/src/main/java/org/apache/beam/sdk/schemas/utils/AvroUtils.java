@@ -932,7 +932,7 @@ public class AvroUtils {
             } else {
               return genericFromBeamField(
                   innerFieldType.withNullable(false),
-                  avroSchema.getTypes().get(oneOfValue.getCaseType().getValue()),
+                  typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
                   oneOfValue.getValue());
             }
           default:
