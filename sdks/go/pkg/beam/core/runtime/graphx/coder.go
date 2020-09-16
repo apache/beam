@@ -271,7 +271,6 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			custom.ID = components[0]
 			t := typex.New(custom.Type)
 			cc := &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}
-			fmt.Println("decoded customcoder", cc)
 			return cc, nil
 		case urnBytesCoder, urnStringCoder: // implicitly length prefixed types.
 			return b.makeCoder(components[0], sub)

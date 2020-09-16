@@ -89,8 +89,10 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 		if c.Custom.Name != "schema" {
 			return enc
 		}
-		// Custom schema coding is shorthand for using beam infrastructure
-		// wrapped in a custom coder.
+		// Custom schema coding uses the beam row coder, but wraps it in a
+		// length prefix and treats it as an opaque coder.
+
+		// Specialization to handle slice and array types.
 		switch c.T.Type().Kind() {
 		case reflect.Slice, reflect.Array:
 			// We don't permit registering custom coders for slice types
@@ -181,12 +183,13 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 			dec: makeDecoder(c.Custom.Dec.Fn),
 		}
 
-		fmt.Println("getting decoder", c.Custom)
 		if c.Custom.Name != "schema" {
 			return dec
 		}
-		// Custom schema coding is shorthand for using beam infrastructure
-		// wrapped in a custom coder.
+		// Custom schema coding uses the beam row coder, but wraps it in a
+		// length prefix and treats it as an opaque coder.
+
+		// Specialization to handle slice and array types.
 		switch c.T.Type().Kind() {
 		case reflect.Slice:
 			return &lpDecoder{
@@ -638,7 +641,7 @@ func (c *iterableDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	n := int(size)
 	switch {
 	case n >= 0:
-		rv, err := c.decodeToSlice(int(n), r)
+		rv, err := c.decodeToSlice(n, r)
 		if err != nil {
 			return err
 		}
@@ -670,7 +673,7 @@ func (c *iterableDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 func (c *iterableDecoder) decodeToSlice(n int, r io.Reader) (reflect.Value, error) {
 	var e FullValue
 	rv := reflect.MakeSlice(c.t, n, n)
-	for i := 0; i < int(n); i++ {
+	for i := 0; i < n; i++ {
 		err := c.dec.DecodeTo(r, &e)
 		if err != nil {
 			return reflect.Value{}, err
@@ -678,6 +681,10 @@ func (c *iterableDecoder) decodeToSlice(n int, r io.Reader) (reflect.Value, erro
 		if e.Elm != nil {
 			rv.Index(i).Set(reflect.ValueOf(e.Elm))
 		} else {
+			// Hack to support testing the standard window coders
+			// against standard_coders.yaml.
+			// It is not supported for BeamGo pipelines to treat windows
+			// as elements natively.
 			rv.Index(i).Set(reflect.ValueOf(e.Windows[0]))
 		}
 	}
@@ -692,6 +699,9 @@ func (c *iterableDecoder) Decode(r io.Reader) (*FullValue, error) {
 	return fv, nil
 }
 
+// arrayDecoder reads the same format as iterableDecoder but
+// produces arrays instead of slices, taking the encoded length
+// as the length of the array.
 type arrayDecoder struct {
 	t   reflect.Type // array type
 	dec ElementDecoder
@@ -1059,7 +1069,7 @@ func (*intervalWindowDecoder) DecodeSingle(r io.Reader) (typex.Window, error) {
 	if err != nil {
 		return nil, err
 	}
-	duration, err := coder.DecodeVarInt(r)
+	duration, err := coder.DecodeVarUint64(r)
 	if err != nil {
 		return nil, err
 	}
