@@ -635,13 +635,15 @@ static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
            };
 }
 {{< /highlight >}}
-## Cross Language
+## Using SnowflakeIO in Python SDK
 ### Intro
-Cross-language which is part of [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/) which aims to provide full interoperability across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go).
+Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language, thanks to
+cross-language which is part of [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/) which aims to provide full interoperability
+across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go).
 
-Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language.
-
-Currently, cross-language is supporting only [Apache Flink](https://flink.apache.org/) as a runner in a stable manner but plans are to support all runners. For more information about cross-language please see [multi sdk efforts](https://beam.apache.org/roadmap/connectors-multi-sdk/) and [Beam on top of Flink](https://flink.apache.org/ecosystem/2020/02/22/apache-beam-how-beam-runs-on-top-of-flink.html) articles.
+Currently, cross-language is supporting only [Apache Flink](https://flink.apache.org/) as a runner in a stable manner but plans are to support all runners.
+For more information about cross-language please see [multi sdk efforts](https://beam.apache.org/roadmap/connectors-multi-sdk/)
+and [Beam on top of Flink](https://flink.apache.org/ecosystem/2020/02/22/apache-beam-how-beam-runs-on-top-of-flink.html) articles.
 
 ### Set up
 Please see [Apache Beam with Flink runner](https://beam.apache.org/documentation/runners/flink/) for a setup.
