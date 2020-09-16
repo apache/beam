@@ -1613,7 +1613,13 @@ public class WatermarkManager<ExecutableT, CollectionT> {
             "Got a timer for after the end of time (%s), got %s",
             BoundedWindow.TIMESTAMP_MAX_VALUE,
             setTimer.getTimestamp());
-        deletedTimers.remove(setTimer);
+        deletedTimers.remove(
+            TimerData.of(
+                setTimer.getTimerId(),
+                setTimer.getNamespace(),
+                Instant.EPOCH,
+                Instant.EPOCH,
+                setTimer.getDomain()));
         setTimers.add(setTimer);
         return this;
       }
@@ -1624,7 +1630,15 @@ public class WatermarkManager<ExecutableT, CollectionT> {
        */
       public TimerUpdateBuilder deletedTimer(TimerData deletedTimer) {
         deletedTimers.add(deletedTimer);
-        setTimers.remove(deletedTimer);
+        TimerData timerToDelete = null;
+        for (TimerData timer : setTimers) {
+          if (timer.getDomain().equals(deletedTimer.getDomain())
+              && timer.getNamespace().equals(deletedTimer.getNamespace())
+              && timer.getTimerId().equals(deletedTimer.getTimerId())) {
+            timerToDelete = timer;
+          }
+        }
+        setTimers.remove(timerToDelete);
         return this;
       }
 

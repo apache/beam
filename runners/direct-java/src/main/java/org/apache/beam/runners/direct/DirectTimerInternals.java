@@ -69,7 +69,9 @@ class DirectTimerInternals implements TimerInternals {
 
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-    throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
+    // For deleting a timer, we don't cate about the timestamp and outputTimestamp.
+    timerUpdateBuilder.deletedTimer(
+        TimerData.of(timerId, namespace, Instant.EPOCH, Instant.EPOCH, timeDomain));
   }
 
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
