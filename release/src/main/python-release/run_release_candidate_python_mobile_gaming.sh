@@ -104,6 +104,7 @@ function verify_hourlyteamscore_direct() {
     --project=$PROJECT_ID \
     --dataset=$DATASET \
     --input=$GAME_INPUT_DATA \
+    --temp_location=gs://$BUCKET_NAME/temp/ \
     --table="hourly_team_score_python_direct"
 
   verify_hourly_team_score "direct"
