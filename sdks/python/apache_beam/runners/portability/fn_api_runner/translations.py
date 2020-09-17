@@ -351,8 +351,10 @@ def memoize_on_instance(f):
 class TransformContext(object):
 
   _KNOWN_CODER_URNS = set(
-      value.urn for key,
-      value in common_urns.coders.__dict__.items() if not key.startswith('_'))
+      value.urn for (key, value) in common_urns.coders.__dict__.items()
+      if not key.startswith('_')
+      # Length prefix Rows rather than re-coding them.
+  ) - set([common_urns.coders.ROW.urn])
 
   def __init__(
       self,
