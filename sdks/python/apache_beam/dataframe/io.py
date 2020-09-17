@@ -28,6 +28,14 @@ from apache_beam.dataframe import frame_base
 
 
 def read_csv(path, *args, **kwargs):
+  """Emulates `pd.read_csv` from Pandas, but as a Beam PTransform.
+
+  Use this as
+
+      df = p | beam.dataframe.io.read_csv(...)
+
+  to get a deferred Beam dataframe representing the contents of the file.
+  """
   return _ReadFromPandas(pd.read_csv, path, args, kwargs)
 
 
