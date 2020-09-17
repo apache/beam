@@ -26,6 +26,7 @@ python setup.py nosetests --tests=apache_beam.io.external.snowflake_test \
   --username=<SNOWFLAKE_USERNAME>
   --password=<SNOWFLAKE_PASSWORD>
   --private_key_path=<PATH_TO_PRIVATE_KEY>
+  --raw_private_key=<RAW_PRIVATE_KEY>
   --private_key_passphrase=<PASSWORD_TO_PRIVATE_KEY>
   --o_auth_token=<TOKEN>
   --staging_bucket_name=<GCP_BUCKET_PATH>
@@ -120,6 +121,7 @@ class SnowflakeTest(unittest.TestCase):
               password=self.password,
               o_auth_token=self.o_auth_token,
               private_key_path=self.private_key_path,
+              raw_private_key=self.raw_private_key,
               private_key_passphrase=self.private_key_passphrase,
               schema=self.schema,
               database=self.database,
@@ -152,6 +154,7 @@ class SnowflakeTest(unittest.TestCase):
               password=self.password,
               o_auth_token=self.o_auth_token,
               private_key_path=self.private_key_path,
+              raw_private_key=self.raw_private_key,
               private_key_passphrase=self.private_key_passphrase,
               schema=self.schema,
               database=self.database,
@@ -172,11 +175,13 @@ class SnowflakeTest(unittest.TestCase):
               for i in range(NUM_RECORDS)
           ]))
 
-  def tearDown(self):
+  @classmethod
+  def tearDownClass(cls):
     GCSFileSystem(pipeline_options=PipelineOptions()) \
-        .delete([self.staging_bucket_name])
+        .delete([cls.staging_bucket_name])
 
-  def setUp(self):
+  @classmethod
+  def setUpClass(cls):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--server_name',
@@ -196,6 +201,10 @@ class SnowflakeTest(unittest.TestCase):
     parser.add_argument(
         '--private_key_path',
         help='Path to private key',
+    )
+    parser.add_argument(
+        '--raw_private_key',
+        help='Raw private key',
     )
     parser.add_argument(
         '--private_key_passphrase',
@@ -246,22 +255,23 @@ class SnowflakeTest(unittest.TestCase):
     pipeline = TestPipeline()
     argv = pipeline.get_full_options_as_args()
 
-    known_args, self.pipeline_args = parser.parse_known_args(argv)
+    known_args, cls.pipeline_args = parser.parse_known_args(argv)
 
-    self.server_name = known_args.server_name
-    self.database = known_args.database
-    self.schema = known_args.schema
-    self.table = known_args.table
-    self.username = known_args.username
-    self.password = known_args.password
-    self.private_key_path = known_args.private_key_path
-    self.private_key_passphrase = known_args.private_key_passphrase
-    self.o_auth_token = known_args.o_auth_token
-    self.staging_bucket_name = known_args.staging_bucket_name
-    self.storage_integration_name = known_args.storage_integration_name
-    self.role = known_args.role
-    self.warehouse = known_args.warehouse
-    self.expansion_service = known_args.expansion_service
+    cls.server_name = known_args.server_name
+    cls.database = known_args.database
+    cls.schema = known_args.schema
+    cls.table = known_args.table
+    cls.username = known_args.username
+    cls.password = known_args.password
+    cls.private_key_path = known_args.private_key_path
+    cls.raw_private_key = known_args.raw_private_key
+    cls.private_key_passphrase = known_args.private_key_passphrase
+    cls.o_auth_token = known_args.o_auth_token
+    cls.staging_bucket_name = known_args.staging_bucket_name
+    cls.storage_integration_name = known_args.storage_integration_name
+    cls.role = known_args.role
+    cls.warehouse = known_args.warehouse
+    cls.expansion_service = known_args.expansion_service
 
 
 if __name__ == '__main__':
