@@ -108,19 +108,16 @@ class _WriteToPandas(beam.PTransform):
     self.binary = binary
 
   def expand(self, pcoll):
-    return pcoll | io.Write(
-        _WriteToPandasFileBasedSink(
-            self.writer,
-            self.path,
-            self.args,
-            self.kwargs,
-            self.incremental,
-            self.binary))
+    dir, name = io.filesystems.FileSystems.split(self.path)
+    return pcoll | fileio.WriteToFiles(
+        path=dir,
+        file_naming=fileio.default_file_naming(name),
+        sink=_WriteToPandasFileSink(
+            self.writer, self.args, self.kwargs, self.incremental, self.binary))
 
 
-class _WriteToPandasFileBasedSink(io.FileBasedSink):
-  def __init__(self, writer, path, args, kwargs, incremental, binary):
-    super(_WriteToPandasFileBasedSink, self).__init__(path, None)
+class _WriteToPandasFileSink(fileio.FileSink):
+  def __init__(self, writer, args, kwargs, incremental, binary):
     self.writer = writer
     self.args = args
     self.kwargs = kwargs
@@ -128,31 +125,30 @@ class _WriteToPandasFileBasedSink(io.FileBasedSink):
     self.binary = binary
     self.StringOrBytesIO = BytesIO if binary else StringIO
     if incremental:
-      self.write_record = self.write_record_incremental
-      self.close = self.close_incremental
+      self.write = self.write_record_incremental
+      self.flush = self.close_incremental
     else:
-      self.write_record = self.buffer_record
-      self.close = self.flush
+      self.write = self.buffer_record
+      self.flush = self.flush_buffer
 
-  def open(self, temp_path):
+  def open(self, file_handle):
     self.buffer = []
     self.empty = self.header = self.footer = None
-    file_handle = super(_WriteToPandasFileBasedSink, self).open(temp_path)
     if not self.binary:
       file_handle = TextIOWrapper(file_handle)
-    return file_handle
+    self.file_handle = file_handle
 
-  def write(self, df, file_handle=None):
+  def write_to(self, df, file_handle=None):
     non_none_handle = file_handle or self.StringOrBytesIO()
     self.writer(df, non_none_handle, *self.args, **self.kwargs)
     if file_handle is None:
       return non_none_handle.getvalue()
 
-  def write_record_incremental(self, file_handle, value):
+  def write_record_incremental(self, value):
     if self.empty is None:
-      self.empty = self.write(value[:0])
+      self.empty = self.write_to(value[:0])
     if self.header is None and len(value):
-      one_row = self.write(value[:1])
+      one_row = self.write_to(value[:1])
       for ix, c in enumerate(self.empty):
         if one_row[ix] != c:
           break
@@ -160,25 +156,25 @@ class _WriteToPandasFileBasedSink(io.FileBasedSink):
         ix = len(self.empty)
       self.header = self.empty[:ix]
       self.footer = self.empty[ix:]
-      file_handle.write(self.header)
+      self.file_handle.write(self.header)
 
     if len(value):
       # IDEA(robertwb): Construct a "truncating" stream wrapper to avoid the
       # in-memory copy.
-      rows = self.write(value)
-      file_handle.write(rows[len(self.header):-len(self.footer) or None])
+      rows = self.write_to(value)
+      self.file_handle.write(rows[len(self.header):-len(self.footer) or None])
 
-  def close_incremental(self, file_handle):
+  def close_incremental(self):
     if self.footer is not None:
-      file_handle.write(self.footer)
+      self.file_handle.write(self.footer)
     elif self.empty is not None:
-      file_handle.write(self.empty)
-    super(_WriteToPandasFileBasedSink, self).close(file_handle)
+      self.file_handle.write(self.empty)
+    self.file_handle.flush()
 
-  def buffer_record(self, file_handle, value):
+  def buffer_record(self, value):
     self.buffer.append(value)
 
-  def flush(self, file_handle):
+  def flush_buffer(self, file_handle):
     if self.buffer:
-      self.write(pd.concat(self.buffer), file_handle)
-    super(_WriteToPandasFileBasedSink, self).close(file_handle)
+      self.write_to(pd.concat(self.buffer), file_handle)
+      self.file_handle.flush()
