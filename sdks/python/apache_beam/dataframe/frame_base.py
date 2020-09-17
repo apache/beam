@@ -213,11 +213,20 @@ def _proxy_function(
         full_args[ix] = arg
       return actual_func(*full_args, **kwargs)
 
+    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+           for arg in deferred_arg_exprs
+           ) and not requires_partition_by.is_subpartitioning_of(
+               partitionings.Index()):
+      # Implicit join on index.
+      actual_requires_partition_by = partitionings.Index()
+    else:
+      actual_requires_partition_by = requires_partition_by
+
     result_expr = expressions.ComputedExpression(
         name,
         apply,
         deferred_arg_exprs,
-        requires_partition_by=requires_partition_by,
+        requires_partition_by=actual_requires_partition_by,
         preserves_partition_by=preserves_partition_by)
     if inplace:
       args[0]._expr = result_expr

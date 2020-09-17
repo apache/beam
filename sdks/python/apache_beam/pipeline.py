@@ -280,8 +280,9 @@ class Pipeline(object):
         # type: (AppliedPTransform) -> None
         if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
-          replacement_transform = override.get_replacement_transform(
-              original_transform_node.transform)
+          replacement_transform = (
+              override.get_replacement_transform_for_applied_ptransform(
+                  original_transform_node))
           if replacement_transform is original_transform_node.transform:
             return
           replacement_transform.side_inputs = tuple(
@@ -1329,7 +1330,25 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     raise NotImplementedError
 
-  @abc.abstractmethod
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    # type: (AppliedPTransform) -> ptransform.PTransform
+
+    """Provides a runner specific override for a given `AppliedPTransform`.
+
+    Args:
+      applied_ptransform: `AppliedPTransform` containing the `PTransform` to be
+        replaced.
+
+    Returns:
+      A `PTransform` that will be the replacement for the `PTransform` inside
+      the `AppliedPTransform` given as an argument.
+    """
+    # Returns a PTransformReplacement
+    return self.get_replacement_transform(applied_ptransform.transform)
+
+  @deprecated(
+      since='2.24', current='get_replacement_transform_for_applied_ptransform')
   def get_replacement_transform(self, ptransform):
     # type: (Optional[ptransform.PTransform]) -> ptransform.PTransform
 

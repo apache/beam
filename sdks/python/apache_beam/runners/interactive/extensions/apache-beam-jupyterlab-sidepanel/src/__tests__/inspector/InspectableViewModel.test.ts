@@ -24,6 +24,9 @@ const fakeSessionContext = {
             // do nothing
           }
         };
+      },
+      interrupt: function(): void {
+        // do nothing
       }
     }
   }

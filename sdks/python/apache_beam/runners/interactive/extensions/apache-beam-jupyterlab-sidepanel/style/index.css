@@ -12,3 +12,9 @@
  * the License.
  */
 @import '~material-design-icons/iconfont/material-icons.css';
+
+@import './mdc-theme.css';
+
+@import './inspector/Inspectables.css';
+@import './inspector/InspectableView.css';
+@import './inspector/InteractiveInspector.css';
