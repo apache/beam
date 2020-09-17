@@ -1613,6 +1613,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
             "Got a timer for after the end of time (%s), got %s",
             BoundedWindow.TIMESTAMP_MAX_VALUE,
             setTimer.getTimestamp());
+        // When constructing TimerData for deleted timer, we are using Instant.EPOCH for timestamp
+        // and output timestamp.
         deletedTimers.remove(
             TimerData.of(
                 setTimer.getTimerId(),

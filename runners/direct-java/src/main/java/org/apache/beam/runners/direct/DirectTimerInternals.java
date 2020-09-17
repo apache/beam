@@ -69,7 +69,7 @@ class DirectTimerInternals implements TimerInternals {
 
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-    // For deleting a timer, we don't cate about the timestamp and outputTimestamp.
+    // For deleting a timer, we don't care about the timestamp and outputTimestamp.
     timerUpdateBuilder.deletedTimer(
         TimerData.of(timerId, namespace, Instant.EPOCH, Instant.EPOCH, timeDomain));
   }

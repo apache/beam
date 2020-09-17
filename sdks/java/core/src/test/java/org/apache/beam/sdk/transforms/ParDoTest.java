@@ -4811,6 +4811,8 @@ public class ParDoTest implements Serializable {
           .satisfies(
               (Iterable<Integer> input) -> {
                 assertEquals(1, Iterables.frequency(input, 3));
+                // When setting timer and clearing timer happens on different bundles, whether the
+                // timer gets cleared depends on runner implementation.
                 assertTrue(
                     Iterables.frequency(input, 42) == 1 || Iterables.frequency(input, 42) == 2);
                 return null;
@@ -4868,6 +4870,8 @@ public class ParDoTest implements Serializable {
           .satisfies(
               (Iterable<Integer> input) -> {
                 assertEquals(1, Iterables.frequency(input, 3));
+                // When setting timer and clearing timer happens on different bundles, whether the
+                // timer gets cleared depends on runner implementation.
                 assertTrue(
                     Iterables.frequency(input, 42) == 1 || Iterables.frequency(input, 42) == 2);
                 return null;
