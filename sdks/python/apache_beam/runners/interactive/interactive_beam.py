@@ -34,17 +34,20 @@ this module in your notebook or application code.
 from __future__ import absolute_import
 
 import logging
-
-import pandas as pd
+import warnings
 
 import apache_beam as beam
+from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import interactive_runner as ir
+from apache_beam.runners.interactive import pipeline_fragment as pf
+from apache_beam.runners.interactive import pipeline_instrument as pi
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
-from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import progress_indicated
+from apache_beam.runners.interactive.utils import to_element_list
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -267,23 +270,18 @@ def show(*pcolls, **configs):
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
 
-  Args:
-    include_window_info: (optional) if True, windowing information of the
-        data will be visualized too. Default is false.
-    visualize_data: (optional) by default, the visualization contains data
-        tables rendering data from given pcolls separately as if they are
-        converted into dataframes. If visualize_data is True, there will be a
-        more dive-in widget and statistically overview widget of the data.
-        Otherwise, those 2 data visualization widgets will not be displayed.
-    n: (optional) max number of elements to visualize. Default 'inf'.
-    duration: (optional) max duration of elements to read. Default 'inf'.
-
   The given pcolls can be dictionary of PCollections (as values), or iterable
   of PCollections or plain PCollection values.
 
-  The user can specify either the max number of elements with `n` to read
-  or the maximum duration of elements to read with `duration`. When a limiter is
-  not supplied, it is assumed to be infinite.
+  There are 2 boolean configurations:
+
+    #. include_window_info=<True/False>. If True, windowing information of the
+       data will be visualized too. Default is false.
+    #. visualize_data=<True/False>. By default, the visualization contains data
+       tables rendering data from given pcolls separately as if they are
+       converted into dataframes. If visualize_data is True, there will be a
+       more dive-in widget and statistically overview widget of the data.
+       Otherwise, those 2 data visualization widgets will not be displayed.
 
   By default, the visualization contains data tables rendering data from given
   pcolls separately as if they are converted into dataframes. If visualize_data
@@ -344,97 +342,121 @@ def show(*pcolls, **configs):
     assert isinstance(pcoll, beam.pvalue.PCollection), (
         '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
   user_pipeline = pcolls[0].pipeline
-
+  for pcoll in pcolls:
+    assert pcoll.pipeline is user_pipeline, (
+        '{} belongs to a different user-defined pipeline ({}) than that of'
+        ' other PCollections ({}).'.format(
+            pcoll, pcoll.pipeline, user_pipeline))
   # TODO(BEAM-8288): Remove below pops and assertion once Python 2 is
   # deprecated from Beam.
   include_window_info = configs.pop('include_window_info', False)
   visualize_data = configs.pop('visualize_data', False)
-  n = configs.pop('n', 'inf')
-  duration = configs.pop('duration', 'inf')
-
-  if isinstance(n, str):
-    assert n == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(n, int):
-    assert n > 0, 'n needs to be positive or the string \'inf\''
-
-  if isinstance(duration, str):
-    assert duration == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(duration, int):
-    assert duration > 0, 'duration needs to be positive or the string \'inf\''
-
-  if n == 'inf':
-    n = float('inf')
-
-  if duration == 'inf':
-    duration = float('inf')
-
   # This assertion is to protect the backward compatibility for function
   # signature change after Python 2 deprecation.
   assert not configs, (
-      'The only supported arguments are include_window_info, visualize_data, '
-      'n, and duration')
+      'The only configs supported are include_window_info and '
+      'visualize_data.')
+  runner = user_pipeline.runner
+  if isinstance(runner, ir.InteractiveRunner):
+    runner = runner._underlying_runner
 
-  recording_manager = RecordingManager(user_pipeline)
-  recording = recording_manager.record(
-      pcolls, max_n=n, max_duration_secs=duration)
+  # Make sure that sources without a user reference are still cached.
+  pi.watch_sources(user_pipeline)
 
-  # Catch a KeyboardInterrupt to gracefully cancel the recording and
-  # visualizations.
-  try:
-    # If in notebook, static plotting computed pcolls as computation is done.
-    if ie.current_env().is_in_notebook:
-      for stream in recording.computed().values():
-        visualize(
-            stream,
-            include_window_info=include_window_info,
-            display_facets=visualize_data)
-    elif ie.current_env().is_in_ipython:
-      for stream in recording.computed().values():
-        visualize(stream, include_window_info=include_window_info)
+  # Make sure that all PCollections to be shown are watched. If a PCollection
+  # has not been watched, make up a variable name for that PCollection and watch
+  # it. No validation is needed here because the watch logic can handle
+  # arbitrary variables.
+  watched_pcollections = set()
+  for watching in ie.current_env().watching():
+    for _, val in watching:
+      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
+        watched_pcollections.add(val)
+  for pcoll in pcolls:
+    if pcoll not in watched_pcollections:
+      watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
-    if recording.is_computed():
-      return
+  if ie.current_env().is_in_ipython:
+    warnings.filterwarnings(
+        'ignore',
+        'options is deprecated since First stable release. References to '
+        '<pipeline>.options will not be supported',
+        category=DeprecationWarning)
+  # Attempt to run background caching job since we have the reference to the
+  # user-defined pipeline.
+  bcj.attempt_to_run_background_caching_job(
+      runner, user_pipeline, user_pipeline.options)
 
-    # If in notebook, dynamic plotting as computation goes.
-    if ie.current_env().is_in_notebook:
-      for stream in recording.uncomputed().values():
-        visualize(
-            stream,
-            dynamic_plotting_interval=1,
-            include_window_info=include_window_info,
-            display_facets=visualize_data)
+  pcolls = set(pcolls)
+  computed_pcolls = set()
+  for pcoll in pcolls:
+    if pcoll in ie.current_env().computed_pcollections:
+      computed_pcolls.add(pcoll)
+  pcolls = pcolls.difference(computed_pcolls)
+  # If in notebook, static plotting computed pcolls as computation is done.
+  if ie.current_env().is_in_notebook:
+    for pcoll in computed_pcolls:
+      visualize(
+          pcoll,
+          include_window_info=include_window_info,
+          display_facets=visualize_data)
+  elif ie.current_env().is_in_ipython:
+    for pcoll in computed_pcolls:
+      visualize(pcoll, include_window_info=include_window_info)
 
-    # Invoke wait_until_finish to ensure the blocking nature of this API without
-    # relying on the run to be blocking.
-    recording.wait_until_finish()
+  if not pcolls:
+    return
 
-    # If just in ipython shell, plotting once when the computation is completed.
-    if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
-      for stream in recording.computed().values():
-        visualize(stream, include_window_info=include_window_info)
+  # Build a pipeline fragment for the PCollections and run it.
+  result = pf.PipelineFragment(list(pcolls), user_pipeline.options).run()
+  ie.current_env().set_pipeline_result(user_pipeline, result)
 
-  except KeyboardInterrupt:
-    if recording:
-      recording.cancel()
+  # If in notebook, dynamic plotting as computation goes.
+  if ie.current_env().is_in_notebook:
+    for pcoll in pcolls:
+      visualize(
+          pcoll,
+          dynamic_plotting_interval=1,
+          include_window_info=include_window_info,
+          display_facets=visualize_data)
+
+  # Invoke wait_until_finish to ensure the blocking nature of this API without
+  # relying on the run to be blocking.
+  result.wait_until_finish()
+
+  # If just in ipython shell, plotting once when the computation is completed.
+  if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
+    for pcoll in pcolls:
+      visualize(pcoll, include_window_info=include_window_info)
+
+  # If the pipeline execution is successful at this stage, mark the computation
+  # completeness for the given PCollections so that when further `show`
+  # invocation occurs, Interactive Beam wouldn't need to re-compute them.
+  if result.state is beam.runners.runner.PipelineState.DONE:
+    ie.current_env().mark_pcollection_computed(pcolls)
+
+
+def collect(pcoll, include_window_info=False):
+  """Materializes all of the elements from a PCollection into a Dataframe.
+
+  For example::
+
+    p = beam.Pipeline(InteractiveRunner())
+    init = p | 'Init' >> beam.Create(range(10))
+    square = init | 'Square' >> beam.Map(lambda x: x * x)
+
+    # Run the pipeline and bring the PCollection into memory as a Dataframe.
+    in_memory_square = collect(square)
+  """
+  return head(pcoll, n=-1, include_window_info=include_window_info)
 
 
 @progress_indicated
-def collect(pcoll, n='inf', duration='inf', include_window_info=False):
-  """Materializes the elements from a PCollection into a Dataframe.
+def head(pcoll, n=5, include_window_info=False):
+  """Materializes the first n elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
-  into memory. The user can specify either the max number of elements to read
-  or the maximum duration of elements to read. When a limiter is not supplied,
-  it is assumed to be infinite.
-
-  Args:
-    n: (optional) max number of elements to visualize. Default 'inf'.
-    duration: (optional) max duration of elements to read. Default 'inf'.
-
+  into memory.
   For example::
 
     p = beam.Pipeline(InteractiveRunner())
@@ -447,40 +469,66 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   assert isinstance(pcoll, beam.pvalue.PCollection), (
       '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
 
-  if isinstance(n, str):
-    assert n == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(n, int):
-    assert n > 0, 'n needs to be positive or the string \'inf\''
-
-  if isinstance(duration, str):
-    assert duration == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(duration, int):
-    assert duration > 0, 'duration needs to be positive or the string \'inf\''
-
-  if n == 'inf':
-    n = float('inf')
-
-  if duration == 'inf':
-    duration = float('inf')
-
   user_pipeline = pcoll.pipeline
-  recording_manager = RecordingManager(user_pipeline)
+  runner = user_pipeline.runner
+  if isinstance(runner, ir.InteractiveRunner):
+    runner = runner._underlying_runner
 
-  recording = recording_manager.record([pcoll],
-                                       max_n=n,
-                                       max_duration_secs=duration)
+  # Make sure that sources without a user reference are still cached.
+  pi.watch_sources(user_pipeline)
 
-  try:
-    elements = list(recording.stream(pcoll).read())
-  except KeyboardInterrupt:
-    recording.cancel()
-    return pd.DataFrame()
+  # Make sure that all PCollections to be shown are watched. If a PCollection
+  # has not been watched, make up a variable name for that PCollection and watch
+  # it. No validation is needed here because the watch logic can handle
+  # arbitrary variables.
+  watched_pcollections = set()
+  for watching in ie.current_env().watching():
+    for _, val in watching:
+      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
+        watched_pcollections.add(val)
+  if pcoll not in watched_pcollections:
+    watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
-  return elements_to_df(elements, include_window_info=include_window_info)
+  warnings.filterwarnings('ignore', category=DeprecationWarning)
+  # Attempt to run background caching job since we have the reference to the
+  # user-defined pipeline.
+  bcj.attempt_to_run_background_caching_job(
+      runner, user_pipeline, user_pipeline.options)
+
+  if pcoll in ie.current_env().computed_pcollections:
+    # Read from pcoll cache, then convert to DF
+    pipeline_instrument = pi.PipelineInstrument(pcoll.pipeline)
+    key = pipeline_instrument.cache_key(pcoll)
+    cache_manager = ie.current_env().get_cache_manager(user_pipeline)
+
+    coder = cache_manager.load_pcoder('full', key)
+    reader, _ = cache_manager.read('full', key)
+    elements = to_element_list(reader, coder, include_window_info=True)
+  else:
+
+    # Build a pipeline fragment for the PCollections and run it.
+    result = pf.PipelineFragment([pcoll], user_pipeline.options).run()
+    ie.current_env().set_pipeline_result(user_pipeline, result)
+
+    # Invoke wait_until_finish to ensure the blocking nature of this API without
+    # relying on the run to be blocking.
+    result.wait_until_finish()
+
+    # If the pipeline execution is successful at this stage, mark the
+    # computation completeness for the given PCollections so that when further
+    # `show` invocation occurs, Interactive Beam wouldn't need to re-compute.
+    if result.state is beam.runners.runner.PipelineState.DONE:
+      ie.current_env().mark_pcollection_computed([pcoll])
+
+    elements = result.read(pcoll, include_window_info=True)
+
+  results = []
+  for e in elements:
+    results.append(e)
+    if len(results) >= n > 0:
+      break
+
+  return elements_to_df(results, include_window_info=include_window_info)
 
 
 @progress_indicated

@@ -176,23 +176,21 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
   def test_get_pcoll_data(self):
     pipeline = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
-    pcoll = pipeline | 'Create' >> beam.Create(list(range(10)))
+    pcoll = pipeline | 'Create' >> beam.Create(range(10))
     counts = pcoll | beam.combiners.Count.PerElement()
 
     ib.watch(locals())
-    ie.current_env().track_user_pipelines()
     counts_identifier = obfuscate(inspector.meta('counts', counts))
     ins = inspector.InteractiveEnvironmentInspector()
     _ = ins.list_inspectables()
 
     actual_counts_pcoll_data = ins.get_pcoll_data(counts_identifier)
-    expected_counts_pcoll_data = ib.collect(
-        counts, n=10).to_json(orient='table')
+    expected_counts_pcoll_data = ib.collect(counts).to_json(orient='table')
     self.assertEqual(actual_counts_pcoll_data, expected_counts_pcoll_data)
 
     actual_counts_with_window_info = ins.get_pcoll_data(counts_identifier, True)
-    expected_counts_with_window_info = ib.collect(
-        counts, include_window_info=True).to_json(orient='table')
+    expected_counts_with_window_info = ib.collect(counts,
+                                                  True).to_json(orient='table')
     self.assertEqual(
         actual_counts_with_window_info, expected_counts_with_window_info)
 

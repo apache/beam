@@ -31,7 +31,6 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.display import pcoll_visualization as pv
-from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.windowed_value import PaneInfo
@@ -69,27 +68,31 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self._p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
     self._pcoll = self._p | 'Create' >> beam.Create(range(5))
-
     ib.watch(self)
-    ie.current_env().track_user_pipelines()
+    self._p.run()
 
-    recording_manager = RecordingManager(self._p)
-    recording = recording_manager.record([self._pcoll], 5, 5)
-    self._stream = recording.stream(self._pcoll)
+  def test_raise_error_for_non_pcoll_input(self):
+    class Foo(object):
+      pass
+
+    with self.assertRaises(AssertionError) as ctx:
+      pv.PCollectionVisualization(Foo())
+      self.assertTrue(
+          'pcoll should be apache_beam.pvalue.PCollection' in ctx.exception)
 
   def test_pcoll_visualization_generate_unique_display_id(self):
-    pv_1 = pv.PCollectionVisualization(self._stream)
-    pv_2 = pv.PCollectionVisualization(self._stream)
+    pv_1 = pv.PCollectionVisualization(self._pcoll)
+    pv_2 = pv.PCollectionVisualization(self._pcoll)
     self.assertNotEqual(pv_1._dive_display_id, pv_2._dive_display_id)
     self.assertNotEqual(pv_1._overview_display_id, pv_2._overview_display_id)
     self.assertNotEqual(pv_1._df_display_id, pv_2._df_display_id)
 
   def test_one_shot_visualization_not_return_handle(self):
-    self.assertIsNone(pv.visualize(self._stream, display_facets=True))
+    self.assertIsNone(pv.visualize(self._pcoll, display_facets=True))
 
   def test_dynamic_plotting_return_handle(self):
     h = pv.visualize(
-        self._stream, dynamic_plotting_interval=1, display_facets=True)
+        self._pcoll, dynamic_plotting_interval=1, display_facets=True)
     self.assertIsInstance(h, timeloop.Timeloop)
     h.stop()
 
@@ -108,10 +111,10 @@ class PCollectionVisualizationTest(unittest.TestCase):
       mocked_display_overview,
       mocked_display_dive):
     original_pcollection_visualization = pv.PCollectionVisualization(
-        self._stream, display_facets=True)
+        self._pcoll, display_facets=True)
     # Dynamic plotting always creates a new PCollectionVisualization.
     new_pcollection_visualization = pv.PCollectionVisualization(
-        self._stream, display_facets=True)
+        self._pcoll, display_facets=True)
     # The display uses ANY data the moment display is invoked, and updates
     # web elements with ids fetched from the given updating_pv.
     new_pcollection_visualization.display(
@@ -139,7 +142,7 @@ class PCollectionVisualizationTest(unittest.TestCase):
   def test_display_plain_text_when_kernel_has_no_frontend(self, _mocked_head):
     # Resets the notebook check to False.
     ie.current_env()._is_in_notebook = False
-    self.assertIsNone(pv.visualize(self._stream, display_facets=True))
+    self.assertIsNone(pv.visualize(self._pcoll, display_facets=True))
     _mocked_head.assert_called_once()
 
   def test_event_time_formatter(self):

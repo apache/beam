@@ -133,7 +133,7 @@ class InteractiveEnvironmentInspector(object):
     value = self.get_val(identifier)
     if isinstance(value, beam.pvalue.PCollection):
       from apache_beam.runners.interactive import interactive_beam as ib
-      dataframe = ib.collect(value, include_window_info=include_window_info)
+      dataframe = ib.collect(value, include_window_info)
       return dataframe.to_json(orient='table')
     return {}
 
