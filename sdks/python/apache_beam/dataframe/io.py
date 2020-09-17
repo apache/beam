@@ -24,6 +24,7 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam import io
+from apache_beam.io import fileio
 from apache_beam.dataframe import frame_base
 
 
@@ -71,21 +72,17 @@ class _ReadFromPandas(beam.PTransform):
     with io.filesystems.FileSystems.open(first) as handle:
       df = next(self.reader(handle, *self.args, chunksize=100, **self.kwargs))
 
-    # TODO(robertwb): Actually make an SDF.
-    def expand_pattern(pattern):
-      for match_result in io.filesystems.FileSystems.match([pattern]):
-        for metadata in match_result.metadata_list:
-          yield metadata.path
-
     pcoll = (
         paths_pcoll
-        | beam.FlatMap(expand_pattern)
+        | fileio.MatchFiles(self.path)
+        | fileio.ReadMatches()
         | beam.ParDo(_ReadFromPandasDoFn(self.reader, self.args, self.kwargs)))
     from apache_beam.dataframe import convert
     return convert.to_dataframe(
         pcoll, proxy=_prefix_range_index_with(':', df[:0]))
 
 
+# TODO(robertwb): Actually make an SDF.
 class _ReadFromPandasDoFn(beam.DoFn):
   def __init__(self, reader, args, kwargs):
     # avoid pickling issues
@@ -93,10 +90,11 @@ class _ReadFromPandasDoFn(beam.DoFn):
     self.args = args
     self.kwargs = kwargs
 
-  def process(self, path):
+  def process(self, readable_file):
     reader = getattr(pd, self.reader)
-    for df in reader(path, *self.args, chunksize=100, **self.kwargs):
-      yield _prefix_range_index_with(path + ':', df)
+    with readable_file.open() as handle:
+      for df in reader(handle, *self.args, chunksize=100, **self.kwargs):
+        yield _prefix_range_index_with(readable_file.metadata.path + ':', df)
 
 
 class _WriteToPandas(beam.PTransform):
