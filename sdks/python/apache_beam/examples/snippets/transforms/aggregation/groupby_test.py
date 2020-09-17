@@ -48,13 +48,16 @@ class UnorderedList(object):
   def __hash__(self):
     return hash(tuple(sorted(self._contents)))
 
+  def __repr__(self):
+    return 'UnorderedList(%r)' % self._contents
+
 
 def normalize(x):
   if isinstance(x, tuple) and hasattr(x, '_fields'):
     # A named tuple.
     return beam.Row(**dict(zip(x._fields, x)))
   elif isinstance(x, typing.Iterable) and not isinstance(x, (str, beam.Row)):
-    return UnorderedList(x)
+    return UnorderedList(normalize(e) for e in x)
   else:
     return x
 
