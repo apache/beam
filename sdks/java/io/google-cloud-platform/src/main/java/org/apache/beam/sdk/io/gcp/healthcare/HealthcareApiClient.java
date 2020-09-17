@@ -185,8 +185,9 @@ public interface HealthcareApiClient {
   /**
    * List all FHIR stores in a dataset.
    *
-   * @param dataset, in the format: projects/project_id/locations/location_id/datasets/dataset_id
-   * @return
+   * @param dataset the dataset, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id
+   * @return a list of FhirStore
    * @throws IOException
    */
   List<FhirStore> listAllFhirStores(String dataset) throws IOException;
