@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.influxdb;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.influxdb.BatchOptions.DEFAULT_BUFFER_LIMIT;
 
@@ -39,7 +40,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -67,14 +67,17 @@ import org.slf4j.LoggerFactory;
  * <p>InfluxDB return a bounded collection of String as {@code PCollection<String>}. The String
  * follows the line protocol
  * (https://docs.influxdata.com/influxdb/v1.8/write_protocols/line_protocol_tutorial/). To Configure
- * the InfluxDB source, you whave to provide the connection URL, the credentials to connect to
+ * the InfluxDB source, you have to provide the connection URL, the credentials to connect to
  * InfluxDB and the Database name
  *
  * <pre>{@code
  *  pipeline.apply(
- *    InfluxDB.read("https://influxdb", "userName", "password", "database")
- *      .withQuery("select * from metric");
- *      //Reads data based on the query from the InfluxDB
+ *    InfluxDB.read()
+ *    .withDataSourceConfiguration(DataSourceConfiguration.create(StaticValueProvider.of(options.getInfluxDBURL()),
+ *                         StaticValueProvider.of(options.getInfluxDBUserName()),
+ *                         StaticValueProvider.of(options.getInfluxDBPassword())))
+ *    .withDatabase("metrics")
+ *    .withQuery("select * from metric");
  * }
  *
  * <p> The source also accepts optional configuration: {@code withRetentionPolicy()}  an</p>
@@ -87,7 +90,10 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * pipeleine
  *    .apply(...)
- *    .appply(InfluxDB.write(https://influxdb", "userName", "password", "database")
+ *    .appply(InfluxDB.write()
+ *    .withDataSourceConfiguration(DataSourceConfiguration.create(StaticValueProvider.of(options.getInfluxDBURL()),
+ *                         StaticValueProvider.of(options.getInfluxDBUserName()),
+ *                         StaticValueProvider.of(options.getInfluxDBPassword())));
  *
  * }
  * </pre>
@@ -97,36 +103,24 @@ import org.slf4j.LoggerFactory;
 public class InfluxDbIO {
   private static final Logger LOG = LoggerFactory.getLogger(InfluxDbIO.class);
 
-  private static final String defaultRetentionPolicy = "autogen";
+  private static final String DEFAULT_RETENTION_POLICY = "autogen";
 
   /** Disallow construction of utility class. */
   private InfluxDbIO() {}
 
-  public static Write write(String influxDbUrl, String username, String password, String database) {
+  public static Write write() {
     return new AutoValue_InfluxDbIO_Write.Builder()
-        .setDataSourceConfiguration(
-            DataSourceConfiguration.create(
-                StaticValueProvider.of(influxDbUrl),
-                StaticValueProvider.of(username),
-                StaticValueProvider.of(password)))
-        .setDatabase(database)
-        .setRetentionPolicy(defaultRetentionPolicy)
+        .setRetentionPolicy(DEFAULT_RETENTION_POLICY)
         .setDisableCertificateValidation(false)
         .setBatchSize(DEFAULT_BUFFER_LIMIT)
         .setConsistencyLevel(ConsistencyLevel.QUORUM)
         .build();
   }
 
-  public static Read read(String influxDbUrl, String username, String password, String database) {
+  public static Read read() {
     return new AutoValue_InfluxDbIO_Read.Builder()
-        .setDataSourceConfiguration(
-            DataSourceConfiguration.create(
-                StaticValueProvider.of(influxDbUrl),
-                StaticValueProvider.of(username),
-                StaticValueProvider.of(password)))
-        .setDatabase(database)
         .setDisableCertificateValidation(false)
-        .setRetentionPolicy(defaultRetentionPolicy)
+        .setRetentionPolicy(DEFAULT_RETENTION_POLICY)
         .build();
   }
 
@@ -139,11 +133,11 @@ public class InfluxDbIO {
 
     abstract String retentionPolicy();
 
-    abstract String database();
+    abstract @Nullable String database();
 
     abstract @Nullable String query();
 
-    abstract DataSourceConfiguration dataSourceConfiguration();
+    abstract @Nullable DataSourceConfiguration dataSourceConfiguration();
 
     abstract @Nullable String metric();
 
@@ -174,6 +168,16 @@ public class InfluxDbIO {
       abstract Builder setMetric(@Nullable String metric);
 
       abstract Read build();
+    }
+    /** Reads from the InfluxDB instance indicated by the given configuration. */
+    public Read withDataSourceConfiguration(DataSourceConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return builder().setDataSourceConfiguration(configuration).build();
+    }
+
+    /** Reads from the specified database. */
+    public Read withDatabase(String database) {
+      return builder().setDatabase(database).build();
     }
     /** Read metric data till the toDateTime. * */
     public Read withToDateTime(String toDateTime) {
@@ -248,12 +252,12 @@ public class InfluxDbIO {
           if (result.getSeries() != null) {
             for (Series series : result.getSeries()) {
               for (List<Object> data : series.getValues()) {
-                String s = data.get(0).toString();
-                if (s.startsWith(numOfBlocks)) {
-                  numOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+                String seriesValue = data.get(0).toString();
+                if (seriesValue.startsWith(numOfBlocks)) {
+                  numOfBlocksValue.add(Long.parseLong(seriesValue.split(":", -1)[1].trim()));
                 }
-                if (s.startsWith(sizeOfBlocks)) {
-                  sizeOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+                if (seriesValue.startsWith(sizeOfBlocks)) {
+                  sizeOfBlocksValue.add(Long.parseLong(seriesValue.split(":", -1)[1].trim()));
                 }
               }
             }
@@ -428,7 +432,7 @@ public class InfluxDbIO {
       builder.addIfNotNull(DisplayData.item("consistencyLevel", consistencyLevel().value()));
     }
 
-    abstract String database();
+    abstract @Nullable String database();
 
     abstract String retentionPolicy();
 
@@ -438,7 +442,7 @@ public class InfluxDbIO {
 
     abstract ConsistencyLevel consistencyLevel();
 
-    abstract DataSourceConfiguration dataSourceConfiguration();
+    abstract @Nullable DataSourceConfiguration dataSourceConfiguration();
 
     abstract Builder builder();
 
@@ -478,6 +482,15 @@ public class InfluxDbIO {
      */
     public Write withConsistencyLevel(ConsistencyLevel consistencyLevel) {
       return builder().setConsistencyLevel(consistencyLevel).build();
+    }
+
+    public Write withDataSourceConfiguration(DataSourceConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return builder().setDataSourceConfiguration(configuration).build();
+    }
+
+    public Write withDatabase(String database) {
+      return builder().setDatabase(database).build();
     }
 
     static class InfluxWriterFn extends DoFn<String, Void> {
@@ -577,10 +590,10 @@ public class InfluxDbIO {
     String query = "SHOW SHARDS";
     DBShardInformation dbInfo = new DBShardInformation();
     try (InfluxDB connection = getConnection(configuration, disableCertificateValidation)) {
-      QueryResult result = connection.query(new Query(query));
-      List<Result> results = result.getResults();
-      for (Result res : results) {
-        for (Series series : res.getSeries()) {
+      QueryResult queryResult = connection.query(new Query(query));
+      List<Result> results = queryResult.getResults();
+      for (Result result : results) {
+        for (Series series : result.getSeries()) {
           dbInfo.loadShardInformation(database, series);
         }
       }

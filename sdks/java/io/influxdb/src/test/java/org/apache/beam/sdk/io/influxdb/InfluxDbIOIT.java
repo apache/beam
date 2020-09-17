@@ -20,7 +20,9 @@ package org.apache.beam.sdk.io.influxdb;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.influxdb.InfluxDbIO.DataSourceConfiguration;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -133,11 +135,13 @@ public class InfluxDbIOIT {
             Create.of(GenerateData.getMetric(metricName, numOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDbIO.write(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.write()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withConsistencyLevel(ConsistencyLevel.ANY)
                 .withBatchSize(100)
                 .withDisableCertificateValidation(true));
@@ -145,11 +149,13 @@ public class InfluxDbIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in Influxdb",
-            InfluxDbIO.read(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.read()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withQuery("SELECT * FROM \"testWriteAndRead\"")
                 .withDisableCertificateValidation(true));
 
@@ -170,11 +176,13 @@ public class InfluxDbIOIT {
             Create.of(GenerateData.getMetric(metricName, noOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDbIO.write(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.write()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withConsistencyLevel(ConsistencyLevel.ANY)
                 .withBatchSize(100)
                 .withDisableCertificateValidation(true));
@@ -182,11 +190,13 @@ public class InfluxDbIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in InfluxDB",
-            InfluxDbIO.read(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.read()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withDisableCertificateValidation(true)
                 .withMetric(metricName));
 
@@ -209,11 +219,13 @@ public class InfluxDbIOIT {
             Create.of(GenerateData.getMultipleMetric(metric, numOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDbIO.write(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.write()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withConsistencyLevel(ConsistencyLevel.ANY)
                 .withBatchSize(100)
                 .withDisableCertificateValidation(true));
@@ -221,11 +233,13 @@ public class InfluxDbIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in InfluxDB",
-            InfluxDbIO.read(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.read()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withDisableCertificateValidation(true)
                 .withQuery(
                     "SELECT * FROM autogen.testWriteAndReadWithMultipleMetric1,autogen.testWriteAndReadWithMultipleMetric2"));
@@ -246,24 +260,29 @@ public class InfluxDbIOIT {
             Create.of(GenerateData.getMetric(metricName, noOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDbIO.write(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.write()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withDisableCertificateValidation(true)
                 .withBatchSize(100)
                 .withConsistencyLevel(ConsistencyLevel.ANY)
                 .withRetentionPolicy("test_retention"));
+
     writePipeline.run().waitUntilFinish();
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in InfluxDB",
-            InfluxDbIO.read(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.read()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withDisableCertificateValidation(true)
                 .withRetentionPolicy("test_retention")
                 .withMetric(metricName));
@@ -287,11 +306,13 @@ public class InfluxDbIOIT {
             Create.of(GenerateData.getMultipleMetric(metrics, noOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDbIO.write(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.write()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withDisableCertificateValidation(true)
                 .withBatchSize(100)
                 .withConsistencyLevel(ConsistencyLevel.ANY)
@@ -300,22 +321,26 @@ public class InfluxDbIOIT {
     PCollection<String> valuesForTestm =
         readPipeline.apply(
             "Read all points in InfluxDB For testWriteAndReadWithSQLForMultipleMetric1 metric",
-            InfluxDbIO.read(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.read()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withDisableCertificateValidation(true)
                 .withMetric("testWriteAndReadWithSQLForMultipleMetric1")
                 .withRetentionPolicy("test_rp"));
     PCollection<String> valuesForTestm1 =
         readPipeline.apply(
             "Read all points in InfluxDB For testWriteAndReadWithSQLForMultipleMetric2 metric",
-            InfluxDbIO.read(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.read()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withDisableCertificateValidation(true)
                 .withMetric("testWriteAndReadWithSQLForMultipleMetric2")
                 .withRetentionPolicy("test_rp"));
@@ -334,11 +359,13 @@ public class InfluxDbIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read points in Influxdb",
-            InfluxDbIO.read(
-                    options.getInfluxDBURL(),
-                    options.getInfluxDBUserName(),
-                    options.getInfluxDBPassword(),
-                    options.getDatabaseName())
+            InfluxDbIO.read()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(options.getInfluxDBURL()),
+                        StaticValueProvider.of(options.getInfluxDBUserName()),
+                        StaticValueProvider.of(options.getInfluxDBPassword())))
+                .withDatabase(options.getInfluxDBUserName())
                 .withQuery("SELECT * FROM \"non_existentMetric\"")
                 .withDisableCertificateValidation(true));
 

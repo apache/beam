@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import okhttp3.OkHttpClient;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.io.influxdb.InfluxDbIO.DataSourceConfiguration;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -88,7 +90,13 @@ public class InfluxDbIOTest {
         .apply("Generate data", Create.of(GenerateData.getMetric("test_m", numOfElementsToWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDbIO.write(influxHost, userName, password, influxDatabaseName));
+            InfluxDbIO.write()
+                .withDataSourceConfiguration(
+                    DataSourceConfiguration.create(
+                        StaticValueProvider.of(influxHost),
+                        StaticValueProvider.of(userName),
+                        StaticValueProvider.of(password)))
+                .withDatabase(influxDatabaseName));
     PipelineResult result = pipeline.run();
     Assert.assertEquals(State.DONE, result.waitUntilFinish());
     Assert.assertTrue(countInvocation.get() > 0);
@@ -121,7 +129,13 @@ public class InfluxDbIOTest {
         pipeline
             .apply(
                 "Read data to InfluxDB",
-                InfluxDbIO.read(influxHost, userName, password, influxDatabaseName)
+                InfluxDbIO.read()
+                    .withDataSourceConfiguration(
+                        DataSourceConfiguration.create(
+                            StaticValueProvider.of(influxHost),
+                            StaticValueProvider.of(userName),
+                            StaticValueProvider.of(password)))
+                    .withDatabase(influxDatabaseName)
                     .withQuery("SELECT * FROM cpu"))
             .apply(Count.globally());
     PAssert.that(data).containsInAnyOrder(20L);
