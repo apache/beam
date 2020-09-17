@@ -11900,7 +11900,10 @@ beam.Row(recipe=&amp;#39;muffin&amp;#39;, fruit=&amp;#39;banana&amp;#39;, quanti
 .&lt;/p>
 &lt;h2 id="aggregation">Aggregation&lt;/h2>
 &lt;p>Grouping is often used in conjunction with aggregation, and the
-&lt;code>aggregate_field&lt;/code> method of the ``GroupBy&lt;code>transform can be used to accomplish this easily. This method takes three parameters: the field (or expression) which to aggregate, the&lt;/code>CombineFn&lt;code>(or associative&lt;/code>callable`) with which to aggregate
+&lt;code>aggregate_field&lt;/code> method of the &lt;code>GroupBy&lt;/code> transform can be used to accomplish
+this easily.
+This method takes three parameters: the field (or expression) which to
+aggregate, the &lt;code>CombineFn&lt;/code> (or associative &lt;code>callable&lt;/code>) with which to aggregate
 by, and finally a field name in which to store the result.
 For example, suppose one wanted to compute the amount of each fruit to buy.
 One could write&lt;/p>
@@ -11928,7 +11931,7 @@ NamedTuple(fruit=&amp;#39;banana&amp;#39;, total_quantity=3),&lt;/code>&lt;/pre>
 &lt;/table>
 &lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 .&lt;/p>
-&lt;p>Similar to the parameters in GroupBy, one can also aggregate multiple fields
+&lt;p>Similar to the parameters in &lt;code>GroupBy&lt;/code>, one can also aggregate multiple fields
 and by expressions.&lt;/p>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
@@ -12235,7 +12238,9 @@ Pydoc&lt;/a
 &lt;/table>
 &lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;p>N/A&lt;/p>
+&lt;!-- TODO(BEAM-10889): Create a page for BatchElements and link to it here. //-->
+&lt;p>For unkeyed data and dynamic batch sizes, one may want to use
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements">BatchElements&lt;/a>.&lt;/p>
 &lt;table align="left" style="margin-right:1em">
 &lt;td>
 &lt;a
