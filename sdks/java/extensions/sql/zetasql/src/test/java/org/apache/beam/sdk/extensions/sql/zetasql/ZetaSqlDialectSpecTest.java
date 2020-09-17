@@ -4320,7 +4320,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
-        "AVG(LONG) is not supported. You might want to use AVG(CAST(expression AS DOUBLE).");
+        "AVG(INT64) is not supported. You might want to use AVG(CAST(expression AS FLOAT64).");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 

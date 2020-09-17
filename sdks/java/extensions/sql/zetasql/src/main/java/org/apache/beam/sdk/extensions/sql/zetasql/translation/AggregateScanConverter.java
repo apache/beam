@@ -49,7 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** Converts aggregate calls. */
 class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
   private static final String AVG_ILLEGAL_LONG_INPUT_TYPE =
-      "AVG(LONG) is not supported. You might want to use AVG(CAST(expression AS DOUBLE).";
+      "AVG(INT64) is not supported. You might want to use AVG(CAST(expression AS FLOAT64).";
 
   AggregateScanConverter(ConversionContext context) {
     super(context);
