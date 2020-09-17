@@ -78,10 +78,7 @@ import org.slf4j.LoggerFactory;
  *                         StaticValueProvider.of(options.getInfluxDBPassword())))
  *    .withDatabase("metrics")
  *    .withQuery("select * from metric");
- * }
- *
- * <p> The source also accepts optional configuration: {@code withRetentionPolicy()}  an</p>
- *
+ * }</pre>
  *
  * <h3>Writing to InfluxDB</h3>
  *
@@ -95,9 +92,8 @@ import org.slf4j.LoggerFactory;
  *                         StaticValueProvider.of(options.getInfluxDBUserName()),
  *                         StaticValueProvider.of(options.getInfluxDBPassword())));
  *
- * }
- * </pre>
- * </pre>
+ * }</pre>
+ * <p> The source and sink also accepts optional configuration: {@code withRetentionPolicy()} </p>
  */
 @Experimental(Kind.SOURCE_SINK)
 public class InfluxDbIO {
