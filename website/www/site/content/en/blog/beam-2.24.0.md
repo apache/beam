@@ -53,6 +53,7 @@ For more information on changes in 2.24.0, check out the
 * WriteToBigQuery transforms now require a GCS location to be provided through either
   custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
   --temp_location, or pass method="STREAMING_INSERTS" to WriteToBigQuery ([BEAM-6928](https://issues.apache.org/jira/browse/BEAM-6928)).
+* Python SDK now understands `typing.FrozenSet` type hints, which are not interchangeable with `typing.Set`. You may need to update your pipelines if type checking fails. ([BEAM-10197](https://issues.apache.org/jira/browse/BEAM-10197))
 
 
 ## List of Contributors
