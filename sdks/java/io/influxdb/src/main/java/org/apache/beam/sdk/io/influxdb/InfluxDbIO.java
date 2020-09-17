@@ -71,19 +71,21 @@ import org.slf4j.LoggerFactory;
  * InfluxDB and the Database name
  *
  * <pre>{@code
- *  pipeline.apply(
- *    InfluxDB.read()
- *    .withDataSourceConfiguration(DataSourceConfiguration.create(StaticValueProvider.of(options.getInfluxDBURL()),
- *                         StaticValueProvider.of(options.getInfluxDBUserName()),
- *                         StaticValueProvider.of(options.getInfluxDBPassword())))
- *    .withDatabase("metrics")
- *    .withQuery("select * from metric");
+ * pipeline.apply(
+ *   InfluxDB.read()
+ *   .withDataSourceConfiguration(DataSourceConfiguration.create(StaticValueProvider.of(options.getInfluxDBURL()),
+ *                        StaticValueProvider.of(options.getInfluxDBUserName()),
+ *                        StaticValueProvider.of(options.getInfluxDBPassword())))
+ *   .withDatabase("metrics")
+ *   .withQuery("select * from metric");
  * }</pre>
  *
  * <h3>Writing to InfluxDB</h3>
  *
- * <p>InfluxDB sink supports writing data (as line protocol)  to InfluxDB
- * To configure a InfluxDB sink, you must specify a URL {@code InfluxDBURL}, {@code userName}, {@code password}, {@code database}
+ * <p>InfluxDB sink supports writing data (as line protocol) to InfluxDB To configure a InfluxDB
+ * sink, you must specify a URL {@code InfluxDBURL}, {@code userName}, {@code password}, {@code
+ * database}
+ *
  * <pre>{@code
  * pipeleine
  *    .apply(...)
@@ -93,7 +95,8 @@ import org.slf4j.LoggerFactory;
  *                         StaticValueProvider.of(options.getInfluxDBPassword())));
  *
  * }</pre>
- * <p> The source and sink also accepts optional configuration: {@code withRetentionPolicy()} </p>
+ *
+ * <p>The source and sink also accepts optional configuration: {@code withRetentionPolicy()}
  */
 @Experimental(Kind.SOURCE_SINK)
 public class InfluxDbIO {
