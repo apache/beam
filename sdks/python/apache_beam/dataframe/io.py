@@ -24,8 +24,8 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam import io
-from apache_beam.io import fileio
 from apache_beam.dataframe import frame_base
+from apache_beam.io import fileio
 
 
 def read_csv(path, *args, **kwargs):
