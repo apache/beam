@@ -151,7 +151,8 @@ class Stager(object):
     setup_options = options.view_as(SetupOptions)
 
     # Stage a requirements file if present.
-    if setup_options.requirements_file is not None:
+    if (setup_options.requirements_file is not None and
+        not setup_options.skip_boot_dependencies):
       if not os.path.isfile(setup_options.requirements_file):
         raise RuntimeError(
             'The file %s cannot be found. It was specified in the '
@@ -177,7 +178,8 @@ class Stager(object):
     # We will build the setup package locally and then copy it to the staging
     # location because the staging location is a remote path and the file cannot
     # be created directly there.
-    if setup_options.setup_file is not None:
+    if (setup_options.setup_file is not None and
+        not setup_options.skip_boot_dependencies):
       if not os.path.isfile(setup_options.setup_file):
         raise RuntimeError(
             'The file %s cannot be found. It was specified in the '
@@ -191,7 +193,8 @@ class Stager(object):
       resources.append((tarball_file, WORKFLOW_TARBALL_FILE))
 
     # Handle extra local packages that should be staged.
-    if setup_options.extra_packages is not None:
+    if (setup_options.extra_packages is not None and
+        not setup_options.skip_boot_dependencies):
       resources.extend(
           Stager._create_extra_packages(
               setup_options.extra_packages, temp_dir=temp_dir))
@@ -216,7 +219,8 @@ class Stager(object):
       pickler.dump_session(pickled_session_file)
       resources.append((pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
-    if hasattr(setup_options, 'sdk_location'):
+    if (hasattr(setup_options, 'sdk_location') and
+        not setup_options.skip_boot_dependencies):
 
       if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
           setup_options.sdk_location):

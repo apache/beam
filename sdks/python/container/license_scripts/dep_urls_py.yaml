@@ -95,6 +95,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE"
   protorpc:
     license: "https://raw.githubusercontent.com/google/protorpc/master/LICENSE"
+  proto-plus:
+    license: "https://raw.githubusercontent.com/googleapis/proto-plus-python/master/LICENSE"
   pbr:
     license: "https://opendev.org/openstack/pbr/raw/branch/master/LICENSE"
   pyarrow:

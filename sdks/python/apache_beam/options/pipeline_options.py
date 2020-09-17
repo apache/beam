@@ -994,6 +994,23 @@ class SetupOptions(PipelineOptions):
             'staged in the staging area (--staging_location option) and the '
             'workers will install them in same order they were specified on '
             'the command line.'))
+    parser.add_argument(
+        '--docker_registry_url',
+        default=None,
+        help=(
+            'The default docker registry to for pushing additional docker '
+            'images for the setup.'))
+    parser.add_argument(
+        '--skip_boot_dependencies',
+        default=False,
+        action='store_true',
+        help=(
+            'Skip staging these boot program dependencies: '
+            'apache beam sdk, python packages from requirements, '
+            'python packages extra_packages, workflow tarball. This flag '
+            'is useful to skip the staging process when the '
+            'dependencies are deemed not useful, e.g. the sdk container has '
+            'been prebuilt with these dependencies.'))
 
 
 class PortableOptions(PipelineOptions):
