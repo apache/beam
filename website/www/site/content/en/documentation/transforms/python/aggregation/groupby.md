@@ -114,7 +114,7 @@ Output:
 ## Aggregation
 
 Grouping is often used in conjunction with aggregation, and the
-`aggregate_field` method of the ``GroupBy` transform can be used to accomplish
+`aggregate_field` method of the `GroupBy` transform can be used to accomplish
 this easily.
 This method takes three parameters: the field (or expression) which to
 aggregate, the `CombineFn` (or associative `callable`) with which to aggregate
@@ -137,7 +137,7 @@ Output:
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}.
 
-Similar to the parameters in GroupBy, one can also aggregate multiple fields
+Similar to the parameters in `GroupBy`, one can also aggregate multiple fields
 and by expressions.
 
 {{< highlight py >}}
