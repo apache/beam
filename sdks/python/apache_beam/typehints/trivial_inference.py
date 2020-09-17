@@ -35,6 +35,7 @@ from builtins import object
 from builtins import zip
 from functools import reduce
 
+from apache_beam import pvalue
 from apache_beam.typehints import Any
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
@@ -58,6 +59,10 @@ def instance_to_type(o):
   t = type(o)
   if o is None:
     return type(None)
+  elif t == pvalue.Row:
+    return row_type.RowTypeConstraint([
+        (name, instance_to_type(value)) for name, value in o.as_dict().items()
+    ])
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
     # pylint: disable=deprecated-types-field
     if sys.version_info[0] == 2 and t == types.InstanceType:
@@ -320,6 +325,10 @@ def infer_return_type(c, input_types, debug=False, depth=5):
             dict: typehints.Dict[Any, Any]
         }[c]
       return c
+    elif (c == getattr and len(input_types) == 2 and
+          isinstance(input_types[1], Const)):
+      from apache_beam.typehints import opcodes
+      return opcodes._getattr(input_types[0], input_types[1].value)
     else:
       return Any
   except TypeInferenceError:

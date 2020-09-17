@@ -361,6 +361,7 @@ class TrivialInferenceTest(unittest.TestCase):
         (MyClass, MyClass()),
         (type(MyClass.method), MyClass.method),
         (types.MethodType, MyClass().method),
+        (row_type.RowTypeConstraint([('x', int)]), beam.Row(x=37)),
     ]
     for expected_type, instance in test_cases:
       self.assertEqual(
@@ -376,6 +377,12 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         row_type.RowTypeConstraint([('x', int), ('y', str)]),
         lambda x: beam.Row(x=x, y=str(x)), [int])
+
+  def testRowAttr(self):
+    self.assertReturnType(
+        typehints.Tuple[int, str],
+        lambda row: (row.x, getattr(row, 'y')),
+        [row_type.RowTypeConstraint([('x', int), ('y', str)])])
 
 
 if __name__ == '__main__':
