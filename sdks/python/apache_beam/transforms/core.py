@@ -102,7 +102,7 @@ __all__ = [
     'CombineValues',
     'GroupBy',
     'GroupByKey',
-    'ToRows',
+    'Select',
     'Partition',
     'Windowing',
     'WindowInto',
@@ -2520,14 +2520,14 @@ class _GroupAndAggregate(PTransform):
             (*(key + value))))
 
 
-class ToRows(PTransform):
+class Select(PTransform):
   """Converts the elements of a PCollection into a schema'd PCollection of Rows.
 
-  `ToRow(...)` is roughly equivalent to `Map(lambda x: Row(...))` where each
+  `Select(...)` is roughly equivalent to `Map(lambda x: Row(...))` where each
   argument (which may be a string or callable) of `ToRow` is applied to `x`.
   For example,
 
-      pcoll | beam.ToRow('a', b=lambda x: foo(x))
+      pcoll | beam.Select('a', b=lambda x: foo(x))
 
   is the same as
 

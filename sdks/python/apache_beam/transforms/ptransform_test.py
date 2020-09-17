@@ -896,12 +896,12 @@ class TestGroupBy(unittest.TestCase):
           ]))
 
 
-class ToRowsTest(unittest.TestCase):
+class SelectTest(unittest.TestCase):
   def test_simple(self):
     with TestPipeline() as p:
       rows = (
           p | beam.Create([1, 2, 10])
-          | beam.ToRows(a=lambda x: x * x, b=lambda x: -x))
+          | beam.Select(a=lambda x: x * x, b=lambda x: -x))
 
       assert_that(
           rows,
@@ -912,7 +912,7 @@ class ToRowsTest(unittest.TestCase):
           ]),
           label='CheckFromLambdas')
 
-      from_attr = rows | beam.ToRows('b', z='a')
+      from_attr = rows | beam.Select('b', z='a')
       assert_that(
           from_attr,
           equal_to([
