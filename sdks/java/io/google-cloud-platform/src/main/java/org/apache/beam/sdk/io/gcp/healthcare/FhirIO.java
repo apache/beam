@@ -1325,7 +1325,7 @@ public class FhirIO {
     }
   }
 
-  /** Deidentify FHIR resources from a FHIR store to a destination FHIR store. */
+  /** Deidentify FHIR resources from a FHIR store to a destination FHIR store */
   public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
     private final ValueProvider<String> sourceFhirStore;
     private final ValueProvider<String> destinationFhirStore;
