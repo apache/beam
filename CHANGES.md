@@ -85,7 +85,7 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.24.0] - Update On Commit
+# [2.24.0] - 2020-09-17
 
 ## Highlights
 
@@ -103,6 +103,8 @@
 * Add support of AWS SDK v2 for KinesisIO.Read (Java) ([BEAM-9702](https://issues.apache.org/jira/browse/BEAM-9702)).
 * Add streaming support to SnowflakeIO in Java SDK ([BEAM-9896](https://issues.apache.org/jira/browse/BEAM-9896))
 * Support reading and writing to Google Healthcare DICOM APIs in Python SDK ([BEAM-10601](https://issues.apache.org/jira/browse/BEAM-10601))
+* Add dispositions for SnowflakeIO.write ([BEAM-10343](https://issues.apache.org/jira/browse/BEAM-10343))
+* Add cross-language support to SnowflakeIO.Read now available in the Python module `apache_beam.io.external.snowflake` ([BEAM-9897](https://issues.apache.org/jira/browse/BEAM-9897)).
 
 ## New Features / Improvements
 
@@ -133,8 +135,6 @@
   is experimental. It reads data from BigQuery by exporting data to Avro files, and reading those files. It also supports
   reading data by exporting to JSON files. This has small differences in behavior for Time and Date-related fields. See
   Pydoc for more information.
-* Add dispositions for SnowflakeIO.write ([BEAM-10343](https://issues.apache.org/jira/browse/BEAM-10343))
-* Add cross-language support to SnowflakeIO.Read([BEAM-9897](https://issues.apache.org/jira/browse/BEAM-9897)).
 
 ## New Features / Improvements
 

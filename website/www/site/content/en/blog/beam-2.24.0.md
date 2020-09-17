@@ -1,7 +1,6 @@
 ---
 title:  "Apache Beam 2.24.0"
-date:   2020-07-29 00:00:01 -0800
-# Update date above when committing, as well as date on [download page] link. Check all links for correctness.
+date:   2020-09-17 00:00:01 -0800
 categories:
   - blog
 authors:
@@ -18,8 +17,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-We are happy to present the new 2.24.0 release of Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2240-2020-07-29) for this release.
+We are happy to present the new 2.24.0 release of Apache Beam. This release includes both improvements and new functionality.
+See the [download page](/get-started/downloads/#2240-2020-09-17) for this release.
 For more information on changes in 2.24.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347146).
 
@@ -48,6 +47,12 @@ For more information on changes in 2.24.0, check out the
 * Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle ([BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543)).
 * OnTimerContext should not create a new one when processing each element/timer in FnApiDoFnRunner ([BEAM-9839](https://issues.apache.org/jira/browse/BEAM-9839))
 * Key should be available in @OnTimer methods (Spark Runner) ([BEAM-9850](https://issues.apache.org/jira/browse/BEAM-9850))
+
+## Breaking Changes
+
+* WriteToBigQuery transforms now require a GCS location to be provided through either
+  custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
+  --temp_location, or pass method="STREAMING_INSERTS" to WriteToBigQuery ([BEAM-6928](https://issues.apache.org/jira/browse/BEAM-6928)).
 
 
 ## List of Contributors
