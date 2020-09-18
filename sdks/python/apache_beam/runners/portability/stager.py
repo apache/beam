@@ -181,7 +181,7 @@ class Stager(object):
     # We will build the setup package locally and then copy it to the staging
     # location because the staging location is a remote path and the file cannot
     # be created directly there.
-    if setup_options.setup_file is not None and skip_boot_dependencies:
+    if setup_options.setup_file is not None and not skip_boot_dependencies:
       if not os.path.isfile(setup_options.setup_file):
         raise RuntimeError(
             'The file %s cannot be found. It was specified in the '
