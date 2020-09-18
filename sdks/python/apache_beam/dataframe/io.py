@@ -41,7 +41,7 @@ def read_csv(path, *args, **kwargs):
 
 
 def write_csv(df, path, *args, **kwargs):
-  from apache_beam.dataframe import convert
+  from apache_beam.dataframe import convert  # avoid circular import
   # TODO(roberwb): Amortize the computation for multiple writes?
   return convert.to_pcollection(df) | _WriteToPandas(
       pd.DataFrame.to_csv, path, args, kwargs, incremental=True, binary=False)
