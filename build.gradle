@@ -151,10 +151,6 @@ task sqlPreCommit() {
   dependsOn ":sdks:java:extensions:sql:buildDependents"
 }
 
-task javaPreCommitBeamZetaSQL() {
-  dependsOn ":sdks:java:extensions:sql:zetasql:test"
-}
-
 task javaPreCommitPortabilityApi() {
   dependsOn ":runners:google-cloud-dataflow-java:worker:build"
 }
@@ -381,7 +377,6 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 if (project.hasProperty('compileAndRunTestsWithJava11')) {
   project.javaPreCommitPortabilityApi.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
   project.javaExamplesDataflowPrecommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
-  project.javaPreCommitBeamZetaSQL.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
   project.sqlPreCommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
 } else {
   allprojects {
