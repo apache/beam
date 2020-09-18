@@ -42,8 +42,9 @@ import logging
 import threading
 
 import apache_beam as beam
+from apache_beam.metrics import MetricsFilter
+from apache_beam.runners.runner import PipelineResult  # pylint: disable=unused-import
 from apache_beam.testing.benchmarks.nexmark.models import auction_bid
-from apache_beam.testing.benchmarks.nexmark.models import auction_price
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
 from apache_beam.transforms import window
@@ -82,8 +83,6 @@ def setup_coder():
   beam.coders.registry.register_coder(nexmark_model.Bid, nexmark_model.BidCoder)
   beam.coders.registry.register_coder(
       auction_bid.AuctionBid, auction_bid.AuctionBidCoder)
-  beam.coders.registry.register_coder(
-      auction_price.AuctionPrice, auction_price.AuctionPriceCoder)
 
 
 class ParseEventFn(beam.DoFn):
@@ -122,7 +121,7 @@ class ParseEventFn(beam.DoFn):
     yield event
 
 
-class ParseJsonEvnetFn(beam.DoFn):
+class ParseJsonEventFn(beam.DoFn):
   """Parses the raw event info into a Python objects.
 
   Each event line has the following format:
@@ -224,5 +223,74 @@ def unnest_to_json(cand):
 
 
 def millis_to_timestamp(millis):
+  # type: (int) -> Timestamp
   micro_second = millis * 1000
   return Timestamp(micros=micro_second)
+
+
+def get_counter_metric(result, namespace, name):
+  # type: (PipelineResult, str, str) -> int
+
+  """
+  get specific counter metric from pipeline result
+
+  Args:
+    result: the PipelineResult which metrics are read from
+    namespace: a string representing the namespace of wanted metric
+    name: a string representing the  name of the wanted metric
+
+  Returns:
+    the result of the wanted metric if it exist, else -1
+  """
+  metrics = result.metrics().query(
+      MetricsFilter().with_namespace(namespace).with_name(name))
+  counters = metrics['counters']
+  if len(counters) > 1:
+    raise RuntimeError(
+        '%d instead of one metric result matches name: %s in namespace %s' %
+        (len(counters), name, namespace))
+  return counters[0].result if len(counters) > 0 else -1
+
+
+def get_start_time_metric(result, namespace, name):
+  # type: (PipelineResult, str, str) -> int
+
+  """
+  get the start time out of all times recorded by the specified distribution
+  metric
+
+  Args:
+    result: the PipelineResult which metrics are read from
+    namespace: a string representing the namespace of wanted metric
+    name: a string representing the  name of the wanted metric
+
+  Returns:
+    the smallest time in the metric or -1 if it doesn't exist
+  """
+  distributions = result.metrics().query(
+      MetricsFilter().with_namespace(namespace).with_name(
+          name))['distributions']
+  min_list = list(map(lambda m: m.result.min, distributions))
+  return min(min_list) if len(min_list) > 0 else -1
+
+
+def get_end_time_metric(result, namespace, name):
+  # type: (PipelineResult, str, str) -> int
+
+  """
+  get the end time out of all times recorded by the specified distribution
+  metric
+
+  Args:
+    result: the PipelineResult which metrics are read from
+    namespace: a string representing the namespace of wanted metric
+    name: a string representing the  name of the wanted metric
+
+  Returns:
+    the largest time in the metric or -1 if it doesn't exist
+  """
+  distributions = result.metrics().query(
+      MetricsFilter().with_namespace(namespace).with_name(
+          name))['distributions']
+  max_list = list(map(lambda m: m.result.max, distributions))
+  return max(max_list) if len(max_list) > 0 else -1

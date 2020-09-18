@@ -18,8 +18,8 @@
 
 # Additional Outputs
 
-In previous lessons, we mainly applied a DoFn to a ParDo that outputted a single PCollection.  Optionally, a ParDo 
-transform can produce zero or multiple output PCollections which we will explore in this lesson. 
+In previous lessons, we mainly applied a DoFn to a ParDo that outputted a single PCollection.  Optionally, a ParDo
+transform can produce zero or multiple output PCollections which we will explore in this lesson.
 
 **Kata:** Implement additional output to your ParDo for numbers bigger than 100.
 
@@ -37,12 +37,12 @@ transform can produce zero or multiple output PCollections which we will explore
 <div class="hint">
     <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo2">
     beam.ParDo2</a> expects a DoFn that looks like the following.
-    
+
 ```
 func doFn(element X, emit1 func(Y), emit2 func(Y)) {
     // Element of type X comes from your PCollection input
     // Call emit1 to emit to the first PCollection output
-    // Call emit2 to emit to the second PCollection output 
+    // Call emit2 to emit to the second PCollection output
 }
 ```
 </div>

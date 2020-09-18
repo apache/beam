@@ -104,6 +104,31 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         any_tuple, reverse, [trivial_inference.Const((1, 2, 3))])
 
+  @unittest.skipIf(sys.version_info < (3, ), 'BUILD_MAP better in Python 3')
+  def testBuildMap(self):
+    self.assertReturnType(
+        typehints.Dict[typehints.Any, typehints.Any],
+        lambda k,
+        v: {}, [int, float])
+    self.assertReturnType(
+        typehints.Dict[int, float], lambda k, v: {k: v}, [int, float])
+    self.assertReturnType(
+        typehints.Dict[int, typehints.Union[float, str]],
+        lambda k1,
+        v1,
+        k2,
+        v2: {
+            k1: v1, k2: v2
+        }, [int, float, int, str])
+
+    # Constant map.
+    self.assertReturnType(
+        typehints.Dict[str, typehints.Union[int, float]],
+        lambda a,
+        b: {
+            'a': a, 'b': b
+        }, [int, float])
+
   def testNoneReturn(self):
     def func(a):
       if a == 5:
@@ -336,6 +361,7 @@ class TrivialInferenceTest(unittest.TestCase):
         (MyClass, MyClass()),
         (type(MyClass.method), MyClass.method),
         (types.MethodType, MyClass().method),
+        (row_type.RowTypeConstraint([('x', int)]), beam.Row(x=37)),
     ]
     for expected_type, instance in test_cases:
       self.assertEqual(
@@ -351,6 +377,12 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         row_type.RowTypeConstraint([('x', int), ('y', str)]),
         lambda x: beam.Row(x=x, y=str(x)), [int])
+
+  def testRowAttr(self):
+    self.assertReturnType(
+        typehints.Tuple[int, str],
+        lambda row: (row.x, getattr(row, 'y')),
+        [row_type.RowTypeConstraint([('x', int), ('y', str)])])
 
 
 if __name__ == '__main__':

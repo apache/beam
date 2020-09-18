@@ -27,8 +27,12 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.fs.ResourceIdTester;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -39,10 +43,8 @@ import org.junit.runners.Parameterized;
 
 @RunWith(Enclosed.class)
 public class AzfsResourceIdTest {
-
   @RunWith(Parameterized.class)
   public static class ResolveTest {
-
     @Parameterized.Parameter(0)
     public String baseUri;
 
@@ -112,7 +114,6 @@ public class AzfsResourceIdTest {
 
   @RunWith(JUnit4.class)
   public static class NonParameterizedTests {
-
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -136,7 +137,6 @@ public class AzfsResourceIdTest {
     public void testResolveInvalidNotDirectory() {
       ResourceId tmpDir =
           AzfsResourceId.fromUri("azfs://account/my_container/").resolve("tmp dir", RESOLVE_FILE);
-
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage(
           "Expected this resource to be a directory, but was [azfs://account/my_container/tmp dir]");
@@ -144,7 +144,7 @@ public class AzfsResourceIdTest {
     }
 
     @Test
-    public void testS3ResolveWithFileBase() {
+    public void testResolveWithFileBase() {
       ResourceId resourceId = AzfsResourceId.fromUri("azfs://account/container/path/to/file");
       thrown.expect(IllegalStateException.class);
       resourceId.resolve("child-path", RESOLVE_DIRECTORY); // resource is not a directory
@@ -162,19 +162,14 @@ public class AzfsResourceIdTest {
       AzfsResourceId a = AzfsResourceId.fromComponents("account", "container", "a/b/c");
       AzfsResourceId b = AzfsResourceId.fromComponents("account", "container", "a/b/c");
       assertEquals(a, b);
-
       b = AzfsResourceId.fromComponents(a.getAccount(), a.getContainer(), "a/b/c/");
       assertNotEquals(a, b);
-
       b = AzfsResourceId.fromComponents(a.getAccount(), a.getContainer(), "x/y/z");
       assertNotEquals(a, b);
-
       b = AzfsResourceId.fromComponents(a.getAccount(), "other-container", a.getBlob());
       assertNotEquals(a, b);
-
       b = AzfsResourceId.fromComponents("other-account", a.getContainer(), a.getBlob());
       assertNotEquals(a, b);
-
       assertEquals(
           AzfsResourceId.fromUri("azfs://account/container"),
           AzfsResourceId.fromUri("azfs://account/container/"));
@@ -285,11 +280,9 @@ public class AzfsResourceIdTest {
       String filename = "azfs://account/container/dir/file.txt";
       AzfsResourceId path = AzfsResourceId.fromUri(filename);
       assertEquals(filename, path.toString());
-
       filename = "azfs://account/container/blob/";
       path = AzfsResourceId.fromUri(filename);
       assertEquals(filename, path.toString());
-
       filename = "azfs://account/container/";
       path = AzfsResourceId.fromUri(filename);
       assertEquals(filename, path.toString());
@@ -315,6 +308,12 @@ public class AzfsResourceIdTest {
       assertFalse(AzfsResourceId.fromComponents("account", "container").isWildcard());
     }
 
-    // TODO: Consider adding a ResourceIdTester.runResourceIdBattery() test
+    @Test
+    public void testResourceIdTester() {
+      BlobstoreOptions options = PipelineOptionsFactory.create().as(BlobstoreOptions.class);
+      FileSystems.setDefaultPipelineOptions(options);
+      ResourceIdTester.runResourceIdBattery(
+          AzfsResourceId.fromUri("azfs://account/container/blob/"));
+    }
   }
 }

@@ -30,7 +30,6 @@ import unittest
 from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.runners.interactive import cache_manager as cache
-from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
 
 
 class FileBasedCacheManagerTest(object):
@@ -91,6 +90,32 @@ class FileBasedCacheManagerTest(object):
     self.assertFalse(self.cache_manager.exists(prefix, cache_label))
     self.mock_write_cache(cache_version_one, prefix, cache_label)
     self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+
+  def test_size(self):
+    """Test getting the size of some cache label."""
+
+    # The Beam API for writing doesn't return the number of bytes that was
+    # written to disk. So this test is only possible when the coder encodes the
+    # bytes that will be written directly to disk, which only the WriteToText
+    # transform does (with respect to the WriteToTFRecord transform).
+    if self.cache_manager.cache_format != 'text':
+      return
+
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+
+    # Test that if nothing is written the size is 0.
+    self.assertEqual(self.cache_manager.size(prefix, cache_label), 0)
+
+    value = 'a'
+    self.mock_write_cache([value], prefix, cache_label)
+    coder = self.cache_manager.load_pcoder(prefix, cache_label)
+    encoded = coder.encode(value)
+
+    # Add one to the size on disk because of the extra new-line character when
+    # writing to file.
+    self.assertEqual(
+        self.cache_manager.size(prefix, cache_label), len(encoded) + 1)
 
   def test_clear(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""
@@ -190,21 +215,6 @@ class FileBasedCacheManagerTest(object):
     # Check that version continues from the previous value instead of starting
     # from 0 again.
     self.assertEqual(version, 1)
-    self.assertTrue(
-        self.cache_manager.is_latest_version(version, prefix, cache_label))
-
-  def test_read_with_count_limiter(self):
-    """Test the condition where the cache is read once after written once."""
-    prefix = 'full'
-    cache_label = 'some-cache-label'
-    cache_version_one = ['cache', 'version', 'one']
-
-    self.mock_write_cache(cache_version_one, prefix, cache_label)
-    reader, version = self.cache_manager.read(
-        prefix, cache_label, limiters=[CountLimiter(2)])
-    pcoll_list = list(reader)
-    self.assertListEqual(pcoll_list, ['cache', 'version'])
-    self.assertEqual(version, 0)
     self.assertTrue(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
 

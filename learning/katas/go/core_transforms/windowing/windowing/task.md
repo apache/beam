@@ -18,19 +18,19 @@
 
 # Windowing
 
-This lesson introduces the concept of windowed PCollection elements.  A window is a view into a fixed beginning and 
+This lesson introduces the concept of windowed PCollection elements.  A window is a view into a fixed beginning and
 fixed end to a set of data.  In the beam model, windowing subdivides a PCollection according to the
 timestamps of its individual elements.  An element can be a part of one or more windows.
 
-A DoFn can request timestamp and windowing information about the element it is processing.  All the previous lessons 
-had this information available as well.  This lesson makes use of these parameters.  The simple dataset 
-has five git commit messages and their timestamps from the 
+A DoFn can request timestamp and windowing information about the element it is processing.  All the previous lessons
+had this information available as well.  This lesson makes use of these parameters.  The simple dataset
+has five git commit messages and their timestamps from the
 [Apache Beam public repository](https://github.com/apache/beam).  Timestamps have been applied to this PCollection
 input according to the date and time of these messages.
 
-**Kata:** This lesson challenges you to apply an hourly fixed window to a PCollection.  You are then to 
+**Kata:** This lesson challenges you to apply an hourly fixed window to a PCollection.  You are then to
 apply a ParDo to that hourly fixed windowed PCollection to produce a PCollection of a Commit struct.  The
-Commit struct is provided for you.  You are encouraged to run the pipeline at cmd/main.go of this task 
+Commit struct is provided for you.  You are encouraged to run the pipeline at cmd/main.go of this task
 to visualize the windowing and timestamps.
 
 <div class="hint">
@@ -68,7 +68,7 @@ func doFn(iw beam.Window, et beam.EventTime, element X) Y {
 </div>
 
 <div class="hint">
-    Refer to the Beam Programming Guide for additional information about 
+    Refer to the Beam Programming Guide for additional information about
     <a href="https://beam.apache.org/documentation/programming-guide/#other-dofn-parameters">
     additional DoFn parameters</a> and
     <a href="https://beam.apache.org/documentation/programming-guide/#windowing">

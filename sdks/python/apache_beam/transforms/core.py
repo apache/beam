@@ -102,6 +102,7 @@ __all__ = [
     'CombineValues',
     'GroupBy',
     'GroupByKey',
+    'Select',
     'Partition',
     'Windowing',
     'WindowInto',
@@ -436,23 +437,30 @@ class RunnerAPIPTransformHolder(PTransform):
             '%r and %r',
             env1.payload, env2.to_runner_api(context).payload)
 
+    def recursively_add_coder_protos(coder_id, old_context, new_context):
+      coder_proto = old_context.coders.get_proto_from_id(coder_id)
+      new_context.coders.put_proto(coder_id, coder_proto, True)
+      for component_coder_id in coder_proto.component_coder_ids:
+        recursively_add_coder_protos(
+            component_coder_id, old_context, new_context)
+
     if common_urns.primitives.PAR_DO.urn == self._proto.urn:
       # If a restriction coder has been set by an external SDK, we have to
       # explicitly add it (and all component coders recursively) to the context
       # to make sure that it does not get dropped by Python SDK.
-
-      def recursively_add_coder_protos(coder_id, old_context, new_context):
-        coder_proto = old_context.coders.get_proto_from_id(coder_id)
-        new_context.coders.put_proto(coder_id, coder_proto, True)
-        for component_coder_id in coder_proto.component_coder_ids:
-          recursively_add_coder_protos(
-              component_coder_id, old_context, new_context)
-
       par_do_payload = proto_utils.parse_Bytes(
           self._proto.payload, beam_runner_api_pb2.ParDoPayload)
       if par_do_payload.restriction_coder_id:
         recursively_add_coder_protos(
             par_do_payload.restriction_coder_id, self._context, context)
+    elif (common_urns.composites.COMBINE_PER_KEY.urn == self._proto.urn or
+          common_urns.composites.COMBINE_GLOBALLY.urn == self._proto.urn):
+      # We have to include coders embedded in `CombinePayload`.
+      combine_payload = proto_utils.parse_Bytes(
+          self._proto.payload, beam_runner_api_pb2.CombinePayload)
+      if combine_payload.accumulator_coder_id:
+        recursively_add_coder_protos(
+            combine_payload.accumulator_coder_id, self._context, context)
 
     return self._proto
 
@@ -1358,10 +1366,8 @@ class ParDo(PTransformWithSideInputs):
       raise ValueError('Unexpected keyword arguments: %s' % list(main_kw))
     return _MultiParDo(self, tags, main_tag)
 
-  def _pardo_fn_data(self):
-    si_tags_and_types = None
-    windowing = None
-    return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
+  def _do_fn_info(self):
+    return DoFnInfo.create(self.fn, self.args, self.kwargs)
 
   def _get_key_and_window_coder(self, named_inputs):
     if named_inputs is None or not self._signature.is_stateful_dofn():
@@ -1385,7 +1391,6 @@ class ParDo(PTransformWithSideInputs):
     # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
-    picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     if state_specs or timer_specs:
       context.add_requirement(
@@ -1412,9 +1417,7 @@ class ParDo(PTransformWithSideInputs):
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
-            do_fn=beam_runner_api_pb2.FunctionSpec(
-                urn=python_urns.PICKLED_DOFN_INFO,
-                payload=picked_pardo_fn_data),
+            do_fn=self._do_fn_info().to_runner_api(context),
             requests_finalization=has_bundle_finalization,
             restriction_coder_id=restriction_coder_id,
             state_specs={
@@ -1439,9 +1442,9 @@ class ParDo(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(unused_ptransform, pardo_payload, context):
-    assert pardo_payload.do_fn.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        pardo_payload.do_fn.payload)
+        DoFnInfo.from_runner_api(
+            pardo_payload.do_fn, context).serialized_dofn_data())
     if si_tags_and_types:
       raise NotImplementedError('explicit side input data')
     elif windowing:
@@ -1467,6 +1470,11 @@ class ParDo(PTransformWithSideInputs):
     from apache_beam.runners.common import DoFnSignature
     return DoFnSignature(self.fn).get_restriction_coder()
 
+  def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
+    if not hasattr(self.fn, '_runtime_output_constraints'):
+      self.fn._runtime_output_constraints = {}
+    self.fn._runtime_output_constraints[full_label] = input_type_hints
+
 
 class _MultiParDo(PTransform):
   def __init__(self, do_transform, tags, main_tag):
@@ -1479,6 +1487,72 @@ class _MultiParDo(PTransform):
     _ = pcoll | self._do_transform
     return pvalue.DoOutputsTuple(
         pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
+
+
+class DoFnInfo(object):
+  """This class represents the state in the ParDoPayload's function spec,
+  which is the actual DoFn together with some data required for invoking it.
+  """
+  @staticmethod
+  def register_stateless_dofn(urn):
+    def wrapper(cls):
+      StatelessDoFnInfo.REGISTERED_DOFNS[urn] = cls
+      cls._stateless_dofn_urn = urn
+      return cls
+
+    return wrapper
+
+  @classmethod
+  def create(cls, fn, args, kwargs):
+    if hasattr(fn, '_stateless_dofn_urn'):
+      assert not args and not kwargs
+      return StatelessDoFnInfo(fn._stateless_dofn_urn)
+    else:
+      return PickledDoFnInfo(cls._pickled_do_fn_info(fn, args, kwargs))
+
+  @staticmethod
+  def from_runner_api(spec, unused_context):
+    if spec.urn == python_urns.PICKLED_DOFN_INFO:
+      return PickledDoFnInfo(spec.payload)
+    elif spec.urn in StatelessDoFnInfo.REGISTERED_DOFNS:
+      return StatelessDoFnInfo(spec.urn)
+    else:
+      raise ValueError('Unexpected DoFn type: %s' % spec.urn)
+
+  @staticmethod
+  def _pickled_do_fn_info(fn, args, kwargs):
+    # This can be cleaned up once all runners move to portability.
+    return pickler.dumps((fn, args, kwargs, None, None))
+
+  def serialized_dofn_data(self):
+    raise NotImplementedError(type(self))
+
+
+class PickledDoFnInfo(DoFnInfo):
+  def __init__(self, serialized_data):
+    self._serialized_data = serialized_data
+
+  def serialized_dofn_data(self):
+    return self._serialized_data
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.FunctionSpec(
+        urn=python_urns.PICKLED_DOFN_INFO, payload=self._serialized_data)
+
+
+class StatelessDoFnInfo(DoFnInfo):
+
+  REGISTERED_DOFNS = {}
+
+  def __init__(self, urn):
+    assert urn in self.REGISTERED_DOFNS
+    self._urn = urn
+
+  def serialized_dofn_data(self):
+    return self._pickled_do_fn_info(self.REGISTERED_DOFNS[self._urn](), (), {})
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.FunctionSpec(urn=self._urn)
 
 
 def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -1887,7 +1961,7 @@ class CombineGlobally(PTransform):
     combined = (
         pcoll
         | 'KeyWithVoid' >> add_input_types(
-            Map(lambda v: (None, v)).with_output_types(
+            ParDo(_KeyWithNone()).with_output_types(
                 typehints.KV[None, pcoll.element_type]))
         | 'CombinePerKey' >> combine_per_key
         | 'UnKey' >> Map(lambda k_v: k_v[1]))
@@ -1933,6 +2007,12 @@ class CombineGlobally(PTransform):
   def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombineGlobally(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
+
+
+@DoFnInfo.register_stateless_dofn(python_urns.KEY_WITH_NONE_DOFN)
+class _KeyWithNone(DoFn):
+  def process(self, v):
+    yield None, v
 
 
 class CombinePerKey(PTransformWithSideInputs):
@@ -2438,6 +2518,45 @@ class _GroupAndAggregate(PTransform):
             lambda key,
             value: _dynamic_named_tuple('Result', result_fields)
             (*(key + value))))
+
+
+class Select(PTransform):
+  """Converts the elements of a PCollection into a schema'd PCollection of Rows.
+
+  `Select(...)` is roughly equivalent to `Map(lambda x: Row(...))` where each
+  argument (which may be a string or callable) of `ToRow` is applied to `x`.
+  For example,
+
+      pcoll | beam.Select('a', b=lambda x: foo(x))
+
+  is the same as
+
+      pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
+  """
+  def __init__(self,
+               *args,  # type: typing.Union[str, callable]
+               **kwargs  # type: typing.Union[str, callable]
+               ):
+    self._fields = [(
+        expr if isinstance(expr, str) else 'arg%02d' % ix,
+        _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
+                    ] + [(name, _expr_to_callable(expr, name))
+                         for (name, expr) in kwargs.items()]
+
+  def default_label(self):
+    return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
+
+  def expand(self, pcoll):
+    return pcoll | Map(
+        lambda x: pvalue.Row(**{name: expr(x)
+                                for name, expr in self._fields}))
+
+  def infer_output_type(self, input_type):
+    from apache_beam.typehints import row_type
+    return row_type.RowTypeConstraint([
+        (name, trivial_inference.infer_return_type(expr, [input_type]))
+        for (name, expr) in self._fields
+    ])
 
 
 class Partition(PTransformWithSideInputs):

@@ -30,6 +30,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -37,7 +40,6 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.BagState;
@@ -59,19 +61,17 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.testcontainers.containers.KafkaContainer;
 
-/**
- * This is an integration test for KafkaCSVTable. There should be a kafka server running and the
- * address should be passed to it. (https://issues.apache.org/jira/projects/BEAM/issues/BEAM-7523)
- */
-@Ignore("https://issues.apache.org/jira/projects/BEAM/issues/BEAM-7523")
+/** This is an integration test for KafkaCSVTable. */
 public class KafkaCSVTableIT {
-
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient KafkaContainer kafka = new KafkaContainer();
+
+  private KafkaOptions kafkaOptions;
 
   private static final Schema TEST_TABLE_SCHEMA =
       Schema.builder()
@@ -80,15 +80,16 @@ public class KafkaCSVTableIT {
           .addNullableField("item_name", Schema.FieldType.INT32)
           .build();
 
-  @BeforeClass
-  public static void prepare() {
-    PipelineOptionsFactory.register(KafkaOptions.class);
+  @Before
+  public void setUp() {
+    kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
+    kafkaOptions.setKafkaTopic("topic");
+    kafkaOptions.setKafkaBootstrapServerAddress(kafka.getBootstrapServers());
   }
 
   @Test
   @SuppressWarnings("FutureReturnValueIgnored")
   public void testFake2() throws BeamKafkaTable.NoEstimationException {
-    KafkaOptions kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
     Table table =
         Table.builder()
             .name("kafka_table")
@@ -101,7 +102,7 @@ public class KafkaCSVTableIT {
                         Schema.Field.nullable("item_name", INT32))
                     .collect(toSchema()))
             .type("kafka")
-            .properties(JSON.parseObject(getKafkaPropertiesString(kafkaOptions)))
+            .properties(JSON.parseObject(getKafkaPropertiesString()))
             .build();
     BeamKafkaTable kafkaTable = (BeamKafkaTable) new KafkaTableProvider().buildBeamSqlTable(table);
     produceSomeRecordsWithDelay(100, 20);
@@ -111,7 +112,7 @@ public class KafkaCSVTableIT {
     Assert.assertTrue(rate2 > rate1);
   }
 
-  private String getKafkaPropertiesString(KafkaOptions kafkaOptions) {
+  private String getKafkaPropertiesString() {
     return "{ \"bootstrap.servers\" : \""
         + kafkaOptions.getKafkaBootstrapServerAddress()
         + "\",\"topics\":[\""
@@ -123,7 +124,6 @@ public class KafkaCSVTableIT {
 
   @Test
   public void testFake() throws InterruptedException {
-    KafkaOptions kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     String createTableString =
         "CREATE EXTERNAL TABLE kafka_table(\n"
@@ -135,7 +135,7 @@ public class KafkaCSVTableIT {
             + "LOCATION '"
             + "'\n"
             + "TBLPROPERTIES '"
-            + getKafkaPropertiesString(kafkaOptions)
+            + getKafkaPropertiesString()
             + "'";
     TableProvider tb = new KafkaTableProvider();
     BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
@@ -147,6 +147,7 @@ public class KafkaCSVTableIT {
 
     queryOutput
         .apply(ParDo.of(new FakeKvPair()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), RowCoder.of(TEST_TABLE_SCHEMA)))
         .apply(
             "waitForSuccess",
             ParDo.of(
@@ -197,8 +198,9 @@ public class KafkaCSVTableIT {
       this.expected = expected;
     }
 
-    @DoFn.StateId("seenValues")
-    private final StateSpec<BagState<Row>> seenRows = StateSpecs.bag();
+    @StateId("seenValues")
+    private final StateSpec<BagState<Row>> seenRows =
+        StateSpecs.bag(RowCoder.of(TEST_TABLE_SCHEMA));
 
     @StateId("count")
     private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
@@ -232,7 +234,7 @@ public class KafkaCSVTableIT {
   @SuppressWarnings("FutureReturnValueIgnored")
   private void produceSomeRecords(int num) {
     Producer<String, String> producer = new KafkaProducer<String, String>(producerProps());
-    String topicName = pipeline.getOptions().as(KafkaOptions.class).getKafkaTopic();
+    String topicName = kafkaOptions.getKafkaTopic();
     for (int i = 0; i < num; i++) {
       producer.send(
           new ProducerRecord<String, String>(

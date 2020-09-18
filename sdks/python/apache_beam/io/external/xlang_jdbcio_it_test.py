@@ -112,12 +112,13 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       _ = (
           p
           | beam.Create(inserted_rows).with_output_types(JdbcWriteTestRow)
+          # TODO(BEAM-10750) Add test with overridden write_statement
           | 'Write to jdbc' >> WriteToJdbc(
+              table_name=table_name,
               driver_class_name=self.driver_class_name,
               jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              statement='INSERT INTO {} VALUES(?, ?, ?)'.format(table_name),
           ))
 
     fetched_data = self.engine.execute("SELECT * FROM {}".format(table_name))
@@ -143,12 +144,13 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       p.not_use_test_runner_api = True
       result = (
           p
+          # TODO(BEAM-10750) Add test with overridden read_query
           | 'Read from jdbc' >> ReadFromJdbc(
+              table_name=table_name,
               driver_class_name=self.driver_class_name,
               jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query='SELECT f_int FROM {}'.format(table_name),
           ))
 
       assert_that(

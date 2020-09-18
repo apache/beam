@@ -663,4 +663,88 @@ class ElasticsearchIOTestCommon implements Serializable {
     int count = countByScientistName(connectionConfiguration, restClient, "Einstein");
     assertEquals(numDocs / NUM_SCIENTISTS, count);
   }
+
+  /**
+   * Tests deletion of documents from Elasticsearch index. Documents with odd integer as id are
+   * deleted and those with even integer are partially updated. Documents to be deleted needs to
+   * have criteria within the fields of the document.
+   */
+  void testWriteWithIsDeletedFnWithPartialUpdates() throws Exception {
+    if (!useAsITests) {
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    // partial documents containing the ID and group only
+    List<String> data = new ArrayList<>();
+    for (int i = 0; i < numDocs; i++) {
+      // Scientist names at odd index to be deleted.
+      data.add(String.format("{\"id\" : %s, \"is_deleted\": %b}", i, i % 2 == 1));
+    }
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractValueFn("id"))
+                .withUsePartialUpdate(true)
+                .withIsDeleteFn(doc -> doc.get("is_deleted").asBoolean()));
+    pipeline.run();
+
+    currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+
+    // check we have not unwittingly modified existing behaviour
+    assertEquals(
+        numDocs / NUM_SCIENTISTS,
+        countByScientistName(connectionConfiguration, restClient, "Einstein"));
+
+    // Check if documents are deleted as expected
+    assertEquals(numDocs / 2, currentNumDocs);
+    assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin"));
+  }
+
+  /**
+   * Tests deletion of documents from Elasticsearch index. Documents with odd integer as id are
+   * deleted. Documents to be deleted needs to have criteria within the fields of the document.
+   */
+  void testWriteWithIsDeletedFnWithoutPartialUpdate() throws Exception {
+    if (!useAsITests) {
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    // partial documents containing the ID and group only
+    List<String> data = new ArrayList<>();
+    for (int i = 0; i < numDocs; i++) {
+      // Scientist names at odd index to be deleted.
+      if (i % 2 == 1) {
+        data.add(String.format("{\"id\" : %s, \"is_deleted\": %b}", i, true));
+      }
+    }
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractValueFn("id"))
+                .withIsDeleteFn(doc -> doc.get("is_deleted").asBoolean()));
+    pipeline.run();
+
+    currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+
+    // check we have not unwittingly modified existing behaviour
+    assertEquals(
+        numDocs / NUM_SCIENTISTS,
+        countByScientistName(connectionConfiguration, restClient, "Einstein"));
+
+    // Check if documents are deleted as expected
+    assertEquals(numDocs / 2, currentNumDocs);
+    assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin"));
+  }
 }

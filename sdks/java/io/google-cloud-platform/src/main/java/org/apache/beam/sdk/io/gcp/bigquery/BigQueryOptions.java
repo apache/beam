@@ -39,7 +39,7 @@ public interface BigQueryOptions
   void setTempDatasetId(String value);
 
   @Description(
-      "If specified, the given write timeout will be set to HTTP requests created to"
+      "If specified, the given write timeout will be set to HTTP requests created to "
           + "communicate with BigQuery service.")
   @Default.Integer(0)
   Integer getHTTPWriteTimeout();
@@ -71,4 +71,12 @@ public interface BigQueryOptions
   Long getMaxStreamingBatchSize();
 
   void setMaxStreamingBatchSize(Long value);
+
+  @Description(
+      "The minimum duration in seconds between percentile latencies logging. The interval "
+          + "might be longer than the specified value due to each bundle processing time.")
+  @Default.Integer(180)
+  Integer getLatencyLoggingFrequency();
+
+  void setLatencyLoggingFrequency(Integer value);
 }

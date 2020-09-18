@@ -36,4 +36,5 @@ task runJavaExamplesValidationTask {
   dependsOn ":runners:flink:1.10:runQuickstartJavaFlinkLocal"
   dependsOn ":runners:direct-java:runMobileGamingJavaDirect"
   dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow"
+  dependsOn ":runners:twister2:runQuickstartJavaTwister2"
 }

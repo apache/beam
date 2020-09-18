@@ -19,11 +19,11 @@
 Flatten
 -------
 
-Flatten is a Beam transform for PCollection objects that store the same data type. Flatten merges 
+Flatten is a Beam transform for PCollection objects that store the same data type. Flatten merges
 multiple PCollection objects into a single logical PCollection.
 
-**Kata:** Implement a 
-[Flatten](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten) 
+**Kata:** Implement a
+[Flatten](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten)
 transform that merges two PCollection of words into a single PCollection.
 
 <div class="hint">

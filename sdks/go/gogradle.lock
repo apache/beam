@@ -322,6 +322,13 @@ dependencies:
     vendorPath: "vendor/github.com/kr/pty"
     transitive: false
   - urls:
+    - "https://github.com/linkedin/goavro.git"
+    - "git@github.com:linkedin/goavro.git"
+    vcs: "git"
+    name: "github.com/linkedin/goavro"
+    commit: "94a7a9db615f35a39dd2b82089398b92fabad2ba"
+    transitive: false
+  - urls:
     - "https://github.com/magiconair/properties.git"
     - "git@github.com:magiconair/properties.git"
     vcs: "git"
@@ -646,15 +653,10 @@ dependencies:
     commit: "37707fdb30a5b38865cfb95e5aab41707daec7fd"
     url: "https://go.googlesource.com/sys"
     transitive: false
-  - name: "golang.org/x/text"
-    host:
-      name: "github.com/etcd-io/etcd"
-      commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
-      urls:
-      - "https://github.com/etcd-io/etcd.git"
-      - "git@github.com:etcd-io/etcd.git"
-      vcs: "git"
-    vendorPath: "vendor/golang.org/x/text"
+  - vcs: "git"
+    name: "golang.org/x/text"
+    commit: "23ae387dee1f90d29a23c0e87ee0b46038fbed0e"
+    url: "https://go.googlesource.com/text"
     transitive: false
   - name: "golang.org/x/time"
     host:

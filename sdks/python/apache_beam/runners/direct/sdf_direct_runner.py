@@ -67,7 +67,9 @@ class SplittableParDoOverride(PTransformOverride):
       signature = DoFnSignature(transform.fn)
       return signature.is_splittable_dofn()
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    ptransform = applied_ptransform.transform
     assert isinstance(ptransform, ParDo)
     do_fn = ptransform.fn
     signature = DoFnSignature(do_fn)
@@ -117,19 +119,18 @@ class ElementAndRestriction(object):
 class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
   def __init__(self, do_fn):
-    self._do_fn = do_fn
+    self._signature = DoFnSignature(do_fn)
 
   def start_bundle(self):
-    signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
-        signature,
+        self._signature,
         output_processor=_NoneShallPassOutputProcessor(),
         process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     initial_restriction = self._invoker.invoke_initial_restriction(element)
     watermark_estimator_state = (
-        self.signature.process_method.watermark_estimator_provider.
+        self._signature.process_method.watermark_estimator_provider.
         initial_estimator_state(element, initial_restriction))
     yield ElementAndRestriction(
         element, initial_restriction, watermark_estimator_state)
@@ -205,8 +206,9 @@ class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
   def matches(self, applied_ptransform):
     return isinstance(applied_ptransform.transform, ProcessKeyedElements)
 
-  def get_replacement_transform(self, ptransform):
-    return ProcessKeyedElementsViaKeyedWorkItems(ptransform)
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    return ProcessKeyedElementsViaKeyedWorkItems(applied_ptransform.transform)
 
 
 class ProcessKeyedElementsViaKeyedWorkItems(PTransform):

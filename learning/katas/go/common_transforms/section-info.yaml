@@ -19,3 +19,4 @@
 
 content:
 - filter
+- aggregation

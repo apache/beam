@@ -22,7 +22,6 @@ import static org.apache.beam.runners.core.construction.resources.PipelineResour
 import edu.iu.dsc.tws.api.JobConfig;
 import edu.iu.dsc.tws.api.Twister2Job;
 import edu.iu.dsc.tws.api.config.Config;
-import edu.iu.dsc.tws.api.driver.DriverJobState;
 import edu.iu.dsc.tws.api.exceptions.Twister2RuntimeException;
 import edu.iu.dsc.tws.api.scheduler.Twister2JobState;
 import edu.iu.dsc.tws.api.tset.sets.TSet;
@@ -100,15 +99,27 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     Twister2PipelineExecutionEnvironment env = new Twister2PipelineExecutionEnvironment(options);
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
+    SplittableParDo.validateNoPrimitiveReads(pipeline);
     env.translate(pipeline);
     setupSystem(options);
 
-    Config config = ResourceAllocator.loadConfig(new HashMap<>());
-
+    Map configMap = new HashMap();
     JobConfig jobConfig = new JobConfig();
-    jobConfig.put(SIDEINPUTS, extractNames(env.getSideInputs()));
-    jobConfig.put(LEAVES, extractNames(env.getLeaves()));
-    jobConfig.put(GRAPH, env.getTSetGraph());
+    if (isLocalMode(options)) {
+      options.setParallelism(1);
+      configMap.put(SIDEINPUTS, extractNames(env.getSideInputs()));
+      configMap.put(LEAVES, extractNames(env.getLeaves()));
+      configMap.put(GRAPH, env.getTSetGraph());
+      configMap.put("twister2.network.buffer.size", 32000);
+      configMap.put("twister2.network.sendBuffer.count", options.getParallelism());
+      LOG.warning("Twister2 Local Mode currently only supports single worker");
+    } else {
+      jobConfig.put(SIDEINPUTS, extractNames(env.getSideInputs()));
+      jobConfig.put(LEAVES, extractNames(env.getLeaves()));
+      jobConfig.put(GRAPH, env.getTSetGraph());
+    }
+
+    Config config = ResourceAllocator.loadConfig(configMap);
 
     int workers = options.getParallelism();
     Twister2Job twister2Job =
@@ -118,17 +129,25 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
             .addComputeResource(options.getWorkerCPUs(), options.getRamMegaBytes(), workers)
             .setConfig(jobConfig)
             .build();
-    Twister2JobState jobState = Twister2Submitter.submitJob(twister2Job, config);
 
-    Twister2PipelineResult result = new Twister2PipelineResult();
-    // TODO: Need to fix the check for "RUNNING" once fix for this is done on Twister2 end.
-    if (jobState.getJobstate() == DriverJobState.FAILED
-        || jobState.getJobstate() == DriverJobState.RUNNING) {
-      throw new RuntimeException("Pipeline execution failed", jobState.getCause());
+    Twister2JobState jobState;
+    if (isLocalMode(options)) {
+      jobState = LocalSubmitter.submitJob(twister2Job, config);
     } else {
-      result.setState(PipelineResult.State.DONE);
+      jobState = Twister2Submitter.submitJob(twister2Job, config);
     }
+
+    Twister2PipelineResult result = new Twister2PipelineResult(jobState);
     return result;
+  }
+
+  /** Check if the Runner is set to use Twister local mode or pointing to a deployment. */
+  private boolean isLocalMode(Twister2PipelineOptions options) {
+    if (options.getTwister2Home() == null || "".equals(options.getTwister2Home())) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   public PipelineResult runTest(Pipeline pipeline) {
@@ -136,6 +155,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     Twister2PipelineExecutionEnvironment env = new Twister2PipelineExecutionEnvironment(options);
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
+    SplittableParDo.validateNoPrimitiveReads(pipeline);
     env.translate(pipeline);
     setupSystemTest(options);
     Map configMap = new HashMap();
@@ -143,7 +163,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     configMap.put(LEAVES, extractNames(env.getLeaves()));
     configMap.put(GRAPH, env.getTSetGraph());
     configMap.put("twister2.network.buffer.size", 32000);
-    configMap.put("twister2.network.sendBuffer.count", 1);
+    configMap.put("twister2.network.sendBuffer.count", options.getParallelism());
     Config config = ResourceAllocator.loadConfig(configMap);
 
     JobConfig jobConfig = new JobConfig();
@@ -158,13 +178,10 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
             .build();
     Twister2JobState jobState = LocalSubmitter.submitJob(twister2Job, config);
 
-    Twister2PipelineResult result = new Twister2PipelineResult();
+    Twister2PipelineResult result = new Twister2PipelineResult(jobState);
     // TODO: Need to fix the check for "RUNNING" once fix for this is done on Twister2 end.
-    if (jobState.getJobstate() == DriverJobState.FAILED
-        || jobState.getJobstate() == DriverJobState.RUNNING) {
+    if (result.state == PipelineResult.State.FAILED) {
       throw new RuntimeException("Pipeline execution failed", jobState.getCause());
-    } else {
-      result.setState(PipelineResult.State.DONE);
     }
     return result;
   }
@@ -173,40 +190,46 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     prepareFilesToStage(options);
     zipFilesToStage(options);
     System.setProperty("cluster_type", options.getClusterType());
-    System.setProperty("twister2_home", options.getTwister2Home());
     System.setProperty("job_file", options.getJobFileZip());
     System.setProperty("job_type", options.getJobType());
-    // do a simple config dir validation
-    System.setProperty("config_dir", options.getTwister2Home() + "/conf/");
-    File cDir = new File(System.getProperty("config_dir"), options.getClusterType());
+    if (isLocalMode(options)) {
+      System.setProperty("twister2_home", System.getProperty("java.io.tmpdir"));
+      System.setProperty("config_dir", System.getProperty("java.io.tmpdir") + "/conf/");
+    } else {
+      System.setProperty("twister2_home", options.getTwister2Home());
+      System.setProperty("config_dir", options.getTwister2Home() + "/conf/");
 
-    String[] filesList =
-        new String[] {
-          "core.yaml", "network.yaml", "data.yaml", "resource.yaml", "task.yaml",
-        };
+      // do a simple config dir validation
+      File cDir = new File(System.getProperty("config_dir"), options.getClusterType());
 
-    for (String file : filesList) {
-      File toCheck = new File(cDir, file);
-      if (!toCheck.exists()) {
-        throw new Twister2RuntimeException(
-            "Couldn't find " + file + " in config directory specified.");
+      String[] filesList =
+          new String[] {
+            "core.yaml", "network.yaml", "data.yaml", "resource.yaml", "task.yaml",
+          };
+
+      for (String file : filesList) {
+        File toCheck = new File(cDir, file);
+        if (!toCheck.exists()) {
+          throw new Twister2RuntimeException(
+              "Couldn't find " + file + " in config directory specified.");
+        }
       }
-    }
 
-    // setup logging
-    FileInputStream fis = null;
-    try {
-      fis = new FileInputStream(new File(cDir, "logger.properties"));
-      LogManager.getLogManager().readConfiguration(fis);
-      fis.close();
-    } catch (IOException e) {
-      LOG.warning("Couldn't load logging configuration");
-    } finally {
-      if (fis != null) {
-        try {
-          fis.close();
-        } catch (IOException e) {
-          LOG.info(e.getMessage());
+      // setup logging
+      FileInputStream fis = null;
+      try {
+        fis = new FileInputStream(new File(cDir, "logger.properties"));
+        LogManager.getLogManager().readConfiguration(fis);
+        fis.close();
+      } catch (IOException e) {
+        LOG.warning("Couldn't load logging configuration");
+      } finally {
+        if (fis != null) {
+          try {
+            fis.close();
+          } catch (IOException e) {
+            LOG.info(e.getMessage());
+          }
         }
       }
     }
@@ -215,6 +238,8 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
   private void setupSystemTest(Twister2PipelineOptions options) {
     prepareFilesToStage(options);
     zipFilesToStage(options);
+    System.setProperty("cluster_type", options.getClusterType());
+    System.setProperty("twister2_home", System.getProperty("java.io.tmpdir"));
     System.setProperty("job_file", options.getJobFileZip());
     System.setProperty("job_type", options.getJobType());
   }

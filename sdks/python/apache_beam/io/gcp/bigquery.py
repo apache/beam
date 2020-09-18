@@ -239,6 +239,7 @@ import itertools
 import json
 import logging
 import random
+import threading
 import time
 import uuid
 from builtins import object
@@ -265,6 +266,7 @@ from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.metrics import Metrics
 from apache_beam.options import value_provider as vp
+from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -282,6 +284,8 @@ from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.histogram import Histogram
+from apache_beam.utils.histogram import LinearBucket
 
 __all__ = [
     'TableRowJsonCoder',
@@ -545,30 +549,31 @@ class BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
-FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
-
-
-def _to_decimal(value):
-  return decimal.Decimal(value)
-
-
-def _to_bytes(value):
-  """Converts value from str to bytes on Python 3.x. Does nothing on
-  Python 2.7."""
-  return value.encode('utf-8')
-
-
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
+
+  FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
+
   def __init__(self, table_schema):
     self.fields = self._convert_to_tuple(table_schema.fields)
     self._converters = {
         'INTEGER': int,
         'INT64': int,
         'FLOAT': float,
-        'NUMERIC': _to_decimal,
-        'BYTES': _to_bytes,
+        'FLOAT64': float,
+        'NUMERIC': self._to_decimal,
+        'BYTES': self._to_bytes,
     }
+
+  @staticmethod
+  def _to_decimal(value):
+    return decimal.Decimal(value)
+
+  @staticmethod
+  def _to_bytes(value):
+    """Converts value from str to bytes on Python 3.x. Does nothing on
+    Python 2.7."""
+    return value.encode('utf-8')
 
   @classmethod
   def _convert_to_tuple(cls, table_field_schemas):
@@ -580,7 +585,8 @@ class _JsonToDictCoder(coders.Coder):
       return []
 
     return [
-        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
+        cls.FieldSchema(
+            cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
         for x in table_field_schemas
     ]
 
@@ -598,8 +604,14 @@ class _JsonToDictCoder(coders.Coder):
         continue
 
       if field.type == 'RECORD':
-        value[field.name] = self._decode_with_schema(
-            value[field.name], field.fields)
+        nested_values = value[field.name]
+        if field.mode == 'REPEATED':
+          for i, nested_value in enumerate(nested_values):
+            nested_values[i] = self._decode_with_schema(
+                nested_value, field.fields)
+        else:
+          value[field.name] = self._decode_with_schema(
+              nested_values, field.fields)
       else:
         try:
           converter = self._converters[field.type]
@@ -1008,6 +1020,9 @@ class BigQueryWriteFn(DoFn):
   DEFAULT_MAX_BATCH_SIZE = 500
 
   FAILED_ROWS = 'FailedRows'
+  LATENCY_LOGGING_HISTOGRAM = Histogram(LinearBucket(0, 20, 3000))
+  LATENCY_LOGGING_LAST_REPORTED_MILLIS = int(time.time() * 1000)
+  LATENCY_LOGGING_LOCK = threading.Lock()
 
   def __init__(
       self,
@@ -1020,7 +1035,8 @@ class BigQueryWriteFn(DoFn):
       max_buffered_rows=None,
       retry_strategy=None,
       additional_bq_parameters=None,
-      ignore_insert_ids=False):
+      ignore_insert_ids=False,
+      latency_logging_frequency_sec=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1061,6 +1077,8 @@ class BigQueryWriteFn(DoFn):
         duplication of data inserted to BigQuery, set `ignore_insert_ids`
         to True to increase the throughput for BQ writing. See:
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
+      latency_logging_frequency_sec: The frequency in seconds that the logger
+        prints out streaming insert API latency percentile information.
     """
     self.schema = schema
     self.test_client = test_client
@@ -1079,12 +1097,17 @@ class BigQueryWriteFn(DoFn):
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
+    # accumulate the total time spent in exponential backoff
+    self._throttled_secs = Metrics.counter(
+        BigQueryWriteFn, "cumulativeThrottlingSeconds")
     self.batch_size_metric = Metrics.distribution(self.__class__, "batch_size")
     self.batch_latency_metric = Metrics.distribution(
         self.__class__, "batch_latency_ms")
     self.failed_rows_metric = Metrics.distribution(
         self.__class__, "rows_failed_per_batch")
     self.bigquery_wrapper = None
+    self._latency_logging_frequency_msec = (
+        latency_logging_frequency_sec or 180) * 1000
 
   def display_data(self):
     return {
@@ -1187,6 +1210,20 @@ class BigQueryWriteFn(DoFn):
       return self._flush_all_batches()
 
   def finish_bundle(self):
+    if BigQueryWriteFn.LATENCY_LOGGING_LOCK.acquire(False):
+      try:
+        current_millis = int(time.time() * 1000)
+        if (BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.total_count() > 0 and
+            (current_millis -
+             BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS) >
+            self._latency_logging_frequency_msec):
+          _LOGGER.info(
+              BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.get_percentile_info(
+                  'streaming insert requests', 'ms'))
+          BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.clear()
+          BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS = current_millis
+      finally:
+        BigQueryWriteFn.LATENCY_LOGGING_LOCK.release()
     return self._flush_all_batches()
 
   def _flush_all_batches(self):
@@ -1231,7 +1268,8 @@ class BigQueryWriteFn(DoFn):
           table_id=table_reference.tableId,
           rows=rows,
           insert_ids=insert_ids,
-          skip_invalid_rows=True)
+          skip_invalid_rows=True,
+          latency_recoder=BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [rows[entry.index] for entry in errors]
@@ -1257,6 +1295,7 @@ class BigQueryWriteFn(DoFn):
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
@@ -1283,6 +1322,7 @@ class _StreamToBigQuery(PTransform):
       retry_strategy,
       additional_bq_parameters,
       ignore_insert_ids,
+      latency_logging_frequency_sec,
       test_client=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1296,6 +1336,7 @@ class _StreamToBigQuery(PTransform):
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
     self.ignore_insert_ids = ignore_insert_ids
+    self.latency_logging_frequency_sec = latency_logging_frequency_sec
 
   class InsertIdPrefixFn(DoFn):
     def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
@@ -1324,7 +1365,8 @@ class _StreamToBigQuery(PTransform):
         retry_strategy=self.retry_strategy,
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
-        ignore_insert_ids=self.ignore_insert_ids)
+        ignore_insert_ids=self.ignore_insert_ids,
+        latency_logging_frequency_sec=self.latency_logging_frequency_sec)
 
     def drop_shard(elms):
       key_and_shard = elms[0]
@@ -1574,6 +1616,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     experiments = p.options.view_as(DebugOptions).experiments or []
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
+    latency_logging_frequency_sec = p.options.view_as(
+        BigQueryOptions).latency_logging_frequency_sec
 
     method_to_use = self._compute_method(experiments, is_streaming_pipeline)
 
@@ -1600,6 +1644,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           self.insert_retry_strategy,
           self.additional_bq_parameters,
           self._ignore_insert_ids,
+          latency_logging_frequency_sec,
           test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}

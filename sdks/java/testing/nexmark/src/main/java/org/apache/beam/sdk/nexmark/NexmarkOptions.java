@@ -68,6 +68,12 @@ public interface NexmarkOptions
 
   void setPubSubMode(NexmarkUtils.PubSubMode pubSubMode);
 
+  @Description("How to serialize event objects to pubsub messages.")
+  NexmarkUtils.@Nullable PubsubMessageSerializationMethod getPubsubMessageSerializationMethod();
+
+  void setPubsubMessageSerializationMethod(
+      NexmarkUtils.PubsubMessageSerializationMethod pubsubMessageSerializationMethod);
+
   @Description("Which query to run.")
   @Nullable
   String getQuery();
@@ -394,6 +400,12 @@ public interface NexmarkOptions
   Boolean getDebug();
 
   void setDebug(Boolean value);
+
+  @Description("if provided, only generate events and write them to local file with this prefix.")
+  @Nullable
+  String getGenerateEventFilePathPrefix();
+
+  void setGenerateEventFilePathPrefix(String value);
 
   @Description("If set, cancel running pipelines after this long")
   @Nullable

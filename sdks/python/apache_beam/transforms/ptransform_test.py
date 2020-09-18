@@ -896,6 +896,36 @@ class TestGroupBy(unittest.TestCase):
           ]))
 
 
+class SelectTest(unittest.TestCase):
+  def test_simple(self):
+    with TestPipeline() as p:
+      rows = (
+          p | beam.Create([1, 2, 10])
+          | beam.Select(a=lambda x: x * x, b=lambda x: -x))
+
+      assert_that(
+          rows,
+          equal_to([
+              beam.Row(a=1, b=-1),
+              beam.Row(a=4, b=-2),
+              beam.Row(a=100, b=-10),
+          ]),
+          label='CheckFromLambdas')
+
+      from_attr = rows | beam.Select('b', z='a')
+      assert_that(
+          from_attr,
+          equal_to([
+              beam.Row(b=-1, z=1),
+              beam.Row(b=-2, z=4),
+              beam.Row(
+                  b=-10,
+                  z=100,
+              ),
+          ]),
+          label='CheckFromAttrs')
+
+
 @beam.ptransform_fn
 def SamplePTransform(pcoll):
   """Sample transform using the @ptransform_fn decorator."""
@@ -1599,13 +1629,22 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                   int).with_output_types(int)))
       self.p.run()
 
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within "
-        "ParDo(ToInt): "
-        "According to type-hint expected output should be "
-        "of type {}. Instead, received '1.0', "
-        "an instance of type {}.".format(int, float))
+    if self.p._options.view_as(TypeOptions).runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within "
+          "ParDo(ToInt): "
+          "According to type-hint expected output should be "
+          "of type {}. Instead, received '1.0', "
+          "an instance of type {}.".format(int, float))
+
+    if self.p._options.view_as(TypeOptions).performance_runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within ToInt: "
+          "Type-hint for argument: 'x' violated. "
+          "Expected an instance of {}, "
+          "instead found 1.0, an instance of {}".format(int, float))
 
   def test_pipeline_runtime_checking_violation_composite_type_output(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1625,12 +1664,21 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                       typing.Tuple[float, int])))
       self.p.run()
 
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within "
-        "ParDo(Swap): Tuple type constraint violated. "
-        "Valid object instance must be of type 'tuple'. Instead, "
-        "an instance of 'float' was received.")
+    if self.p._options.view_as(TypeOptions).runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within "
+          "ParDo(Swap): Tuple type constraint violated. "
+          "Valid object instance must be of type 'tuple'. Instead, "
+          "an instance of 'float' was received.")
+
+    if self.p._options.view_as(TypeOptions).performance_runtime_type_check:
+      self.assertStartswith(
+          e.exception.args[0],
+          "Runtime type violation detected within "
+          "Swap: Type-hint for argument: 'x_y1' violated: "
+          "Tuple type constraint violated. "
+          "Valid object instance must be of type 'tuple'. ")
 
   def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False

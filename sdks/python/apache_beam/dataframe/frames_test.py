@@ -70,6 +70,34 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group').sum(), df)
     self._run_test(lambda df: df.groupby('group').median(), df)
 
+  @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
+  def test_merge(self):
+    # This is from the pandas doctests, but fails due to re-indexing being
+    # order-sensitive.
+    df1 = pd.DataFrame({
+        'lkey': ['foo', 'bar', 'baz', 'foo'], 'value': [1, 2, 3, 5]
+    })
+    df2 = pd.DataFrame({
+        'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
+    })
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
+              index=lambda x: '*').sort_values(['value_x', 'value_y']),
+          df1,
+          df2)
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(
+              df2,
+              left_on='lkey',
+              right_on='rkey',
+              suffixes=('_left', '_right')).rename(index=lambda x: '*').
+          sort_values(['value_left', 'value_right']),
+          df1,
+          df2)
+
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
     df = pd.DataFrame(
@@ -101,6 +129,13 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'mean'}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
+
+  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
+  def test_smallest_largest(self):
+    df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
+    self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)
+    self._run_test(lambda df: df.nsmallest(3, 'A', keep='all'), df)
+    self._run_test(lambda df: df.nlargest(3, ['A', 'B'], keep='all'), df)
 
 
 class AllowNonParallelTest(unittest.TestCase):

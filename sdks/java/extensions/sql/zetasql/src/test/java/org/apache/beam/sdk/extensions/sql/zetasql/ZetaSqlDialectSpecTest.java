@@ -2901,6 +2901,40 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testWithQuerySeven() {
+    String sql =
+        "WITH t1 AS (select 1 AS k), t2 AS (select 1 AS k), t3 AS (select 1 AS k) "
+            + "SELECT COUNT(*) "
+            + "FROM t1 JOIN t3 USING (k)";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("count").build()).addValues(1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testWithQueryEight() {
+    String sql =
+        "WITH T AS (SELECT k, 'hello' AS s FROM UNNEST([1, 2, 3]) k) "
+            + "SELECT COUNT(*) "
+            + "FROM T t1 JOIN T t2 USING (k)";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("count").build()).addValues(3L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testUNNESTLiteral() {
     String sql = "SELECT * FROM UNNEST(ARRAY<STRING>['foo', 'bar']);";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2995,6 +3029,25 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValue(18L).build(),
             Row.withSchema(schema).addValue(22L).build(),
             Row.withSchema(schema).addValue(24L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestArrayFieldOfNestedStructColumn() {
+    String sql =
+        "SELECT int_col, s FROM table_with_struct_of_array, UNNEST(struct_col.struct.arr) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("int_col").addStringField("p").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(10L, "1").build(),
+            Row.withSchema(schema).addValues(20L, "2").build(),
+            Row.withSchema(schema).addValues(20L, "3").build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -4267,7 +4320,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
-        "AVG(LONG) is not supported. You might want to use AVG(CAST(expression AS DOUBLE).");
+        "AVG(INT64) is not supported. You might want to use AVG(CAST(expression AS FLOAT64).");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 

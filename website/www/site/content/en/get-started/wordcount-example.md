@@ -906,9 +906,9 @@ or DEBUG significantly increases the amount of logs output.
 
 #### Apache Nemo Runner
 
-When executing your pipeline with the `NemoRunner`, most log messages are printed 
-directly to your local console. You should add `Slf4j` to your class path to make 
-full use of the logs. In order to observe the logs on each of the driver and the 
+When executing your pipeline with the `NemoRunner`, most log messages are printed
+directly to your local console. You should add `Slf4j` to your class path to make
+full use of the logs. In order to observe the logs on each of the driver and the
 executor sides, you should observe the folders created by Apache REEF. For example,
 when running your pipeline through the local runtime, a folder called `REEF_LOCAL_RUNTIME`
 will be created on your work directory, and the logs and the metric information can
@@ -1249,7 +1249,7 @@ static class AddTimestampFn extends DoFn<String, String> {
 
 {{< highlight py >}}
 class AddTimestampFn(beam.DoFn):
-  
+
   def __init__(self, min_timestamp, max_timestamp):
      self.min_timestamp = min_timestamp
      self.max_timestamp = max_timestamp

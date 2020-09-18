@@ -220,12 +220,12 @@ Available suites are:
     --manageResources=false --monitorJobs=true \
     --sparkMaster=local \
     -Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
-	
+
 ### Kafka source/sink configuration parameters
 
 Set Kafka host/ip (for example, "localhost:9092"):
 
-    --bootstrapServers=<kafka host/ip> 
+    --bootstrapServers=<kafka host/ip>
 
 Write results into Kafka topic:
 
@@ -238,7 +238,7 @@ Set topic name which will be used for benchmark results:
 Write or/and read events into/from Kafka topic:
 
     --sourceType=KAFKA
-	
+
 Set topic name which will be used for benchmark events:
 
 	--kafkaTopic=<topic name>

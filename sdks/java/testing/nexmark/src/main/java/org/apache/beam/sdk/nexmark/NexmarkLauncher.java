@@ -25,6 +25,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode;
+import org.apache.beam.sdk.nexmark.NexmarkUtils.PubsubMessageSerializationMethod;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.SourceType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -86,6 +88,7 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
@@ -94,6 +97,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -765,8 +769,22 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
 
     events
-        .apply(queryName + ".EventToPubsubMessage", ParDo.of(new EventPubsubMessageDoFn()))
+        .apply(
+            queryName + ".EventToPubsubMessage",
+            ParDo.of(new EventPubsubMessageDoFn(configuration.pubsubMessageSerializationMethod)))
         .apply(queryName + ".WritePubsubEvents", io);
+  }
+
+  /** Send {@code events} to file with prefix {@code generateInputFileOnlyPrefix}. */
+  private void sinkEventsToFile(PCollection<Event> events) {
+    events
+        .apply(MapElements.into(TypeDescriptors.strings()).via(Event::toString))
+        .apply(
+            "writeToFile",
+            TextIO.write()
+                .to(configuration.generateEventFilePathPrefix)
+                .withSuffix(".json")
+                .withNumShards(1));
   }
 
   /** Send {@code formattedResults} to Kafka. */
@@ -918,6 +936,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     switch (configuration.sourceType) {
       case DIRECT:
         source = sourceEventsFromSynthetic(p);
+        if (configuration.generateEventFilePathPrefix != null) {
+          PCollection<Event> events = source;
+          source = null;
+          sinkEventsToFile(events);
+        }
         break;
       case AVRO:
         source = sourceEventsFromAvro(p);
@@ -1375,9 +1398,25 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private static class EventPubsubMessageDoFn extends DoFn<Event, PubsubMessage> {
+    private final PubsubMessageSerializationMethod serializationMethod;
+
+    public EventPubsubMessageDoFn(PubsubMessageSerializationMethod serializationMethod) {
+      this.serializationMethod = serializationMethod;
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
-      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+      byte[] payload;
+      switch (serializationMethod) {
+        case CODER:
+          payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+          break;
+        case TO_STRING:
+          payload = c.element().toString().getBytes(StandardCharsets.UTF_8);
+          break;
+        default:
+          throw new IllegalArgumentException("Unsupported serialization method used.");
+      }
       c.output(new PubsubMessage(payload, Collections.emptyMap()));
     }
   }

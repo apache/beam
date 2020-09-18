@@ -51,7 +51,7 @@ job(jobName) {
       rootBuildScriptDir(common.checkoutDir)
       common.setGradleSwitches(delegate)
       switches("-Popts=\'${common.mapToArgString(pipelineOptions)}\'")
-      tasks(":sdks:python:test-suites:dataflow:py35:mongodbioIT")
+      tasks(":sdks:python:test-suites:dataflow:mongodbioIT")
     }
   }
 }

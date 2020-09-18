@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.TestSamzaRunner;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
@@ -67,11 +66,15 @@ import org.apache.samza.storage.kv.KeyValueStoreMetrics;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStore;
 import org.apache.samza.system.SystemStreamPartition;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for SamzaStoreStateInternals. */
 public class SamzaStoreStateInternalsTest implements Serializable {
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final transient TestPipeline pipeline =
+      TestPipeline.fromOptions(
+          PipelineOptionsFactory.fromArgs("--runner=TestSamzaRunner").create());
 
   @Test
   public void testMapStateIterator() {
@@ -125,11 +128,7 @@ public class SamzaStoreStateInternalsTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
 
-    TestSamzaRunner.fromOptions(
-            PipelineOptionsFactory.fromArgs(
-                    "--runner=org.apache.beam.runners.samza.TestSamzaRunner")
-                .create())
-        .run(pipeline);
+    pipeline.run();
   }
 
   @Test
@@ -180,11 +179,7 @@ public class SamzaStoreStateInternalsTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(Sets.newHashSet(97, 42, 12));
 
-    TestSamzaRunner.fromOptions(
-            PipelineOptionsFactory.fromArgs(
-                    "--runner=org.apache.beam.runners.samza.TestSamzaRunner")
-                .create())
-        .run(pipeline);
+    pipeline.run();
   }
 
   /** A storage engine to create test stores. */
@@ -286,13 +281,10 @@ public class SamzaStoreStateInternalsTest implements Serializable {
                 KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
         .apply(ParDo.of(fn));
 
-    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
-    options.setRunner(TestSamzaRunner.class);
     Map<String, String> configs = new HashMap(ConfigBuilder.localRunConfig());
     configs.put("stores.foo.factory", TestStorageEngine.class.getName());
-    options.setConfigOverride(configs);
-
-    TestSamzaRunner.fromOptions(options).run(pipeline).waitUntilFinish();
+    pipeline.getOptions().as(SamzaPipelineOptions.class).setConfigOverride(configs);
+    pipeline.run();
 
     // The test code creates 7 underlying iterators, and 1 more is created during state.clear()
     // Verify all of them are closed

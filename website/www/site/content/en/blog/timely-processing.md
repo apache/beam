@@ -120,7 +120,7 @@ per key aggregation by a stream processing engine fundamentally involves state
 and timers.
 
 However, _your_ code is just a declarative expression of the aggregation
-operator.  The runner can choose a variety of ways to execute your operator. 
+operator.  The runner can choose a variety of ways to execute your operator.
 I went over this in detail in [my prior post focused on state alone](/blog/2017/02/13/stateful-processing.html). Since you do not
 observe elements in any defined order, nor manipulate mutable state or timers
 directly, I call this neither stateful nor timely processing.
@@ -193,7 +193,7 @@ new DoFn<Event, EnrichedEvent>() {
   @StateId("count")
   private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
 
-  … TBD … 
+  … TBD …
 }
 {{< /highlight >}}
 
@@ -248,7 +248,7 @@ new DoFn<Event, EnrichedEvent>() {
     }
   }
 
-  … TBD … 
+  … TBD …
 }
 {{< /highlight >}}
 
@@ -307,7 +307,7 @@ some point in event time when any further input for the window is considered
 too late and is discarded. At this point, we say that the window has "expired".
 Since no further input can arrive to access the state for that window, the
 state is also discarded. For our example, we need to ensure that all leftover
-events are output when the window expires. 
+events are output when the window expires.
 
 ### Event Time Timers
 
@@ -526,7 +526,7 @@ Recapping the entirety of the logic:
  - As events arrive at `@ProcessElement` they are buffered in state.
  - If the size of the buffer exceeds a maximum, the events are enriched and output.
  - If the buffer fills too slowly and the events get stale before the maximum is reached,
-   a timer causes a callback which enriches the buffered events and outputs. 
+   a timer causes a callback which enriches the buffered events and outputs.
  - Finally, as any window is expiring, any events buffered in that window are
    processed and output prior to the state for that window being discarded.
 

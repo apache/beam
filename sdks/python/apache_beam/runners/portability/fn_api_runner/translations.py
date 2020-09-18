@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import collections
 import functools
+import itertools
 import logging
 from builtins import object
 from typing import Container
@@ -41,10 +42,13 @@ from typing import TypeVar
 from past.builtins import unicode
 
 from apache_beam import coders
+from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor
+from apache_beam.transforms import combiners
+from apache_beam.transforms import core
 from apache_beam.utils import proto_utils
 
 T = TypeVar('T')
@@ -52,7 +56,6 @@ T = TypeVar('T')
 # This module is experimental. No backwards-compatibility guarantees.
 
 _LOGGER = logging.getLogger(__name__)
-
 
 KNOWN_COMPOSITES = frozenset([
     common_urns.primitives.GROUP_BY_KEY.urn,
@@ -88,15 +91,15 @@ DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
-  def __init__(self,
-               name,  # type: str
-               transforms,  # type: List[beam_runner_api_pb2.PTransform]
-               downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
-               must_follow=frozenset(),  # type: FrozenSet[Stage]
-               parent=None,  # type: Optional[Stage]
-               environment=None,  # type: Optional[str]
-               forced_root=False
-              ):
+  def __init__(
+      self,
+      name,  # type: str
+      transforms,  # type: List[beam_runner_api_pb2.PTransform]
+      downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
+      must_follow=frozenset(),  # type: FrozenSet[Stage]
+      parent=None,  # type: Optional[Stage]
+      environment=None,  # type: Optional[str]
+      forced_root=False):
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
@@ -154,7 +157,7 @@ class Stage(object):
       return False
 
     def no_overlap(a, b):
-      return not a.intersection(b)
+      return not a or not b or not a.intersection(b)
 
     return (
         not consumer.forced_root and not self in consumer.must_follow and
@@ -190,6 +193,15 @@ class Stage(object):
 
     return all(is_sdk_transform(transform) for transform in self.transforms)
 
+  def is_stateful(self):
+    for transform in self.transforms:
+      if transform.spec.urn in PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if payload.state_specs or payload.timer_family_specs:
+          return True
+    return False
+
   def side_inputs(self):
     # type: () -> Iterator[str]
     for transform in self.transforms:
@@ -224,11 +236,12 @@ class Stage(object):
       new_transforms.append(transform)
     self.transforms = new_transforms
 
-  def executable_stage_transform(self,
-                                 known_runner_urns,  # type: FrozenSet[str]
-                                 all_consumers,
-                                 components  # type: beam_runner_api_pb2.Components
-                                ):
+  def executable_stage_transform(
+      self,
+      known_runner_urns,  # type: FrozenSet[str]
+      all_consumers,
+      components  # type: beam_runner_api_pb2.Components
+  ):
     # type: (...) -> beam_runner_api_pb2.PTransform
     if (len(self.transforms) == 1 and
         self.transforms[0].spec.urn in known_runner_urns):
@@ -338,15 +351,17 @@ def memoize_on_instance(f):
 class TransformContext(object):
 
   _KNOWN_CODER_URNS = set(
-      value.urn for key,
-      value in common_urns.coders.__dict__.items() if not key.startswith('_'))
+      value.urn for (key, value) in common_urns.coders.__dict__.items()
+      if not key.startswith('_')
+      # Length prefix Rows rather than re-coding them.
+  ) - set([common_urns.coders.ROW.urn])
 
-  def __init__(self,
-               components,  # type: beam_runner_api_pb2.Components
-               known_runner_urns,  # type: FrozenSet[str]
-               use_state_iterables=False,
-               is_drain=False
-              ):
+  def __init__(
+      self,
+      components,  # type: beam_runner_api_pb2.Components
+      known_runner_urns,  # type: FrozenSet[str]
+      use_state_iterables=False,
+      is_drain=False):
     self.components = components
     self.known_runner_urns = known_runner_urns
     self.runner_only_urns = known_runner_urns - frozenset(
@@ -360,10 +375,10 @@ class TransformContext(object):
     self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
     self.data_channel_coders = {}
 
-  def add_or_get_coder_id(self,
-                          coder_proto,  # type: beam_runner_api_pb2.Coder
-                          coder_prefix='coder'
-                         ):
+  def add_or_get_coder_id(
+      self,
+      coder_proto,  # type: beam_runner_api_pb2.Coder
+      coder_prefix='coder'):
     # type: (...) -> str
     for coder_id, coder in self.components.coders.items():
       if coder == coder_proto:
@@ -486,11 +501,12 @@ def leaf_transform_stages(
         yield stage
 
 
-def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                         stages,  # type: Iterable[Stage]
-                         known_runner_urns,  # type: FrozenSet[str]
-                         partial  # type: bool
-                        ):
+def pipeline_from_stages(
+    pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
+    stages,  # type: Iterable[Stage]
+    known_runner_urns,  # type: FrozenSet[str]
+    partial  # type: bool
+):
   # type: (...) -> beam_runner_api_pb2.Pipeline
 
   # In case it was a generator that mutates components as it
@@ -524,6 +540,15 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
 
+  def copy_subtransforms(transform):
+    for subtransform_id in transform.subtransforms:
+      if subtransform_id not in pipeline_proto.components.transforms:
+        raise RuntimeError(
+            'Could not find subtransform to copy: ' + subtransform_id)
+      subtransform = pipeline_proto.components.transforms[subtransform_id]
+      components.transforms[subtransform_id].CopyFrom(subtransform)
+      copy_subtransforms(subtransform)
+
   all_consumers = collections.defaultdict(
       set)  # type: DefaultDict[str, Set[int]]
   for stage in stages:
@@ -534,6 +559,7 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   for stage in stages:
     if partial:
       transform = only_element(stage.transforms)
+      copy_subtransforms(transform)
     else:
       transform = stage.executable_stage_transform(
           known_runner_urns, all_consumers, components)
@@ -547,12 +573,12 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   return new_proto
 
 
-def create_and_optimize_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                               phases,
-                               known_runner_urns,  # type: FrozenSet[str]
-                               use_state_iterables=False,
-    is_drain=False
-                              ):
+def create_and_optimize_stages(
+    pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
+    phases,
+    known_runner_urns,  # type: FrozenSet[str]
+    use_state_iterables=False,
+    is_drain=False):
   # type: (...) -> Tuple[TransformContext, List[Stage]]
 
   """Create a set of stages given a pipeline proto, and set of optimizations.
@@ -688,6 +714,259 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
     for si in stage.side_inputs():
       pipeline_context.length_prefix_pcoll_coders(si)
   return stages
+
+
+def _group_stages_by_key(stages, get_stage_key):
+  grouped_stages = collections.defaultdict(list)
+  stages_with_none_key = []
+  for stage in stages:
+    stage_key = get_stage_key(stage)
+    if stage_key is None:
+      stages_with_none_key.append(stage)
+    else:
+      grouped_stages[stage_key].append(stage)
+  return (grouped_stages, stages_with_none_key)
+
+
+def eliminate_common_key_with_none(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
+
+  """Runs common subexpression elimination for sibling KeyWithNone stages.
+
+  If multiple KeyWithNone stages share a common input, then all but one stages
+  will be eliminated along with their output PCollections. Transforms that
+  originally read input from the output PCollection of the eliminated
+  KeyWithNone stages will be remapped to read input from the output PCollection
+  of the remaining KeyWithNone stage.
+  """
+
+  # Partition stages by whether they are eligible for common KeyWithNone
+  # elimination, and group eligible KeyWithNone stages by parent and
+  # environment.
+  def get_stage_key(stage):
+    if len(stage.transforms) == 1:
+      transform = only_transform(stage.transforms)
+      if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
+          len(transform.inputs) == 1 and len(transform.outputs) == 1):
+        pardo_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if pardo_payload.do_fn.urn == python_urns.KEY_WITH_NONE_DOFN:
+          return (only_element(transform.inputs.values()), stage.environment)
+    return None
+
+  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
+      stages, get_stage_key)
+
+  # Eliminate stages and build the PCollection remapping dictionary.
+  pcoll_id_remap = {}
+  remaining_stages = []
+  for sibling_stages in grouped_eligible_stages.values():
+    output_pcoll_ids = [
+        only_element(stage.transforms[0].outputs.values())
+        for stage in sibling_stages
+    ]
+    for to_delete_pcoll_id in output_pcoll_ids[1:]:
+      pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
+      del context.components.pcollections[to_delete_pcoll_id]
+    remaining_stages.append(sibling_stages[0])
+
+  # Yield stages while remapping input PCollections if needed.
+  stages_to_yield = itertools.chain(ineligible_stages, remaining_stages)
+  for stage in stages_to_yield:
+    for transform in stage.transforms:
+      for input_key in list(transform.inputs.keys()):
+        if transform.inputs[input_key] in pcoll_id_remap:
+          transform.inputs[input_key] = pcoll_id_remap[
+              transform.inputs[input_key]]
+    yield stage
+
+
+def pack_combiners(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+
+  """Packs sibling CombinePerKey stages into a single CombinePerKey.
+
+  If CombinePerKey stages have a common input, one input each, and one output
+  each, pack the stages into a single stage that runs all CombinePerKeys and
+  outputs resulting tuples to a new PCollection. A subsequent stage unpacks
+  tuples from this PCollection and sends them to the original output
+  PCollections.
+  """
+  class _UnpackFn(core.DoFn):
+    """A DoFn that unpacks a packed to multiple tagged outputs.
+
+    Example:
+      tags = (T1, T2, ...)
+      input = (K, (V1, V2, ...))
+      output = TaggedOutput(T1, (K, V1)), TaggedOutput(T2, (K, V1)), ...
+    """
+    def __init__(self, tags):
+      self._tags = tags
+
+    def process(self, element):
+      key, values = element
+      return [
+          core.pvalue.TaggedOutput(tag, (key, value)) for tag,
+          value in zip(self._tags, values)
+      ]
+
+  def _get_fallback_coder_id():
+    return context.add_or_get_coder_id(
+        coders.registry.get_coder(object).to_runner_api(None))
+
+  def _get_component_coder_id_from_kv_coder(coder, index):
+    assert index < 2
+    if coder.spec.urn == common_urns.coders.KV.urn and len(
+        coder.component_coder_ids) == 2:
+      return coder.component_coder_ids[index]
+    return _get_fallback_coder_id()
+
+  def _get_key_coder_id_from_kv_coder(coder):
+    return _get_component_coder_id_from_kv_coder(coder, 0)
+
+  def _get_value_coder_id_from_kv_coder(coder):
+    return _get_component_coder_id_from_kv_coder(coder, 1)
+
+  def _try_fuse_stages(a, b):
+    if a.can_fuse(b, context):
+      return a.fuse(b)
+    else:
+      raise ValueError
+
+  # Partition stages by whether they are eligible for CombinePerKey packing
+  # and group eligible CombinePerKey stages by parent and environment.
+  def get_stage_key(stage):
+    if (len(stage.transforms) == 1 and stage.environment is not None and
+        python_urns.PACKED_COMBINE_FN in context.components.environments[
+            stage.environment].capabilities):
+      transform = only_transform(stage.transforms)
+      if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
+          len(transform.inputs) == 1 and len(transform.outputs) == 1):
+        combine_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.CombinePayload)
+        if combine_payload.combine_fn.urn == python_urns.PICKLED_COMBINE_FN:
+          return (only_element(transform.inputs.values()), stage.environment)
+    return None
+
+  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
+      stages, get_stage_key)
+  for stage in ineligible_stages:
+    yield stage
+
+  for stage_key, packable_stages in grouped_eligible_stages.items():
+    input_pcoll_id, _ = stage_key
+    try:
+      if not len(packable_stages) > 1:
+        raise ValueError('Only one stage in this group: Skipping stage packing')
+      # Fused stage is used as template and is not yielded.
+      fused_stage = functools.reduce(_try_fuse_stages, packable_stages)
+    except ValueError:
+      # Skip packing stages in this group.
+      # Yield the stages unmodified, and then continue to the next group.
+      for stage in packable_stages:
+        yield stage
+      continue
+
+    transforms = [only_transform(stage.transforms) for stage in packable_stages]
+    combine_payloads = [
+        proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.CombinePayload)
+        for transform in transforms
+    ]
+    output_pcoll_ids = [
+        only_element(transform.outputs.values()) for transform in transforms
+    ]
+
+    # Build accumulator coder for (acc1, acc2, ...)
+    accumulator_coder_ids = [
+        combine_payload.accumulator_coder_id
+        for combine_payload in combine_payloads
+    ]
+    tuple_accumulator_coder_id = context.add_or_get_coder_id(
+        beam_runner_api_pb2.Coder(
+            spec=beam_runner_api_pb2.FunctionSpec(urn=python_urns.TUPLE_CODER),
+            component_coder_ids=accumulator_coder_ids))
+
+    # Build packed output coder for (key, (out1, out2, ...))
+    input_kv_coder_id = context.components.pcollections[input_pcoll_id].coder_id
+    key_coder_id = _get_key_coder_id_from_kv_coder(
+        context.components.coders[input_kv_coder_id])
+    output_kv_coder_ids = [
+        context.components.pcollections[output_pcoll_id].coder_id
+        for output_pcoll_id in output_pcoll_ids
+    ]
+    output_value_coder_ids = [
+        _get_value_coder_id_from_kv_coder(
+            context.components.coders[output_kv_coder_id])
+        for output_kv_coder_id in output_kv_coder_ids
+    ]
+    pack_output_value_coder = beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.FunctionSpec(urn=python_urns.TUPLE_CODER),
+        component_coder_ids=output_value_coder_ids)
+    pack_output_value_coder_id = context.add_or_get_coder_id(
+        pack_output_value_coder)
+    pack_output_kv_coder = beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.FunctionSpec(urn=common_urns.coders.KV.urn),
+        component_coder_ids=[key_coder_id, pack_output_value_coder_id])
+    pack_output_kv_coder_id = context.add_or_get_coder_id(pack_output_kv_coder)
+
+    # Set up packed PCollection
+    pack_combine_name = fused_stage.name
+    pack_pcoll_id = unique_name(context.components.pcollections, 'pcollection')
+    input_pcoll = context.components.pcollections[input_pcoll_id]
+    context.components.pcollections[pack_pcoll_id].CopyFrom(
+        beam_runner_api_pb2.PCollection(
+            unique_name=pack_combine_name + '.out',
+            coder_id=pack_output_kv_coder_id,
+            windowing_strategy_id=input_pcoll.windowing_strategy_id,
+            is_bounded=input_pcoll.is_bounded))
+
+    # Set up Pack stage.
+    pack_combine_fn = combiners.SingleInputTupleCombineFn(
+        *[
+            core.CombineFn.from_runner_api(combine_payload.combine_fn, context)
+            for combine_payload in combine_payloads
+        ]).to_runner_api(context)
+    pack_transform = beam_runner_api_pb2.PTransform(
+        unique_name=pack_combine_name + '/Pack',
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.composites.COMBINE_PER_KEY.urn,
+            payload=beam_runner_api_pb2.CombinePayload(
+                combine_fn=pack_combine_fn,
+                accumulator_coder_id=tuple_accumulator_coder_id).
+            SerializeToString()),
+        inputs={'in': input_pcoll_id},
+        outputs={'out': pack_pcoll_id},
+        environment_id=fused_stage.environment)
+    pack_stage = Stage(
+        pack_combine_name + '/Pack', [pack_transform],
+        downstream_side_inputs=fused_stage.downstream_side_inputs,
+        must_follow=fused_stage.must_follow,
+        parent=fused_stage,
+        environment=fused_stage.environment)
+    yield pack_stage
+
+    # Set up Unpack stage
+    tags = [str(i) for i in range(len(output_pcoll_ids))]
+    pickled_do_fn_data = pickler.dumps((_UnpackFn(tags), (), {}, [], None))
+    unpack_transform = beam_runner_api_pb2.PTransform(
+        unique_name=pack_combine_name + '/Unpack',
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.primitives.PAR_DO.urn,
+            payload=beam_runner_api_pb2.ParDoPayload(
+                do_fn=beam_runner_api_pb2.FunctionSpec(
+                    urn=python_urns.PICKLED_DOFN_INFO,
+                    payload=pickled_do_fn_data)).SerializeToString()),
+        inputs={'in': pack_pcoll_id},
+        outputs=dict(zip(tags, output_pcoll_ids)),
+        environment_id=fused_stage.environment)
+    unpack_stage = Stage(
+        pack_combine_name + '/Unpack', [unpack_transform],
+        downstream_side_inputs=fused_stage.downstream_side_inputs,
+        must_follow=fused_stage.must_follow,
+        parent=fused_stage,
+        environment=fused_stage.environment)
+    yield unpack_stage
 
 
 def lift_combiners(stages, context):
@@ -862,8 +1141,7 @@ def lift_combiners(stages, context):
       yield make_stage(stage, context.components.transforms[sub])
 
   for stage in stages:
-    assert len(stage.transforms) == 1
-    transform = stage.transforms[0]
+    transform = only_transform(stage.transforms)
     if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
       expansion = lifted_stages if can_lift(transform) else unlifted_stages
       for substage in expansion(stage):
@@ -877,8 +1155,7 @@ def expand_sdf(stages, context):
 
   """Transforms splitable DoFns into pair+split+read."""
   for stage in stages:
-    assert len(stage.transforms) == 1
-    transform = stage.transforms[0]
+    transform = only_transform(stage.transforms)
     if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
 
       pardo_payload = proto_utils.parse_Bytes(
@@ -1055,11 +1332,9 @@ def expand_sdf(stages, context):
 def expand_gbk(stages, pipeline_context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
-  """Transforms each GBK into a write followed by a read.
-  """
+  """Transforms each GBK into a write followed by a read."""
   for stage in stages:
-    assert len(stage.transforms) == 1
-    transform = stage.transforms[0]
+    transform = only_transform(stage.transforms)
     if transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
       for pcoll_id in transform.inputs.values():
         pipeline_context.length_prefix_pcoll_coders(pcoll_id)
@@ -1473,6 +1748,12 @@ def only_element(iterable):
   # type: (Iterable[T]) -> T
   element, = iterable
   return element
+
+
+def only_transform(transforms):
+  # type: (List[beam_runner_api_pb2.PTransform]) -> beam_runner_api_pb2.PTransform
+  assert len(transforms) == 1
+  return transforms[0]
 
 
 def create_buffer_id(name, kind='materialize'):

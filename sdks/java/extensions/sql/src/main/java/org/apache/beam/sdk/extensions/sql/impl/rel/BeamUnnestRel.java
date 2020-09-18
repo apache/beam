@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -49,22 +50,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class BeamUnnestRel extends Uncollect implements BeamRelNode {
 
   private final RelDataType unnestType;
-  private final int unnestIndex;
+  private final List<Integer> unnestIndices;
 
   public BeamUnnestRel(
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelNode input,
       RelDataType unnestType,
-      int unnestIndex) {
+      List<Integer> unnestIndices) {
     super(cluster, traitSet, input);
     this.unnestType = unnestType;
-    this.unnestIndex = unnestIndex;
+    this.unnestIndices = unnestIndices;
   }
 
   @Override
   public Uncollect copy(RelTraitSet traitSet, RelNode input) {
-    return new BeamUnnestRel(getCluster(), traitSet, input, unnestType, unnestIndex);
+    return new BeamUnnestRel(getCluster(), traitSet, input, unnestType, unnestIndices);
   }
 
   @Override
@@ -94,7 +95,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw).item("unnestIndex", Integer.toString(unnestIndex));
+    return super.explainTerms(pw).item("unnestIndices", unnestIndices);
   }
 
   @Override
@@ -108,10 +109,10 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       // The set of rows where we run the correlated unnest for each row
       PCollection<Row> outer = pinput.get(0);
 
-      Schema joinedSchema = CalciteUtils.toSchema(rowType);
+      Schema joinedSchema = CalciteUtils.toSchema(getRowType());
 
       return outer
-          .apply(ParDo.of(new UnnestFn(joinedSchema, unnestIndex)))
+          .apply(ParDo.of(new UnnestFn(joinedSchema, unnestIndices)))
           .setRowSchema(joinedSchema);
     }
   }
@@ -119,23 +120,33 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
   private static class UnnestFn extends DoFn<Row, Row> {
 
     private final Schema outputSchema;
-    private final int unnestIndex;
+    private final List<Integer> unnestIndices;
 
-    private UnnestFn(Schema outputSchema, int unnestIndex) {
+    private UnnestFn(Schema outputSchema, List<Integer> unnestIndices) {
       this.outputSchema = outputSchema;
-      this.unnestIndex = unnestIndex;
+      this.unnestIndices = unnestIndices;
     }
 
     @ProcessElement
     public void process(@Element Row row, OutputReceiver<Row> out) {
-
-      @Nullable Collection<Object> rawValues = row.getArray(unnestIndex);
+      Row rowWithArrayField = row;
+      Schema schemaWithArrayField = outputSchema;
+      for (int i = unnestIndices.size() - 1; i > 0; i--) {
+        rowWithArrayField = rowWithArrayField.getRow(unnestIndices.get(i));
+        schemaWithArrayField =
+            schemaWithArrayField.getField(unnestIndices.get(i)).getType().getRowSchema();
+      }
+      @Nullable Collection<Object> rawValues = rowWithArrayField.getArray(unnestIndices.get(0));
 
       if (rawValues == null) {
         return;
       }
       Schema.TypeName typeName =
-          outputSchema.getField(unnestIndex).getType().getCollectionElementType().getTypeName();
+          schemaWithArrayField
+              .getField(unnestIndices.get(0))
+              .getType()
+              .getCollectionElementType()
+              .getTypeName();
 
       for (Object uncollectedValue : rawValues) {
         if (typeName.equals(Schema.TypeName.ROW)) {

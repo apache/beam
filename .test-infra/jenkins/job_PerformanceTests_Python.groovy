@@ -48,7 +48,7 @@ for (pythonVersion in pythonVersions) {
       metrics_table        : "wordcount_py${pythonVersion}_pkb_results",
       influx_measurement   : "wordcount_py${pythonVersion}_results",
       influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostname,
+      influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
       input                : "gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*", // 1Gb
       output               : "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
       expect_checksum      : "ea0ca2e5ee4ea5f218790f28d0b9fe7d09d8d710",
@@ -81,7 +81,7 @@ private void createPythonPerformanceTestJob(Map testConfig) {
         )
 
     publishers {
-      commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/nosetests*.xml')
+      archiveJunit('**/nosetests*.xml')
     }
 
     steps {

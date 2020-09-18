@@ -69,8 +69,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     private final BackOff unsuccessfulResponseBackOff;
     private final Set<Integer> ignoredResponseCodes;
     // aggregate the total time spent in exponential backoff
-    private final Counter throttlingSeconds =
-        Metrics.counter(LoggingHttpBackOffHandler.class, "cumulativeThrottlingSeconds");
+    private final Counter throttlingMsecs =
+        Metrics.counter(LoggingHttpBackOffHandler.class, "throttling-msecs");
     private int ioExceptionRetries;
     private int unsuccessfulResponseRetries;
     private @Nullable CustomHttpErrors customHttpErrors;
@@ -179,7 +179,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         if (backOffTime == BackOff.STOP) {
           return false;
         }
-        throttlingSeconds.inc(backOffTime / 1000);
+        throttlingMsecs.inc(backOffTime);
         sleeper.sleep(backOffTime);
         return true;
       } catch (InterruptedException | IOException e) {

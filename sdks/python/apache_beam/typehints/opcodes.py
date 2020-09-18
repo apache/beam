@@ -39,6 +39,7 @@ from functools import reduce
 
 from past.builtins import unicode
 
+from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
@@ -264,8 +265,28 @@ def build_list(state, arg):
 
 
 # A Dict[Union[], Union[]] is the type of an empty dict.
-def build_map(state, unused_arg):
-  state.stack.append(Dict[Union[()], Union[()]])
+def build_map(state, arg):
+  if sys.version_info <= (2, ) or arg == 0:
+    state.stack.append(Dict[Union[()], Union[()]])
+  else:
+    state.stack[-arg:] = [
+        Dict[reduce(union, state.stack[-2 * arg::2], Union[()]),
+             reduce(union, state.stack[-2 * arg + 1::2], Union[()])]
+    ]
+
+
+def build_const_key_map(state, arg):
+  key_tuple = state.stack.pop()
+  if isinstance(key_tuple, typehints.TupleHint.TupleConstraint):
+    key_types = key_tuple.tuple_types
+  elif isinstance(key_tuple, Const):
+    key_types = [Const(v) for v in key_tuple.value]
+  else:
+    key_types = [Any]
+  state.stack[-arg:] = [
+      Dict[reduce(union, key_types, Union[()]),
+           reduce(union, state.stack[-arg:], Union[()])]
+  ]
 
 
 def load_attr(state, arg):
@@ -277,8 +298,12 @@ def load_attr(state, arg):
   """
   o = state.stack.pop()
   name = state.get_name(arg)
+  state.stack.append(_getattr(o, name))
+
+
+def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
-    state.stack.append(Const(getattr(o.value, name)))
+    return Const(getattr(o.value, name))
   elif (inspect.isclass(o) and
         isinstance(getattr(o, name, None),
                    (types.MethodType, types.FunctionType))):
@@ -287,9 +312,11 @@ def load_attr(state, arg):
       func = getattr(o, name).__func__
     else:
       func = getattr(o, name)  # Python 3 has no unbound methods
-    state.stack.append(Const(BoundMethod(func, o)))
+    return Const(BoundMethod(func, o))
+  elif isinstance(o, row_type.RowTypeConstraint):
+    return o.get_type_for(name)
   else:
-    state.stack.append(Any)
+    return Any
 
 
 def load_method(state, arg):

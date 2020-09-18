@@ -64,8 +64,8 @@ public class WindmillStateCache implements StatusDataProvider {
       24 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
 
   private Cache<StateId, StateCacheEntry> stateCache;
-  private HashMultimap<ComputationKey, StateId> keyIndex =
-      HashMultimap.<ComputationKey, StateId>create();
+  private HashMultimap<WindmillComputationKey, StateId> keyIndex =
+      HashMultimap.<WindmillComputationKey, StateId>create();
   private int displayedWeight = 0; // Only used for status pages and unit tests.
   private long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
 
@@ -85,7 +85,7 @@ public class WindmillStateCache implements StatusDataProvider {
                       if (removal.getCause() != RemovalCause.EXPLICIT) {
                         // When we invalidate a key explicitly, we'll also update the keyIndex, so
                         // no need to do it here.
-                        keyIndex.remove(id.getComputationKey(), id);
+                        keyIndex.remove(id.getWindmillComputationKey(), id);
                       }
                       displayedWeight -= weigher.weigh(id, removal.getValue());
                     }
@@ -104,6 +104,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
   /** Per-computation view of the state cache. */
   public class ForComputation {
+
     private final String computation;
 
     private ForComputation(String computation) {
@@ -111,9 +112,10 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     /** Invalidate all cache entries for this computation and {@code processingKey}. */
-    public void invalidate(ByteString processingKey) {
+    public void invalidate(ByteString processingKey, long shardingKey) {
       synchronized (this) {
-        ComputationKey key = new ComputationKey(computation, processingKey);
+        WindmillComputationKey key =
+            WindmillComputationKey.create(computation, processingKey, shardingKey);
         for (StateId id : keyIndex.removeAll(key)) {
           stateCache.invalidate(id);
         }
@@ -121,15 +123,19 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     /** Returns a per-computation, per-key view of the state cache. */
-    public ForKey forKey(ByteString key, String stateFamily, long cacheToken, long workToken) {
-      return new ForKey(computation, key, stateFamily, cacheToken, workToken);
+    public ForKey forKey(
+        WindmillComputationKey computationKey,
+        String stateFamily,
+        long cacheToken,
+        long workToken) {
+      return new ForKey(computationKey, stateFamily, cacheToken, workToken);
     }
   }
 
   /** Per-computation, per-key view of the state cache. */
   public class ForKey {
-    private final String computation;
-    private final ByteString key;
+
+    private final WindmillComputationKey computationKey;
     private final String stateFamily;
     // Cache token must be consistent for the key for the cache to be valid.
     private final long cacheToken;
@@ -141,9 +147,11 @@ public class WindmillStateCache implements StatusDataProvider {
     private final long workToken;
 
     private ForKey(
-        String computation, ByteString key, String stateFamily, long cacheToken, long workToken) {
-      this.computation = computation;
-      this.key = key;
+        WindmillComputationKey computationKey,
+        String stateFamily,
+        long cacheToken,
+        long workToken) {
+      this.computationKey = computationKey;
       this.stateFamily = stateFamily;
       this.cacheToken = cacheToken;
       this.workToken = workToken;
@@ -151,7 +159,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
     public <T extends State> T get(StateNamespace namespace, StateTag<T> address) {
       return WindmillStateCache.this.get(
-          computation, key, stateFamily, cacheToken, workToken, namespace, address);
+          computationKey, stateFamily, cacheToken, workToken, namespace, address);
     }
 
     // Note that once a value has been put for a given workToken, get calls with that same workToken
@@ -160,7 +168,7 @@ public class WindmillStateCache implements StatusDataProvider {
     public <T extends State> void put(
         StateNamespace namespace, StateTag<T> address, T value, long weight) {
       WindmillStateCache.this.put(
-          computation, key, stateFamily, cacheToken, workToken, namespace, address, value, weight);
+          computationKey, stateFamily, cacheToken, workToken, namespace, address, value, weight);
     }
   }
 
@@ -170,14 +178,13 @@ public class WindmillStateCache implements StatusDataProvider {
   }
 
   private <T extends State> T get(
-      String computation,
-      ByteString processingKey,
+      WindmillComputationKey computationKey,
       String stateFamily,
       long cacheToken,
       long workToken,
       StateNamespace namespace,
       StateTag<T> address) {
-    StateId id = new StateId(computation, processingKey, stateFamily, namespace);
+    StateId id = new StateId(computationKey, stateFamily, namespace);
     StateCacheEntry entry = stateCache.getIfPresent(id);
     if (entry == null) {
       return null;
@@ -194,8 +201,7 @@ public class WindmillStateCache implements StatusDataProvider {
   }
 
   private <T extends State> void put(
-      String computation,
-      ByteString processingKey,
+      WindmillComputationKey computationKey,
       String stateFamily,
       long cacheToken,
       long workToken,
@@ -203,11 +209,11 @@ public class WindmillStateCache implements StatusDataProvider {
       StateTag<T> address,
       T value,
       long weight) {
-    StateId id = new StateId(computation, processingKey, stateFamily, namespace);
+    StateId id = new StateId(computationKey, stateFamily, namespace);
     StateCacheEntry entry = stateCache.getIfPresent(id);
     if (entry == null) {
       synchronized (this) {
-        keyIndex.put(id.getComputationKey(), id);
+        keyIndex.put(id.getWindmillComputationKey(), id);
       }
     }
     if (entry == null || entry.getCacheToken() != cacheToken) {
@@ -221,46 +227,16 @@ public class WindmillStateCache implements StatusDataProvider {
     stateCache.put(id, entry);
   }
 
-  private static class ComputationKey {
-    private final String computation;
-    private final ByteString key;
-
-    public ComputationKey(String computation, ByteString key) {
-      this.computation = computation;
-      this.key = key;
-    }
-
-    public ByteString getKey() {
-      return key;
-    }
-
-    @Override
-    public boolean equals(@Nullable Object that) {
-      if (that instanceof ComputationKey) {
-        ComputationKey other = (ComputationKey) that;
-        return computation.equals(other.computation) && key.equals(other.key);
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(computation, key);
-    }
-  }
-
   /** Struct identifying a cache entry that contains all data for a key and namespace. */
   private static class StateId implements Weighted {
-    private final ComputationKey computationKey;
+
+    private final WindmillComputationKey computationKey;
     private final String stateFamily;
     private final Object namespaceKey;
 
     public StateId(
-        String computation,
-        ByteString processingKey,
-        String stateFamily,
-        StateNamespace namespace) {
-      this.computationKey = new ComputationKey(computation, processingKey);
+        WindmillComputationKey computationKey, String stateFamily, StateNamespace namespace) {
+      this.computationKey = computationKey;
       this.stateFamily = stateFamily;
       this.namespaceKey = namespace.getCacheKey();
     }
@@ -276,7 +252,7 @@ public class WindmillStateCache implements StatusDataProvider {
       return false;
     }
 
-    public ComputationKey getComputationKey() {
+    public WindmillComputationKey getWindmillComputationKey() {
       return computationKey;
     }
 
@@ -287,7 +263,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
     @Override
     public long getWeight() {
-      return (long) computationKey.getKey().size() + PER_STATE_ID_OVERHEAD;
+      return (long) computationKey.key().size() + PER_STATE_ID_OVERHEAD;
     }
   }
 
@@ -296,6 +272,7 @@ public class WindmillStateCache implements StatusDataProvider {
    * of the values, and a work token that is increasing to ensure sequential processing.
    */
   private static class StateCacheEntry implements Weighted {
+
     private final long cacheToken;
     private long lastWorkToken;
     private final Map<NamespacedTag<?>, WeightedValue<?>> values;
@@ -353,6 +330,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     private static class NamespacedTag<T extends State> {
+
       private final StateNamespace namespace;
       private final Equivalence.Wrapper<StateTag> tag;
 
@@ -377,6 +355,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     private static class WeightedValue<T> {
+
       public long weight = 0;
       public T value = null;
     }

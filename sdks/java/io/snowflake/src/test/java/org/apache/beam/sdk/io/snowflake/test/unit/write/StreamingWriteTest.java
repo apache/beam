@@ -33,12 +33,11 @@ import java.util.stream.LongStream;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentialsFactory;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeStreamingServiceImpl;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -74,7 +73,7 @@ public class StreamingWriteTest {
   @Rule public ExpectedException exceptionRule = ExpectedException.none();
   private static SnowflakeIO.DataSourceConfiguration dataSourceConfiguration;
   private static SnowflakeService snowflakeService;
-  private static SnowflakePipelineOptions options;
+  private static TestSnowflakePipelineOptions options;
   private static List<Long> testData;
 
   private static final List<String> SENTENCES =
@@ -94,8 +93,8 @@ public class StreamingWriteTest {
   public static void setup() {
     snowflakeService = new FakeSnowflakeStreamingServiceImpl();
 
-    PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(SnowflakePipelineOptions.class);
+    PipelineOptionsFactory.register(TestSnowflakePipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
     options.setUsername("username");
 
     options.setServerName("NULL.snowflakecomputing.com");
@@ -106,7 +105,6 @@ public class StreamingWriteTest {
     dataSourceConfiguration =
         SnowflakeIO.DataSourceConfiguration.create(new FakeSnowflakeBasicDataSource())
             .withServerName(options.getServerName())
-            .withoutValidation()
             .withSchema("PUBLIC")
             .withDatabase("DATABASE")
             .withWarehouse("WAREHOUSE");
@@ -119,10 +117,9 @@ public class StreamingWriteTest {
 
   @Test
   public void streamWriteWithOAuthFails() {
-    options.setOauthToken("token");
     dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create(SnowflakeCredentialsFactory.of(options))
-            .withoutValidation()
+        SnowflakeIO.DataSourceConfiguration.create()
+            .withOAuth("token")
             .withServerName(options.getServerName())
             .withSchema("PUBLIC")
             .withDatabase("DATABASE")
@@ -147,10 +144,9 @@ public class StreamingWriteTest {
 
   @Test
   public void streamWriteWithUserPasswordFails() {
-    options.setPassword("password");
     dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create(SnowflakeCredentialsFactory.of(options))
-            .withoutValidation()
+        SnowflakeIO.DataSourceConfiguration.create()
+            .withUsernamePasswordAuth(options.getUsername(), "password")
             .withServerName(options.getServerName())
             .withSchema("PUBLIC")
             .withDatabase("DATABASE")
@@ -176,8 +172,6 @@ public class StreamingWriteTest {
   @Test
   public void streamWriteWithKey() throws SnowflakeSQLException {
     String quotationMark = "'";
-    options.setPrivateKeyPath(TestUtils.getPrivateKeyPath(getClass()));
-    options.setPrivateKeyPassphrase(TestUtils.getPrivateKeyPassphrase());
 
     TestStream<String> stringsStream =
         TestStream.create(StringUtf8Coder.of())
@@ -194,9 +188,12 @@ public class StreamingWriteTest {
             .advanceWatermarkToInfinity();
 
     dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create(SnowflakeCredentialsFactory.of(options))
+        SnowflakeIO.DataSourceConfiguration.create()
+            .withKeyPairPathAuth(
+                options.getUsername(),
+                TestUtils.getValidPrivateKeyPath(getClass()),
+                TestUtils.getPrivateKeyPassphrase())
             .withServerName(options.getServerName())
-            .withoutValidation()
             .withSchema("PUBLIC")
             .withDatabase("DATABASE")
             .withWarehouse("WAREHOUSE");
@@ -234,8 +231,6 @@ public class StreamingWriteTest {
   @Test
   public void streamWriteWithDoubleQuotation() throws SnowflakeSQLException {
     String quotationMark = "\"";
-    options.setPrivateKeyPath(TestUtils.getPrivateKeyPath(getClass()));
-    options.setPrivateKeyPassphrase(TestUtils.getPrivateKeyPassphrase());
 
     TestStream<String> stringsStream =
         TestStream.create(StringUtf8Coder.of())
@@ -252,9 +247,12 @@ public class StreamingWriteTest {
             .advanceWatermarkToInfinity();
 
     dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create(SnowflakeCredentialsFactory.of(options))
+        SnowflakeIO.DataSourceConfiguration.create()
+            .withKeyPairPathAuth(
+                options.getUsername(),
+                TestUtils.getValidPrivateKeyPath(getClass()),
+                TestUtils.getPrivateKeyPassphrase())
             .withServerName(options.getServerName())
-            .withoutValidation()
             .withSchema("PUBLIC")
             .withDatabase("DATABASE")
             .withWarehouse("WAREHOUSE");
