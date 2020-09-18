@@ -709,7 +709,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       Exception lastException;
       do {
         try {
-          client.datasets().insert(projectId, dataset)..setPrettyPrint(false).execute();
+          client.datasets().insert(projectId, dataset).setPrettyPrint(false).execute();
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
