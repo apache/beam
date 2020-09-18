@@ -35,7 +35,7 @@ echo "This script must be executed in the root of beam project. Please set GCS_L
 if [[ $# != 1 ]]; then
   printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
-  printf " Use 'python2' for Python2, 'python35' for Python3.5, python36 for Python3.6, python37 for Python3.7, python38 for Python3.8."
+  printf " Use 'python35' for Python3.5, python36 for Python3.6, python37 for Python3.7, python38 for Python3.8."
   exit 1
 fi
 
@@ -51,11 +51,7 @@ REGION=${REGION:-us-central1}
 IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
 
 # Other variables branched by Python version.
-if [[ $1 == "python2" ]]; then
-  IMAGE_NAME="${IMAGE_PREFIX}python2.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="sdks:python:container:py2"  # Use this to build container by Gradle.
-  PY_INTERPRETER="python"   # Use this in virtualenv command.
-elif [[ $1 == "python35" ]]; then
+if [[ $1 == "python35" ]]; then
   IMAGE_NAME="${IMAGE_PREFIX}python3.5_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py35"  # Use this to build container by Gradle.
   PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
@@ -72,7 +68,7 @@ elif [[ $1 == "python38" ]]; then
   CONTAINER_PROJECT="sdks:python:container:py38"  # Use this to build container by Gradle.
   PY_INTERPRETER="python3.8"    # Use this in virtualenv command.
 else
-  echo "Must set Python version with one of 'python2', 'python35', 'python36', 'python37' and 'python38' from commandline."
+  echo "Must set Python version with one of 'python35', 'python36', 'python37' and 'python38' from commandline."
   exit 1
 fi
 XUNIT_FILE="nosetests-$IMAGE_NAME.xml"
