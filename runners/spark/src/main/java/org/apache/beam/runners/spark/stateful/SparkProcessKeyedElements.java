@@ -187,6 +187,9 @@ public class SparkProcessKeyedElements {
           final SparkStateInternals<byte[]> stateInternals =
               processPreviousState(prevStateAndTimersOpt, key, timerInternals);
 
+          LOG.info(encodedKey.hashCode() + ": timerInternals: " + timerInternals.getTimers());
+          LOG.info(encodedKey.hashCode() + ": stateInternals: " + stateInternals.getState());
+
           final OutputWindowedValueHolder<OutputT> outputHolder = new OutputWindowedValueHolder<>();
 
           SplittableParDoViaKeyedWorkItems.ProcessFn<
@@ -254,29 +257,11 @@ public class SparkProcessKeyedElements {
                   DoFnSchemaInformation.create(),
                   Collections.emptyMap());
 
-          if (!encodedElements.isEmpty()) {
-            // new input for key.
-            try {
-              final Iterable<WindowedValue<KV<InputT, RestrictionT>>> elements =
-                  FluentIterable.from(JavaConversions.asJavaIterable(encodedElements))
-                      .transform(bytes -> CoderHelpers.fromByteArray(bytes, wvInputCoder));
-
-              LOG.trace(logPrefix + ": input elements: {}", elements);
-
-              fnRunner.processElement(
-                  WindowedValue.valueInGlobalWindow(
-                      KeyedWorkItems.elementsWorkItem(key, elements)));
-            } catch (final Exception e) {
-              throw new RuntimeException("Failed to process element with ReduceFnRunner", e);
-            }
-          } else if (stateInternals.getState().isEmpty()) {
-            // no input and no state -> GC evict now.
-            continue;
-          }
           try {
             // advance the watermark to HWM to fire by timers.
-            LOG.debug(
-                logPrefix + ": timerInternals before advance are {}", timerInternals.toString());
+            LOG.info(
+                encodedKey.hashCode() + ": timerInternals before advance are {}",
+                timerInternals.toString());
 
             // store the highWatermark as the new inputWatermark to calculate triggers
             timerInternals.advanceWatermark();
@@ -285,8 +270,9 @@ public class SparkProcessKeyedElements {
                 filterTimersEligibleForProcessing(
                     timerInternals.getTimers(), timerInternals.currentInputWatermarkTime());
 
-            LOG.debug(
-                logPrefix + ": timers eligible for processing are {}", timersEligibleForProcessing);
+            LOG.info(
+                encodedKey.hashCode() + ": timers eligible for processing are {}",
+                timersEligibleForProcessing);
 
             // Note that at this point, the watermark has already advanced since
             // timerInternals.advanceWatermark() has been called and the highWatermark
@@ -309,6 +295,27 @@ public class SparkProcessKeyedElements {
           } catch (final Exception e) {
             throw new RuntimeException("Failed to process ProcessKeyedElements onTimer.", e);
           }
+
+          if (!encodedElements.isEmpty()) {
+            // new input for key.
+            try {
+              final Iterable<WindowedValue<KV<InputT, RestrictionT>>> elements =
+                  FluentIterable.from(JavaConversions.asJavaIterable(encodedElements))
+                      .transform(bytes -> CoderHelpers.fromByteArray(bytes, wvInputCoder));
+
+              LOG.info(encodedKey.hashCode() + ": input elements: {}", elements);
+
+              fnRunner.processElement(
+                  WindowedValue.valueInGlobalWindow(
+                      KeyedWorkItems.elementsWorkItem(key, elements)));
+            } catch (final Exception e) {
+              throw new RuntimeException("Failed to process element with ReduceFnRunner", e);
+            }
+          } else if (stateInternals.getState().isEmpty()) {
+            // no input and no state -> GC evict now.
+            continue;
+          }
+
           // obtain output, if fired.
           final List<WindowedValue<OutputT>> outputs = outputHolder.getWindowedValues();
 
@@ -327,7 +334,8 @@ public class SparkProcessKeyedElements {
             Not something we want to happen in production, but is very helpful
             when debugging - TRACE.
              */
-            LOG.trace(logPrefix + ": output elements are {}", Joiner.on(", ").join(outputs));
+            LOG.info(
+                encodedKey.hashCode() + ": output elements are {}", Joiner.on(", ").join(outputs));
 
             // persist Spark's state by outputting.
             final List<byte[]> serOutput = CoderHelpers.toByteArrays(outputs, wvOutputCoder);

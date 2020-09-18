@@ -89,6 +89,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests for <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} behavior.
@@ -155,6 +157,16 @@ public class SplittableDoFnTest implements Serializable {
     testPairWithIndexBasic(IsBounded.UNBOUNDED);
   }
 
+  private static class LoggingDoFn<T> extends DoFn<T, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(LoggingDoFn.class);
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      LOG.info("" + c.element());
+      c.output(c.element());
+    }
+  }
+
   private void testPairWithIndexBasic(IsBounded bounded) {
     PCollection<KV<String, Integer>> res =
         p.apply(
@@ -162,7 +174,8 @@ public class SplittableDoFnTest implements Serializable {
                     .nextBatch("a", "bb", "ccccc")
                     .advanceNextBatchWatermarkToInfinity())
             .apply(ParDo.of(pairStringWithIndexToLengthFn(bounded)))
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()))
+            .apply(ParDo.of(new LoggingDoFn<>()));
 
     PAssert.that(res)
         .containsInAnyOrder(
