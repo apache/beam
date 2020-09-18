@@ -72,11 +72,12 @@ sure it is the same as ours.
 
 ## API stability
 
-Apache Beam uses [semantic versioning](https://semver.org/). Version numbers use
+Apache Beam generally follows the rules of
+[semantic versioning](https://semver.org/) with exceptions. Version numbers use
 the form `major.minor.incremental` and are incremented as follows:
 
 * major version for incompatible API changes
-* minor version for new functionality added in a backward-compatible manner
+* minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes
 * incremental version for forward-compatible bug fixes
 
 Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/annotations/Experimental.html)
