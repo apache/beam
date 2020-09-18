@@ -122,7 +122,8 @@ class SdkContainerBuilder(object):
         'prebuild_sdk_container')
     if container_build_engine:
       if container_build_engine == 'local_docker':
-        builder = _SdkContainerLocalBuilder(pipeline_options)
+        builder = _SdkContainerLocalBuilder(
+            pipeline_options)  # type: SdkContainerBuilder
       elif container_build_engine == 'cloud_build':
         builder = _SdkContainerCloudBuilder(pipeline_options)
       else:
