@@ -117,7 +117,8 @@ for format in ('excel', 'feather', 'parquet', 'stata'):
   globals()['to_%s' % format] = _binary_writer(format)
 
 for format in ('sas', 'spss'):
-  globals()['read_%s' % format] = _binary_reader(format)
+  if hasattr(pd, 'read_%s' % format):  # Depends on pandas version.
+    globals()['read_%s' % format] = _binary_reader(format)
 
 read_clipboard = to_clipboard = frame_base.wont_implement_method('clipboard')
 read_msgpack = to_msgpack = frame_base.wont_implement_method('deprecated')
@@ -213,12 +214,12 @@ class _WriteToPandas(beam.PTransform):
     self.incremental = incremental
     self.binary = binary
 
-  def __ror__(self, other):
+  def __ror__(self, other, label=None):
     if isinstance(other, frame_base.DeferredBase):
       from apache_beam.dataframe import convert   # avoid circular import
       # TODO(roberwb): Amortize the computation for multiple writes?
       other = convert.to_pcollection(other)
-    return super(_WriteToPandas, self).__ror__(other)
+    return super(_WriteToPandas, self).__ror__(other, label)
 
   def expand(self, pcoll):
     dir, name = io.filesystems.FileSystems.split(self.path)

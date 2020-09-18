@@ -785,9 +785,9 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       preserves_partition_by=partitionings.Index())
 
 
-for func in dir(io):
-  if func.startswith('to_'):
-    setattr(DeferredDataFrame, func, getattr(io, func))
+for io_func in dir(io):
+  if io_func.startswith('to_'):
+    setattr(DeferredDataFrame, io_func, getattr(io, io_func))
 
 
 for meth in ('filter', ):
