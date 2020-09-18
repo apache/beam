@@ -203,7 +203,6 @@ task goIntegrationTests() {
 
 task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:pycommon:preCommitPyCommon"
-  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
@@ -217,7 +216,6 @@ task pythonDocsPreCommit() {
 }
 
 task pythonDockerBuildPreCommit() {
-  dependsOn ":sdks:python:container:py2:docker"
   dependsOn ":sdks:python:container:py35:docker"
   dependsOn ":sdks:python:container:py36:docker"
   dependsOn ":sdks:python:container:py37:docker"
@@ -225,21 +223,11 @@ task pythonDockerBuildPreCommit() {
 }
 
 task pythonLintPreCommit() {
-  dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
 }
 
 task pythonFormatterPreCommit() {
   dependsOn 'sdks:python:test-suites:tox:py38:formatter'
-}
-
-task python2PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
-  dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
-  dependsOn ":sdks:python:test-suites:direct:py2:hdfsIntegrationTest"
-  dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
-  dependsOn ":sdks:python:test-suites:portable:py2:postCommitPy2"
 }
 
 task python35PostCommit() {
@@ -257,6 +245,9 @@ task python36PostCommit() {
 task python37PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py37:directRunnerIT"
+  dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
+  dependsOn ":sdks:python:test-suites:direct:py37:mongodbioIT"
   dependsOn ":sdks:python:test-suites:portable:py37:postCommitPy37"
 }
 
@@ -268,14 +259,12 @@ task python38PostCommit() {
 }
 
 task portablePythonPreCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:portable:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:portable:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:portable:py37:preCommitPy37"
 }
 
 task pythonSparkPostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py35:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py36:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py37:sparkValidatesRunner"
