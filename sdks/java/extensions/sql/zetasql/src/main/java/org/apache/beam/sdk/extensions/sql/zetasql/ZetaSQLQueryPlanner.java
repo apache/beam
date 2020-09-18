@@ -189,8 +189,6 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
   }
 
-  // TODO: Resolve later
-  @SuppressWarnings("nullness")
   private static FrameworkConfig defaultConfig(
       JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();
@@ -201,8 +199,11 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             .setQuoting(config.quoting())
             .setConformance(config.conformance())
             .setCaseSensitive(config.caseSensitive());
+
+    @SuppressWarnings("argument.type.incompatible")
     final SqlParserImplFactory parserFactory =
         config.parserFactory(SqlParserImplFactory.class, null);
+
     if (parserFactory != null) {
       parserConfig.setParserFactory(parserFactory);
     }
