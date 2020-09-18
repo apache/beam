@@ -994,12 +994,6 @@ class SetupOptions(PipelineOptions):
             'staged in the staging area (--staging_location option) and the '
             'workers will install them in same order they were specified on '
             'the command line.'))
-    parser.add_argument(
-        '--docker_registry_push_url',
-        default=None,
-        help=(
-            'The docker registry url for pushing pre-prepared sdk worker '
-            'images.'))
 
 
 class PortableOptions(PipelineOptions):

@@ -46,7 +46,6 @@ from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability.stager import Stager
@@ -69,13 +68,13 @@ class SdkContainerBuilder(object):
   def __init__(self, options):
     self._options = options
     self._temp_src_dir = tempfile.mkdtemp()
-    self._docker_registry = self._options.view_as(
-        SetupOptions).docker_registry_push_url
+    self._docker_registry_push_url = self._options.view_as(
+        DebugOptions).lookup_experiment('docker_registry_push_url')
 
   def build(self):
     container_id = str(uuid.uuid4())
     container_tag = os.path.join(
-        self._docker_registry or '',
+        self._docker_registry_push_url or '',
         'beam_python_prebuilt_sdk:%s' % container_id)
     self.prepare_dependencies()
     self.invoke_docker_build_and_push(container_id, container_tag)
@@ -155,7 +154,7 @@ class _SdkContainerLocalBuilder(SdkContainerBuilder):
           "Successfully built %s in %.2f seconds" %
           (container_tag, time.time() - now))
 
-    if self._docker_registry:
+    if self._docker_registry_push_url:
       _LOGGER.info("Pushing prebuilt sdk container...")
       try:
         subprocess.run(['docker', 'push', container_tag],
@@ -191,8 +190,9 @@ class _SdkContainerCloudBuilder(SdkContainerBuilder):
         get_credentials=(not self._google_cloud_options.no_auth),
         http=get_new_http(),
         response_encoding='utf8')
-    if not self._docker_registry:
-      self._docker_registry = 'gcr.io/%s' % self._google_cloud_options.project
+    if not self._docker_registry_push_url:
+      self._docker_registry_push_url = (
+          'gcr.io/%s' % self._google_cloud_options.project)
 
   def invoke_docker_build_and_push(self, container_id, container_tag):
     project_id = self._google_cloud_options.project
