@@ -31,6 +31,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.ImmutableMap;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -79,6 +80,9 @@ public class BigQueryUtilsTest {
   private static final Schema ARRAY_ROW_TYPE =
       Schema.builder().addArrayField("rows", Schema.FieldType.row(FLAT_TYPE)).build();
 
+  private static final Schema MAP_TYPE =
+      Schema.builder().addMapField("map", Schema.FieldType.STRING, Schema.FieldType.DOUBLE).build();
+
   private static final TableFieldSchema ID =
       new TableFieldSchema().setName("id").setType(StandardSQLTypeName.INT64.toString());
 
@@ -117,6 +121,18 @@ public class BigQueryUtilsTest {
           .setType(StandardSQLTypeName.INT64.toString())
           .setMode(Mode.REPEATED.toString());
 
+  private static final TableFieldSchema MAP_KEY =
+      new TableFieldSchema()
+          .setName("key")
+          .setType(StandardSQLTypeName.STRING.toString())
+          .setMode(Mode.REQUIRED.toString());
+
+  private static final TableFieldSchema MAP_VALUE =
+      new TableFieldSchema()
+          .setName("value")
+          .setType(StandardSQLTypeName.FLOAT64.toString())
+          .setMode(Mode.REQUIRED.toString());
+
   private static final TableFieldSchema ROW =
       new TableFieldSchema()
           .setName("row")
@@ -150,6 +166,13 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT4,
                   VALID,
                   BINARY));
+
+  private static final TableFieldSchema MAP =
+      new TableFieldSchema()
+          .setName("map")
+          .setType(StandardSQLTypeName.STRUCT.toString())
+          .setMode(Mode.REPEATED.toString())
+          .setFields(Arrays.asList(MAP_KEY, MAP_VALUE));
 
   // Make sure that chosen BYTES test value is the same after a full base64 round trip.
   private static final Row FLAT_ROW =
@@ -208,6 +231,9 @@ public class BigQueryUtilsTest {
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
+  private static final Row MAP_ROW =
+      Row.withSchema(MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
+
   private static final TableRow BQ_ARRAY_ROW =
       new TableRow()
           .set(
@@ -246,6 +272,8 @@ public class BigQueryUtilsTest {
 
   private static final TableSchema BQ_ARRAY_ROW_TYPE =
       new TableSchema().setFields(Arrays.asList(ROWS));
+
+  private static final TableSchema BQ_MAP_TYPE = new TableSchema().setFields(Arrays.asList(MAP));
 
   private static final Schema AVRO_FLAT_TYPE =
       Schema.builder()
@@ -333,6 +361,18 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testToTableSchema_map() {
+    TableSchema schema = toTableSchema(MAP_TYPE);
+
+    assertThat(schema.getFields().size(), equalTo(1));
+    TableFieldSchema field = schema.getFields().get(0);
+    assertThat(field.getName(), equalTo("map"));
+    assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
+    assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
+    assertThat(field.getFields(), containsInAnyOrder(MAP_KEY, MAP_VALUE));
+  }
+
+  @Test
   public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
     System.out.println(row);
@@ -351,6 +391,17 @@ public class BigQueryUtilsTest {
 
     assertThat(row, hasEntry("ids", Arrays.asList("123", "124")));
     assertThat(row.size(), equalTo(1));
+  }
+
+  @Test
+  public void testToTableRow_map() {
+    TableRow row = toTableRow().apply(MAP_ROW);
+
+    assertThat(row.size(), equalTo(1));
+    row = ((List<TableRow>) row.get("map")).get(0);
+    assertThat(row.size(), equalTo(2));
+    assertThat(row, hasEntry("key", "test"));
+    assertThat(row, hasEntry("value", "123.456"));
   }
 
   @Test
@@ -482,6 +533,12 @@ public class BigQueryUtilsTest {
   public void testFromTableSchema_array_row() {
     Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ARRAY_ROW_TYPE);
     assertEquals(ARRAY_ROW_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testFromTableSchema_map() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_MAP_TYPE);
+    assertEquals(MAP_TYPE, beamSchema);
   }
 
   @Test
