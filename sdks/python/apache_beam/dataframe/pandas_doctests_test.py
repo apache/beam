@@ -64,7 +64,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.shape': ['*'],
             'pandas.core.frame.DataFrame.shift': [
                 'df.shift(periods=3, freq="D")',
-                'df.shift(periods=3, freq="infer")'],
+                'df.shift(periods=3, freq="infer")'
+            ],
             'pandas.core.frame.DataFrame.unstack': ['*'],
             'pandas.core.frame.DataFrame.memory_usage': ['*'],
         },
