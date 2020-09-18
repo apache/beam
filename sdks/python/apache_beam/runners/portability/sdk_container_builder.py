@@ -50,7 +50,6 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability.stager import Stager
-from apitools.base.py import exceptions
 
 ARTIFACTS_CONTAINER_DIR = '/opt/apache/beam/artifacts'
 ARTIFACTS_MANIFEST_FILE = 'artifacts_info.json'
@@ -246,6 +245,7 @@ class _SdkContainerCloudBuilder(SdkContainerBuilder):
         bucket=gcs_bucket, name=gcs_object)
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
     total_size = os.path.getsize(local_file_path)
+    from apitools.base.py import exceptions
     try:
       with open(local_file_path, 'rb') as stream:
         upload = storage.Upload(stream, 'application/octet-stream', total_size)
