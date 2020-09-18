@@ -184,7 +184,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     self._seen_wont_implement = False
 
   def compute_using_session(self, to_compute):
-    session = expressions.Session(self._env._inputs)
+    session = expressions.PartitioningSession(self._env._inputs)
     return {
         name: frame._expr.evaluate_at(session)
         for name,

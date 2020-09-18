@@ -45,6 +45,54 @@ class Session(object):
     return self._bindings[expr]
 
 
+class PartitioningSession(Session):
+  """An extension of Session that enforces actual partitioning of inputs.
+
+  When evaluating an expression, inputs are partitioned according to its
+  `requires_partition_by` specifications, the expression is evaluated on each
+  partition separately, and the final result concatinated, as if this were
+  actually executed in a parallel manner.
+
+  For testing only.
+  """
+  def evaluate(self, expr):
+    import pandas as pd
+    import collections
+
+    def is_scalar(expr):
+      return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
+
+    if expr not in self._bindings:
+      if is_scalar(expr) or not expr.args():
+        result = super(PartitioningSession, self).evaluate(expr)
+      else:
+        scaler_args = [arg for arg in expr.args() if is_scalar(arg)]
+        parts = collections.defaultdict(
+            lambda: Session({arg: self.evaluate(arg)
+                             for arg in scaler_args}))
+        for arg in expr.args():
+          if not is_scalar(arg):
+            input = self.evaluate(arg)
+            for key, part in expr.requires_partition_by().test_partition_fn(
+                input):
+              parts[key]._bindings[arg] = part
+        if not parts:
+          parts[None]  # Create at least one entry.
+
+        results = []
+        for session in parts.values():
+          if any(len(session.lookup(arg)) for arg in expr.args()
+                 if not is_scalar(arg)):
+            results.append(session.evaluate(expr))
+        if results:
+          result = pd.concat(results)
+        else:
+          # Choose any single session.
+          result = next(iter(parts.values())).evaluate(expr)
+        self._bindings[expr] = result
+    return self._bindings[expr]
+
+
 # The return type of an Expression
 T = TypeVar('T')
 

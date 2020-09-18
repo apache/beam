@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -30,11 +31,18 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.TestStream.ElementEvent;
+import org.apache.beam.sdk.testing.TestStream.Event;
+import org.apache.beam.sdk.testing.TestStream.ProcessingTimeEvent;
+import org.apache.beam.sdk.testing.TestStream.WatermarkEvent;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -53,6 +61,7 @@ import org.slf4j.LoggerFactory;
 /** Test Class for {@link GroupIntoBatches}. */
 @RunWith(JUnit4.class)
 public class GroupIntoBatchesTest implements Serializable {
+
   private static final int BATCH_SIZE = 5;
   private static final long EVEN_NUM_ELEMENTS = 10;
   private static final long ODD_NUM_ELEMENTS = 11;
@@ -197,11 +206,11 @@ public class GroupIntoBatchesTest implements Serializable {
               @ProcessElement
               public void processElement(ProcessContext c, BoundedWindow window) {
                 LOG.debug(
-                    "*** ELEMENT: ({},{}) *** with timestamp %s in window %s",
+                    "*** ELEMENT: ({},{}) *** with timestamp {} in window {}",
                     c.element().getKey(),
                     c.element().getValue(),
-                    c.timestamp().toString(),
-                    window.toString());
+                    c.timestamp(),
+                    window);
               }
             }));
 
@@ -255,6 +264,226 @@ public class GroupIntoBatchesTest implements Serializable {
               assertEquals("Wrong third element batch Size", 4, size2);
               return null;
             });
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category({
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesTestStream.class,
+    UsesStatefulParDo.class
+  })
+  public void testBufferingTimerInFixedWindow() {
+    final Duration windowDuration = Duration.standardSeconds(4);
+    final Duration maxBufferingDuration = Duration.standardSeconds(5);
+
+    Instant startInstant = new Instant(0L);
+    TestStream.Builder<KV<String, String>> streamBuilder =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(startInstant);
+    long offset = 0L;
+    int timestampInterval = 1;
+    for (KV<String, String> element : data) {
+      streamBuilder =
+          streamBuilder
+              .addElements(
+                  TimestampedValue.of(
+                      element,
+                      startInstant.plus(Duration.standardSeconds(offset * timestampInterval))))
+              // Advance the processing time by 2 secs every time an element is processed. The max
+              // buffering duration allowed is 5 secs, so the timer should be fired after receiving
+              // three elements, i.e., the batch size will not exceed 3.
+              .advanceProcessingTime(Duration.standardSeconds(2));
+      offset++;
+    }
+
+    TestStream<KV<String, String>> stream =
+        streamBuilder
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(EVEN_NUM_ELEMENTS)))
+            .advanceWatermarkToInfinity();
+
+    PCollection<KV<String, String>> inputCollection =
+        pipeline
+            .apply(stream)
+            .apply(
+                Window.<KV<String, String>>into(FixedWindows.of(windowDuration))
+                    .withAllowedLateness(Duration.millis(ALLOWED_LATENESS)));
+    inputCollection.apply(
+        ParDo.of(
+            new DoFn<KV<String, String>, Void>() {
+              @ProcessElement
+              public void processElement(ProcessContext c, BoundedWindow window) {
+                LOG.debug(
+                    "*** ELEMENT: ({},{}) *** with timestamp {} in window {}",
+                    c.element().getKey(),
+                    c.element().getValue(),
+                    c.timestamp(),
+                    window);
+              }
+            }));
+
+    PCollection<KV<String, Iterable<String>>> outputCollection =
+        inputCollection
+            .apply(
+                GroupIntoBatches.<String, String>ofSize(BATCH_SIZE)
+                    .withMaxBufferingDuration(maxBufferingDuration))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+
+    // Elements have the same key and collection is divided into windows,
+    // so Count.perKey values are the number of elements in windows
+    PCollection<KV<String, Long>> countOutput =
+        outputCollection.apply(
+            "Count elements in windows after applying GroupIntoBatches", Count.perKey());
+
+    PAssert.that("Wrong number of elements in windows after GroupIntoBatches", countOutput)
+        .satisfies(
+            input -> {
+              Iterator<KV<String, Long>> inputIterator = input.iterator();
+              // first element
+              long count0 = inputIterator.next().getValue();
+              // window duration is 4 , so there should be 2 elements in the window (flush because
+              // maxBufferingDuration reached and the end of window reached)
+              assertEquals("Wrong number of elements in first window", 2, count0);
+              // second element
+              long count1 = inputIterator.next().getValue();
+              // same as the first window
+              assertEquals("Wrong number of elements in second window", 2, count1);
+              long count2 = inputIterator.next().getValue();
+              // collection has 10 elements, there is only 2 elements left, so there should be only
+              // one element in the window (flush because end of window reached)
+              assertEquals("Wrong number of elements in third window", 1, count2);
+              return null;
+            });
+
+    PAssert.that("Incorrect output collection after GroupIntoBatches", outputCollection)
+        .satisfies(
+            input -> {
+              Iterator<KV<String, Iterable<String>>> inputIterator = input.iterator();
+              // first element
+              int size0 = Iterables.size(inputIterator.next().getValue());
+              // max buffering duration is 2 and the buffering deadline is set when processing the
+              // first element in this window, so output batch size should de 3
+              // (flush because of maxBufferingDuration reached)
+              assertEquals("Wrong first element batch Size", 3, size0);
+              // second element
+              int size1 = Iterables.size(inputIterator.next().getValue());
+              // there is only one element left in the first window so batch size should be 1
+              // (flush because of end of window reached)
+              assertEquals("Wrong second element batch Size", 1, size1);
+              // third element
+              int size2 = Iterables.size(inputIterator.next().getValue());
+              // same as the first window
+              assertEquals("Wrong third element batch Size", 3, size2);
+              // forth element
+              int size3 = Iterables.size(inputIterator.next().getValue());
+              // same as the first window
+              assertEquals("Wrong third element batch Size", 1, size3);
+              // fifth element
+              int size4 = Iterables.size(inputIterator.next().getValue());
+              // collection is 10 elements, there is only 2 left, so batch size should be 2
+              // (flush because end of window reached)
+              assertEquals("Wrong forth element batch Size", 2, size4);
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category({
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesTestStream.class,
+    UsesStatefulParDo.class
+  })
+  public void testBufferingTimerInGlobalWindow() {
+    final Duration maxBufferingDuration = Duration.standardSeconds(5);
+
+    Instant startInstant = new Instant(0L);
+    long offset = 0L;
+    int timestampInterval = 1;
+    List<Event<KV<String, String>>> events = new ArrayList<>();
+    List<TimestampedValue<KV<String, String>>> elements1 = new ArrayList<>();
+    for (KV<String, String> element : createTestData(EVEN_NUM_ELEMENTS / 2)) {
+      elements1.add(
+          TimestampedValue.of(
+              element, startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
+      offset++;
+    }
+    events.add(ElementEvent.add(elements1));
+    events.add(ProcessingTimeEvent.advanceBy(Duration.standardSeconds(100)));
+
+    List<TimestampedValue<KV<String, String>>> elements2 = new ArrayList<>();
+    for (KV<String, String> element : createTestData(EVEN_NUM_ELEMENTS / 2)) {
+      elements2.add(
+          TimestampedValue.of(
+              element, startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
+      offset++;
+    }
+    events.add(ElementEvent.add(elements2));
+    events.add(ProcessingTimeEvent.advanceBy(Duration.standardSeconds(100)));
+    events.add(
+        WatermarkEvent.advanceTo(startInstant.plus(Duration.standardSeconds(EVEN_NUM_ELEMENTS))));
+    TestStream<KV<String, String>> stream =
+        TestStream.fromRawEvents(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), events);
+
+    PCollection<KV<String, String>> inputCollection =
+        pipeline
+            .apply(stream)
+            .apply(
+                Window.<KV<String, String>>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(2)))
+                    .discardingFiredPanes());
+
+    inputCollection.apply(
+        ParDo.of(
+            new DoFn<KV<String, String>, Void>() {
+              @ProcessElement
+              public void processElement(ProcessContext c, BoundedWindow window) {
+                LOG.debug(
+                    "*** ELEMENT: ({},{}) *** with timestamp {} in window {}",
+                    c.element().getKey(),
+                    c.element().getValue(),
+                    c.timestamp(),
+                    window);
+              }
+            }));
+
+    // Set a batch size larger than the total number of elements. Since we're in a global window, we
+    // would have been waiting for all the elements without the buffering time limit.
+    PCollection<KV<String, Iterable<String>>> outputCollection =
+        inputCollection
+            .apply(
+                GroupIntoBatches.<String, String>ofSize(EVEN_NUM_ELEMENTS + 5)
+                    .withMaxBufferingDuration(maxBufferingDuration))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+
+    // Elements have the same key and collection is divided into windows,
+    // so Count.perKey values are the number of elements in windows
+    PCollection<KV<String, Long>> countOutput =
+        outputCollection.apply(
+            "Count elements in windows after applying GroupIntoBatches", Count.perKey());
+
+    PAssert.that("Wrong number of elements in windows after GroupIntoBatches", countOutput)
+        .satisfies(
+            input -> {
+              Iterator<KV<String, Long>> inputIterator = input.iterator();
+              long count = inputIterator.next().getValue();
+              assertEquals("Wrong number of elements in global window", 2, count);
+              return null;
+            });
+
+    PAssert.that("Incorrect output collection after GroupIntoBatches", outputCollection)
+        .satisfies(
+            input -> {
+              Iterator<KV<String, Iterable<String>>> inputIterator = input.iterator();
+              int size1 = Iterables.size(inputIterator.next().getValue());
+              assertEquals("Wrong first element batch Size", EVEN_NUM_ELEMENTS / 2, size1);
+              int size2 = Iterables.size(inputIterator.next().getValue());
+              assertEquals("Wrong second element batch Size", EVEN_NUM_ELEMENTS / 2, size2);
+              return null;
+            });
+
     pipeline.run().waitUntilFinish();
   }
 }

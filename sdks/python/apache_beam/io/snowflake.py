@@ -111,6 +111,7 @@ ReadFromSnowflakeSchema = NamedTuple(
         ('username', Optional[unicode]),
         ('password', Optional[unicode]),
         ('private_key_path', Optional[unicode]),
+        ('raw_private_key', Optional[unicode]),
         ('private_key_passphrase', Optional[unicode]),
         ('o_auth_token', Optional[unicode]),
         ('table', Optional[unicode]),
@@ -138,6 +139,7 @@ class ReadFromSnowflake(beam.PTransform):
       username=None,
       password=None,
       private_key_path=None,
+      raw_private_key=None,
       private_key_passphrase=None,
       o_auth_token=None,
       table=None,
@@ -187,17 +189,20 @@ class ReadFromSnowflake(beam.PTransform):
         username/password authentication method.
     :param private_key_path: specifies a private key file for
         key/ pair authentication method.
+    :param raw_private_key: specifies a private key for
+        key/ pair authentication method.
     :param private_key_passphrase: specifies password for
         key/ pair authentication method.
     :param o_auth_token: specifies access token for
         OAuth authentication method.
     """
     verify_credentials(
-        username,
-        password,
-        private_key_path,
-        private_key_passphrase,
-        o_auth_token,
+        username=username,
+        password=password,
+        private_key_path=private_key_path,
+        raw_private_key=raw_private_key,
+        private_key_passphrase=private_key_passphrase,
+        o_auth_token=o_auth_token,
     )
 
     self.params = ReadFromSnowflakeSchema(
@@ -209,6 +214,7 @@ class ReadFromSnowflake(beam.PTransform):
         username=username,
         password=password,
         private_key_path=private_key_path,
+        raw_private_key=raw_private_key,
         private_key_passphrase=private_key_passphrase,
         o_auth_token=o_auth_token,
         table=table,
@@ -245,6 +251,7 @@ WriteToSnowflakeSchema = NamedTuple(
         ('username', Optional[unicode]),
         ('password', Optional[unicode]),
         ('private_key_path', Optional[unicode]),
+        ('raw_private_key', Optional[unicode]),
         ('private_key_passphrase', Optional[unicode]),
         ('o_auth_token', Optional[unicode]),
         ('table', Optional[unicode]),
@@ -276,6 +283,7 @@ class WriteToSnowflake(beam.PTransform):
       username=None,
       password=None,
       private_key_path=None,
+      raw_private_key=None,
       private_key_passphrase=None,
       o_auth_token=None,
       table=None,
@@ -319,6 +327,8 @@ class WriteToSnowflake(beam.PTransform):
     :param password: specifies password for
         username/password authentication method.
     :param private_key_path: specifies a private key file for
+        key/ pair authentication method.
+    :param raw_private_key: specifies a private key for
         key/ pair authentication method.
     :param private_key_passphrase: specifies password for
         key/ pair authentication method.
@@ -384,11 +394,12 @@ class WriteToSnowflake(beam.PTransform):
         }
     """
     verify_credentials(
-        username,
-        password,
-        private_key_path,
-        private_key_passphrase,
-        o_auth_token,
+        username=username,
+        password=password,
+        private_key_path=private_key_path,
+        raw_private_key=raw_private_key,
+        private_key_passphrase=private_key_passphrase,
+        o_auth_token=o_auth_token,
     )
     WriteDisposition.VerifyParam(write_disposition)
     CreateDisposition.VerifyParam(create_disposition)
@@ -405,6 +416,7 @@ class WriteToSnowflake(beam.PTransform):
         username=username,
         password=password,
         private_key_path=private_key_path,
+        raw_private_key=raw_private_key,
         private_key_passphrase=private_key_passphrase,
         o_auth_token=o_auth_token,
         table=table,
@@ -468,7 +480,13 @@ class WriteDisposition:
 
 
 def verify_credentials(
-    username, password, private_key_path, private_key_passphrase, o_auth_token):
+    username,
+    password,
+    private_key_path,
+    raw_private_key,
+    private_key_passphrase,
+    o_auth_token):
   if not (o_auth_token or (username and password) or
-          (username and private_key_path and private_key_passphrase)):
+          (username and
+           (private_key_path or raw_private_key) and private_key_passphrase)):
     raise RuntimeError('Snowflake credentials are not set correctly.')

@@ -21,6 +21,7 @@ import {
 } from './InspectableViewModel';
 import { HtmlView } from '../common/HtmlView';
 import { IHtmlProvider } from '../common/HtmlView';
+import { InterruptKernelButton } from '../kernel/InterruptKernelButton';
 
 import '@rmwc/checkbox/styles';
 
@@ -111,6 +112,7 @@ export class InspectableView extends React.Component<
     return (
       <div className="InspectableView">
         <div>{options}</div>
+        <InterruptKernelButton model={this.props.model.kernelModel} />
         <HtmlView htmlProvider={htmlProvider} />
       </div>
     );

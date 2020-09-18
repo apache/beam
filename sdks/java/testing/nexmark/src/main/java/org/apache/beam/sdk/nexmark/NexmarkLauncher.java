@@ -88,6 +88,7 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
@@ -96,6 +97,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -773,6 +775,18 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .apply(queryName + ".WritePubsubEvents", io);
   }
 
+  /** Send {@code events} to file with prefix {@code generateInputFileOnlyPrefix}. */
+  private void sinkEventsToFile(PCollection<Event> events) {
+    events
+        .apply(MapElements.into(TypeDescriptors.strings()).via(Event::toString))
+        .apply(
+            "writeToFile",
+            TextIO.write()
+                .to(configuration.generateEventFilePathPrefix)
+                .withSuffix(".json")
+                .withNumShards(1));
+  }
+
   /** Send {@code formattedResults} to Kafka. */
   private void sinkResultsToKafka(PCollection<String> formattedResults) {
     checkArgument((options.getBootstrapServers() != null), "Missing --bootstrapServers");
@@ -922,6 +936,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     switch (configuration.sourceType) {
       case DIRECT:
         source = sourceEventsFromSynthetic(p);
+        if (configuration.generateEventFilePathPrefix != null) {
+          PCollection<Event> events = source;
+          source = null;
+          sinkEventsToFile(events);
+        }
         break;
       case AVRO:
         source = sourceEventsFromAvro(p);

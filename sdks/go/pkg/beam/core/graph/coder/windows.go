@@ -18,6 +18,8 @@ package coder
 // WindowKind represents a kind of window coder.
 type WindowKind string
 
+// Available window coders. The same coder could be used for
+// more than one kind of windowing strategy.
 const (
 	GlobalWindow   WindowKind = "GWC"
 	IntervalWindow WindowKind = "IWC"
@@ -25,11 +27,14 @@ const (
 
 // WindowCoder represents a Window coder.
 type WindowCoder struct {
-	Kind WindowKind
+	Kind    WindowKind
+	Payload string // Payload is only populated for parameterized window coders.
 }
 
+// Equals returns whether passed in WindowCoder has the same
+// Kind and Payload as this WindowCoder.
 func (w *WindowCoder) Equals(o *WindowCoder) bool {
-	return w.Kind == o.Kind
+	return w.Kind == o.Kind && w.Payload == o.Payload
 }
 
 func (w *WindowCoder) String() string {

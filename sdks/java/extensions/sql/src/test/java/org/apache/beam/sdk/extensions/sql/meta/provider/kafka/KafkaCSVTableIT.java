@@ -60,7 +60,6 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -83,15 +82,9 @@ public class KafkaCSVTableIT {
 
   @Before
   public void setUp() {
-    kafka.start();
     kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
     kafkaOptions.setKafkaTopic("topic");
     kafkaOptions.setKafkaBootstrapServerAddress(kafka.getBootstrapServers());
-  }
-
-  @After
-  public void tearDown() {
-    kafka.stop();
   }
 
   @Test

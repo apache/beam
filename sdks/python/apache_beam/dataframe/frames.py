@@ -118,9 +118,16 @@ class DeferredSeries(frame_base.DeferredFrame):
   head = tail = frame_base.wont_implement_method('order-sensitive')
 
   @frame_base.args_to_kwargs(pd.Series)
-  def nlargest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.Series)
+  def nlargest(self, keep, **kwargs):
+    # TODO(robertwb): Document 'any' option.
+    # TODO(robertwb): Consider (conditionally) defaulting to 'any' if no
+    # explicit keep parameter is requested.
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
         'nlargest-per-partition',
         lambda df: df.nlargest(**kwargs), [self._expr],
@@ -135,9 +142,13 @@ class DeferredSeries(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.Series)
-  def nsmallest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.Series)
+  def nsmallest(self, keep, **kwargs):
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
         'nsmallest-per-partition',
         lambda df: df.nsmallest(**kwargs), [self._expr],
@@ -558,9 +569,13 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       return merged.reset_index(drop=True)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
-  def nlargest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.DataFrame)
+  def nlargest(self, keep, **kwargs):
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
             'nlargest-per-partition',
             lambda df: df.nlargest(**kwargs),
@@ -577,9 +592,13 @@ class DeferredDataFrame(frame_base.DeferredFrame):
               requires_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
-  def nsmallest(self, **kwargs):
-    if 'keep' in kwargs and kwargs['keep'] != 'all':
+  @frame_base.populate_defaults(pd.DataFrame)
+  def nsmallest(self, keep, **kwargs):
+    if keep == 'any':
+      keep = 'first'
+    elif keep != 'all':
       raise frame_base.WontImplementError('order-sensitive')
+    kwargs['keep'] = keep
     per_partition = expressions.ComputedExpression(
             'nsmallest-per-partition',
             lambda df: df.nsmallest(**kwargs),

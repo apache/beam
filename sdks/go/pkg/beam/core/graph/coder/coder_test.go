@@ -123,10 +123,16 @@ func TestValidDecoderForms(t *testing.T) {
 	}
 }
 
+type namedTypeForTest struct {
+	A, B int64
+	C    string
+}
+
 func TestCoder_String(t *testing.T) {
 	ints := NewVarInt()
 	bytes := NewBytes()
 	bools := NewBool()
+	doubles := NewDouble()
 	global := NewGlobalWindow()
 	interval := NewIntervalWindow()
 	cusString, err := NewCustomCoder("customString", reflectx.String, func(string) []byte { return nil }, func([]byte) string { return "" })
@@ -171,6 +177,21 @@ func TestCoder_String(t *testing.T) {
 	}, {
 		want: "CoGBK<bytes,varint,string[customString]>",
 		c:    NewCoGBK([]*Coder{bytes, ints, custom}),
+	}, {
+		want: "PW<bytes>!IWC",
+		c:    NewPW(bytes, interval),
+	}, {
+		want: "T<varint>!GWC",
+		c:    NewT(ints, global),
+	}, {
+		want: "I<double>[[]float64]",
+		c:    NewI(doubles),
+	}, {
+		want: "R[*coder.namedTypeForTest]",
+		c:    NewR(typex.New(reflect.TypeOf((*namedTypeForTest)(nil)))),
+	}, {
+		want: "window!GWC",
+		c:    &Coder{Kind: Window, Window: global},
 	},
 	}
 	for _, test := range tests {

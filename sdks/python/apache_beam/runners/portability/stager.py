@@ -59,6 +59,7 @@ from typing import List
 from typing import Optional
 
 import pkg_resources
+from future.moves.urllib.parse import urlparse
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -356,6 +357,7 @@ class Stager(object):
     return retrieval_token, staged_resources
 
   @staticmethod
+  @retry.with_exponential_backoff(num_retries=4)
   def _download_file(from_url, to_path):
     """Downloads a file over http/https from a url or copy it from a remote
         path to local path."""
@@ -366,7 +368,6 @@ class Stager(object):
         # We check if the file is actually there because wget returns a file
         # even for a 404 response (file will contain the contents of the 404
         # response).
-        # TODO(angoenka): Extract and use the filename when downloading file.
         response, content = get_new_http().request(from_url)
         if int(response['status']) >= 400:
           raise RuntimeError(
@@ -608,7 +609,7 @@ class Stager(object):
     """Creates a Beam SDK file with the appropriate version.
 
       Args:
-        sdk_remote_location: A URL from which thefile can be downloaded or a
+        sdk_remote_location: A URL from which the file can be downloaded or a
           remote file location. The SDK file can be a tarball or a wheel. Set
           to 'pypi' to download and stage a wheel and source SDK from PyPi.
         temp_dir: path to temporary location where the file should be
@@ -653,10 +654,12 @@ class Stager(object):
 
       return staged_sdk_files
     elif Stager._is_remote_path(sdk_remote_location):
-      local_download_file = os.path.join(temp_dir, 'beam-sdk.tar.gz')
+      sdk_remote_parsed = urlparse(sdk_remote_location)
+      sdk_remote_filename = os.path.basename(sdk_remote_parsed.path)
+      local_download_file = os.path.join(temp_dir, sdk_remote_filename)
       Stager._download_file(sdk_remote_location, local_download_file)
       staged_name = Stager._desired_sdk_filename_in_staging_location(
-          sdk_remote_location)
+          local_download_file)
       _LOGGER.info('Staging Beam SDK from %s', sdk_remote_location)
       return [(local_download_file, staged_name)]
     else:

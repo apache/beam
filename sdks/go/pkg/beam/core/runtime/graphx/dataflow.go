@@ -17,10 +17,12 @@ package graphx
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 // TODO(herohde) 7/17/2018: move CoderRef to dataflowlib once Dataflow
@@ -47,6 +49,7 @@ const (
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
 	lengthPrefixType  = "kind:length_prefix"
+	rowType           = "kind:row"
 
 	globalWindowType   = "kind:global_window"
 	intervalWindowType = "kind:interval_window"
@@ -168,6 +171,20 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 			Components: []*CoderRef{{Type: stringType, PipelineProtoCoderID: c.ID}},
 		}, nil
 
+	case coder.Row:
+		schm, err := schema.FromType(c.T.Type())
+		if err != nil {
+			return nil, err
+		}
+		data, err := protox.EncodeBase64(schm)
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{
+			Type:       rowType,
+			Components: []*CoderRef{{Type: data}},
+		}, nil
+
 	default:
 		return nil, errors.Errorf("bad coder kind: %v", c.Kind)
 	}
@@ -279,6 +296,18 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 	case streamType:
 		return nil, errors.Errorf("stream must be pair value: %+v", c)
+
+	case rowType:
+		subC := c.Components[0]
+		schm := &pipepb.Schema{}
+		if err := protox.DecodeBase64(subC.Type, schm); err != nil {
+			return nil, err
+		}
+		t, err := schema.ToType(schm)
+		if err != nil {
+			return nil, err
+		}
+		return &coder.Coder{Kind: coder.Row, T: typex.New(t)}, nil
 
 	default:
 		return nil, errors.Errorf("custom coders must be length prefixed: %+v", c)
