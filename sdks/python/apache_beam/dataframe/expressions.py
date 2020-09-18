@@ -36,12 +36,12 @@ class Session(object):
   def __init__(self, bindings=None):
     self._bindings = dict(bindings or {})
 
-  def evaluate(self, expr):  # type: (Expression) -> Any
+  def evaluate(self, expr: Expression) -> Any:
     if expr not in self._bindings:
       self._bindings[expr] = expr.evaluate_at(self)
     return self._bindings[expr]
 
-  def lookup(self, expr):  #  type: (Expression) -> Any
+  def lookup(self, expr: Expression) -> Any:
     return self._bindings[expr]
 
 
@@ -105,16 +105,16 @@ class Expression(object):
   """
   def __init__(
       self,
-      name,  # type: str
-      proxy,  # type: T
-      _id=None  # type: Optional[str]
+      name: str,
+      proxy: T,
+      _id: Optional[str] = None
   ):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
     self._id = _id or '%s_%s_%s' % (name, type(proxy).__name__, id(self))
 
-  def proxy(self):  # type: () -> T
+  def proxy(self) -> T:
     return self._proxy
 
   def __hash__(self):
@@ -133,18 +133,18 @@ class Expression(object):
     """Returns all the placeholders that self depends on."""
     raise NotImplementedError(type(self))
 
-  def evaluate_at(self, session):  # type: (Session) -> T
+  def evaluate_at(self, session: Session) -> T:
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
 
-  def requires_partition_by(self):  # type: () -> partitionings.Partitioning
+  def requires_partition_by(self) -> partitionings.Partitioning:
     """Returns the partitioning, if any, require to evaluate this expression.
 
     Returns partitioning.Nothing() to require no partitioning is required.
     """
     raise NotImplementedError(type(self))
 
-  def preserves_partition_by(self):  # type: () -> partitionings.Partitioning
+  def preserves_partition_by(self) -> partitionings.Partitioning:
     """Returns the partitioning, if any, preserved by this expression.
 
     This gives an upper bound on the partitioning of its ouput.  The actual
@@ -157,9 +157,9 @@ class Expression(object):
 class PlaceholderExpression(Expression):
   """An expression whose value must be explicitly bound in the session."""
   def __init__(
-      self,  # type: PlaceholderExpression
-      proxy, # type: T
-      reference=None,  # type: Any
+      self: PlaceholderExpression,
+      proxy: T,
+      reference: Any = None,
   ):
     """Initialize a placeholder expression.
 
@@ -189,9 +189,9 @@ class PlaceholderExpression(Expression):
 class ConstantExpression(Expression):
   """An expression whose value is known at pipeline construction time."""
   def __init__(
-      self,  # type: ConstantExpression
-      value,  # type: T
-      proxy=None  # type: Optional[T]
+      self: ConstantExpression,
+      value: T,
+      proxy: Optional[T] = None
   ):
     """Initialize a constant expression.
 
@@ -225,14 +225,14 @@ class ConstantExpression(Expression):
 class ComputedExpression(Expression):
   """An expression whose value must be computed at pipeline execution time."""
   def __init__(
-      self,  # type: ComputedExpression
-      name,  # type: str
-      func,  # type: Callable[...,T]
-      args,  # type: Iterable[Expression]
-      proxy=None,  # type: Optional[T]
-      _id=None,  # type: Optional[str]
-      requires_partition_by=partitionings.Index(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+      self: ComputedExpression,
+      name: str,
+      func: Callable[...,T],
+      args: Iterable[Expression],
+      proxy: Optional[T] = None,
+      _id: Optional[str] = None,
+      requires_partition_by: partitionings.Partitioning = partitionings.Index(),
+      preserves_partition_by: partitionings.Partitioning = partitionings.Nothing(),
   ):
     """Initialize a computed expression.
 

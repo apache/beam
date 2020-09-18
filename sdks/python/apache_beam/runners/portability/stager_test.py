@@ -72,7 +72,7 @@ class StagerTest(unittest.TestCase):
   def is_remote_path(self, path):
     return path.startswith('/tmp/remote/')
 
-  remote_copied_files = []  # type: List[str]
+  remote_copied_files: List[str] = []
 
   def file_copy(self, from_path, to_path):
     if self.is_remote_path(from_path):

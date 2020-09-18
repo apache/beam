@@ -312,7 +312,7 @@ class _TestStream(PTransform):
       return not (shutdown_requested or evaluation_context.shutdown_requested)
 
     # The shared queue that allows the producer and consumer to communicate.
-    channel = Queue()  # type: Queue[Union[test_stream.Event, _EndOfStream]]
+    channel: Queue[Union[test_stream.Event, _EndOfStream]] = Queue()
     event_stream = Thread(
         target=_TestStream._stream_events_from_rpc,
         args=(endpoint, output_tags, coder, channel, is_alive))

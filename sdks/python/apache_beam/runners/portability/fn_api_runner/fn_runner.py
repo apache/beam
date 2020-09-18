@@ -87,13 +87,12 @@ class FnApiRunner(runner.PipelineRunner):
 
   def __init__(
       self,
-      default_environment=None,  # type: Optional[environments.Environment]
+      default_environment: Optional[environments.Environment] = None,
       bundle_repeat=0,
       use_state_iterables=False,
-      provision_info=None,  # type: Optional[ExtendedProvisionInfo]
+      provision_info: Optional[ExtendedProvisionInfo] = None,
       progress_request_frequency=None,
-      is_drain=False):
-    # type: (...) -> None
+      is_drain=False) -> None:
 
     """Creates a new Fn API Runner.
 
@@ -114,7 +113,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
-    self._profiler_factory = None  # type: Optional[Callable[..., profiler.Profile]]
+    self._profiler_factory: Optional[Callable[..., profiler.Profile]] = None
     self._use_state_iterables = use_state_iterables
     self._is_drain = is_drain
     self._provision_info = provision_info or ExtendedProvisionInfo(
@@ -130,10 +129,9 @@ class FnApiRunner(runner.PipelineRunner):
     )
 
   def run_pipeline(self,
-                   pipeline,  # type: Pipeline
-                   options  # type: pipeline_options.PipelineOptions
-                  ):
-    # type: (...) -> RunnerResult
+                   pipeline: Pipeline,
+                   options: pipeline_options.PipelineOptions
+                  ) -> RunnerResult:
     RuntimeValueProvider.set_runtime_options({})
 
     # Setup "beam_fn_api" experiment options if lacked.
@@ -176,8 +174,7 @@ class FnApiRunner(runner.PipelineRunner):
         pipeline.to_runner_api(default_environment=self._default_environment))
     return self._latest_run_result
 
-  def run_via_runner_api(self, pipeline_proto):
-    # type: (beam_runner_api_pb2.Pipeline) -> RunnerResult
+  def run_via_runner_api(self, pipeline_proto: beam_runner_api_pb2.Pipeline) -> RunnerResult:
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
     stage_context, stages = self.create_stages(pipeline_proto)
@@ -284,9 +281,8 @@ class FnApiRunner(runner.PipelineRunner):
 
   def create_stages(
       self,
-      pipeline_proto  # type: beam_runner_api_pb2.Pipeline
-  ):
-    # type: (...) -> Tuple[translations.TransformContext, List[translations.Stage]]
+      pipeline_proto: beam_runner_api_pb2.Pipeline
+  ) -> Tuple[translations.TransformContext, List[translations.Stage]]:
     return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
         phases=[
@@ -313,10 +309,9 @@ class FnApiRunner(runner.PipelineRunner):
         is_drain=self._is_drain)
 
   def run_stages(self,
-                 stage_context,  # type: translations.TransformContext
-                 stages  # type: List[translations.Stage]
-                ):
-    # type: (...) -> RunnerResult
+                 stage_context: translations.TransformContext,
+                 stages: List[translations.Stage]
+                ) -> RunnerResult:
 
     """Run a list of topologically-sorted stages in batch mode.
 
@@ -353,14 +348,13 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _run_bundle_multiple_times_for_testing(
       self,
-      runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
-      bundle_manager,  # type: BundleManager
+      runner_execution_context: execution.FnApiRunnerExecutionContext,
+      bundle_manager: BundleManager,
       data_input,
-      data_output,  # type: DataOutput
+      data_output: DataOutput,
       fired_timers,
       expected_output_timers,
-  ):
-    # type: (...) -> None
+  ) -> None:
 
     """
     If bundle_repeat > 0, replay every bundle for profiling and debugging.
@@ -380,10 +374,9 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _collect_written_timers_and_add_to_fired_timers(
       self,
-      bundle_context_manager,  # type: execution.BundleContextManager
-      fired_timers  # type: Dict[Tuple[str, str], ListBuffer]
-  ):
-    # type: (...) -> None
+      bundle_context_manager: execution.BundleContextManager,
+      fired_timers: Dict[Tuple[str, str], ListBuffer]
+  ) -> None:
 
     for (transform_id, timer_family_id) in bundle_context_manager.stage.timers:
       written_timers = bundle_context_manager.get_buffer(
@@ -419,14 +412,13 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
       self,
-      splits,  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
-      bundle_context_manager,  # type: execution.BundleContextManager
+      splits: List[beam_fn_api_pb2.ProcessBundleSplitResponse],
+      bundle_context_manager: execution.BundleContextManager,
       last_sent,
-      deferred_inputs  # type: MutableMapping[str, PartitionableBuffer]
-  ):
-    # type: (...) -> None
+      deferred_inputs: MutableMapping[str, PartitionableBuffer]
+  ) -> None:
 
-    prev_stops = {}  # type: Dict[str, int]
+    prev_stops: Dict[str, int] = {}
     for split in splits:
       for delayed_application in split.residual_roots:
         name = bundle_context_manager.input_for(
@@ -470,10 +462,9 @@ class FnApiRunner(runner.PipelineRunner):
             channel_split.transform_id] = channel_split.last_primary_element
 
   def _run_stage(self,
-                 runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
-                 bundle_context_manager,  # type: execution.BundleContextManager
-                ):
-    # type: (...) -> beam_fn_api_pb2.InstructionResponse
+                 runner_execution_context: execution.FnApiRunnerExecutionContext,
+                 bundle_context_manager: execution.BundleContextManager,
+                ) -> beam_fn_api_pb2.InstructionResponse:
 
     """Run an individual stage.
 
@@ -575,7 +566,7 @@ class FnApiRunner(runner.PipelineRunner):
     # - timers
     # - SDK-initiated deferred applications of root elements
     # - Runner-initiated deferred applications of root elements
-    deferred_inputs = {}  # type: Dict[str, execution.PartitionableBuffer]
+    deferred_inputs: Dict[str, execution.PartitionableBuffer] = {}
     fired_timers = {}
 
     self._collect_written_timers_and_add_to_fired_timers(
@@ -642,9 +633,9 @@ class FnApiRunner(runner.PipelineRunner):
 
 class ExtendedProvisionInfo(object):
   def __init__(self,
-               provision_info=None,  # type: Optional[beam_provision_api_pb2.ProvisionInfo]
+               provision_info: Optional[beam_provision_api_pb2.ProvisionInfo] = None,
                artifact_staging_dir=None,
-               job_name=None,  # type: Optional[str]
+               job_name: Optional[str] = None,
               ):
     self.provision_info = (
         provision_info or beam_provision_api_pb2.ProvisionInfo())
@@ -698,7 +689,7 @@ class BundleManager(object):
   _lock = threading.Lock()
 
   def __init__(self,
-               bundle_context_manager,  # type: execution.BundleContextManager
+               bundle_context_manager: execution.BundleContextManager,
                progress_frequency=None,
                cache_token_generator=FnApiRunner.get_cache_token_generator()
               ):
@@ -707,17 +698,16 @@ class BundleManager(object):
     Args:
       progress_frequency
     """
-    self.bundle_context_manager = bundle_context_manager  # type: execution.BundleContextManager
+    self.bundle_context_manager: execution.BundleContextManager = bundle_context_manager
     self._progress_frequency = progress_frequency
-    self._worker_handler = None  # type: Optional[execution.WorkerHandler]
+    self._worker_handler: Optional[execution.WorkerHandler] = None
     self._cache_token_generator = cache_token_generator
 
   def _send_input_to_worker(self,
-                            process_bundle_id,  # type: str
-                            read_transform_id,  # type: str
+                            process_bundle_id: str,
+                            read_transform_id: str,
                             byte_streams
-                           ):
-    # type: (...) -> None
+                           ) -> None:
     assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
@@ -751,10 +741,9 @@ class BundleManager(object):
 
   def _generate_splits_for_testing(self,
                                    split_manager,
-                                   inputs,  # type: Mapping[str, PartitionableBuffer]
-                                   process_bundle_id):
-    # type: (...) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]
-    split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
+                                   inputs: Mapping[str, PartitionableBuffer],
+                                   process_bundle_id) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]:
+    split_results: List[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
     read_transform_id, buffer_data = only_element(inputs.items())
     byte_stream = b''.join(buffer_data)
     num_elements = len(
@@ -790,8 +779,8 @@ class BundleManager(object):
                         fraction_of_remainder=split_fraction,
                         estimated_input_elements=num_elements)
                 }))
-        split_response = self._worker_handler.control_conn.push(
-            split_request).get()  # type: beam_fn_api_pb2.InstructionResponse
+        split_response: beam_fn_api_pb2.InstructionResponse = self._worker_handler.control_conn.push(
+            split_request).get()
         for t in (0.05, 0.1, 0.2):
           waiting = ('Instruction not running', 'not yet scheduled')
           if any(msg in split_response.error for msg in waiting):
@@ -813,13 +802,12 @@ class BundleManager(object):
     return split_results
 
   def process_bundle(self,
-                     inputs,  # type: Mapping[str, execution.PartitionableBuffer]
-                     expected_outputs,  # type: DataOutput
-                     fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
-                     expected_output_timers,  # type: Dict[Tuple[str, str], str]
+                     inputs: Mapping[str, execution.PartitionableBuffer],
+                     expected_outputs: DataOutput,
+                     fired_timers: Mapping[Tuple[str, str], execution.PartitionableBuffer],
+                     expected_output_timers: Dict[Tuple[str, str], str],
                      dry_run=False,
-                    ):
-    # type: (...) -> BundleProcessResult
+                    ) -> BundleProcessResult:
     # Unique id for the instruction processing this bundle.
     with BundleManager._lock:
       BundleManager._uid_counter += 1
@@ -851,7 +839,7 @@ class BundleManager(object):
             cache_tokens=[next(self._cache_token_generator)]))
     result_future = self._worker_handler.control_conn.push(process_bundle_req)
 
-    split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
+    split_results: List[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
     with ProgressRequester(self._worker_handler,
                            process_bundle_id,
                            self._progress_frequency):
@@ -885,7 +873,7 @@ class BundleManager(object):
                 output.transform_id).append(output.data)
 
       _LOGGER.debug('Wait for the bundle %s to finish.' % process_bundle_id)
-      result = result_future.get()  # type: beam_fn_api_pb2.InstructionResponse
+      result: beam_fn_api_pb2.InstructionResponse = result_future.get()
 
     if result.error:
       raise RuntimeError(result.error)
@@ -903,11 +891,10 @@ class ParallelBundleManager(BundleManager):
 
   def __init__(
       self,
-      bundle_context_manager,  # type: execution.BundleContextManager
+      bundle_context_manager: execution.BundleContextManager,
       progress_frequency=None,
       cache_token_generator=None,
-      **kwargs):
-    # type: (...) -> None
+      **kwargs) -> None:
     super(ParallelBundleManager, self).__init__(
         bundle_context_manager,
         progress_frequency,
@@ -915,15 +902,14 @@ class ParallelBundleManager(BundleManager):
     self._num_workers = bundle_context_manager.num_workers
 
   def process_bundle(self,
-                     inputs,  # type: Mapping[str, execution.PartitionableBuffer]
-                     expected_outputs,  # type: DataOutput
-                     fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
-                     expected_output_timers,  # type: Dict[Tuple[str, str], str]
+                     inputs: Mapping[str, execution.PartitionableBuffer],
+                     expected_outputs: DataOutput,
+                     fired_timers: Mapping[Tuple[str, str], execution.PartitionableBuffer],
+                     expected_output_timers: Dict[Tuple[str, str], str],
                      dry_run=False,
-                    ):
-    # type: (...) -> BundleProcessResult
-    part_inputs = [{} for _ in range(self._num_workers)
-                   ]  # type: List[Dict[str, List[bytes]]]
+                    ) -> BundleProcessResult:
+    part_inputs: List[Dict[str, List[bytes]]] = [{} for _ in range(self._num_workers)
+                   ]
     # Timers are only executed on the first worker
     # TODO(BEAM-9741): Split timers to multiple workers
     timer_inputs = [
@@ -933,12 +919,11 @@ class ParallelBundleManager(BundleManager):
       for ix, part in enumerate(input.partition(self._num_workers)):
         part_inputs[ix][name] = part
 
-    merged_result = None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
-    split_result_list = [
-    ]  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
+    merged_result: Optional[beam_fn_api_pb2.InstructionResponse] = None
+    split_result_list: List[beam_fn_api_pb2.ProcessBundleSplitResponse] = [
+    ]
 
-    def execute(part_map_input_timers):
-      # type: (...) -> BundleProcessResult
+    def execute(part_map_input_timers) -> BundleProcessResult:
       part_map, input_timers = part_map_input_timers
       bundle_manager = BundleManager(
           self.bundle_context_manager,
@@ -976,12 +961,11 @@ class ProgressRequester(threading.Thread):
   """
 
   def __init__(self,
-               worker_handler,  # type: WorkerHandler
+               worker_handler: WorkerHandler,
                instruction_id,
                frequency,
                callback=None
-              ):
-    # type: (...) -> None
+              ) -> None:
     super(ProgressRequester, self).__init__()
     self._worker_handler = worker_handler
     self._instruction_id = instruction_id
@@ -1058,8 +1042,7 @@ class FnApiMetrics(metric.MetricResults):
         self.GAUGES: gauges
     }
 
-  def monitoring_infos(self):
-    # type: () -> List[metrics_pb2.MonitoringInfo]
+  def monitoring_infos(self) -> List[metrics_pb2.MonitoringInfo]:
     return [
         item for sublist in self._monitoring_infos.values() for item in sublist
     ]

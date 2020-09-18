@@ -109,8 +109,7 @@ class Profile(object):
     filesystems.FileSystems.rename([dest + '.tmp'], [dest])
 
   @staticmethod
-  def factory_from_options(options):
-    # type: (...) -> Optional[Callable[..., Profile]]
+  def factory_from_options(options) -> Optional[Callable[..., Profile]]:
     if options.profile_cpu:
 
       def create_profiler(profile_id, **kwargs):

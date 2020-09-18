@@ -134,7 +134,7 @@ class SideInputReadCounter(TransformIOCounter):
 
   def __init__(self,
                counter_factory,
-               state_sampler,  # type: StateSampler
+               state_sampler: StateSampler,
                declaring_step,
                input_index
               ):
@@ -190,7 +190,7 @@ class OperationCounters(object):
   def __init__(
       self,
       counter_factory,
-      step_name,  # type: str
+      step_name: str,
       coder,
       index,
       suffix='out',
@@ -202,14 +202,13 @@ class OperationCounters(object):
         '%s-%s%s-MeanByteCount' % (step_name, suffix, index),
         Counter.BEAM_DISTRIBUTION)
     self.coder_impl = coder.get_impl() if coder else None
-    self.active_accumulator = None  # type: Optional[SumAccumulator]
-    self.current_size = None  # type: Optional[int]
+    self.active_accumulator: Optional[SumAccumulator] = None
+    self.current_size: Optional[int] = None
     self._sample_counter = 0
     self._next_sample = 0
     self.output_type_constraints = producer_type_hints or {}
 
-  def update_from(self, windowed_value):
-    # type: (windowed_value.WindowedValue) -> None
+  def update_from(self, windowed_value: windowed_value.WindowedValue) -> None:
 
     """Add one value to this counter."""
     if self._should_sample():
@@ -230,8 +229,7 @@ class OperationCounters(object):
 
     return _observable_callback_inner
 
-  def type_check(self, value):
-    # type: (any, bool) -> None
+  def type_check(self: any, value: bool) -> None:
     for transform_label, type_constraint_tuple in (
             self.output_type_constraints.items()):
       parameter_name, constraint = type_constraint_tuple
@@ -246,8 +244,7 @@ class OperationCounters(object):
             '%s' % (transform_label, e))
         raise_with_traceback(TypeCheckError(error_msg))
 
-  def do_sample(self, windowed_value):
-    # type: (windowed_value.WindowedValue) -> None
+  def do_sample(self, windowed_value: windowed_value.WindowedValue) -> None:
     self.type_check(windowed_value.value)
 
     size, observables = (

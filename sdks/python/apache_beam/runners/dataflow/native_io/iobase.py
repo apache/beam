@@ -70,7 +70,7 @@ class NativeSource(iobase.SourceBase):
 
   This class is deprecated and should not be used to define new sources.
   """
-  coder = None  # type: Optional[coders.Coder]
+  coder: Optional[coders.Coder] = None
 
   def reader(self):
     """Returns a NativeSourceReader instance associated with this source."""

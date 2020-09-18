@@ -81,15 +81,14 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     self._staging_dir = staging_dir or tempfile.mkdtemp()
     self._artifact_service = artifact_service.ArtifactStagingService(
         artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
-    self._artifact_staging_endpoint = None  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
+    self._artifact_staging_endpoint: Optional[endpoints_pb2.ApiServiceDescriptor] = None
 
   def create_beam_job(self,
                       preparation_id,  # stype: str
-                      job_name,  # type: str
-                      pipeline,  # type: beam_runner_api_pb2.Pipeline
-                      options  # type: struct_pb2.Struct
-                     ):
-    # type: (...) -> BeamJob
+                      job_name: str,
+                      pipeline: beam_runner_api_pb2.Pipeline,
+                      options: struct_pb2.Struct
+                     ) -> BeamJob:
     self._artifact_service.register_job(
         staging_token=preparation_id,
         dependency_sets={
@@ -175,7 +174,7 @@ class SubprocessSdkWorker(object):
     """
   def __init__(
       self,
-      worker_command_line,  # type: bytes
+      worker_command_line: bytes,
       control_address,
       worker_id=None):
     self._worker_command_line = worker_command_line
@@ -224,19 +223,19 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     """
 
   def __init__(self,
-               job_id,  # type: str
+               job_id: str,
                pipeline,
                options,
-               provision_info,  # type: fn_runner.ExtendedProvisionInfo
-               artifact_staging_endpoint,  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
-               artifact_service,  # type: artifact_service.ArtifactStagingService
+               provision_info: fn_runner.ExtendedProvisionInfo,
+               artifact_staging_endpoint: Optional[endpoints_pb2.ApiServiceDescriptor],
+               artifact_service: artifact_service.ArtifactStagingService,
               ):
     super(BeamJob,
           self).__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._artifact_service = artifact_service
-    self._state_queues = []  # type: List[queue.Queue]
+    self._state_queues: List[queue.Queue] = []
     self._log_queues = JobLogQueues()
     self.daemon = True
     self.result = None
@@ -340,7 +339,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 class JobLogQueues(object):
   def __init__(self):
-    self._queues = []  # type: List[queue.Queue]
+    self._queues: List[queue.Queue] = []
     self._cache = []
     self._cache_size = 10
     self._lock = threading.Lock()

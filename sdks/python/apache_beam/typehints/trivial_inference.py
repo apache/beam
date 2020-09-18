@@ -517,7 +517,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           # stack[-has_kwargs]: Map of keyword args.
           # stack[-1 - has_kwargs]: Iterable of positional args.
           # stack[-2 - has_kwargs]: Function to call.
-          has_kwargs = arg & 1  # type: int
+          has_kwargs: int = arg & 1
           pop_count = has_kwargs + 2
           if has_kwargs:
             # TODO(udim): Unimplemented. Requires same functionality as a

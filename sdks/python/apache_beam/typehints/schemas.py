@@ -334,15 +334,13 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
   _known_logical_types = LogicalTypeRegistry()
 
   @classmethod
-  def urn(cls):
-    # type: () -> unicode
+  def urn(cls) -> unicode:
 
     """Return the URN used to identify this logical type"""
     raise NotImplementedError()
 
   @classmethod
-  def language_type(cls):
-    # type: () -> type
+  def language_type(cls) -> type:
 
     """Return the language type this LogicalType encodes.
 
@@ -350,8 +348,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     raise NotImplementedError()
 
   @classmethod
-  def representation_type(cls):
-    # type: () -> type
+  def representation_type(cls) -> type:
 
     """Return the type of the representation this LogicalType uses to encode the
     language type.
@@ -360,28 +357,24 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     raise NotImplementedError()
 
   @classmethod
-  def argument_type(cls):
-    # type: () -> type
+  def argument_type(cls) -> type:
 
     """Return the type of the argument used for variations of this LogicalType.
 
     The returned type should match ArgT"""
     raise NotImplementedError(cls)
 
-  def argument(self):
-    # type: () -> ArgT
+  def argument(self) -> ArgT:
 
     """Return the argument for this instance of the LogicalType."""
     raise NotImplementedError()
 
-  def to_representation_type(value):
-    # type: (LanguageT) -> RepresentationT
+  def to_representation_type(value: LanguageT) -> RepresentationT:
 
     """Convert an instance of LanguageT to RepresentationT."""
     raise NotImplementedError()
 
-  def to_language_type(value):
-    # type: (RepresentationT) -> LanguageT
+  def to_language_type(value: RepresentationT) -> LanguageT:
 
     """Convert an instance of RepresentationT to LanguageT."""
     raise NotImplementedError()
@@ -392,8 +385,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     cls._known_logical_types.add(logical_type_cls.urn(), logical_type_cls)
 
   @classmethod
-  def from_typing(cls, typ):
-    # type: (type) -> LogicalType
+  def from_typing(cls, typ: type) -> LogicalType:
 
     """Construct an instance of a registered LogicalType implementation given a
     typing.
@@ -409,16 +401,14 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     return logical_type._from_typing(typ)
 
   @classmethod
-  def _from_typing(cls, typ):
-    # type: (type) -> LogicalType
+  def _from_typing(cls, typ: type) -> LogicalType:
 
     """Construct an instance of this LogicalType implementation given a typing.
     """
     raise NotImplementedError()
 
   @classmethod
-  def from_runner_api(cls, logical_type_proto):
-    # type: (schema_pb2.LogicalType) -> LogicalType
+  def from_runner_api(cls, logical_type_proto: schema_pb2.LogicalType) -> LogicalType:
 
     """Construct an instance of a registered LogicalType implementation given a
     proto LogicalType.
@@ -436,17 +426,14 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
 class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
   @classmethod
-  def argument_type(cls):
-    # type: () -> type
+  def argument_type(cls) -> type:
     return None
 
-  def argument(self):
-    # type: () -> ArgT
+  def argument(self) -> ArgT:
     return None
 
   @classmethod
-  def _from_typing(cls, typ):
-    # type: (type) -> LogicalType
+  def _from_typing(cls, typ: type) -> LogicalType:
 
     # Since there's no argument, there can be no additional information encoded
     # in the typing. Just construct an instance.
@@ -466,19 +453,16 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
     return "beam:logical_type:micros_instant:v1"
 
   @classmethod
-  def representation_type(cls):
-    # type: () -> type
+  def representation_type(cls) -> type:
     return MicrosInstantRepresentation
 
   @classmethod
   def language_type(cls):
     return Timestamp
 
-  def to_representation_type(self, value):
-    # type: (Timestamp) -> MicrosInstantRepresentation
+  def to_representation_type(self, value: Timestamp) -> MicrosInstantRepresentation:
     return MicrosInstantRepresentation(
         value.micros // 1000000, value.micros % 1000000)
 
-  def to_language_type(self, value):
-    # type: (MicrosInstantRepresentation) -> Timestamp
+  def to_language_type(self, value: MicrosInstantRepresentation) -> Timestamp:
     return Timestamp(seconds=int(value.seconds), micros=int(value.micros))

@@ -1677,7 +1677,7 @@ class ElementCounter(object):
     return _unpickle_element_counter, (name, )
 
 
-_pickled_element_counters = {}  # type: Dict[str, ElementCounter]
+_pickled_element_counters: Dict[str, ElementCounter] = {}
 
 
 def _unpickle_element_counter(name):

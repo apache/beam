@@ -72,7 +72,7 @@ class _ExecutorService(object):
 
     def __init__(
         self,
-        queue,  # type: queue.Queue[_ExecutorService.CallableTask]
+        queue: queue.Queue[_ExecutorService.CallableTask],
         index):
       super(_ExecutorService._ExecutorServiceWorker, self).__init__()
       self.queue = queue
@@ -93,8 +93,7 @@ class _ExecutorService(object):
       self.name = 'Thread: %d, %s (%s)' % (
           self._index, name, 'executing' if task else 'idle')
 
-    def _get_task_or_none(self):
-      # type: () -> Optional[_ExecutorService.CallableTask]
+    def _get_task_or_none(self) -> Optional[_ExecutorService.CallableTask]:
       try:
         # Do not block indefinitely, otherwise we may not act for a requested
         # shutdown.
@@ -121,16 +120,15 @@ class _ExecutorService(object):
       self.shutdown_requested = True
 
   def __init__(self, num_workers):
-    self.queue = queue.Queue(
-    )  # type: queue.Queue[_ExecutorService.CallableTask]
+    self.queue: queue.Queue[_ExecutorService.CallableTask] = queue.Queue(
+    )
     self.workers = [
         _ExecutorService._ExecutorServiceWorker(self.queue, i)
         for i in range(num_workers)
     ]
     self.shutdown_requested = False
 
-  def submit(self, task):
-    # type: (_ExecutorService.CallableTask) -> None
+  def submit(self, task: _ExecutorService.CallableTask) -> None:
     assert isinstance(task, _ExecutorService.CallableTask)
     if not self.shutdown_requested:
       self.queue.put(task)
@@ -160,7 +158,7 @@ class _TransformEvaluationState(object):
   def __init__(
       self,
       executor_service,
-      scheduled  # type: Set[TransformExecutor]
+      scheduled: Set[TransformExecutor]
   ):
     self.executor_service = executor_service
     self.scheduled = scheduled
@@ -226,21 +224,18 @@ class _TransformExecutorServices(object):
   Controls the concurrency as appropriate for the applied transform the executor
   exists for.
   """
-  def __init__(self, executor_service):
-    # type: (_ExecutorService) -> None
+  def __init__(self, executor_service: _ExecutorService) -> None:
     self._executor_service = executor_service
-    self._scheduled = set()  # type: Set[TransformExecutor]
+    self._scheduled: Set[TransformExecutor] = set()
     self._parallel = _ParallelEvaluationState(
         self._executor_service, self._scheduled)
-    self._serial_cache = WeakValueDictionary(
-    )  # type: WeakValueDictionary[Any, _SerialEvaluationState]
+    self._serial_cache: WeakValueDictionary[Any, _SerialEvaluationState] = WeakValueDictionary(
+    )
 
-  def parallel(self):
-    # type: () -> _ParallelEvaluationState
+  def parallel(self) -> _ParallelEvaluationState:
     return self._parallel
 
-  def serial(self, step):
-    # type: (Any) -> _SerialEvaluationState
+  def serial(self, step: Any) -> _SerialEvaluationState:
     cached = self._serial_cache.get(step)
     if not cached:
       cached = _SerialEvaluationState(self._executor_service, self._scheduled)
@@ -248,8 +243,7 @@ class _TransformExecutorServices(object):
     return cached
 
   @property
-  def executors(self):
-    # type: () -> FrozenSet[TransformExecutor]
+  def executors(self) -> FrozenSet[TransformExecutor]:
     return frozenset(self._scheduled)
 
 
@@ -262,7 +256,7 @@ class _CompletionCallback(object):
   """
 
   def __init__(self,
-               evaluation_context,  # type: EvaluationContext
+               evaluation_context: EvaluationContext,
                all_updates,
                timer_firings=None
               ):
@@ -303,13 +297,13 @@ class TransformExecutor(_ExecutorService.CallableTask):
   _MAX_RETRY_PER_BUNDLE = 4
 
   def __init__(self,
-               transform_evaluator_registry,  # type: TransformEvaluatorRegistry
-               evaluation_context,  # type: EvaluationContext
-               input_bundle,  # type: _Bundle
+               transform_evaluator_registry: TransformEvaluatorRegistry,
+               evaluation_context: EvaluationContext,
+               input_bundle: _Bundle,
                fired_timers,
                applied_ptransform,
                completion_callback,
-               transform_evaluation_state  # type: _TransformEvaluationState
+               transform_evaluation_state: _TransformEvaluationState
               ):
     self._transform_evaluator_registry = transform_evaluator_registry
     self._evaluation_context = evaluation_context
@@ -326,7 +320,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._applied_ptransform = applied_ptransform
     self._completion_callback = completion_callback
     self._transform_evaluation_state = transform_evaluation_state
-    self._side_input_values = {}  # type: Dict[pvalue.AsSideInput, Any]
+    self._side_input_values: Dict[pvalue.AsSideInput, Any] = {}
     self.blocked = False
     self._call_count = 0
     self._retry_count = 0
@@ -451,7 +445,7 @@ class _ExecutorServiceParallelExecutor(object):
       self,
       value_to_consumers,
       transform_evaluator_registry,
-      evaluation_context  # type: EvaluationContext
+      evaluation_context: EvaluationContext
   ):
     self.executor_service = _ExecutorService(
         _ExecutorServiceParallelExecutor.NUM_WORKERS)
@@ -495,8 +489,7 @@ class _ExecutorServiceParallelExecutor(object):
     self.executor_service.await_completion()
     self.evaluation_context.shutdown()
 
-  def schedule_consumers(self, committed_bundle):
-    # type: (_Bundle) -> None
+  def schedule_consumers(self, committed_bundle: _Bundle) -> None:
     if committed_bundle.pcollection in self.value_to_consumers:
       consumers = self.value_to_consumers[committed_bundle.pcollection]
       for applied_ptransform in consumers:
@@ -510,7 +503,7 @@ class _ExecutorServiceParallelExecutor(object):
 
   def schedule_consumption(self,
                            consumer_applied_ptransform,
-                           committed_bundle,  # type: _Bundle
+                           committed_bundle: _Bundle,
                            fired_timers,
                            on_complete
                           ):
@@ -520,8 +513,8 @@ class _ExecutorServiceParallelExecutor(object):
     assert on_complete
     if self.transform_evaluator_registry.should_execute_serially(
         consumer_applied_ptransform):
-      transform_executor_service = self.transform_executor_services.serial(
-          consumer_applied_ptransform)  # type: _TransformEvaluationState
+      transform_executor_service: _TransformEvaluationState = self.transform_executor_services.serial(
+          consumer_applied_ptransform)
     else:
       transform_executor_service = self.transform_executor_services.parallel()
 
@@ -600,8 +593,7 @@ class _ExecutorServiceParallelExecutor(object):
 
   class _MonitorTask(_ExecutorService.CallableTask):
     """MonitorTask continuously runs to ensure that pipeline makes progress."""
-    def __init__(self, executor):
-      # type: (_ExecutorServiceParallelExecutor) -> None
+    def __init__(self, executor: _ExecutorServiceParallelExecutor) -> None:
       self._executor = executor
 
     @property
@@ -638,8 +630,7 @@ class _ExecutorServiceParallelExecutor(object):
         if not self._should_shutdown():
           self._executor.executor_service.submit(self)
 
-    def _should_shutdown(self):
-      # type: () -> bool
+    def _should_shutdown(self) -> bool:
 
       """Checks whether the pipeline is completed and should be shut down.
 
@@ -704,8 +695,7 @@ class _ExecutorServiceParallelExecutor(object):
             timer_completion_callback)
       return bool(transform_fired_timers)
 
-    def _is_executing(self):
-      # type: () -> bool
+    def _is_executing(self) -> bool:
 
       """Checks whether the job is still executing.
 

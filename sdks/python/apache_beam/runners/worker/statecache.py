@@ -40,7 +40,7 @@ class Metrics(object):
   """Metrics container for state cache metrics."""
 
   # A set of all registered metrics
-  ALL_METRICS = set()  # type: Set[Hashable]
+  ALL_METRICS: Set[Hashable] = set()
   PREFIX = "beam:metric:statecache:"
 
   def __init__(self):
@@ -51,15 +51,13 @@ class Metrics(object):
     """
     if hasattr(self._context, 'metrics'):
       return  # Already initialized
-    self._context.metrics = collections.defaultdict(
-        int)  # type: DefaultDict[Hashable, int]
+    self._context.metrics: DefaultDict[Hashable, int] = collections.defaultdict(
+        int)
 
-  def count(self, name):
-    # type: (str) -> None
+  def count(self, name: str) -> None:
     self._context.metrics[name] += 1
 
-  def hit_miss(self, total_name, hit_miss_name):
-    # type: (str, str) -> None
+  def hit_miss(self, total_name: str, hit_miss_name: str) -> None:
     self._context.metrics[total_name] += 1
     self._context.metrics[hit_miss_name] += 1
 
@@ -93,8 +91,7 @@ class Metrics(object):
     return gauges + counters
 
   @staticmethod
-  def counter_hit_miss(total_name, hit_name, miss_name):
-    # type: (str, str, str) -> Callable[[CallableT], CallableT]
+  def counter_hit_miss(total_name: str, hit_name: str, miss_name: str) -> Callable[[CallableT], CallableT]:
 
     """Decorator for counting function calls and whether
        the return value equals None (=miss) or not (=hit)."""
@@ -114,8 +111,7 @@ class Metrics(object):
     return decorator
 
   @staticmethod
-  def counter(metric_name):
-    # type: (str) -> Callable[[CallableT], CallableT]
+  def counter(metric_name: str) -> Callable[[CallableT], CallableT]:
 
     """Decorator for counting function calls."""
     Metrics.ALL_METRICS.add(metric_name)

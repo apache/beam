@@ -700,8 +700,7 @@ class Reshuffle(PTransform):
 
   Reshuffle is experimental. No backwards compatibility guarantees.
   """
-  def expand(self, pcoll):
-    # type: (pvalue.PValue) -> pvalue.PCollection
+  def expand(self, pcoll: pvalue.PValue) -> pvalue.PCollection:
     if sys.version_info >= (3, ):
       KeyedT = Tuple[int, T]
     else:
@@ -715,8 +714,7 @@ class Reshuffle(PTransform):
             KeyedT).with_output_types(T)  # type: ignore[misc]
     )
 
-  def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> Tuple[str, None]
+  def to_runner_api_parameter(self, unused_context: PipelineContext) -> Tuple[str, None]:
     return common_urns.composites.RESHUFFLE.urn, None
 
   @staticmethod

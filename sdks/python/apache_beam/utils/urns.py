@@ -65,7 +65,7 @@ class RunnerApiFn(object):
   # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
-  _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
+  _known_urns: Dict[str, Tuple[Optional[type], ConstructorFn]] = {}
 
   # @abc.abstractmethod is disabled here to avoid an error with mypy. mypy
   # performs abc.abtractmethod/property checks even if a class does
@@ -74,8 +74,7 @@ class RunnerApiFn(object):
   # mypy incorrectly infers that this method has not been overridden with a
   # concrete implementation.
   # @abc.abstractmethod
-  def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> Tuple[str, Any]
+  def to_runner_api_parameter(self, unused_context: PipelineContext) -> Tuple[str, Any]:
 
     """Returns the urn and payload for this Fn.
 
@@ -87,40 +86,36 @@ class RunnerApiFn(object):
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: Type[T]
-  ):
-    # type: (...) -> Callable[[Callable[[T, PipelineContext], Any]], Callable[[T, PipelineContext], Any]]
+      urn: str,
+      parameter_type: Type[T],
+  ) -> Callable[[Callable[[T, PipelineContext], Any]], Callable[[T, PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: None
-  ):
-    # type: (...) -> Callable[[Callable[[bytes, PipelineContext], Any]], Callable[[bytes, PipelineContext], Any]]
+      urn: str,
+      parameter_type: None,
+  ) -> Callable[[Callable[[bytes, PipelineContext], Any]], Callable[[bytes, PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
   def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Type[T]
-                   fn  # type: Callable[[T, PipelineContext], Any]
-                  ):
-    # type: (...) -> None
+                   urn: str,
+                   parameter_type: Type[T],
+                   fn: Callable[[T, PipelineContext], Any]
+                  ) -> None:
     pass
 
   @classmethod
   @overload
   def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                   fn  # type: Callable[[bytes, PipelineContext], Any]
-                  ):
-    # type: (...) -> None
+                   urn: str,
+                   parameter_type: None,
+                   fn: Callable[[bytes, PipelineContext], Any]
+                  ) -> None:
     pass
 
   @classmethod
@@ -161,8 +156,7 @@ class RunnerApiFn(object):
         lambda proto,
         unused_context: pickler.loads(proto.value))
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.FunctionSpec
+  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.FunctionSpec:
 
     """Returns an FunctionSpec encoding this Fn.
 
@@ -176,8 +170,7 @@ class RunnerApiFn(object):
             typed_param, message.Message) else typed_param)
 
   @classmethod
-  def from_runner_api(cls, fn_proto, context):
-    # type: (beam_runner_api_pb2.FunctionSpec, PipelineContext) -> Any
+  def from_runner_api(cls, fn_proto: beam_runner_api_pb2.FunctionSpec, context: PipelineContext) -> Any:
 
     """Converts from an FunctionSpec to a Fn object.
 

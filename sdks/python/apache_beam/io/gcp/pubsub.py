@@ -94,8 +94,7 @@ class PubsubMessage(object):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 
   @staticmethod
-  def _from_proto_str(proto_msg):
-    # type: (bytes) -> PubsubMessage
+  def _from_proto_str(proto_msg: bytes) -> PubsubMessage:
 
     """Construct from serialized form of ``PubsubMessage``.
 
@@ -130,8 +129,7 @@ class PubsubMessage(object):
     return msg.SerializeToString()
 
   @staticmethod
-  def _from_message(msg):
-    # type: (Any) -> PubsubMessage
+  def _from_message(msg: Any) -> PubsubMessage:
 
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
@@ -149,13 +147,12 @@ class ReadFromPubSub(PTransform):
 
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None
+  ) -> None:
 
     """Initializes ``ReadFromPubSub``.
 
@@ -286,12 +283,11 @@ class WriteToPubSub(PTransform):
 
   def __init__(
       self,
-      topic,  # type: str
-      with_attributes=False,  # type: bool
-      id_label=None,  # type: Optional[str]
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
+      topic: str,
+      with_attributes: bool = False,
+      id_label: Optional[str] = None,
+      timestamp_attribute: Optional[str] = None
+  ) -> None:
 
     """Initializes ``WriteToPubSub``.
 
@@ -315,8 +311,7 @@ class WriteToPubSub(PTransform):
         topic, id_label, with_attributes, timestamp_attribute)
 
   @staticmethod
-  def to_proto_str(element):
-    # type: (PubsubMessage) -> bytes
+  def to_proto_str(element: PubsubMessage) -> bytes:
     if not isinstance(element, PubsubMessage):
       raise TypeError(
           'Unexpected element. Type: %s (expected: PubsubMessage), '
@@ -401,11 +396,11 @@ class _PubSubSource(dataflow_io.NativeSource):
   """
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None
   ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
@@ -461,10 +456,10 @@ class _PubSubSink(dataflow_io.NativeSink):
   """
   def __init__(
       self,
-      topic,  # type: str
-      id_label,  # type: Optional[str]
-      with_attributes,  # type: bool
-      timestamp_attribute  # type: Optional[str]
+      topic: str,
+      id_label: Optional[str],
+      with_attributes: bool,
+      timestamp_attribute: Optional[str]
   ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic

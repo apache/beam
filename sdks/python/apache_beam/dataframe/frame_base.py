@@ -46,7 +46,7 @@ else:
 
 class DeferredBase(object):
 
-  _pandas_type_map = {}  # type: Dict[Union[type, None], type]
+  _pandas_type_map: Dict[Union[type, None], type] = {}
 
   def __init__(self, expr):
     self._expr = expr
@@ -155,12 +155,12 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
 
 
 def _proxy_function(
-      func,  # type: Union[Callable, str]
-      name=None,  # type: Optional[str]
-      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
-      inplace=False,  # type: bool
-      requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+      func: Union[Callable, str],
+      name: Optional[str] = None,
+      restrictions: Optional[Dict[str, Union[Any, List[Any]]]] = None,
+      inplace: bool = False,
+      requires_partition_by: partitionings.Partitioning = partitionings.Singleton(),
+      preserves_partition_by: partitionings.Partitioning = partitionings.Nothing(),
 ):
 
   if name is None:

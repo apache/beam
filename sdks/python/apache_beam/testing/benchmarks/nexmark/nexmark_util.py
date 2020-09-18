@@ -222,14 +222,12 @@ def unnest_to_json(cand):
     return cand
 
 
-def millis_to_timestamp(millis):
-  # type: (int) -> Timestamp
+def millis_to_timestamp(millis: int) -> Timestamp:
   micro_second = millis * 1000
   return Timestamp(micros=micro_second)
 
 
-def get_counter_metric(result, namespace, name):
-  # type: (PipelineResult, str, str) -> int
+def get_counter_metric(result: PipelineResult, namespace: str, name: str) -> int:
 
   """
   get specific counter metric from pipeline result
@@ -252,8 +250,7 @@ def get_counter_metric(result, namespace, name):
   return counters[0].result if len(counters) > 0 else -1
 
 
-def get_start_time_metric(result, namespace, name):
-  # type: (PipelineResult, str, str) -> int
+def get_start_time_metric(result: PipelineResult, namespace: str, name: str) -> int:
 
   """
   get the start time out of all times recorded by the specified distribution
@@ -274,8 +271,7 @@ def get_start_time_metric(result, namespace, name):
   return min(min_list) if len(min_list) > 0 else -1
 
 
-def get_end_time_metric(result, namespace, name):
-  # type: (PipelineResult, str, str) -> int
+def get_end_time_metric(result: PipelineResult, namespace: str, name: str) -> int:
 
   """
   get the end time out of all times recorded by the specified distribution

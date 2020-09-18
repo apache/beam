@@ -46,16 +46,14 @@ class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: i
   """
   @classmethod
   @abc.abstractmethod
-  def option(cls):
-    # type: () -> str
+  def option(cls) -> str:
 
     """The corresponding rendering option for the renderer.
     """
     raise NotImplementedError
 
   @abc.abstractmethod
-  def render_pipeline_graph(self, pipeline_graph):
-    # type: (PipelineGraph) -> str
+  def render_pipeline_graph(self, pipeline_graph: PipelineGraph) -> str:
 
     """Renders the pipeline graph in HTML-compatible format.
 
@@ -72,12 +70,10 @@ class MuteRenderer(PipelineGraphRenderer):
   """Use this renderer to mute the pipeline display.
   """
   @classmethod
-  def option(cls):
-    # type: () -> str
+  def option(cls) -> str:
     return 'mute'
 
-  def render_pipeline_graph(self, pipeline_graph):
-    # type: (PipelineGraph) -> str
+  def render_pipeline_graph(self, pipeline_graph: PipelineGraph) -> str:
     return ''
 
 
@@ -85,12 +81,10 @@ class TextRenderer(PipelineGraphRenderer):
   """This renderer simply returns the dot representation in text format.
   """
   @classmethod
-  def option(cls):
-    # type: () -> str
+  def option(cls) -> str:
     return 'text'
 
-  def render_pipeline_graph(self, pipeline_graph):
-    # type: (PipelineGraph) -> str
+  def render_pipeline_graph(self, pipeline_graph: PipelineGraph) -> str:
     return pipeline_graph.get_dot()
 
 
@@ -102,17 +96,14 @@ class PydotRenderer(PipelineGraphRenderer):
     2. The python module pydot: https://pypi.org/project/pydot/
   """
   @classmethod
-  def option(cls):
-    # type: () -> str
+  def option(cls) -> str:
     return 'graph'
 
-  def render_pipeline_graph(self, pipeline_graph):
-    # type: (PipelineGraph) -> str
+  def render_pipeline_graph(self, pipeline_graph: PipelineGraph) -> str:
     return pipeline_graph._get_graph().create_svg().decode("utf-8")  # pylint: disable=protected-access
 
 
-def get_renderer(option=None):
-  # type: (Optional[str]) -> Type[PipelineGraphRenderer]
+def get_renderer(option: Optional[str] = None) -> Type[PipelineGraphRenderer]:
 
   """Get an instance of PipelineGraphRenderer given rendering option.
 

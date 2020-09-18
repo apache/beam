@@ -61,8 +61,7 @@ _SUPPORTED_PLATFORMS = ['Darwin', 'Linux']
 class ScreenDiffIntegrationTestEnvironment(object):
   """A test environment to conduct screen diff integration tests for notebooks.
   """
-  def __init__(self, test_notebook_path, golden_dir, cleanup=True):
-    # type: (str, str, bool) -> None
+  def __init__(self, test_notebook_path: str, golden_dir: str, cleanup: bool = True) -> None:
 
     assert _interactive_integration_ready, (
         '[interactive_test] dependency is not installed.')

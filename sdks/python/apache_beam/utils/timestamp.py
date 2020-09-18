@@ -57,8 +57,7 @@ class Timestamp(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
-  def __init__(self, seconds=0, micros=0):
-    # type: (Union[int, float], Union[int, float]) -> None
+  def __init__(self, seconds: Union[int, float] = 0, micros: Union[int, float] = 0) -> None:
     if not isinstance(seconds, (int, long, float)):
       raise TypeError(
           'Cannot interpret %s %s as seconds.' % (seconds, type(seconds)))
@@ -68,8 +67,7 @@ class Timestamp(object):
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
-  def of(seconds):
-    # type: (TimestampTypes) -> Timestamp
+  def of(seconds: TimestampTypes) -> Timestamp:
 
     """Return the Timestamp for the given number of seconds.
 
@@ -180,18 +178,15 @@ class Timestamp(object):
     return Timestamp(
         seconds=timestamp_proto.seconds, micros=timestamp_proto.nanos // 1000)
 
-  def __float__(self):
-    # type: () -> float
+  def __float__(self) -> float:
     # Note that the returned value may have lost precision.
     return self.micros / 1000000
 
-  def __int__(self):
-    # type: () -> int
+  def __int__(self) -> int:
     # Note that the returned value may have lost precision.
     return self.micros // 1000000
 
-  def __eq__(self, other):
-    # type: (object) -> bool
+  def __eq__(self, other: object) -> bool:
     # Allow comparisons between Duration and Timestamp values.
     if isinstance(other, (Duration, Timestamp)):
       return self.micros == other.micros
@@ -201,50 +196,41 @@ class Timestamp(object):
       # Support equality with other types
       return NotImplemented
 
-  def __ne__(self, other):
-    # type: (Any) -> bool
+  def __ne__(self, other: Any) -> bool:
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
-  def __lt__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __lt__(self, other: TimestampDurationTypes) -> bool:
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
     return self.micros < other.micros
 
-  def __gt__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __gt__(self, other: TimestampDurationTypes) -> bool:
     return not (self < other or self == other)
 
-  def __le__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __le__(self, other: TimestampDurationTypes) -> bool:
     return self < other or self == other
 
-  def __ge__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __ge__(self, other: TimestampDurationTypes) -> bool:
     return not self < other
 
   def __hash__(self):
     return hash(self.micros)
 
-  def __add__(self, other):
-    # type: (DurationTypes) -> Timestamp
+  def __add__(self, other: DurationTypes) -> Timestamp:
     other = Duration.of(other)
     return Timestamp(micros=self.micros + other.micros)
 
-  def __radd__(self, other):
-    # type: (DurationTypes) -> Timestamp
+  def __radd__(self, other: DurationTypes) -> Timestamp:
     return self + other
 
   @overload
-  def __sub__(self, other):
-    # type: (DurationTypes) -> Timestamp
+  def __sub__(self, other: DurationTypes) -> Timestamp:
     pass
 
   @overload
-  def __sub__(self, other):
-    # type: (Timestamp) -> Duration
+  def __sub__(self, other: Timestamp) -> Duration:
     pass
 
   def __sub__(self, other):
@@ -253,8 +239,7 @@ class Timestamp(object):
     other = Duration.of(other)
     return Timestamp(micros=self.micros - other.micros)
 
-  def __mod__(self, other):
-    # type: (DurationTypes) -> Duration
+  def __mod__(self, other: DurationTypes) -> Duration:
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 
@@ -275,13 +260,11 @@ class Duration(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
-  def __init__(self, seconds=0, micros=0):
-    # type: (Union[int, float], Union[int, float]) -> None
+  def __init__(self, seconds: Union[int, float] = 0, micros: Union[int, float] = 0) -> None:
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
-  def of(seconds):
-    # type: (DurationTypes) -> Duration
+  def of(seconds: DurationTypes) -> Duration:
 
     """Return the Duration for the given number of seconds since Unix epoch.
 
@@ -339,13 +322,11 @@ class Duration(object):
       return 'Duration(%s%d.%06d)' % (sign, int_part, frac_part)
     return 'Duration(%s%d)' % (sign, int_part)
 
-  def __float__(self):
-    # type: () -> float
+  def __float__(self) -> float:
     # Note that the returned value may have lost precision.
     return self.micros / 1000000
 
-  def __eq__(self, other):
-    # type: (object) -> bool
+  def __eq__(self, other: object) -> bool:
     # Allow comparisons between Duration and Timestamp values.
     if isinstance(other, (Duration, Timestamp)):
       return self.micros == other.micros
@@ -355,39 +336,32 @@ class Duration(object):
       # Support equality with other types
       return NotImplemented
 
-  def __ne__(self, other):
-    # type: (Any) -> bool
+  def __ne__(self, other: Any) -> bool:
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
-  def __lt__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __lt__(self, other: TimestampDurationTypes) -> bool:
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
     return self.micros < other.micros
 
-  def __gt__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __gt__(self, other: TimestampDurationTypes) -> bool:
     return not (self < other or self == other)
 
-  def __le__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __le__(self, other: TimestampDurationTypes) -> bool:
     return self < other or self == other
 
-  def __ge__(self, other):
-    # type: (TimestampDurationTypes) -> bool
+  def __ge__(self, other: TimestampDurationTypes) -> bool:
     return not self < other
 
   def __hash__(self):
     return hash(self.micros)
 
-  def __neg__(self):
-    # type: () -> Duration
+  def __neg__(self) -> Duration:
     return Duration(micros=-self.micros)
 
-  def __add__(self, other):
-    # type: (DurationTypes) -> Duration
+  def __add__(self, other: DurationTypes) -> Duration:
     if isinstance(other, Timestamp):
       # defer to Timestamp.__add__
       return NotImplemented
@@ -397,24 +371,21 @@ class Duration(object):
   def __radd__(self, other):
     return self + other
 
-  def __sub__(self, other):
-    # type: (DurationTypes) -> Duration
+  def __sub__(self, other: DurationTypes) -> Duration:
     other = Duration.of(other)
     return Duration(micros=self.micros - other.micros)
 
   def __rsub__(self, other):
     return -(self - other)
 
-  def __mul__(self, other):
-    # type: (DurationTypes) -> Duration
+  def __mul__(self, other: DurationTypes) -> Duration:
     other = Duration.of(other)
     return Duration(micros=self.micros * other.micros // 1000000)
 
   def __rmul__(self, other):
     return self * other
 
-  def __mod__(self, other):
-    # type: (DurationTypes) -> Duration
+  def __mod__(self, other: DurationTypes) -> Duration:
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 

@@ -36,10 +36,9 @@ if TYPE_CHECKING:
 
 # TODO: Or should this be called as_dataframe?
 def to_dataframe(
-    pcoll,  # type: pvalue.PCollection
-    proxy=None,  # type: pandas.core.generic.NDFrame
-):
-  # type: (...) -> frame_base.DeferredFrame
+    pcoll: pvalue.PCollection,
+    proxy: pandas.core.generic.NDFrame = None,
+) -> frame_base.DeferredFrame:
 
   """Convers a PCollection to a deferred dataframe-like object, which can
   manipulated with pandas methods like `filter` and `groupby`.
@@ -69,9 +68,8 @@ def to_dataframe(
 
 # TODO: Or should this be called from_dataframe?
 def to_pcollection(
-    *dataframes,  # type: frame_base.DeferredFrame
-    **kwargs):
-  # type: (...) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]
+    *dataframes: frame_base.DeferredFrame,
+    **kwargs) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]:
 
   """Converts one or more deferred dataframe-like objects back to a PCollection.
 
@@ -113,11 +111,11 @@ def to_pcollection(
 
   placeholders = frozenset.union(
       frozenset(), *[df._expr.placeholders() for df in dataframes])
-  results = {p: extract_input(p)
+  results: Dict[Any, pvalue.PCollection] = {p: extract_input(p)
              for p in placeholders
              } | label >> transforms._DataframeExpressionsTransform(
                  dict((ix, df._expr) for ix, df in enumerate(
-                     dataframes)))  # type: Dict[Any, pvalue.PCollection]
+                     dataframes)))
   if len(results) == 1 and not always_return_tuple:
     return results[0]
   else:

@@ -58,8 +58,8 @@ class WatermarkManager(object):
     self._value_to_consumers = value_to_consumers
     self._transform_keyed_states = transform_keyed_states
     # AppliedPTransform -> TransformWatermarks
-    self._transform_to_watermarks = {
-    }  # type: Dict[AppliedPTransform, _TransformWatermarks]
+    self._transform_to_watermarks: Dict[AppliedPTransform, _TransformWatermarks] = {
+    }
 
     for root_transform in root_transforms:
       self._transform_to_watermarks[root_transform] = _TransformWatermarks(
@@ -74,8 +74,7 @@ class WatermarkManager(object):
       for consumer in consumers:
         self._update_input_transform_watermarks(consumer)
 
-  def _update_input_transform_watermarks(self, applied_ptransform):
-    # type: (AppliedPTransform) -> None
+  def _update_input_transform_watermarks(self, applied_ptransform: AppliedPTransform) -> None:
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     input_transform_watermarks = []
     for input_pvalue in applied_ptransform.inputs:
@@ -87,8 +86,7 @@ class WatermarkManager(object):
         applied_ptransform].update_input_transform_watermarks(
             input_transform_watermarks)
 
-  def get_watermarks(self, applied_ptransform):
-    # type: (AppliedPTransform) -> _TransformWatermarks
+  def get_watermarks(self, applied_ptransform: AppliedPTransform) -> _TransformWatermarks:
 
     """Gets the input and output watermarks for an AppliedPTransform.
 
@@ -111,8 +109,8 @@ class WatermarkManager(object):
     return self._transform_to_watermarks[applied_ptransform]
 
   def update_watermarks(self,
-                        completed_committed_bundle,  # type: _Bundle
-                        applied_ptransform,  # type: AppliedPTransform
+                        completed_committed_bundle: _Bundle,
+                        applied_ptransform: AppliedPTransform,
                         completed_timers,
                         outputs,
                         unprocessed_bundles,
@@ -132,10 +130,10 @@ class WatermarkManager(object):
 
   def _update_pending(self,
                       input_committed_bundle,
-                      applied_ptransform,  # type: AppliedPTransform
+                      applied_ptransform: AppliedPTransform,
                       completed_timers,
-                      output_committed_bundles,  # type: Iterable[_Bundle]
-                      unprocessed_bundles  # type: Iterable[_Bundle]
+                      output_committed_bundles: Iterable[_Bundle],
+                      unprocessed_bundles: Iterable[_Bundle]
                      ):
     """Updated list of pending bundles for the given AppliedPTransform."""
 
@@ -182,12 +180,11 @@ class WatermarkManager(object):
               applied_ptransform, tw))
     return unblocked_tasks
 
-  def extract_all_timers(self):
-    # type: () -> Tuple[List[Tuple[AppliedPTransform, List[TimerFiring]]], bool]
+  def extract_all_timers(self) -> Tuple[List[Tuple[AppliedPTransform, List[TimerFiring]]], bool]:
 
     """Extracts fired timers for all transforms
     and reports if there are any timers set."""
-    all_timers = []  # type: List[Tuple[AppliedPTransform, List[TimerFiring]]]
+    all_timers: List[Tuple[AppliedPTransform, List[TimerFiring]]] = []
     has_realtime_timer = False
     for applied_ptransform, tw in self._transform_to_watermarks.items():
       fired_timers, had_realtime_timer = tw.extract_transform_timers()
@@ -206,19 +203,18 @@ class _TransformWatermarks(object):
   def __init__(self, clock, keyed_states, transform):
     self._clock = clock
     self._keyed_states = keyed_states
-    self._input_transform_watermarks = []  # type: List[_TransformWatermarks]
+    self._input_transform_watermarks: List[_TransformWatermarks] = []
     self._input_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._keyed_earliest_holds = {}
     # Scheduled bundles targeted for this transform.
-    self._pending = set()  # type: Set[_Bundle]
+    self._pending: Set[_Bundle] = set()
     self._fired_timers = set()
     self._lock = threading.Lock()
 
     self._label = str(transform)
 
-  def update_input_transform_watermarks(self, input_transform_watermarks):
-    # type: (List[_TransformWatermarks]) -> None
+  def update_input_transform_watermarks(self, input_transform_watermarks: List[_TransformWatermarks]) -> None:
     with self._lock:
       self._input_transform_watermarks = input_transform_watermarks
 
@@ -228,14 +224,12 @@ class _TransformWatermarks(object):
         self._fired_timers.remove(timer_firing)
 
   @property
-  def input_watermark(self):
-    # type: () -> Timestamp
+  def input_watermark(self) -> Timestamp:
     with self._lock:
       return self._input_watermark
 
   @property
-  def output_watermark(self):
-    # type: () -> Timestamp
+  def output_watermark(self) -> Timestamp:
     with self._lock:
       return self._output_watermark
 
@@ -247,21 +241,18 @@ class _TransformWatermarks(object):
             hold_value == WatermarkManager.WATERMARK_POS_INF):
           del self._keyed_earliest_holds[key]
 
-  def add_pending(self, pending):
-    # type: (_Bundle) -> None
+  def add_pending(self, pending: _Bundle) -> None:
     with self._lock:
       self._pending.add(pending)
 
-  def remove_pending(self, completed):
-    # type: (_Bundle) -> None
+  def remove_pending(self, completed: _Bundle) -> None:
     with self._lock:
       # Ignore repeated removes. This will happen if a transform has a repeated
       # input.
       if completed in self._pending:
         self._pending.remove(completed)
 
-  def refresh(self):
-    # type: () -> bool
+  def refresh(self) -> bool:
 
     """Refresh the watermark for a given transform.
 
@@ -311,8 +302,7 @@ class _TransformWatermarks(object):
   def synchronized_processing_output_time(self):
     return self._clock.time()
 
-  def extract_transform_timers(self):
-    # type: () -> Tuple[List[TimerFiring], bool]
+  def extract_transform_timers(self) -> Tuple[List[TimerFiring], bool]:
 
     """Extracts fired timers and reports of any timers set per transform."""
     with self._lock:

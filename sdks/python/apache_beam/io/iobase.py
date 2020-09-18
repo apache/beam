@@ -105,8 +105,7 @@ class SourceBase(HasDisplayData, urns.RunnerApiFn):
   """
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
 
-  def is_bounded(self):
-    # type: () -> bool
+  def is_bounded(self) -> bool:
     raise NotImplementedError
 
 
@@ -145,8 +144,7 @@ class BoundedSource(SourceBase):
   implementations may invoke methods of ``BoundedSource`` objects through
   multi-threaded and/or reentrant execution modes.
   """
-  def estimate_size(self):
-    # type: () -> Optional[int]
+  def estimate_size(self) -> Optional[int]:
 
     """Estimates the size of source in bytes.
 
@@ -161,11 +159,10 @@ class BoundedSource(SourceBase):
     raise NotImplementedError
 
   def split(self,
-            desired_bundle_size,  # type: int
-            start_position=None,  # type: Optional[Any]
-            stop_position=None,  # type: Optional[Any]
-           ):
-    # type: (...) -> Iterator[SourceBundle]
+            desired_bundle_size: int,
+            start_position: Optional[Any] = None,
+            stop_position: Optional[Any] = None,
+           ) -> Iterator[SourceBundle]:
 
     """Splits the source into a set of bundles.
 
@@ -184,10 +181,9 @@ class BoundedSource(SourceBase):
     raise NotImplementedError
 
   def get_range_tracker(self,
-                        start_position,  # type: Optional[Any]
-                        stop_position,  # type: Optional[Any]
-                       ):
-    # type: (...) -> RangeTracker
+                        start_position: Optional[Any],
+                        stop_position: Optional[Any],
+                       ) -> RangeTracker:
 
     """Returns a RangeTracker for a given position range.
 
@@ -867,8 +863,7 @@ class Writer(object):
 
 class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
-  def __init__(self, source):
-    # type: (SourceBase) -> None
+  def __init__(self, source: SourceBase) -> None:
 
     """Initializes a Read transform.
 
@@ -895,12 +890,10 @@ class Read(ptransform.PTransform):
       return pvalue.PCollection(
           pbegin.pipeline, is_bounded=self.source.is_bounded())
 
-  def get_windowing(self, unused_inputs):
-    # type: (...) -> core.Windowing
+  def get_windowing(self, unused_inputs) -> core.Windowing:
     return core.Windowing(window.GlobalWindows())
 
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    # type: (...) -> Optional[coders.Coder]
+  def _infer_output_coder(self, input_type=None, input_coder=None) -> Optional[coders.Coder]:
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
@@ -915,8 +908,7 @@ class Read(ptransform.PTransform):
         'source_dd': self.source
     }
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]:
     return (
         common_urns.deprecated_primitives.READ.urn,
         beam_runner_api_pb2.ReadPayload(
@@ -926,8 +918,7 @@ class Read(ptransform.PTransform):
             beam_runner_api_pb2.IsBounded.UNBOUNDED))
 
   @staticmethod
-  def from_runner_api_parameter(unused_ptransform, parameter, context):
-    # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
+  def from_runner_api_parameter(unused_ptransform, parameter: beam_runner_api_pb2.ReadPayload, context: PipelineContext) -> Read:
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
 
@@ -995,8 +986,7 @@ class Write(ptransform.PTransform):
 
 class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
-  def __init__(self, sink):
-    # type: (Sink) -> None
+  def __init__(self, sink: Sink) -> None:
     super(WriteImpl, self).__init__()
     self.sink = sink
 
@@ -1110,8 +1100,7 @@ def _finalize_write(
 
 
 class _RoundRobinKeyFn(core.DoFn):
-  def __init__(self, count):
-    # type: (int) -> None
+  def __init__(self, count: int) -> None:
     self.count = count
 
   def start_bundle(self):
@@ -1155,8 +1144,7 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
-  def current_progress(self):
-    # type: () -> RestrictionProgress
+  def current_progress(self) -> RestrictionProgress:
 
     """Returns a RestrictionProgress object representing the current progress.
 
@@ -1280,15 +1268,13 @@ class WatermarkEstimator(object):
     """
     raise NotImplementedError(type(self))
 
-  def current_watermark(self):
-    # type: () -> timestamp.Timestamp
+  def current_watermark(self) -> timestamp.Timestamp:
 
     """Return estimated output_watermark. This function must return
     monotonically increasing watermarks."""
     raise NotImplementedError(type(self))
 
-  def observe_timestamp(self, timestamp):
-    # type: (timestamp.Timestamp) -> None
+  def observe_timestamp(self, timestamp: timestamp.Timestamp) -> None:
 
     """Update tracking  watermark with latest output timestamp.
 
@@ -1317,8 +1303,7 @@ class RestrictionProgress(object):
         self._fraction, self._completed, self._remaining)
 
   @property
-  def completed_work(self):
-    # type: () -> float
+  def completed_work(self) -> float:
     if self._completed is not None:
       return self._completed
     elif self._remaining is not None and self._fraction is not None:
@@ -1327,8 +1312,7 @@ class RestrictionProgress(object):
       return self._fraction
 
   @property
-  def remaining_work(self):
-    # type: () -> float
+  def remaining_work(self) -> float:
     if self._remaining is not None:
       return self._remaining
     elif self._completed is not None and self._fraction:
@@ -1337,28 +1321,24 @@ class RestrictionProgress(object):
       return 1 - self._fraction
 
   @property
-  def total_work(self):
-    # type: () -> float
+  def total_work(self) -> float:
     return self.completed_work + self.remaining_work
 
   @property
-  def fraction_completed(self):
-    # type: () -> float
+  def fraction_completed(self) -> float:
     if self._fraction is not None:
       return self._fraction
     else:
       return float(self._completed) / self.total_work
 
   @property
-  def fraction_remaining(self):
-    # type: () -> float
+  def fraction_remaining(self) -> float:
     if self._fraction is not None:
       return 1 - self._fraction
     else:
       return float(self._remaining) / self.total_work
 
-  def with_completed(self, completed):
-    # type: (int) -> RestrictionProgress
+  def with_completed(self, completed: int) -> RestrictionProgress:
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 
@@ -1435,8 +1415,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
             ' requires a _SDFBoundedSourceRestriction')
       self.restriction = restriction
 
-    def current_progress(self):
-      # type: () -> RestrictionProgress
+    def current_progress(self) -> RestrictionProgress:
       return RestrictionProgress(
           fraction=self.restriction.range_tracker().fraction_consumed())
 

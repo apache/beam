@@ -156,8 +156,7 @@ class CacheManager(object):
     """Cleans up all the PCollection caches."""
     raise NotImplementedError
 
-  def size(self, *labels):
-    # type: (*str) -> int
+  def size(self, *labels: str) -> int:
 
     """Returns the size of the PCollection on disk in bytes."""
     raise NotImplementedError

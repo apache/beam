@@ -52,7 +52,7 @@ class PipelineGraph(object):
   """Creates a DOT representing the pipeline. Thread-safe. Runner agnostic."""
   def __init__(
       self,
-      pipeline,  # type: Union[beam_runner_api_pb2.Pipeline, beam.Pipeline]
+      pipeline: Union[beam_runner_api_pb2.Pipeline, beam.Pipeline],
       default_vertex_attrs={'shape': 'box'},
       default_edge_attrs=None,
       render_option=None):
@@ -75,7 +75,7 @@ class PipelineGraph(object):
           rendered. See display.pipeline_graph_renderer for available options.
     """
     self._lock = threading.Lock()
-    self._graph = None  # type: pydot.Dot
+    self._graph: pydot.Dot = None
     self._pipeline_instrument = None
     if isinstance(pipeline, beam.Pipeline):
       self._pipeline_instrument = inst.PipelineInstrument(
@@ -94,10 +94,10 @@ class PipelineGraph(object):
           (beam_runner_api_pb2.Pipeline, beam.Pipeline, type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
-    self._consumers = collections.defaultdict(
-        list)  # type: DefaultDict[str, List[str]]
+    self._consumers: DefaultDict[str, List[str]] = collections.defaultdict(
+        list)
     # A dict from PCollection ID to its producing Transform ID
-    self._producers = {}  # type: Dict[str, str]
+    self._producers: Dict[str, str] = {}
 
     for transform_id, transform_proto in self._top_level_transforms():
       for pcoll_id in transform_proto.inputs.values():
@@ -117,8 +117,7 @@ class PipelineGraph(object):
 
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
 
-  def get_dot(self):
-    # type: () -> str
+  def get_dot(self) -> str:
     return self._get_graph().to_string()
 
   def display_graph(self):
@@ -134,8 +133,7 @@ class PipelineGraph(object):
             'environment is in a notebook. Cannot display the '
             'pipeline graph.')
 
-  def _top_level_transforms(self):
-    # type: () -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]
+  def _top_level_transforms(self) -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]:
 
     """Yields all top level PTransforms (subtransforms of the root PTransform).
 

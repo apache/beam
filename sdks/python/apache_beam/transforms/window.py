@@ -126,7 +126,7 @@ class WindowFn(with_metaclass(abc.ABCMeta,
     """Context passed to WindowFn.assign()."""
     def __init__(
         self,
-        timestamp,  # type: TimestampTypes
+        timestamp: TimestampTypes,
         element=None,
         window=None):
       self.timestamp = Timestamp.of(timestamp)
@@ -134,8 +134,7 @@ class WindowFn(with_metaclass(abc.ABCMeta,
       self.window = window
 
   @abc.abstractmethod
-  def assign(self, assign_context):
-    # type: (AssignContext) -> Iterable[BoundedWindow]
+  def assign(self, assign_context: AssignContext) -> Iterable[BoundedWindow]:
 
     """Associates windows to an element.
 
@@ -149,16 +148,14 @@ class WindowFn(with_metaclass(abc.ABCMeta,
 
   class MergeContext(object):
     """Context passed to WindowFn.merge() to perform merging, if any."""
-    def __init__(self, windows):
-      # type: (Iterable[BoundedWindow]) -> None
+    def __init__(self, windows: Iterable[BoundedWindow]) -> None:
       self.windows = list(windows)
 
     def merge(self, to_be_merged, merge_result):
       raise NotImplementedError
 
   @abc.abstractmethod
-  def merge(self, merge_context):
-    # type: (WindowFn.MergeContext) -> None
+  def merge(self, merge_context: WindowFn.MergeContext) -> None:
 
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
@@ -199,18 +196,15 @@ class BoundedWindow(object):
   Attributes:
     end: End of window.
   """
-  def __init__(self, end):
-    # type: (TimestampTypes) -> None
+  def __init__(self, end: TimestampTypes) -> None:
     self._end = Timestamp.of(end)
 
   @property
-  def start(self):
-    # type: () -> Timestamp
+  def start(self) -> Timestamp:
     raise NotImplementedError
 
   @property
-  def end(self):
-    # type: () -> Timestamp
+  def end(self) -> Timestamp:
     return self._end
 
   def max_timestamp(self):
@@ -279,8 +273,7 @@ class TimestampedValue(object):
     value: The underlying value.
     timestamp: Timestamp associated with the value as seconds since Unix epoch.
   """
-  def __init__(self, value, timestamp):
-    # type: (Any, TimestampTypes) -> None
+  def __init__(self, value: Any, timestamp: TimestampTypes) -> None:
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
@@ -329,8 +322,7 @@ class GlobalWindow(BoundedWindow):
     return not self == other
 
   @property
-  def start(self):
-    # type: () -> Timestamp
+  def start(self) -> Timestamp:
     return MIN_TIMESTAMP
 
   @staticmethod
@@ -344,8 +336,7 @@ class NonMergingWindowFn(WindowFn):
   def is_merging(self):
     return False
 
-  def merge(self, merge_context):
-    # type: (WindowFn.MergeContext) -> None
+  def merge(self, merge_context: WindowFn.MergeContext) -> None:
     pass  # No merging.
 
 
@@ -400,8 +391,8 @@ class FixedWindows(NonMergingWindowFn):
   """
   def __init__(
       self,
-      size,  # type: DurationTypes
-      offset=0  # type: TimestampTypes
+      size: DurationTypes,
+      offset: TimestampTypes = 0
   ):
     """Initialize a ``FixedWindows`` function for a given size and offset.
 
@@ -470,9 +461,9 @@ class SlidingWindows(NonMergingWindowFn):
   """
 
   def __init__(self,
-               size,  # type: DurationTypes
-               period,  # type: DurationTypes
-               offset=0,  # type: TimestampTypes
+               size: DurationTypes,
+               period: DurationTypes,
+               offset: TimestampTypes = 0,
               ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
@@ -537,8 +528,7 @@ class Sessions(WindowFn):
   Attributes:
     gap_size: Size of the gap between windows as floating-point seconds.
   """
-  def __init__(self, gap_size):
-    # type: (DurationTypes) -> None
+  def __init__(self, gap_size: DurationTypes) -> None:
     if gap_size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.gap_size = Duration.of(gap_size)
@@ -550,9 +540,8 @@ class Sessions(WindowFn):
   def get_window_coder(self):
     return coders.IntervalWindowCoder()
 
-  def merge(self, merge_context):
-    # type: (WindowFn.MergeContext) -> None
-    to_merge = []  # type: List[BoundedWindow]
+  def merge(self, merge_context: WindowFn.MergeContext) -> None:
+    to_merge: List[BoundedWindow] = []
     end = MIN_TIMESTAMP
     for w in sorted(merge_context.windows, key=lambda w: w.start):
       if to_merge:

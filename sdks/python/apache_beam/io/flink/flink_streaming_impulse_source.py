@@ -37,7 +37,7 @@ from apache_beam.transforms.window import GlobalWindows
 class FlinkStreamingImpulseSource(PTransform):
   URN = "flink:transform:streaming_impulse:v1"
 
-  config = {}  # type: Dict[str, Any]
+  config: Dict[str, Any] = {}
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin), (

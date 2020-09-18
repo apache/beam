@@ -116,7 +116,7 @@ class JsonLogFormatter(logging.Formatter):
         Python thread object. Nevertheless having this value can allow to
         filter log statement from only one specific thread.
     """
-    output = {}  # type: Dict[str, Any]
+    output: Dict[str, Any] = {}
     output['timestamp'] = {
         'seconds': int(record.created), 'nanos': int(record.msecs * 1000000)
     }

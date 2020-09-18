@@ -34,8 +34,7 @@ class Monitor(object):
     name_prefix: a prefix for this Monitor's metrics' names, intended to
       be unique in per-monitor basis in pipeline
   """
-  def __init__(self, namespace, name_prefix):
-    # type: (str, str) -> None
+  def __init__(self, namespace: str, name_prefix: str) -> None:
     self.namespace = namespace
     self.name_prefix = name_prefix
     self.doFn = MonitorDoFn(namespace, name_prefix)

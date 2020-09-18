@@ -59,23 +59,21 @@ class _PipelineContextMap(object):
   def __init__(self,
                context,
                obj_type,
-               namespace,  # type: str
-               proto_map=None  # type: Optional[Mapping[str, message.Message]]
+               namespace: str,
+               proto_map: Optional[Mapping[str, message.Message]] = None
               ):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
-    self._obj_to_id = {}  # type: Dict[Any, str]
-    self._id_to_obj = {}  # type: Dict[str, Any]
+    self._obj_to_id: Dict[Any, str] = {}
+    self._id_to_obj: Dict[str, Any] = {}
     self._id_to_proto = dict(proto_map) if proto_map else {}
 
-  def populate_map(self, proto_map):
-    # type: (Mapping[str, message.Message]) -> None
+  def populate_map(self, proto_map: Mapping[str, message.Message]) -> None:
     for id, proto in self._id_to_proto.items():
       proto_map[id].CopyFrom(proto)
 
-  def get_id(self, obj, label=None):
-    # type: (Any, Optional[str]) -> str
+  def get_id(self, obj: Any, label: Optional[str] = None) -> str:
     if obj not in self._obj_to_id:
       id = self._pipeline_context.component_id_map.get_or_assign(
           obj, self._obj_type, label)
@@ -84,19 +82,16 @@ class _PipelineContextMap(object):
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
     return self._obj_to_id[obj]
 
-  def get_proto(self, obj, label=None):
-    # type: (Any, Optional[str]) -> message.Message
+  def get_proto(self, obj: Any, label: Optional[str] = None) -> message.Message:
     return self._id_to_proto[self.get_id(obj, label)]
 
-  def get_by_id(self, id):
-    # type: (str) -> Any
+  def get_by_id(self, id: str) -> Any:
     if id not in self._id_to_obj:
       self._id_to_obj[id] = self._obj_type.from_runner_api(
           self._id_to_proto[id], self._pipeline_context)
     return self._id_to_obj[id]
 
-  def get_by_proto(self, maybe_new_proto, label=None, deduplicate=False):
-    # type: (message.Message, Optional[str], bool) -> str
+  def get_by_proto(self, maybe_new_proto: message.Message, label: Optional[str] = None, deduplicate: bool = False) -> str:
     if deduplicate:
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
@@ -106,15 +101,13 @@ class _PipelineContextMap(object):
             label, obj_type=self._obj_type),
         maybe_new_proto)
 
-  def get_id_to_proto_map(self):
-    # type: () -> Dict[str, message.Message]
+  def get_id_to_proto_map(self) -> Dict[str, message.Message]:
     return self._id_to_proto
 
   def get_proto_from_id(self, id):
     return self.get_id_to_proto_map()[id]
 
-  def put_proto(self, id, proto, ignore_duplicates=False):
-    # type: (str, message.Message, bool) -> str
+  def put_proto(self, id: str, proto: message.Message, ignore_duplicates: bool = False) -> str:
     if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
     elif (ignore_duplicates and id in self._id_to_proto and
@@ -127,12 +120,10 @@ class _PipelineContextMap(object):
     self._id_to_proto[id] = proto
     return id
 
-  def __getitem__(self, id):
-    # type: (str) -> Any
+  def __getitem__(self, id: str) -> Any:
     return self.get_by_id(id)
 
-  def __contains__(self, id):
-    # type: (str) -> bool
+  def __contains__(self, id: str) -> bool:
     return id in self._id_to_proto
 
 
@@ -143,15 +134,15 @@ class PipelineContext(object):
   """
 
   def __init__(self,
-               proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]
-               component_id_map=None,  # type: Optional[pipeline.ComponentIdMap]
-               default_environment=None,  # type: Optional[environments.Environment]
+               proto: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
+               component_id_map: Optional[pipeline.ComponentIdMap] = None,
+               default_environment: Optional[environments.Environment] = None,
                use_fake_coders=False,
-               iterable_state_read=None,  # type: Optional[IterableStateReader]
-               iterable_state_write=None,  # type: Optional[IterableStateWriter]
+               iterable_state_read: Optional[IterableStateReader] = None,
+               iterable_state_write: Optional[IterableStateWriter] = None,
                namespace='ref',
                allow_proto_holders=False,
-               requirements=(),  # type: Iterable[str]
+               requirements: Iterable[str] = (),
               ):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
@@ -189,9 +180,9 @@ class PipelineContext(object):
         proto.environments if proto is not None else None)
 
     if default_environment:
-      self._default_environment_id = self.environments.get_id(
+      self._default_environment_id: Optional[str] = self.environments.get_id(
           default_environment,
-          label='default_environment')  # type: Optional[str]
+          label='default_environment')
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
@@ -210,15 +201,13 @@ class PipelineContext(object):
   # rather than an actual coder. The element type is required for some runners,
   # as well as performing a round-trip through protos.
   # TODO(BEAM-2717): Remove once this is no longer needed.
-  def coder_id_from_element_type(self, element_type):
-    # type: (Any) -> str
+  def coder_id_from_element_type(self, element_type: Any) -> str:
     if self.use_fake_coders:
       return pickler.dumps(element_type).decode('ascii')
     else:
       return self.coders.get_id(coders.registry.get_coder(element_type))
 
-  def element_type_from_coder_id(self, coder_id):
-    # type: (str) -> Any
+  def element_type_from_coder_id(self, coder_id: str) -> Any:
     if self.use_fake_coders or coder_id not in self.coders:
       return pickler.loads(coder_id)
     else:
@@ -226,12 +215,10 @@ class PipelineContext(object):
           self.coders[coder_id].to_type_hint())
 
   @staticmethod
-  def from_runner_api(proto):
-    # type: (beam_runner_api_pb2.Components) -> PipelineContext
+  def from_runner_api(proto: beam_runner_api_pb2.Components) -> PipelineContext:
     return PipelineContext(proto)
 
-  def to_runner_api(self):
-    # type: () -> beam_runner_api_pb2.Components
+  def to_runner_api(self) -> beam_runner_api_pb2.Components:
     context_proto = beam_runner_api_pb2.Components()
 
     self.transforms.populate_map(context_proto.transforms)
@@ -242,6 +229,5 @@ class PipelineContext(object):
 
     return context_proto
 
-  def default_environment_id(self):
-    # type: () -> Optional[str]
+  def default_environment_id(self) -> Optional[str]:
     return self._default_environment_id

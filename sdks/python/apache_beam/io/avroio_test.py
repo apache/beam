@@ -85,7 +85,7 @@ RECORDS = [{
 
 class AvroBase(object):
 
-  _temp_files = []  # type: List[str]
+  _temp_files: List[str] = []
 
   def __init__(self, methodName='runTest'):
     super(AvroBase, self).__init__(methodName)

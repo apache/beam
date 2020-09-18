@@ -67,7 +67,7 @@ XYZ_OBJECT = Xyz()
 class RecursiveClass(object):
   """A class that contains a reference to itself."""
 
-  SELF_TYPE = None  # type: Type[RecursiveClass]
+  SELF_TYPE: Type[RecursiveClass] = None
 
   def __init__(self, datum):
     self.datum = 'RecursiveClass:%s' % datum

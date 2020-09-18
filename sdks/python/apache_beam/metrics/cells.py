@@ -84,8 +84,7 @@ class CounterCell(MetricCell):
   def reset(self):
     self.value = CounterAggregator.identity_element()
 
-  def combine(self, other):
-    # type: (CounterCell) -> CounterCell
+  def combine(self, other: CounterCell) -> CounterCell:
     result = CounterCell()
     result.inc(self.value + other.value)
     return result
@@ -105,8 +104,7 @@ class CounterCell(MetricCell):
       with self._lock:
         self.value += value
 
-  def get_cumulative(self):
-    # type: () -> int
+  def get_cumulative(self) -> int:
     with self._lock:
       return self.value
 
@@ -137,8 +135,7 @@ class DistributionCell(MetricCell):
   def reset(self):
     self.data = DistributionAggregator.identity_element()
 
-  def combine(self, other):
-    # type: (DistributionCell) -> DistributionCell
+  def combine(self, other: DistributionCell) -> DistributionCell:
     result = DistributionCell()
     result.data = self.data.combine(other.data)
     return result
@@ -163,8 +160,7 @@ class DistributionCell(MetricCell):
     if ivalue > self.data.max:
       self.data.max = ivalue
 
-  def get_cumulative(self):
-    # type: () -> DistributionData
+  def get_cumulative(self) -> DistributionData:
     with self._lock:
       return self.data.get_cumulative()
 
@@ -195,8 +191,7 @@ class GaugeCell(MetricCell):
   def reset(self):
     self.data = GaugeAggregator.identity_element()
 
-  def combine(self, other):
-    # type: (GaugeCell) -> GaugeCell
+  def combine(self, other: GaugeCell) -> GaugeCell:
     result = GaugeCell()
     result.data = self.data.combine(other.data)
     return result
@@ -212,8 +207,7 @@ class GaugeCell(MetricCell):
       self.data.value = value
       self.data.timestamp = time.time()
 
-  def get_cumulative(self):
-    # type: () -> GaugeData
+  def get_cumulative(self) -> GaugeData:
     with self._lock:
       return self.data.get_cumulative()
 
@@ -228,8 +222,7 @@ class GaugeCell(MetricCell):
 
 class DistributionResult(object):
   """The result of a Distribution metric."""
-  def __init__(self, data):
-    # type: (DistributionData) -> None
+  def __init__(self, data: DistributionData) -> None:
     self.data = data
 
   def __eq__(self, other):
@@ -277,8 +270,7 @@ class DistributionResult(object):
 
 
 class GaugeResult(object):
-  def __init__(self, data):
-    # type: (GaugeData) -> None
+  def __init__(self, data: GaugeData) -> None:
     self.data = data
 
   def __eq__(self, other):
@@ -335,12 +327,10 @@ class GaugeData(object):
     return '<GaugeData(value={}, timestamp={})>'.format(
         self.value, self.timestamp)
 
-  def get_cumulative(self):
-    # type: () -> GaugeData
+  def get_cumulative(self) -> GaugeData:
     return GaugeData(self.value, timestamp=self.timestamp)
 
-  def combine(self, other):
-    # type: (Optional[GaugeData]) -> GaugeData
+  def combine(self, other: Optional[GaugeData]) -> GaugeData:
     if other is None:
       return self
 
@@ -350,8 +340,7 @@ class GaugeData(object):
       return self
 
   @staticmethod
-  def singleton(value, timestamp=None):
-    # type: (...) -> GaugeData
+  def singleton(value, timestamp=None) -> GaugeData:
     return GaugeData(value, timestamp=timestamp)
 
 
@@ -393,12 +382,10 @@ class DistributionData(object):
     return 'DistributionData(sum={}, count={}, min={}, max={})'.format(
         self.sum, self.count, self.min, self.max)
 
-  def get_cumulative(self):
-    # type: () -> DistributionData
+  def get_cumulative(self) -> DistributionData:
     return DistributionData(self.sum, self.count, self.min, self.max)
 
-  def combine(self, other):
-    # type: (Optional[DistributionData]) -> DistributionData
+  def combine(self, other: Optional[DistributionData]) -> DistributionData:
     if other is None:
       return self
 
@@ -440,16 +427,13 @@ class CounterAggregator(MetricAggregator):
   Values aggregated should be ``int`` objects.
   """
   @staticmethod
-  def identity_element():
-    # type: () -> int
+  def identity_element() -> int:
     return 0
 
-  def combine(self, x, y):
-    # type: (...) -> int
+  def combine(self, x, y) -> int:
     return int(x) + int(y)
 
-  def result(self, x):
-    # type: (...) -> int
+  def result(self, x) -> int:
     return int(x)
 
 
@@ -461,16 +445,13 @@ class DistributionAggregator(MetricAggregator):
   Values aggregated should be ``DistributionData`` objects.
   """
   @staticmethod
-  def identity_element():
-    # type: () -> DistributionData
+  def identity_element() -> DistributionData:
     return DistributionData(0, 0, 2**63 - 1, -2**63)
 
-  def combine(self, x, y):
-    # type: (DistributionData, DistributionData) -> DistributionData
+  def combine(self, x: DistributionData, y: DistributionData) -> DistributionData:
     return x.combine(y)
 
-  def result(self, x):
-    # type: (DistributionData) -> DistributionResult
+  def result(self, x: DistributionData) -> DistributionResult:
     return DistributionResult(x.get_cumulative())
 
 
@@ -482,15 +463,12 @@ class GaugeAggregator(MetricAggregator):
   Values aggregated should be ``GaugeData`` objects.
   """
   @staticmethod
-  def identity_element():
-    # type: () -> GaugeData
+  def identity_element() -> GaugeData:
     return GaugeData(None, timestamp=0)
 
-  def combine(self, x, y):
-    # type: (GaugeData, GaugeData) -> GaugeData
+  def combine(self, x: GaugeData, y: GaugeData) -> GaugeData:
     result = x.combine(y)
     return result
 
-  def result(self, x):
-    # type: (GaugeData) -> GaugeResult
+  def result(self, x: GaugeData) -> GaugeResult:
     return GaugeResult(x.get_cumulative())

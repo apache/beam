@@ -62,8 +62,7 @@ def _make_empty_series(name, typ):
     raise TypeError("Unable to convert type '%s' for field '%s'" % (name, typ))
 
 
-def generate_proxy(element_type):
-  # type: (type) -> pd.DataFrame
+def generate_proxy(element_type: type) -> pd.DataFrame:
   return pd.DataFrame({
       name: _make_empty_series(name, typ)
       for name,

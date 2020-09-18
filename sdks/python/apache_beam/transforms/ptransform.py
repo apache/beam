@@ -326,31 +326,27 @@ class PTransform(WithTypeHints, HasDisplayData):
   with input as an argument.
   """
   # By default, transforms don't have any side inputs.
-  side_inputs = ()  # type: Sequence[pvalue.AsSideInput]
+  side_inputs: Sequence[pvalue.AsSideInput] = ()
 
   # Used for nullary transforms.
-  pipeline = None  # type: Optional[Pipeline]
+  pipeline: Optional[Pipeline] = None
 
   # Default is unset.
-  _user_label = None  # type: Optional[str]
+  _user_label: Optional[str] = None
 
-  def __init__(self, label=None):
-    # type: (Optional[str]) -> None
+  def __init__(self, label: Optional[str] = None) -> None:
     super(PTransform, self).__init__()
     self.label = label  # type: ignore # https://github.com/python/mypy/issues/3004
 
   @property
-  def label(self):
-    # type: () -> str
+  def label(self) -> str:
     return self._user_label or self.default_label()
 
   @label.setter
-  def label(self, value):
-    # type: (Optional[str]) -> None
+  def label(self, value: Optional[str]) -> None:
     self._user_label = value
 
-  def default_label(self):
-    # type: () -> str
+  def default_label(self) -> str:
     return self.__class__.__name__
 
   def default_type_hints(self):
@@ -447,8 +443,7 @@ class PTransform(WithTypeHints, HasDisplayData):
                 actual_type=pvalue_.element_type,
                 debug_str=type_hints.debug_str()))
 
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    # type: (...) -> Optional[coders.Coder]
+  def _infer_output_coder(self, input_type=None, input_coder=None) -> Optional[coders.Coder]:
 
     """Returns the output coder to use for output of this transform.
 
@@ -494,15 +489,13 @@ class PTransform(WithTypeHints, HasDisplayData):
         (hasattr(self, 'inputs') and self.inputs) else '',
         ' side_inputs=%s' % str(self.side_inputs) if self.side_inputs else '')
 
-  def _check_pcollection(self, pcoll):
-    # type: (pvalue.PCollection) -> None
+  def _check_pcollection(self, pcoll: pvalue.PCollection) -> None:
     if not isinstance(pcoll, pvalue.PCollection):
       raise error.TransformError('Expecting a PCollection argument.')
     if not pcoll.pipeline:
       raise error.TransformError('PCollection not part of a pipeline.')
 
-  def get_windowing(self, inputs):
-    # type: (Any) -> Windowing
+  def get_windowing(self, inputs: Any) -> Windowing:
 
     """Returns the window function to be associated with transform's output.
 
@@ -603,46 +596,42 @@ class PTransform(WithTypeHints, HasDisplayData):
     else:
       return input_dict
 
-  _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
+  _known_urns: Dict[str, Tuple[Optional[type], ConstructorFn]] = {}
 
   @classmethod
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: Type[T]
-  ):
-    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]]], Callable[[T, PipelineContext], Any]]
+      urn: str,
+      parameter_type: Type[T],
+  ) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]]], Callable[[T, PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: None
-  ):
-    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
+      urn: str,
+      parameter_type: None,
+  ) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
   def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Type[T]
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
-                  ):
-    # type: (...) -> None
+                   urn: str,
+                   parameter_type: Type[T],
+                   constructor: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
+                  ) -> None:
     pass
 
   @classmethod
   @overload
   def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
-                  ):
-    # type: (...) -> None
+                   urn: str,
+                   parameter_type: None,
+                   constructor: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
+                  ) -> None:
     pass
 
   @classmethod
@@ -662,8 +651,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       # Used as a decorator.
       return register
 
-  def to_runner_api(self, context, has_parts=False, **extra_kwargs):
-    # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
+  def to_runner_api(self, context: PipelineContext, has_parts: bool = False, **extra_kwargs: Any) -> beam_runner_api_pb2.FunctionSpec:
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
@@ -677,10 +665,9 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   @classmethod
   def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
-                      context  # type: PipelineContext
-                     ):
-    # type: (...) -> Optional[PTransform]
+                      proto: Optional[beam_runner_api_pb2.PTransform],
+                      context: PipelineContext
+                     ) -> Optional[PTransform]:
     if proto is None or proto.spec is None or not proto.spec.urn:
       return None
     parameter_type, constructor = cls._known_urns[proto.spec.urn]
@@ -700,23 +687,20 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def to_runner_api_parameter(
       self,
-      unused_context  # type: PipelineContext
-  ):
-    # type: (...) -> Tuple[str, Optional[Union[message.Message, bytes, str]]]
+      unused_context: PipelineContext
+  ) -> Tuple[str, Optional[Union[message.Message, bytes, str]]]:
     # The payload here is just to ease debugging.
     return (
         python_urns.GENERIC_COMPOSITE_TRANSFORM,
         getattr(self, '_fn_api_payload', str(self)))
 
-  def to_runner_api_pickled(self, unused_context):
-    # type: (PipelineContext) -> Tuple[str, bytes]
+  def to_runner_api_pickled(self, unused_context: PipelineContext) -> Tuple[str, bytes]:
     return (python_urns.PICKLED_TRANSFORM, pickler.dumps(self))
 
   def runner_api_requires_keyed_input(self):
     return False
 
-  def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
-    # type: (str, Tuple[str, Any]) -> None
+  def _add_type_constraint_from_consumer(self, full_label: str, input_type_hints: Tuple[str, Any]) -> None:
 
     """Adds a consumer transform's input type hints to our output type
     constraints, which is used during performance runtime type-checking.
@@ -737,8 +721,7 @@ def _unpickle_transform(unused_ptransform, pickled_bytes, unused_context):
 
 
 class _ChainedPTransform(PTransform):
-  def __init__(self, *parts):
-    # type: (*PTransform) -> None
+  def __init__(self, *parts: PTransform) -> None:
     super(_ChainedPTransform, self).__init__(label=self._chain_label(parts))
     self._parts = parts
 
@@ -768,8 +751,7 @@ class PTransformWithSideInputs(PTransform):
   and side inputs to that code. This internal-use-only class contains common
   functionality for :class:`PTransform` s that fit this model.
   """
-  def __init__(self, fn, *args, **kwargs):
-    # type: (WithTypeHints, *Any, **Any) -> None
+  def __init__(self, fn: WithTypeHints, *args: Any, **kwargs: Any) -> None:
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))

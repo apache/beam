@@ -30,8 +30,7 @@ Frame = TypeVar('Frame', bound=pd.core.generic.NDFrame)
 class Partitioning(object):
   """A class representing a (consistent) partitioning of dataframe objects.
   """
-  def is_subpartitioning_of(self, other):
-    # type: (Partitioning) -> bool
+  def is_subpartitioning_of(self, other: Partitioning) -> bool:
 
     """Returns whether self is a sub-partition of other.
 
@@ -40,8 +39,7 @@ class Partitioning(object):
     """
     raise NotImplementedError
 
-  def partition_fn(self, df):
-    # type: (Frame) -> Iterable[Tuple[Any, Frame]]
+  def partition_fn(self, df: Frame) -> Iterable[Tuple[Any, Frame]]:
 
     """A callable that actually performs the partitioning of a Frame df.
 

@@ -98,8 +98,7 @@ class Stager(object):
   Implementation of this stager has to implement :func:`stage_artifact` and
   :func:`commit_manifest`.
   """
-  def stage_artifact(self, local_path_to_artifact, artifact_name):
-    # type: (str, str) -> None
+  def stage_artifact(self, local_path_to_artifact: str, artifact_name: str) -> None:
 
     """ Stages the artifact to Stager._staging_location and adds artifact_name
         to the manifest of artifacts that have been staged."""
@@ -116,10 +115,10 @@ class Stager(object):
     return names.BEAM_PACKAGE_NAME
 
   @staticmethod
-  def create_job_resources(options,  # type: PipelineOptions
-                           temp_dir,  # type: str
-                           build_setup_args=None,  # type: Optional[List[str]]
-                           populate_requirements_cache=None,  # type: Optional[str]
+  def create_job_resources(options: PipelineOptions,
+                           temp_dir: str,
+                           build_setup_args: Optional[List[str]] = None,
+                           populate_requirements_cache: Optional[str] = None,
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -147,7 +146,7 @@ class Stager(object):
           while trying to create the resources (e.g., build a setup package).
         """
 
-    resources = []  # type: List[Tuple[str, str]]
+    resources: List[Tuple[str, str]] = []
 
     setup_options = options.view_as(SetupOptions)
 
@@ -276,8 +275,8 @@ class Stager(object):
     return resources
 
   def stage_job_resources(self,
-                          resources,  # type: List[Tuple[str, str]]
-                          staging_location=None  # type: Optional[str]
+                          resources: List[Tuple[str, str]],
+                          staging_location: Optional[str] = None
                          ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -310,11 +309,11 @@ class Stager(object):
 
   def create_and_stage_job_resources(
       self,
-      options,  # type: PipelineOptions
-      build_setup_args=None,  # type: Optional[List[str]]
-      temp_dir=None,  # type: Optional[str]
-      populate_requirements_cache=None,  # type: Optional[str]
-      staging_location=None  # type: Optional[str]
+      options: PipelineOptions,
+      build_setup_args: Optional[List[str]] = None,
+      temp_dir: Optional[str] = None,
+      populate_requirements_cache: Optional[str] = None,
+      staging_location: Optional[str] = None
       ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -391,8 +390,7 @@ class Stager(object):
     return path.find('://') != -1
 
   @staticmethod
-  def _create_jar_packages(jar_packages, temp_dir):
-    # type: (...) -> List[Tuple[str, str]]
+  def _create_jar_packages(jar_packages, temp_dir) -> List[Tuple[str, str]]:
 
     """Creates a list of local jar packages for Java SDK Harness.
 
@@ -406,9 +404,9 @@ class Stager(object):
       RuntimeError: If files specified are not found or do not have expected
         name patterns.
     """
-    resources = []  # type: List[Tuple[str, str]]
+    resources: List[Tuple[str, str]] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages = []  # type: List[str]
+    local_packages: List[str] = []
     for package in jar_packages:
       if not os.path.basename(package).endswith('.jar'):
         raise RuntimeError(
@@ -442,8 +440,7 @@ class Stager(object):
     return resources
 
   @staticmethod
-  def _create_extra_packages(extra_packages, temp_dir):
-    # type: (...) -> List[Tuple[str, str]]
+  def _create_extra_packages(extra_packages, temp_dir) -> List[Tuple[str, str]]:
 
     """Creates a list of local extra packages.
 
@@ -463,9 +460,9 @@ class Stager(object):
         RuntimeError: If files specified are not found or do not have expected
           name patterns.
       """
-    resources = []  # type: List[Tuple[str, str]]
+    resources: List[Tuple[str, str]] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages = []  # type: List[str]
+    local_packages: List[str] = []
     for package in extra_packages:
       if not (os.path.basename(package).endswith('.tar') or
               os.path.basename(package).endswith('.tar.gz') or
@@ -559,11 +556,10 @@ class Stager(object):
     processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
-  def _build_setup_package(setup_file,  # type: str
-                           temp_dir,  # type: str
-                           build_setup_args=None  # type: Optional[List[str]]
-                          ):
-    # type: (...) -> str
+  def _build_setup_package(setup_file: str,
+                           temp_dir: str,
+                           build_setup_args: Optional[List[str]] = None
+                          ) -> str:
     saved_current_directory = os.getcwd()
     try:
       os.chdir(os.path.dirname(setup_file))
@@ -586,8 +582,7 @@ class Stager(object):
       os.chdir(saved_current_directory)
 
   @staticmethod
-  def _desired_sdk_filename_in_staging_location(sdk_location):
-    # type: (...) -> str
+  def _desired_sdk_filename_in_staging_location(sdk_location) -> str:
 
     """Returns the name that SDK file should have in the staging location.
       Args:
@@ -603,8 +598,7 @@ class Stager(object):
       return DATAFLOW_SDK_TARBALL_FILE
 
   @staticmethod
-  def _create_beam_sdk(sdk_remote_location, temp_dir):
-    # type: (...) -> List[Tuple[str, str]]
+  def _create_beam_sdk(sdk_remote_location, temp_dir) -> List[Tuple[str, str]]:
 
     """Creates a Beam SDK file with the appropriate version.
 

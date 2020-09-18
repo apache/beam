@@ -36,8 +36,7 @@ class StateSampler(object):
     self.state_transition_count = 0
     self.time_since_transition = 0
 
-  def current_state(self):
-    # type: () -> ScopedState
+  def current_state(self) -> ScopedState:
 
     """Returns the current execution state.
 
@@ -46,11 +45,10 @@ class StateSampler(object):
     return self._state_stack[-1]
 
   def _scoped_state(self,
-                    counter_name,  # type: counters.CounterName
-                    name_context,  # type: common.NameContext
+                    counter_name: counters.CounterName,
+                    name_context: common.NameContext,
                     output_counter,
-                    metrics_container=None):
-    # type: (...) -> ScopedState
+                    metrics_container=None) -> ScopedState:
     assert isinstance(name_context, common.NameContext)
     return ScopedState(
         self, counter_name, name_context, output_counter, metrics_container)
@@ -60,36 +58,31 @@ class StateSampler(object):
     if metrics_container is not None:
       metrics_container.get_metric_cell(typed_metric_name).update(value)
 
-  def _enter_state(self, state):
-    # type: (ScopedState) -> None
+  def _enter_state(self, state: ScopedState) -> None:
     self.state_transition_count += 1
     self._state_stack.append(state)
 
-  def _exit_state(self):
-    # type: () -> None
+  def _exit_state(self) -> None:
     self.state_transition_count += 1
     self._state_stack.pop()
 
-  def start(self):
-    # type: () -> None
+  def start(self) -> None:
     # Sampling not yet supported. Only state tracking at the moment.
     pass
 
-  def stop(self):
-    # type: () -> None
+  def stop(self) -> None:
     pass
 
-  def reset(self):
-    # type: () -> None
+  def reset(self) -> None:
     pass
 
 
 class ScopedState(object):
 
   def __init__(self,
-               sampler,  # type: StateSampler
-               name,  # type: counters.CounterName
-               step_name_context,  # type: Optional[common.NameContext]
+               sampler: StateSampler,
+               name: counters.CounterName,
+               step_name_context: Optional[common.NameContext],
                counter=None,
                metrics_container=None):
     self.state_sampler = sampler
@@ -99,12 +92,10 @@ class ScopedState(object):
     self.nsecs = 0
     self.metrics_container = metrics_container
 
-  def sampled_seconds(self):
-    # type: () -> float
+  def sampled_seconds(self) -> float:
     return 1e-9 * self.nsecs
 
-  def sampled_msecs_int(self):
-    # type: () -> int
+  def sampled_msecs_int(self) -> int:
     return int(1e-6 * self.nsecs)
 
   def __repr__(self):

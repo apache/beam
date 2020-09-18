@@ -83,63 +83,56 @@ class Environment(object):
   For internal use only. No backwards compatibility guarantees.
   """
 
-  _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
-  _urn_to_env_cls = {}  # type: Dict[str, type]
+  _known_urns: Dict[str, Tuple[Optional[type], ConstructorFn]] = {}
+  _urn_to_env_cls: Dict[str, type] = {}
 
   def __init__(self, capabilities, artifacts):
     self._capabilities = capabilities
     self._artifacts = artifacts
 
-  def artifacts(self):
-    # type: () -> Iterable[beam_runner_api_pb2.ArtifactInformation]
+  def artifacts(self) -> Iterable[beam_runner_api_pb2.ArtifactInformation]:
     return self._artifacts
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, Optional[Union[message.Message, bytes, str]]]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, Optional[Union[message.Message, bytes, str]]]:
     raise NotImplementedError
 
-  def capabilities(self):
-    # type: () -> Iterable[str]
+  def capabilities(self) -> Iterable[str]:
     return self._capabilities
 
   @classmethod
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: Type[T]
-  ):
-    # type: (...) -> Callable[[Union[type, Callable[[T, Iterable[str], PipelineContext], Any]]], Callable[[T, Iterable[str], PipelineContext], Any]]
+      urn: str,
+      parameter_type: Type[T],
+  ) -> Callable[[Union[type, Callable[[T, Iterable[str], PipelineContext], Any]]], Callable[[T, Iterable[str], PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: None
-  ):
-    # type: (...) -> Callable[[Union[type, Callable[[bytes, Iterable[str], PipelineContext], Any]]], Callable[[bytes, Iterable[str], PipelineContext], Any]]
+      urn: str,
+      parameter_type: None,
+  ) -> Callable[[Union[type, Callable[[bytes, Iterable[str], PipelineContext], Any]]], Callable[[bytes, Iterable[str], PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
   def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Type[T]
-                   constructor  # type: Callable[[T, Iterable[str], PipelineContext], Any]
-                  ):
-    # type: (...) -> None
+                   urn: str,
+                   parameter_type: Type[T],
+                   constructor: Callable[[T, Iterable[str], PipelineContext], Any]
+                  ) -> None:
     pass
 
   @classmethod
   @overload
   def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                   constructor  # type: Callable[[bytes, Iterable[str], PipelineContext], Any]
-                  ):
-    # type: (...) -> None
+                   urn: str,
+                   parameter_type: None,
+                   constructor: Callable[[bytes, Iterable[str], PipelineContext], Any]
+                  ) -> None:
     pass
 
   @classmethod
@@ -167,8 +160,7 @@ class Environment(object):
   def get_env_cls_from_urn(cls, urn):
     return cls._urn_to_env_cls[urn]
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.Environment
+  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.Environment:
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Environment(
         urn=urn,
@@ -181,10 +173,9 @@ class Environment(object):
 
   @classmethod
   def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.Environment]
-                      context  # type: PipelineContext
-                     ):
-    # type: (...) -> Optional[Environment]
+                      proto: Optional[beam_runner_api_pb2.Environment],
+                      context: PipelineContext
+                     ) -> Optional[Environment]:
     if proto is None or not proto.urn:
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
@@ -201,8 +192,7 @@ class Environment(object):
       raise
 
   @classmethod
-  def from_options(cls, options):
-    # type: (Type[EnvironmentT], PipelineOptions) -> EnvironmentT
+  def from_options(cls: Type[EnvironmentT], options: PipelineOptions) -> EnvironmentT:
 
     """Creates an Environment object from PipelineOptions.
 
@@ -236,8 +226,7 @@ class DockerEnvironment(Environment):
   def __repr__(self):
     return 'DockerEnvironment(container_image=%s)' % self.container_image
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.DockerPayload]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, beam_runner_api_pb2.DockerPayload]:
     return (
         common_urns.environments.DOCKER.urn,
         beam_runner_api_pb2.DockerPayload(container_image=self.container_image))
@@ -250,15 +239,13 @@ class DockerEnvironment(Environment):
         artifacts=artifacts)
 
   @classmethod
-  def from_options(cls, options):
-    # type: (PipelineOptions) -> DockerEnvironment
+  def from_options(cls, options: PipelineOptions) -> DockerEnvironment:
     return cls.from_container_image(
         container_image=options.environment_config,
         artifacts=python_sdk_dependencies(options))
 
   @classmethod
-  def from_container_image(cls, container_image, artifacts=()):
-    # type: (str, Iterable[beam_runner_api_pb2.ArtifactInformation]) -> DockerEnvironment
+  def from_container_image(cls, container_image: str, artifacts: Iterable[beam_runner_api_pb2.ArtifactInformation] = ()) -> DockerEnvironment:
     return cls(
         container_image=container_image,
         capabilities=python_sdk_capabilities(),
@@ -321,8 +308,7 @@ class ProcessEnvironment(Environment):
     repr_parts.append('env=%s' % self.env)
     return 'ProcessEnvironment(%s)' % ','.join(repr_parts)
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ProcessPayload]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, beam_runner_api_pb2.ProcessPayload]:
     return (
         common_urns.environments.PROCESS.urn,
         beam_runner_api_pb2.ProcessPayload(
@@ -375,8 +361,7 @@ class ExternalEnvironment(Environment):
   def __repr__(self):
     return 'ExternalEnvironment(url=%s,params=%s)' % (self.url, self.params)
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ExternalPayload]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, beam_runner_api_pb2.ExternalPayload]:
     return (
         common_urns.environments.EXTERNAL.urn,
         beam_runner_api_pb2.ExternalPayload(
@@ -425,8 +410,7 @@ class EmbeddedPythonEnvironment(Environment):
   def __hash__(self):
     return hash(self.__class__)
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, None]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, None]:
     return python_urns.EMBEDDED_PYTHON, None
 
   @staticmethod
@@ -475,8 +459,7 @@ class EmbeddedPythonGrpcEnvironment(Environment):
           'data_buffer_time_limit_ms=%d' % self.data_buffer_time_limit_ms)
     return 'EmbeddedPythonGrpcEnvironment(%s)' % ','.join(repr_parts)
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, bytes]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, bytes]:
     params = {}
     if self.state_cache_size is not None:
       params['state_cache_size'] = self.state_cache_size
@@ -546,8 +529,7 @@ class SubprocessSDKEnvironment(Environment):
   def __repr__(self):
     return 'SubprocessSDKEnvironment(command_string=%s)' % self.command_string
 
-  def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, bytes]
+  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, bytes]:
     return python_urns.SUBPROCESS_SDK, self.command_string.encode('utf-8')
 
   @staticmethod

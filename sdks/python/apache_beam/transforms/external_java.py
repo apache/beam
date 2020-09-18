@@ -49,8 +49,8 @@ else:
 class JavaExternalTransformTest(object):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None  # type: str
-  expansion_service_port = None  # type: int
+  expansion_service_jar: str = None
+  expansion_service_port: int = None
 
   class _RunWithExpansion(object):
     def __init__(self):

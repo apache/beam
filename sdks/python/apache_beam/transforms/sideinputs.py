@@ -48,18 +48,15 @@ SIDE_INPUT_REGEX = SIDE_INPUT_PREFIX + '([0-9]+)(-.*)?$'
 
 
 # Top-level function so we can identify it later.
-def _global_window_mapping_fn(w, global_window=window.GlobalWindow()):
-  # type: (...) -> window.GlobalWindow
+def _global_window_mapping_fn(w, global_window=window.GlobalWindow()) -> window.GlobalWindow:
   return global_window
 
 
-def default_window_mapping_fn(target_window_fn):
-  # type: (window.WindowFn) -> WindowMappingFn
+def default_window_mapping_fn(target_window_fn: window.WindowFn) -> WindowMappingFn:
   if target_window_fn == window.GlobalWindows():
     return _global_window_mapping_fn
 
-  def map_via_end(source_window):
-    # type: (window.BoundedWindow) -> window.BoundedWindow
+  def map_via_end(source_window: window.BoundedWindow) -> window.BoundedWindow:
     return list(
         target_window_fn.assign(
             window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
@@ -67,8 +64,7 @@ def default_window_mapping_fn(target_window_fn):
   return map_via_end
 
 
-def get_sideinput_index(tag):
-  # type: (str) -> int
+def get_sideinput_index(tag: str) -> int:
   match = re.match(SIDE_INPUT_REGEX, tag, re.DOTALL)
   if match:
     return int(match.group(1))
@@ -80,7 +76,7 @@ class SideInputMap(object):
   """Represents a mapping of windows to side input values."""
   def __init__(
       self,
-      view_class,  # type: pvalue.AsSideInput
+      view_class: pvalue.AsSideInput,
       view_options,
       iterable):
     self._window_mapping_fn = view_options.get(
@@ -88,18 +84,16 @@ class SideInputMap(object):
     self._view_class = view_class
     self._view_options = view_options
     self._iterable = iterable
-    self._cache = {}  # type: Dict[window.BoundedWindow, Any]
+    self._cache: Dict[window.BoundedWindow, Any] = {}
 
-  def __getitem__(self, window):
-    # type: (window.BoundedWindow) -> Any
+  def __getitem__(self, window: window.BoundedWindow) -> Any:
     if window not in self._cache:
       target_window = self._window_mapping_fn(window)
       self._cache[window] = self._view_class._from_runtime_iterable(
           _FilteringIterable(self._iterable, target_window), self._view_options)
     return self._cache[window]
 
-  def is_globally_windowed(self):
-    # type: () -> bool
+  def is_globally_windowed(self) -> bool:
     return self._window_mapping_fn == _global_window_mapping_fn
 
 

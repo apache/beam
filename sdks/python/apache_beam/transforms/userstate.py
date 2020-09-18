@@ -50,8 +50,7 @@ CallableT = TypeVar('CallableT', bound=Callable)
 
 class StateSpec(object):
   """Specification for a user DoFn state cell."""
-  def __init__(self, name, coder):
-    # type: (str, Coder) -> None
+  def __init__(self, name: str, coder: Coder) -> None:
     if not isinstance(name, str):
       raise TypeError("name is not a string")
     if not isinstance(coder, Coder):
@@ -68,8 +67,7 @@ class StateSpec(object):
 
 class ReadModifyWriteStateSpec(StateSpec):
   """Specification for a user DoFn value state cell."""
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
             coder_id=context.coders.get_id(self.coder)))
@@ -77,8 +75,7 @@ class ReadModifyWriteStateSpec(StateSpec):
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
             element_coder_id=context.coders.get_id(self.coder)))
@@ -94,8 +91,7 @@ class SetStateSpec(StateSpec):
 
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
-  def __init__(self, name, coder=None, combine_fn=None):
-    # type: (str, Optional[Coder], Any) -> None
+  def __init__(self, name: str, coder: Optional[Coder] = None, combine_fn: Any = None) -> None:
 
     """Initialize the specification for CombiningValue state.
 
@@ -131,8 +127,7 @@ class CombiningValueStateSpec(StateSpec):
 
     super(CombiningValueStateSpec, self).__init__(name, coder)
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
@@ -166,8 +161,7 @@ class TimerSpec(object):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context, key_coder, window_coder):
-    # type: (PipelineContext, Coder, Coder) -> beam_runner_api_pb2.TimerFamilySpec
+  def to_runner_api(self, context: PipelineContext, key_coder: Coder, window_coder: Coder) -> beam_runner_api_pb2.TimerFamilySpec:
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(
@@ -194,8 +188,7 @@ class TimerFamilySpec(object):
             coders._TimerCoder(key_coder, window_coder)))
 
 
-def on_timer(timer_spec):
-  # type: (TimerSpec) -> Callable[[CallableT], CallableT]
+def on_timer(timer_spec: TimerSpec) -> Callable[[CallableT], CallableT]:
 
   """Decorator for timer firing DoFn method.
 
@@ -225,8 +218,7 @@ def on_timer(timer_spec):
   return _inner
 
 
-def get_dofn_specs(dofn):
-  # type: (...) -> Tuple[Set[StateSpec], Set[TimerSpec]]
+def get_dofn_specs(dofn) -> Tuple[Set[StateSpec], Set[TimerSpec]]:
 
   """Gets the state and timer specs for a DoFn, if any.
 
@@ -327,38 +319,30 @@ class RuntimeState(object):
 
 
 class ReadModifyWriteRuntimeState(RuntimeState):
-  def read(self):
-    # type: () -> Any
+  def read(self) -> Any:
     raise NotImplementedError(type(self))
 
-  def write(self, value):
-    # type: (Any) -> None
+  def write(self, value: Any) -> None:
     raise NotImplementedError(type(self))
 
-  def clear(self):
-    # type: () -> None
+  def clear(self) -> None:
     raise NotImplementedError(type(self))
 
-  def commit(self):
-    # type: () -> None
+  def commit(self) -> None:
     raise NotImplementedError(type(self))
 
 
 class AccumulatingRuntimeState(RuntimeState):
-  def read(self):
-    # type: () -> Iterable[Any]
+  def read(self) -> Iterable[Any]:
     raise NotImplementedError(type(self))
 
-  def add(self, value):
-    # type: (Any) -> None
+  def add(self, value: Any) -> None:
     raise NotImplementedError(type(self))
 
-  def clear(self):
-    # type: () -> None
+  def clear(self) -> None:
     raise NotImplementedError(type(self))
 
-  def commit(self):
-    # type: () -> None
+  def commit(self) -> None:
     raise NotImplementedError(type(self))
 
 

@@ -31,12 +31,11 @@ from apache_beam.testing.test_stream import WindowedValueHolder
 
 
 def to_element_list(
-    reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
-    coder,  # type: Coder
-    include_window_info,  # type: bool
-    n=None  # type: int
-):
-  # type: (...) -> List[WindowedValue]
+    reader: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]],
+    coder: Coder,
+    include_window_info: bool,
+    n: int = None
+) -> List[WindowedValue]:
 
   """Returns an iterator that properly decodes the elements from the reader.
   """
@@ -68,8 +67,7 @@ def to_element_list(
     yield e
 
 
-def elements_to_df(elements, include_window_info=False):
-  # type: (List[WindowedValue], bool) -> DataFrame
+def elements_to_df(elements: List[WindowedValue], include_window_info: bool = False) -> DataFrame:
 
   """Parses the given elements into a Dataframe.
 
@@ -97,8 +95,7 @@ def elements_to_df(elements, include_window_info=False):
   return final_df
 
 
-def register_ipython_log_handler():
-  # type: () -> None
+def register_ipython_log_handler() -> None:
 
   """Adds the IPython handler to a dummy parent logger (named
   'apache_beam.runners.interactive') of all interactive modules' loggers so that
@@ -153,8 +150,7 @@ class IPythonLogHandler(logging.Handler):
       pass  # NOOP when dependencies are not available.
 
 
-def obfuscate(*inputs):
-  # type: (*Any) -> str
+def obfuscate(*inputs: Any) -> str:
 
   """Obfuscates any inputs into a hexadecimal string."""
   str_inputs = [str(input) for input in inputs]
@@ -173,8 +169,7 @@ class ProgressIndicator(object):
   spinner_removal_template = """
             $("#{id}").remove();"""
 
-  def __init__(self, enter_text, exit_text):
-    # type: (str, str) -> None
+  def __init__(self, enter_text: str, exit_text: str) -> None:
 
     self._id = 'progress_indicator_{}'.format(obfuscate(id(self)))
     self._enter_text = enter_text
@@ -210,8 +205,7 @@ class ProgressIndicator(object):
       pass  # NOOP when dependencies are not avaialble.
 
 
-def progress_indicated(func):
-  # type: (Callable[..., Any]) -> Callable[..., Any]
+def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
@@ -222,8 +216,7 @@ def progress_indicated(func):
   return run_within_progress_indicator
 
 
-def as_json(func):
-  # type: (Callable[..., Any]) -> Callable[..., str]
+def as_json(func: Callable[..., Any]) -> Callable[..., str]:
 
   """A decorator convert python objects returned by callables to json
   string.

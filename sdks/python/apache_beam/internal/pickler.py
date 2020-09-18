@@ -180,8 +180,8 @@ if 'save_module' in dir(dill.dill):
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
   old_save_module_dict = dill.dill.save_module_dict
-  known_module_dicts = {
-  }  # type: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]]
+  known_module_dicts: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]] = {
+  }
 
   @dill.dill.register(dict)
   def new_save_module_dict(pickler, obj):
@@ -241,8 +241,7 @@ if 'save_module' in dir(dill.dill):
 logging.getLogger('dill').setLevel(logging.WARN)
 
 
-def dumps(o, enable_trace=True):
-  # type: (...) -> bytes
+def dumps(o, enable_trace=True) -> bytes:
 
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock_unless_py2:

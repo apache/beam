@@ -54,7 +54,7 @@ except ImportError:
 if TYPE_CHECKING:
   import google.cloud.bigtable.instance
 
-EXISTING_INSTANCES = []  # type: List[google.cloud.bigtable.instance.Instance]
+EXISTING_INSTANCES: List[google.cloud.bigtable.instance.Instance] = []
 LABEL_KEY = u'python-bigtable-beam'
 label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)

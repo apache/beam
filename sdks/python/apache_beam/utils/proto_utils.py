@@ -39,14 +39,12 @@ TimeMessageT = TypeVar(
 
 
 @overload
-def pack_Any(msg):
-  # type: (message.Message) -> any_pb2.Any
+def pack_Any(msg: message.Message) -> any_pb2.Any:
   pass
 
 
 @overload
-def pack_Any(msg):
-  # type: (None) -> None
+def pack_Any(msg: None) -> None:
   pass
 
 
@@ -64,14 +62,12 @@ def pack_Any(msg):
 
 
 @overload
-def unpack_Any(any_msg, msg_class):
-  # type: (any_pb2.Any, Type[MessageT]) -> MessageT
+def unpack_Any(any_msg: any_pb2.Any, msg_class: Type[MessageT]) -> MessageT:
   pass
 
 
 @overload
-def unpack_Any(any_msg, msg_class):
-  # type: (any_pb2.Any, None) -> None
+def unpack_Any(any_msg: any_pb2.Any, msg_class: None) -> None:
   pass
 
 
@@ -88,14 +84,12 @@ def unpack_Any(any_msg, msg_class):
 
 
 @overload
-def parse_Bytes(serialized_bytes, msg_class):
-  # type: (bytes, Type[MessageT]) -> MessageT
+def parse_Bytes(serialized_bytes: bytes, msg_class: Type[MessageT]) -> MessageT:
   pass
 
 
 @overload
-def parse_Bytes(serialized_bytes, msg_class):
-  # type: (bytes, Union[Type[bytes], None]) -> bytes
+def parse_Bytes(serialized_bytes: bytes, msg_class: Union[Type[bytes], None]) -> bytes:
   pass
 
 
@@ -110,8 +104,7 @@ def parse_Bytes(serialized_bytes, msg_class):
   return msg
 
 
-def pack_Struct(**kwargs):
-  # type: (...) -> struct_pb2.Struct
+def pack_Struct(**kwargs) -> struct_pb2.Struct:
 
   """Returns a struct containing the values indicated by kwargs.
   """
@@ -121,15 +114,13 @@ def pack_Struct(**kwargs):
   return msg
 
 
-def from_micros(cls, micros):
-  # type: (Type[TimeMessageT], int) -> TimeMessageT
+def from_micros(cls: Type[TimeMessageT], micros: int) -> TimeMessageT:
   result = cls()
   result.FromMicroseconds(micros)
   return result
 
 
-def to_Timestamp(time):
-  # type: (Union[int, float]) -> timestamp_pb2.Timestamp
+def to_Timestamp(time: Union[int, float]) -> timestamp_pb2.Timestamp:
 
   """Convert a float returned by time.time() to a Timestamp.
   """
@@ -138,8 +129,7 @@ def to_Timestamp(time):
   return timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
 
 
-def from_Timestamp(timestamp):
-  # type: (timestamp_pb2.Timestamp) -> float
+def from_Timestamp(timestamp: timestamp_pb2.Timestamp) -> float:
 
   """Convert a Timestamp to a float expressed as seconds since the epoch.
   """

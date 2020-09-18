@@ -73,18 +73,15 @@ SAFE_WINDOW_FNS = set(window.WindowFn._known_urns.keys()) - set(
 
 
 class Buffer(Protocol):
-  def __iter__(self):
-    # type: () -> Iterator[bytes]
+  def __iter__(self) -> Iterator[bytes]:
     pass
 
-  def append(self, item):
-    # type: (bytes) -> None
+  def append(self, item: bytes) -> None:
     pass
 
 
 class PartitionableBuffer(Buffer, Protocol):
-  def partition(self, n):
-    # type: (int) -> List[List[bytes]]
+  def partition(self, n: int) -> List[List[bytes]]:
     pass
 
 
@@ -92,20 +89,18 @@ class ListBuffer(object):
   """Used to support parititioning of a list."""
   def __init__(self, coder_impl):
     self._coder_impl = coder_impl
-    self._inputs = []  # type: List[bytes]
+    self._inputs: List[bytes] = []
     self._grouped_output = None
     self.cleared = False
 
-  def append(self, element):
-    # type: (bytes) -> None
+  def append(self, element: bytes) -> None:
     if self.cleared:
       raise RuntimeError('Trying to append to a cleared ListBuffer.')
     if self._grouped_output:
       raise RuntimeError('ListBuffer append after read.')
     self._inputs.append(element)
 
-  def partition(self, n):
-    # type: (int) -> List[List[bytes]]
+  def partition(self, n: int) -> List[List[bytes]]:
     if self.cleared:
       raise RuntimeError('Trying to partition a cleared ListBuffer.')
     if len(self._inputs) >= n or len(self._inputs) == 0:
@@ -126,14 +121,12 @@ class ListBuffer(object):
                                 for output_stream in output_stream_list]
       return self._grouped_output
 
-  def __iter__(self):
-    # type: () -> Iterator[bytes]
+  def __iter__(self) -> Iterator[bytes]:
     if self.cleared:
       raise RuntimeError('Trying to iterate through a cleared ListBuffer.')
     return iter(self._inputs)
 
-  def clear(self):
-    # type: () -> None
+  def clear(self) -> None:
     self.cleared = True
     self._inputs = []
     self._grouped_output = None
@@ -148,21 +141,19 @@ class ListBuffer(object):
 class GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
   def __init__(self,
-               pre_grouped_coder,  # type: coders.Coder
-               post_grouped_coder,  # type: coders.Coder
+               pre_grouped_coder: coders.Coder,
+               post_grouped_coder: coders.Coder,
                windowing
-              ):
-    # type: (...) -> None
+              ) -> None:
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
-    self._table = collections.defaultdict(
-        list)  # type: DefaultDict[bytes, List[Any]]
+    self._table: DefaultDict[bytes, List[Any]] = collections.defaultdict(
+        list)
     self._windowing = windowing
-    self._grouped_output = None  # type: Optional[List[List[bytes]]]
+    self._grouped_output: Optional[List[List[bytes]]] = None
 
-  def append(self, elements_data):
-    # type: (bytes) -> None
+  def append(self, elements_data: bytes) -> None:
     if self._grouped_output:
       raise RuntimeError('Grouping table append after read.')
     input_stream = create_InputStream(elements_data)
@@ -178,8 +169,7 @@ class GroupingBuffer(object):
           value if is_trivial_windowing else windowed_key_value.
           with_value(value))
 
-  def partition(self, n):
-    # type: (int) -> List[List[bytes]]
+  def partition(self, n: int) -> List[List[bytes]]:
 
     """ It is used to partition _GroupingBuffer to N parts. Once it is
     partitioned, it would not be re-partitioned with diff N. Re-partition
@@ -218,8 +208,7 @@ class GroupingBuffer(object):
       self._table.clear()
     return self._grouped_output
 
-  def __iter__(self):
-    # type: () -> Iterator[bytes]
+  def __iter__(self) -> Iterator[bytes]:
 
     """ Since partition() returns a list of lists, add this __iter__ to return
     a list to simplify code when we need to iterate through ALL elements of
@@ -233,14 +222,13 @@ class WindowGroupingBuffer(object):
   def __init__(
       self,
       access_pattern,
-      coder  # type: WindowedValueCoder
-  ):
-    # type: (...) -> None
+      coder: WindowedValueCoder
+  ) -> None:
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
     if access_pattern.urn == common_urns.side_inputs.ITERABLE.urn:
       self._kv_extractor = lambda value: ('', value)
-      self._key_coder = coders.SingletonCoder('')  # type: coders.Coder
+      self._key_coder: coders.Coder = coders.SingletonCoder('')
       self._value_coder = coder.wrapped_value_coder
     elif access_pattern.urn == common_urns.side_inputs.MULTIMAP.urn:
       self._kv_extractor = lambda value: value
@@ -250,23 +238,21 @@ class WindowGroupingBuffer(object):
       raise ValueError("Unknown access pattern: '%s'" % access_pattern.urn)
     self._windowed_value_coder = coder
     self._window_coder = coder.window_coder
-    self._values_by_window = collections.defaultdict(
-        list)  # type: DefaultDict[Tuple[str, BoundedWindow], List[Any]]
+    self._values_by_window: DefaultDict[Tuple[str, BoundedWindow], List[Any]] = collections.defaultdict(
+        list)
 
-  def append(self, elements_data):
-    # type: (bytes) -> None
+  def append(self, elements_data: bytes) -> None:
     input_stream = create_InputStream(elements_data)
     while input_stream.size() > 0:
-      windowed_val_coder_impl = self._windowed_value_coder.get_impl(
-      )  # type: WindowedValueCoderImpl
+      windowed_val_coder_impl: WindowedValueCoderImpl = self._windowed_value_coder.get_impl(
+      )
       windowed_value = windowed_val_coder_impl.decode_from_stream(
           input_stream, True)
       key, value = self._kv_extractor(windowed_value.value)
       for window in windowed_value.windows:
         self._values_by_window[key, window].append(value)
 
-  def encoded_items(self):
-    # type: () -> Iterator[Tuple[bytes, bytes, bytes]]
+  def encoded_items(self) -> Iterator[Tuple[bytes, bytes, bytes]]:
     value_coder_impl = self._value_coder.get_impl()
     key_coder_impl = self._key_coder.get_impl()
     for (key, window), values in self._values_by_window.items():
@@ -305,9 +291,9 @@ class FnApiRunnerExecutionContext(object):
        ``beam.PCollection``.
  """
   def __init__(self,
-      stages,  # type: List[translations.Stage]
-      worker_handler_manager,  # type: worker_handlers.WorkerHandlerManager
-      pipeline_components,  # type: beam_runner_api_pb2.Components
+      stages: List[translations.Stage],
+      worker_handler_manager: worker_handlers.WorkerHandlerManager,
+      pipeline_components: beam_runner_api_pb2.Components,
       safe_coders,
       data_channel_coders,
                ):
@@ -321,8 +307,8 @@ class FnApiRunnerExecutionContext(object):
     self.stages = stages
     self.side_input_descriptors_by_stage = (
         self._build_data_side_inputs_map(stages))
-    self.pcoll_buffers = {}  # type: MutableMapping[bytes, PartitionableBuffer]
-    self.timer_buffers = {}  # type: MutableMapping[bytes, ListBuffer]
+    self.pcoll_buffers: MutableMapping[bytes, PartitionableBuffer] = {}
+    self.timer_buffers: MutableMapping[bytes, ListBuffer] = {}
     self.worker_handler_manager = worker_handler_manager
     self.pipeline_components = pipeline_components
     self.safe_coders = safe_coders
@@ -338,8 +324,7 @@ class FnApiRunnerExecutionContext(object):
     }
 
   @staticmethod
-  def _build_data_side_inputs_map(stages):
-    # type: (Iterable[translations.Stage]) -> MutableMapping[str, DataSideInput]
+  def _build_data_side_inputs_map(stages: Iterable[translations.Stage]) -> MutableMapping[str, DataSideInput]:
 
     """Builds an index mapping stages to side input descriptors.
 
@@ -347,14 +332,13 @@ class FnApiRunnerExecutionContext(object):
     patterns for all of the outputs of a stage that will be consumed as a
     side input.
     """
-    transform_consumers = collections.defaultdict(
-        list)  # type: DefaultDict[str, List[beam_runner_api_pb2.PTransform]]
-    stage_consumers = collections.defaultdict(
-        list)  # type: DefaultDict[str, List[translations.Stage]]
+    transform_consumers: DefaultDict[str, List[beam_runner_api_pb2.PTransform]] = collections.defaultdict(
+        list)
+    stage_consumers: DefaultDict[str, List[translations.Stage]] = collections.defaultdict(
+        list)
 
-    def get_all_side_inputs():
-      # type: () -> Set[str]
-      all_side_inputs = set()  # type: Set[str]
+    def get_all_side_inputs() -> Set[str]:
+      all_side_inputs: Set[str] = set()
       for stage in stages:
         for transform in stage.transforms:
           for input in transform.inputs.values():
@@ -427,8 +411,7 @@ class FnApiRunnerExecutionContext(object):
     self._last_uid += 1
     return str(self._last_uid)
 
-  def _iterable_state_write(self, values, element_coder_impl):
-    # type: (...) -> bytes
+  def _iterable_state_write(self, values, element_coder_impl) -> bytes:
     token = unique_name(None, 'iter').encode('ascii')
     out = create_OutputStream()
     for element in values:
@@ -441,9 +424,8 @@ class FnApiRunnerExecutionContext(object):
 
   def commit_side_inputs_to_state(
       self,
-      data_side_input,  # type: DataSideInput
-  ):
-    # type: (...) -> None
+      data_side_input: DataSideInput,
+  ) -> None:
     for (consuming_transform_id, tag), (buffer_id,
                                         func_spec) in data_side_input.items():
       _, pcoll_id = split_buffer_id(buffer_id)
@@ -480,9 +462,9 @@ class FnApiRunnerExecutionContext(object):
 class BundleContextManager(object):
 
   def __init__(self,
-               execution_context, # type: FnApiRunnerExecutionContext
-               stage,  # type: translations.Stage
-               num_workers,  # type: int
+               execution_context: FnApiRunnerExecutionContext,
+               stage: translations.Stage,
+               num_workers: int,
               ):
     self.execution_context = execution_context
     self.stage = stage
@@ -542,8 +524,7 @@ class BundleContextManager(object):
         state_api_service_descriptor=self.state_api_service_descriptor(),
         timer_api_service_descriptor=self.data_api_service_descriptor())
 
-  def extract_bundle_inputs_and_outputs(self):
-    # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], str]]
+  def extract_bundle_inputs_and_outputs(self) -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], str]]:
 
     """Returns maps of transform names to PCollection identifiers.
 
@@ -557,10 +538,10 @@ class BundleContextManager(object):
         `expected_timer_output` is a dictionary mapping transform_id and
         timer family ID to a buffer id for timers.
     """
-    data_input = {}  # type: Dict[str, PartitionableBuffer]
-    data_output = {}  # type: DataOutput
+    data_input: Dict[str, PartitionableBuffer] = {}
+    data_output: DataOutput = {}
     # A mapping of {(transform_id, timer_family_id) : buffer_id}
-    expected_timer_output = {}  # type: Dict[Tuple[str, str], str]
+    expected_timer_output: Dict[Tuple[str, str], str] = {}
     for transform in self.stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                 bundle_processor.DATA_OUTPUT_URN):
@@ -600,8 +581,7 @@ class BundleContextManager(object):
               create_buffer_id(timer_family_id, 'timers'))
     return data_input, data_output, expected_timer_output
 
-  def get_input_coder_impl(self, transform_id):
-    # type: (str) -> CoderImpl
+  def get_input_coder_impl(self, transform_id: str) -> CoderImpl:
     coder_id = beam_fn_api_pb2.RemoteGrpcPort.FromString(
         self.process_bundle_descriptor.transforms[transform_id].spec.payload
     ).coder_id
@@ -631,8 +611,7 @@ class BundleContextManager(object):
     return self.get_coder_impl(
         self._timer_coder_ids[(transform_id, timer_family_id)])
 
-  def get_buffer(self, buffer_id, transform_id):
-    # type: (bytes, str) -> PartitionableBuffer
+  def get_buffer(self, buffer_id: bytes, transform_id: str) -> PartitionableBuffer:
 
     """Returns the buffer for a given (operation_type, PCollection ID).
     For grouping-typed operations, we produce a ``GroupingBuffer``. For
@@ -678,8 +657,7 @@ class BundleContextManager(object):
       raise NotImplementedError(buffer_id)
     return self.execution_context.pcoll_buffers[buffer_id]
 
-  def input_for(self, transform_id, input_id):
-    # type: (str, str) -> str
+  def input_for(self, transform_id: str, input_id: str) -> str:
     input_pcoll = self.process_bundle_descriptor.transforms[
         transform_id].inputs[input_id]
     for read_id, proto in self.process_bundle_descriptor.transforms.items():

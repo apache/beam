@@ -99,8 +99,7 @@ class RowCoder(FastCoder):
     return RowCoder(schema)
 
   @staticmethod
-  def from_payload(payload):
-    # type: (bytes) -> RowCoder
+  def from_payload(payload: bytes) -> RowCoder:
     return RowCoder(proto_utils.parse_Bytes(payload, schema_pb2.Schema))
 
   def __reduce__(self):

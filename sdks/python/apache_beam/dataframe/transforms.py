@@ -69,15 +69,15 @@ class DataframeTransform(transforms.PTransform):
     from apache_beam.dataframe import convert
 
     # Convert inputs to a flat dict.
-    input_dict = _flatten(input_pcolls)  # type: Dict[Any, PCollection]
+    input_dict: Dict[Any, PCollection] = _flatten(input_pcolls)
     proxies = _flatten(self._proxy) if self._proxy is not None else {
         tag: None
         for tag in input_dict.keys()
     }
-    input_frames = {
+    input_frames: Dict[Any, DeferredFrame] = {
         k: convert.to_dataframe(pc, proxies[k])
         for k, pc in input_dict.items()
-    }  # type: Dict[Any, DeferredFrame]
+    }
 
     # Apply the function.
     frames_input = _substitute(input_pcolls, input_frames)
@@ -109,8 +109,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
   def _apply_deferred_ops(
       self,
-      inputs,  # type: Dict[expressions.Expression, PCollection]
-      outputs,  # type: Dict[Any, expressions.Expression]
+      inputs: Dict[expressions.Expression, PCollection],
+      outputs: Dict[Any, expressions.Expression],
       ):  # -> Dict[Any, PCollection]
     """Construct a Beam graph that evaluates a set of expressions on a set of
     input PCollections.
@@ -324,10 +324,9 @@ def _dict_union(dicts):
 
 
 def _flatten(
-    valueish,  # type: Union[T, List[T], Tuple[T], Dict[Any, T]]
-    root=(),  # type: Tuple[Any, ...]
-    ):
-  # type: (...) -> Mapping[Tuple[Any, ...], T]
+    valueish: Union[T, List[T], Tuple[T], Dict[Any, T]],
+    root: Tuple[Any, ...] = (),
+    ) -> Mapping[Tuple[Any, ...], T]:
 
   """Given a nested structure of dicts, tuples, and lists, return a flat
   dictionary where the values are the leafs and the keys are the "paths" to
