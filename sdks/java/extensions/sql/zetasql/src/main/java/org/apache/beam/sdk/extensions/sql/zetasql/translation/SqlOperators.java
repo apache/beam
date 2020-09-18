@@ -134,7 +134,6 @@ public class SqlOperators {
   public static final SqlOperator DATE_OP =
       createUdfOperator("DATE", BeamBuiltinMethods.DATE_METHOD);
 
-  // TODO: Fix Later
   @SuppressWarnings("nullness")
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
@@ -149,7 +148,6 @@ public class SqlOperators {
    * Create a dummy SqlFunction of type OTHER_FUNCTION from given function name and return type.
    * These functions will be unparsed in BeamZetaSqlCalcRel and then executed by ZetaSQL evaluator.
    */
-  // TODO: Fix Later
   @SuppressWarnings("nullness")
   public static SqlFunction createZetaSqlFunction(String name, SqlTypeName returnType) {
     return new SqlFunction(
@@ -161,7 +159,6 @@ public class SqlOperators {
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
   }
 
-  // TODO: Fix Later
   @SuppressWarnings("nullness")
   private static SqlUserDefinedAggFunction createUdafOperator(
       String name, SqlReturnTypeInference returnTypeInference, AggregateFunction function) {
@@ -177,7 +174,6 @@ public class SqlOperators {
         createTypeFactory());
   }
 
-  // TODO: Fix Later
   @SuppressWarnings("nullness")
   private static SqlUserDefinedFunction createUdfOperator(
       String name,
