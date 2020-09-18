@@ -19,14 +19,12 @@ package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -39,34 +37,30 @@ public class ReadBuilder
 
   @Override
   public PTransform<PBegin, PCollection<byte[]>> buildExternal(Configuration c) {
-    SerializableFunction<Void, DataSource> dataSourceSerializableFunction =
-        SnowflakeIO.DataSourceProviderFromDataSourceConfiguration.of(
-            SnowflakeIO.DataSourceConfiguration.create()
-                .withServerName(c.getServerName())
-                .withDatabase(c.getDatabase())
-                .withSchema(c.getSchema())
-                .withRole(c.getRole())
-                .withWarehouse(c.getWarehouse()));
-
-    return SnowflakeIO.<byte[]>read()
-        .withStorageIntegrationName(c.getStorageIntegrationName())
-        .withStagingBucketName(c.getStagingBucketName())
-        .withDataSourceProviderFn(dataSourceSerializableFunction)
-        .withCsvMapper(CsvMapper.getCsvMapper())
-        .withCoder(ByteArrayCoder.of())
-        .fromTable(c.getTable())
-        .fromQuery(c.getQuery());
+    SnowflakeIO.Read<byte[]> readTransform =
+        SnowflakeIO.<byte[]>read()
+            .withDataSourceConfiguration(c.getDataSourceConfiguration())
+            .withStorageIntegrationName(c.getStorageIntegrationName())
+            .withStagingBucketName(c.getStagingBucketName())
+            .withCsvMapper(CsvMapper.getCsvMapper())
+            .withCoder(ByteArrayCoder.of());
+    if (c.getTable() != null) {
+      readTransform = readTransform.fromTable(c.getTable());
+    }
+    if (c.getQuery() != null) {
+      readTransform = readTransform.fromQuery(c.getQuery());
+    }
+    return readTransform;
   }
 
   private static class CsvMapper implements Serializable {
 
-    public static SnowflakeIO.CsvMapper getCsvMapper() {
-      return (SnowflakeIO.CsvMapper<byte[]>)
-          parts -> {
-            String partsCSV = String.join(",", parts);
+    public static SnowflakeIO.CsvMapper<byte[]> getCsvMapper() {
+      return parts -> {
+        String partsCSV = String.join(",", parts);
 
-            return partsCSV.getBytes(Charset.defaultCharset());
-          };
+        return partsCSV.getBytes(Charset.defaultCharset());
+      };
     }
   }
 }

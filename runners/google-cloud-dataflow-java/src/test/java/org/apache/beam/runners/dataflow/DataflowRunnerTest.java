@@ -38,7 +38,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -86,7 +85,6 @@ import java.util.regex.Pattern;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.dataflow.DataflowRunner.BatchGroupIntoBatches;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -509,6 +507,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** PipelineOptions used to test auto registration of Jackson modules. */
   public interface JacksonIncompatibleOptions extends PipelineOptions {
+
     JacksonIncompatible getJacksonIncompatible();
 
     void setJacksonIncompatible(JacksonIncompatible value);
@@ -517,6 +516,7 @@ public class DataflowRunnerTest implements Serializable {
   /** A Jackson {@link Module} to test auto-registration of modules. */
   @AutoService(Module.class)
   public static class RegisteredTestModule extends SimpleModule {
+
     public RegisteredTestModule() {
       super("RegisteredTestModule");
       setMixInAnnotation(JacksonIncompatible.class, JacksonIncompatibleMixin.class);
@@ -525,6 +525,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** A class which Jackson does not know how to serialize/deserialize. */
   public static class JacksonIncompatible {
+
     private final String value;
 
     public JacksonIncompatible(String value) {
@@ -668,6 +669,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
+
     ValueProvider<String> getInput();
 
     void setInput(ValueProvider<String> value);
@@ -1261,6 +1263,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** A fake PTransform for testing. */
   public static class TestTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
+
     public boolean translated = false;
 
     @Override
@@ -1399,6 +1402,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** Records all the composite transforms visited within the Pipeline. */
   private static class CompositeTransformRecorder extends PipelineVisitor.Defaults {
+
     private List<PTransform<?, ?>> transforms = new ArrayList<>();
 
     @Override
@@ -1600,17 +1604,14 @@ public class DataflowRunnerTest implements Serializable {
     verifyMergingStatefulParDoRejected(options);
   }
 
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testBatchGroupIntoBatchesOverride() {
-    // Ignore this test for streaming pipelines.
-    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+  private void verifyGroupIntoBatchesOverride(PipelineOptions options) {
+    Pipeline p = Pipeline.create(options);
 
     final int batchSize = 2;
     List<KV<String, Integer>> testValues =
         Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
     PCollection<KV<String, Iterable<Integer>>> output =
-        pipeline.apply(Create.of(testValues)).apply(GroupIntoBatches.ofSize(batchSize));
+        p.apply(Create.of(testValues)).apply(GroupIntoBatches.ofSize(batchSize));
     PAssert.thatMultimap(output)
         .satisfies(
             new SerializableFunction<Map<String, Iterable<Iterable<Integer>>>, Void>() {
@@ -1632,21 +1633,43 @@ public class DataflowRunnerTest implements Serializable {
                 return null;
               }
             });
-    pipeline.run();
+    p.run();
 
     AtomicBoolean sawGroupIntoBatchesOverride = new AtomicBoolean(false);
-    pipeline.traverseTopologically(
+    p.traverseTopologically(
         new PipelineVisitor.Defaults() {
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (node.getTransform() instanceof BatchGroupIntoBatches) {
+            if (options.as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatches) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!options.as(StreamingOptions.class).isStreaming()
+                && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
               sawGroupIntoBatchesOverride.set(true);
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
         });
     assertTrue(sawGroupIntoBatchesOverride.get());
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testBatchGroupIntoBatchesOverride() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(false);
+    verifyGroupIntoBatchesOverride(options);
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testStreamingGroupIntoBatchesOverride() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    verifyGroupIntoBatchesOverride(options);
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
@@ -1677,6 +1700,7 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   private static class TestSink extends FileBasedSink<Object, Void, Object> {
+
     @Override
     public void validate(PipelineOptions options) {}
 

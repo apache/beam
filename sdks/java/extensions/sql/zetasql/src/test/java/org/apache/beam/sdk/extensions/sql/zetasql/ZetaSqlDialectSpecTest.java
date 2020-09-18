@@ -3034,6 +3034,25 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testUnnestArrayFieldOfNestedStructColumn() {
+    String sql =
+        "SELECT int_col, s FROM table_with_struct_of_array, UNNEST(struct_col.struct.arr) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("int_col").addStringField("p").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(10L, "1").build(),
+            Row.withSchema(schema).addValues(20L, "2").build(),
+            Row.withSchema(schema).addValues(20L, "3").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testStringAggregation() {
     String sql =
         "SELECT STRING_AGG(fruit) AS string_agg"
@@ -4301,7 +4320,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
-        "AVG(LONG) is not supported. You might want to use AVG(CAST(expression AS DOUBLE).");
+        "AVG(INT64) is not supported. You might want to use AVG(CAST(expression AS FLOAT64).");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
