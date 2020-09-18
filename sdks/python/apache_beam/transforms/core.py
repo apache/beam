@@ -258,7 +258,6 @@ class RestrictionProvider(object):
   gives the watermark in number of seconds.
   """
   def create_tracker(self, restriction) -> iobase.RestrictionTracker:
-
     """Produces a new ``RestrictionTracker`` for the given restriction.
 
     This API is required to be implemented.
@@ -341,8 +340,8 @@ class RestrictionProvider(object):
       return restriction
 
 
-def get_function_arguments(obj, func) -> typing.Tuple[typing.List[str], typing.List[typing.Any]]:
-
+def get_function_arguments(
+    obj, func) -> typing.Tuple[typing.List[str], typing.List[typing.Any]]:
   """Return the function arguments based on the name provided. If they have
   a _inspect_function attached to the class then use that otherwise default
   to the modified version of python inspect library.
@@ -358,8 +357,8 @@ def get_function_arguments(obj, func) -> typing.Tuple[typing.List[str], typing.L
   return get_function_args_defaults(f)
 
 
-def get_function_args_defaults(f) -> typing.Tuple[typing.List[str], typing.List[typing.Any]]:
-
+def get_function_args_defaults(
+    f) -> typing.Tuple[typing.List[str], typing.List[typing.Any]]:
   """Returns the function arguments of a given function.
 
   Returns:
@@ -584,7 +583,8 @@ class _BundleFinalizerParam(_DoFnParam):
 
 class _WatermarkEstimatorParam(_DoFnParam):
   """WatermarkEstomator DoFn parameter."""
-  def __init__(self, watermark_estimator_provider: WatermarkEstimatorProvider) -> None:
+  def __init__(
+      self, watermark_estimator_provider: WatermarkEstimatorProvider) -> None:
     if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
       raise ValueError(
           'DoFn._WatermarkEstimatorParam expected'
@@ -1002,7 +1002,9 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return CallableWrapperCombineFn(fn)
 
   @staticmethod
-  def maybe_from_callable(fn: typing.Union[CombineFn, typing.Callable], has_side_inputs: bool = True) -> CombineFn:
+  def maybe_from_callable(
+      fn: typing.Union[CombineFn, typing.Callable],
+      has_side_inputs: bool = True) -> CombineFn:
     if isinstance(fn, CombineFn):
       return fn
     elif callable(fn) and not has_side_inputs:
@@ -1184,8 +1186,12 @@ class PartitionFn(WithTypeHints):
   def default_label(self):
     return self.__class__.__name__
 
-  def partition_for(self, element: T, num_partitions: int, *args: typing.Any, **kwargs: typing.Any) -> int:
-
+  def partition_for(
+      self,
+      element: T,
+      num_partitions: int,
+      *args: typing.Any,
+      **kwargs: typing.Any) -> int:
     """Specify which partition will receive this element.
 
     Args:
@@ -1223,7 +1229,12 @@ class CallableWrapperPartitionFn(PartitionFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
     self._fn = fn
 
-  def partition_for(self, element: T, num_partitions: int, *args: typing.Any, **kwargs: typing.Any) -> int:
+  def partition_for(
+      self,
+      element: T,
+      num_partitions: int,
+      *args: typing.Any,
+      **kwargs: typing.Any) -> int:
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
@@ -1375,7 +1386,9 @@ class ParDo(PTransformWithSideInputs):
     window_coder = input_pcoll.windowing.windowfn.get_window_coder()
     return key_coder, window_coder
 
-  def to_runner_api_parameter(self, context: PipelineContext, **extra_kwargs: Any) -> typing.Tuple[str, message.Message]:
+  def to_runner_api_parameter(
+      self, context: PipelineContext,
+      **extra_kwargs: Any) -> typing.Tuple[str, message.Message]:
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
@@ -2331,7 +2344,8 @@ class GroupByKey(PTransform):
         input_type).tuple_types)
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
-  def to_runner_api_parameter(self, unused_context: PipelineContext) -> typing.Tuple[str, None]:
+  def to_runner_api_parameter(
+      self, unused_context: PipelineContext) -> typing.Tuple[str, None]:
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @staticmethod
@@ -2379,8 +2393,7 @@ class GroupBy(PTransform):
   def __init__(
       self,
       *fields: typing.Union[str, callable],
-      **kwargs: typing.Union[str, callable]
-    ):
+      **kwargs: typing.Union[str, callable]):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
       name = fields[0] if isinstance(fields[0], str) else 'key'
@@ -2410,7 +2423,7 @@ class GroupBy(PTransform):
       field: typing.Union[str, callable],
       combine_fn: typing.Union[callable, CombineFn],
       dest: str,
-    ):
+  ):
     """Returns a grouping operation that also aggregates grouped values.
 
     Args:
@@ -2478,7 +2491,7 @@ class _GroupAndAggregate(PTransform):
       field: typing.Union[str, callable],
       combine_fn: typing.Union[callable, CombineFn],
       dest: str,
-      ):
+  ):
     field = _expr_to_callable(field, 0)
     return _GroupAndAggregate(
         self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
@@ -2517,10 +2530,10 @@ class Select(PTransform):
 
       pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
-  def __init__(self,
-               *args: typing.Union[str, callable],
-               **kwargs: typing.Union[str, callable]
-               ):
+  def __init__(
+      self,
+      *args: typing.Union[str, callable],
+      **kwargs: typing.Union[str, callable]):
     self._fields = [(
         expr if isinstance(expr, str) else 'arg%02d' % ix,
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
@@ -2582,14 +2595,17 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-  def __init__(self,
-               windowfn: WindowFn,
-               triggerfn: typing.Optional[TriggerFn] = None,
-               accumulation_mode: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum] = None,
-               timestamp_combiner: typing.Optional[beam_runner_api_pb2.OutputTime.Enum] = None,
-               allowed_lateness: typing.Union[int, float] = 0,
-               environment_id: str = None,
-               ):
+  def __init__(
+      self,
+      windowfn: WindowFn,
+      triggerfn: typing.Optional[TriggerFn] = None,
+      accumulation_mode: typing.Optional[
+          beam_runner_api_pb2.AccumulationMode.Enum] = None,
+      timestamp_combiner: typing.Optional[
+          beam_runner_api_pb2.OutputTime.Enum] = None,
+      allowed_lateness: typing.Union[int, float] = 0,
+      environment_id: str = None,
+  ):
     """Class representing the window strategy.
 
     Args:
@@ -2672,7 +2688,8 @@ class Windowing(object):
   def is_default(self):
     return self._is_default
 
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.WindowingStrategy:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.WindowingStrategy:
     environment_id = self.environment_id or context.default_environment_id()
     return beam_runner_api_pb2.WindowingStrategy(
         window_fn=self.windowfn.to_runner_api(context),
@@ -2776,7 +2793,9 @@ class WindowInto(ParDo):
       self.with_output_types(output_type)
     return super(WindowInto, self).expand(pcoll)
 
-  def to_runner_api_parameter(self, context: PipelineContext, **extra_kwargs: Any) -> typing.Tuple[str, message.Message]:
+  def to_runner_api_parameter(
+      self, context: PipelineContext,
+      **extra_kwargs: Any) -> typing.Tuple[str, message.Message]:
     return (
         common_urns.primitives.ASSIGN_WINDOWS.urn,
         self.windowing.to_runner_api(context))
@@ -2821,8 +2840,7 @@ class Flatten(PTransform):
   """
   def __init__(self, **kwargs):
     super(Flatten, self).__init__()
-    self.pipeline: typing.Optional[Pipeline] = kwargs.pop(
-        'pipeline', None)
+    self.pipeline: typing.Optional[Pipeline] = kwargs.pop('pipeline', None)
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % list(kwargs))
 
@@ -2850,7 +2868,8 @@ class Flatten(PTransform):
       return Windowing(GlobalWindows())
     return super(Flatten, self).get_windowing(inputs)
 
-  def to_runner_api_parameter(self, context: PipelineContext) -> typing.Tuple[str, None]:
+  def to_runner_api_parameter(
+      self, context: PipelineContext) -> typing.Tuple[str, None]:
     return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
@@ -2881,7 +2900,8 @@ class Create(PTransform):
     self.values = tuple(values)
     self.reshuffle = reshuffle
 
-  def to_runner_api_parameter(self, context: PipelineContext) -> typing.Tuple[str, bytes]:
+  def to_runner_api_parameter(
+      self, context: PipelineContext) -> typing.Tuple[str, bytes]:
     # Required as this is identified by type in PTransformOverrides.
     # TODO(BEAM-3812): Use an actual URN here.
     return self.to_runner_api_pickled(context)
@@ -2937,7 +2957,9 @@ class Create(PTransform):
     return Create._create_source(list(map(coder.encode, values)), coder)
 
   @staticmethod
-  def _create_source(serialized_values: typing.Any, coder: typing.Any) -> create_source._CreateSource:
+  def _create_source(
+      serialized_values: typing.Any,
+      coder: typing.Any) -> create_source._CreateSource:
     from apache_beam.transforms.create_source import _CreateSource
 
     return _CreateSource(serialized_values, coder)
@@ -2958,7 +2980,8 @@ class Impulse(PTransform):
   def infer_output_type(self, unused_input_type):
     return bytes
 
-  def to_runner_api_parameter(self, unused_context: PipelineContext) -> typing.Tuple[str, None]:
+  def to_runner_api_parameter(
+      self, unused_context: PipelineContext) -> typing.Tuple[str, None]:
     return common_urns.primitives.IMPULSE.urn, None
 
   @staticmethod

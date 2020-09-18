@@ -150,7 +150,6 @@ class GCSFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """Returns a write channel for the given file path.
 
     Args:
@@ -167,7 +166,6 @@ class GCSFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """Returns a read channel for the given file path.
 
     Args:

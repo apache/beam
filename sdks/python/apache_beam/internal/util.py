@@ -73,11 +73,11 @@ class ArgumentPlaceholder(object):
     return hash(type(self))
 
 
-def remove_objects_from_args(args: Iterable[Any],
-                             kwargs: Dict[str, Any],
-                             pvalue_class: Union[Type[T], Tuple[Type[T], ...]]
-                            ) -> Tuple[List[Any], Dict[str, Any], List[T]]:
-
+def remove_objects_from_args(
+    args: Iterable[Any],
+    kwargs: Dict[str, Any],
+    pvalue_class: Union[Type[T], Tuple[Type[T], ...]]
+) -> Tuple[List[Any], Dict[str, Any], List[T]]:
   """For internal use only; no backwards-compatibility guarantees.
 
   Replaces all objects of a given type in args/kwargs with a placeholder.

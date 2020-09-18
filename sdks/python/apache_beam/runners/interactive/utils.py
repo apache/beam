@@ -34,9 +34,7 @@ def to_element_list(
     reader: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]],
     coder: Coder,
     include_window_info: bool,
-    n: int = None
-) -> List[WindowedValue]:
-
+    n: int = None) -> List[WindowedValue]:
   """Returns an iterator that properly decodes the elements from the reader.
   """
 
@@ -67,8 +65,9 @@ def to_element_list(
     yield e
 
 
-def elements_to_df(elements: List[WindowedValue], include_window_info: bool = False) -> DataFrame:
-
+def elements_to_df(
+    elements: List[WindowedValue],
+    include_window_info: bool = False) -> DataFrame:
   """Parses the given elements into a Dataframe.
 
   If the elements are a list of WindowedValues, then it will break out the
@@ -96,7 +95,6 @@ def elements_to_df(elements: List[WindowedValue], include_window_info: bool = Fa
 
 
 def register_ipython_log_handler() -> None:
-
   """Adds the IPython handler to a dummy parent logger (named
   'apache_beam.runners.interactive') of all interactive modules' loggers so that
   if is_in_notebook, logging displays the logs as HTML in frontends.
@@ -151,7 +149,6 @@ class IPythonLogHandler(logging.Handler):
 
 
 def obfuscate(*inputs: Any) -> str:
-
   """Obfuscates any inputs into a hexadecimal string."""
   str_inputs = [str(input) for input in inputs]
   merged_inputs = '_'.join(str_inputs)
@@ -206,7 +203,6 @@ class ProgressIndicator(object):
 
 
 def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
-
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
   def run_within_progress_indicator(*args, **kwargs):
@@ -217,7 +213,6 @@ def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def as_json(func: Callable[..., Any]) -> Callable[..., str]:
-
   """A decorator convert python objects returned by callables to json
   string.
 

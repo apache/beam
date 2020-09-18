@@ -603,12 +603,8 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
 
 class _WriteShardedRecordsFn(beam.DoFn):
-
-  def __init__(self,
-               base_path,
-               sink_fn: Callable[[Any], FileSink],
-               shards: int
-              ):
+  def __init__(
+      self, base_path, sink_fn: Callable[[Any], FileSink], shards: int):
     self.base_path = base_path
     self.sink_fn = sink_fn
     self.shards = shards
@@ -647,11 +643,7 @@ class _WriteShardedRecordsFn(beam.DoFn):
 
 
 class _AppendShardedDestination(beam.DoFn):
-  def __init__(
-      self,
-      destination: Callable[[Any], str],
-      shards: int
-  ):
+  def __init__(self, destination: Callable[[Any], str], shards: int):
     self.destination_fn = destination
     self.shards = shards
 
@@ -677,7 +669,8 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
   SPILLED_RECORDS = 'spilled_records'
   WRITTEN_FILES = 'written_files'
 
-  _writers_and_sinks: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO, FileSink]] = None
+  _writers_and_sinks: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO,
+                                                            FileSink]] = None
   _file_names: Dict[Tuple[str, BoundedWindow], str] = None
 
   def __init__(

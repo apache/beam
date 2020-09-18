@@ -63,7 +63,6 @@ class HasDisplayData(object):
   It implements only the display_data method and a _namespace method.
   """
   def display_data(self) -> dict:
-
     """ Returns the display data associated to a pipeline component.
 
     It should be reimplemented in pipeline components that wish to have
@@ -93,11 +92,7 @@ class HasDisplayData(object):
 class DisplayData(object):
   """ Static display data associated with a pipeline component.
   """
-  def __init__(
-      self,
-      namespace: str,
-      display_data_dict: dict
-  ) -> None:
+  def __init__(self, namespace: str, display_data_dict: dict) -> None:
     self.namespace = namespace
     self.items: List[DisplayDataItem] = []
     self._populate_items(display_data_dict)
@@ -215,7 +210,6 @@ class DisplayDataItem(object):
     self._drop_if_default = False
 
   def drop_if_none(self) -> DisplayDataItem:
-
     """ The item should be dropped if its value is None.
 
     Returns:
@@ -225,7 +219,6 @@ class DisplayDataItem(object):
     return self
 
   def drop_if_default(self, default) -> DisplayDataItem:
-
     """ The item should be dropped if its value is equal to its default.
 
     Returns:
@@ -236,7 +229,6 @@ class DisplayDataItem(object):
     return self
 
   def should_drop(self) -> bool:
-
     """ Return True if the item should be dropped, or False if it should not
     be dropped. This depends on the drop_if_none, and drop_if_default calls.
 
@@ -250,7 +242,6 @@ class DisplayDataItem(object):
     return False
 
   def is_valid(self) -> None:
-
     """ Checks that all the necessary fields of the :class:`DisplayDataItem`
     are filled in. It checks that neither key, namespace, value or type are
     :data:`None`.
@@ -291,7 +282,6 @@ class DisplayDataItem(object):
     return res
 
   def get_dict(self) -> dict:
-
     """ Returns the internal-API dictionary representing the
     :class:`DisplayDataItem`.
 

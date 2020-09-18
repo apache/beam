@@ -37,18 +37,18 @@ class StateSampler(object):
     self.time_since_transition = 0
 
   def current_state(self) -> ScopedState:
-
     """Returns the current execution state.
 
     This operation is not thread safe, and should only be called from the
     execution thread."""
     return self._state_stack[-1]
 
-  def _scoped_state(self,
-                    counter_name: counters.CounterName,
-                    name_context: common.NameContext,
-                    output_counter,
-                    metrics_container=None) -> ScopedState:
+  def _scoped_state(
+      self,
+      counter_name: counters.CounterName,
+      name_context: common.NameContext,
+      output_counter,
+      metrics_container=None) -> ScopedState:
     assert isinstance(name_context, common.NameContext)
     return ScopedState(
         self, counter_name, name_context, output_counter, metrics_container)
@@ -78,13 +78,13 @@ class StateSampler(object):
 
 
 class ScopedState(object):
-
-  def __init__(self,
-               sampler: StateSampler,
-               name: counters.CounterName,
-               step_name_context: Optional[common.NameContext],
-               counter=None,
-               metrics_container=None):
+  def __init__(
+      self,
+      sampler: StateSampler,
+      name: counters.CounterName,
+      step_name_context: Optional[common.NameContext],
+      counter=None,
+      metrics_container=None):
     self.state_sampler = sampler
     self.name = name
     self.name_context = step_name_context

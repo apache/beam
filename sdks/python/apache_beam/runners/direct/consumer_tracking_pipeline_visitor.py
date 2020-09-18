@@ -42,8 +42,7 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   transform has produced and committed output.
   """
   def __init__(self):
-    self.value_to_consumers: Dict[pvalue.PValue, Set[AppliedPTransform]] = {
-    }
+    self.value_to_consumers: Dict[pvalue.PValue, Set[AppliedPTransform]] = {}
     self.root_transforms: Set[AppliedPTransform] = set()
     self.step_names: Dict[AppliedPTransform, str] = {}
 

@@ -55,13 +55,12 @@ _LOGGER = logging.getLogger(__name__)
 
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
-
-  def __init__(self,
-               use_process=False,
-               container_executable: Optional[str] = None,
-               state_cache_size=0,
-               data_buffer_time_limit_ms=0
-              ):
+  def __init__(
+      self,
+      use_process=False,
+      container_executable: Optional[str] = None,
+      state_cache_size=0,
+      data_buffer_time_limit_ms=0):
     self._use_process = use_process
     self._container_executable = container_executable
     self._state_cache_size = state_cache_size
@@ -75,8 +74,7 @@ class BeamFnExternalWorkerPoolServicer(
       port=0,
       state_cache_size=0,
       data_buffer_time_limit_ms=-1,
-      container_executable: Optional[str] = None
-  ) -> Tuple[str, grpc.Server]:
+      container_executable: Optional[str] = None) -> Tuple[str, grpc.Server]:
     worker_server = grpc.server(
         thread_pool_executor.shared_unbounded_instance())
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
@@ -100,10 +98,10 @@ class BeamFnExternalWorkerPoolServicer(
 
     return worker_address, worker_server
 
-  def StartWorker(self,
-                  start_worker_request: beam_fn_api_pb2.StartWorkerRequest,
-                  unused_context
-                 ) -> beam_fn_api_pb2.StartWorkerResponse:
+  def StartWorker(
+      self,
+      start_worker_request: beam_fn_api_pb2.StartWorkerRequest,
+      unused_context) -> beam_fn_api_pb2.StartWorkerResponse:
     try:
       if self._use_process:
         command = [
@@ -160,10 +158,10 @@ class BeamFnExternalWorkerPoolServicer(
     except Exception:
       return beam_fn_api_pb2.StartWorkerResponse(error=traceback.format_exc())
 
-  def StopWorker(self,
-                 stop_worker_request: beam_fn_api_pb2.StopWorkerRequest,
-                 unused_context
-                ) -> beam_fn_api_pb2.StopWorkerResponse:
+  def StopWorker(
+      self,
+      stop_worker_request: beam_fn_api_pb2.StopWorkerRequest,
+      unused_context) -> beam_fn_api_pb2.StopWorkerResponse:
     # applicable for process mode to ensure process cleanup
     # thread based workers terminate automatically
     worker_process = self._worker_processes.pop(

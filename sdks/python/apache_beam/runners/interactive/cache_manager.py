@@ -157,7 +157,6 @@ class CacheManager(object):
     raise NotImplementedError
 
   def size(self, *labels: str) -> int:
-
     """Returns the size of the PCollection on disk in bytes."""
     raise NotImplementedError
 

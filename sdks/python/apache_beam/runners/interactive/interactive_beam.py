@@ -260,8 +260,9 @@ def watch(watchable):
 # `show(*pcolls, include_window_info=False, visualize_data=False)` once Python 2
 # is completely deprecated from Beam.
 @progress_indicated
-def show(*pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], **configs: bool) -> None:
-
+def show(
+    *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
+    **configs: bool) -> None:
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.

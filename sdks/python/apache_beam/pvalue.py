@@ -84,14 +84,14 @@ class PValue(object):
     (2) Has a transform that can compute the value if executed.
     (3) Has a value which is meaningful if the transform was executed.
   """
-
-  def __init__(self,
-               pipeline: Pipeline,
-               tag: Optional[str] = None,
-               element_type: Optional[Union[type,typehints.TypeConstraint]] = None,
-               windowing: Optional[Windowing] = None,
-               is_bounded=True,
-              ):
+  def __init__(
+      self,
+      pipeline: Pipeline,
+      tag: Optional[str] = None,
+      element_type: Optional[Union[type, typehints.TypeConstraint]] = None,
+      windowing: Optional[Windowing] = None,
+      is_bounded=True,
+  ):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -174,14 +174,14 @@ class PCollection(PValue, Generic[T]):
 
   @staticmethod
   def from_(pcoll: PValue) -> PCollection:
-
     """Create a PCollection, using another PCollection as a starting point.
 
     Transfers relevant attributes.
     """
     return PCollection(pcoll.pipeline, is_bounded=pcoll.is_bounded)
 
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.PCollection:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.PCollection:
     return beam_runner_api_pb2.PCollection(
         unique_name=self._unique_name(),
         coder_id=context.coder_id_from_element_type(self.element_type),
@@ -198,7 +198,9 @@ class PCollection(PValue, Generic[T]):
       return 'PCollection%s' % id(self)
 
   @staticmethod
-  def from_runner_api(proto: beam_runner_api_pb2.PCollection, context: PipelineContext) -> PCollection:
+  def from_runner_api(
+      proto: beam_runner_api_pb2.PCollection,
+      context: PipelineContext) -> PCollection:
     # Producer and tag will be filled in later, the key point is that the same
     # object is returned for the same pcollection id.
     # We pass None for the PCollection's Pipeline to avoid a cycle during
@@ -235,13 +237,12 @@ class PDone(PValue):
 
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
-
-  def __init__(self,
-               pipeline: Pipeline,
-               transform: ParDo,
-               tags: Sequence[str],
-               main_tag: Optional[str]
-              ):
+  def __init__(
+      self,
+      pipeline: Pipeline,
+      transform: ParDo,
+      tags: Sequence[str],
+      main_tag: Optional[str]):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
@@ -264,7 +265,6 @@ class DoOutputsTuple(object):
         self.__class__.__name__, self._main_tag, self._tags, self._transform)
 
   def __iter__(self) -> Iterator[PCollection]:
-
     """Iterates over tags returning for each call a (tag, pcollection) pair."""
     if self._main_tag is not None:
       yield self[self._main_tag]
@@ -383,13 +383,14 @@ class AsSideInput(object):
         self._window_mapping_fn,
         lambda iterable: from_runtime_iterable(iterable, view_options))
 
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.SideInput:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.SideInput:
     return self._side_input_data().to_runner_api(context)
 
   @staticmethod
-  def from_runner_api(proto: beam_runner_api_pb2.SideInput,
-                      context: PipelineContext
-                     ) -> _UnpickledSideInput:
+  def from_runner_api(
+      proto: beam_runner_api_pb2.SideInput,
+      context: PipelineContext) -> _UnpickledSideInput:
     return _UnpickledSideInput(SideInputData.from_runner_api(proto, context))
 
   @staticmethod
@@ -423,16 +424,17 @@ class _UnpickledSideInput(AsSideInput):
 
 class SideInputData(object):
   """All of the data about a side input except for the bound PCollection."""
-  def __init__(self,
-               access_pattern: str,
-               window_mapping_fn: sideinputs.WindowMappingFn,
-               view_fn
-              ):
+  def __init__(
+      self,
+      access_pattern: str,
+      window_mapping_fn: sideinputs.WindowMappingFn,
+      view_fn):
     self.access_pattern = access_pattern
     self.window_mapping_fn = window_mapping_fn
     self.view_fn = view_fn
 
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.SideInput:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.SideInput:
     return beam_runner_api_pb2.SideInput(
         access_pattern=beam_runner_api_pb2.FunctionSpec(
             urn=self.access_pattern),
@@ -444,7 +446,9 @@ class SideInputData(object):
             payload=pickler.dumps(self.window_mapping_fn)))
 
   @staticmethod
-  def from_runner_api(proto: beam_runner_api_pb2.SideInput, unused_context: PipelineContext) -> SideInputData:
+  def from_runner_api(
+      proto: beam_runner_api_pb2.SideInput,
+      unused_context: PipelineContext) -> SideInputData:
     assert proto.view_fn.urn == python_urns.PICKLED_VIEWFN
     assert (
         proto.window_mapping_fn.urn == python_urns.PICKLED_WINDOW_MAPPING_FN)
@@ -472,7 +476,8 @@ class AsSingleton(AsSideInput):
   """
   _NO_DEFAULT = object()
 
-  def __init__(self, pcoll: PCollection, default_value: Any = _NO_DEFAULT) -> None:
+  def __init__(
+      self, pcoll: PCollection, default_value: Any = _NO_DEFAULT) -> None:
     super(AsSingleton, self).__init__(pcoll)
     self.default_value = default_value
 

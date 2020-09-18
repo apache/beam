@@ -199,7 +199,6 @@ class CompressedFile(object):
     return 'w' in mode or 'a' in mode
 
   def write(self, data: bytes) -> None:
-
     """Write data to file."""
     if not self._compressor:
       raise ValueError('compressor not initialized')
@@ -209,7 +208,6 @@ class CompressedFile(object):
       self._file.write(compressed)
 
   def _fetch_to_internal_buffer(self, num_bytes: int) -> None:
-
     """Fetch up to num_bytes into the internal buffer."""
     if (not self._read_eof and self._read_position > 0 and
         (self._read_buffer.tell() - self._read_position) < num_bytes):
@@ -272,7 +270,6 @@ class CompressedFile(object):
         lambda: self._read_buffer.read(num_bytes))
 
   def readline(self) -> bytes:
-
     """Equivalent to standard file.readline(). Same return conventions apply."""
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
@@ -314,7 +311,6 @@ class CompressedFile(object):
     return 'r' in self._file.mode
 
   def _clear_read_buffer(self) -> None:
-
     """Clears the read buffer by removing all the contents and
     resetting _read_position to 0"""
     self._read_position = 0
@@ -322,7 +318,6 @@ class CompressedFile(object):
     self._read_buffer.truncate(0)
 
   def _rewind_file(self) -> None:
-
     """Seeks to the beginning of the input file. Input file's EOF marker
     is cleared and _uncompressed_position is reset to zero"""
     self._file.seek(0, os.SEEK_SET)
@@ -330,7 +325,6 @@ class CompressedFile(object):
     self._uncompressed_position = 0
 
   def _rewind(self) -> None:
-
     """Seeks to the beginning of the input file and resets the internal read
     buffer. The decompressor object is re-initialized to ensure that no data
     left in it's buffer."""
@@ -341,7 +335,6 @@ class CompressedFile(object):
     self._initialize_decompressor()
 
   def seek(self, offset: int, whence: int = os.SEEK_SET) -> None:
-
     """Set the file's current offset.
 
     Seeking behavior:
@@ -406,7 +399,6 @@ class CompressedFile(object):
       bytes_to_skip -= len(data)
 
   def tell(self) -> int:
-
     """Returns current position in uncompressed file."""
     return self._uncompressed_position
 
@@ -505,7 +497,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
 
   @abc.abstractmethod
   def join(self, basepath: str, *paths: str) -> str:
-
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -518,7 +509,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
 
   @abc.abstractmethod
   def split(self, path: str) -> Tuple[str, str]:
-
     """Splits the given path into two parts.
 
     Splits the path into a pair (head, tail) such that tail contains the last
@@ -591,8 +581,8 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
     scheme, path = self._split_scheme(url_or_path)
     return self._combine_scheme(scheme, posixpath.dirname(path))
 
-  def match_files(self, file_metas: List[FileMetadata], pattern: str) -> Iterator[FileMetadata]:
-
+  def match_files(self, file_metas: List[FileMetadata],
+                  pattern: str) -> Iterator[FileMetadata]:
     """Filter :class:`FileMetadata` objects by *pattern*
 
     Args:
@@ -614,7 +604,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
 
   @staticmethod
   def translate_pattern(pattern: str) -> str:
-
     """
     Translate a *pattern* to a regular expression.
     There is no way to quote meta-characters.
@@ -751,7 +740,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """Returns a write channel for the given file path.
 
     Args:
@@ -769,7 +757,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """Returns a read channel for the given file path.
 
     Args:
@@ -810,7 +797,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
 
   @abc.abstractmethod
   def exists(self, path: str) -> bool:
-
     """Check if the provided path exists on the FileSystem.
 
     Args:
@@ -822,7 +808,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
 
   @abc.abstractmethod
   def size(self, path: str) -> int:
-
     """Get size in bytes of a file on the FileSystem.
 
     Args:

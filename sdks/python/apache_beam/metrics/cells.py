@@ -448,7 +448,8 @@ class DistributionAggregator(MetricAggregator):
   def identity_element() -> DistributionData:
     return DistributionData(0, 0, 2**63 - 1, -2**63)
 
-  def combine(self, x: DistributionData, y: DistributionData) -> DistributionData:
+  def combine(
+      self, x: DistributionData, y: DistributionData) -> DistributionData:
     return x.combine(y)
 
   def result(self, x: DistributionData) -> DistributionResult:

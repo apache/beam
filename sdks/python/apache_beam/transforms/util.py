@@ -714,7 +714,8 @@ class Reshuffle(PTransform):
             KeyedT).with_output_types(T)  # type: ignore[misc]
     )
 
-  def to_runner_api_parameter(self, unused_context: PipelineContext) -> Tuple[str, None]:
+  def to_runner_api_parameter(
+      self, unused_context: PipelineContext) -> Tuple[str, None]:
     return common_urns.composites.RESHUFFLE.urn, None
 
   @staticmethod

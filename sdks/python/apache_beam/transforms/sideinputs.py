@@ -48,11 +48,13 @@ SIDE_INPUT_REGEX = SIDE_INPUT_PREFIX + '([0-9]+)(-.*)?$'
 
 
 # Top-level function so we can identify it later.
-def _global_window_mapping_fn(w, global_window=window.GlobalWindow()) -> window.GlobalWindow:
+def _global_window_mapping_fn(
+    w, global_window=window.GlobalWindow()) -> window.GlobalWindow:
   return global_window
 
 
-def default_window_mapping_fn(target_window_fn: window.WindowFn) -> WindowMappingFn:
+def default_window_mapping_fn(
+    target_window_fn: window.WindowFn) -> WindowMappingFn:
   if target_window_fn == window.GlobalWindows():
     return _global_window_mapping_fn
 
@@ -74,11 +76,7 @@ def get_sideinput_index(tag: str) -> int:
 
 class SideInputMap(object):
   """Represents a mapping of windows to side input values."""
-  def __init__(
-      self,
-      view_class: pvalue.AsSideInput,
-      view_options,
-      iterable):
+  def __init__(self, view_class: pvalue.AsSideInput, view_options, iterable):
     self._window_mapping_fn = view_options.get(
         'window_mapping_fn', _global_window_mapping_fn)
     self._view_class = view_class

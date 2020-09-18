@@ -94,8 +94,7 @@ class PipelineGraph(object):
           (beam_runner_api_pb2.Pipeline, beam.Pipeline, type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
-    self._consumers: DefaultDict[str, List[str]] = collections.defaultdict(
-        list)
+    self._consumers: DefaultDict[str, List[str]] = collections.defaultdict(list)
     # A dict from PCollection ID to its producing Transform ID
     self._producers: Dict[str, str] = {}
 
@@ -133,8 +132,8 @@ class PipelineGraph(object):
             'environment is in a notebook. Cannot display the '
             'pipeline graph.')
 
-  def _top_level_transforms(self) -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]:
-
+  def _top_level_transforms(
+      self) -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]:
     """Yields all top level PTransforms (subtransforms of the root PTransform).
 
     Yields: (str, PTransform proto) ID, proto pair of top level PTransforms.

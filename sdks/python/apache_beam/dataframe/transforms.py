@@ -111,7 +111,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       self,
       inputs: Dict[expressions.Expression, PCollection],
       outputs: Dict[Any, expressions.Expression],
-      ):  # -> Dict[Any, PCollection]
+  ):  # -> Dict[Any, PCollection]
     """Construct a Beam graph that evaluates a set of expressions on a set of
     input PCollections.
 
@@ -326,8 +326,7 @@ def _dict_union(dicts):
 def _flatten(
     valueish: Union[T, List[T], Tuple[T], Dict[Any, T]],
     root: Tuple[Any, ...] = (),
-    ) -> Mapping[Tuple[Any, ...], T]:
-
+) -> Mapping[Tuple[Any, ...], T]:
   """Given a nested structure of dicts, tuples, and lists, return a flat
   dictionary where the values are the leafs and the keys are the "paths" to
   these leaves.

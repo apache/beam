@@ -365,7 +365,8 @@ class _ExpandIntoRanges(DoFn):
 
 
 class _ReadRange(DoFn):
-  def __init__(self, source_from_file: Callable[[str], iobase.BoundedSource]) -> None:
+  def __init__(
+      self, source_from_file: Callable[[str], iobase.BoundedSource]) -> None:
     self._source_from_file = source_from_file
 
   def process(self, element, *args, **kwargs):
@@ -387,14 +388,14 @@ class ReadAllFiles(PTransform):
   PTransform authors who wishes to implement file-based Read transforms that
   read a PCollection of files.
   """
-
-  def __init__(self,
-               splittable: bool,
-               compression_type,
-               desired_bundle_size: int,
-               min_bundle_size: int,
-               source_from_file: Callable[[str], iobase.BoundedSource],
-              ):
+  def __init__(
+      self,
+      splittable: bool,
+      compression_type,
+      desired_bundle_size: int,
+      min_bundle_size: int,
+      source_from_file: Callable[[str], iobase.BoundedSource],
+  ):
     """
     Args:
       splittable: If False, files won't be split into sub-ranges. If True,

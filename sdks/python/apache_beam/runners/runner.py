@@ -67,7 +67,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def create_runner(runner_name: str) -> PipelineRunner:
-
   """For internal use only; no backwards-compatibility guarantees.
 
   Creates a runner instance from a runner class name.
@@ -123,12 +122,10 @@ class PipelineRunner(object):
   provide a new implementation for clear_pvalue(), which is used to wipe out
   materialized values in order to reduce footprint.
   """
-
-  def run(self,
-          transform: PTransform,
-          options: Optional[PipelineOptions] = None
-         ) -> PipelineResult:
-
+  def run(
+      self,
+      transform: PTransform,
+      options: Optional[PipelineOptions] = None) -> PipelineResult:
     """Run the given transform or callable with this runner.
 
     Blocks until the pipeline is complete.  See also `PipelineRunner.run_async`.
@@ -137,11 +134,10 @@ class PipelineRunner(object):
     result.wait_until_finish()
     return result
 
-  def run_async(self,
-                transform: PTransform,
-                options: Optional[PipelineOptions] = None
-               ) -> PipelineResult:
-
+  def run_async(
+      self,
+      transform: PTransform,
+      options: Optional[PipelineOptions] = None) -> PipelineResult:
     """Run the given transform or callable with this runner.
 
     May return immediately, executing the pipeline in the background.
@@ -161,22 +157,18 @@ class PipelineRunner(object):
     return p.run()
 
   def run_pipeline(
-      self,
-      pipeline: Pipeline,
-      options: PipelineOptions
-  ) -> PipelineResult:
-
+      self, pipeline: Pipeline, options: PipelineOptions) -> PipelineResult:
     """Execute the entire pipeline or the sub-DAG reachable from a node.
 
     Runners should override this method.
     """
     raise NotImplementedError
 
-  def apply(self,
-            transform: PTransform,
-            input: Optional[pvalue.PValue],
-            options: PipelineOptions
-           ):
+  def apply(
+      self,
+      transform: PTransform,
+      input: Optional[pvalue.PValue],
+      options: PipelineOptions):
     """Runner callback for a pipeline.apply call.
 
     Args:
@@ -196,10 +188,7 @@ class PipelineRunner(object):
         'Execution of [%s] not implemented in runner %s.' % (transform, self))
 
   def visit_transforms(
-      self,
-      pipeline: Pipeline,
-      options: PipelineOptions
-  ) -> None:
+      self, pipeline: Pipeline, options: PipelineOptions) -> None:
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
@@ -221,10 +210,8 @@ class PipelineRunner(object):
     # The base case of apply is to call the transform's expand.
     return transform.expand(input)
 
-  def run_transform(self,
-                    transform_node: AppliedPTransform,
-                    options: PipelineOptions
-                   ):
+  def run_transform(
+      self, transform_node: AppliedPTransform, options: PipelineOptions):
     """Runner callback for a pipeline.run call.
 
     Args:

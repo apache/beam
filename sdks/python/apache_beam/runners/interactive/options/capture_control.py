@@ -55,7 +55,8 @@ class CaptureControl(object):
         capture_limiters.DurationLimiter(self._capture_duration)
     ]
 
-  def set_limiters_for_test(self, limiters: List[capture_limiters.Limiter]) -> None:
+  def set_limiters_for_test(
+      self, limiters: List[capture_limiters.Limiter]) -> None:
     self._test_limiters = limiters
 
 

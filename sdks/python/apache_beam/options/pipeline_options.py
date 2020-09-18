@@ -168,7 +168,6 @@ class PipelineOptions(HasDisplayData):
   the options.
   """
   def __init__(self, flags: Optional[List[str]] = None, **kwargs: Any) -> None:
-
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -254,9 +253,7 @@ class PipelineOptions(HasDisplayData):
       self,
       drop_default=False,
       add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
-      retain_unknown_options=False
-  ) -> Dict[str, Any]:
-
+      retain_unknown_options=False) -> Dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -328,7 +325,6 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls: Type[PipelineOptionsT]) -> PipelineOptionsT:
-
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::

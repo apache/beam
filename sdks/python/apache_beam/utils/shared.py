@@ -104,12 +104,7 @@ class _SharedControlBlock(object):
     self._ref = None
     self._tag = None
 
-  def acquire(
-      self,
-      constructor_fn: Callable[[], Any],
-      tag: Any = None
-  ) -> Any:
-
+  def acquire(self, constructor_fn: Callable[[], Any], tag: Any = None) -> Any:
     """Acquire a reference to the object this shared control block manages.
 
     Args:
@@ -209,9 +204,7 @@ class _SharedMap(object):
       self,
       key: Text,
       constructor_fn: Callable[[], Any],
-      tag: Any = None
-  ) -> Any:
-
+      tag: Any = None) -> Any:
     """Acquire a reference to a Shared object.
 
     Args:
@@ -271,12 +264,7 @@ class Shared(object):
   def __init__(self):
     self._key = _shared_map.make_key()
 
-  def acquire(
-      self,
-      constructor_fn: Callable[[], Any],
-      tag: Any = None
-  ) -> Any:
-
+  def acquire(self, constructor_fn: Callable[[], Any], tag: Any = None) -> Any:
     """Acquire a reference to the object associated with this Shared handle.
 
     Args:

@@ -155,12 +155,12 @@ class Query(object):
 
 
 class Key(object):
-  def __init__(self,
-               path_elements: List[Union[Text, int]],
-               parent: Optional[Key] = None,
-               project: Optional[Text] = None,
-               namespace: Optional[Text] = None
-               ):
+  def __init__(
+      self,
+      path_elements: List[Union[Text, int]],
+      parent: Optional[Key] = None,
+      project: Optional[Text] = None,
+      namespace: Optional[Text] = None):
     """
     Represents a Datastore key.
 
@@ -231,11 +231,7 @@ class Key(object):
 
 
 class Entity(object):
-  def __init__(
-      self,
-      key: Key,
-      exclude_from_indexes: Iterable[str] = ()
-  ):
+  def __init__(self, key: Key, exclude_from_indexes: Iterable[str] = ()):
     """
     Represents a Datastore entity.
 

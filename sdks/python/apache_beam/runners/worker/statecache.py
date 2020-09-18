@@ -51,8 +51,8 @@ class Metrics(object):
     """
     if hasattr(self._context, 'metrics'):
       return  # Already initialized
-    self._context.metrics: DefaultDict[Hashable, int] = collections.defaultdict(
-        int)
+    self._context.metrics: DefaultDict[Hashable,
+                                       int] = collections.defaultdict(int)
 
   def count(self, name: str) -> None:
     self._context.metrics[name] += 1
@@ -91,8 +91,8 @@ class Metrics(object):
     return gauges + counters
 
   @staticmethod
-  def counter_hit_miss(total_name: str, hit_name: str, miss_name: str) -> Callable[[CallableT], CallableT]:
-
+  def counter_hit_miss(total_name: str, hit_name: str,
+                       miss_name: str) -> Callable[[CallableT], CallableT]:
     """Decorator for counting function calls and whether
        the return value equals None (=miss) or not (=hit)."""
     Metrics.ALL_METRICS.update([total_name, hit_name, miss_name])
@@ -112,7 +112,6 @@ class Metrics(object):
 
   @staticmethod
   def counter(metric_name: str) -> Callable[[CallableT], CallableT]:
-
     """Decorator for counting function calls."""
     Metrics.ALL_METRICS.add(metric_name)
 

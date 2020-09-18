@@ -134,8 +134,11 @@ class Pipeline(object):
         common_urns.primitives.IMPULSE.urn,
     ])
 
-  def __init__(self, runner: Optional[Union[str, PipelineRunner]] = None, options: Optional[PipelineOptions] = None, argv: Optional[List[str]] = None) -> None:
-
+  def __init__(
+      self,
+      runner: Optional[Union[str, PipelineRunner]] = None,
+      options: Optional[PipelineOptions] = None,
+      argv: Optional[List[str]] = None) -> None:
     """Initialize a pipeline object.
 
     Args:
@@ -226,7 +229,6 @@ class Pipeline(object):
     # full pipeline proto.
     self.component_id_map = ComponentIdMap()
 
-
   @property  # type: ignore[misc]  # decorated property not supported
   @deprecated(
       since='First stable release',
@@ -236,16 +238,15 @@ class Pipeline(object):
     return self._options
 
   def _current_transform(self) -> AppliedPTransform:
-
     """Returns the transform currently on the top of the stack."""
     return self.transforms_stack[-1]
 
   def _root_transform(self) -> AppliedPTransform:
-
     """Returns the root transform of the transform stack."""
     return self.transforms_stack[0]
 
-  def _remove_labels_recursively(self, applied_transform: AppliedPTransform) -> None:
+  def _remove_labels_recursively(
+      self, applied_transform: AppliedPTransform) -> None:
     for part in applied_transform.parts:
       if part.full_label in self.applied_labels:
         self.applied_labels.remove(part.full_label)
@@ -256,19 +257,21 @@ class Pipeline(object):
 
     # From original transform output --> replacement transform output
     output_map: Dict[pvalue.PValue, pvalue.PValue] = {}
-    output_replacements: Dict[AppliedPTransform, List[Tuple[pvalue.PValue, Optional[str]]]] = {
-    }
-    input_replacements: Dict[AppliedPTransform, Sequence[Union[pvalue.PBegin, pvalue.PCollection]]] = {
-    }
-    side_input_replacements: Dict[AppliedPTransform, List[pvalue.AsSideInput]] = {
-    }
+    output_replacements: Dict[AppliedPTransform,
+                              List[Tuple[pvalue.PValue, Optional[str]]]] = {}
+    input_replacements: Dict[AppliedPTransform,
+                             Sequence[Union[pvalue.PBegin,
+                                            pvalue.PCollection]]] = {}
+    side_input_replacements: Dict[AppliedPTransform,
+                                  List[pvalue.AsSideInput]] = {}
 
     class TransformUpdater(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that replaces the matching PTransforms."""
       def __init__(self, pipeline: Pipeline) -> None:
         self.pipeline = pipeline
 
-      def _replace_if_needed(self, original_transform_node: AppliedPTransform) -> None:
+      def _replace_if_needed(
+          self, original_transform_node: AppliedPTransform) -> None:
         if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
           replacement_transform = (
@@ -364,7 +367,8 @@ class Pipeline(object):
           finally:
             self.pipeline.transforms_stack.pop()
 
-      def enter_composite_transform(self, transform_node: AppliedPTransform) -> None:
+      def enter_composite_transform(
+          self, transform_node: AppliedPTransform) -> None:
         self._replace_if_needed(transform_node)
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
@@ -385,7 +389,8 @@ class Pipeline(object):
       def __init__(self, pipeline: Pipeline) -> None:
         self.pipeline = pipeline
 
-      def enter_composite_transform(self, transform_node: AppliedPTransform) -> None:
+      def enter_composite_transform(
+          self, transform_node: AppliedPTransform) -> None:
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
@@ -454,7 +459,6 @@ class Pipeline(object):
     self.visit(ReplacementValidator())
 
   def replace_all(self, replacements: Iterable[PTransformOverride]) -> None:
-
     """ Dynamically replaces PTransforms in the currently populated hierarchy.
 
     Currently this only works for replacements where input and output types
@@ -479,7 +483,6 @@ class Pipeline(object):
       self._check_replacement(override)
 
   def run(self, test_runner_api: Union[bool, str] = 'AUTO') -> PipelineResult:
-
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
     try:
@@ -540,8 +543,7 @@ class Pipeline(object):
       self,
       exc_type: Optional[Type[BaseException]],
       exc_val: Optional[BaseException],
-      exc_tb: Optional[TracebackType]
-  ) -> None:
+      exc_tb: Optional[TracebackType]) -> None:
 
     try:
       if not exc_type:
@@ -551,7 +553,6 @@ class Pipeline(object):
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
   def visit(self, visitor: PipelineVisitor) -> None:
-
     """Visits depth-first every node of a pipeline's DAG.
 
     Runner-internal implementation detail; no backwards-compatibility guarantees
@@ -576,9 +577,7 @@ class Pipeline(object):
       self,
       transform: ptransform.PTransform,
       pvalueish: Optional[pvalue.PValue] = None,
-      label: Optional[str] = None
-  ) -> pvalue.PValue:
-
+      label: Optional[str] = None) -> pvalue.PValue:
     """Applies a custom transform using the pvalueish specified.
 
     Args:
@@ -702,8 +701,7 @@ class Pipeline(object):
       self,
       transform: ptransform.PTransform,
       inputs: Sequence[Union[pvalue.PBegin, pvalue.PCollection]],
-      result_pcollection: Union[pvalue.PValue, pvalue.DoOutputsTuple]
-  ) -> None:
+      result_pcollection: Union[pvalue.PValue, pvalue.DoOutputsTuple]) -> None:
     # TODO(robertwb): Multi-input inference.
     type_options = self._options.view_as(TypeOptions)
     if type_options is None or not type_options.pipeline_type_check:
@@ -755,7 +753,8 @@ class Pipeline(object):
     class Visitor(PipelineVisitor):  # pylint: disable=used-before-assignment
       ok = True  # Really a nonlocal.
 
-      def enter_composite_transform(self, transform_node: AppliedPTransform) -> None:
+      def enter_composite_transform(
+          self, transform_node: AppliedPTransform) -> None:
         pass
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
@@ -781,7 +780,6 @@ class Pipeline(object):
       use_fake_coders: bool = False,
       default_environment: Optional[environments.Environment] = None
   ) -> beam_runner_api_pb2.Pipeline:
-
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
@@ -801,7 +799,8 @@ class Pipeline(object):
     # We also only handle single-input, and (for fixing the output) single
     # output, which is sufficient.
     class ForceKvInputTypes(PipelineVisitor):
-      def enter_composite_transform(self, transform_node: AppliedPTransform) -> None:
+      def enter_composite_transform(
+          self, transform_node: AppliedPTransform) -> None:
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:
@@ -846,9 +845,7 @@ class Pipeline(object):
       runner: PipelineRunner,
       options: PipelineOptions,
       return_context: bool = False,
-      allow_proto_holders: bool = False
-  ) -> Pipeline:
-
+      allow_proto_holders: bool = False) -> Pipeline:
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
@@ -890,8 +887,8 @@ class PipelineVisitor(object):
   Visitor pattern class used to traverse a DAG of transforms
   (used internally by Pipeline for bookeeping purposes).
   """
-  def visit_value(self, value: pvalue.PValue, producer_node: AppliedPTransform) -> None:
-
+  def visit_value(
+      self, value: pvalue.PValue, producer_node: AppliedPTransform) -> None:
     """Callback for visiting a PValue in the pipeline DAG.
 
     Args:
@@ -902,17 +899,16 @@ class PipelineVisitor(object):
     pass
 
   def visit_transform(self, transform_node: AppliedPTransform) -> None:
-
     """Callback for visiting a transform leaf node in the pipeline DAG."""
     pass
 
-  def enter_composite_transform(self, transform_node: AppliedPTransform) -> None:
-
+  def enter_composite_transform(
+      self, transform_node: AppliedPTransform) -> None:
     """Callback for entering traversal of a composite transform node."""
     pass
 
-  def leave_composite_transform(self, transform_node: AppliedPTransform) -> None:
-
+  def leave_composite_transform(
+      self, transform_node: AppliedPTransform) -> None:
     """Callback for leaving traversal of a composite transform node."""
     pass
 
@@ -945,7 +941,8 @@ class AppliedPTransform(object):
     self.side_inputs = tuple() if transform is None else transform.side_inputs
     self.outputs: Dict[Union[str, int, None], pvalue.PValue] = {}
     self.parts: List[AppliedPTransform] = []
-    self.environment_id: Optional[str] = environment_id if environment_id else None
+    self.environment_id: Optional[
+        str] = environment_id if environment_id else None
     self.input_tags_to_preserve = input_tags_to_preserve or {}
 
   def __repr__(self) -> str:
@@ -955,9 +952,7 @@ class AppliedPTransform(object):
   def replace_output(
       self,
       output: Union[pvalue.PValue, pvalue.DoOutputsTuple],
-      tag: Union[str, int, None] = None
-  ) -> None:
-
+      tag: Union[str, int, None] = None) -> None:
     """Replaces the output defined by the given tag with the given output.
 
     Args:
@@ -977,8 +972,7 @@ class AppliedPTransform(object):
   def add_output(
       self,
       output: Union[pvalue.DoOutputsTuple, pvalue.PValue],
-      tag: Union[str, int, None]
-  ) -> None:
+      tag: Union[str, int, None]) -> None:
     if isinstance(output, pvalue.DoOutputsTuple):
       self.add_output(output[tag], tag)
     elif isinstance(output, pvalue.PValue):
@@ -992,7 +986,6 @@ class AppliedPTransform(object):
     self.parts.append(part)
 
   def is_composite(self) -> bool:
-
     """Returns whether this is a composite transform.
 
     A composite transform has parts (inner transforms) or isn't the
@@ -1006,9 +999,7 @@ class AppliedPTransform(object):
       self,
       visitor: PipelineVisitor,
       pipeline: Pipeline,
-      visited: Set[pvalue.PValue]
-  ) -> None:
-
+      visited: Set[pvalue.PValue]) -> None:
     """Visits all nodes reachable from the current node."""
 
     for in_pval in self.inputs:
@@ -1077,7 +1068,8 @@ class AppliedPTransform(object):
         if isinstance(output, pvalue.PCollection)
     }
 
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.PTransform:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.PTransform:
     # External tranforms require more splicing than just setting the spec.
     from apache_beam.transforms import external
     if isinstance(self.transform, external.ExternalTransform):
@@ -1087,8 +1079,7 @@ class AppliedPTransform(object):
 
     def transform_to_runner_api(
         transform: Optional[ptransform.PTransform],
-        context: PipelineContext
-    ) -> Optional[beam_runner_api_pb2.FunctionSpec]:
+        context: PipelineContext) -> Optional[beam_runner_api_pb2.FunctionSpec]:
       if transform is None:
         return None
       else:
@@ -1140,8 +1131,7 @@ class AppliedPTransform(object):
   @staticmethod
   def from_runner_api(
       proto: beam_runner_api_pb2.PTransform,
-      context: PipelineContext
-  ) -> AppliedPTransform:
+      context: PipelineContext) -> AppliedPTransform:
 
     if common_urns.primitives.PAR_DO.urn == proto.spec.urn:
       # Preserving side input tags.
@@ -1262,7 +1252,6 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
   """
   @abc.abstractmethod
   def matches(self, applied_ptransform: AppliedPTransform) -> bool:
-
     """Determines whether the given AppliedPTransform matches.
 
     Note that the matching will happen *after* Runner API proto translation.
@@ -1282,7 +1271,6 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
 
   def get_replacement_transform_for_applied_ptransform(
       self, applied_ptransform: AppliedPTransform) -> ptransform.PTransform:
-
     """Provides a runner specific override for a given `AppliedPTransform`.
 
     Args:
@@ -1298,8 +1286,9 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
 
   @deprecated(
       since='2.24', current='get_replacement_transform_for_applied_ptransform')
-  def get_replacement_transform(self, ptransform: Optional[ptransform.PTransform]) -> ptransform.PTransform:
-
+  def get_replacement_transform(
+      self,
+      ptransform: Optional[ptransform.PTransform]) -> ptransform.PTransform:
     """Provides a runner specific override for a given PTransform.
 
     Args:
@@ -1312,8 +1301,8 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     # Returns a PTransformReplacement
     raise NotImplementedError
 
-  def get_replacement_inputs(self, applied_ptransform: AppliedPTransform) -> Iterable[pvalue.PValue]:
-
+  def get_replacement_inputs(
+      self, applied_ptransform: AppliedPTransform) -> Iterable[pvalue.PValue]:
     """Provides inputs that will be passed to the replacement PTransform.
 
     Args:

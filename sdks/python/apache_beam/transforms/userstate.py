@@ -67,7 +67,8 @@ class StateSpec(object):
 
 class ReadModifyWriteStateSpec(StateSpec):
   """Specification for a user DoFn value state cell."""
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
             coder_id=context.coders.get_id(self.coder)))
@@ -75,7 +76,8 @@ class ReadModifyWriteStateSpec(StateSpec):
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
             element_coder_id=context.coders.get_id(self.coder)))
@@ -91,8 +93,11 @@ class SetStateSpec(StateSpec):
 
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
-  def __init__(self, name: str, coder: Optional[Coder] = None, combine_fn: Any = None) -> None:
-
+  def __init__(
+      self,
+      name: str,
+      coder: Optional[Coder] = None,
+      combine_fn: Any = None) -> None:
     """Initialize the specification for CombiningValue state.
 
     CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value
@@ -127,7 +132,8 @@ class CombiningValueStateSpec(StateSpec):
 
     super(CombiningValueStateSpec, self).__init__(name, coder)
 
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
@@ -161,7 +167,9 @@ class TimerSpec(object):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context: PipelineContext, key_coder: Coder, window_coder: Coder) -> beam_runner_api_pb2.TimerFamilySpec:
+  def to_runner_api(
+      self, context: PipelineContext, key_coder: Coder,
+      window_coder: Coder) -> beam_runner_api_pb2.TimerFamilySpec:
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(
@@ -189,7 +197,6 @@ class TimerFamilySpec(object):
 
 
 def on_timer(timer_spec: TimerSpec) -> Callable[[CallableT], CallableT]:
-
   """Decorator for timer firing DoFn method.
 
   This decorator allows a user to specify an on_timer processing method
@@ -219,7 +226,6 @@ def on_timer(timer_spec: TimerSpec) -> Callable[[CallableT], CallableT]:
 
 
 def get_dofn_specs(dofn) -> Tuple[Set[StateSpec], Set[TimerSpec]]:
-
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:

@@ -103,12 +103,7 @@ class Expression(object):
   An expression represents a deferred tree of operations, which can be
   evaluated at a specific bindings of root expressions to values.
   """
-  def __init__(
-      self,
-      name: str,
-      proxy: T,
-      _id: Optional[str] = None
-  ):
+  def __init__(self, name: str, proxy: T, _id: Optional[str] = None):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
@@ -188,11 +183,7 @@ class PlaceholderExpression(Expression):
 
 class ConstantExpression(Expression):
   """An expression whose value is known at pipeline construction time."""
-  def __init__(
-      self: ConstantExpression,
-      value: T,
-      proxy: Optional[T] = None
-  ):
+  def __init__(self: ConstantExpression, value: T, proxy: Optional[T] = None):
     """Initialize a constant expression.
 
     Args:
@@ -227,12 +218,13 @@ class ComputedExpression(Expression):
   def __init__(
       self: ComputedExpression,
       name: str,
-      func: Callable[...,T],
+      func: Callable[..., T],
       args: Iterable[Expression],
       proxy: Optional[T] = None,
       _id: Optional[str] = None,
       requires_partition_by: partitionings.Partitioning = partitionings.Index(),
-      preserves_partition_by: partitionings.Partitioning = partitionings.Nothing(),
+      preserves_partition_by: partitionings.Partitioning = partitionings.
+      Nothing(),
   ):
     """Initialize a computed expression.
 

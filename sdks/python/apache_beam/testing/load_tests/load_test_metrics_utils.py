@@ -455,8 +455,7 @@ class InfluxDBMetricsPublisherOptions(object):
       db_name: str,
       hostname: str,
       user: Optional[str] = None,
-      password: Optional[str] = None
-    ):
+      password: Optional[str] = None):
     self.measurement = measurement
     self.db_name = db_name
     self.hostname = hostname
@@ -472,13 +471,11 @@ class InfluxDBMetricsPublisherOptions(object):
 
 class InfluxDBMetricsPublisher(object):
   """Publishes collected metrics to InfluxDB database."""
-  def __init__(
-      self,
-      options: InfluxDBMetricsPublisherOptions
-  ):
+  def __init__(self, options: InfluxDBMetricsPublisherOptions):
     self.options = options
 
-  def publish(self, results: List[Mapping[str, Union[float, str, int]]]) -> None:
+  def publish(
+      self, results: List[Mapping[str, Union[float, str, int]]]) -> None:
     url = '{}/write'.format(self.options.hostname)
     payload = self._build_payload(results)
     query_str = {'db': self.options.db_name, 'precision': 's'}
@@ -498,7 +495,8 @@ class InfluxDBMetricsPublisher(object):
             'with an error message: %s' %
             (response.status_code, content['error']))
 
-  def _build_payload(self, results: List[Mapping[str, Union[float, str, int]]]) -> str:
+  def _build_payload(
+      self, results: List[Mapping[str, Union[float, str, int]]]) -> str:
     def build_kv(mapping, key):
       return '{}={}'.format(key, mapping[key])
 

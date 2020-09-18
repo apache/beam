@@ -41,20 +41,19 @@ if TYPE_CHECKING:
   from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
 
 
-class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
+class PipelineGraphRenderer(with_metaclass(abc.ABCMeta,
+                                           BeamPlugin)):  # type: ignore[misc]
   """Abstract class for renderers, who decide how pipeline graphs are rendered.
   """
   @classmethod
   @abc.abstractmethod
   def option(cls) -> str:
-
     """The corresponding rendering option for the renderer.
     """
     raise NotImplementedError
 
   @abc.abstractmethod
   def render_pipeline_graph(self, pipeline_graph: PipelineGraph) -> str:
-
     """Renders the pipeline graph in HTML-compatible format.
 
     Args:
@@ -104,7 +103,6 @@ class PydotRenderer(PipelineGraphRenderer):
 
 
 def get_renderer(option: Optional[str] = None) -> Type[PipelineGraphRenderer]:
-
   """Get an instance of PipelineGraphRenderer given rendering option.
 
   Args:

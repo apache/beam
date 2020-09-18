@@ -202,13 +202,12 @@ class WindowedValue(object):
       the pane that contained this value.  If None, will be set to
       PANE_INFO_UNKNOWN.
   """
-
-  def __init__(self,
-               value,
-               timestamp: TimestampTypes,
-               windows: Tuple[BoundedWindow, ...],
-               pane_info=PANE_INFO_UNKNOWN
-              ) -> None:
+  def __init__(
+      self,
+      value,
+      timestamp: TimestampTypes,
+      windows: Tuple[BoundedWindow, ...],
+      pane_info=PANE_INFO_UNKNOWN) -> None:
     # For performance reasons, only timestamp_micros is stored by default
     # (as a C int). The Timestamp object is created on demand below.
     self.value = value
@@ -256,7 +255,6 @@ class WindowedValue(object):
             (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
   def with_value(self, new_value: Any) -> WindowedValue:
-
     """Creates a new WindowedValue with the same timestamps and windows as this.
 
     This is the fasted way to create a new WindowedValue.

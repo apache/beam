@@ -145,7 +145,6 @@ class BoundedSource(SourceBase):
   multi-threaded and/or reentrant execution modes.
   """
   def estimate_size(self) -> Optional[int]:
-
     """Estimates the size of source in bytes.
 
     An estimate of the total size (in bytes) of the data that would be read
@@ -158,12 +157,12 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def split(self,
-            desired_bundle_size: int,
-            start_position: Optional[Any] = None,
-            stop_position: Optional[Any] = None,
-           ) -> Iterator[SourceBundle]:
-
+  def split(
+      self,
+      desired_bundle_size: int,
+      start_position: Optional[Any] = None,
+      stop_position: Optional[Any] = None,
+  ) -> Iterator[SourceBundle]:
     """Splits the source into a set of bundles.
 
     Bundles should be approximately of size ``desired_bundle_size`` bytes.
@@ -180,11 +179,11 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def get_range_tracker(self,
-                        start_position: Optional[Any],
-                        stop_position: Optional[Any],
-                       ) -> RangeTracker:
-
+  def get_range_tracker(
+      self,
+      start_position: Optional[Any],
+      stop_position: Optional[Any],
+  ) -> RangeTracker:
     """Returns a RangeTracker for a given position range.
 
     Framework may invoke ``read()`` method with the RangeTracker object returned
@@ -864,7 +863,6 @@ class Writer(object):
 class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
   def __init__(self, source: SourceBase) -> None:
-
     """Initializes a Read transform.
 
     Args:
@@ -893,7 +891,9 @@ class Read(ptransform.PTransform):
   def get_windowing(self, unused_inputs) -> core.Windowing:
     return core.Windowing(window.GlobalWindows())
 
-  def _infer_output_coder(self, input_type=None, input_coder=None) -> Optional[coders.Coder]:
+  def _infer_output_coder(self,
+                          input_type=None,
+                          input_coder=None) -> Optional[coders.Coder]:
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
@@ -908,7 +908,9 @@ class Read(ptransform.PTransform):
         'source_dd': self.source
     }
 
-  def to_runner_api_parameter(self, context: PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]:
+  def to_runner_api_parameter(
+      self,
+      context: PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]:
     return (
         common_urns.deprecated_primitives.READ.urn,
         beam_runner_api_pb2.ReadPayload(
@@ -918,7 +920,10 @@ class Read(ptransform.PTransform):
             beam_runner_api_pb2.IsBounded.UNBOUNDED))
 
   @staticmethod
-  def from_runner_api_parameter(unused_ptransform, parameter: beam_runner_api_pb2.ReadPayload, context: PipelineContext) -> Read:
+  def from_runner_api_parameter(
+      unused_ptransform,
+      parameter: beam_runner_api_pb2.ReadPayload,
+      context: PipelineContext) -> Read:
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
 
@@ -1145,7 +1150,6 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def current_progress(self) -> RestrictionProgress:
-
     """Returns a RestrictionProgress object representing the current progress.
 
     This API is recommended to be implemented. The runner can do a better job
@@ -1269,13 +1273,11 @@ class WatermarkEstimator(object):
     raise NotImplementedError(type(self))
 
   def current_watermark(self) -> timestamp.Timestamp:
-
     """Return estimated output_watermark. This function must return
     monotonically increasing watermarks."""
     raise NotImplementedError(type(self))
 
   def observe_timestamp(self, timestamp: timestamp.Timestamp) -> None:
-
     """Update tracking  watermark with latest output timestamp.
 
     Args:

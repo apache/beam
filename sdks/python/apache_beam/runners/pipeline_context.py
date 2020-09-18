@@ -56,12 +56,12 @@ class _PipelineContextMap(object):
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
-  def __init__(self,
-               context,
-               obj_type,
-               namespace: str,
-               proto_map: Optional[Mapping[str, message.Message]] = None
-              ):
+  def __init__(
+      self,
+      context,
+      obj_type,
+      namespace: str,
+      proto_map: Optional[Mapping[str, message.Message]] = None):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
@@ -91,7 +91,11 @@ class _PipelineContextMap(object):
           self._id_to_proto[id], self._pipeline_context)
     return self._id_to_obj[id]
 
-  def get_by_proto(self, maybe_new_proto: message.Message, label: Optional[str] = None, deduplicate: bool = False) -> str:
+  def get_by_proto(
+      self,
+      maybe_new_proto: message.Message,
+      label: Optional[str] = None,
+      deduplicate: bool = False) -> str:
     if deduplicate:
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
@@ -107,7 +111,11 @@ class _PipelineContextMap(object):
   def get_proto_from_id(self, id):
     return self.get_id_to_proto_map()[id]
 
-  def put_proto(self, id: str, proto: message.Message, ignore_duplicates: bool = False) -> str:
+  def put_proto(
+      self,
+      id: str,
+      proto: message.Message,
+      ignore_duplicates: bool = False) -> str:
     if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
     elif (ignore_duplicates and id in self._id_to_proto and
@@ -132,18 +140,19 @@ class PipelineContext(object):
 
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
-
-  def __init__(self,
-               proto: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
-               component_id_map: Optional[pipeline.ComponentIdMap] = None,
-               default_environment: Optional[environments.Environment] = None,
-               use_fake_coders=False,
-               iterable_state_read: Optional[IterableStateReader] = None,
-               iterable_state_write: Optional[IterableStateWriter] = None,
-               namespace='ref',
-               allow_proto_holders=False,
-               requirements: Iterable[str] = (),
-              ):
+  def __init__(
+      self,
+      proto: Optional[Union[beam_runner_api_pb2.Components,
+                            beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
+      component_id_map: Optional[pipeline.ComponentIdMap] = None,
+      default_environment: Optional[environments.Environment] = None,
+      use_fake_coders=False,
+      iterable_state_read: Optional[IterableStateReader] = None,
+      iterable_state_write: Optional[IterableStateWriter] = None,
+      namespace='ref',
+      allow_proto_holders=False,
+      requirements: Iterable[str] = (),
+  ):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -181,8 +190,7 @@ class PipelineContext(object):
 
     if default_environment:
       self._default_environment_id: Optional[str] = self.environments.get_id(
-          default_environment,
-          label='default_environment')
+          default_environment, label='default_environment')
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders

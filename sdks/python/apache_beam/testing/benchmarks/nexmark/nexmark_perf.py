@@ -37,7 +37,6 @@ class NexmarkPerf(object):
     self.result_count = result_count if result_count else -1
 
   def has_progress(self, previous_perf: NexmarkPerf) -> bool:
-
     """
     Args:
       previous_perf: a NexmarkPerf object to be compared to self

@@ -124,18 +124,13 @@ class WindowFn(with_metaclass(abc.ABCMeta,
   """An abstract windowing function defining a basic assign and merge."""
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
-    def __init__(
-        self,
-        timestamp: TimestampTypes,
-        element=None,
-        window=None):
+    def __init__(self, timestamp: TimestampTypes, element=None, window=None):
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
       self.window = window
 
   @abc.abstractmethod
   def assign(self, assign_context: AssignContext) -> Iterable[BoundedWindow]:
-
     """Associates windows to an element.
 
     Arguments:
@@ -156,7 +151,6 @@ class WindowFn(with_metaclass(abc.ABCMeta,
 
   @abc.abstractmethod
   def merge(self, merge_context: WindowFn.MergeContext) -> None:
-
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
 
@@ -389,11 +383,7 @@ class FixedWindows(NonMergingWindowFn):
       value in range [0, size). If it is not it will be normalized to this
       range.
   """
-  def __init__(
-      self,
-      size: DurationTypes,
-      offset: TimestampTypes = 0
-  ):
+  def __init__(self, size: DurationTypes, offset: TimestampTypes = 0):
     """Initialize a ``FixedWindows`` function for a given size and offset.
 
     Args:
@@ -459,12 +449,12 @@ class SlidingWindows(NonMergingWindowFn):
       t=N * period + offset where t=0 is the epoch. The offset must be a value
       in range [0, period). If it is not it will be normalized to this range.
   """
-
-  def __init__(self,
-               size: DurationTypes,
-               period: DurationTypes,
-               offset: TimestampTypes = 0,
-              ):
+  def __init__(
+      self,
+      size: DurationTypes,
+      period: DurationTypes,
+      offset: TimestampTypes = 0,
+  ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.size = Duration.of(size)

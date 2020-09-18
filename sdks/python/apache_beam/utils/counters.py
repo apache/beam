@@ -52,7 +52,6 @@ IOTargetName = namedtuple(
 
 
 def side_input_id(step_name: str, input_index: int) -> IOTargetName:
-
   """Create an IOTargetName that identifies the reading of a side input.
 
   Given a step "s4" that receives two side inputs, then the CounterName
@@ -68,7 +67,6 @@ def side_input_id(step_name: str, input_index: int) -> IOTargetName:
 
 
 def shuffle_id(step_name: str) -> IOTargetName:
-
   """Create an IOTargetName that identifies a GBK step.
 
   Given a step "s6" that is downstream from a GBK "s5", then "s6" will read
@@ -168,7 +166,6 @@ class Counter(object):
   DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
   def __init__(self, name: CounterName, combine_fn: core.CombineFn) -> None:
-
     """Creates a Counter object.
 
     Args:
@@ -203,7 +200,9 @@ class Counter(object):
 
 class AccumulatorCombineFnCounter(Counter):
   """Counter optimized for a mutating accumulator that holds all the logic."""
-  def __init__(self, name: CounterName, combine_fn: cy_combiners.AccumulatorCombineFn) -> None:
+  def __init__(
+      self, name: CounterName,
+      combine_fn: cy_combiners.AccumulatorCombineFn) -> None:
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
     super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
     self.reset()
@@ -224,8 +223,8 @@ class CounterFactory(object):
     # Lock to be acquired when accessing the counters map.
     self._lock = threading.Lock()
 
-  def get_counter(self, name: CounterName, combine_fn: core.CombineFn) -> Counter:
-
+  def get_counter(
+      self, name: CounterName, combine_fn: core.CombineFn) -> Counter:
     """Returns a counter with the requested name.
 
     Passing in the same name will return the same counter; the

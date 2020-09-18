@@ -106,10 +106,14 @@ class CoderRegistry(object):
     default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
     self._fallback_coder = fallback_coder or FirstOf(default_fallback_coders)
 
-  def _register_coder_internal(self, typehint_type: Any, typehint_coder_class: Type[coders.Coder]) -> None:
+  def _register_coder_internal(
+      self, typehint_type: Any,
+      typehint_coder_class: Type[coders.Coder]) -> None:
     self._coders[typehint_type] = typehint_coder_class
 
-  def register_coder(self, typehint_type: Any, typehint_coder_class: Type[coders.Coder]) -> None:
+  def register_coder(
+      self, typehint_type: Any,
+      typehint_coder_class: Type[coders.Coder]) -> None:
     if not isinstance(typehint_coder_class, type):
       raise TypeError(
           'Coder registration requires a coder class object. '

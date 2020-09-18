@@ -32,7 +32,6 @@ from apache_beam.runners.interactive import interactive_environment as ie
 class Limiter:
   """Limits an aspect of the caching layer."""
   def is_triggered(self) -> bool:
-
     """Returns True if the limiter has triggered, and caching should stop."""
     raise NotImplementedError
 
@@ -42,7 +41,6 @@ class ElementLimiter(Limiter):
   element.
   """
   def update(self, e: Any) -> None:
-
     """Update the internal state based on some property of an element.
 
     This is executed on every element that is read from cache.
@@ -52,10 +50,7 @@ class ElementLimiter(Limiter):
 
 class SizeLimiter(Limiter):
   """Limits the cache size to a specified byte limit."""
-  def __init__(
-      self,
-      size_limit: int
-  ):
+  def __init__(self, size_limit: int):
     self._size_limit = size_limit
 
   def is_triggered(self):
@@ -70,10 +65,7 @@ class SizeLimiter(Limiter):
 
 class DurationLimiter(Limiter):
   """Limits the duration of the capture."""
-  def __init__(
-      self,
-      duration_limit: datetime.timedelta
-  ):
+  def __init__(self, duration_limit: datetime.timedelta):
     self._duration_limit = duration_limit
     self._timer = threading.Timer(duration_limit.total_seconds(), self._trigger)
     self._timer.daemon = True

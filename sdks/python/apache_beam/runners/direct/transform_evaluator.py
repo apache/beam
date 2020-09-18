@@ -94,8 +94,8 @@ class TransformEvaluatorRegistry(object):
   Creates instances of TransformEvaluator for the application of a transform.
   """
 
-  _test_evaluators_overrides: Dict[Type[core.PTransform], Type[_TransformEvaluator]] = {
-  }
+  _test_evaluators_overrides: Dict[Type[core.PTransform],
+                                   Type[_TransformEvaluator]] = {}
 
   def __init__(self, evaluation_context: EvaluationContext) -> None:
     assert evaluation_context
@@ -237,13 +237,12 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
 
 class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
-
-  def __init__(self,
-               evaluation_context: EvaluationContext,
-               applied_ptransform: AppliedPTransform,
-               input_committed_bundle,
-               side_inputs
-              ):
+  def __init__(
+      self,
+      evaluation_context: EvaluationContext,
+      applied_ptransform: AppliedPTransform,
+      input_committed_bundle,
+      side_inputs):
     self._evaluation_context = evaluation_context
     self._applied_ptransform = applied_ptransform
     self._input_committed_bundle = input_committed_bundle
@@ -325,7 +324,6 @@ class _TransformEvaluator(object):
     raise NotImplementedError('%s do not process elements.' % type(self))
 
   def finish_bundle(self) -> TransformResult:
-
     """Finishes the bundle and produces output."""
     pass
 
@@ -656,7 +654,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   def process_element(self, element):
     pass
 
-  def _read_from_pubsub(self, timestamp_attribute) -> List[Tuple[Timestamp, PubsubMessage]]:
+  def _read_from_pubsub(
+      self, timestamp_attribute) -> List[Tuple[Timestamp, PubsubMessage]]:
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
 
@@ -792,14 +791,13 @@ class _TaggedReceivers(dict):
 
 class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
-
-  def __init__(self,
-               evaluation_context: EvaluationContext,
-               applied_ptransform: AppliedPTransform,
-               input_committed_bundle,
-               side_inputs,
-               perform_dofn_pickle_test=True
-              ):
+  def __init__(
+      self,
+      evaluation_context: EvaluationContext,
+      applied_ptransform: AppliedPTransform,
+      input_committed_bundle,
+      side_inputs,
+      perform_dofn_pickle_test=True):
     super(_ParDoEvaluator, self).__init__(
         evaluation_context,
         applied_ptransform,

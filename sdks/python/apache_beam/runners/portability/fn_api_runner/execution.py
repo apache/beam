@@ -140,16 +140,15 @@ class ListBuffer(object):
 
 class GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
-  def __init__(self,
-               pre_grouped_coder: coders.Coder,
-               post_grouped_coder: coders.Coder,
-               windowing
-              ) -> None:
+  def __init__(
+      self,
+      pre_grouped_coder: coders.Coder,
+      post_grouped_coder: coders.Coder,
+      windowing) -> None:
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
-    self._table: DefaultDict[bytes, List[Any]] = collections.defaultdict(
-        list)
+    self._table: DefaultDict[bytes, List[Any]] = collections.defaultdict(list)
     self._windowing = windowing
     self._grouped_output: Optional[List[List[bytes]]] = None
 
@@ -170,7 +169,6 @@ class GroupingBuffer(object):
           with_value(value))
 
   def partition(self, n: int) -> List[List[bytes]]:
-
     """ It is used to partition _GroupingBuffer to N parts. Once it is
     partitioned, it would not be re-partitioned with diff N. Re-partition
     is not supported now.
@@ -209,7 +207,6 @@ class GroupingBuffer(object):
     return self._grouped_output
 
   def __iter__(self) -> Iterator[bytes]:
-
     """ Since partition() returns a list of lists, add this __iter__ to return
     a list to simplify code when we need to iterate through ALL elements of
     _GroupingBuffer.
@@ -219,11 +216,7 @@ class GroupingBuffer(object):
 
 class WindowGroupingBuffer(object):
   """Used to partition windowed side inputs."""
-  def __init__(
-      self,
-      access_pattern,
-      coder: WindowedValueCoder
-  ) -> None:
+  def __init__(self, access_pattern, coder: WindowedValueCoder) -> None:
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
     if access_pattern.urn == common_urns.side_inputs.ITERABLE.urn:
@@ -238,8 +231,9 @@ class WindowGroupingBuffer(object):
       raise ValueError("Unknown access pattern: '%s'" % access_pattern.urn)
     self._windowed_value_coder = coder
     self._window_coder = coder.window_coder
-    self._values_by_window: DefaultDict[Tuple[str, BoundedWindow], List[Any]] = collections.defaultdict(
-        list)
+    self._values_by_window: DefaultDict[Tuple[str, BoundedWindow],
+                                        List[Any]] = collections.defaultdict(
+                                            list)
 
   def append(self, elements_data: bytes) -> None:
     input_stream = create_InputStream(elements_data)
@@ -290,13 +284,14 @@ class FnApiRunnerExecutionContext(object):
        PCollection IDs to list that functions as buffer for the
        ``beam.PCollection``.
  """
-  def __init__(self,
+  def __init__(
+      self,
       stages: List[translations.Stage],
       worker_handler_manager: worker_handlers.WorkerHandlerManager,
       pipeline_components: beam_runner_api_pb2.Components,
       safe_coders,
       data_channel_coders,
-               ):
+  ):
     """
     :param worker_handler_manager: This class manages the set of worker
         handlers, and the communication with state / control APIs.
@@ -324,18 +319,20 @@ class FnApiRunnerExecutionContext(object):
     }
 
   @staticmethod
-  def _build_data_side_inputs_map(stages: Iterable[translations.Stage]) -> MutableMapping[str, DataSideInput]:
-
+  def _build_data_side_inputs_map(
+      stages: Iterable[translations.Stage]
+  ) -> MutableMapping[str, DataSideInput]:
     """Builds an index mapping stages to side input descriptors.
 
     A side input descriptor is a map of side input IDs to side input access
     patterns for all of the outputs of a stage that will be consumed as a
     side input.
     """
-    transform_consumers: DefaultDict[str, List[beam_runner_api_pb2.PTransform]] = collections.defaultdict(
-        list)
-    stage_consumers: DefaultDict[str, List[translations.Stage]] = collections.defaultdict(
-        list)
+    transform_consumers: DefaultDict[
+        str,
+        List[beam_runner_api_pb2.PTransform]] = collections.defaultdict(list)
+    stage_consumers: DefaultDict[
+        str, List[translations.Stage]] = collections.defaultdict(list)
 
     def get_all_side_inputs() -> Set[str]:
       all_side_inputs: Set[str] = set()
@@ -460,12 +457,12 @@ class FnApiRunnerExecutionContext(object):
 
 
 class BundleContextManager(object):
-
-  def __init__(self,
-               execution_context: FnApiRunnerExecutionContext,
-               stage: translations.Stage,
-               num_workers: int,
-              ):
+  def __init__(
+      self,
+      execution_context: FnApiRunnerExecutionContext,
+      stage: translations.Stage,
+      num_workers: int,
+  ):
     self.execution_context = execution_context
     self.stage = stage
     self.bundle_uid = self.execution_context.next_uid()
@@ -524,8 +521,10 @@ class BundleContextManager(object):
         state_api_service_descriptor=self.state_api_service_descriptor(),
         timer_api_service_descriptor=self.data_api_service_descriptor())
 
-  def extract_bundle_inputs_and_outputs(self) -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], str]]:
-
+  def extract_bundle_inputs_and_outputs(
+      self
+  ) -> Tuple[
+      Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], str]]:
     """Returns maps of transform names to PCollection identifiers.
 
     Also mutates IO stages to point to the data ApiServiceDescriptor.
@@ -611,8 +610,8 @@ class BundleContextManager(object):
     return self.get_coder_impl(
         self._timer_coder_ids[(transform_id, timer_family_id)])
 
-  def get_buffer(self, buffer_id: bytes, transform_id: str) -> PartitionableBuffer:
-
+  def get_buffer(
+      self, buffer_id: bytes, transform_id: str) -> PartitionableBuffer:
     """Returns the buffer for a given (operation_type, PCollection ID).
     For grouping-typed operations, we produce a ``GroupingBuffer``. For
     others, we produce a ``ListBuffer``.

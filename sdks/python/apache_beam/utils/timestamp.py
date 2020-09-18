@@ -57,7 +57,10 @@ class Timestamp(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
-  def __init__(self, seconds: Union[int, float] = 0, micros: Union[int, float] = 0) -> None:
+  def __init__(
+      self,
+      seconds: Union[int, float] = 0,
+      micros: Union[int, float] = 0) -> None:
     if not isinstance(seconds, (int, long, float)):
       raise TypeError(
           'Cannot interpret %s %s as seconds.' % (seconds, type(seconds)))
@@ -68,7 +71,6 @@ class Timestamp(object):
 
   @staticmethod
   def of(seconds: TimestampTypes) -> Timestamp:
-
     """Return the Timestamp for the given number of seconds.
 
     If the input is already a Timestamp, the input itself will be returned.
@@ -260,12 +262,14 @@ class Duration(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
-  def __init__(self, seconds: Union[int, float] = 0, micros: Union[int, float] = 0) -> None:
+  def __init__(
+      self,
+      seconds: Union[int, float] = 0,
+      micros: Union[int, float] = 0) -> None:
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds: DurationTypes) -> Duration:
-
     """Return the Duration for the given number of seconds since Unix epoch.
 
     If the input is already a Duration, the input itself will be returned.

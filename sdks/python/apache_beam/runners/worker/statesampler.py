@@ -93,15 +93,14 @@ DEFAULT_SAMPLING_PERIOD_MS = 200
 
 
 class StateSampler(statesampler_impl.StateSampler):
-
-  def __init__(self,
-               prefix: str,
-               counter_factory,
-               sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
+  def __init__(
+      self,
+      prefix: str,
+      counter_factory,
+      sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     self._prefix = prefix
     self._counter_factory = counter_factory
-    self._states_by_name: Dict[CounterName, statesampler_impl.ScopedState] = {
-    }
+    self._states_by_name: Dict[CounterName, statesampler_impl.ScopedState] = {}
     self.sampling_period_ms = sampling_period_ms
     self.tracked_thread: Optional[threading.Thread] = None
     self.finished = False
@@ -127,7 +126,6 @@ class StateSampler(statesampler_impl.StateSampler):
     self.started = True
 
   def get_info(self) -> StateSamplerInfo:
-
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
         self.current_state().name,
@@ -135,13 +133,13 @@ class StateSampler(statesampler_impl.StateSampler):
         self.time_since_transition,
         self.tracked_thread)
 
-  def scoped_state(self,
-                   name_context: Union[str, common.NameContext],
-                   state_name: str,
-                   io_target=None,
-                   metrics_container: Optional[MetricsContainer] = None
-                  ) -> statesampler_impl.ScopedState:
-
+  def scoped_state(
+      self,
+      name_context: Union[str, common.NameContext],
+      state_name: str,
+      io_target=None,
+      metrics_container: Optional[MetricsContainer] = None
+  ) -> statesampler_impl.ScopedState:
     """Returns a ScopedState object associated to a Step and a State.
 
     Args:
@@ -176,7 +174,6 @@ class StateSampler(statesampler_impl.StateSampler):
       return self._states_by_name[counter_name]
 
   def commit_counters(self) -> None:
-
     """Updates output counters with latest state statistics."""
     for state in self._states_by_name.values():
       state_msecs = int(1e-6 * state.nsecs)

@@ -155,12 +155,14 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
 
 
 def _proxy_function(
-      func: Union[Callable, str],
-      name: Optional[str] = None,
-      restrictions: Optional[Dict[str, Union[Any, List[Any]]]] = None,
-      inplace: bool = False,
-      requires_partition_by: partitionings.Partitioning = partitionings.Singleton(),
-      preserves_partition_by: partitionings.Partitioning = partitionings.Nothing(),
+    func: Union[Callable, str],
+    name: Optional[str] = None,
+    restrictions: Optional[Dict[str, Union[Any, List[Any]]]] = None,
+    inplace: bool = False,
+    requires_partition_by: partitionings.Partitioning = partitionings.Singleton(
+    ),
+    preserves_partition_by: partitionings.Partitioning = partitionings.Nothing(
+    ),
 ):
 
   if name is None:

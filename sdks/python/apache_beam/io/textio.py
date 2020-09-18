@@ -96,16 +96,17 @@ class _TextSource(filebasedsource.FileBasedSource):
       self.data = b''
       self.position = 0
 
-  def __init__(self,
-               file_pattern,
-               min_bundle_size,
-               compression_type,
-               strip_trailing_newlines,
-               coder: coders.Coder,
-               buffer_size=DEFAULT_READ_BUFFER_SIZE,
-               validate=True,
-               skip_header_lines=0,
-               header_processor_fns=(None, None)):
+  def __init__(
+      self,
+      file_pattern,
+      min_bundle_size,
+      compression_type,
+      strip_trailing_newlines,
+      coder: coders.Coder,
+      buffer_size=DEFAULT_READ_BUFFER_SIZE,
+      validate=True,
+      skip_header_lines=0,
+      header_processor_fns=(None, None)):
     """Initialize a _TextSource
 
     Args:
@@ -341,16 +342,16 @@ class _TextSourceWithFilename(_TextSource):
 
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
-
-  def __init__(self,
-               file_path_prefix,
-               file_name_suffix='',
-               append_trailing_newlines=True,
-               num_shards=0,
-               shard_name_template=None,
-               coder: coders.Coder = coders.ToBytesCoder(),
-               compression_type=CompressionTypes.AUTO,
-               header=None):
+  def __init__(
+      self,
+      file_path_prefix,
+      file_name_suffix='',
+      append_trailing_newlines=True,
+      num_shards=0,
+      shard_name_template=None,
+      coder: coders.Coder = coders.ToBytesCoder(),
+      compression_type=CompressionTypes.AUTO,
+      header=None):
     """Initialize a _TextSink.
 
     Args:
@@ -578,7 +579,6 @@ class ReadFromTextWithFilename(ReadFromText):
 class WriteToText(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
   text files."""
-
   def __init__(
       self,
       file_path_prefix: str,

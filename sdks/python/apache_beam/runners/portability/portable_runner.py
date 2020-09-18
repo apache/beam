@@ -98,8 +98,11 @@ class JobServiceHandle(object):
     self.timeout = options.view_as(PortableOptions).job_server_timeout
     self._retain_unknown_options = retain_unknown_options
 
-  def submit(self, proto_pipeline: beam_runner_api_pb2.Pipeline) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]:
-
+  def submit(
+      self, proto_pipeline: beam_runner_api_pb2.Pipeline
+  ) -> Tuple[str,
+             Iterator[beam_job_api_pb2.JobStateEvent],
+             Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """
     Submit and run the pipeline defined by `proto_pipeline`.
     """
@@ -111,7 +114,6 @@ class JobServiceHandle(object):
     return self.run(prepare_response.preparation_id)
 
   def get_pipeline_options(self) -> struct_pb2.Struct:
-
     """
     Get `self.options` as a protobuf Struct
     """
@@ -180,8 +182,9 @@ class JobServiceHandle(object):
     }
     return job_utils.dict_to_struct(p_options)
 
-  def prepare(self, proto_pipeline: beam_runner_api_pb2.Pipeline) -> beam_job_api_pb2.PrepareJobResponse:
-
+  def prepare(
+      self, proto_pipeline: beam_runner_api_pb2.Pipeline
+  ) -> beam_job_api_pb2.PrepareJobResponse:
     """Prepare the job on the job service"""
     return self.job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
@@ -190,8 +193,8 @@ class JobServiceHandle(object):
             pipeline_options=self.get_pipeline_options()),
         timeout=self.timeout)
 
-  def stage(self, pipeline, artifact_staging_endpoint, staging_session_token) -> Optional[Any]:
-
+  def stage(self, pipeline, artifact_staging_endpoint,
+            staging_session_token) -> Optional[Any]:
     """Stage artifacts"""
     if artifact_staging_endpoint:
       artifact_service.offer_artifacts(
@@ -201,8 +204,11 @@ class JobServiceHandle(object):
               artifact_service.BeamFilesystemHandler(None).file_reader),
           staging_session_token)
 
-  def run(self, preparation_id: str) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]:
-
+  def run(
+      self, preparation_id: str
+  ) -> Tuple[str,
+             Iterator[beam_job_api_pb2.JobStateEvent],
+             Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """Run the job"""
     try:
       state_stream = self.job_service.GetStateStream(
@@ -281,7 +287,6 @@ class PortableRunner(runner.PipelineRunner):
     return JobServiceHandle(job_service, options)
 
   def create_job_service(self, options: PipelineOptions) -> JobServiceHandle:
-
     """
     Start the job service and return a `JobServiceHandle`
     """
@@ -297,7 +302,9 @@ class PortableRunner(runner.PipelineRunner):
     return self.create_job_service_handle(server.start(), options)
 
   @staticmethod
-  def get_proto_pipeline(pipeline: Pipeline, options: PipelineOptions) -> beam_runner_api_pb2.Pipeline:
+  def get_proto_pipeline(
+      pipeline: Pipeline,
+      options: PipelineOptions) -> beam_runner_api_pb2.Pipeline:
     portable_options = options.view_as(PortableOptions)
 
     proto_pipeline = pipeline.to_runner_api(
@@ -354,7 +361,8 @@ class PortableRunner(runner.PipelineRunner):
             partial=True)
     return proto_pipeline
 
-  def run_pipeline(self, pipeline: Pipeline, options: PipelineOptions) -> PipelineResult:
+  def run_pipeline(
+      self, pipeline: Pipeline, options: PipelineOptions) -> PipelineResult:
     portable_options = options.view_as(PortableOptions)
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525

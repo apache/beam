@@ -133,8 +133,8 @@ def create_labels(ptransform=None, namespace=None, name=None, pcollection=None):
   return labels
 
 
-def int64_user_counter(namespace, name, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
-
+def int64_user_counter(
+    namespace, name, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -149,8 +149,11 @@ def int64_user_counter(namespace, name, metric, ptransform=None) -> metrics_pb2.
       USER_COUNTER_URN, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_counter(urn, metric, ptransform=None, pcollection=None) -> metrics_pb2.MonitoringInfo:
-
+def int64_counter(
+    urn,
+    metric,
+    ptransform=None,
+    pcollection=None) -> metrics_pb2.MonitoringInfo:
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -180,8 +183,11 @@ def int64_user_distribution(namespace, name, metric, ptransform=None):
       USER_DISTRIBUTION_URN, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_distribution(urn, metric, ptransform=None, pcollection=None) -> metrics_pb2.MonitoringInfo:
-
+def int64_distribution(
+    urn,
+    metric,
+    ptransform=None,
+    pcollection=None) -> metrics_pb2.MonitoringInfo:
   """Return a distribution monitoring info for the URN, metric and labels.
 
   Args:
@@ -196,8 +202,8 @@ def int64_distribution(urn, metric, ptransform=None, pcollection=None) -> metric
   return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_user_gauge(namespace, name, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
-
+def int64_user_gauge(
+    namespace, name, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
@@ -221,7 +227,6 @@ def int64_user_gauge(namespace, name, metric, ptransform=None) -> metrics_pb2.Mo
 
 
 def int64_gauge(urn, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
-
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
@@ -243,8 +248,8 @@ def int64_gauge(urn, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
   return create_monitoring_info(urn, LATEST_INT64_TYPE, payload, labels)
 
 
-def create_monitoring_info(urn, type_urn, payload, labels=None) -> metrics_pb2.MonitoringInfo:
-
+def create_monitoring_info(
+    urn, type_urn, payload, labels=None) -> metrics_pb2.MonitoringInfo:
   """Return the gauge monitoring info for the URN, type, metric and labels.
 
   Args:
@@ -314,8 +319,8 @@ def get_step_name(monitoring_info_proto):
   return monitoring_info_proto.labels.get(PTRANSFORM_LABEL)
 
 
-def to_key(monitoring_info_proto: metrics_pb2.MonitoringInfo) -> FrozenSet[Hashable]:
-
+def to_key(
+    monitoring_info_proto: metrics_pb2.MonitoringInfo) -> FrozenSet[Hashable]:
   """Returns a key based on the URN and labels.
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.

@@ -46,10 +46,14 @@ class BundleFactory(object):
   def __init__(self, stacked: bool) -> None:
     self._stacked = stacked
 
-  def create_bundle(self, output_pcollection: Union[pvalue.PBegin, pvalue.PCollection]) -> _Bundle:
+  def create_bundle(
+      self, output_pcollection: Union[pvalue.PBegin,
+                                      pvalue.PCollection]) -> _Bundle:
     return _Bundle(output_pcollection, self._stacked)
 
-  def create_empty_committed_bundle(self, output_pcollection: Union[pvalue.PBegin, pvalue.PCollection]) -> _Bundle:
+  def create_empty_committed_bundle(
+      self, output_pcollection: Union[pvalue.PBegin,
+                                      pvalue.PCollection]) -> _Bundle:
     bundle = self.create_bundle(output_pcollection)
     bundle.commit(None)
     return bundle
@@ -117,17 +121,20 @@ class _Bundle(common.Receiver):
       for v in self._appended_values:
         yield self._initial_windowed_value.with_value(v)
 
-  def __init__(self, pcollection: Union[pvalue.PBegin, pvalue.PCollection], stacked: bool = True) -> None:
+  def __init__(
+      self,
+      pcollection: Union[pvalue.PBegin, pvalue.PCollection],
+      stacked: bool = True) -> None:
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
-    self._elements: List[Union[WindowedValue, _Bundle._StackedWindowedValues]] = [
-    ]
+    self._elements: List[Union[WindowedValue,
+                               _Bundle._StackedWindowedValues]] = []
     self._stacked = stacked
     self._committed = False
     self._tag = None  # optional tag information for this bundle
 
-  def get_elements_iterable(self, make_copy: bool = False) -> Iterable[WindowedValue]:
-
+  def get_elements_iterable(self,
+                            make_copy: bool = False) -> Iterable[WindowedValue]:
     """Returns iterable elements.
 
     Args:
