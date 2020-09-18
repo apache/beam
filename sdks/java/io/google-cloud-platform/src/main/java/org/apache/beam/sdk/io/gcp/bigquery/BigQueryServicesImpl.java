@@ -498,7 +498,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         TableReference ref, @Nullable List<String> selectedFields, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
-          client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId()).setPrettyPrint(false);
+          client
+              .tables()
+              .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
+              .setPrettyPrint(false);
       if (selectedFields != null && !selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
       }
