@@ -51,7 +51,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
@@ -59,10 +58,6 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.dataflow.internal.sdk_container_cloud_builder import \
-  SdkContainerCloudBuilder
-from apache_beam.runners.portability.sdk_container_builder import \
-  SdkContainerBuilder
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
@@ -1075,27 +1070,7 @@ def get_container_image_from_options(pipeline_options):
     Returns:
       str: Container image for remote execution.
   """
-  debug_options = pipeline_options.view_as(DebugOptions)
   worker_options = pipeline_options.view_as(WorkerOptions)
-  container_build_engine = debug_options.lookup_experiment(
-      'prebuild_sdk_container')
-  if (debug_options.lookup_experiment('beam_fn_api') and
-      container_build_engine and
-      not worker_options.worker_harness_container_image):
-    if container_build_engine == 'local_docker':
-      builder = SdkContainerBuilder(pipeline_options)
-    elif container_build_engine == 'cloud_build':
-      builder = SdkContainerCloudBuilder(pipeline_options)
-    else:
-      raise ValueError(
-          "Only prebuild_sdk_container=local_docker and "
-          "prebuild_sdk_container=cloud_build is supported")
-
-    worker_options.worker_harness_container_image = builder.build()
-    # we can explicitly skip the artifacts staging for boot dependencies now
-    # since we know the sdk container has been prebuilt with all the
-    # dependencies installed.
-    pipeline_options.view_as(SetupOptions).skip_boot_dependencies = True
 
   if worker_options.worker_harness_container_image:
     return worker_options.worker_harness_container_image

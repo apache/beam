@@ -119,6 +119,7 @@ class Stager(object):
                            temp_dir,  # type: str
                            build_setup_args=None,  # type: Optional[List[str]]
                            populate_requirements_cache=None,  # type: Optional[str]
+                           skip_boot_dependencies=False, # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -136,6 +137,8 @@ class Stager(object):
             only for testing.
           populate_requirements_cache: Callable for populating the requirements
             cache. Used only for testing.
+          skip_boot_dependencies: Skip apache beam sdk, requirements, extra
+            packages, workflow tarball installs by sdk boot program.
 
         Returns:
           A list of tuples of local file paths and file names (no paths) to be
@@ -152,7 +155,7 @@ class Stager(object):
 
     # Stage a requirements file if present.
     if (setup_options.requirements_file is not None and
-        not setup_options.skip_boot_dependencies):
+        not skip_boot_dependencies):
       if not os.path.isfile(setup_options.requirements_file):
         raise RuntimeError(
             'The file %s cannot be found. It was specified in the '
@@ -178,8 +181,7 @@ class Stager(object):
     # We will build the setup package locally and then copy it to the staging
     # location because the staging location is a remote path and the file cannot
     # be created directly there.
-    if (setup_options.setup_file is not None and
-        not setup_options.skip_boot_dependencies):
+    if setup_options.setup_file is not None and skip_boot_dependencies:
       if not os.path.isfile(setup_options.setup_file):
         raise RuntimeError(
             'The file %s cannot be found. It was specified in the '
@@ -194,7 +196,7 @@ class Stager(object):
 
     # Handle extra local packages that should be staged.
     if (setup_options.extra_packages is not None and
-        not setup_options.skip_boot_dependencies):
+        not skip_boot_dependencies):
       resources.extend(
           Stager._create_extra_packages(
               setup_options.extra_packages, temp_dir=temp_dir))
@@ -219,8 +221,7 @@ class Stager(object):
       pickler.dump_session(pickled_session_file)
       resources.append((pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
-    if (hasattr(setup_options, 'sdk_location') and
-        not setup_options.skip_boot_dependencies):
+    if hasattr(setup_options, 'sdk_location') and not skip_boot_dependencies:
 
       if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
           setup_options.sdk_location):

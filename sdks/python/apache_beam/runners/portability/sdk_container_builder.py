@@ -32,26 +32,37 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import uuid
 
+from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
 
+from apache_beam.internal.gcp.auth import get_service_credentials
+from apache_beam.internal.http_client import get_new_http
+from apache_beam.io.gcp.internal.clients import storage
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability.stager import Stager
+from apitools.base.py import exceptions
 
 ARTIFACTS_CONTAINER_DIR = '/opt/apache/beam/artifacts'
 ARTIFACTS_MANIFEST_FILE = 'artifacts_info.json'
+SDK_CONTAINER_ENTRYPOINT = '/opt/apache/beam/boot'
 DOCKERFILE_TEMPLATE = (
     """FROM apache/beam_python{major}.{minor}_sdk:latest
 RUN mkdir -p {workdir}
 COPY ./* {workdir}/
-RUN /opt/apache/beam/boot --setup_only --artifacts {workdir}/{manifest_file}
+RUN {entrypoint} --setup_only --artifacts {workdir}/{manifest_file}
 """)
 
+SOURCE_FOLDER = 'source'
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -60,7 +71,7 @@ class SdkContainerBuilder(object):
     self._options = options
     self._temp_src_dir = tempfile.mkdtemp()
     self._docker_registry = self._options.view_as(
-        SetupOptions).docker_registry_url
+        SetupOptions).docker_registry_push_url
 
   def build(self):
     container_id = str(uuid.uuid4())
@@ -84,9 +95,49 @@ class SdkContainerBuilder(object):
               major=sys.version_info[0],
               minor=sys.version_info[1],
               workdir=ARTIFACTS_CONTAINER_DIR,
-              manifest_file=ARTIFACTS_MANIFEST_FILE))
+              manifest_file=ARTIFACTS_MANIFEST_FILE,
+              entrypoint=SDK_CONTAINER_ENTRYPOINT))
     self.generate_artifacts_manifests_json_file(resources, self._temp_src_dir)
 
+  def invoke_docker_build_and_push(self, container_id, container_tag):
+    raise NotImplementedError
+
+  @staticmethod
+  def generate_artifacts_manifests_json_file(resources, temp_dir):
+    infos = []
+    for _, name in resources:
+      info = beam_runner_api_pb2.ArtifactInformation(
+          type_urn=common_urns.StandardArtifacts.Types.FILE.urn,
+          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+              path=name).SerializeToString(),
+      )
+      infos.append(json.dumps(MessageToJson(info)))
+    with open(os.path.join(temp_dir, ARTIFACTS_MANIFEST_FILE), 'w') as file:
+      file.write('[\n' + ',\n'.join(infos) + '\n]')
+
+  @classmethod
+  def build_container_imge(cls, pipeline_options):
+    # type: (PipelineOptions) -> str
+    debug_options = pipeline_options.view_as(DebugOptions)
+    container_build_engine = debug_options.lookup_experiment(
+        'prebuild_sdk_container')
+    if container_build_engine:
+      if container_build_engine == 'local_docker':
+        builder = _SdkContainerLocalBuilder(pipeline_options)
+      elif container_build_engine == 'cloud_build':
+        builder = _SdkContainerCloudBuilder(pipeline_options)
+      else:
+        raise ValueError(
+            'Only prebuild_sdk_container=local_docker and '
+            'prebuild_sdk_container=cloud_build is supported')
+    else:
+      raise ValueError('No prebuild_sdk_container flag specified.')
+    return builder.build()
+
+
+class _SdkContainerLocalBuilder(SdkContainerBuilder):
+  """SdkContainerLocalBuilder builds the sdk container image with local
+  docker."""
   def invoke_docker_build_and_push(self, container_id, container_tag):
     try:
       subprocess.run(['docker', 'build', '.', '-t', container_tag],
@@ -119,20 +170,105 @@ class SdkContainerBuilder(object):
           (container_tag, time.time() - now))
     else:
       _LOGGER.info(
-          "no --docker_registry option is specified in pipeline "
+          "no --docker_registry_push_url option is specified in pipeline "
           "options, specify it if the new image is intended to be "
           "pushed to a registry.")
 
+
+class _SdkContainerCloudBuilder(SdkContainerBuilder):
+  """SdkContainerLocalBuilder builds the sdk container image with google cloud
+  build."""
+  def __init__(self, options):
+    super().__init__(options)
+    self._google_cloud_options = options.view_as(GoogleCloudOptions)
+    if self._google_cloud_options.no_auth:
+      credentials = None
+    else:
+      credentials = get_service_credentials()
+    self._storage_client = storage.StorageV1(
+        url='https://www.googleapis.com/storage/v1',
+        credentials=credentials,
+        get_credentials=(not self._google_cloud_options.no_auth),
+        http=get_new_http(),
+        response_encoding='utf8')
+    if not self._docker_registry:
+      self._docker_registry = 'gcr.io/%s' % self._google_cloud_options.project
+
+  def invoke_docker_build_and_push(self, container_id, container_tag):
+    project_id = self._google_cloud_options.project
+    temp_location = self._google_cloud_options.temp_location
+    # google cloud build service expects all the build source file to be
+    # compressed into a tarball.
+    tarball_path = os.path.join(self._temp_src_dir, '%s.tgz' % SOURCE_FOLDER)
+    self._make_tarfile(tarball_path, self._temp_src_dir)
+    _LOGGER.info(
+        "Compressed source files for building sdk container at %s" %
+        tarball_path)
+
+    gcs_location = os.path.join(
+        temp_location, '%s-%s.tgz' % (SOURCE_FOLDER, container_id))
+    self._upload_to_gcs(tarball_path, gcs_location)
+
+    from google.cloud.devtools import cloudbuild_v1
+    client = cloudbuild_v1.CloudBuildClient()
+    build = cloudbuild_v1.Build()
+    build.steps = []
+    step = cloudbuild_v1.BuildStep()
+    step.name = 'gcr.io/cloud-builders/docker'
+    step.args = ['build', '-t', container_tag, '.']
+    step.dir = SOURCE_FOLDER
+
+    build.steps.append(step)
+    build.images = [container_tag]
+
+    source = cloudbuild_v1.Source()
+    source.storage_source = cloudbuild_v1.StorageSource()
+    gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
+    source.storage_source.bucket = os.path.join(gcs_bucket)
+    source.storage_source.object = gcs_object
+    build.source = source
+    # TODO(zyichi): make timeout configurable
+    build.timeout = Duration().FromSeconds(seconds=1800)
+
+    now = time.time()
+    _LOGGER.info('Building sdk container, this may take a few minutes...')
+    operation = client.create_build(project_id=project_id, build=build)
+    # if build fails exception will be raised and stops the job submission.
+    result = operation.result()
+    _LOGGER.info(
+        "Python SDK container pre-build finished in %.2f seconds, "
+        "check build log at %s" % (time.time() - now, result.log_url))
+    _LOGGER.info("Python SDK container built and pushed as %s." % container_tag)
+
+  def _upload_to_gcs(self, local_file_path, gcs_location):
+    gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
+    request = storage.StorageObjectsInsertRequest(
+        bucket=gcs_bucket, name=gcs_object)
+    _LOGGER.info('Starting GCS upload to %s...', gcs_location)
+    total_size = os.path.getsize(local_file_path)
+    try:
+      with open(local_file_path, 'rb') as stream:
+        upload = storage.Upload(stream, 'application/octet-stream', total_size)
+        self._storage_client.objects.Insert(request, upload=upload)
+    except exceptions.HttpError as e:
+      reportable_errors = {
+          403: 'access denied',
+          404: 'bucket not found',
+      }
+      if e.status_code in reportable_errors:
+        raise IOError((
+            'Could not upload to GCS path %s: %s. Please verify '
+            'that credentials are valid and that you have write '
+            'access to the specified path.') %
+                      (gcs_location, reportable_errors[e.status_code]))
+      raise
+    _LOGGER.info('Completed GCS upload to %s.', gcs_location)
+
   @staticmethod
-  def generate_artifacts_manifests_json_file(resources, temp_dir):
-    infos = []
-    for _, name in resources:
-      info = beam_runner_api_pb2.ArtifactInformation(
-          type_urn=common_urns.StandardArtifacts.Types.FILE.urn,
-          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
-              path=os.path.join(ARTIFACTS_CONTAINER_DIR,
-                                name)).SerializeToString(),
-      )
-      infos.append(json.dumps(MessageToJson(info)))
-    with open(os.path.join(temp_dir, ARTIFACTS_MANIFEST_FILE), 'w') as file:
-      file.write('[\n' + ',\n'.join(infos) + '\n]')
+  def _get_gcs_bucket_and_name(gcs_location):
+    return gcs_location[5:].split('/', 1)
+
+  @staticmethod
+  def _make_tarfile(output_filename, source_dir):
+    with tarfile.open(output_filename, "w:gz") as tar:
+      tar.add(source_dir, arcname=SOURCE_FOLDER)

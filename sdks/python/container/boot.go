@@ -67,8 +67,6 @@ const (
 	extraPackagesFile = "extra_packages.txt"
 	workerPoolIdEnv   = "BEAM_PYTHON_WORKER_POOL_ID"
 
-	// Setup result for the setup only mode.
-	setupResultFile             = "/opt/apache/beam/setup_result.json"
 	standardArtifactFileTypeUrn = "beam:artifact:type:file:v1"
 )
 
@@ -228,13 +226,6 @@ func setupAcceptableWheelSpecs() error {
 func installSetupPackages(files []string, workDir string) error {
 	log.Printf("Installing setup packages ...")
 
-	// Check if setupResultFile exists, if so we can skip the dependency installation since
-	// we know the installation steps has been conducted with docker build in setup only mode.
-	if _, err := os.Stat(setupResultFile); err == nil {
-		log.Printf("Dependencies have already been installed and %v exists, no additional installation is needed.", setupResultFile)
-		return nil
-	}
-
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
@@ -336,21 +327,10 @@ func processArtifactsInSetupOnlyMode() error {
 		if err := proto.Unmarshal(artifactInformation.GetTypePayload(), filePayload); err != nil {
 			log.Fatal("Unable to unmarshal artifact information type payload.")
 		}
-		if dir := filepath.Dir(filePayload.GetPath()); dir != workDir {
-			log.Fatalf("Artifact %v not stored in the same work directory %v of metadata file", filePayload.GetPath(), workDir)
-		}
-		files[i] = filepath.Base(filePayload.GetPath())
+		files[i] = filePayload.GetPath()
 	}
 	if setupErr := installSetupPackages(files, workDir); setupErr != nil {
 		log.Fatalf("Failed to install required packages: %v", setupErr)
-	}
-	var installInfo = map[string]bool{"beam_sdk": true, "requirements": true, "extra_packages": true, "workflow": true}
-	data, err := json.Marshal(installInfo)
-	if err != nil {
-		log.Printf("Unable to marshal intallation info to json due to %v", err)
-	}
-	if err := ioutil.WriteFile(setupResultFile, data, 0644); err != nil {
-		log.Printf("Unable to record the installation info due to %v", err)
 	}
 	return nil
 }

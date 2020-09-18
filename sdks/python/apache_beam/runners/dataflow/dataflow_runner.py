@@ -61,6 +61,7 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.internal.names import TransformNames
+from apache_beam.runners.portability.sdk_container_builder import SdkContainerBuilder
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -473,10 +474,19 @@ class DataflowRunner(PipelineRunner):
 
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments
-    self._default_environment = (
-        environments.DockerEnvironment.from_container_image(
-            apiclient.get_container_image_from_options(options),
-            artifacts=environments.python_sdk_dependencies(options)))
+    if options.view_as(DebugOptions).lookup_experiment(
+        'prebuild_sdk_container'):
+      prebuilt_container = SdkContainerBuilder.build_container_imge(options)
+      self._default_environment = (
+          environments.DockerEnvironment.from_container_image(
+              prebuilt_container,
+              artifacts=environments.python_sdk_dependencies(
+                  options, skip_boot_dependencies=True)))
+    else:
+      self._default_environment = (
+          environments.DockerEnvironment.from_container_image(
+              apiclient.get_container_image_from_options(options),
+              artifacts=environments.python_sdk_dependencies(options)))
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(

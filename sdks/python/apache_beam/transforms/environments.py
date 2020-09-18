@@ -42,11 +42,13 @@ from typing import overload
 from google.protobuf import message
 
 from apache_beam import coders
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import stager
+from apache_beam.runners.portability.sdk_container_builder import SdkContainerBuilder
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
@@ -252,6 +254,14 @@ class DockerEnvironment(Environment):
   @classmethod
   def from_options(cls, options):
     # type: (PipelineOptions) -> DockerEnvironment
+    if options.view_as(DebugOptions).lookup_experiment(
+        'prebuild_sdk_container'):
+      prebuilt_container_image = SdkContainerBuilder.build_container_imge(
+          options)
+      return cls.from_container_image(
+          container_image=prebuilt_container_image,
+          artifacts=python_sdk_dependencies(
+              options, skip_boot_dependencies=True))
     return cls.from_container_image(
         container_image=options.environment_config,
         artifacts=python_sdk_dependencies(options))
@@ -600,7 +610,8 @@ def _python_sdk_capabilities_iter():
   # yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
 
 
-def python_sdk_dependencies(options, tmp_dir=None):
+def python_sdk_dependencies(
+    options, tmp_dir=None, skip_boot_dependencies=False):
   if tmp_dir is None:
     tmp_dir = tempfile.mkdtemp()
   return tuple(
@@ -611,4 +622,5 @@ def python_sdk_dependencies(options, tmp_dir=None):
           role_urn=common_urns.artifact_roles.STAGING_TO.urn,
           role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
               staged_name=staged_name).SerializeToString()) for local_path,
-      staged_name in stager.Stager.create_job_resources(options, tmp_dir))
+      staged_name in stager.Stager.create_job_resources(
+          options, tmp_dir, skip_boot_dependencies=skip_boot_dependencies))
