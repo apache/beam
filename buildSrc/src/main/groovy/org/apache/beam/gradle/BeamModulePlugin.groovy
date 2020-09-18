@@ -2108,7 +2108,6 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ':runners:flink:1.10:job-server:shadowJar',
             ':runners:spark:job-server:shadowJar',
-            ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker'
