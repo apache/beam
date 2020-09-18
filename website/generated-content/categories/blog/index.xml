@@ -1,4 +1,192 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 21 Aug 2020 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Improved Annotation Support for the Python SDK</title><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Thu, 27 Aug 2020 00:00:01 +0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Pattern Matching with Beam SQL</title><link>/blog/pattern-match-beam-sql/</link><pubDate>Thu, 27 Aug 2020 00:00:01 +0800</pubDate><guid>/blog/pattern-match-beam-sql/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>SQL is becoming increasingly powerful and useful in the field of data analysis. MATCH_RECOGNIZE,
+a new SQL component introduced in 2016, brings extra analytical functionality. This project,
+as part of Google Summer of Code, aims to support basic MATCH_RECOGNIZE functionality. A basic MATCH_RECOGNIZE
+query would be something like this:
+&lt;div class=language-sql>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">cid&lt;/span>
+&lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
+&lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">PARTITION&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">userid&lt;/span>
+&lt;span class="k">ORDER&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">proctime&lt;/span>
+&lt;span class="n">MEASURES&lt;/span>
+&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="k">C&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">cid&lt;/span>
+&lt;span class="n">PATTERN&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="k">C&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">DEFINE&lt;/span>
+&lt;span class="n">A&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;b&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="k">C&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;c&amp;#39;&lt;/span>
+&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;p>The above query finds out ordered sets of events that have names &amp;lsquo;a&amp;rsquo;, &amp;lsquo;b&amp;rsquo; and &amp;lsquo;c&amp;rsquo;. Apart from this basic usage of
+MATCH_RECOGNIZE, I supported a few of other crucial features such as quantifiers and row pattern navigation. I will spell out
+the details in later sections.&lt;/p>
+&lt;h2 id="approach--discussion">Approach &amp;amp; Discussion&lt;/h2>
+&lt;p>The implementation is strongly based on BEAM core transforms. Specifically, one MATCH_RECOGNIZE execution composes the
+following series of transforms:&lt;/p>
+&lt;ol>
+&lt;li>A &lt;code>ParDo&lt;/code> transform and then a &lt;code>GroupByKey&lt;/code> transform that build up the partitions (PARTITION BY).&lt;/li>
+&lt;li>A &lt;code>ParDo&lt;/code> transform that sorts within each partition (ORDER BY).&lt;/li>
+&lt;li>A &lt;code>ParDo&lt;/code> transform that applies pattern-match in each sorted partition.&lt;/li>
+&lt;/ol>
+&lt;p>A pattern-match operation was first done with the java regex library. That is, I first transform rows within a partition into
+a string and then apply regex pattern-match routines. If a row satisfies a condition, then I output the corresponding pattern variable.
+This is ok under the assumption that the pattern definitions are mutually exclusive. That is, a pattern definition like &lt;code>A AS A.price &amp;gt; 0, B AS b.price &amp;lt; 0&lt;/code> is allowed while
+a pattern definition like &lt;code>A AS A.price &amp;gt; 0, B AS B.proctime &amp;gt; 0&lt;/code> might results in an incomplete match. For the latter case,
+an event can satisfy the conditions A and B at the same time. Mutually exclusive conditions gives deterministic pattern-match:
+each event can only belong to at most one pattern class.&lt;/p>
+&lt;p>As specified in the SQL 2016 document, MATCH_RECOGNIZE defines a richer set of expression than regular expression. Specifically,
+it introduces &lt;em>Row Pattern Navigation Operations&lt;/em> such as &lt;code>PREV&lt;/code> and &lt;code>NEXT&lt;/code>. This is perhaps one of the most intriguing feature of
+MATCH_RECOGNIZE. A regex library would no longer suffice the need since the pattern definition could be back-referencing (&lt;code>PREV&lt;/code>) or
+forward-referencing (&lt;code>NEXT&lt;/code>). So for the second version of implementation, we chose to use an NFA regex engine. An NFA brings more flexibility
+in terms of non-determinism (see Chapter 6 of SQL 2016 Part 5 for a more thorough discussion). My proposed NFA is based on a paper of UMASS.&lt;/p>
+&lt;p>This is a working project. Many of the components are still not supported. I will list some unimplemented work in the section
+of future work.&lt;/p>
+&lt;h2 id="usages">Usages&lt;/h2>
+&lt;p>For now, the components I supported are:&lt;/p>
+&lt;ul>
+&lt;li>PARTITION BY&lt;/li>
+&lt;li>ORDER BY&lt;/li>
+&lt;li>MEASURES
+&lt;ol>
+&lt;li>LAST&lt;/li>
+&lt;li>FIRST&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>ONE ROW PER MATCH/ALL ROWS PER MATCH&lt;/li>
+&lt;li>DEFINE
+&lt;ol>
+&lt;li>Left side of the condition
+&lt;ol>
+&lt;li>LAST&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Right side of the condition
+&lt;ol>
+&lt;li>PREV&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Quantifier
+&lt;ol>
+&lt;li>Kleene plus&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ul>
+&lt;p>The pattern definition evaluation is hard coded. To be more specific, it expects the column reference of the incoming row
+to be on the left side of a comparator. Additionally, PREV function can only appear on the right side of the comparator.&lt;/p>
+&lt;p>With these limited tools, we could already write some slightly more complicated queries. Imagine we have the following
+table:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th align="center">transTime&lt;/th>
+&lt;th align="center">price&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td align="center">1&lt;/td>
+&lt;td align="center">3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="center">2&lt;/td>
+&lt;td align="center">2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="center">3&lt;/td>
+&lt;td align="center">1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="center">4&lt;/td>
+&lt;td align="center">5&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td align="center">5&lt;/td>
+&lt;td align="center">6&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>This table reflects the price changes of a product with respect to the transaction time. We could write the following
+query:&lt;/p>
+&lt;div class=language-sql>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="o">*&lt;/span>
+&lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
+&lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="k">ORDER&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">transTime&lt;/span>
+&lt;span class="n">MEASURES&lt;/span>
+&lt;span class="k">LAST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">beforePrice&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="k">FIRST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">afterPrice&lt;/span>
+&lt;span class="n">PATTERN&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="o">+&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">DEFINE&lt;/span>
+&lt;span class="n">A&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>This will find the local minimum price and the price after it. For the example dataset, the first 3 rows will be
+mapped to A and the rest of the rows will be mapped to B. Thus, we will have (1, 5) as the result.&lt;/p>
+&lt;blockquote>
+&lt;p>Very important: For my NFA implementation, it slightly breaks the rule in the SQL standard. Since the buffered NFA
+only stores an event to the buffer if the event is a match to some pattern class, There would be no way to get the
+previous event back if the previous row is discarded. So the first row would always be a match (different from the standard)
+if PREV is used.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="progress">Progress&lt;/h2>
+&lt;ol>
+&lt;li>PRs
+&lt;ol>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/12232">Support MATCH_RECOGNIZE using regex library&lt;/a> (merged)&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/12532">Support MATCH_RECOGNIZE using NFA&lt;/a> (pending)&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Commits
+&lt;ol>
+&lt;li>partition by: &lt;a href="https://github.com/apache/beam/pull/12232/commits/064ada7257970bcb1d35530be1b88cb3830f242b">commit 064ada7&lt;/a>&lt;/li>
+&lt;li>order by: &lt;a href="https://github.com/apache/beam/pull/12232/commits/9cd1a82bec7b2f7c44aacfbd72f5f775bb58b650">commit 9cd1a82&lt;/a>&lt;/li>
+&lt;li>regex pattern match: &lt;a href="https://github.com/apache/beam/pull/12232/commits/8d6ffcc213e30999fc495c119b68da4f62fad258">commit 8d6ffcc&lt;/a>&lt;/li>
+&lt;li>support quantifiers: &lt;a href="https://github.com/apache/beam/pull/12232/commits/f529b876a2c2e43d012c71b3a83ebd55eb16f4ff">commit f529b87&lt;/a>&lt;/li>
+&lt;li>measures: &lt;a href="https://github.com/apache/beam/pull/12232/commits/87935746647611aa139d664ebed10c8e638bb024">commit 8793574&lt;/a>&lt;/li>
+&lt;li>added NFA implementation: &lt;a href="https://github.com/apache/beam/pull/12532/commits/fc731f2b0699d11853e7b76da86456427d434a2a">commit fc731f2&lt;/a>&lt;/li>
+&lt;li>implemented functions PREV and LAST: &lt;a href="https://github.com/apache/beam/pull/12532/commits/fc731f2b0699d11853e7b76da86456427d434a2a">commit 35323da&lt;/a>&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="future-work">Future Work&lt;/h2>
+&lt;ul>
+&lt;li>Support FINAL/RUNNING keywords.&lt;/li>
+&lt;li>Support more quantifiers.&lt;/li>
+&lt;li>Add optimization to the NFA.&lt;/li>
+&lt;li>A better way to realize MATCH_RECOGNIZE might be having a Complex Event Processing library at BEAM core (rather than using BEAM transforms).&lt;/li>
+&lt;/ul>
+&lt;!-- Related Documents:
+- proposal
+- design doc
+- SQL 2016 standard
+- UMASS NFA^b paper
+-->
+&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://drive.google.com/file/d/1ZuFZV4dCFVPZW_-RiqbU0w-vShaZh_jX/view?usp=sharing">Project Proposal&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://s.apache.org/beam-sql-pattern-recognization">Design Documentation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://www.iso.org/standard/65143.html">SQL 2016 documentation Part 5&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://dl.acm.org/doi/10.1145/1376616.1376634">UMASS paper on NFA with shared buffer&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Improved Annotation Support for the Python SDK</title><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5200,18 +5388,4 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;i>Three different visualizations of a simple WordCount pipeline which computes the number of occurrences of every word in a set of text files. The flat view gives the full DAG of all operations performed. The execution view groups operations according to how they're executed, e.g. after performing runner-specific optimizations like function composition. The structured view nests operations according to their grouping in PTransforms.&lt;/i>
 &lt;/div>
 &lt;h2 id="summary">Summary&lt;/h2>
-&lt;p>Although it&amp;rsquo;s tempting to add methods to PCollections, such an approach is not scalable, extensible, or sufficiently expressive. Putting a single apply method on PCollection and all the logic into the operation itself lets us have the best of both worlds, and avoids hard cliffs of complexity by having a single consistent style across simple and complex pipelines, and between predefined and user-defined operations.&lt;/p></description></item><item><title>Blog: Dynamic work rebalancing for Beam</title><link>/blog/splitatfraction-method/</link><pubDate>Wed, 18 May 2016 11:00:00 -0700</pubDate><guid>/blog/splitatfraction-method/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>This morning, Eugene and Malo from the Google Cloud Dataflow team posted &lt;a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow">&lt;em>No shard left behind: dynamic work rebalancing in Google Cloud Dataflow&lt;/em>&lt;/a>. This article discusses Cloud Dataflow’s solution to the well-known straggler problem.&lt;/p>
-&lt;p>In a large batch processing job with many tasks executing in parallel, some of the tasks &amp;ndash; the stragglers &amp;ndash; can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.&lt;/p>
-&lt;p>What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em>runner-specific&lt;/em> control logic on top of Beam’s &lt;em>runner-independent&lt;/em> &lt;a href="https://github.com/apache/beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java">&lt;code>BoundedSource API&lt;/code>&lt;/a>. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href="https://github.com/apache/beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266">&lt;code>splitAtFraction method&lt;/code>&lt;/a>. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p></description></item></channel></rss>
+&lt;p>Although it&amp;rsquo;s tempting to add methods to PCollections, such an approach is not scalable, extensible, or sufficiently expressive. Putting a single apply method on PCollection and all the logic into the operation itself lets us have the best of both worlds, and avoids hard cliffs of complexity by having a single consistent style across simple and complex pipelines, and between predefined and user-defined operations.&lt;/p></description></item></channel></rss>
