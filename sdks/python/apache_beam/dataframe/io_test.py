@@ -42,7 +42,7 @@ class IOTest(unittest.TestCase):
       for name, contents in files.items():
         with open(os.path.join(dir, name), 'w') as fout:
           fout.write(contents)
-    return dir + os.path.sep
+    return dir + os.sep
 
   def read_all_lines(self, pattern):
     for path in glob.glob(pattern):
