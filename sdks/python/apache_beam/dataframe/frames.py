@@ -20,6 +20,7 @@ import pandas as pd
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
+from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
 
 
@@ -782,6 +783,11 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       inplace=True,
       requires_partition_by=partitionings.Index(),
       preserves_partition_by=partitionings.Index())
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def to_csv(self, path_or_buf, **kwargs):
+    return io.write_csv(self, path_or_buf, **kwargs)
 
 for meth in ('filter', ):
   setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))
