@@ -34,6 +34,7 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
@@ -1981,6 +1982,7 @@ class BeamModulePlugin implements Plugin<Project> {
             '**/*.pyc',
             'sdks/python/*.egg*/**',
             'sdks/python/test-suites/**',
+            '**/reports/test/index.html',
           ])
           )
       def copiedSrcRoot = "${project.buildDir}/srcs"
@@ -2039,7 +2041,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.toxTask = { name, tox_env ->
-        project.tasks.create(name) {
+        project.tasks.register(name) {
           dependsOn 'setupVirtualenv'
           dependsOn ':sdks:python:sdist'
 
@@ -2056,8 +2058,13 @@ class BeamModulePlugin implements Plugin<Project> {
               args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
             }
           }
-          inputs.files project.pythonSdkDeps
-          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          outputs.cacheIf { true }
+          inputs.files(project.pythonSdkDeps)
+              .withPropertyName('pythonSdkDeps')
+              .withPathSensitivity(PathSensitivity.RELATIVE)
+
+          outputs.dir("${pythonRootDir}/target/.tox/${tox_env}/log/")
+              .withPropertyName('outputLog')
         }
       }
 
