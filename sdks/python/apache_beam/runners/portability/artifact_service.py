@@ -61,7 +61,7 @@ class ArtifactRetrievalService(
 
   def __init__(
       self,
-      file_reader: Callable[[str], BinaryIO],,
+      file_reader: Callable[[str], BinaryIO],
       chunk_size=None,
   ):
     self._file_reader = file_reader
