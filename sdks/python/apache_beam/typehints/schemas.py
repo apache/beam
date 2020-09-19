@@ -53,6 +53,7 @@ wrapping the type in :code:`Optional`.
 
 from __future__ import absolute_import
 
+from typing import Any
 from typing import ByteString
 from typing import Generic
 from typing import Mapping
@@ -75,6 +76,8 @@ from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.utils import proto_utils
 from apache_beam.utils.timestamp import Timestamp
+
+PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
 
 
 # Registry of typings for a schema by UUID
@@ -192,7 +195,9 @@ def typing_to_runner_api(type_):
   try:
     logical_type = LogicalType.from_typing(type_)
   except ValueError:
-    raise ValueError("Unsupported type: %s" % type_)
+    # Unknown type, just treat it like Any
+    return schema_pb2.FieldType(
+        logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN))
   else:
     # TODO(bhulette): Add support for logical types that require arguments
     return schema_pb2.FieldType(
@@ -252,8 +257,11 @@ def typing_from_runner_api(fieldtype_proto):
     return user_type
 
   elif type_info == "logical_type":
-    return LogicalType.from_runner_api(
-        fieldtype_proto.logical_type).language_type()
+    if fieldtype_proto.logical_type.urn == PYTHON_ANY_URN:
+      return Any
+    else:
+      return LogicalType.from_runner_api(
+          fieldtype_proto.logical_type).language_type()
 
 
 def _hydrate_namedtuple_instance(encoded_schema, values):
