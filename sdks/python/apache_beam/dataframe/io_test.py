@@ -17,8 +17,8 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import importlib
 import glob
+import importlib
 import math
 import os
 import platform
@@ -27,10 +27,9 @@ import sys
 import tempfile
 import unittest
 
-from parameterized import parameterized
-
 import pandas as pd
 from pandas.testing import assert_frame_equal
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.dataframe import convert
