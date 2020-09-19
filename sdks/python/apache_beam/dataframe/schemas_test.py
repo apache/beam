@@ -21,13 +21,14 @@
 
 from __future__ import absolute_import
 
-import unittest
 import typing
+import unittest
 
 import future.tests.base  # pylint: disable=unused-import
+import numpy as np
 # patches unittest.testcase to be python3 compatible
 import pandas as pd
-import numpy as np
+from parameterized import parameterized
 from past.builtins import unicode
 
 import apache_beam as beam
@@ -38,7 +39,6 @@ from apache_beam.dataframe import transforms
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from parameterized import parameterized
 
 Simple = typing.NamedTuple(
     'Simple', [('name', unicode), ('id', int), ('height', float)])

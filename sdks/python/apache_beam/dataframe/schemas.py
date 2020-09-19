@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Utilities for relating schema-aware PCollections and dataframe transforms.
+r"""Utilities for relating schema-aware PCollections and dataframe transforms.
 
 pandas dtype               Python typing
 np.int{8,16,32,64}      <-----> np.int{8,16,32,64}*
@@ -62,27 +62,23 @@ timestamps and timedeltas in pandas always use nanosecond precision
 from __future__ import absolute_import
 
 from typing import Any
-from typing import Union
+from typing import NamedTuple
 from typing import Optional
 from typing import TypeVar
-from typing import NamedTuple
+from typing import Union
 
 import numpy as np
 import pandas as pd
-from uuid import uuid4
 
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms.util import BatchElements
-from apache_beam.typehints.schemas import schema_from_element_type
+from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.typehints.schemas import named_fields_to_schema
-from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
-from apache_beam.typehints.schemas import typing_from_runner_api
-from apache_beam.typehints.native_type_compatibility import _match_is_optional
-from apache_beam.typehints.native_type_compatibility import extract_optional_type
+from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.utils import proto_utils
 
 __all__ = (
@@ -172,11 +168,12 @@ def _make_proxy_series(name, typehint):
 
 
 def generate_proxy(element_type):
+  # type: (type) -> pd.DataFrame
+
   """ Generate a proxy pandas object for the given PCollection element_type.
 
   Currently only supports generating a DataFrame proxy from a schema-aware
   PCollection."""
-  # type: (type) -> pd.DataFrame
   fields = named_fields_from_element_type(element_type)
   return pd.DataFrame(
       {name: _make_proxy_series(name, typehint)
@@ -185,13 +182,14 @@ def generate_proxy(element_type):
 
 
 def element_type_from_proxy(proxy):
+  # type: (pd.DataFrame) -> type
+
   """ Generate an element_type for an element-wise PCollection from a proxy
   pandas object. Currently only supports converting the element_type for
   a schema-aware PCollection to a proxy DataFrame.
 
   Currently only supports generating a DataFrame proxy from a schema-aware
   PCollection."""
-  # type: (pd.DataFrame) -> type
   indices = [] if proxy.index.names == (None, ) else [
       (name, proxy.index.get_level_values(i).dtype) for i,
       name in enumerate(proxy.index.names)
@@ -290,7 +288,7 @@ def _dtype_to_fieldtype(dtype):
 
   if fieldtype is not None:
     return fieldtype
-  elif dtype.kind is 'S':
+  elif dtype.kind == 'S':
     return bytes
   else:
     raise TypeError("Unsupported dtype in proxy: '%s'" % dtype)

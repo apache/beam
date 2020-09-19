@@ -38,10 +38,10 @@ from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints.schemas import PYTHON_ANY_URN
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import schema_from_element_type
-from apache_beam.typehints.schemas import PYTHON_ANY_URN
 from apache_beam.utils import proto_utils
 
 __all__ = ["RowCoder"]
