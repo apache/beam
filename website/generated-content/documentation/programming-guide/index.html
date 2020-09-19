@@ -48,7 +48,7 @@ objects you&rsquo;ve created and transforms that you&rsquo;ve applied. That grap
 executed using the appropriate distributed processing back-end, becoming an
 asynchronous &ldquo;job&rdquo; (or equivalent) on that back-end.</p><h2 id=creating-a-pipeline>2. Creating a pipeline</h2><p>The <code>Pipeline</code> abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-<span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/Pipeline.html>Pipeline</a></span>
+<span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.24.0/index.html?org/apache/beam/sdk/Pipeline.html>Pipeline</a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py>Pipeline</a></span>
 object, and then using that object as the basis for creating the pipeline&rsquo;s data
 sets as <code>PCollection</code>s and its operations as <code>Transform</code>s.</p><p>To use Beam, your driver program must first create an instance of the Beam SDK
@@ -138,7 +138,7 @@ compatible with all other registered options.</p><p class=language-java>The foll
 with <code>PipelineOptionsFactory</code>:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PipelineOptionsFactory</span><span class=o>.</span><span class=na>register</span><span class=o>(</span><span class=n>MyOptions</span><span class=o>.</span><span class=na>class</span><span class=o>);</span>
 <span class=n>MyOptions</span> <span class=n>options</span> <span class=o>=</span> <span class=n>PipelineOptionsFactory</span><span class=o>.</span><span class=na>fromArgs</span><span class=o>(</span><span class=n>args</span><span class=o>)</span>
                                                 <span class=o>.</span><span class=na>withValidation</span><span class=o>()</span>
-                                                <span class=o>.</span><span class=na>as</span><span class=o>(</span><span class=n>MyOptions</span><span class=o>.</span><span class=na>class</span><span class=o>);</span></code></pre></div></div><p>Now your pipeline can accept <code>--input=value</code> and <code>--output=value</code> as command-line arguments.</p><h2 id=pcollections>3. PCollections</h2><p>The <span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/values/PCollection.html>PCollection</a></span>
+                                                <span class=o>.</span><span class=na>as</span><span class=o>(</span><span class=n>MyOptions</span><span class=o>.</span><span class=na>class</span><span class=o>);</span></code></pre></div></div><p>Now your pipeline can accept <code>--input=value</code> and <code>--output=value</code> as command-line arguments.</p><h2 id=pcollections>3. PCollections</h2><p>The <span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.24.0/index.html?org/apache/beam/sdk/values/PCollection.html>PCollection</a></span>
 <span class=language-py><code>PCollection</code></span> abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 <code>PCollection</code> as &ldquo;pipeline&rdquo; data; Beam transforms use <code>PCollection</code> objects as
@@ -652,7 +652,7 @@ and format data from each collection.</p><div class=language-java><div class=hig
     <span class=s2>&#34;carl; [&#39;carl@email.com&#39;, &#39;carl@example.com&#39;]; [&#39;444-555-6666&#39;]&#34;</span><span class=p>,</span>
     <span class=s2>&#34;james; []; [&#39;222-333-4444&#39;]&#34;</span><span class=p>,</span>
     <span class=s2>&#34;julia; [&#39;julia@example.com&#39;]; []&#34;</span><span class=p>,</span>
-<span class=p>]</span></code></pre></div></div><h4 id=combine>4.2.4. Combine</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/transforms/Combine.html><code>Combine</code></a></span>
+<span class=p>]</span></code></pre></div></div><h4 id=combine>4.2.4. Combine</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.24.0/index.html?org/apache/beam/sdk/transforms/Combine.html><code>Combine</code></a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py><code>Combine</code></a></span>
 is a Beam transform for combining collections of elements or values in your
 data. <code>Combine</code> has variants that work on entire <code>PCollection</code>s, and some that
@@ -810,7 +810,7 @@ PerKey must be an associative reduction function or a subclass of <code>CombineF
 
 <span class=n>avg_accuracy_per_player</span> <span class=o>=</span> <span class=p>(</span>
     <span class=n>player_accuracies</span>
-    <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombinePerKey</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>combiners</span><span class=o>.</span><span class=n>MeanCombineFn</span><span class=p>()))</span></code></pre></div></div><h4 id=flatten>4.2.5. Flatten</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/transforms/Flatten.html><code>Flatten</code></a></span>
+    <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>CombinePerKey</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>combiners</span><span class=o>.</span><span class=n>MeanCombineFn</span><span class=p>()))</span></code></pre></div></div><h4 id=flatten>4.2.5. Flatten</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.24.0/index.html?org/apache/beam/sdk/transforms/Flatten.html><code>Flatten</code></a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py><code>Flatten</code></a></span>
 is a Beam transform for <code>PCollection</code> objects that store the same data type.
 <code>Flatten</code> merges multiple <code>PCollection</code> objects into a single logical
@@ -837,7 +837,7 @@ compatible windowing strategy and window sizing. For example, all the
 collections you&rsquo;re merging must all use (hypothetically) identical 5-minute
 fixed windows or 4-minute sliding windows starting every 30 seconds.</p><p>If your pipeline attempts to use <code>Flatten</code> to merge <code>PCollection</code> objects with
 incompatible windows, Beam generates an <code>IllegalStateException</code> error when your
-pipeline is constructed.</p><h4 id=partition>4.2.6. Partition</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/transforms/Partition.html><code>Partition</code></a></span>
+pipeline is constructed.</p><h4 id=partition>4.2.6. Partition</h4><p><span class=language-java><a href=https://beam.apache.org/releases/javadoc/2.24.0/index.html?org/apache/beam/sdk/transforms/Partition.html><code>Partition</code></a></span>
 <span class=language-py><a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py><code>Partition</code></a></span>
 is a Beam transform for <code>PCollection</code> objects that store the same data
 type. <code>Partition</code> splits a single <code>PCollection</code> into a fixed number of smaller
@@ -1238,7 +1238,7 @@ multiple simpler transforms (such as more than one <code>ParDo</code>, <code>Com
 <code>GroupByKey</code>, or even other composite transforms). These transforms are called
 composite transforms. Nesting multiple transforms inside a single composite
 transform can make your code more modular and easier to understand.</p><p>The Beam SDK comes packed with many useful composite transforms. See the API
-reference pages for a list of transforms:</p><ul><li><a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/transforms/package-summary.html>Pre-written Beam transforms for Java</a></li><li><a href=https://beam.apache.org/releases/pydoc/2.23.0/apache_beam.transforms.html>Pre-written Beam transforms for Python</a></li></ul><h4 id=composite-transform-example>4.6.1. An example composite transform</h4><p>The <code>CountWords</code> transform in the <a href=/get-started/wordcount-example/>WordCount example program</a>
+reference pages for a list of transforms:</p><ul><li><a href=https://beam.apache.org/releases/javadoc/2.24.0/index.html?org/apache/beam/sdk/transforms/package-summary.html>Pre-written Beam transforms for Java</a></li><li><a href=https://beam.apache.org/releases/pydoc/2.24.0/apache_beam.transforms.html>Pre-written Beam transforms for Python</a></li></ul><h4 id=composite-transform-example>4.6.1. An example composite transform</h4><p>The <code>CountWords</code> transform in the <a href=/get-started/wordcount-example/>WordCount example program</a>
 is an example of a composite transform. <code>CountWords</code> is a <code>PTransform</code> subclass
 that consists of multiple nested transforms.</p><p>In its <code>expand</code> method, the <code>CountWords</code> transform applies the following
 transform operations:</p><ol><li>It applies a <code>ParDo</code> on the input <code>PCollection</code> of text lines, producing
@@ -1806,7 +1806,7 @@ each element of a <code>PCollection</code>, and data sources that create fixed d
 all the elements are by default part of a single, global window.</p><p>To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a <code>ParDo</code> transform with a
 <code>DoFn</code> that outputs each element with a new timestamp (for example, the
-<a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html>WithTimestamps</a>
+<a href=https://beam.apache.org/releases/javadoc/2.24.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html>WithTimestamps</a>
 transform in the Beam SDK for Java).</p><p>To illustrate how windowing with a bounded <code>PCollection</code> can affect how your
 pipeline processes data, consider the following pipeline:</p><p><img src=/images/unwindowed-pipeline-bounded.svg alt="Diagram of GroupByKey and ParDo without windowing, on a bounded collection"></p><p><strong>Figure 4:</strong> <code>GroupByKey</code> and <code>ParDo</code> without windowing, on a bounded collection.</p><p>In the above pipeline, we create a bounded <code>PCollection</code> by reading a set of
 key/value pairs using <code>TextIO</code>. We then group the collection using <code>GroupByKey</code>,

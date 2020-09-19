@@ -40,7 +40,7 @@ configured triggering and allowed lateness of the pipeline. The expected outputs
 of the LeaderBoard pipeline vary depending on when elements arrive in relation
 to the watermark and the progress of processing time, which could not previously
 be controlled within a test.</p><h2 id=writing-deterministic-tests-to-emulate-nondeterminism>Writing Deterministic Tests to Emulate Nondeterminism</h2><p>The Beam testing infrastructure provides the
-<a href=https://beam.apache.org/releases/javadoc/2.23.0/org/apache/beam/sdk/testing/PAssert.html>PAssert</a>
+<a href=https://beam.apache.org/releases/javadoc/2.24.0/org/apache/beam/sdk/testing/PAssert.html>PAssert</a>
 methods, which assert properties about the contents of a PCollection from within
 a pipeline. We have expanded this infrastructure to include
 <a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java>TestStream</a>,

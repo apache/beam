@@ -1,4 +1,70 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Pattern Matching with Beam SQL</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.24.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.24.0 release of Apache Beam. This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2240-2020-09-18">download page&lt;/a> for this release.
+For more information on changes in 2.24.0, check out the
+&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347146">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Apache Beam 2.24.0 is the last release with Python 2 and Python 3.5
+support.&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>New overloads for BigtableIO.Read.withKeyRange() and BigtableIO.Read.withRowFilter()
+methods that take ValueProvider as a parameter (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10283">BEAM-10283&lt;/a>).&lt;/li>
+&lt;li>The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySink by default. It relies on
+a new, fully-featured transform based on file loads into BigQuery. To revert the behavior to the old implementation,
+you may use &lt;code>--experiments=use_legacy_bq_sink&lt;/code>.&lt;/li>
+&lt;li>Add cross-language support to Java&amp;rsquo;s JdbcIO, now available in the Python module &lt;code>apache_beam.io.jdbc&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10135">BEAM-10135&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10136">BEAM-10136&lt;/a>).&lt;/li>
+&lt;li>Add support of AWS SDK v2 for KinesisIO.Read (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9702">BEAM-9702&lt;/a>).&lt;/li>
+&lt;li>Add streaming support to SnowflakeIO in Java SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9896">BEAM-9896&lt;/a>)&lt;/li>
+&lt;li>Support reading and writing to Google Healthcare DICOM APIs in Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10601">BEAM-10601&lt;/a>)&lt;/li>
+&lt;li>Add dispositions for SnowflakeIO.write (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10343">BEAM-10343&lt;/a>)&lt;/li>
+&lt;li>Add cross-language support to SnowflakeIO.Read now available in the Python module &lt;code>apache_beam.io.external.snowflake&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9897">BEAM-9897&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Shared library for simplifying management of large shared objects added to Python SDK. Example use case is sharing a large TF model object across threads (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10417">BEAM-10417&lt;/a>).&lt;/li>
+&lt;li>Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8543">BEAM-8543&lt;/a>).&lt;/li>
+&lt;li>OnTimerContext should not create a new one when processing each element/timer in FnApiDoFnRunner (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9839">BEAM-9839&lt;/a>)&lt;/li>
+&lt;li>Key should be available in @OnTimer methods (Spark Runner) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9850">BEAM-9850&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>WriteToBigQuery transforms now require a GCS location to be provided through either
+custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
+&amp;ndash;temp_location, or pass method=&amp;quot;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
+&lt;li>Python SDK now understands &lt;code>typing.FrozenSet&lt;/code> type hints, which are not interchangeable with &lt;code>typing.Set&lt;/code>. You may need to update your pipelines if type checking fails. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10197">BEAM-10197&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.24.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>adesormi, Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ashwin Ramaswami, Borzoo,
+Boyuan Zhang, Brian Hulette, Brian M, Bu Sun Kim, Chamikara Jayalath, Colm O hEigeartaigh,
+Corvin Deboeser, Damian Gadomski, Damon Douglas, Daniel Oliveira, Dariusz Aniszewski,
+davidak09, David Cavazos, David Moravek, David Yan, dhodun, Doug Roeper, Emil Hessman, Emily Ye,
+Etienne Chauchot, Etta Rapp, Eugene Kirpichov, fuyuwei, Gleb Kanterov,
+Harrison Green, Heejong Lee, Henry Suryawirawan, InigoSJ, Ismaël Mejía, Israel Herraiz,
+Jacob Ferriero, Jan Lukavský, Jayendra, jfarr, jhnmora000, Jiadai Xia, JIahao wu, Jie Fan,
+Jiyong Jung, Julius Almeida, Kamil Gałuszka, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Knowles,
+Kevin Puthusseri, Kyle Weaver, Łukasz Gajowy, Luke Cwik, Mark-Zeng, Maximilian Michels,
+Michal Walenia, Niel Markwick, Ning Kang, Pablo Estrada, pawel.urbanowicz, Piotr Szuberski,
+Rafi Kamal, rarokni, Rehman Murad Ali, Reuben van Ammers, Reuven Lax, Ricardo Bordon,
+Robert Bradshaw, Robert Burke, Robin Qiu, Rui Wang, Saavan Nanavati, sabhyankar, Sam Rohde,
+Scott Lukas, Siddhartha Thota, Simone Primarosa, Sławomir Andrian,
+Steve Niemitz, Tobiasz Kędzierski, Tomo Suzuki, Tyson Hamilton, Udi Meiri,
+Valentyn Tymofieiev, viktorjonsson, Xinyu Liu, Yichi Zhang, Yixing Zhang, yoshiki.obata,
+Yueyang Qiu, zijiesong&lt;/p></description><link>/blog/beam-2.24.0/</link><pubDate>Fri, 18 Sep 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.24.0/</guid><category>blog</category></item><item><title>Pattern Matching with Beam SQL</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -789,70 +855,4 @@ alt="Beam Summit Digital 2020, August 24-28">&lt;/p>
 &lt;/ol>
 &lt;h2 id="follow-up-and-more-information">Follow up and more information&lt;/h2>
 &lt;p>While we will use the Crowdcast platform to broadcast the event, we will still have a full event website at &lt;a href="https://beamsummit.org">beamsummit.org&lt;/a> with details about the schedule, speakers, FAQ and everything else you need from an event. We are currently working on updating the website and will publish all event details in the next couple of weeks.&lt;/p>
-&lt;p>Please also follow us on &lt;a href="https://twitter.com/beamsummit">Twitter&lt;/a> or &lt;a href="https://www.linkedin.com/company/beam-summit/">LinkedIn&lt;/a> to get event updates.&lt;/p></description><link>/blog/beam-summit-digital-2020/</link><pubDate>Fri, 08 May 2020 00:00:01 -0800</pubDate><guid>/blog/beam-summit-digital-2020/</guid><category>blog</category></item><item><title>Apache Beam 2.20.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.20.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2190-2020-02-04">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.20.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12346780">detailed release notes&lt;/a>.&lt;/p>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;p>Python SDK: . (#10223).&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8561">BEAM-8561&lt;/a> Adds support for Thrift encoded data via ThriftIO&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7310">BEAM-7310&lt;/a> KafkaIO supports schema resolution using Confluent Schema Registry&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7246">BEAM-7246&lt;/a> Support for Google Cloud Spanner. This is an experimental module for reading and writing data from Google Cloud Spanner&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8399">BEAM-8399&lt;/a> Adds support for standard HDFS URLs (with server name)&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9146">BEAM-9146&lt;/a> New AnnotateVideo &amp;amp; AnnotateVideoWithContext PTransform&amp;rsquo;s that integrates GCP Video Intelligence functionality&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9247">BEAM-9247&lt;/a> New AnnotateImage &amp;amp; AnnotateImageWithContext PTransform&amp;rsquo;s for element-wise &amp;amp; batch image annotation using Google Cloud Vision API&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9258">BEAM-9258&lt;/a> Added a PTransform for inspection and deidentification of text using Google Cloud DLP&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9248">BEAM-9248&lt;/a> New AnnotateText PTransform that integrates Google Cloud Natural Language functionality&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9305">BEAM-9305&lt;/a> ReadFromBigQuery now supports value providers for the query string&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8841">BEAM-8841&lt;/a> Added ability to write to BigQuery via Avro file loads&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9228">BEAM-9228&lt;/a> Direct runner for FnApi supports further parallelism&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8550">BEAM-8550&lt;/a> Support for @RequiresTimeSortedInput in Flink and Spark&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6857">BEAM-6857&lt;/a> Added support for dynamic timers&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-3453">BEAM-3453&lt;/a> Backwards incompatible change in ReadFromPubSub(topic=) in Python&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9310">BEAM-9310&lt;/a> SpannerAccessor in Java is now package-private to reduce API surface&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8616">BEAM-8616&lt;/a> ParquetIO hadoop dependency should be now provided by the users&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9063">BEAM-9063&lt;/a> Docker images will be deployed to apache/beam repositories from 2.20&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9579">BEAM-9579&lt;/a> Fixed numpy operators in ApproximateQuantiles&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9277">BEAM-9277&lt;/a> Fixed exception when running in IPython notebook&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1833">BEAM-1833&lt;/a> Restructure Python pipeline construction to better follow the Runner API&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9225">BEAM-9225&lt;/a> Fixed Flink uberjar job termination bug&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9503">BEAM-9503&lt;/a> Fixed SyntaxError in process worker startup&lt;/li>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9322">BEAM-9322&lt;/a> Python SDK ignores manually set PCollection tags&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9445">BEAM-9445&lt;/a> Python SDK pre_optimize=all experiment may cause error&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9725">BEAM-9725&lt;/a> Python SDK performance regression for reshuffle transform&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.20.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath
-, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee
-, Ismaël Mejía, J Ross Thomson, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, Juan Rael, Juta, Kasia Kucharczyk
-, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak
-, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Rehman Murad Ali, Reuven Lax, Rob, Robbe Sneyders
-, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Shoaib Zafar, Thomas Weise, Tianyang Hu, Tyler Akidau
-, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy&lt;/p></description><link>/blog/beam-2.20.0/</link><pubDate>Wed, 15 Apr 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.20.0/</guid><category>blog</category></item></channel></rss>
+&lt;p>Please also follow us on &lt;a href="https://twitter.com/beamsummit">Twitter&lt;/a> or &lt;a href="https://www.linkedin.com/company/beam-summit/">LinkedIn&lt;/a> to get event updates.&lt;/p></description><link>/blog/beam-summit-digital-2020/</link><pubDate>Fri, 08 May 2020 00:00:01 -0800</pubDate><guid>/blog/beam-summit-digital-2020/</guid><category>blog</category></item></channel></rss>
