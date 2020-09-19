@@ -60,9 +60,10 @@ class DataframeTransform(transforms.PTransform):
   passed to the callable as positional arguments, or a dictionary of
   PCollections, in which case they will be passed as keyword arguments.
   """
-  def __init__(self, func, proxy=None):
+  def __init__(self, func, proxy=None, yield_dataframes=False):
     self._func = func
     self._proxy = proxy
+    self._yield_dataframes = yield_dataframes
 
   def expand(self, input_pcolls):
     # Avoid circular import.
@@ -93,7 +94,10 @@ class DataframeTransform(transforms.PTransform):
     keys = list(result_frames_dict.keys())
     result_frames_tuple = tuple(result_frames_dict[key] for key in keys)
     result_pcolls_tuple = convert.to_pcollection(
-        *result_frames_tuple, label='Eval', always_return_tuple=True)
+        *result_frames_tuple,
+        label='Eval',
+        always_return_tuple=True,
+        yield_dataframes=self._yield_dataframes)
 
     # Convert back to the structure returned by self._func.
     result_pcolls_dict = dict(zip(keys, result_pcolls_tuple))

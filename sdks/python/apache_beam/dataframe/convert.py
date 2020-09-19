@@ -83,7 +83,8 @@ def to_pcollection(
   """
   label = kwargs.pop('label', None)
   always_return_tuple = kwargs.pop('always_return_tuple', False)
-  assert not kwargs  # TODO(Py3): Use PEP 3102
+  yield_dataframes = kwargs.pop('yield_dataframes', False)
+  assert not kwargs  # TODO(BEAM-7372): Use PEP 3102
   if label is None:
     # Attempt to come up with a reasonable, stable label by retrieving the name
     # of these variables in the calling context.
@@ -118,6 +119,15 @@ def to_pcollection(
              } | label >> transforms._DataframeExpressionsTransform(
                  dict((ix, df._expr) for ix, df in enumerate(
                      dataframes)))  # type: Dict[Any, pvalue.PCollection]
+
+  if not yield_dataframes:
+    results = {
+        key: pc | "Unbatch '%s'" % dataframes[key]._expr._id >>
+        schemas.UnbatchPandas(dataframes[key]._expr.proxy())
+        for key,
+        pc in results.items()
+    }
+
   if len(results) == 1 and not always_return_tuple:
     return results[0]
   else:
