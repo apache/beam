@@ -305,6 +305,19 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(datetimelike_result.failed, 0)
     self.assertEqual(datetime_result.failed, 0)
 
+  def test_indexing_tests(self):
+    result = doctests.testmod(
+        pd.core.indexing,
+        use_beam=False,
+        skip={
+            'pandas.core.indexing._AtIndexer': ['*'],
+            'pandas.core.indexing._IndexSlice': ['*'],
+            'pandas.core.indexing._LocIndexer': ['*'],
+            'pandas.core.indexing._iAtIndexer': ['*'],
+            'pandas.core.indexing._iLocIndexer': ['*'],
+        })
+    self.assertEqual(result.failed, 0)
+
 
 if __name__ == '__main__':
   unittest.main()
