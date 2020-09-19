@@ -177,8 +177,8 @@ REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
-    'pandas>=0.24.2,<1; python_full_version < "3.5.3"',
-    'pandas>=0.25.2,<1; python_full_version >= "3.5.3"',
+    'pandas>=0.24.2,<2; python_full_version < "3.5.3"',
+    'pandas>=0.25.2,<2; python_full_version >= "3.5.3"',
     'parameterized>=0.7.1,<0.8.0',
     # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
     # See: https://github.com/hamcrest/PyHamcrest/issues/131.
