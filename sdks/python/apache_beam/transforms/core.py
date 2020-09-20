@@ -74,7 +74,8 @@ from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
-  from apache_beam.io import iobase  # pylint: disable=ungrouped-imports
+  from google.protobuf import message  # pylint: disable=ungrouped-imports
+  from apache_beam.io import iobase
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.transforms import create_source
@@ -1387,8 +1388,9 @@ class ParDo(PTransformWithSideInputs):
     window_coder = input_pcoll.windowing.windowfn.get_window_coder()
     return key_coder, window_coder
 
-  def to_runner_api_parameter(self, context, **extra_kwargs):
-    # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
+  # typing: PTransform base class does not accept extra_kwargs
+  def to_runner_api_parameter(self, context, **extra_kwargs):  # type: ignore[override]
+    # type: (PipelineContext, **typing.Any) -> typing.Tuple[str, message.Message]
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
@@ -1400,6 +1402,8 @@ class ParDo(PTransformWithSideInputs):
     is_splittable = sig.is_splittable_dofn()
     if is_splittable:
       restriction_coder = sig.get_restriction_coder()
+      # restriction_coder will never be None when is_splittable is True
+      assert restriction_coder is not None
       restriction_coder_id = context.coders.get_id(
           restriction_coder)  # type: typing.Optional[str]
       context.add_requirement(
@@ -1542,9 +1546,10 @@ class PickledDoFnInfo(DoFnInfo):
 
 class StatelessDoFnInfo(DoFnInfo):
 
-  REGISTERED_DOFNS = {}
+  REGISTERED_DOFNS = {}  # type: typing.Dict[str, typing.Type[DoFn]]
 
   def __init__(self, urn):
+    # type: (str) -> None
     assert urn in self.REGISTERED_DOFNS
     self._urn = urn
 
@@ -1900,7 +1905,7 @@ class CombineGlobally(PTransform):
   """
   has_defaults = True
   as_view = False
-  fanout = None
+  fanout = None  # type: typing.Optional[int]
 
   def __init__(self, fn, *args, **kwargs):
     if not (isinstance(fn, CombineFn) or callable(fn)):
@@ -2394,8 +2399,8 @@ class GroupBy(PTransform):
   """
   def __init__(
       self,
-      *fields,  # type: typing.Union[str, callable]
-      **kwargs  # type: typing.Union[str, callable]
+      *fields,  # type: typing.Union[str, typing.Callable]
+      **kwargs  # type: typing.Union[str, typing.Callable]
     ):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
@@ -2423,8 +2428,8 @@ class GroupBy(PTransform):
 
   def aggregate_field(
       self,
-      field,  # type: typing.Union[str, callable]
-      combine_fn,  # type: typing.Union[callable, CombineFn]
+      field,  # type: typing.Union[str, typing.Callable]
+      combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
     ):
     """Returns a grouping operation that also aggregates grouped values.
@@ -2465,22 +2470,28 @@ class GroupBy(PTransform):
     return pcoll | Map(lambda x: (self._key_func()(x), x)) | GroupByKey()
 
 
-_dynamic_named_tuple_cache = {}
+_dynamic_named_tuple_cache = {
+}  # type: typing.Dict[typing.Tuple[str, typing.Tuple[str, ...]], typing.Type[tuple]]
 
 
 def _dynamic_named_tuple(type_name, field_names):
+  # type: (str, typing.Tuple[str, ...]) -> typing.Type[tuple]
   cache_key = (type_name, field_names)
   result = _dynamic_named_tuple_cache.get(cache_key)
   if result is None:
     import collections
     result = _dynamic_named_tuple_cache[cache_key] = collections.namedtuple(
         type_name, field_names)
-    result.__reduce__ = lambda self: (
-        _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))
+    if not typing.TYPE_CHECKING:
+      # typing: can't override a method. also, self type is unknown and can't
+      # be cast to tuple
+      result.__reduce__ = lambda self: (
+          _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))
   return result
 
 
 def _unpickle_dynamic_named_tuple(type_name, field_names, values):
+  # type: (str, typing.Tuple[str, ...], typing.Iterable[typing.Any]) -> tuple
   return _dynamic_named_tuple(type_name, field_names)(*values)
 
 
@@ -2491,8 +2502,8 @@ class _GroupAndAggregate(PTransform):
 
   def aggregate_field(
       self,
-      field,  # type: typing.Union[str, callable]
-      combine_fn,  # type: typing.Union[callable, CombineFn]
+      field,  # type: typing.Union[str, typing.Callable]
+      combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
       ):
     field = _expr_to_callable(field, 0)
@@ -2534,8 +2545,8 @@ class Select(PTransform):
       pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
   def __init__(self,
-               *args,  # type: typing.Union[str, callable]
-               **kwargs  # type: typing.Union[str, callable]
+               *args,  # type: typing.Union[str, typing.Callable]
+               **kwargs  # type: typing.Union[str, typing.Callable]
                ):
     self._fields = [(
         expr if isinstance(expr, str) else 'arg%02d' % ix,
@@ -2604,7 +2615,7 @@ class Windowing(object):
                accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
                timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
                allowed_lateness=0, # type: typing.Union[int, float]
-               environment_id=None, # type: str
+               environment_id=None, # type: typing.Optional[str]
                ):
     """Class representing the window strategy.
 
@@ -2795,8 +2806,9 @@ class WindowInto(ParDo):
       self.with_output_types(output_type)
     return super(WindowInto, self).expand(pcoll)
 
-  def to_runner_api_parameter(self, context, **extra_kwargs):
-    # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
+  # typing: PTransform base class does not accept extra_kwargs
+  def to_runner_api_parameter(self, context, **extra_kwargs):  # type: ignore[override]
+    # type: (PipelineContext, **typing.Any) -> typing.Tuple[str, message.Message]
     return (
         common_urns.primitives.ASSIGN_WINDOWS.urn,
         self.windowing.to_runner_api(context))

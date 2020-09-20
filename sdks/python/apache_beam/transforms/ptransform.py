@@ -54,6 +54,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -140,11 +141,13 @@ class _SetInputPValues(_PValueishTransform):
 # Caches to allow for materialization of values when executing a pipeline
 # in-process, in eager mode.  This cache allows the same _MaterializedResult
 # object to be accessed and used despite Runner API round-trip serialization.
-_pipeline_materialization_cache = {}
+_pipeline_materialization_cache = {
+}  # type: Dict[Tuple[int, int], Dict[int, _MaterializedResult]]
 _pipeline_materialization_lock = threading.Lock()
 
 
 def _allocate_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -152,6 +155,7 @@ def _allocate_materialized_pipeline(pipeline):
 
 
 def _allocate_materialized_result(pipeline):
+  # type: (Pipeline) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -166,6 +170,7 @@ def _allocate_materialized_result(pipeline):
 
 
 def _get_materialized_result(pipeline_id, result_id):
+  # type: (int, int) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     if (pid, pipeline_id) not in _pipeline_materialization_cache:
@@ -176,6 +181,7 @@ def _get_materialized_result(pipeline_id, result_id):
 
 
 def _release_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -184,9 +190,10 @@ def _release_materialized_pipeline(pipeline):
 
 class _MaterializedResult(object):
   def __init__(self, pipeline_id, result_id):
+    # type: (int, int) -> None
     self._pipeline_id = pipeline_id
     self._result_id = result_id
-    self.elements = []
+    self.elements = []  # type: List[Any]
 
   def __reduce__(self):
     # When unpickled (during Runner API roundtrip serailization), get the
@@ -669,7 +676,8 @@ class PTransform(WithTypeHints, HasDisplayData):
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
-    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
+    # typing: only ParDo supports extra_kwargs
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(BEAM-3812): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
