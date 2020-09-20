@@ -28,6 +28,7 @@ from functools import reduce
 from typing import FrozenSet
 from typing import Hashable
 from typing import List
+from typing import Union
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
@@ -168,6 +169,8 @@ def int64_counter(urn, metric, ptransform=None, pcollection=None):
 
 
 def int64_user_distribution(namespace, name, metric, ptransform=None):
+  # type: (...) -> metrics_pb2.MonitoringInfo
+
   """Return the distribution monitoring info for the URN, metric and labels.
 
   Args:
@@ -285,6 +288,8 @@ def is_user_monitoring_info(monitoring_info_proto):
 
 
 def extract_metric_result_map_value(monitoring_info_proto):
+  # type: (...) -> Union[None, int, DistributionResult, GaugeResult]
+
   """Returns the relevant GaugeResult, DistributionResult or int value.
 
   These are the proper format for use in the MetricResult.query() result.
@@ -299,6 +304,7 @@ def extract_metric_result_map_value(monitoring_info_proto):
   if is_gauge(monitoring_info_proto):
     (timestamp, value) = extract_gauge_value(monitoring_info_proto)
     return GaugeResult(GaugeData(value, timestamp))
+  return None
 
 
 def parse_namespace_and_name(monitoring_info_proto):
