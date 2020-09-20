@@ -33,6 +33,7 @@ from builtins import map
 from builtins import range
 from builtins import zip
 from functools import reduce
+from typing import Optional
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -938,7 +939,7 @@ def SamplePTransform(pcoll):
 class PTransformLabelsTest(unittest.TestCase):
   class CustomTransform(beam.PTransform):
 
-    pardo = None
+    pardo = None  # type: Optional[beam.PTransform]
 
     def expand(self, pcoll):
       self.pardo = '*Do*' >> beam.FlatMap(lambda x: [x + 1])
