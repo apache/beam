@@ -31,6 +31,7 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
 
+// Testing Kafka clients API 2.1.0 onwards (deserialization with Headers suppport)
 configurations {
   kafkaVersion210
 }
@@ -68,18 +69,21 @@ dependencies {
   testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  // For testing with Kafka clients API 2.1.0
   kafkaVersion210 "org.apache.kafka:kafka-clients:2.1.0"
+}
+
+configurations.kafkaVersion210 {
+  resolutionStrategy {
+    force "org.apache.kafka:kafka-clients:2.1.0"
+  }
 }
 
 task kafkaVersion210Test(type: Test) {
   group = "Verification"
   description = 'Runs KafkaIO tests with Kafka clients API 2.1.0'
-
   outputs.upToDateWhen { false }
-
   testClassesDirs = sourceSets.test.output.classesDirs
-  classpath = sourceSets.test.runtimeClasspath + configurations.kafkaVersion210
+  classpath =  configurations.kafkaVersion210 + sourceSets.test.runtimeClasspath
   include '**/KafkaIOTest.class'
   shouldRunAfter test
   useJUnit { }
