@@ -260,8 +260,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
         with Pipeline(remote_runner,
                       PipelineOptions(self.default_properties)) as p:
-          _ = p | beam.io.Read(beam.io.BigQuerySource(
-              'some.table', use_dataflow_native_source=True))
+          _ = p | beam.io.Read(
+              beam.io.BigQuerySource(
+                  'some.table', use_dataflow_native_source=True))
 
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
@@ -315,9 +316,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                          options=PipelineOptions(self.default_properties)) as p:
         # pylint: disable=expression-not-assigned
         p | beam.io.Read(
-            beam.io.BigQuerySource('dataset.faketable',
-                                   use_dataflow_native_source=True)
-            ) | beam.GroupByKey()
+            beam.io.BigQuerySource(
+                'dataset.faketable',
+                use_dataflow_native_source=True)) | beam.GroupByKey()
 
   def test_group_by_key_input_visitor_with_valid_inputs(self):
     p = TestPipeline()
@@ -635,8 +636,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
-      p | beam.io.Read(beam.io.BigQuerySource('some.table', coder=BytesCoder(),
-                                              use_dataflow_native_source=True))
+      p | beam.io.Read(
+          beam.io.BigQuerySource(
+              'some.table', coder=BytesCoder(),
+              use_dataflow_native_source=True))
 
     self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
 

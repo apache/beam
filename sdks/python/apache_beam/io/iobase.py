@@ -920,8 +920,7 @@ class Read(ptransform.PTransform):
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-    if (isinstance(self.source, BoundedSource)
-        or isinstance(self.source, dataflow_io.NativeSource)):
+    if isinstance(self.source, (BoundedSource, dataflow_io.NativeSource)):
       return (
           common_urns.deprecated_primitives.READ.urn,
           beam_runner_api_pb2.ReadPayload(

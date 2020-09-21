@@ -681,7 +681,6 @@ class SnippetsTest(unittest.TestCase):
       with beam.Pipeline(options=options) as p:
         snippets.model_bigqueryio(p, project, dataset, table)
     else:
-      from apache_beam.options.pipeline_options import GoogleCloudOptions
       p = TestPipeline()
       p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
       snippets.model_bigqueryio(p)
