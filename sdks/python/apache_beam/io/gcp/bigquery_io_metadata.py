@@ -30,7 +30,7 @@ _VALID_CLOUD_LABEL_PATTERN = re.compile(r'^[a-z0-9\_\-]{1,63}$')
 
 def _sanitize_value(value):
   """Sanitizes a value into a valid BigQuery label value."""
-  return re.sub('[^\w-]+', '', value.lower().replace('/', '-'))[0:63]
+  return re.sub(r'[^\w-]+', '', value.lower().replace('/', '-'))[0:63]
 
 
 def _is_valid_cloud_label_value(label_value):

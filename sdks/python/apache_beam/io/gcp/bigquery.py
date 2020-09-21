@@ -625,7 +625,6 @@ class _JsonToDictCoder(coders.Coder):
 
 
 class _CustomBigQuerySource(BoundedSource):
-
   def __init__(
       self,
       gcs_location=None,
