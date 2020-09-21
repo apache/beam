@@ -356,6 +356,7 @@ def _format_shard(
 
   return format.format(**kwargs)
 
+
 def destination_prefix_naming(suffix=None):
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     prefix = str(destination)
