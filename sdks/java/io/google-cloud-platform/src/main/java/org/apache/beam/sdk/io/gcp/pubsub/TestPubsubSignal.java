@@ -227,7 +227,7 @@ public class TestPubsubSignal implements TestRule {
             try {
               pubsub.deleteSubscription(startSubscriptionPath);
             } catch (IOException e) {
-              LOG.warn(String.format("Leaked PubSub subscription '%s'", startSubscriptionPath));
+              LOG.error(String.format("Leaked PubSub subscription '%s'", startSubscriptionPath));
             }
           }
         });
@@ -248,7 +248,7 @@ public class TestPubsubSignal implements TestRule {
     try {
       pubsub.deleteSubscription(resultSubscriptionPath);
     } catch (IOException e) {
-      LOG.warn(String.format("Leaked PubSub subscription '%s'", resultSubscriptionPath));
+      LOG.error(String.format("Leaked PubSub subscription '%s'", resultSubscriptionPath));
     }
 
     if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
