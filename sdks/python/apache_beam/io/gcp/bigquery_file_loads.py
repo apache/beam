@@ -966,7 +966,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
       destination_load_job_ids_pc, destination_copy_job_ids_pc = (
           self._load_data(multiple_partitions_per_destination_pc,
                          single_partition_per_destination_pc,
-                         load_job_name_pcv, copy_job_name_pcv, singleton_pc))
+                         load_job_name_pcv, copy_job_name_pcv, singleton_pc,
+                         step_name))
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_load_job_ids_pc,
