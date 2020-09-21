@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import java.io.IOException;
 import java.security.SecureRandom;
-import org.apache.beam.sdk.io.TextIO;
+import java.util.List;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
@@ -69,9 +71,12 @@ public class FhirIOLROIT {
   }
 
   @After
-  public void deleteFHIRtore() throws IOException {
+  public void deleteAllFhirStores() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
+    List<FhirStore> fhirStores = client.listAllFhirStores(healthcareDataset);
+    for (FhirStore fs : fhirStores) {
+      client.deleteFhirStore(fs.getName());
+    }
   }
 
   @AfterClass
@@ -83,11 +88,20 @@ public class FhirIOLROIT {
   public void test_FhirIO_exportFhirResourcesGcs() {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =
-        "gs://" + DEFAULT_TEMP_BUCKET + "/" + (new SecureRandom().nextInt(32));
-    FhirIO.ExportGcs.Result exportResults =
+        "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + (new SecureRandom().nextInt(32));
+    PCollection<String> resources =
         pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
-    PCollection<String> resources = exportResults.getResources();
-    resources.apply(TextIO.write().to(exportGcsUriPrefix + "/write"));
+    pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_deidentify() throws IOException {
+    String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
+    String destinationFhirStoreId = fhirStoreId + "_deid";
+    client.createFhirStore(healthcareDataset, destinationFhirStoreId, version, null);
+    String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + destinationFhirStoreId;
+    DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
+    pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
     pipeline.run();
   }
 }
