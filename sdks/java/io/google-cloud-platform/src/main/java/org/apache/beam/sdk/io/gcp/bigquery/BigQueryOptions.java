@@ -38,10 +38,8 @@ public interface BigQueryOptions
 
   void setTempDatasetId(String value);
 
-  @Description(
-      "If specified, the given write timeout will be set to HTTP requests created to "
-          + "communicate with BigQuery service.")
-  @Default.Integer(0)
+  @Description("Timeout for HTTP requests to BigQuery service in seconds. Set to 0 to disable.")
+  @Default.Integer(900)
   Integer getHTTPWriteTimeout();
 
   void setHTTPWriteTimeout(Integer timeout);
