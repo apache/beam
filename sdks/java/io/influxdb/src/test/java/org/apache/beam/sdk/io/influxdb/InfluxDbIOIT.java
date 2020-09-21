@@ -141,7 +141,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withConsistencyLevel(ConsistencyLevel.ANY)
                 .withBatchSize(100)
                 .withDisableCertificateValidation(true));
@@ -155,7 +155,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withQuery("SELECT * FROM \"testWriteAndRead\"")
                 .withDisableCertificateValidation(true));
 
@@ -182,7 +182,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withConsistencyLevel(ConsistencyLevel.ANY)
                 .withBatchSize(100)
                 .withDisableCertificateValidation(true));
@@ -196,7 +196,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withDisableCertificateValidation(true)
                 .withMetric(metricName));
 
@@ -225,7 +225,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withConsistencyLevel(ConsistencyLevel.ANY)
                 .withBatchSize(100)
                 .withDisableCertificateValidation(true));
@@ -239,7 +239,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withDisableCertificateValidation(true)
                 .withQuery(
                     "SELECT * FROM autogen.testWriteAndReadWithMultipleMetric1,autogen.testWriteAndReadWithMultipleMetric2"));
@@ -266,7 +266,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withDisableCertificateValidation(true)
                 .withBatchSize(100)
                 .withConsistencyLevel(ConsistencyLevel.ANY)
@@ -282,7 +282,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withDisableCertificateValidation(true)
                 .withRetentionPolicy("test_retention")
                 .withMetric(metricName));
@@ -312,7 +312,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withDisableCertificateValidation(true)
                 .withBatchSize(100)
                 .withConsistencyLevel(ConsistencyLevel.ANY)
@@ -327,7 +327,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withDisableCertificateValidation(true)
                 .withMetric("testWriteAndReadWithSQLForMultipleMetric1")
                 .withRetentionPolicy("test_rp"));
@@ -340,7 +340,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withDisableCertificateValidation(true)
                 .withMetric("testWriteAndReadWithSQLForMultipleMetric2")
                 .withRetentionPolicy("test_rp"));
@@ -365,7 +365,7 @@ public class InfluxDbIOIT {
                         StaticValueProvider.of(options.getInfluxDBURL()),
                         StaticValueProvider.of(options.getInfluxDBUserName()),
                         StaticValueProvider.of(options.getInfluxDBPassword())))
-                .withDatabase(options.getInfluxDBUserName())
+                .withDatabase(options.getDatabaseName())
                 .withQuery("SELECT * FROM \"non_existentMetric\"")
                 .withDisableCertificateValidation(true));
 

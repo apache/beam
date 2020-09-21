@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline.apply(
- *   InfluxDB.read()
+ *   InfluxDbIO.read()
  *   .withDataSourceConfiguration(DataSourceConfiguration.create(StaticValueProvider.of(options.getInfluxDBURL()),
  *                        StaticValueProvider.of(options.getInfluxDBUserName()),
  *                        StaticValueProvider.of(options.getInfluxDBPassword())))
@@ -89,7 +89,7 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * pipeleine
  *    .apply(...)
- *    .appply(InfluxDB.write()
+ *    .appply(InfluxDbIO.write()
  *    .withDataSourceConfiguration(DataSourceConfiguration.create(StaticValueProvider.of(options.getInfluxDBURL()),
  *                         StaticValueProvider.of(options.getInfluxDBUserName()),
  *                         StaticValueProvider.of(options.getInfluxDBPassword())));
@@ -578,7 +578,6 @@ public class InfluxDbIO {
     void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("url", url()));
       builder.add(DisplayData.item("userName", userName()));
-      builder.add(DisplayData.item("password", password()));
     }
   }
 
