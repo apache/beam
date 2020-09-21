@@ -151,7 +151,7 @@ REQUIRED_PACKAGES = [
     'mock>=1.0.1,<3.0.0',
     'numpy>=1.14.3,<2',
     'pymongo>=3.8.0,<4.0.0',
-    'oauth2client>=2.0.1,<4',
+    'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
