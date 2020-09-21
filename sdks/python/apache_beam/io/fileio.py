@@ -308,74 +308,67 @@ def prefix_naming(prefix):
 
 _DEFAULT_FILE_NAME_TEMPLATE = (
     '{prefix}-{start}-{end}-{pane}-'
-    '{shard:05d}-{total_shards:05d}'
+    '{shard:05d}-of-{total_shards:05d}'
     '{suffix}{compression}')
 
 
-def destination_prefix_naming():
+def _format_shard(
+    window, pane, shard_index, total_shards, compression, prefix, suffix):
+  kwargs = {
+      'prefix': prefix,
+      'start': '',
+      'end': '',
+      'pane': '',
+      'shard': 0,
+      'total_shards': 0,
+      'suffix': '',
+      'compression': ''
+  }
+
+  if total_shards is not None and shard_index is not None:
+    kwargs['shard'] = int(shard_index)
+    kwargs['total_shards'] = int(total_shards)
+
+  if window != GlobalWindow():
+    kwargs['start'] = window.start.to_utc_datetime().isoformat()
+    kwargs['end'] = window.end.to_utc_datetime().isoformat()
+
+  # TODO(BEAM-3759): Add support for PaneInfo
+  # If the PANE is the ONLY firing in the window, we don't add it.
+  #if pane and not (pane.is_first and pane.is_last):
+  #  kwargs['pane'] = pane.index
+
+  if suffix:
+    kwargs['suffix'] = suffix
+
+  if compression:
+    kwargs['compression'] = '.%s' % compression
+
+  # Remove separators for unused template parts.
+  format = _DEFAULT_FILE_NAME_TEMPLATE
+  if shard_index is None:
+    format = format.replace('-{shard:05d}', '')
+  if total_shards is None:
+    format = format.replace('-of-{total_shards:05d}', '')
+  for name, value in kwargs.items():
+    if value in (None, ''):
+      format = format.replace('-{%s}' % name, '')
+
+  return format.format(**kwargs)
+
+def destination_prefix_naming(suffix=None):
   def _inner(window, pane, shard_index, total_shards, compression, destination):
-    kwargs = {
-        'prefix': str(destination),
-        'start': '',
-        'end': '',
-        'pane': '',
-        'shard': 0,
-        'total_shards': 0,
-        'suffix': '',
-        'compression': ''
-    }
-    if total_shards is not None and shard_index is not None:
-      kwargs['shard'] = int(shard_index)
-      kwargs['total_shards'] = int(total_shards)
-
-    if window != GlobalWindow():
-      kwargs['start'] = window.start.to_utc_datetime().isoformat()
-      kwargs['end'] = window.end.to_utc_datetime().isoformat()
-
-    # TODO(BEAM-3759): Add support for PaneInfo
-    # If the PANE is the ONLY firing in the window, we don't add it.
-    #if pane and not (pane.is_first and pane.is_last):
-    #  kwargs['pane'] = pane.index
-
-    if compression:
-      kwargs['compression'] = '.%s' % compression
-
-    return _DEFAULT_FILE_NAME_TEMPLATE.format(**kwargs)
+    prefix = str(destination)
+    return _format_shard(
+        window, pane, shard_index, total_shards, compression, prefix, suffix)
 
   return _inner
 
 
 def default_file_naming(prefix, suffix=None):
   def _inner(window, pane, shard_index, total_shards, compression, destination):
-    kwargs = {
-        'prefix': prefix,
-        'start': '',
-        'end': '',
-        'pane': '',
-        'shard': 0,
-        'total_shards': 0,
-        'suffix': '',
-        'compression': ''
-    }
-    if total_shards is not None and shard_index is not None:
-      kwargs['shard'] = int(shard_index)
-      kwargs['total_shards'] = int(total_shards)
-
-    if window != GlobalWindow():
-      kwargs['start'] = window.start.to_utc_datetime().isoformat()
-      kwargs['end'] = window.end.to_utc_datetime().isoformat()
-
-    # TODO(pabloem): Add support for PaneInfo
-    # If the PANE is the ONLY firing in the window, we don't add it.
-    #if pane and not (pane.is_first and pane.is_last):
-    #  kwargs['pane'] = pane.index
-
-    if compression:
-      kwargs['compression'] = '.%s' % compression
-    if suffix:
-      kwargs['suffix'] = suffix
-
-    return _DEFAULT_FILE_NAME_TEMPLATE.format(**kwargs)
+    return _format_shard(
+        window, pane, shard_index, total_shards, compression, prefix, suffix)
 
   return _inner
 
