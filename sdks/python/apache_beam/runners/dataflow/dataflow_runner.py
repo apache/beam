@@ -476,6 +476,8 @@ class DataflowRunner(PipelineRunner):
     if options.view_as(SetupOptions).prebuild_sdk_container_engine:
       self._default_environment = (
           environments.DockerEnvironment.from_options(options))
+      options.view_as(WorkerOptions).worker_harness_container_image = (
+          self._default_environment.container_image)
     else:
       self._default_environment = (
           environments.DockerEnvironment.from_container_image(

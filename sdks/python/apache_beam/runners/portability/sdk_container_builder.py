@@ -139,11 +139,11 @@ class _SdkContainerLocalBuilder(SdkContainerBuilder):
   def invoke_docker_build_and_push(self, container_id, container_tag):
     try:
       _LOGGER.info("Building sdk container, this may take a few minutes...")
+      now = time.time()
       subprocess.run(['docker', 'build', '.', '-t', container_tag],
                      capture_output=True,
                      check=True,
                      cwd=self._temp_src_dir)
-      now = time.time()
     except subprocess.CalledProcessError as err:
       raise RuntimeError(
           'Failed to build sdk container with local docker, '
