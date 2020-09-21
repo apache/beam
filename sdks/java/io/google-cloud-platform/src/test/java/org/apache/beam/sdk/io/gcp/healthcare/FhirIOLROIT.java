@@ -72,9 +72,13 @@ public class FhirIOLROIT {
 
   @After
   public void deleteAllFhirStores() throws IOException {
-    HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + deidFhirStoreId);
+    try {
+      HealthcareApiClient client = new HttpHealthcareApiClient();
+      client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
+      client.deleteFhirStore(healthcareDataset + "/fhirStores/" + deidFhirStoreId);
+    } catch (IOException e) {
+      // Do nothing.
+    }
   }
 
   @AfterClass
