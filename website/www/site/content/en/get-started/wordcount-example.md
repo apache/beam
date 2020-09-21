@@ -1061,11 +1061,14 @@ This runner is not yet available for the Python SDK.
 {{< highlight class="runner-dataflow" >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
-python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
+python -m apache_beam.examples.windowed_wordcount --input_topic projects/YOUR_GCP_PROJECT/topics/YOUR_TOPIC \
                                          --output_table PROJECT:DATASET.TABLE \
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
+					 --region YOUR_REGION
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
+					 --streaming
+
 {{< /highlight >}}
 
 {{< highlight class="runner-samza-local" >}}
