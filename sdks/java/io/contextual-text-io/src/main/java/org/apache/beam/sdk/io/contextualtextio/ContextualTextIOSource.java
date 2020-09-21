@@ -28,9 +28,8 @@ import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -52,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * representing the beginning of the first record to be decoded.
  */
 @VisibleForTesting
-class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
+class ContextualTextIOSource extends FileBasedSource<Row> {
   byte[] delimiter;
 
   private static final Logger LOG = LoggerFactory.getLogger(ContextualTextIOSource.class);
@@ -93,25 +92,19 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
   }
 
   @Override
-  protected FileBasedSource<RecordWithMetadata> createForSubrangeOfFile(
+  protected FileBasedSource<Row> createForSubrangeOfFile(
       MatchResult.Metadata metadata, long start, long end) {
     return new ContextualTextIOSource(metadata, start, end, delimiter, hasMultilineCSVRecords);
   }
 
   @Override
-  protected FileBasedReader<RecordWithMetadata> createSingleFileReader(PipelineOptions options) {
+  protected FileBasedReader<Row> createSingleFileReader(PipelineOptions options) {
     return new MultiLineTextBasedReader(this, delimiter, hasMultilineCSVRecords);
   }
 
   @Override
-  public Coder<RecordWithMetadata> getOutputCoder() {
-    SchemaCoder<RecordWithMetadata> coder = null;
-    try {
-      coder = SchemaRegistry.createDefault().getSchemaCoder(RecordWithMetadata.class);
-    } catch (NoSuchSchemaException e) {
-      LOG.error("No Coder Found for RecordWithMetadata");
-    }
-    return coder;
+  public Coder<Row> getOutputCoder() {
+    return SchemaCoder.of(RecordWithMetadata.getSchema());
   }
 
   /**
@@ -121,7 +114,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
    * <p>See {@link ContextualTextIOSource} for further details.
    */
   @VisibleForTesting
-  static class MultiLineTextBasedReader extends FileBasedReader<RecordWithMetadata> {
+  static class MultiLineTextBasedReader extends FileBasedReader<Row> {
     public static final int READ_BUFFER_SIZE = 8192;
     private static final ByteString UTF8_BOM =
         ByteString.copyFrom(new byte[] {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
@@ -133,7 +126,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
     private volatile long startOfNextRecord;
     private volatile boolean eof;
     private volatile boolean elementIsPresent;
-    private @Nullable RecordWithMetadata currentValue;
+    private @Nullable Row currentValue;
     private @Nullable ReadableByteChannel inChannel;
     private byte @Nullable [] delimiter;
 
@@ -169,7 +162,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
     }
 
     @Override
-    public RecordWithMetadata getCurrent() throws NoSuchElementException {
+    public Row getCurrent() throws NoSuchElementException {
       if (!elementIsPresent) {
         throw new NoSuchElementException();
       }
@@ -195,16 +188,12 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
           requiredPosition = startOffset - delimiter.length;
         }
         ((SeekableByteChannel) channel).position(requiredPosition);
-        findDelimiterBoundsWithMultiLineCheck();
+        findDelimiterBounds();
         buffer = buffer.substring(endOfDelimiterInBuffer);
         startOfNextRecord = requiredPosition + endOfDelimiterInBuffer;
         endOfDelimiterInBuffer = 0;
         startOfDelimiterInBuffer = 0;
       }
-    }
-
-    private void findDelimiterBoundsWithMultiLineCheck() throws IOException {
-      findDelimiterBounds();
     }
 
     /**
@@ -298,7 +287,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
     protected boolean readNextRecord() throws IOException {
       startOfRecord = startOfNextRecord;
 
-      findDelimiterBoundsWithMultiLineCheck();
+      findDelimiterBounds();
 
       // If we have reached EOF file and consumed all of the buffer then we know
       // that there are no more records.
@@ -326,21 +315,21 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
       }
 
       // The line num is:
-      Long recordUniqueNum = totalRecordCount++;
-      // The Complete FileName (with uri if this is a web url eg: temp/abc.txt) is:
-      String fileName = getCurrentSource().getSingleFileMetadata().resourceId().toString();
+      long recordUniqueNum = totalRecordCount++;
 
       // The single filename can be found as:
       // fileName.substring(fileName.lastIndexOf('/') + 1);
 
       currentValue =
-          RecordWithMetadata.newBuilder()
-              .setRecordNumInOffset(recordUniqueNum)
-              .setRangeOffset(startingOffset)
-              .setRecordOffset(startOfRecord)
-              .setRecordNum(recordUniqueNum)
-              .setFileName(fileName)
-              .setValue(dataToDecode.toStringUtf8())
+          Row.withSchema(RecordWithMetadata.getSchema())
+              .withFieldValue(RecordWithMetadata.RECORD_NUM_IN_OFFSET, recordUniqueNum)
+              .withFieldValue(RecordWithMetadata.RANGE_OFFSET, startingOffset)
+              .withFieldValue(RecordWithMetadata.RECORD_OFFSET, startOfRecord)
+              .withFieldValue(RecordWithMetadata.RECORD_NUM, recordUniqueNum)
+              .withFieldValue(
+                  RecordWithMetadata.RESOURCE_ID,
+                  getCurrentSource().getSingleFileMetadata().resourceId())
+              .withFieldValue(RecordWithMetadata.VALUE, dataToDecode.toStringUtf8())
               .build();
 
       elementIsPresent = true;

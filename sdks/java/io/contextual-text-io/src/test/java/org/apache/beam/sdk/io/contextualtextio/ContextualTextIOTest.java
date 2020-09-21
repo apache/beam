@@ -64,6 +64,7 @@ import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -109,6 +111,8 @@ public class ContextualTextIOTest {
   private static final List<String> TINY = Arrays.asList("ABC", "DEF", "HIJ");
 
   private static final List<String> LARGE = makeLines(NUM_LINES_FOR_LARGE);
+
+  private static final String VALUE = RecordWithMetadata.VALUE;
 
   private static File writeToFile(
       List<String> lines, TemporaryFolder folder, String fileName, Compression compression)
@@ -160,12 +164,20 @@ public class ContextualTextIOTest {
     return lines;
   }
 
-  private static class ConvertRecordWithMetadataToString extends DoFn<RecordWithMetadata, String> {
+  private static class ConvertRecordWithMetadataToString extends DoFn<Row, String> {
     @ProcessElement
-    public void processElement(@Element RecordWithMetadata record, OutputReceiver<String> out) {
-      String resourceId = record.getFileName();
+    public void processElement(@Element Row record, OutputReceiver<String> out) {
+      String resourceId =
+          record
+              .getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class)
+              .getFilename();
       String file = resourceId.substring(resourceId.lastIndexOf('/') + 1);
-      out.output(file + " " + record.getRecordNum() + " " + record.getValue());
+      out.output(
+          file
+              + " "
+              + record.getValue(RecordWithMetadata.RECORD_NUM)
+              + " "
+              + record.getString(VALUE));
     }
   }
 
@@ -402,12 +414,11 @@ public class ContextualTextIOTest {
 
     private void runTestReadWithData(byte[] data, List<String> expectedResults) throws Exception {
       ContextualTextIOSource source = prepareSource(data, false);
-      List<RecordWithMetadata> actual =
-          SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+      List<Row> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
       List<String> actualOutput = new ArrayList<>();
       actual.forEach(
-          (RecordWithMetadata L) -> {
-            actualOutput.add(L.getValue());
+          (Row L) -> {
+            actualOutput.add(L.getString(VALUE));
           });
       assertThat(
           actualOutput,
@@ -451,12 +462,11 @@ public class ContextualTextIOTest {
 
     private void runTestReadWithData(byte[] data, List<String> expectedResults) throws Exception {
       ContextualTextIOSource source = prepareSource(data, true);
-      List<RecordWithMetadata> actual =
-          SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+      List<Row> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
       List<String> actualOutput = new ArrayList<>();
       actual.forEach(
-          (RecordWithMetadata L) -> {
-            actualOutput.add(L.getValue());
+          (Row L) -> {
+            actualOutput.add(L.getValue(VALUE));
           });
       assertThat(
           actualOutput,
@@ -517,10 +527,13 @@ public class ContextualTextIOTest {
           .apply(
               MapElements.into(strings())
                   .via(
-                      (RecordWithMetadata L) -> {
+                      (Row L) -> {
                         String expectedLineNum =
-                            L.getValue().substring(L.getValue().lastIndexOf(' ') + 1);
-                        assertEquals(Long.parseLong(expectedLineNum), (long) L.getRecordNum());
+                            L.getString(RecordWithMetadata.VALUE)
+                                .substring(L.getString(VALUE).lastIndexOf(' ') + 1);
+                        assertEquals(
+                            Long.parseLong(expectedLineNum),
+                            (long) L.getInt64(RecordWithMetadata.RECORD_NUM));
                         return "";
                       }));
 
@@ -554,10 +567,12 @@ public class ContextualTextIOTest {
           .apply(
               MapElements.into(strings())
                   .via(
-                      (RecordWithMetadata L) -> {
+                      (Row L) -> {
                         String expectedLineNum =
-                            L.getValue().substring(L.getValue().lastIndexOf(' ') + 1);
-                        assertEquals(Long.parseLong(expectedLineNum), (long) L.getRecordNum());
+                            L.getString(VALUE).substring(L.getString(VALUE).lastIndexOf(' ') + 1);
+                        assertEquals(
+                            Long.parseLong(expectedLineNum),
+                            (long) L.getInt64(RecordWithMetadata.RECORD_NUM));
                         return "";
                       }));
 
@@ -570,10 +585,10 @@ public class ContextualTextIOTest {
 
       List<String> input = ImmutableList.of("1", "2");
       ContextualTextIO.Read read = ContextualTextIO.read().from(createFileFromList(input));
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getValue())));
+          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getString(VALUE))));
 
       PAssert.that(result).containsInAnyOrder("1", "2");
 
@@ -588,10 +603,10 @@ public class ContextualTextIOTest {
 
       ContextualTextIO.Read read =
           ContextualTextIO.read().from(createFileFromList(input)).withHasMultilineCSVRecords(true);
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getValue())));
+          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getString(VALUE))));
 
       PAssert.that(result).containsInAnyOrder("1", "2");
 
@@ -611,15 +626,10 @@ public class ContextualTextIOTest {
 
       ContextualTextIO.Read read =
           ContextualTextIO.read().from(createFileFromList(input)).withHasMultilineCSVRecords(true);
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(
-              MapElements.into(strings())
-                  .via(
-                      x -> {
-                        return String.valueOf(x.getValue());
-                      }));
+          output.apply(MapElements.into(strings()).via(x -> x.getString(VALUE)));
 
       PAssert.that(result).containsInAnyOrder(input);
 
@@ -639,15 +649,10 @@ public class ContextualTextIOTest {
 
       ContextualTextIO.Read read =
           ContextualTextIO.read().from(createFileFromList(input)).withHasMultilineCSVRecords(true);
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(
-              MapElements.into(strings())
-                  .via(
-                      x -> {
-                        return String.valueOf(x.getValue());
-                      }));
+          output.apply(MapElements.into(strings()).via(x -> x.getString(VALUE)));
 
       PAssert.that(result).containsInAnyOrder(input);
 
@@ -667,10 +672,10 @@ public class ContextualTextIOTest {
 
       ContextualTextIO.Read read =
           ContextualTextIO.read().from(createFileFromList(input)).withHasMultilineCSVRecords(true);
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getValue())));
+          output.apply(MapElements.into(strings()).via(x -> x.getString(VALUE)));
 
       PAssert.that(result).containsInAnyOrder(input);
 
@@ -691,10 +696,10 @@ public class ContextualTextIOTest {
 
       ContextualTextIO.Read read =
           ContextualTextIO.read().from(createFileFromList(input)).withHasMultilineCSVRecords(true);
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getValue())));
+          output.apply(MapElements.into(strings()).via(x -> x.getString(VALUE)));
 
       PAssert.that(result).containsInAnyOrder(input);
 
@@ -713,10 +718,10 @@ public class ContextualTextIOTest {
 
       ContextualTextIO.Read read =
           ContextualTextIO.read().from(createFileFromList(input)).withHasMultilineCSVRecords(true);
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getValue())));
+          output.apply(MapElements.into(strings()).via(x -> x.getString(VALUE)));
 
       PAssert.that(result).containsInAnyOrder(input);
 
@@ -737,10 +742,10 @@ public class ContextualTextIOTest {
               .from(createFileFromList(input))
               .withHasMultilineCSVRecords(true)
               .withoutRecordNumMetadata();
-      PCollection<RecordWithMetadata> output = p.apply(read);
+      PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
-          output.apply(MapElements.into(strings()).via(x -> String.valueOf(x.getValue())));
+          output.apply(MapElements.into(strings()).via(x -> x.getString(VALUE)));
 
       PAssert.that(result).containsInAnyOrder(input);
 
@@ -754,18 +759,24 @@ public class ContextualTextIOTest {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
 
-    public static class GetLines extends DoFn<RecordWithMetadata, String> {
+    public static class GetLines extends DoFn<Row, String> {
       @ProcessElement
-      public void processElement(@Element RecordWithMetadata record, OutputReceiver<String> out) {
-        out.output(record.getValue());
+      public void processElement(@Element Row record, OutputReceiver<String> out) {
+        out.output(record.getString(VALUE));
       }
     }
 
-    public static class GetDetails extends DoFn<RecordWithMetadata, String> {
+    public static class GetDetails extends DoFn<Row, String> {
       @ProcessElement
-      public void processElement(@Element RecordWithMetadata record, OutputReceiver<String> out) {
+      public void processElement(@Element Row record, OutputReceiver<String> out) {
         out.output(
-            record.getFileName() + " " + record.getRecordNum() + " " + record.getValue());
+            record
+                    .getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class)
+                    .getFilename()
+                + " "
+                + record.getInt64(RecordWithMetadata.RECORD_NUM)
+                + " "
+                + record.getString(VALUE));
       }
     }
 
@@ -783,8 +794,7 @@ public class ContextualTextIOTest {
 
       ContextualTextIO.Read read = ContextualTextIO.read().from(filename);
       PCollection<String> output =
-          p.apply(read)
-              .apply(MapElements.into(strings()).via((RecordWithMetadata L) -> L.getValue()));
+          p.apply(read).apply(MapElements.into(strings()).via((Row L) -> L.getString(VALUE)));
 
       PAssert.that(output).containsInAnyOrder(expected);
       p.run();
@@ -792,7 +802,8 @@ public class ContextualTextIOTest {
 
     private void runTestReadLineNumsAndFileName(String[] expected) throws Exception {
       File tmpFile = tempFolder.newFile();
-      String filename = tmpFile.getPath();
+      String filePath = tmpFile.getPath();
+      String fileName = tmpFile.getName();
 
       List<String> actualExpected = new ArrayList<>();
 
@@ -802,19 +813,25 @@ public class ContextualTextIOTest {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
           String line = new String(encodedElem, Charsets.UTF_8);
           writer.println(line);
-          actualExpected.add(lineNum + " " + filename + " " + line);
+          actualExpected.add(lineNum + " " + fileName + " " + line);
           lineNum++;
         }
       }
 
-      ContextualTextIO.Read read = ContextualTextIO.read().from(filename);
+      ContextualTextIO.Read read = ContextualTextIO.read().from(filePath);
       PCollection<String> output =
           p.apply(read)
               .apply(
                   MapElements.into(strings())
                       .via(
-                          (RecordWithMetadata L) ->
-                              L.getRecordNum() + " " + L.getFileName() + " " + L.getValue()));
+                          (Row L) ->
+                              L.getInt64(RecordWithMetadata.RECORD_NUM)
+                                  + " "
+                                  + L.getLogicalTypeValue(
+                                          RecordWithMetadata.RESOURCE_ID, ResourceId.class)
+                                      .getFilename()
+                                  + " "
+                                  + L.getString(VALUE)));
 
       PAssert.that(output).containsInAnyOrder(actualExpected);
       p.run();
@@ -879,21 +896,25 @@ public class ContextualTextIOTest {
             "The slings and arrows of outrageous fortune,|"
           };
 
-      File tmpFile = tempFolder.newFile("tmpfile.txt");
-      String filename = tmpFile.getPath();
+      String fileName = "tmpFile.txt";
+      File tmpFile = tempFolder.newFile(fileName);
+      String absoluteFilePath = tmpFile.getPath();
 
       try (Writer writer = Files.newBufferedWriter(tmpFile.toPath(), UTF_8)) {
         writer.write(Joiner.on("").join(inputStrings));
       }
 
       PAssert.that(
-              p.apply(ContextualTextIO.read().from(filename).withDelimiter(new byte[] {'|', '*'}))
+              p.apply(
+                      ContextualTextIO.read()
+                          .from(absoluteFilePath)
+                          .withDelimiter(new byte[] {'|', '*'}))
                   .apply(ParDo.of(new GetDetails())))
           .containsInAnyOrder(
-              filename
+              fileName
                   + " 0 To be, or not to be: that |is the question: To be, or not to be: "
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
-              filename + " 1 The slings and arrows of outrageous fortune,|");
+              fileName + " 1 The slings and arrows of outrageous fortune,|");
       p.run();
     }
 
@@ -1053,7 +1074,7 @@ public class ContextualTextIOTest {
 
     @Test
     public void testProgressEmptyFile() throws IOException {
-      try (BoundedSource.BoundedReader<RecordWithMetadata> reader =
+      try (BoundedSource.BoundedReader<Row> reader =
           prepareSource(new byte[0]).createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting.
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
@@ -1074,7 +1095,7 @@ public class ContextualTextIOTest {
     @Test
     public void testProgressTextFile() throws IOException {
       String file = "line1\nline2\nline3";
-      try (BoundedSource.BoundedReader<RecordWithMetadata> reader =
+      try (BoundedSource.BoundedReader<Row> reader =
           prepareSource(file.getBytes(Charsets.UTF_8))
               .createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting
@@ -1111,11 +1132,11 @@ public class ContextualTextIOTest {
     @Test
     public void testProgressAfterSplitting() throws IOException {
       String file = "line1\nline2\nline3";
-      BoundedSource<RecordWithMetadata> source = prepareSource(file.getBytes(Charsets.UTF_8));
-      BoundedSource<RecordWithMetadata> remainder;
+      BoundedSource<Row> source = prepareSource(file.getBytes(Charsets.UTF_8));
+      BoundedSource<Row> remainder;
 
       // Create the remainder, verifying properties pre- and post-splitting.
-      try (BoundedSource.BoundedReader<RecordWithMetadata> readerOrig =
+      try (BoundedSource.BoundedReader<Row> readerOrig =
           source.createReader(PipelineOptionsFactory.create())) {
         // Preconditions.
         assertEquals(0.0, readerOrig.getFractionConsumed(), 1e-6);
@@ -1146,7 +1167,7 @@ public class ContextualTextIOTest {
       }
 
       // Check the properties of the remainder.
-      try (BoundedSource.BoundedReader<RecordWithMetadata> reader =
+      try (BoundedSource.BoundedReader<Row> reader =
           remainder.createReader(PipelineOptionsFactory.create())) {
         // Preconditions.
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
@@ -1181,10 +1202,8 @@ public class ContextualTextIOTest {
       // Sanity check: file is at least 2 bundles long.
       assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
 
-      FileBasedSource<RecordWithMetadata> source =
-          ContextualTextIO.read().from(largeGz.getPath()).getSource();
-      List<? extends FileBasedSource<RecordWithMetadata>> splits =
-          source.split(desiredBundleSize, options);
+      FileBasedSource<Row> source = ContextualTextIO.read().from(largeGz.getPath()).getSource();
+      List<? extends FileBasedSource<Row>> splits = source.split(desiredBundleSize, options);
 
       // Exactly 1 split, even in AUTO mode, since it is a gzip file.
       assertThat(splits, hasSize(equalTo(1)));
@@ -1199,10 +1218,9 @@ public class ContextualTextIOTest {
       // Sanity check: file is at least 2 bundles long.
       assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
 
-      FileBasedSource<RecordWithMetadata> source =
+      FileBasedSource<Row> source =
           ContextualTextIO.read().from(largeTxt.getPath()).withCompression(GZIP).getSource();
-      List<? extends FileBasedSource<RecordWithMetadata>> splits =
-          source.split(desiredBundleSize, options);
+      List<? extends FileBasedSource<Row>> splits = source.split(desiredBundleSize, options);
 
       // Exactly 1 split, even though splittable text file, since using GZIP mode.
       assertThat(splits, hasSize(equalTo(1)));
@@ -1225,7 +1243,7 @@ public class ContextualTextIOTest {
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches().withCompression(AUTO))
               .apply(ContextualTextIO.readFiles().withDesiredBundleSizeBytes(10))
-              .apply(MapElements.into(strings()).via((RecordWithMetadata L) -> L.getValue()));
+              .apply(MapElements.into(strings()).via((Row L) -> L.getString(VALUE)));
       PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
       p.run();
     }
@@ -1258,7 +1276,7 @@ public class ContextualTextIOTest {
                           Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))))
               .apply(FileIO.readMatches())
               .apply(ContextualTextIO.readFiles())
-              .apply(MapElements.into(strings()).via((RecordWithMetadata L) -> L.getValue()));
+              .apply(MapElements.into(strings()).via((Row L) -> L.getString(VALUE)));
 
       PAssert.that(lines).containsInAnyOrder("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
       p.run();
