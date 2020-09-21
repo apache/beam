@@ -93,6 +93,7 @@ class Profile(object):
         self.hpy = hpy()
         self.hpy.setrelheap()
       except ImportError:
+        _LOGGER.info("Unable to import guppy for memory profiling")
         self.hpy = None
     return self
 
@@ -107,7 +108,7 @@ class Profile(object):
 
       if self.enable_memory_profiling:
         if not self.hpy:
-          _LOGGER.info("Unable to import guppy for memory profiling")
+          pass
         else:
           h = self.hpy.heap()
           heap_dump_data = '%s\n%s' % (h, h.more)
