@@ -62,6 +62,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.to_string': ['*'],
             'pandas.core.frame.DataFrame.transpose': ['*'],
             'pandas.core.frame.DataFrame.shape': ['*'],
+            'pandas.core.frame.DataFrame.shift': [
+                'df.shift(periods=3, freq="D")',
+                'df.shift(periods=3, freq="infer")'
+            ],
             'pandas.core.frame.DataFrame.unstack': ['*'],
             'pandas.core.frame.DataFrame.memory_usage': ['*'],
         },
@@ -78,13 +82,25 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.axes': ['*'],
             'pandas.core.frame.DataFrame.combine': ['*'],
             'pandas.core.frame.DataFrame.combine_first': ['*'],
+            'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.corr': ['*'],
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.cov': ['*'],
             'pandas.core.frame.DataFrame.dot': ['*'],
             'pandas.core.frame.DataFrame.drop': ['*'],
+            'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
+            'pandas.core.frame.DataFrame.duplicated': ['*'],
             'pandas.core.frame.DataFrame.eval': ['*'],
             'pandas.core.frame.DataFrame.explode': ['*'],
+            'pandas.core.frame.DataFrame.groupby': [
+                # More keyword arguments.
+                'df.groupby(level=0).mean()',
+                'df.groupby(level="Type").mean()',
+                'df.groupby(by=["b"], dropna=False).sum()',
+                'df.groupby(by="a", dropna=False).sum()'
+            ],
+            'pandas.core.frame.DataFrame.idxmax': ['*'],
+            'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.info': ['*'],
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ["print(df['int'].dtype)"],
@@ -102,6 +118,7 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.pivot': ['*'],
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
+            'pandas.core.frame.DataFrame.pop': ['*'],
             'pandas.core.frame.DataFrame.query': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             # Sets df.index
@@ -113,13 +130,18 @@ class DoctestTest(unittest.TestCase):
             ],
             # Uses unseeded np.random.
             'pandas.core.frame.DataFrame.round': ['*'],
+            'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.set_index': ['*'],
+            'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.transpose': [
                 'df1_transposed.dtypes', 'df2_transposed.dtypes'
             ],
-            'pandas.core.frame.DataFrame.to_sparse': ['type(df)'],
+            'pandas.core.frame.DataFrame.to_markdown': ['*'],
+            'pandas.core.frame.DataFrame.to_parquet': ['*'],
             # Uses df.index
             'pandas.core.frame.DataFrame.to_records': ['*'],
+            'pandas.core.frame.DataFrame.to_sparse': ['type(df)'],
+            'pandas.core.frame.DataFrame.value_counts': ['*'],
         })
     self.assertEqual(result.failed, 0)
 
@@ -158,12 +180,14 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.view': ['*'],
         },
         skip={
+            'pandas.core.series.Series.array': ['*'],
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
+            'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.corr': ['*'],
             'pandas.core.series.Series.count': ['*'],
             'pandas.core.series.Series.cov': ['*'],
@@ -172,10 +196,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
+            'pandas.core.series.Series.groupby': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.memory_usage': ['*'],
+            'pandas.core.series.Series.name': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
+            'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.reindex': ['*'],
             'pandas.core.series.Series.rename': ['*'],
@@ -186,9 +213,12 @@ class DoctestTest(unittest.TestCase):
                 # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
+            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.sort_index': ['*'],
             'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
+            'pandas.core.series.Series.to_markdown': ['*'],
+            'pandas.core.series.Series.update': ['*'],
             'pandas.core.series.Series.view': [
                 # Inspection after modification.
                 's'
@@ -251,6 +281,14 @@ class DoctestTest(unittest.TestCase):
         pd.core.arrays.datetimes,
         use_beam=False,
         skip={
+            'pandas.core.arrays.datetimes.DatetimeArray.day': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.hour': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.microsecond': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.minute': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.month': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.nanosecond': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.second': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.year': ['*'],
             'pandas.core.arrays.datetimes.DatetimeArray.is_leap_year': ['*'],
             'pandas.core.arrays.datetimes.DatetimeArray.is_month_end': ['*'],
             'pandas.core.arrays.datetimes.DatetimeArray.is_month_start': ['*'],
@@ -266,6 +304,19 @@ class DoctestTest(unittest.TestCase):
 
     self.assertEqual(datetimelike_result.failed, 0)
     self.assertEqual(datetime_result.failed, 0)
+
+  def test_indexing_tests(self):
+    result = doctests.testmod(
+        pd.core.indexing,
+        use_beam=False,
+        skip={
+            'pandas.core.indexing._AtIndexer': ['*'],
+            'pandas.core.indexing._IndexSlice': ['*'],
+            'pandas.core.indexing._LocIndexer': ['*'],
+            'pandas.core.indexing._iAtIndexer': ['*'],
+            'pandas.core.indexing._iLocIndexer': ['*'],
+        })
+    self.assertEqual(result.failed, 0)
 
 
 if __name__ == '__main__':
