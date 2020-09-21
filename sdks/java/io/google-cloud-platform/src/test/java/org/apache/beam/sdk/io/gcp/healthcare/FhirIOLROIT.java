@@ -73,7 +73,6 @@ public class FhirIOLROIT {
 
   @After
   public void deleteAllFhirStores() throws IOException {
-<<<<<<< HEAD
     try {
       HealthcareApiClient client = new HttpHealthcareApiClient();
       client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
@@ -81,11 +80,6 @@ public class FhirIOLROIT {
     } catch (IOException e) {
       // Do nothing.
     }
-=======
-    HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + deidFhirStoreId);
->>>>>>> b9f2a7484a (Only delete FHIR stores that were being used in FhirIOLROIT tests. This is to follow-up [BEAM-10871] Add deidentify for FhirIO connector #12721)
   }
 
   @AfterClass
