@@ -277,9 +277,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     this.customHttpErrors = customErrors;
   }
 
-  /**
-   * @param writeTimeout in milliseconds.
-   */
+  /** @param writeTimeout in milliseconds. */
   public void setWriteTimeout(int writeTimeout) {
     this.writeTimeout = writeTimeout;
   }
