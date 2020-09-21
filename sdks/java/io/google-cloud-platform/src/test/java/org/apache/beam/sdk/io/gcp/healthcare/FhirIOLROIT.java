@@ -43,11 +43,13 @@ public class FhirIOLROIT {
   private final String project;
   private String healthcareDataset;
   private final String fhirStoreId;
+  private final String deidFhirStoreId;
   private String version;
 
   public FhirIOLROIT() {
     long testTime = System.currentTimeMillis();
     this.fhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.deidFhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
     this.version = "STU3";
     this.project =
         TestPipeline.testingPipelineOptions()
@@ -73,10 +75,8 @@ public class FhirIOLROIT {
   @After
   public void deleteAllFhirStores() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    List<FhirStore> fhirStores = client.listAllFhirStores(healthcareDataset);
-    for (FhirStore fs : fhirStores) {
-      client.deleteFhirStore(fs.getName());
-    }
+    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
+    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + deidFhirStoreId);
   }
 
   @AfterClass
@@ -97,9 +97,8 @@ public class FhirIOLROIT {
   @Test
   public void test_FhirIO_deidentify() throws IOException {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
-    String destinationFhirStoreId = fhirStoreId + "_deid";
-    client.createFhirStore(healthcareDataset, destinationFhirStoreId, version, null);
-    String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + destinationFhirStoreId;
+    client.createFhirStore(healthcareDataset, deidFhirStoreId, version, null);
+    String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + deidFhirStoreId;
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
     pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
     pipeline.run();
