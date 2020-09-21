@@ -919,9 +919,9 @@ class Read(ptransform.PTransform):
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
-    if isinstance(self.source, ptransform.PTransform):
-      return self.source.to_runner_api(context)
-    else:
+    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+    if (isinstance(self.source, BoundedSource)
+        or isinstance(self.source, dataflow_io.NativeSource)):
       return (
           common_urns.deprecated_primitives.READ.urn,
           beam_runner_api_pb2.ReadPayload(
@@ -929,6 +929,8 @@ class Read(ptransform.PTransform):
               is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
               if self.source.is_bounded() else
               beam_runner_api_pb2.IsBounded.UNBOUNDED))
+    elif isinstance(self.source, ptransform.PTransform):
+      return self.source.to_runner_api_parameter(context)
 
   @staticmethod
   def from_runner_api_parameter(unused_ptransform, parameter, context):
