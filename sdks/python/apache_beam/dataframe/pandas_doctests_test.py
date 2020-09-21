@@ -315,7 +315,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexing.IndexingMixin.iat': ['*'],
             'pandas.core.indexing.IndexingMixin.iloc': ['*'],
             'pandas.core.indexing.IndexingMixin.loc': ['*'],
-          
         })
     self.assertEqual(result.failed, 0)
 
