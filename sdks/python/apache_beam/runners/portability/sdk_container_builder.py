@@ -43,9 +43,9 @@ from google.protobuf.json_format import MessageToJson
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import storage
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability.stager import Stager
@@ -69,7 +69,7 @@ class SdkContainerBuilder(object):
     self._options = options
     self._temp_src_dir = tempfile.mkdtemp()
     self._docker_registry_push_url = self._options.view_as(
-        DebugOptions).lookup_experiment('docker_registry_push_url')
+        SetupOptions).docker_registry_push_url
 
   def build(self):
     container_id = str(uuid.uuid4())
@@ -114,11 +114,10 @@ class SdkContainerBuilder(object):
       file.write('[\n' + ',\n'.join(infos) + '\n]')
 
   @classmethod
-  def build_container_imge(cls, pipeline_options):
+  def build_container_image(cls, pipeline_options):
     # type: (PipelineOptions) -> str
-    debug_options = pipeline_options.view_as(DebugOptions)
-    container_build_engine = debug_options.lookup_experiment(
-        'prebuild_sdk_container')
+    setup_options = pipeline_options.view_as(SetupOptions)
+    container_build_engine = setup_options.prebuild_sdk_container_engine
     if container_build_engine:
       if container_build_engine == 'local_docker':
         builder = _SdkContainerLocalBuilder(
@@ -127,10 +126,10 @@ class SdkContainerBuilder(object):
         builder = _SdkContainerCloudBuilder(pipeline_options)
       else:
         raise ValueError(
-            'Only prebuild_sdk_container=local_docker and '
-            'prebuild_sdk_container=cloud_build is supported')
+            'Only (--prebuild_sdk_container_engine local_docker) and '
+            '(--prebuild_sdk_container_engine cloud_build) are supported')
     else:
-      raise ValueError('No prebuild_sdk_container flag specified.')
+      raise ValueError('No --prebuild_sdk_container_engine option specified.')
     return builder.build()
 
 
@@ -139,12 +138,12 @@ class _SdkContainerLocalBuilder(SdkContainerBuilder):
   docker."""
   def invoke_docker_build_and_push(self, container_id, container_tag):
     try:
+      _LOGGER.info("Building sdk container, this may take a few minutes...")
       subprocess.run(['docker', 'build', '.', '-t', container_tag],
                      capture_output=True,
                      check=True,
                      cwd=self._temp_src_dir)
       now = time.time()
-      _LOGGER.info("Building sdk container, this may take a few minutes...")
     except subprocess.CalledProcessError as err:
       raise RuntimeError(
           'Failed to build sdk container with local docker, '

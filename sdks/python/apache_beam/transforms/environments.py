@@ -42,7 +42,7 @@ from typing import overload
 from google.protobuf import message
 
 from apache_beam import coders
-from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -254,9 +254,8 @@ class DockerEnvironment(Environment):
   @classmethod
   def from_options(cls, options):
     # type: (PipelineOptions) -> DockerEnvironment
-    if options.view_as(DebugOptions).lookup_experiment(
-        'prebuild_sdk_container'):
-      prebuilt_container_image = SdkContainerBuilder.build_container_imge(
+    if options.view_as(SetupOptions).prebuild_sdk_container_engine:
+      prebuilt_container_image = SdkContainerBuilder.build_container_image(
           options)
       return cls.from_container_image(
           container_image=prebuilt_container_image,

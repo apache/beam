@@ -994,6 +994,21 @@ class SetupOptions(PipelineOptions):
             'staged in the staging area (--staging_location option) and the '
             'workers will install them in same order they were specified on '
             'the command line.'))
+    parser.add_argument(
+        '--prebuild_sdk_container_engine',
+        choices=['local_docker', 'cloud_build'],
+        help=(
+            'Pre-builds the sdk worker container image with boot dependencies '
+            'installed and uses the prebuilt image in the pipeline '
+            'environment. Choose the docker build engine of local docker '
+            'environment or google cloud build by passing the option '
+            'local_docker or cloud_build.'))
+    parser.add_argument(
+        '--docker_registry_push_url',
+        default=None,
+        help=(
+            'Docker registry url to use for tagging and pushing the prebuilt '
+            'sdk worker container image.'))
 
 
 class PortableOptions(PipelineOptions):
