@@ -27,7 +27,7 @@ from apache_beam.testing.util import equal_to
 
 
 class ConverTest(unittest.TestCase):
-  def test_convert_yield_dataframes(self):
+  def test_convert_yield_pandas(self):
     def equal_to_unordered_series(expected):
       def check(actual):
         actual = pd.concat(actual)
@@ -52,9 +52,10 @@ class ConverTest(unittest.TestCase):
       df_ab = df_a * df_b
 
       # Converting multiple results at a time can be more efficient.
-      pc_2a, pc_ab = convert.to_pcollection(df_2a, df_ab, yield_dataframes=True)
+      pc_2a, pc_ab = convert.to_pcollection(df_2a, df_ab,
+                                            yield_elements='pandas')
       # But separate conversions can be done as well.
-      pc_3a = convert.to_pcollection(df_3a, yield_dataframes=True)
+      pc_3a = convert.to_pcollection(df_3a, yield_elements='pandas')
 
       assert_that(pc_2a, equal_to_unordered_series(2 * a), label='Check2a')
       assert_that(pc_3a, equal_to_unordered_series(3 * a), label='Check3a')

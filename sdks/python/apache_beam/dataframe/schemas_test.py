@@ -100,11 +100,12 @@ SERIES_TESTS = [(pd.Series(arr, dtype=dtype, name=name), arr) for arr,
                 name in COLUMNS]
 
 DF_RESULT = list(zip(*(arr for arr, _, _ in COLUMNS)))
-DF_TESTS = [(
-    NICE_TYPES_DF
-    if i == 0 else NICE_TYPES_DF.set_index([name
-                                            for _, _, name in COLUMNS[:i]]),
-    DF_RESULT) for i in range(len(COLUMNS) + 1)]
+INDEX_DF_TESTS = [
+    (NICE_TYPES_DF.set_index([name for _, _, name in COLUMNS[:i]]), DF_RESULT)
+    for i in range(1, len(COLUMNS) + 1)
+]
+
+NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT)]
 
 
 class SchemasTest(unittest.TestCase):
@@ -136,18 +137,17 @@ class SchemasTest(unittest.TestCase):
 
   def test_nice_types_proxy_roundtrip(self):
     roundtripped = schemas.generate_proxy(
-        schemas.element_type_from_proxy(NICE_TYPES_PROXY))
+        schemas.element_type_from_dataframe(NICE_TYPES_PROXY))
     self.assertTrue(roundtripped.equals(NICE_TYPES_PROXY))
 
-  # TODO
-  @unittest.skip
   def test_bytes_proxy_roundtrip(self):
     proxy = pd.DataFrame({'bytes': []})
     proxy.bytes = proxy.bytes.astype(bytes)
 
     roundtripped = schemas.generate_proxy(
-        schemas.element_type_from_proxy(proxy))
-    self.assertTrue(roundtripped.equals(proxy))
+        schemas.element_type_from_dataframe(proxy))
+
+    self.assertEqual(roundtripped.bytes.dtype.kind, 'S')
 
   def test_batch_with_df_transform(self):
     with TestPipeline() as p:
@@ -163,11 +163,30 @@ class SchemasTest(unittest.TestCase):
           | transforms.DataframeTransform(
               lambda df: df.groupby('animal').mean(),
               # TODO: Generate proxy in this case as well
-              proxy=schemas.generate_proxy(Animal)))
+              proxy=schemas.generate_proxy(Animal),
+              include_indexes=True))
       assert_that(res, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
-  @parameterized.expand(SERIES_TESTS + DF_TESTS)
-  def test_unbatch(self, df_or_series, rows):
+    # Do the same thing, but use reset_index() to make sure 'animal' is included
+    with TestPipeline() as p:
+      with beam.dataframe.allow_non_parallel_operations():
+        res = (
+            p
+            | beam.Create([
+                Animal('Falcon', 380.0),
+                Animal('Falcon', 370.0),
+                Animal('Parrot', 24.0),
+                Animal('Parrot', 26.0)
+            ])
+            | schemas.BatchRowsAsDataFrame()
+            | transforms.DataframeTransform(
+                lambda df: df.groupby('animal').mean().reset_index(),
+                # TODO: Generate proxy in this case as well
+                proxy=schemas.generate_proxy(Animal)))
+        assert_that(res, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
+
+  @parameterized.expand(SERIES_TESTS + NOINDEX_DF_TESTS)
+  def test_unbatch_no_index(self, df_or_series, rows):
     proxy = df_or_series[:0]
 
     with TestPipeline() as p:
@@ -176,6 +195,50 @@ class SchemasTest(unittest.TestCase):
           | schemas.UnbatchPandas(proxy))
 
       assert_that(res, equal_to(rows))
+
+  @parameterized.expand(SERIES_TESTS + INDEX_DF_TESTS)
+  def test_unbatch_with_index(self, df_or_series, rows):
+    proxy = df_or_series[:0]
+
+    with TestPipeline() as p:
+      res = (
+          p | beam.Create([df_or_series[::2], df_or_series[1::2]])
+          | schemas.UnbatchPandas(proxy, include_indexes=True))
+
+      assert_that(res, equal_to(rows))
+
+  def test_unbatch_include_index_unnamed_index_raises(self):
+    df = pd.DataFrame({'foo': [1, 2, 3, 4]})
+    proxy = df[:0]
+
+    with TestPipeline() as p:
+      pc = p | beam.Create([df[::2], df[1::2]])
+
+      with self.assertRaisesRegex(ValueError, 'unnamed'):
+        _ = pc | schemas.UnbatchPandas(proxy, include_indexes=True)
+
+  def test_unbatch_include_index_nonunique_index_raises(self):
+    df = pd.DataFrame({'foo': [1, 2, 3, 4]})
+    df.index = pd.MultiIndex.from_arrays([[1, 2, 3, 4], [4, 3, 2, 1]],
+                                         names=['bar', 'bar'])
+    proxy = df[:0]
+
+    with TestPipeline() as p:
+      pc = p | beam.Create([df[::2], df[1::2]])
+
+      with self.assertRaisesRegex(ValueError, 'bar'):
+        _ = pc | schemas.UnbatchPandas(proxy, include_indexes=True)
+
+  def test_unbatch_include_index_column_conflict_raises(self):
+    df = pd.DataFrame({'foo': [1, 2, 3, 4]})
+    df.index = pd.Index([4, 3, 2, 1], name='foo')
+    proxy = df[:0]
+
+    with TestPipeline() as p:
+      pc = p | beam.Create([df[::2], df[1::2]])
+
+      with self.assertRaisesRegex(ValueError, 'foo'):
+        _ = pc | schemas.UnbatchPandas(proxy, include_indexes=True)
 
 
 if __name__ == '__main__':

@@ -92,7 +92,7 @@ class TransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       input_pcoll = p | beam.Create([input[::2], input[1::2]])
       output_pcoll = input_pcoll | transforms.DataframeTransform(
-          func, proxy=empty, yield_dataframes=True)
+          func, proxy=empty, yield_elements='pandas')
       assert_that(
           output_pcoll, lambda actual: check_correct(expected, concat(actual)))
 
@@ -170,8 +170,8 @@ class TransformTest(unittest.TestCase):
           | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
                          (u'Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
-          |
-          transforms.DataframeTransform(lambda df: df.groupby('Animal').mean()))
+          | transforms.DataframeTransform(
+              lambda df: df.groupby('Animal').mean(), include_indexes=True))
 
       assert_that(result, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
@@ -183,7 +183,8 @@ class TransformTest(unittest.TestCase):
               u'Parrot', 24.), (u'Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1])))
 
-      result = convert.to_pcollection(df.groupby('Animal').mean())
+      result = convert.to_pcollection(
+          df.groupby('Animal').mean(), include_indexes=True)
 
       assert_that(result, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
@@ -241,14 +242,14 @@ class TransformTest(unittest.TestCase):
 
       assert_that(
           one | 'PcollInPcollOut' >> transforms.DataframeTransform(
-              lambda x: 3 * x, proxy=proxy, yield_dataframes=True),
+              lambda x: 3 * x, proxy=proxy, yield_elements='pandas'),
           equal_to_series(three_series),
           label='CheckPcollInPcollOut')
 
       assert_that(
           (one, two)
           | 'TupleIn' >> transforms.DataframeTransform(
-              lambda x, y: (x + y), (proxy, proxy), yield_dataframes=True),
+              lambda x, y: (x + y), (proxy, proxy), yield_elements='pandas'),
           equal_to_series(three_series),
           label='CheckTupleIn')
 
@@ -258,17 +259,17 @@ class TransformTest(unittest.TestCase):
               lambda x,
               y: (x + y),
               proxy=dict(x=proxy, y=proxy),
-              yield_dataframes=True),
+              yield_elements='pandas'),
           equal_to_series(three_series),
           label='CheckDictIn')
 
       double, triple = one | 'TupleOut' >> transforms.DataframeTransform(
-              lambda x: (2*x, 3*x), proxy, yield_dataframes=True)
+              lambda x: (2*x, 3*x), proxy, yield_elements='pandas')
       assert_that(double, equal_to_series(two_series), 'CheckTupleOut0')
       assert_that(triple, equal_to_series(three_series), 'CheckTupleOut1')
 
       res = one | 'DictOut' >> transforms.DataframeTransform(
-          lambda x: {'res': 3 * x}, proxy, yield_dataframes=True)
+          lambda x: {'res': 3 * x}, proxy, yield_elements='pandas')
       assert_that(res['res'], equal_to_series(three_series), 'CheckDictOut')
 
 

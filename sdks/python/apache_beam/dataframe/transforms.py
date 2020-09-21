@@ -59,11 +59,26 @@ class DataframeTransform(transforms.PTransform):
   To pass multiple PCollections, pass a tuple of PCollections wich will be
   passed to the callable as positional arguments, or a dictionary of
   PCollections, in which case they will be passed as keyword arguments.
+
+  Args:
+    yield_elements: (optional, default: "schemas") If set to "pandas", return
+        PCollections containing the raw Pandas objects (DataFrames or Series),
+        if set to "schemas", return an element-wise PCollection, where DataFrame
+        and Series instances are expanded to one element per row. DataFrames are
+        converted to schema-aware PCollections, where column values can be
+        accessed by attribute.
+    include_indexes: (optional, default: False) When yield_elements="schemas",
+        if include_indexes=True, attempt to include index columns in the output
+        schema for expanded DataFrames. Raises an error if any of the index
+        levels are unnamed (name=None), or if any of the names are not unique
+        among all column and index names.
   """
-  def __init__(self, func, proxy=None, yield_dataframes=False):
+  def __init__(
+      self, func, proxy=None, yield_elements="schemas", include_indexes=False):
     self._func = func
     self._proxy = proxy
-    self._yield_dataframes = yield_dataframes
+    self._yield_elements = yield_elements
+    self._include_indexes = include_indexes
 
   def expand(self, input_pcolls):
     # Avoid circular import.
@@ -97,7 +112,8 @@ class DataframeTransform(transforms.PTransform):
         *result_frames_tuple,
         label='Eval',
         always_return_tuple=True,
-        yield_dataframes=self._yield_dataframes)
+        yield_elements=self._yield_elements,
+        include_indexes=self._include_indexes)
 
     # Convert back to the structure returned by self._func.
     result_pcolls_dict = dict(zip(keys, result_pcolls_tuple))

@@ -17,44 +17,48 @@
 
 r"""Utilities for relating schema-aware PCollections and dataframe transforms.
 
-pandas dtype               Python typing
-np.int{8,16,32,64}      <-----> np.int{8,16,32,64}*
-pd.Int{8,16,32,64}Dtype <-----> Optional[np.int{8,16,32,64}]*
-np.float{32,64}         <-----> Optional[np.float{32,64}]
-                           \--- np.float{32,64}
-np.dtype('S')           <-----> bytes
-Not supported           <------ Optional[bytes]
-np.bool                 <-----> np.bool
+Imposes a mapping between native Python typings (specifically those compatible
+with apache_beam.typehints.schemas), and common pandas dtypes.
+
+  pandas dtype               Python typing
+  np.int{8,16,32,64}      <-----> np.int{8,16,32,64}*
+  pd.Int{8,16,32,64}Dtype <-----> Optional[np.int{8,16,32,64}]*
+  np.float{32,64}         <-----> Optional[np.float{32,64}]
+                             \--- np.float{32,64}
+  np.dtype('S')           <-----> bytes
+  Not supported           <------ Optional[bytes]
+  np.bool                 <-----> np.bool
 
 * int, float, bool are treated the same as np.int64, np.float64, np.bool
 
 Any unknown or unsupported types are trested as Any and shunted to
 np.object:
 
-np.object               <-----> Any
+  np.object               <-----> Any
 
 Strings and nullable Booleans are handled differently when using pandas 0.x vs.
 1.x. pandas 0.x has no mapping for these types, so they are shunted lossily to
-  np.object.
+np.object.
 
 pandas 0.x:
-np.object         <------ Optional[bool]
-                     \--- Optional[str]
-                      \-- str
+
+  np.object         <------ Optional[bool]
+                       \--- Optional[str]
+                        \-- str
 
 pandas 1.x:
-pd.BooleanDType() <-----> Optional[bool]
-pd.StringDType()  <-----> Optional[str]
-                     \--- str
 
-Pandas does not support hierarchical data natively. All structured types
-(Sequence, Mapping, nested NamedTuple types), will be shunted lossily to
-np.object/Any.
+  pd.BooleanDType() <-----> Optional[bool]
+  pd.StringDType()  <-----> Optional[str]
+                       \--- str
+
+Pandas does not support hierarchical data natively. Currently, all structured
+types (Sequence, Mapping, nested NamedTuple types), will be shunted lossily to
+np.object/Any like all other unknown types. In the future these types may be
+given special consideration.
 
 TODO: Mapping for date/time types
 https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
-
-timestamps and timedeltas in pandas always use nanosecond precision
 """
 
 # pytype: skip-file
@@ -85,11 +89,11 @@ __all__ = (
     'BatchRowsAsDataFrame',
     'generate_proxy',
     'UnbatchPandas',
-    'element_type_from_proxy')
+    'element_type_from_dataframe')
 
 T = TypeVar('T', bound=NamedTuple)
 
-PD_MAJOR, _, _ = map(int, pd.__version__.split('.'))
+PD_MAJOR = int(pd.__version__.split('.')[0])
 
 # Generate type map (presented visually in the docstring)
 _BIDIRECTIONAL = [
@@ -159,47 +163,72 @@ class BatchRowsAsDataFrame(beam.PTransform):
         lambda batch: pd.DataFrame.from_records(batch, columns=columns))
 
 
-def _make_proxy_series(name, typehint):
-  # Default to np.object. This is lossy, we won't be able to recover the type
-  # at the output.
-  dtype = BEAM_TO_PANDAS.get(typehint, np.object)
-
-  return pd.Series(name=name, dtype=dtype)
-
-
 def generate_proxy(element_type):
   # type: (type) -> pd.DataFrame
 
-  """ Generate a proxy pandas object for the given PCollection element_type.
+  """Generate a proxy pandas object for the given PCollection element_type.
 
   Currently only supports generating a DataFrame proxy from a schema-aware
-  PCollection."""
+  PCollection.
+  """
   fields = named_fields_from_element_type(element_type)
-  return pd.DataFrame(
-      {name: _make_proxy_series(name, typehint)
-       for name, typehint in fields},
-      columns=[name for name, _ in fields])
+  proxy = pd.DataFrame(columns=[name for name, _ in fields])
+
+  for name, typehint in fields:
+    # Default to np.object. This is lossy, we won't be able to recover the type
+    # at the output.
+    dtype = BEAM_TO_PANDAS.get(typehint, np.object)
+    proxy[name] = proxy[name].astype(dtype)
+
+  return proxy
 
 
-def element_type_from_proxy(proxy):
+def element_type_from_dataframe(proxy, include_indexes=False):
   # type: (pd.DataFrame) -> type
 
-  """ Generate an element_type for an element-wise PCollection from a proxy
+  """Generate an element_type for an element-wise PCollection from a proxy
   pandas object. Currently only supports converting the element_type for
   a schema-aware PCollection to a proxy DataFrame.
 
   Currently only supports generating a DataFrame proxy from a schema-aware
-  PCollection."""
-  indices = [] if proxy.index.names == (None, ) else [
-      (name, proxy.index.get_level_values(i).dtype) for i,
-      name in enumerate(proxy.index.names)
-  ]
+  PCollection.
+  """
+  output_columns = []
+  if include_indexes:
+    remaining_index_names = list(proxy.index.names)
+    i = 0
+    while len(remaining_index_names):
+      index_name = remaining_index_names.pop(0)
+      if index_name is None:
+        raise ValueError(
+            "Encountered an unnamed index. Cannot convert to a "
+            "schema-aware PCollection with include_indexes=True. "
+            "Please name all indexes or consider not including "
+            "indexes.")
+      elif index_name in remaining_index_names:
+        raise ValueError(
+            "Encountered multiple indexes with the name '%s'. "
+            "Cannot convert to a schema-aware PCollection with "
+            "include_indexes=True. Please ensure all indexes have "
+            "unique names or consider not including indexes." % index_name)
+      elif index_name in proxy.columns:
+        raise ValueError(
+            "Encountered an index that has the same name as one "
+            "of the columns, '%s'. Cannot convert to a "
+            "schema-aware PCollection with include_indexes=True. "
+            "Please ensure all indexes have unique names or "
+            "consider not including indexes." % index_name)
+      else:
+        # its ok!
+        output_columns.append(
+            (index_name, proxy.index.get_level_values(i).dtype))
+        i += 1
+
+  output_columns.extend(zip(proxy.columns, proxy.dtypes))
 
   return named_tuple_from_schema(
-      named_fields_to_schema([
-          (column, _dtype_to_fieldtype(dtype)) for column,
-          dtype in indices + list(zip(proxy.columns, proxy.dtypes))
-      ]))
+      named_fields_to_schema([(column, _dtype_to_fieldtype(dtype))
+                              for (column, dtype) in output_columns]))
 
 
 class _BaseDataframeUnbatchDoFn(beam.DoFn):
@@ -253,15 +282,12 @@ class _UnbatchWithIndex(_BaseDataframeUnbatchDoFn):
             ] + [df[column] for column in df.columns]
 
 
-def _unbatch_transform(proxy):
+def _unbatch_transform(proxy, include_indexes):
   if isinstance(proxy, pd.DataFrame):
-    ctor = element_type_from_proxy(proxy)
+    ctor = element_type_from_dataframe(proxy, include_indexes=include_indexes)
 
-    if proxy.index.names == (None, ):  # Unnamed index, ignored
-      unbatcher = _UnbatchNoIndex(ctor)
-    else:  # MultiIndex
-      unbatcher = _UnbatchWithIndex(ctor)
-    return beam.ParDo(unbatcher)
+    return beam.ParDo(
+        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor))
   elif isinstance(proxy, pd.Series):
     # Raise a TypeError if proxy has an unknown type
     output_type = _dtype_to_fieldtype(proxy.dtype)
@@ -299,9 +325,17 @@ class UnbatchPandas(beam.PTransform):
   """A transform that explodes a PCollection of DataFrame or Series. DataFrame
   is converterd to a schema-aware PCollection, while Series is converted to its
   underlying type.
+
+  Args:
+    include_indexes: (optional, default: False) When unbatching a DataFrame
+        if include_indexes=True, attempt to include index columns in the output
+        schema for expanded DataFrames. Raises an error if any of the index
+        levels are unnamed (name=None), or if any of the names are not unique
+        among all column and index names.
   """
-  def __init__(self, proxy):
+  def __init__(self, proxy, include_indexes=False):
     self._proxy = proxy
+    self._include_indexes = include_indexes
 
   def expand(self, pcoll):
-    return pcoll | _unbatch_transform(self._proxy)
+    return pcoll | _unbatch_transform(self._proxy, self._include_indexes)
