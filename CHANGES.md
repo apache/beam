@@ -75,7 +75,8 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Python 2 and Python 3.5 support dropped ([BEAM-10644](https://issues.apache.org/jira/browse/BEAM-10644), [BEAM-9372](https://issues.apache.org/jira/browse/BEAM-9372)).
+* Pandas 1.x allowed.  Older version of Pandas may still be used, but may not be as well tested.
 
 ## Deprecations
 
@@ -84,13 +85,6 @@
 ## Known Issues
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-# [2.25.0] - Unreleased
-
-## Breaking Changes
-
-* Python 2 and Python 3.5 support dropped.
-* Pandas 1.x allowed.  Older version of Pandas may still be used, but may not be as well tested.
 
 # [2.24.0] - 2020-09-18
 
