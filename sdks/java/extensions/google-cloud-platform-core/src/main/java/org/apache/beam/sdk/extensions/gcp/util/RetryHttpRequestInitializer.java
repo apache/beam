@@ -250,7 +250,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     // Set a timeout for hanging-gets.
     // TODO: Do this exclusively for work requests.
     request.setReadTimeout(HANGING_GET_TIMEOUT_SEC * 1000);
-    request.setWriteTimeout(this.writeTimeout * 1000);
+    request.setWriteTimeout(this.writeTimeout);
 
     LoggingHttpBackOffHandler loggingHttpBackOffHandler =
         new LoggingHttpBackOffHandler(
@@ -278,7 +278,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   }
 
   /**
-   * @param writeTimeout in seconds.
+   * @param writeTimeout in milliseconds.
    */
   public void setWriteTimeout(int writeTimeout) {
     this.writeTimeout = writeTimeout;
