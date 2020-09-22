@@ -786,10 +786,11 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       requires_partition_by=partitionings.Index(),
       preserves_partition_by=partitionings.Index())
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def to_csv(self, path_or_buf, **kwargs):
-    return io.write_csv(self, path_or_buf, **kwargs)
+
+for io_func in dir(io):
+  if io_func.startswith('to_'):
+    setattr(DeferredDataFrame, io_func, getattr(io, io_func))
+
 
 for meth in ('filter', ):
   setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))
