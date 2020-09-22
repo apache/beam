@@ -2044,6 +2044,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
     }
     if (DoFnSignatures.usesOrderedListState(fn)) {
+      // https://issues.apache.org/jira/browse/BEAM-10947
       throw new UnsupportedOperationException(
           String.format(
               "%s does not currently support %s",
