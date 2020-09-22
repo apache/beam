@@ -47,3 +47,13 @@ plugins.withType(JavaPlugin).configureEach{
         modularity.inferModulePath = true
     }
 }
+
+compileTestJava.onlyIf {
+  JavaVersion.current() == JavaVersion.VERSION_11
+}
+compileJava.onlyIf {
+  JavaVersion.current() == JavaVersion.VERSION_11
+}
+integrationTest.onlyIf {
+  JavaVersion.current() == JavaVersion.VERSION_11
+}

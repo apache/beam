@@ -23,27 +23,27 @@ import PostcommitJobBuilder
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Java11', 'Run Jpms Java 11 PostCommit',
-        'JPMS Java 11 Post Commit Tests', this) {
+    'JPMS Java 11 Post Commit Tests', this) {
 
-    description('Runs JPMS tests using the Java 11 SDK.')
+      description('Runs JPMS tests using the Java 11 SDK.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-    // Publish all test results to Jenkins
-    publishers {
+      // Publish all test results to Jenkins
+      publishers {
         archiveJunit('**/build/test-results/**/*.xml')
-    }
+      }
 
-    // Gradle goals for this job.
-    steps {
+      // Gradle goals for this job.
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:java:testing:jpms-tests:integrationTest')
-            commonJobProperties.setGradleSwitches(delegate)
-            switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}")
-            // Specify maven home on Jenkins, needed by Maven archetype integration tests.
-            switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:jpms-tests:integrationTest')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}")
+          // Specify maven home on Jenkins, needed by Maven archetype integration tests.
+          switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
         }
+      }
     }
-}
