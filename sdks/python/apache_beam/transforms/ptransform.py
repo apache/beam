@@ -103,6 +103,7 @@ T = TypeVar('T')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
 ConstructorFn = Callable[
     ['beam_runner_api_pb2.PTransform', Optional[Any], 'PipelineContext'], Any]
+ptransform_fn_typehints_enabled = False
 
 
 class _PValueishTransform(object):
@@ -982,6 +983,8 @@ def ptransform_fn(fn):
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
 
+  Type hint support needs to be enabled via the
+  --type_check_additional=ptransform_fn flag in Beam 2.
   If CustomMapper is a Cython function, you can still specify input and output
   types provided the decorators appear before @ptransform_fn.
   """
@@ -989,16 +992,17 @@ def ptransform_fn(fn):
   @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
     res = _PTransformFnPTransform(fn, *args, **kwargs)
-    # Apply type hints applied before or after the ptransform_fn decorator,
-    # falling back on PTransform defaults.
-    # If the @with_{input,output}_types decorator comes before ptransform_fn,
-    # the type hints get applied to this function. If it comes after they will
-    # get applied to fn, and @wraps will copy the _type_hints attribute to this
-    # function.
-    type_hints = get_type_hints(callable_ptransform_factory)
-    res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
-    _LOGGER.debug(
-        'type hints for %s: %s', res.default_label(), res.get_type_hints())
+    if ptransform_fn_typehints_enabled:
+      # Apply type hints applied before or after the ptransform_fn decorator,
+      # falling back on PTransform defaults.
+      # If the @with_{input,output}_types decorator comes before ptransform_fn,
+      # the type hints get applied to this function. If it comes after they will
+      # get applied to fn, and @wraps will copy the _type_hints attribute to
+      # this function.
+      type_hints = get_type_hints(callable_ptransform_factory)
+      res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
+      _LOGGER.debug(
+          'type hints for %s: %s', res.default_label(), res.get_type_hints())
     return res
 
   return callable_ptransform_factory

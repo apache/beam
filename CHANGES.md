@@ -73,6 +73,10 @@
 * In Interactive Beam, ib.show() and ib.collect() now have "n" and "duration" as parameters. These mean read only up to "n" elements and up to "duration" seconds of data read from the recording ([BEAM-10603](https://issues.apache.org/jira/browse/BEAM-10603)).
 * Initial preview of [Dataframes](https://s.apache.org/simpler-python-pipelines-2020#slide=id.g905ac9257b_1_21) support.
     See also example at apache_beam/examples/wordcount_dataframe.py
+* Fixed support for type hints on `@ptransform_fn` decorators in the Python SDK.
+  ([BEAM-4091](https://issues.apache.org/jira/browse/BEAM-4091))
+  This has not enabled by default to preserve backwards compatibility; use the
+  `--type_check_additional=ptransform_fn` flag to enable.
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
