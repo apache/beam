@@ -25,3 +25,9 @@ task flinkValidatesRunner {
   }
 }
 
+task flinkValidatesRunnerPrecommit {
+  getVersionsAsList('flink_validates_runner_precommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkValidatesRunner")
+  }
+}
+
