@@ -110,7 +110,6 @@ class BackgroundCachingJob(object):
       if not PipelineState.is_terminal(self._pipeline_result.state):
         try:
           self._pipeline_result.cancel()
-          # self._pipeline_result.wait_until_finish()
         except NotImplementedError:
           # Ignore the cancel invocation if it is never implemented by the
           # runner.
