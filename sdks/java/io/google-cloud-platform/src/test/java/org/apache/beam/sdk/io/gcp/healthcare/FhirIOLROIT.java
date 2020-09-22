@@ -21,10 +21,8 @@ import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
-import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.List;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
@@ -43,11 +41,13 @@ public class FhirIOLROIT {
   private final String project;
   private String healthcareDataset;
   private final String fhirStoreId;
+  private final String deidFhirStoreId;
   private String version;
 
   public FhirIOLROIT() {
     long testTime = System.currentTimeMillis();
     this.fhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.deidFhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
     this.version = "STU3";
     this.project =
         TestPipeline.testingPipelineOptions()
@@ -62,6 +62,7 @@ public class FhirIOLROIT {
       this.client = new HttpHealthcareApiClient();
     }
     client.createFhirStore(healthcareDataset, fhirStoreId, version, null);
+    client.createFhirStore(healthcareDataset, deidFhirStoreId, version, null);
 
     // Execute bundles to populate some data.
     FhirIOTestUtil.executeFhirBundles(
@@ -72,10 +73,12 @@ public class FhirIOLROIT {
 
   @After
   public void deleteAllFhirStores() throws IOException {
-    HealthcareApiClient client = new HttpHealthcareApiClient();
-    List<FhirStore> fhirStores = client.listAllFhirStores(healthcareDataset);
-    for (FhirStore fs : fhirStores) {
-      client.deleteFhirStore(fs.getName());
+    try {
+      HealthcareApiClient client = new HttpHealthcareApiClient();
+      client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
+      client.deleteFhirStore(healthcareDataset + "/fhirStores/" + deidFhirStoreId);
+    } catch (IOException e) {
+      // Do nothing.
     }
   }
 
@@ -97,9 +100,7 @@ public class FhirIOLROIT {
   @Test
   public void test_FhirIO_deidentify() throws IOException {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
-    String destinationFhirStoreId = fhirStoreId + "_deid";
-    client.createFhirStore(healthcareDataset, destinationFhirStoreId, version, null);
-    String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + destinationFhirStoreId;
+    String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + deidFhirStoreId;
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
     pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
     pipeline.run();
