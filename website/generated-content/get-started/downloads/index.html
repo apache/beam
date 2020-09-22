@@ -27,8 +27,9 @@ signature should be matched against the
 keys of Apache Beam&rsquo;s Release Managers. We also provide SHA-512 checksums for
 every release file (or SHA-1 and MD5 checksums for older releases). After you
 download the file, you should calculate a checksum for your download, and make
-sure it is the same as ours.</p><h2 id=api-stability>API stability</h2><p>Apache Beam uses <a href=https://semver.org/>semantic versioning</a>. Version numbers use
-the form <code>major.minor.incremental</code> and are incremented as follows:</p><ul><li>major version for incompatible API changes</li><li>minor version for new functionality added in a backward-compatible manner</li><li>incremental version for forward-compatible bug fixes</li></ul><p>Please note that APIs marked <a href=https://beam.apache.org/releases/javadoc/2.24.0/org/apache/beam/sdk/annotations/Experimental.html><code>@Experimental</code></a>
+sure it is the same as ours.</p><h2 id=api-stability>API stability</h2><p>Apache Beam generally follows the rules of
+<a href=https://semver.org/>semantic versioning</a> with exceptions. Version numbers use
+the form <code>major.minor.incremental</code> and are incremented as follows:</p><ul><li>major version for incompatible API changes</li><li>minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes</li><li>incremental version for forward-compatible bug fixes</li></ul><p>Please note that APIs marked <a href=https://beam.apache.org/releases/javadoc/2.24.0/org/apache/beam/sdk/annotations/Experimental.html><code>@Experimental</code></a>
 may change at any point and are not guaranteed to remain compatible across versions.</p><p>Additionally, any API may change before the first stable release, i.e., between
 versions denoted <code>0.x.y</code>.</p><h2 id=releases>Releases</h2><h3 id=2240-2020-09-18>2.24.0 (2020-09-18)</h3><p>Official <a href=http://www.apache.org/dyn/closer.cgi/beam/2.24.0/apache-beam-2.24.0-source-release.zip>source code download</a>.
 <a href=https://downloads.apache.org/beam/2.24.0/apache-beam-2.24.0-source-release.zip.sha512>SHA-512</a>.

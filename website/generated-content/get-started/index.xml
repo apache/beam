@@ -1580,11 +1580,12 @@ every release file (or SHA-1 and MD5 checksums for older releases). After you
 download the file, you should calculate a checksum for your download, and make
 sure it is the same as ours.&lt;/p>
 &lt;h2 id="api-stability">API stability&lt;/h2>
-&lt;p>Apache Beam uses &lt;a href="https://semver.org/">semantic versioning&lt;/a>. Version numbers use
+&lt;p>Apache Beam generally follows the rules of
+&lt;a href="https://semver.org/">semantic versioning&lt;/a> with exceptions. Version numbers use
 the form &lt;code>major.minor.incremental&lt;/code> and are incremented as follows:&lt;/p>
 &lt;ul>
 &lt;li>major version for incompatible API changes&lt;/li>
-&lt;li>minor version for new functionality added in a backward-compatible manner&lt;/li>
+&lt;li>minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes&lt;/li>
 &lt;li>incremental version for forward-compatible bug fixes&lt;/li>
 &lt;/ul>
 &lt;p>Please note that APIs marked &lt;a href="https://beam.apache.org/releases/javadoc/2.24.0/org/apache/beam/sdk/annotations/Experimental.html">&lt;code>@Experimental&lt;/code>&lt;/a>
