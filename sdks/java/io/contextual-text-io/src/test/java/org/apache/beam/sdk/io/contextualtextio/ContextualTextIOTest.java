@@ -764,8 +764,7 @@ public class ContextualTextIOTest {
     public static class GetDetails extends DoFn<RecordWithMetadata, String> {
       @ProcessElement
       public void processElement(@Element RecordWithMetadata record, OutputReceiver<String> out) {
-        out.output(
-            record.getFileName() + " " + record.getRecordNum() + " " + record.getValue());
+        out.output(record.getFileName() + " " + record.getRecordNum() + " " + record.getValue());
       }
     }
 

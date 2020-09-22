@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.contextualtextio;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
@@ -35,32 +34,47 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
  *       RecordWithMetadata#getRecordOffset()}
  *   <li>recordNum: The ordinal number of the record in its file. {@link
  *       RecordWithMetadata#getRecordNum()}
- *   <li>recordValue: The value / contents of the record {@link RecordWithMetadata#getValue()}
+ *   <li>recordValue: The value / contents of the record. {@link RecordWithMetadata#getValue()}
  *   <li>rangeOffset: The starting offset of the range (split), which contained the record, when the
  *       record was read. {@link RecordWithMetadata#getRangeOffset()}
  *   <li>recordNumInOffset: The record number relative to the Range. (line number within the range)
  *       {@link RecordWithMetadata#getRecordNumInOffset()}
  *   <li>fileName: Name of the file to which the record belongs (this is the full filename,
- *       eg:path/to/file.txt) {@link RecordWithMetadata#getFileName()}
+ *       eg:path/to/file.txt). {@link RecordWithMetadata#getFileName()}
  * </ul>
  */
 @Experimental(Experimental.Kind.SCHEMAS)
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class RecordWithMetadata {
+  /**
+   * Returns the offset of the record (the byte at which the record begins) in a file. This
+   * information can be useful if you wish to reconstruct the file.
+   */
   public abstract long getRecordOffset();
 
+  /** Returns the ordinal number of the record in its file. */
   public abstract long getRecordNum();
 
+  /** Returns the value / content of the Record */
   public abstract String getValue();
 
+  /**
+   * Returns the starting offset of the range (split), which contained the record, when the record
+   * was read.
+   */
   public abstract long getRangeOffset();
 
+  /** Returns the record number relative to the Range. */
   public abstract long getRecordNumInOffset();
 
-  public abstract Builder toBuilder();
-
+  /**
+   * Returns the name of the file to which the record belongs (this is the full filename,
+   * eg:path/to/file.txt).
+   */
   public abstract String getFileName();
+
+  public abstract Builder toBuilder();
 
   public static Builder newBuilder() {
     return new AutoValue_RecordWithMetadata.Builder();
@@ -72,7 +86,7 @@ public abstract class RecordWithMetadata {
 
     public abstract Builder setRecordOffset(long recordOffset);
 
-    public abstract Builder setValue(String Value);
+    public abstract Builder setValue(String value);
 
     public abstract Builder setFileName(String fileName);
 

@@ -135,11 +135,9 @@ import org.slf4j.LoggerFactory;
  * <p>Example 4: reading a file or file pattern of RFC4180-compliant CSV files with fields that may
  * contain line breaks.
  *
- * Example of such a file could be:
+ * <p>Example of such a file could be:
  *
- * "aaa","b CRLF
- *  bb","ccc" CRLF
- *  zzz,yyy,xxx
+ * <p>"aaa","b CRLF bb","ccc" CRLF zzz,yyy,xxx
  *
  * <pre>{@code
  * Pipeline p = ...;
@@ -475,7 +473,7 @@ public class ContextualTextIO {
         Map<String, Long> pastRecords = new HashMap<>();
 
         // For each (File, Range) Pair, compute the number of records before it
-        for (Map.Entry entry : sorted.entrySet()) {
+        for (Map.Entry<KV<String, Long>, Long> entry : sorted.entrySet()) {
           Long numRecords = (long) entry.getValue();
           KV<String, Long> fileRange = (KV<String, Long>) entry.getKey();
           String file = fileRange.getKey();
@@ -505,16 +503,13 @@ public class ContextualTextIO {
         RecordWithMetadata record = p.element().getValue();
         Long numRecordsLessThanThisRange =
             p.sideInput(numRecordsBeforeEachRange).get(KV.of(file, range));
-        RecordWithMetadata newLine =
-            RecordWithMetadata.newBuilder()
-                .setValue(record.getValue())
-                .setRecordOffset(record.getRecordOffset())
+        // update the recordNum in record
+        record =
+            record
+                .toBuilder()
                 .setRecordNum(record.getRecordNumInOffset() + numRecordsLessThanThisRange)
-                .setFileName(record.getFileName())
-                .setRangeOffset(record.getRangeOffset())
-                .setRecordNumInOffset(record.getRecordNumInOffset())
                 .build();
-        p.output(newLine);
+        p.output(record);
       }
     }
 

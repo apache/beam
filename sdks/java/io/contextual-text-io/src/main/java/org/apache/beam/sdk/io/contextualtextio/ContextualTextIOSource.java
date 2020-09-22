@@ -103,6 +103,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
     return new MultiLineTextBasedReader(this, delimiter, hasMultilineCSVRecords);
   }
 
+  /** Returns the {@link Coder Coder} for {@link RecordWithMetadata RecordWithMetadata} */
   @Override
   public Coder<RecordWithMetadata> getOutputCoder() {
     SchemaCoder<RecordWithMetadata> coder = null;
@@ -195,16 +196,12 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
           requiredPosition = startOffset - delimiter.length;
         }
         ((SeekableByteChannel) channel).position(requiredPosition);
-        findDelimiterBoundsWithMultiLineCheck();
+        findDelimiterBounds();
         buffer = buffer.substring(endOfDelimiterInBuffer);
         startOfNextRecord = requiredPosition + endOfDelimiterInBuffer;
         endOfDelimiterInBuffer = 0;
         startOfDelimiterInBuffer = 0;
       }
-    }
-
-    private void findDelimiterBoundsWithMultiLineCheck() throws IOException {
-      findDelimiterBounds();
     }
 
     /**
@@ -298,7 +295,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
     protected boolean readNextRecord() throws IOException {
       startOfRecord = startOfNextRecord;
 
-      findDelimiterBoundsWithMultiLineCheck();
+      findDelimiterBounds();
 
       // If we have reached EOF file and consumed all of the buffer then we know
       // that there are no more records.
