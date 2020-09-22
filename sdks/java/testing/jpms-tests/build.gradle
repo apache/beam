@@ -47,14 +47,3 @@ plugins.withType(JavaPlugin).configureEach{
         modularity.inferModulePath = true
     }
 }
-
-// Fails to compile on JDK < 9
-compileTestJava.onlyIf {
-  JavaVersion.current() == JavaVersion.VERSION_11
-}
-compileJava.onlyIf {
-  JavaVersion.current() == JavaVersion.VERSION_11
-}
-integrationTest.onlyIf {
-  JavaVersion.current() == JavaVersion.VERSION_11
-}
