@@ -363,7 +363,15 @@ class InteractiveEnvironment(object):
     """Gets the recording manager for the given pipeline."""
     recording_manager = self._recording_managers.get(str(id(pipeline)), None)
     if not recording_manager and create_if_absent:
-      recording_manager = RecordingManager(pipeline)
+      # Get the pipeline variable name for the user. This is useful if the user
+      # has multiple pipelines.
+      pipeline_var = ''
+      for w in self.watching():
+        for var, val in w:
+          if val is pipeline:
+            pipeline_var = var
+            break
+      recording_manager = RecordingManager(pipeline, pipeline_var)
       self._recording_managers[str(id(pipeline))] = recording_manager
     return recording_manager
 
