@@ -67,8 +67,8 @@ class DeferredBase(object):
     else:
       if expr.requires_partition_by() != partitionings.Singleton():
         raise ValueError(
-            'Scalar expression %s partitoned by non-singleton %s' %
-            (expr, expr.requires_partition_by()))
+            'Scalar expression %s of type %s partitoned by non-singleton %s' %
+            (expr, proxy_type, expr.requires_partition_by()))
       wrapper_type = _DeferredScalar
     return wrapper_type(expr)
 
