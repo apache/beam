@@ -128,14 +128,14 @@ The GEOGRAPHY data type works with Well-Known Text (See <a href=https://en.wikip
 format for reading and writing to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
 encoding when writing to BigQuery. When bytes are read from BigQuery they are
-returned as base64-encoded bytes.</p><h2 id=reading-from-bigquery>Reading from BigQuery</h2><p>BigQueryIO allows you to read from a BigQuery table, or read the results of an
-arbitrary SQL query string. By default, Beam invokes a <a href=https://cloud.google.com/bigquery/docs/exporting-data>BigQuery export
+returned as base64-encoded bytes.</p><h2 id=reading-from-bigquery>Reading from BigQuery</h2><p>BigQueryIO allows you to read from a BigQuery table, or to execute a SQL query
+and read the results. By default, Beam invokes a <a href=https://cloud.google.com/bigquery/docs/exporting-data>BigQuery export
 request</a> when you apply a
-BigQueryIO read transform. However, the Beam SDK for Java (version 2.11.0 and
-later) adds support for the beta release of the <a href=https://cloud.google.com/bigquery/docs/reference/storage/>BigQuery Storage API</a>
-as an <a href=https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html>experimental feature</a>.
-See <a href=#storage-api>Using the BigQuery Storage API</a> for more information and a
-list of limitations.</p><blockquote><p>Beam’s use of BigQuery APIs is subject to BigQuery&rsquo;s
+BigQueryIO read transform. However, the Beam SDK for Java also supports using
+the <a href=https://cloud.google.com/bigquery/docs/reference/storage>BigQuery Storage
+API</a> to read directly
+from BigQuery storage. See <a href=#storage-api>Using the BigQuery Storage API</a> for
+more information.</p><blockquote><p>Beam’s use of BigQuery APIs is subject to BigQuery&rsquo;s
 <a href=https://cloud.google.com/bigquery/quota-policy>Quota</a>
 and <a href=https://cloud.google.com/bigquery/pricing>Pricing</a> policies.</p></blockquote><p class=language-java>The Beam SDK for Java has two BigQueryIO read methods. Both of these methods
 allow you to read from a table, or read fields using a query string.</p><span class=language-java><ol><li><p><code>read(SerializableFunction)</code> reads Avro-formatted records and uses a
@@ -244,13 +244,14 @@ in the following example:</p><div class=language-java><div class=highlight><pre 
         <span class=n>use_standard_sql</span><span class=o>=</span><span class=bp>True</span><span class=p>))</span>
     <span class=c1># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>elem</span><span class=p>:</span> <span class=n>elem</span><span class=p>[</span><span class=s1>&#39;max_temperature&#39;</span><span class=p>]))</span></code></pre></div></div><h3 id=storage-api>Using the BigQuery Storage API</h3><p>The <a href=https://cloud.google.com/bigquery/docs/reference/storage/>BigQuery Storage API</a>
-allows you to directly access tables in BigQuery storage. As a result, your
-pipeline can read from BigQuery storage faster than previously possible.</p><p>The Beam SDK for Java (version 2.11.0 and later) adds support for the beta
-release of the BigQuery Storage API as an <a href=https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html>experimental feature</a>.
-Beam&rsquo;s support for the BigQuery Storage API has the following limitations:</p><ul><li>The SDK for Python does not support the BigQuery Storage API.</li><li>SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
-can only read from a table.</li><li>SDK versions before 2.15.0 do not support dynamic work rebalancing. As a
-result, reads might be less efficient in the presence of stragglers.</li></ul><p>Because this is currently a Beam experimental feature, export based reads are
-recommended for production jobs.</p><h4 id=updating-your-code>Updating your code</h4><p>Use the following methods when you read from a table:</p><ul><li>Required: Specify <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method->withMethod(Method.DIRECT_READ)</a> to use the BigQuery Storage API for the read operation.</li><li>Optional: To use features such as <a href=https://cloud.google.com/bigquery/docs/reference/storage/>column projection and column filtering</a>, you must specify <a href=https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withSelectedFields-java.util.List->withSelectedFields</a> and <a href=https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withRowRestriction-java.lang.String->withRowRestriction</a> respectively.</li></ul><p>The following code snippet reads from a table. This example is from the <a href=https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java>BigQueryTornadoes
+allows you to directly access tables in BigQuery storage, and supports features
+such as column selection and predicate filter push-down which can allow more
+efficient pipeline execution.</p><p>The Beam SDK for Java supports using the BigQuery Storage API when reading from
+BigQuery. SDK versions before 2.24.0 support the BigQuery Storage API as an
+<a href=https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html>experimental feature</a>
+and use the pre-GA BigQuery Storage API surface. Callers should migrate
+pipelines which use the BigQuery Storage API to use SDK version 2.24.0 or later.</p><p>The Beam SDK for Python does not support the BigQuery Storage API. See
+<a href=https://issues.apache.org/jira/browse/BEAM-10917>BEAM-10917</a>).</p><h4 id=updating-your-code>Updating your code</h4><p>Use the following methods when you read from a table:</p><ul><li>Required: Specify <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method->withMethod(Method.DIRECT_READ)</a> to use the BigQuery Storage API for the read operation.</li><li>Optional: To use features such as <a href=https://cloud.google.com/bigquery/docs/reference/storage/>column projection and column filtering</a>, you must specify <a href=https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withSelectedFields-java.util.List->withSelectedFields</a> and <a href=https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withRowRestriction-java.lang.String->withRowRestriction</a> respectively.</li></ul><p>The following code snippet reads from a table. This example is from the <a href=https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java>BigQueryTornadoes
 example</a>.
 When the example&rsquo;s read method option is set to <code>DIRECT_READ</code>, the pipeline uses
 the BigQuery Storage API and column projection to read public samples of weather
