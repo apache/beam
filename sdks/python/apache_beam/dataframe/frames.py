@@ -275,8 +275,9 @@ class DeferredDataFrame(frame_base.DeferredFrame):
           "Indexing with a deferred frame is not yet supported. Consider "
           "using df.loc[...]")
 
-    if (isinstance(key, list) and key_column in self._expr.proxy().columns
-        for key_column in key) or key in self._expr.proxy().columns:
+    if (isinstance(key, list) and
+        all(key_column in self._expr.proxy().columns
+            for key_column in key)) or key in self._expr.proxy().columns:
       return self._elementwise(lambda df: df[key], 'get_column')
     else:
       raise NotImplementedError(key)
