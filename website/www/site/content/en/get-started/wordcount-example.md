@@ -1210,7 +1210,7 @@ each element in the `PCollection`.
 {{< /highlight >}}
 
 {{< highlight py >}}
-beam.Map(AddTimestampFn(timestamp_seconds))
+beam.Map(AddTimestampFn(timestamp_seconds_min, timestamp_seconds_max))
 {{< /highlight >}}
 
 {{< highlight go >}}
