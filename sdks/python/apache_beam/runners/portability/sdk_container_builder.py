@@ -67,35 +67,37 @@ _LOGGER = logging.getLogger(__name__)
 class SdkContainerBuilder(object):
   def __init__(self, options):
     self._options = options
-    self._temp_src_dir = tempfile.mkdtemp()
     self._docker_registry_push_url = self._options.view_as(
         SetupOptions).docker_registry_push_url
+    self._temp_src_dir = None
 
   def build(self):
     container_id = str(uuid.uuid4())
     container_tag = os.path.join(
         self._docker_registry_push_url or '',
         'beam_python_prebuilt_sdk:%s' % container_id)
-    self.prepare_dependencies()
-    self.invoke_docker_build_and_push(container_id, container_tag)
+    with tempfile.TemporaryDirectory() as temp_folder:
+      self._temp_src_dir = temp_folder
+      self.prepare_dependencies()
+      self.invoke_docker_build_and_push(container_id, container_tag)
 
     return container_tag
 
   def prepare_dependencies(self):
-    tmp = tempfile.mkdtemp()
-    resources = Stager.create_job_resources(self._options, tmp)
-    # make a copy of the staged artifacts into the temp source folder.
-    for path, name in resources:
-      shutil.copyfile(path, os.path.join(self._temp_src_dir, name))
-    with open(os.path.join(self._temp_src_dir, 'Dockerfile'), 'w') as file:
-      file.write(
-          DOCKERFILE_TEMPLATE.format(
-              major=sys.version_info[0],
-              minor=sys.version_info[1],
-              workdir=ARTIFACTS_CONTAINER_DIR,
-              manifest_file=ARTIFACTS_MANIFEST_FILE,
-              entrypoint=SDK_CONTAINER_ENTRYPOINT))
-    self.generate_artifacts_manifests_json_file(resources, self._temp_src_dir)
+    with tempfile.TemporaryDirectory() as tmp:
+      resources = Stager.create_job_resources(self._options, tmp)
+      # make a copy of the staged artifacts into the temp source folder.
+      for path, name in resources:
+        shutil.copyfile(path, os.path.join(self._temp_src_dir, name))
+      with open(os.path.join(self._temp_src_dir, 'Dockerfile'), 'w') as file:
+        file.write(
+            DOCKERFILE_TEMPLATE.format(
+                major=sys.version_info[0],
+                minor=sys.version_info[1],
+                workdir=ARTIFACTS_CONTAINER_DIR,
+                manifest_file=ARTIFACTS_MANIFEST_FILE,
+                entrypoint=SDK_CONTAINER_ENTRYPOINT))
+      self.generate_artifacts_manifests_json_file(resources, self._temp_src_dir)
 
   def invoke_docker_build_and_push(self, container_id, container_tag):
     raise NotImplementedError
