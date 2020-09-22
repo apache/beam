@@ -18,7 +18,7 @@
 r"""Utilities for relating schema-aware PCollections and dataframe transforms.
 
 Imposes a mapping between native Python typings (specifically those compatible
-with apache_beam.typehints.schemas), and common pandas dtypes.
+with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
 
   pandas dtype                    Python typing
   np.int{8,16,32,64}      <-----> np.int{8,16,32,64}*
@@ -28,18 +28,18 @@ with apache_beam.typehints.schemas), and common pandas dtypes.
   Not supported           <------ Optional[bytes]
   np.bool                 <-----> np.bool
 
-* int, float, bool are treated the same as np.int64, np.float64, np.bool
+  * int, float, bool are treated the same as np.int64, np.float64, np.bool
 
-Any unknown or unsupported types are trested as Any and shunted to
-np.object:
+Any unknown or unsupported types are treated as :code:`Any` and shunted to
+:code:`np.object`::
 
   np.object               <-----> Any
 
 bytes, unicode strings and nullable Booleans are handled differently when using
 pandas 0.x vs. 1.x. pandas 0.x has no mapping for these types, so they are
-shunted to np.object.
+shunted to :code:`np.object`.
 
-pandas 1.x Only:
+pandas 1.x Only::
 
   np.dtype('S')     <-----> bytes
   pd.BooleanDType() <-----> Optional[bool]
@@ -47,15 +47,15 @@ pandas 1.x Only:
                        \--- str
 
 Pandas does not support hierarchical data natively. Currently, all structured
-types (Sequence, Mapping, nested NamedTuple types), will be shunted lossily to
-np.object/Any like all other unknown types. In the future these types may be
-given special consideration.
-
-TODO: Mapping for date/time types
-https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
+types (:code:`Sequence`, :code:`Mapping`, nested :code:`NamedTuple` types), are
+shunted to :code:`np.object` like all other unknown types. In the future these
+types may be given special consideration.
 """
 
 # pytype: skip-file
+
+#TODO: Mapping for date/time types
+#https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
 
 from __future__ import absolute_import
 
