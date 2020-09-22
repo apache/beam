@@ -320,8 +320,9 @@ public class SparkProcessKeyedElements {
           final List<WindowedValue<OutputT>> outputs = outputHolder.getWindowedValues();
 
           if (!outputs.isEmpty() || !stateInternals.getState().isEmpty()) {
-
+            LOG.info(encodedKey.hashCode() + ": timerInternals before clear: " + timerInternals.getTimers());
             TimerUtils.dropExpiredTimers(timerInternals, windowingStrategy);
+            LOG.info(encodedKey.hashCode() + ": timerInternals after clear: " + timerInternals.getTimers());
 
             // empty outputs are filtered later using DStream filtering
             final StateAndTimers updated =
@@ -360,6 +361,7 @@ public class SparkProcessKeyedElements {
     UpdateStateByKeyFunction(
         final ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
             processKeyedElements,
+        int sourceId,
         final List<Integer> sourceIds,
         final WindowingStrategy<?, W> windowingStrategy,
         final FullWindowedValueCoder<KV<InputT, RestrictionT>> wvInputCoder,
@@ -374,6 +376,7 @@ public class SparkProcessKeyedElements {
       this.options = options;
       this.logPrefix = logPrefix;
       this.wvOutputCoder = wvOutputCoder;
+      this.sourceIds.add(GlobalWatermarkHolder.add)
     }
 
     @Override
@@ -422,6 +425,7 @@ public class SparkProcessKeyedElements {
           final Coder<WindowedValue<OutputT>> wvOutputCoder,
           final WindowingStrategy<?, W> windowingStrategy,
           final SerializablePipelineOptions options,
+          final int sourceId,
           final List<Integer> sourceIds,
           final String transformFullName) {
 
@@ -435,6 +439,7 @@ public class SparkProcessKeyedElements {
         updateFunc =
             new UpdateStateByKeyFunction<>(
                 processKeyedElements,
+                sourceId,
                 sourceIds,
                 windowingStrategy,
                 (FullWindowedValueCoder<KV<InputT, RestrictionT>>) wvInputCoder,

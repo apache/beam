@@ -355,7 +355,7 @@ public final class StreamingTransformTranslator {
             (WindowedValueCoder<OutputT>)
                 WindowedValue.FullWindowedValueCoder.of(
                     Iterables.getOnlyElement(outputCoders.values()), windowFn.windowCoder());
-
+        GlobalWatermarkHolder.
         JavaDStream<WindowedValue<OutputT>> all =
             SparkProcessKeyedElements.processKeyedElements(
                 transform,
@@ -364,6 +364,7 @@ public final class StreamingTransformTranslator {
                 wvOutputCoder,
                 windowingStrategy,
                 options,
+                inputDataset.
                 streamSources,
                 context.getCurrentTransform().getFullName());
         context.putDataset((PTransform) transform, new UnboundedDataset<>(all, streamSources));
