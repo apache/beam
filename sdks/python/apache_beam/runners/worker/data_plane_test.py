@@ -121,6 +121,9 @@ class DataChannelTest(unittest.TestCase):
         ])
     if time_based_flush:
       # Wait to ensure stream21 is flushed before stream22.
+      # Because the flush callback is invoked periodically starting from when a
+      # stream is constructed, there is no guarantee that one stream's callback
+      # is called before the other.
       time.sleep(0.1)
     else:
       stream21.close()
