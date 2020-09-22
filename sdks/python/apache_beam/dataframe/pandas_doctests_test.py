@@ -310,8 +310,12 @@ class DoctestTest(unittest.TestCase):
         pd.core.indexing,
         use_beam=False,
         skip={
-            'pandas.core.indexing._AtIndexer': ['*'],
             'pandas.core.indexing._IndexSlice': ['*'],
+            'pandas.core.indexing.IndexingMixin.at': ['*'],
+            'pandas.core.indexing.IndexingMixin.iat': ['*'],
+            'pandas.core.indexing.IndexingMixin.iloc': ['*'],
+            'pandas.core.indexing.IndexingMixin.loc': ['*'],
+            'pandas.core.indexing._AtIndexer': ['*'],
             'pandas.core.indexing._LocIndexer': ['*'],
             'pandas.core.indexing._iAtIndexer': ['*'],
             'pandas.core.indexing._iLocIndexer': ['*'],
