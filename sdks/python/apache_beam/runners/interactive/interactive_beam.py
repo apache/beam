@@ -220,21 +220,8 @@ class Recordings():
     if pipeline:
       ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
 
-    watching = ie.current_env().watching()
     description = ie.current_env().describe_all_recordings()
 
-    # In the case that the user has multiple pipelines, this correlates the
-    # pipeline object to the variable name.
-    for p in description:
-      for w in watching:
-        found = False
-        for var, val in w:
-          if val is p:
-            description[p]['pipeline_var'] = var
-            found = True
-            break
-        if found:
-          break
     if pipeline:
       return description[pipeline]
     return description
