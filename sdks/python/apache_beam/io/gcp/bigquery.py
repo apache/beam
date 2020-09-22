@@ -674,6 +674,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.use_json_exports = use_json_exports
     self._job_name = job_name or 'AUTOMATIC_JOB_NAME'
     self._step_name = step_name
+    self._source_uuid = str(uuid.uuid4())[0:10]
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -712,9 +713,9 @@ class _CustomBigQuerySource(BoundedSource):
       project = self._get_project()
       query_job_name = bigquery_tools.generate_bq_job_name(
           self._job_name,
-          'READ_STEP',
+          self._source_uuid,
           bigquery_tools.BigQueryJobTypes.QUERY,
-          random.randint(0, 100))
+          random.randint(0, 1000))
       job = bq._start_query_job(
           project,
           self.query.get(),
@@ -797,9 +798,9 @@ class _CustomBigQuerySource(BoundedSource):
   def _execute_query(self, bq):
     query_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
-        'READ_STEP',
+        self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
-        random.randint(0, 100))
+        random.randint(0, 1000))
     job = bq._start_query_job(
         self._get_project(),
         self.query.get(),
@@ -823,9 +824,9 @@ class _CustomBigQuerySource(BoundedSource):
         self.bigquery_job_labels)
     export_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
-        'EXPORT_STEP',
+        self._source_uuid,
         bigquery_tools.BigQueryJobTypes.EXPORT,
-        random.randint(0, 100))
+        random.randint(0, 1000))
     if self.use_json_exports:
       job_ref = bq.perform_extract_job([self.gcs_location],
                                        export_job_name,
