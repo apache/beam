@@ -23,14 +23,13 @@ import time
 import warnings
 
 import apache_beam as beam
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import pipeline_instrument as pi
 from apache_beam.runners.interactive import utils
-from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
-from apache_beam.runners.interactive.options.capture_limiters import ProcessingTimeLimiter
 from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
@@ -102,9 +101,9 @@ class ElementStream:
     coder = cache_manager.load_pcoder('full', self._cache_key)
 
     # Read the elements from the cache.
-    limiters = [
-        CountLimiter(self._n), ProcessingTimeLimiter(self._duration_secs)
-    ]
+    # Import limiters here to prevent a circular import.
+    from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
+    from apache_beam.runners.interactive.options.capture_limiters import ProcessingTimeLimiter
     reader, _ = cache_manager.read('full', self._cache_key, tail=tail)
 
     # Because a single TestStreamFileRecord can yield multiple elements, we
@@ -114,14 +113,23 @@ class ElementStream:
     # all elements from the cache were read. In the latter situation, it may be
     # the case that the pipeline was still running. Thus, another invocation of
     # `read` will yield new elements.
+    count_limiter = CountLimiter(self._n)
+    time_limiter = ProcessingTimeLimiter(self._duration_secs)
+    limiters = (count_limiter, time_limiter)
     for e in utils.to_element_list(reader,
                                    coder,
                                    include_window_info=True,
-                                   n=self._n):
-      for l in limiters:
-        l.update(e)
+                                   n=self._n,
+                                   include_time_events=True):
 
-      yield e
+      # From the to_element_list we either get TestStreamPayload.Events if
+      # include_time_events or decoded elements from the reader. Make sure we
+      # only count the decoded elements to break early.
+      if isinstance(e, TestStreamPayload.Event):
+        time_limiter.update(e)
+      else:
+        count_limiter.update(e)
+        yield e
 
       if any(l.is_triggered() for l in limiters):
         break
@@ -144,7 +152,6 @@ class Recording:
       pipeline_instrument,  # type: beam.runners.interactive.PipelineInstrument
       max_n,  # type: int
       max_duration_secs,  # type: float
-      start_time_for_test=None  # type: int
       ):
 
     self._user_pipeline = user_pipeline
@@ -165,7 +172,7 @@ class Recording:
         for pcoll in pcolls
     }
 
-    self._start = start_time_for_test if start_time_for_test else time.time()
+    self._start = time.time()
     self._duration_secs = max_duration_secs
     self._set_computed = bcj.is_cache_complete(str(id(user_pipeline)))
 
@@ -256,7 +263,7 @@ class Recording:
 
     size = sum(
         cache_manager.size('full', s.cache_key) for s in self._streams.values())
-    return {'size': size, 'start': self._start}
+    return {'size': size}
 
 
 class RecordingManager:
@@ -265,7 +272,8 @@ class RecordingManager:
     # type: (beam.Pipeline) -> None
 
     self.user_pipeline = user_pipeline  # type: beam.Pipeline
-    self._recordings = set()  # type: Set[Recording]
+    self._recordings = set()  # type: set[Recording]
+    self._start_time_sec = 0  # type: float
 
   def _watch(self, pcolls):
     # type: (List[beam.pvalue.PCollection]) -> None
@@ -295,13 +303,25 @@ class RecordingManager:
 
     # Only clear the PCollections that aren't being populated from the
     # BackgroundCachingJob.
-    all_cached = set(
-        str(c.to_key()) for c in pipeline_instrument.cacheables.values())
+    computed = ie.current_env().computed_pcollections
+    cacheables = [
+        c for c in pipeline_instrument.cacheables.values()
+        if c.pcoll.pipeline is self.user_pipeline and c.pcoll not in computed
+    ]
+    all_cached = set(str(c.to_key()) for c in cacheables)
     source_pcolls = getattr(cache_manager, 'capture_keys', set())
     to_clear = all_cached - source_pcolls
 
     for cache_key in to_clear:
       cache_manager.clear('full', cache_key)
+
+  def clear(self):
+    # type: () -> None
+
+    """Clears all cached PCollections for this RecordingManager."""
+    cache_manager = ie.current_env().get_cache_manager(self.user_pipeline)
+    if cache_manager:
+      cache_manager.cleanup()
 
   def cancel(self):
     # type: (None) -> None
@@ -314,15 +334,52 @@ class RecordingManager:
       r.wait_until_finish()
     self._recordings = set()
 
+    # The recordings rely on a reference to the BCJ to correctly finish. So we
+    # evict the BCJ after they complete.
+    ie.current_env().evict_background_caching_job(self.user_pipeline)
+
   def describe(self):
     # type: () -> dict[str, int]
 
     """Returns a dictionary describing the cache and recording."""
 
+    cache_manager = ie.current_env().get_cache_manager(self.user_pipeline)
+    capture_size = getattr(cache_manager, 'capture_size', 0)
+
     descriptions = [r.describe() for r in self._recordings]
-    size = sum(d['size'] for d in descriptions)
-    start = min(d['start'] for d in descriptions)
-    return {'size': size, 'start': start}
+    size = sum(d['size'] for d in descriptions) + capture_size
+    start = self._start_time_sec
+    bcj = ie.current_env().get_background_caching_job(self.user_pipeline)
+    if bcj:
+      state = bcj.state
+    else:
+      state = PipelineState.STOPPED
+    return {'size': size, 'start': start, 'state': state}
+
+  def record_pipeline(self):
+    # type: () -> bool
+
+    """Starts a background caching job for this RecordingManager's pipeline."""
+
+    runner = self.user_pipeline.runner
+    if isinstance(runner, ir.InteractiveRunner):
+      runner = runner._underlying_runner
+
+    # Make sure that sources without a user reference are still cached.
+    pi.watch_sources(self.user_pipeline)
+
+    # Attempt to run background caching job to record any sources.
+    if ie.current_env().is_in_ipython:
+      warnings.filterwarnings(
+          'ignore',
+          'options is deprecated since First stable release. References to '
+          '<pipeline>.options will not be supported',
+          category=DeprecationWarning)
+    if bcj.attempt_to_run_background_caching_job(
+        runner, self.user_pipeline, options=self.user_pipeline.options):
+      self._start_time_sec = time.time()
+      return True
+    return False
 
   def record(self, pcolls, max_n, max_duration_secs):
     # type: (List[beam.pvalue.PCollection], int, int) -> Recording
@@ -336,13 +393,6 @@ class RecordingManager:
         ' other PCollections ({}).'.format(
             pcoll, pcoll.pipeline, self.user_pipeline))
 
-    runner = self.user_pipeline.runner
-    if isinstance(runner, ir.InteractiveRunner):
-      runner = runner._underlying_runner
-
-    # Make sure that sources without a user reference are still cached.
-    pi.watch_sources(self.user_pipeline)
-
     # Make sure that all PCollections to be shown are watched. If a PCollection
     # has not been watched, make up a variable name for that PCollection and
     # watch it. No validation is needed here because the watch logic can handle
@@ -350,15 +400,8 @@ class RecordingManager:
     self._watch(pcolls)
     pipeline_instrument = pi.PipelineInstrument(self.user_pipeline)
 
-    # Attempt to run background caching job to record any sources.
-    if ie.current_env().is_in_ipython:
-      warnings.filterwarnings(
-          'ignore',
-          'options is deprecated since First stable release. References to '
-          '<pipeline>.options will not be supported',
-          category=DeprecationWarning)
-    bcj.attempt_to_run_background_caching_job(
-        runner, self.user_pipeline, options=self.user_pipeline.options)
+    pipeline_instrument = pi.PipelineInstrument(self.user_pipeline)
+    self.record_pipeline()
 
     # Get the subset of computed PCollections. These do not to be recomputed.
     computed_pcolls = set(
