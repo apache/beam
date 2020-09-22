@@ -2544,15 +2544,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testCreateFunctionNoSelectThrowsException() {
-    String sql = "CREATE FUNCTION plusOne(x INT64) AS (x + 1);";
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Statement list must end in a SELECT statement, not CreateFunctionStmt");
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
-  }
-
-  @Test
   public void testDistinct() {
     String sql = "SELECT DISTINCT Key2 FROM aggregate_test_table";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
