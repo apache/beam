@@ -33,7 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** End to end test of word count using JPMS */
+/** End to end test of word count using JPMS. */
 @RunWith(JUnit4.class)
 public class JpmsIT {
   private static final String DEFAULT_INPUT =

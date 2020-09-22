@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 plugins {
-    id 'org.apache.beam.module'
+  id 'org.apache.beam.module'
 }
 javaVersion="1.11"
 applyJavaNature(
-        enableChecker:false,
-        exportJavadoc: false,
-        publish: false,
-        disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic']
+  enableChecker:false,
+  exportJavadoc: false,
+  publish: false,
+  disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic']
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -32,28 +32,25 @@ description = "Apache Beam :: SDKs :: Java :: Testing :: JPMS Tests"
 ext.summary = "E2E test for Java 9 modules"
 
 dependencies {
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile project(path: ":runners:direct-java")
-    compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":runners:direct-java")
+  compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
 
-    testCompile library.java.junit
-    testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
 }
 
 // Activate module support
 // https://docs.gradle.org/current/samples/sample_java_modules_multi_project.html
 plugins.withType(JavaPlugin).configureEach{
-    java {
-        modularity.inferModulePath = true
-    }
+  java {
+    modularity.inferModulePath = true
+  }
 }
 
-compileTestJava.onlyIf {
-  JavaVersion.current() == JavaVersion.VERSION_11
-}
-compileJava.onlyIf {
-  JavaVersion.current() == JavaVersion.VERSION_11
-}
-integrationTest.onlyIf {
-  JavaVersion.current() == JavaVersion.VERSION_11
+// JPMS requires JDK > 8
+project.tasks.each {
+  it.onlyIf {
+    JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
+  }
 }
