@@ -70,7 +70,7 @@ class DeferredSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing()))
 
-  reindex = frame_base.not_implemented_method('reindex', 'BEAM-XXXX')
+  reindex = frame_base.not_implemented_method('reindex')
 
   to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
 
@@ -312,36 +312,34 @@ class DeferredDataFrame(frame_base.DeferredFrame):
           requires_partition_by=partitionings.Nothing(),
           preserves_partition_by=partitionings.Nothing()))
 
-  at = frame_base.not_implemented_method('at', 'BEAM-XXXX')
+  at = frame_base.not_implemented_method('at')
 
   @property
   def loc(self):
     return _DeferredLoc(self)
 
-  _get_index = _set_index = frame_base.not_implemented_method('index',
-                                                              'BEAM-XXXX')
+  _get_index = _set_index = frame_base.not_implemented_method('index')
   index = property(_get_index, _set_index)
 
   @property
   def axes(self):
     return (self.index, self.columns)
 
-  apply = frame_base.not_implemented_method('apply', 'BEAM-XXXX')
-  explode = frame_base.not_implemented_method('explode', 'BEAM-XXXX')
-  isin = frame_base.not_implemented_method('isin', 'BEAM-XXXX')
-  assign = frame_base.not_implemented_method('assign', 'BEAM-XXXX')
-  append = frame_base.not_implemented_method('append', 'BEAM-XXXX')
-  combine = frame_base.not_implemented_method('combine', 'BEAM-XXXX')
-  combine_first = frame_base.not_implemented_method('combine_first',
-                                                    'BEAM-XXXX')
-  cov = frame_base.not_implemented_method('cov', 'BEAM-XXXX')
-  corr = frame_base.not_implemented_method('corr', 'BEAM-XXXX')
-  count = frame_base.not_implemented_method('count', 'BEAM-XXXX')
-  dot = frame_base.not_implemented_method('dot', 'BEAM-XXXX')
-  drop = frame_base.not_implemented_method('drop', 'BEAM-XXXX')
-  eval = frame_base.not_implemented_method('eval', 'BEAM-XXXX')
-  reindex = frame_base.not_implemented_method('reindex', 'BEAM-XXXX')
-  melt = frame_base.not_implemented_method('melt', 'BEAM-XXXX')
+  apply = frame_base.not_implemented_method('apply')
+  explode = frame_base.not_implemented_method('explode')
+  isin = frame_base.not_implemented_method('isin')
+  assign = frame_base.not_implemented_method('assign')
+  append = frame_base.not_implemented_method('append')
+  combine = frame_base.not_implemented_method('combine')
+  combine_first = frame_base.not_implemented_method('combine_first')
+  cov = frame_base.not_implemented_method('cov')
+  corr = frame_base.not_implemented_method('corr')
+  count = frame_base.not_implemented_method('count')
+  dot = frame_base.not_implemented_method('dot')
+  drop = frame_base.not_implemented_method('drop')
+  eval = frame_base.not_implemented_method('eval')
+  reindex = frame_base.not_implemented_method('reindex')
+  melt = frame_base.not_implemented_method('melt')
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
@@ -827,7 +825,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       # TODO: Add support for strings in (UN)LIFTABLE_AGGREGATIONS. Test by
       # running doctests for pandas.core.groupby.generic
       raise NotImplementedError('GroupBy.agg currently only supports callable '
-                                'arguments (BEAM-XXXX)')
+                                'arguments')
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'agg',

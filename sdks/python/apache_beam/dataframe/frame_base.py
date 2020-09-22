@@ -251,7 +251,7 @@ def wont_implement_method(msg):
   return wrapper
 
 
-def not_implemented_method(op, jira):
+def not_implemented_method(op, jira='BEAM-9547'):
   def wrapper(self, *args, **kwargs):
     raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
