@@ -33,6 +33,7 @@ class TestJobServicePlan(JobServiceHandle):
     self.job_service = job_service
     self.options = None
     self.timeout = None
+    self.artifact_endpoint = None
 
   def get_pipeline_options(self):
     return None
