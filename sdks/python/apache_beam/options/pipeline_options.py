@@ -34,6 +34,7 @@ from typing import Optional
 from typing import Type
 from typing import TypeVar
 
+import apache_beam as beam
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
@@ -445,6 +446,22 @@ class CrossLanguageOptions(PipelineOptions):
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
 
 
+def additional_option_ptransform_fn():
+  beam.transforms.ptransform.ptransform_fn_typehints_enabled = True
+
+
+# Optional type checks that aren't enabled by default.
+additional_type_checks = {
+    'ptransform_fn': additional_option_ptransform_fn,
+}  # type: Dict[str, Callable[[], None]]
+
+
+def enable_all_additional_type_checks():
+  """Same as passing --type_check_additional=all."""
+  for f in additional_type_checks.values():
+    f()
+
+
 class TypeOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -455,6 +472,12 @@ class TypeOptions(PipelineOptions):
         choices=['ALL_REQUIRED', 'DEFAULT_TO_ANY'],
         help='The level of exhaustive manual type-hint '
         'annotation required')
+    parser.add_argument(
+        '--type_check_additional',
+        default='',
+        help='Comma separated list of additional type checking features to '
+        'enable. Options: all, ptransform_fn. For details see:'
+        'https://beam.apache.org/documentation/sdks/python-type-safety/')
     parser.add_argument(
         '--no_pipeline_type_check',
         dest='pipeline_type_check',
@@ -475,6 +498,26 @@ class TypeOptions(PipelineOptions):
         help='Enable faster type checking via sampling at pipeline execution '
         'time. NOTE: only supported with portable runners '
         '(including the DirectRunner)')
+
+  def validate(self, unused_validator):
+    errors = []
+    if beam.version.__version__ >= '3':
+      errors.append(
+          'Update --type_check_additional default to include all '
+          'available additional checks at Beam 3.0 release time.')
+    keys = self.type_check_additional.split(',')
+
+    for key in keys:
+      if not key:
+        continue
+      elif key == 'all':
+        enable_all_additional_type_checks()
+      elif key in additional_type_checks:
+        additional_type_checks[key]()
+      else:
+        errors.append('Unrecognized --type_check_additional feature: %s' % key)
+
+    return errors
 
 
 class DirectOptions(PipelineOptions):

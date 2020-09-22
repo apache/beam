@@ -1009,7 +1009,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Union[List[str], Tuple[str, str]])
+  @typehints.with_output_types(Union[List[str], List[Tuple[str, str]]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """
