@@ -340,6 +340,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   eval = frame_base.not_implemented_method('eval')
   reindex = frame_base.not_implemented_method('reindex')
   melt = frame_base.not_implemented_method('melt')
+  pivot = frame_base.not_implemented_method('pivot')
+  pivot_table = frame_base.not_implemented_method('pivot_table')
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
@@ -790,8 +792,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       'transform', restrictions={'axis': 0})
 
   transpose = frame_base.wont_implement_method('non-deferred column values')
-  pivot = frame_base.wont_implement_method('non-deferred column values')
-  pivot_table = frame_base.wont_implement_method('non-deferred column values')
 
   def unstack(self, *args, **kwargs):
     if self._expr.proxy().index.nlevels == 1:

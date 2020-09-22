@@ -75,7 +75,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.mode': [
                 "df.mode(axis='columns', numeric_only=True)"
             ],
-            'pandas.core.frame.DataFrame.pivot': ['*'],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.isin': ['*'],
@@ -84,6 +83,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
+
+            # We should be able to support pivot and pivot_table for categorical
+            # columns
+            'pandas.core.frame.DataFrame.pivot': ['*'],
 
             # DataFrame.__getitem__ cannot be used as loc
             'pandas.core.frame.DataFrame.query': [
@@ -145,9 +148,9 @@ class DoctestTest(unittest.TestCase):
                 'df.to_records(index_dtypes=index_dtypes)',
             ],
             # These tests use the static method pd.pivot_table, which doesn't
-            # actually raise WontImplementError
+            # actually raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
-            # Expected to raise a ValueError, but we raise WontImplement
+            # Expected to raise a ValueError, but we raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot': [
                 "df.pivot(index='foo', columns='bar', values='baz')"
             ],
