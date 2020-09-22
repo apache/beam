@@ -455,6 +455,7 @@ def BigQuerySource(
         coder=coder,
         use_standard_sql=use_standard_sql,
         flatten_results=flatten_results,
+        use_json_exports=True,
         kms_key=kms_key)
 
 
