@@ -17,36 +17,42 @@
 
 """ Support for mapping python types to proto Schemas and back again.
 
-Python              Schema
-np.int8     <-----> BYTE
-np.int16    <-----> INT16
-np.int32    <-----> INT32
-np.int64    <-----> INT64
-int         ---/
-np.float32  <-----> FLOAT
-np.float64  <-----> DOUBLE
-float       ---/
-bool        <-----> BOOLEAN
-Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
-Mapping     <-----> MapType
-Sequence    <-----> ArrayType
-NamedTuple  <-----> RowType
-beam.Row    ---/
+Imposes a mapping between common Python types and Beam portable schemas
+(https://s.apache.org/beam-schemas)::
 
-nullable=True on a Beam FieldType is represented in Python by wrapping the
-typing in Optional.
+  Python              Schema
+  np.int8     <-----> BYTE
+  np.int16    <-----> INT16
+  np.int32    <-----> INT32
+  np.int64    <-----> INT64
+  int         ---/
+  np.float32  <-----> FLOAT
+  np.float64  <-----> DOUBLE
+  float       ---/
+  bool        <-----> BOOLEAN
+  Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  Mapping     <-----> MapType
+  Sequence    <-----> ArrayType
+  NamedTuple  <-----> RowType
+  beam.Row    ---/
 
-The mappings for STRING and BYTES are different between python 2 and python 3,
-because of the changes to str:
-py3:
-str/unicode <-----> STRING
-bytes       <-----> BYTES
-ByteString  ---/
+:code:`nullable=True` on a Beam :code:`FieldType` is represented in Python by
+wrapping the type in :code:`Optional`.
 
-py2:
-str will be rejected since it is ambiguous.
-unicode     <-----> STRING
-ByteString  <-----> BYTES
+The mappings for :code:`STRING` and :code:`BYTES` are different between python
+2 and python 3, because of the changes to str.
+
+Python 3.x::
+
+  str/unicode <-----> STRING
+  bytes       <-----> BYTES
+  ByteString  ---/
+
+Python 2.x::
+
+  str will be rejected since it is ambiguous.
+  unicode     <-----> STRING
+  ByteString  <-----> BYTES
 """
 
 # pytype: skip-file
