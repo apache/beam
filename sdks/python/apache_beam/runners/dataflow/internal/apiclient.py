@@ -277,11 +277,8 @@ class Environment(object):
 
     # Setting worker pool sdk_harness_container_images option for supported
     # Dataflow workers.
-    # TODO: change the condition to just _use_unified_worker(options)
-    # when corresponding API change for Dataflow is
-    # rollback-safe.
     environments_to_use = self._get_environments_from_tranforms()
-    if _use_unified_worker(options) and len(environments_to_use) > 1:
+    if _use_unified_worker(options):
       # Adding a SDK container image for the pipeline SDKs
       container_image = dataflow.SdkHarnessContainerImage()
       pipeline_sdk_container_image = get_container_image_from_options(options)
