@@ -247,9 +247,12 @@ class InteractiveBeamTest(unittest.TestCase):
     class SizeLimiter(Limiter):
       def __init__(self, pipeline):
         self.pipeline = pipeline
+        self.should_trigger = False
 
       def is_triggered(self):
-        return ib.recordings.describe(self.pipeline)['size'] > 0
+        return (
+            ib.recordings.describe(self.pipeline)['size'] > 0 and
+            self.should_trigger)
 
     limiter = SizeLimiter(p)
     ib.options.capture_control.set_limiters_for_test([limiter])
@@ -260,6 +263,7 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertEqual(ib.recordings.describe(p)['state'], PipelineState.RUNNING)
 
     # Wait for the pipeline to start and write something to cache.
+    limiter.should_trigger = True
     for _ in range(60):
       if limiter.is_triggered():
         break
