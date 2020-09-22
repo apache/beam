@@ -62,6 +62,7 @@ public class FhirIOLROIT {
       this.client = new HttpHealthcareApiClient();
     }
     client.createFhirStore(healthcareDataset, fhirStoreId, version, null);
+    client.createFhirStore(healthcareDataset, deidFhirStoreId, version, null);
 
     // Execute bundles to populate some data.
     FhirIOTestUtil.executeFhirBundles(
@@ -99,7 +100,6 @@ public class FhirIOLROIT {
   @Test
   public void test_FhirIO_deidentify() throws IOException {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
-    client.createFhirStore(healthcareDataset, deidFhirStoreId, version, null);
     String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + deidFhirStoreId;
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
     pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
