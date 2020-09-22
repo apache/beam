@@ -1004,6 +1004,13 @@ class SetupOptions(PipelineOptions):
             'environment or google cloud build by passing the option '
             'local_docker or cloud_build.'))
     parser.add_argument(
+        '--prebuild_sdk_container_base_image',
+        default=None,
+        help=(
+            'The base image to use when pre-building the sdk container image '
+            'with dependencies, if not specified, the latest public '
+            'apache beam python sdk container image will be used.'))
+    parser.add_argument(
         '--docker_registry_push_url',
         default=None,
         help=(

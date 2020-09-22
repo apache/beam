@@ -54,7 +54,7 @@ ARTIFACTS_CONTAINER_DIR = '/opt/apache/beam/artifacts'
 ARTIFACTS_MANIFEST_FILE = 'artifacts_info.json'
 SDK_CONTAINER_ENTRYPOINT = '/opt/apache/beam/boot'
 DOCKERFILE_TEMPLATE = (
-    """FROM apache/beam_python{major}.{minor}_sdk:latest
+    """FROM {base_image}
 RUN mkdir -p {workdir}
 COPY ./* {workdir}/
 RUN {entrypoint} --setup_only --artifacts {workdir}/{manifest_file}
@@ -69,6 +69,10 @@ class SdkContainerBuilder(object):
     self._options = options
     self._docker_registry_push_url = self._options.view_as(
         SetupOptions).docker_registry_push_url
+    self._base_image = (
+        self._options.view_as(SetupOptions).prebuild_sdk_container_base_image or
+        'apache/beam_python%s.%s_sdk:latest' %
+        (sys.version_info[0], sys.version_info[1]))
     self._temp_src_dir = None
 
   def build(self):
@@ -92,8 +96,7 @@ class SdkContainerBuilder(object):
       with open(os.path.join(self._temp_src_dir, 'Dockerfile'), 'w') as file:
         file.write(
             DOCKERFILE_TEMPLATE.format(
-                major=sys.version_info[0],
-                minor=sys.version_info[1],
+                base_image=self._base_image,
                 workdir=ARTIFACTS_CONTAINER_DIR,
                 manifest_file=ARTIFACTS_MANIFEST_FILE,
                 entrypoint=SDK_CONTAINER_ENTRYPOINT))
