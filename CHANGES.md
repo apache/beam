@@ -76,7 +76,8 @@
 * Fixed support for type hints on `@ptransform_fn` decorators in the Python SDK.
   ([BEAM-4091](https://issues.apache.org/jira/browse/BEAM-4091))
   This has not enabled by default to preserve backwards compatibility; use the
-  `--type_check_additional=ptransform_fn` flag to enable.
+  `--type_check_additional=ptransform_fn` flag to enable. It may be enabled by
+  default in future versions of Beam.
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
