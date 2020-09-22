@@ -20,7 +20,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
 task flinkValidatesRunner {
-  getVersionsAsList('portable_flink_validates_runner_py_versions').each {
+  getVersionsAsList('flink_validates_runner_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkValidatesRunner")
   }
 }
