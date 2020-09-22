@@ -216,6 +216,10 @@ class Recordings():
     all pipelines.
     """
 
+    # Create the RecordingManager if it doesn't already exist.
+    if pipeline:
+      ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
+
     watching = ie.current_env().watching()
     description = ie.current_env().describe_all_recordings()
 

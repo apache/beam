@@ -385,6 +385,7 @@ class InteractiveEnvironment(object):
     if recording_manager:
       recording_manager.cancel()
       recording_manager.clear()
+      del self._recording_managers[str(id(pipeline))]
 
   def describe_all_recordings(self):
     """Returns a description of the recording for all watched pipelnes."""
