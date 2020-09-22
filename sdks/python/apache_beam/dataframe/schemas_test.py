@@ -77,7 +77,7 @@ COLUMNS = [
     ([375., 24., None, 10., 16.], np.float32, 'f32'),
     ([True, False, True, True, False], np.bool, 'bool'),
     (['Falcon', 'Ostrich', None, 3.14, 0], np.object, 'any'),
-]
+]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str]]
 
 if schemas.PD_MAJOR >= 1:
   COLUMNS.extend([
@@ -87,19 +87,20 @@ if schemas.PD_MAJOR >= 1:
        'strdtype'),
   ])
 
-NICE_TYPES_DF = pd.DataFrame({
-    name: pd.Series(arr, dtype=dtype, name=name)
-    for arr,
-    dtype,
-    name in COLUMNS
-})
+NICE_TYPES_DF = pd.DataFrame(columns=[name for _, _, name in COLUMNS])
+for arr, dtype, name in COLUMNS:
+  NICE_TYPES_DF[name] = pd.Series(arr, dtype=dtype, name=name).astype(dtype)
+
 NICE_TYPES_PROXY = NICE_TYPES_DF[:0]
 
 SERIES_TESTS = [(pd.Series(arr, dtype=dtype, name=name), arr) for arr,
                 dtype,
                 name in COLUMNS]
 
-DF_RESULT = list(zip(*(arr for arr, _, _ in COLUMNS)))
+_TEST_ARRAYS = [
+    arr for arr, _, _ in COLUMNS
+]  # type: typing.List[typing.List[typing.Any]]
+DF_RESULT = list(zip(*_TEST_ARRAYS))
 INDEX_DF_TESTS = [
     (NICE_TYPES_DF.set_index([name for _, _, name in COLUMNS[:i]]), DF_RESULT)
     for i in range(1, len(COLUMNS) + 1)
@@ -140,6 +141,7 @@ class SchemasTest(unittest.TestCase):
         schemas.element_type_from_dataframe(NICE_TYPES_PROXY))
     self.assertTrue(roundtripped.equals(NICE_TYPES_PROXY))
 
+  @unittest.skipIf(schemas.PD_MAJOR < 1, "bytes not supported with 0.x")
   def test_bytes_proxy_roundtrip(self):
     proxy = pd.DataFrame({'bytes': []})
     proxy.bytes = proxy.bytes.astype(bytes)

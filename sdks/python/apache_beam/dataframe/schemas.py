@@ -20,12 +20,11 @@ r"""Utilities for relating schema-aware PCollections and dataframe transforms.
 Imposes a mapping between native Python typings (specifically those compatible
 with apache_beam.typehints.schemas), and common pandas dtypes.
 
-  pandas dtype               Python typing
+  pandas dtype                    Python typing
   np.int{8,16,32,64}      <-----> np.int{8,16,32,64}*
   pd.Int{8,16,32,64}Dtype <-----> Optional[np.int{8,16,32,64}]*
   np.float{32,64}         <-----> Optional[np.float{32,64}]
                              \--- np.float{32,64}
-  np.dtype('S')           <-----> bytes
   Not supported           <------ Optional[bytes]
   np.bool                 <-----> np.bool
 
@@ -36,18 +35,13 @@ np.object:
 
   np.object               <-----> Any
 
-Strings and nullable Booleans are handled differently when using pandas 0.x vs.
-1.x. pandas 0.x has no mapping for these types, so they are shunted lossily to
-np.object.
+bytes, unicode strings and nullable Booleans are handled differently when using
+pandas 0.x vs. 1.x. pandas 0.x has no mapping for these types, so they are
+shunted to np.object.
 
-pandas 0.x:
+pandas 1.x Only:
 
-  np.object         <------ Optional[bool]
-                       \--- Optional[str]
-                        \-- str
-
-pandas 1.x:
-
+  np.dtype('S')     <-----> bytes
   pd.BooleanDType() <-----> Optional[bool]
   pd.StringDType()  <-----> Optional[str]
                        \--- str
@@ -184,7 +178,7 @@ def generate_proxy(element_type):
 
 
 def element_type_from_dataframe(proxy, include_indexes=False):
-  # type: (pd.DataFrame) -> type
+  # type: (pd.DataFrame, bool) -> type
 
   """Generate an element_type for an element-wise PCollection from a proxy
   pandas object. Currently only supports converting the element_type for
