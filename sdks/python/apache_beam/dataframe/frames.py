@@ -70,8 +70,6 @@ class DeferredSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing()))
 
-  reindex = frame_base.not_implemented_method('reindex')
-
   to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
 
   transform = frame_base._elementwise_method(
@@ -118,11 +116,6 @@ class DeferredSeries(frame_base.DeferredFrame):
   diff = frame_base.wont_implement_method('order-sensitive')
 
   head = tail = frame_base.wont_implement_method('order-sensitive')
-
-  memory_usage = frame_base.wont_implement_method('non-deferred value')
-
-  # In Series __contains__ checks the index
-  __contains__ = frame_base.wont_implement_method('non-deferred value')
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -233,6 +226,29 @@ class DeferredSeries(frame_base.DeferredFrame):
     return _DeferredStringMethods(expr)
 
 
+for base in ['add',
+             'sub',
+             'mul',
+             'div',
+             'truediv',
+             'floordiv',
+             'mod',
+             'pow',
+             'and',
+             'or']:
+  for p in ['%s', 'r%s', '__%s__', '__r%s__']:
+    # TODO: non-trivial level?
+    name = p % base
+    setattr(
+        DeferredSeries,
+        name,
+        frame_base._elementwise_method(name, restrictions={'level': None}))
+  setattr(
+      DeferredSeries,
+      '__i%s__' % base,
+      frame_base._elementwise_method('__i%s__' % base, inplace=True))
+for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
+  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
 for name in ['apply', 'map', 'transform']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
 
@@ -242,10 +258,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   @property
   def T(self):
     return self.transpose()
-
-  @property
-  def columns(self):
-    return self._expr.proxy().columns
 
   def groupby(self, by):
     # TODO: what happens to the existing index?
@@ -268,23 +280,12 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   def __getitem__(self, key):
     # TODO: Replicate pd.DataFrame.__getitem__ logic
-    if isinstance(key, frame_base.DeferredBase):
-      # Fail early if key is a DeferredBase as it interacts surprisingly with
-      # key in self._expr.proxy().columns
-      raise NotImplementedError(
-          "Indexing with a deferred frame is not yet supported. Consider "
-          "using df.loc[...]")
-
     if (isinstance(key, list) and
         all(key_column in self._expr.proxy().columns
             for key_column in key)) or key in self._expr.proxy().columns:
       return self._elementwise(lambda df: df[key], 'get_column')
     else:
       raise NotImplementedError(key)
-
-  def __contains__(self, key):
-    # Checks if proxy has the given column
-    return self._expr.proxy().__contains__(key)
 
   def __setitem__(self, key, value):
     if isinstance(key, str):
@@ -313,36 +314,12 @@ class DeferredDataFrame(frame_base.DeferredFrame):
           requires_partition_by=partitionings.Nothing(),
           preserves_partition_by=partitionings.Nothing()))
 
-  at = frame_base.not_implemented_method('at')
+  def at(self, *args, **kwargs):
+    raise NotImplementedError()
 
   @property
   def loc(self):
     return _DeferredLoc(self)
-
-  _get_index = _set_index = frame_base.not_implemented_method('index')
-  index = property(_get_index, _set_index)
-
-  @property
-  def axes(self):
-    return (self.index, self.columns)
-
-  apply = frame_base.not_implemented_method('apply')
-  explode = frame_base.not_implemented_method('explode')
-  isin = frame_base.not_implemented_method('isin')
-  assign = frame_base.not_implemented_method('assign')
-  append = frame_base.not_implemented_method('append')
-  combine = frame_base.not_implemented_method('combine')
-  combine_first = frame_base.not_implemented_method('combine_first')
-  cov = frame_base.not_implemented_method('cov')
-  corr = frame_base.not_implemented_method('corr')
-  count = frame_base.not_implemented_method('count')
-  dot = frame_base.not_implemented_method('dot')
-  drop = frame_base.not_implemented_method('drop')
-  eval = frame_base.not_implemented_method('eval')
-  reindex = frame_base.not_implemented_method('reindex')
-  melt = frame_base.not_implemented_method('melt')
-  pivot = frame_base.not_implemented_method('pivot')
-  pivot_table = frame_base.not_implemented_method('pivot_table')
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
@@ -406,7 +383,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   applymap = frame_base._elementwise_method('applymap')
 
   memory_usage = frame_base.wont_implement_method('non-deferred value')
-  info = frame_base.wont_implement_method('non-deferred value')
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
@@ -422,8 +398,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   def mode(self, axis=0, *args, **kwargs):
     if axis == 1 or axis == 'columns':
-      # Number of columns is max(number mode values for each row), so we can't
-      # determine how many there will be before looking at the data.
       raise frame_base.WontImplementError('non-deferred column values')
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -792,7 +766,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
 
-  transpose = frame_base.wont_implement_method('non-deferred column values')
+  def transpose(self, *args, **kwargs):
+    raise frame_base.WontImplementError('non-deferred column values')
 
   def unstack(self, *args, **kwargs):
     if self._expr.proxy().index.nlevels == 1:
@@ -824,10 +799,7 @@ for meth in ('filter', ):
 class DeferredGroupBy(frame_base.DeferredFrame):
   def agg(self, fn):
     if not callable(fn):
-      # TODO: Add support for strings in (UN)LIFTABLE_AGGREGATIONS. Test by
-      # running doctests for pandas.core.groupby.generic
-      raise NotImplementedError('GroupBy.agg currently only supports callable '
-                                'arguments')
+      raise NotImplementedError(fn)
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'agg',
@@ -991,37 +963,3 @@ for method in ELEMENTWISE_STRING_METHODS:
   setattr(_DeferredStringMethods,
           method,
           frame_base._elementwise_method(method))
-
-for base in ['add',
-             'sub',
-             'mul',
-             'div',
-             'truediv',
-             'floordiv',
-             'mod',
-             'pow',
-             'and',
-             'or']:
-  for p in ['%s', 'r%s', '__%s__', '__r%s__']:
-    # TODO: non-trivial level?
-    name = p % base
-    setattr(
-        DeferredSeries,
-        name,
-        frame_base._elementwise_method(name, restrictions={'level': None}))
-    setattr(
-        DeferredDataFrame,
-        name,
-        frame_base._elementwise_method(name, restrictions={'level': None}))
-  setattr(
-      DeferredSeries,
-      '__i%s__' % base,
-      frame_base._elementwise_method('__i%s__' % base, inplace=True))
-  setattr(
-      DeferredDataFrame,
-      '__i%s__' % base,
-      frame_base._elementwise_method('__i%s__' % base, inplace=True))
-
-for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
-  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
