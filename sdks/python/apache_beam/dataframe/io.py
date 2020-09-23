@@ -40,8 +40,14 @@ def read_csv(path, *args, **kwargs):
   return _ReadFromPandas(pd.read_csv, path, args, kwargs, incremental=True)
 
 
+def _as_pc(df):
+  from apache_beam.dataframe import convert  # avoid circular import
+  # TODO(roberwb): Amortize the computation for multiple writes?
+  return convert.to_pcollection(df, yield_elements='pandas')
+
+
 def to_csv(df, path, *args, **kwargs):
-  return df | _WriteToPandas(
+  return _as_pc(df) | _WriteToPandas(
       pd.DataFrame.to_csv, path, args, kwargs, incremental=True, binary=False)
 
 
@@ -68,7 +74,7 @@ def to_json(df, path, orient=None, *args, **kwargs):
     else:
       raise frame_base.WontImplementError('not dataframes or series')
   kwargs['orient'] = orient
-  return df | _WriteToPandas(
+  return _as_pc(df) | _WriteToPandas(
       pd.DataFrame.to_json,
       path,
       args,
@@ -87,7 +93,7 @@ def read_html(path, *args, **kwargs):
 
 
 def to_html(df, path, *args, **kwargs):
-  return df | _WriteToPandas(
+  return _as_pc(df) | _WriteToPandas(
       pd.DataFrame.to_html,
       path,
       args,
@@ -109,7 +115,7 @@ def _binary_writer(format):
       lambda df,
       path,
       *args,
-      **kwargs: df | _WriteToPandas(func, path, args, kwargs))
+      **kwargs: _as_pc(df) | _WriteToPandas(func, path, args, kwargs))
 
 
 for format in ('excel', 'feather', 'parquet', 'stata'):
@@ -213,13 +219,6 @@ class _WriteToPandas(beam.PTransform):
     self.kwargs = kwargs
     self.incremental = incremental
     self.binary = binary
-
-  def __ror__(self, other, label=None):
-    if isinstance(other, frame_base.DeferredBase):
-      from apache_beam.dataframe import convert  # avoid circular import
-      # TODO(roberwb): Amortize the computation for multiple writes?
-      other = convert.to_pcollection(other, yield_elements='pandas')
-    return super(_WriteToPandas, self).__ror__(other, label)
 
   def expand(self, pcoll):
     dir, name = io.filesystems.FileSystems.split(self.path)
