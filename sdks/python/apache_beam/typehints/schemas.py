@@ -25,19 +25,25 @@ Imposes a mapping between common Python types and Beam portable schemas
   np.int16    <-----> INT16
   np.int32    <-----> INT32
   np.int64    <-----> INT64
-  int         ---/
+  int         ------> INT64
   np.float32  <-----> FLOAT
   np.float64  <-----> DOUBLE
-  float       ---/
+  float       ------> DOUBLE
   bool        <-----> BOOLEAN
   str/unicode <-----> STRING
   bytes       <-----> BYTES
-  ByteString  ---/
+  ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
   NamedTuple  <-----> RowType
-  beam.Row    ---/
+  beam.Row    ------> RowType
+
+Note that some of these mappings are provided as conveniences,
+but they are lossy and will not survive a roundtrip from python to Beam schemas
+and back. For example, the Python type :code:`int` will map to :code:`INT64` in
+Beam schemas but converting that back to a Python type will yield
+:code:`np.int64`.
 
 :code:`nullable=True` on a Beam :code:`FieldType` is represented in Python by
 wrapping the type in :code:`Optional`.
