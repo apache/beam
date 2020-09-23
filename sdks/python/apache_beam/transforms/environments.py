@@ -259,8 +259,7 @@ class DockerEnvironment(Environment):
           options)
       return cls.from_container_image(
           container_image=prebuilt_container_image,
-          artifacts=python_sdk_dependencies(
-              options, skip_prestaged_dependencies=True))
+          artifacts=python_sdk_dependencies(options))
     return cls.from_container_image(
         container_image=options.environment_config,
         artifacts=python_sdk_dependencies(options))
@@ -609,10 +608,11 @@ def _python_sdk_capabilities_iter():
   # yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
 
 
-def python_sdk_dependencies(
-    options, tmp_dir=None, skip_prestaged_dependencies=False):
+def python_sdk_dependencies(options, tmp_dir=None):
   if tmp_dir is None:
     tmp_dir = tempfile.mkdtemp()
+  skip_prestaged_dependencies = options.view_as(
+      SetupOptions).prebuild_sdk_container_engine is not None
   return tuple(
       beam_runner_api_pb2.ArtifactInformation(
           type_urn=common_urns.artifact_types.FILE.urn,
