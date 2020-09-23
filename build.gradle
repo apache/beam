@@ -260,13 +260,6 @@ task portablePythonPreCommit() {
   dependsOn ":sdks:python:test-suites:portable:py37:preCommitPy37"
 }
 
-task pythonSparkPostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py35:sparkValidatesRunner"
-  dependsOn ":sdks:python:test-suites:portable:py36:sparkValidatesRunner"
-  dependsOn ":sdks:python:test-suites:portable:py37:sparkValidatesRunner"
-  dependsOn ":sdks:python:test-suites:portable:py38:sparkValidatesRunner"
-}
-
 task websitePreCommit() {
   dependsOn ":website:preCommit"
 }
