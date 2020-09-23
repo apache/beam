@@ -22,7 +22,6 @@
 from __future__ import absolute_import
 
 import itertools
-import sys
 import unittest
 from typing import ByteString
 from typing import List

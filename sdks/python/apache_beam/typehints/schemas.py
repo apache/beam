@@ -53,7 +53,6 @@ wrapping the type in :code:`Optional`.
 
 from __future__ import absolute_import
 
-import sys
 from typing import ByteString
 from typing import Generic
 from typing import Mapping
