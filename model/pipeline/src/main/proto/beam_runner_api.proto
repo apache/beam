@@ -928,7 +928,13 @@ message StandardCoders {
     //     values.
     //   - For present values the null indicator is followed by the value
     //     encoded with it's corresponding coder.
-    //
+    // 
+    // Well known logical types:
+    //   beam:logical_type:micros_instant:v1
+    //   - Representation type: ROW<seconds: INT64, micros: INT64>
+    //   - A timezone naive timestamp where seconds + micros represents the
+    //     amount of time since the epoch.
+    // 
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
