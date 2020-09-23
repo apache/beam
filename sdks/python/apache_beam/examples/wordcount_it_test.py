@@ -23,7 +23,6 @@ from __future__ import absolute_import
 
 import logging
 import os
-import sys
 import time
 import unittest
 
@@ -59,10 +58,6 @@ class WordCountIT(unittest.TestCase):
 
   @attr('ValidatesContainer')
   def test_wordcount_it_with_prebuilt_sdk_container(self):
-    if sys.version_info[0] < 3:
-      self.skipTest(
-          'Skip prebuild sdk functionality validation for python '
-          'version < 3')
     self._run_wordcount_it(
         wordcount.run,
         experiment='beam_fn_api',

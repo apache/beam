@@ -998,18 +998,23 @@ class SetupOptions(PipelineOptions):
         '--prebuild_sdk_container_engine',
         choices=['local_docker', 'cloud_build'],
         help=(
-            'Pre-builds the sdk worker container image with boot dependencies '
-            'installed and uses the prebuilt image in the pipeline '
-            'environment. Choose the docker build engine of local docker '
-            'environment or google cloud build by passing the option '
-            'local_docker or cloud_build.'))
+            'Prebuild sdk worker container image before job submission. If '
+            'enabled, SDK invokes the boot sequence in SDK worker '
+            'containers to install all pipeline dependencies in the '
+            'container, and uses the prebuilt image in the pipeline '
+            'environment. This may speed up pipeline execution. To enable, '
+            'select the Docker build engine: local_docker using '
+            'locally-installed Docker or cloud_build for using Google Cloud '
+            'Build (requires a GCP project with Cloud Build API enabled).'))
     parser.add_argument(
         '--prebuild_sdk_container_base_image',
         default=None,
         help=(
             'The base image to use when pre-building the sdk container image '
-            'with dependencies, if not specified, the latest public '
-            'apache beam python sdk container image will be used.'))
+            'with dependencies, if not specified, by default the released '
+            'public apache beam python sdk container image corresponding to '
+            'the sdk version will be used, if a dev sdk is used the base '
+            'image will default to the latest released sdk image.'))
     parser.add_argument(
         '--docker_registry_push_url',
         default=None,

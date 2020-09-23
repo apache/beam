@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""SdkContainerBuilder builds the portable SDK container with dependencies.
+"""SdkContainerImageBuilder builds the portable SDK container with dependencies.
 
 It copies the right boot dependencies, namely: apache beam sdk, python packages
 from requirements.txt, python packages from extra_packages.txt, workflow
@@ -40,6 +40,7 @@ import uuid
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
 
+from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import storage
@@ -64,28 +65,31 @@ SOURCE_FOLDER = 'source'
 _LOGGER = logging.getLogger(__name__)
 
 
-class SdkContainerBuilder(object):
+class SdkContainerImageBuilder(object):
   def __init__(self, options):
     self._options = options
     self._docker_registry_push_url = self._options.view_as(
         SetupOptions).docker_registry_push_url
+    version = (
+        beam_version.__version__
+        if 'dev' not in beam_version.__version__ else 'latest')
     self._base_image = (
         self._options.view_as(SetupOptions).prebuild_sdk_container_base_image or
-        'apache/beam_python%s.%s_sdk:latest' %
-        (sys.version_info[0], sys.version_info[1]))
+        'apache/beam_python%s.%s_sdk:%s' %
+        (sys.version_info[0], sys.version_info[1], version))
     self._temp_src_dir = None
 
   def build(self):
-    container_id = str(uuid.uuid4())
-    container_tag = os.path.join(
+    container_image_tag = str(uuid.uuid4())
+    container_image_name = os.path.join(
         self._docker_registry_push_url or '',
-        'beam_python_prebuilt_sdk:%s' % container_id)
+        'beam_python_prebuilt_sdk:%s' % container_image_tag)
     with tempfile.TemporaryDirectory() as temp_folder:
       self._temp_src_dir = temp_folder
       self.prepare_dependencies()
-      self.invoke_docker_build_and_push(container_id, container_tag)
+      self.invoke_docker_build_and_push(container_image_name)
 
-    return container_tag
+    return container_image_name
 
   def prepare_dependencies(self):
     with tempfile.TemporaryDirectory() as tmp:
@@ -102,7 +106,7 @@ class SdkContainerBuilder(object):
                 entrypoint=SDK_CONTAINER_ENTRYPOINT))
       self.generate_artifacts_manifests_json_file(resources, self._temp_src_dir)
 
-  def invoke_docker_build_and_push(self, container_id, container_tag):
+  def invoke_docker_build_and_push(self, container_image_name):
     raise NotImplementedError
 
   @staticmethod
@@ -119,16 +123,15 @@ class SdkContainerBuilder(object):
       file.write('[\n' + ',\n'.join(infos) + '\n]')
 
   @classmethod
-  def build_container_image(cls, pipeline_options):
-    # type: (PipelineOptions) -> str
+  def build_container_image(cls, pipeline_options: PipelineOptions) -> str:
     setup_options = pipeline_options.view_as(SetupOptions)
     container_build_engine = setup_options.prebuild_sdk_container_engine
     if container_build_engine:
       if container_build_engine == 'local_docker':
-        builder = _SdkContainerLocalBuilder(
-            pipeline_options)  # type: SdkContainerBuilder
+        builder = _SdkContainerImageLocalBuilder(
+            pipeline_options)  # type: SdkContainerImageBuilder
       elif container_build_engine == 'cloud_build':
-        builder = _SdkContainerCloudBuilder(pipeline_options)
+        builder = _SdkContainerImageCloudBuilder(pipeline_options)
       else:
         raise ValueError(
             'Only (--prebuild_sdk_container_engine local_docker) and '
@@ -138,14 +141,14 @@ class SdkContainerBuilder(object):
     return builder.build()
 
 
-class _SdkContainerLocalBuilder(SdkContainerBuilder):
+class _SdkContainerImageLocalBuilder(SdkContainerImageBuilder):
   """SdkContainerLocalBuilder builds the sdk container image with local
   docker."""
-  def invoke_docker_build_and_push(self, container_id, container_tag):
+  def invoke_docker_build_and_push(self, container_image_name):
     try:
       _LOGGER.info("Building sdk container, this may take a few minutes...")
       now = time.time()
-      subprocess.run(['docker', 'build', '.', '-t', container_tag],
+      subprocess.run(['docker', 'build', '.', '-t', container_image_name],
                      capture_output=True,
                      check=True,
                      cwd=self._temp_src_dir)
@@ -156,21 +159,21 @@ class _SdkContainerLocalBuilder(SdkContainerBuilder):
     else:
       _LOGGER.info(
           "Successfully built %s in %.2f seconds" %
-          (container_tag, time.time() - now))
+          (container_image_name, time.time() - now))
 
     if self._docker_registry_push_url:
       _LOGGER.info("Pushing prebuilt sdk container...")
       try:
-        subprocess.run(['docker', 'push', container_tag],
+        subprocess.run(['docker', 'push', container_image_name],
                        capture_output=True,
                        check=True)
       except subprocess.CalledProcessError as err:
         raise RuntimeError(
             'Failed to push prebuilt sdk container %s, stderr: \n%s' %
-            (container_tag, err.stderr))
+            (container_image_name, err.stderr))
       _LOGGER.info(
           "Successfully pushed %s in %.2f seconds" %
-          (container_tag, time.time() - now))
+          (container_image_name, time.time() - now))
     else:
       _LOGGER.info(
           "no --docker_registry_push_url option is specified in pipeline "
@@ -178,7 +181,7 @@ class _SdkContainerLocalBuilder(SdkContainerBuilder):
           "pushed to a registry.")
 
 
-class _SdkContainerCloudBuilder(SdkContainerBuilder):
+class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
   """SdkContainerLocalBuilder builds the sdk container image with google cloud
   build."""
   def __init__(self, options):
@@ -198,7 +201,7 @@ class _SdkContainerCloudBuilder(SdkContainerBuilder):
       self._docker_registry_push_url = (
           'gcr.io/%s' % self._google_cloud_options.project)
 
-  def invoke_docker_build_and_push(self, container_id, container_tag):
+  def invoke_docker_build_and_push(self, container_image_name):
     project_id = self._google_cloud_options.project
     temp_location = self._google_cloud_options.temp_location
     # google cloud build service expects all the build source file to be
@@ -209,8 +212,9 @@ class _SdkContainerCloudBuilder(SdkContainerBuilder):
         "Compressed source files for building sdk container at %s" %
         tarball_path)
 
+    container_image_tag = container_image_name.split(':')[-1]
     gcs_location = os.path.join(
-        temp_location, '%s-%s.tgz' % (SOURCE_FOLDER, container_id))
+        temp_location, '%s-%s.tgz' % (SOURCE_FOLDER, container_image_tag))
     self._upload_to_gcs(tarball_path, gcs_location)
 
     from google.cloud.devtools import cloudbuild_v1
@@ -219,11 +223,11 @@ class _SdkContainerCloudBuilder(SdkContainerBuilder):
     build.steps = []
     step = cloudbuild_v1.BuildStep()
     step.name = 'gcr.io/cloud-builders/docker'
-    step.args = ['build', '-t', container_tag, '.']
+    step.args = ['build', '-t', container_image_name, '.']
     step.dir = SOURCE_FOLDER
 
     build.steps.append(step)
-    build.images = [container_tag]
+    build.images = [container_image_name]
 
     source = cloudbuild_v1.Source()
     source.storage_source = cloudbuild_v1.StorageSource()
@@ -242,7 +246,8 @@ class _SdkContainerCloudBuilder(SdkContainerBuilder):
     _LOGGER.info(
         "Python SDK container pre-build finished in %.2f seconds, "
         "check build log at %s" % (time.time() - now, result.log_url))
-    _LOGGER.info("Python SDK container built and pushed as %s." % container_tag)
+    _LOGGER.info(
+        "Python SDK container built and pushed as %s." % container_image_name)
 
   def _upload_to_gcs(self, local_file_path, gcs_location):
     gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)

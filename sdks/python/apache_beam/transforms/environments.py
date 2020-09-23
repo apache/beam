@@ -48,7 +48,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import stager
-from apache_beam.runners.portability.sdk_container_builder import SdkContainerBuilder
+from apache_beam.runners.portability.sdk_container_builder import SdkContainerImageBuilder
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
@@ -255,12 +255,12 @@ class DockerEnvironment(Environment):
   def from_options(cls, options):
     # type: (PipelineOptions) -> DockerEnvironment
     if options.view_as(SetupOptions).prebuild_sdk_container_engine:
-      prebuilt_container_image = SdkContainerBuilder.build_container_image(
+      prebuilt_container_image = SdkContainerImageBuilder.build_container_image(
           options)
       return cls.from_container_image(
           container_image=prebuilt_container_image,
           artifacts=python_sdk_dependencies(
-              options, skip_boot_dependencies=True))
+              options, skip_prestaged_dependencies=True))
     return cls.from_container_image(
         container_image=options.environment_config,
         artifacts=python_sdk_dependencies(options))
@@ -610,7 +610,7 @@ def _python_sdk_capabilities_iter():
 
 
 def python_sdk_dependencies(
-    options, tmp_dir=None, skip_boot_dependencies=False):
+    options, tmp_dir=None, skip_prestaged_dependencies=False):
   if tmp_dir is None:
     tmp_dir = tempfile.mkdtemp()
   return tuple(
@@ -622,4 +622,6 @@ def python_sdk_dependencies(
           role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
               staged_name=staged_name).SerializeToString()) for local_path,
       staged_name in stager.Stager.create_job_resources(
-          options, tmp_dir, skip_boot_dependencies=skip_boot_dependencies))
+          options,
+          tmp_dir,
+          skip_prestaged_dependencies=skip_prestaged_dependencies))

@@ -44,6 +44,7 @@ import (
 var (
 	acceptableWhlSpecs []string
 
+	// SetupOnly option is used to invoke the boot sequence to only process the provided artifacts and builds new dependency pre-cached images.
 	setupOnly = flag.Bool("setup_only", false, "Execute boot program in setup only mode (optional).")
 	artifacts = flag.String("artifacts", "", "Path to artifacts metadata file used in setup only mode (optional).")
 
@@ -143,10 +144,6 @@ func main() {
 	// Guard from concurrent artifact retrieval and installation,
 	// when called by child processes in a worker pool.
 
-	if err := setupAcceptableWheelSpecs(); err != nil {
-		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
-	}
-
 	materializeArtifactsFunc := func() {
 		dir := filepath.Join(*semiPersistDir, "staged")
 
@@ -226,6 +223,10 @@ func setupAcceptableWheelSpecs() error {
 func installSetupPackages(files []string, workDir string) error {
 	log.Printf("Installing setup packages ...")
 
+	if err := setupAcceptableWheelSpecs(); err != nil {
+		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
+	}
+
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
@@ -298,6 +299,11 @@ func multiProcessExactlyOnce(actionFunc func(), completeFileName string) {
 
 }
 
+// processArtifactsInSetupOnlyMode installs the dependencies found in artifacts
+// when flag --setup_only and --artifacts exist. The setup mode will only
+// process the provided artifacts and skip the actual worker program start up.
+// The mode is useful for building new images with dependencies pre-installed so
+// that the installation can be skipped at the pipeline runtime.
 func processArtifactsInSetupOnlyMode() error {
 	if *artifacts == "" {
 		log.Fatal("No --artifacts provided along with --setup_only flag.")
