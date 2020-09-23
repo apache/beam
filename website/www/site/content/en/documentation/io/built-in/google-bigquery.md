@@ -770,13 +770,17 @@ different table for each year.
 The `table` parameter can also be a dynamic parameter (i.e. a callable), which receives an element to be written to BigQuery, and returns the table that that element should be sent to.
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
+{{< paragraph class="language-py" >}}
 You may also provide a tuple of `PCollectionView` elements to be passed as side inputs to your callable. For example, suppose that one wishes to send events of different types to different tables, and the table names are computed at pipeline runtime, one may do something like the following:
 {{< /paragraph >}}
 
 {{< highlight py >}}
-{{< code_sample "examples/py/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_dynamic_write >}}
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+In the example above, the `table_dict` argument passed to the function in `table_dict` is the side input coming from `table_names_dict`, which is passed as part of the `table_side_inputs` argument.
+{{< /paragraph >}}
 
 ### Using time partitioning
 
