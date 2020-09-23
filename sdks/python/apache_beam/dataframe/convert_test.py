@@ -23,10 +23,11 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe import convert
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class ConverTest(unittest.TestCase):
-  def test_convert(self):
+  def test_convert_yield_pandas(self):
     def equal_to_unordered_series(expected):
       def check(actual):
         actual = pd.concat(actual)
@@ -51,13 +52,38 @@ class ConverTest(unittest.TestCase):
       df_ab = df_a * df_b
 
       # Converting multiple results at a time can be more efficient.
-      pc_2a, pc_ab = convert.to_pcollection(df_2a, df_ab)
+      pc_2a, pc_ab = convert.to_pcollection(df_2a, df_ab,
+                                            yield_elements='pandas')
       # But separate conversions can be done as well.
-      pc_3a = convert.to_pcollection(df_3a)
+      pc_3a = convert.to_pcollection(df_3a, yield_elements='pandas')
 
       assert_that(pc_2a, equal_to_unordered_series(2 * a), label='Check2a')
       assert_that(pc_3a, equal_to_unordered_series(3 * a), label='Check3a')
       assert_that(pc_ab, equal_to_unordered_series(a * b), label='Checkab')
+
+  def test_convert(self):
+    with beam.Pipeline() as p:
+      a = pd.Series([1, 2, 3])
+      b = pd.Series([100, 200, 300])
+
+      pc_a = p | 'A' >> beam.Create([a])
+      pc_b = p | 'B' >> beam.Create([b])
+
+      df_a = convert.to_dataframe(pc_a, proxy=a[:0])
+      df_b = convert.to_dataframe(pc_b, proxy=b[:0])
+
+      df_2a = 2 * df_a
+      df_3a = 3 * df_a
+      df_ab = df_a * df_b
+
+      # Converting multiple results at a time can be more efficient.
+      pc_2a, pc_ab = convert.to_pcollection(df_2a, df_ab)
+      # But separate conversions can be done as well.
+      pc_3a = convert.to_pcollection(df_3a)
+
+      assert_that(pc_2a, equal_to(list(2 * a)), label='Check2a')
+      assert_that(pc_3a, equal_to(list(3 * a)), label='Check3a')
+      assert_that(pc_ab, equal_to(list(a * b)), label='Checkab')
 
 
 if __name__ == '__main__':

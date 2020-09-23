@@ -153,7 +153,8 @@ class IOTest(unittest.TestCase):
             # one pipeline.
 
             result = convert.to_pcollection(
-                p | getattr(io, 'read_%s' % format)(dest + '*', **read_kwargs))
+                p | getattr(io, 'read_%s' % format)(dest + '*', **read_kwargs),
+                yield_elements='pandas')
             assert_that(result, frame_equal_to(df, **check_options))
         except:
           os.system('head -n 100 ' + dest + '*')
