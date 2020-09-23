@@ -1179,6 +1179,19 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
+  
+  # [START model_bigqueryio_write_dynamic_input]
+  table_names = (p | beam.Create([
+      ('error', 'my_project.dataset1.error_table_for_today'),
+      ('user_log', 'my_project.dataset1.query_table_for_today'),
+  ])
+
+  table_names_dict = beam.pvalue.AsDict(table_names)
+                 
+  elements | beam.io.WriteToBigQuery(
+      table=lambda row, table_dict: table_dict[row['type']],
+      table_side_inputs=(table_names_dict,))
+  # [END model_bigqueryio_write_dynamic_input]
 
 
 def model_composite_transform_example(contents, output_path):
