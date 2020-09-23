@@ -26,6 +26,7 @@ import logging
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -66,6 +67,16 @@ def run(argv=None):
     df['count'] = 1
     counted = df.groupby('word').sum()
     counted.to_csv(known_args.output)
+
+    # Deferred DataFrames can also be converted back to schema'd PCollections
+    counted_pc = to_pcollection(counted, include_indexes=True)
+
+    # Print out every word that occurred >50 times
+    (
+        counted_pc
+        | beam.Filter(lambda row: row.count > 50)
+        | beam.Map(lambda row: f'{row.word}: {row.count}')
+        | beam.Map(print))
 
 
 if __name__ == '__main__':
