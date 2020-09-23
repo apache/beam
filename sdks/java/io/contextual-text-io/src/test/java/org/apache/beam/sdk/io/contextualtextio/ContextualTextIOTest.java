@@ -168,9 +168,7 @@ public class ContextualTextIOTest {
     @ProcessElement
     public void processElement(@Element Row record, OutputReceiver<String> out) {
       String resourceId =
-          record
-              .getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class)
-              .getFilename();
+          record.getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class).toString();
       String file = resourceId.substring(resourceId.lastIndexOf('/') + 1);
       out.output(
           file
@@ -770,9 +768,7 @@ public class ContextualTextIOTest {
       @ProcessElement
       public void processElement(@Element Row record, OutputReceiver<String> out) {
         out.output(
-            record
-                    .getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class)
-                    .getFilename()
+            record.getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class).toString()
                 + " "
                 + record.getInt64(RecordWithMetadata.RECORD_NUM)
                 + " "
@@ -813,7 +809,7 @@ public class ContextualTextIOTest {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
           String line = new String(encodedElem, Charsets.UTF_8);
           writer.println(line);
-          actualExpected.add(lineNum + " " + fileName + " " + line);
+          actualExpected.add(lineNum + " " + filePath + " " + line);
           lineNum++;
         }
       }
@@ -829,7 +825,7 @@ public class ContextualTextIOTest {
                                   + " "
                                   + L.getLogicalTypeValue(
                                           RecordWithMetadata.RESOURCE_ID, ResourceId.class)
-                                      .getFilename()
+                                      .toString()
                                   + " "
                                   + L.getString(VALUE)));
 
@@ -911,10 +907,10 @@ public class ContextualTextIOTest {
                           .withDelimiter(new byte[] {'|', '*'}))
                   .apply(ParDo.of(new GetDetails())))
           .containsInAnyOrder(
-              fileName
+              tmpFile
                   + " 0 To be, or not to be: that |is the question: To be, or not to be: "
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
-              fileName + " 1 The slings and arrows of outrageous fortune,|");
+              tmpFile + " 1 The slings and arrows of outrageous fortune,|");
       p.run();
     }
 

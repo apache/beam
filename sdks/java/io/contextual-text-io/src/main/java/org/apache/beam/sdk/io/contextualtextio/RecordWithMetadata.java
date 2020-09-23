@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helper Class based on {@link Row}, it provides Metadata associated with each Record when reading
@@ -42,8 +43,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
  *       record was read. {@link RecordWithMetadata#RANGE_OFFSET}
  *   <li>recordNumInOffset: The record number relative to the Range. (line number within the range)
  *       {@link RecordWithMetadata#RECORD_NUM_IN_OFFSET}
- *   <li>fileName: Name of the file to which the record belongs (this is the full filename,
- *       eg:path/to/file.txt) {@link RecordWithMetadata#RESOURCE_ID}
+ *   <li>resourceId: A resource descriptor representing which resource the record belongs to. See
+ *       {@link ResourceIdRow} for details.
  * </ul>
  */
 public class RecordWithMetadata {
@@ -53,7 +54,7 @@ public class RecordWithMetadata {
   public static final String VALUE = "value";
   public static final String RANGE_OFFSET = "rangeOffSet";
   public static final String RECORD_NUM_IN_OFFSET = "recordNumInOffset";
-  public static final String RESOURCE_ID = "resourceID";
+  public static final String RESOURCE_ID = "resourceId";
 
   public static Schema getSchema() {
     return Schema.builder()
@@ -67,10 +68,10 @@ public class RecordWithMetadata {
   }
 
   /** A Logical type using Row to represent the ResourceId type. */
-  public static class ResourceIdRow implements LogicalType<ResourceId, Row> {
+  private static class ResourceIdRow implements LogicalType<ResourceId, Row> {
 
     @Override
-    public Schema.FieldType getArgumentType() {
+    public @Nullable FieldType getArgumentType() {
       return Schema.FieldType.STRING;
     }
 
@@ -81,15 +82,11 @@ public class RecordWithMetadata {
 
     // The underlying schema used to represent rows.
     private final Schema schema =
-        Schema.builder()
-            .addStringField("schema")
-            .addStringField("fileName")
-            .addBooleanField("isDirectory")
-            .build();
+        Schema.builder().addStringField("resource").addBooleanField("is_directory").build();
 
     @Override
     public String getIdentifier() {
-      return "beam:logical_type:resourceIdRow:v1";
+      return "beam:logical_type:resource_id:v1";
     }
 
     @Override
@@ -97,23 +94,20 @@ public class RecordWithMetadata {
       return FieldType.row(schema);
     }
 
-    // Convert the representation type to the underlying Row type. Called by Beam when necessary.
     @Override
     public Row toBaseType(org.apache.beam.sdk.io.fs.ResourceId resourceId) {
       return Row.withSchema(schema)
-          .withFieldValue("schema", resourceId.getScheme())
-          .withFieldValue("fileName", resourceId.getFilename())
-          .withFieldValue("isDirectory", resourceId.isDirectory())
+          .withFieldValue("resource", resourceId.toString())
+          .withFieldValue("is_directory", resourceId.isDirectory())
           .build();
     }
 
-    // Convert the underlying Row type to an Instant. Called by Beam when necessary.
     @Override
     public ResourceId toInputType(Row base) {
-      Preconditions.checkNotNull(base.getBoolean("isDirectory"));
-      Preconditions.checkNotNull(base.getString("fileName"));
+      Preconditions.checkNotNull(base.getString("resource"));
+      Preconditions.checkNotNull(base.getBoolean("is_directory"));
       return FileSystems.matchNewResource(
-          base.getString("fileName"), base.getBoolean("isDirectory"));
+          base.getString("resource"), base.getBoolean("is_directory"));
     }
   }
 }
