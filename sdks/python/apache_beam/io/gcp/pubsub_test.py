@@ -135,9 +135,9 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     read_transform = pcoll.producer.inputs[0].producer.transform
 
     # Ensure that the properties passed through correctly
-    source = read_transform._source
-    self.assertEqual('a_topic', source.topic_name)
-    self.assertEqual('a_label', source.id_label)
+    read_transform = read_transform._transform
+    self.assertEqual('a_topic', read_transform.topic_name)
+    self.assertEqual('a_label', read_transform.id_label)
 
   def test_expand_with_subscription(self):
     options = PipelineOptions([])
@@ -163,9 +163,9 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     read_transform = pcoll.producer.inputs[0].producer.transform
 
     # Ensure that the properties passed through correctly
-    source = read_transform._source
-    self.assertEqual('a_subscription', source.subscription_name)
-    self.assertEqual('a_label', source.id_label)
+    transform = read_transform._transform
+    self.assertEqual('a_subscription', transform.subscription_name)
+    self.assertEqual('a_label', transform.id_label)
 
   def test_expand_with_no_topic_or_subscription(self):
     with self.assertRaisesRegex(
@@ -211,9 +211,9 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     read_transform = pcoll.producer.inputs[0].producer.transform
 
     # Ensure that the properties passed through correctly
-    source = read_transform._source
-    self.assertTrue(source.with_attributes)
-    self.assertEqual('time', source.timestamp_attribute)
+    transform = read_transform._transform
+    self.assertTrue(transform.with_attributes)
+    self.assertEqual('time', transform.timestamp_attribute)
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
@@ -269,7 +269,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSource(unittest.TestCase):
   def test_display_data_topic(self):
-    source = _PubSubSource('projects/fakeprj/topics/a_topic', None, 'a_label')
+    source = ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label')
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('topic', 'projects/fakeprj/topics/a_topic'),
@@ -280,7 +280,7 @@ class TestPubSubSource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_display_data_subscription(self):
-    source = _PubSubSource(
+    source = ReadFromPubSub(
         None, 'projects/fakeprj/subscriptions/a_subscription', 'a_label')
     dd = DisplayData.create_from(source)
     expected_items = [
@@ -293,7 +293,7 @@ class TestPubSubSource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_display_data_no_subscription(self):
-    source = _PubSubSource('projects/fakeprj/topics/a_topic')
+    source = ReadFromPubSub('projects/fakeprj/topics/a_topic')
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('topic', 'projects/fakeprj/topics/a_topic'),

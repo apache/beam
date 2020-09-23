@@ -610,8 +610,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         input_committed_bundle,
         side_inputs)
 
-    self.source = self._applied_ptransform.transform._source  # type: _PubSubSource
-    if self.source.id_label:
+    self.transform = self._applied_ptransform.transform._transform  # type: _PubSubSource
+    if self.transform.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
 
@@ -622,14 +622,14 @@ class _PubSubReadEvaluator(_TransformEvaluator):
           self._evaluation_context.pipeline_options.view_as(
               GoogleCloudOptions).project)
     if not sub_project:
-      sub_project = self.source.project
+      sub_project = self.transform.project
 
     self._sub_name = self.get_subscription(
         self._applied_ptransform,
-        self.source.project,
-        self.source.topic_name,
+        self.transform.project,
+        self.transform.topic_name,
         sub_project,
-        self.source.subscription_name)
+        self.transform.subscription_name)
 
   @classmethod
   def get_subscription(
@@ -700,13 +700,13 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     # type: () -> TransformResult
-    data = self._read_from_pubsub(self.source.timestamp_attribute)
+    data = self._read_from_pubsub(self.transform.timestamp_attribute)
     if data:
       output_pcollection = list(self._outputs)[0]
       bundle = self._evaluation_context.create_bundle(output_pcollection)
       # TODO(ccy): Respect the PubSub source's id_label field.
       for timestamp, message in data:
-        if self.source.with_attributes:
+        if self.transform.with_attributes:
           element = message
         else:
           element = message.data

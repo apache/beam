@@ -187,26 +187,65 @@ class ReadFromPubSub(PTransform):
           units smaller than milliseconds) may be ignored.
     """
     super(ReadFromPubSub, self).__init__()
-    self.with_attributes = with_attributes
     self._source = _PubSubSource(
         topic=topic,
         subscription=subscription,
         id_label=id_label,
-        with_attributes=self.with_attributes,
         timestamp_attribute=timestamp_attribute)
+    self.with_attributes = with_attributes
+    self.topic_name = None
+    self.subscription_name = None
+    self.id_label = id_label
+    self.timestamp_attribute = timestamp_attribute
+    self.full_topic = topic
+    self.full_subscription = subscription
+
+    if topic:
+      self.project, self.topic_name = parse_topic(topic)
+    if subscription:
+      self.project, self.subscription_name = parse_subscription(subscription)
+      self._source = _PubSubSource(
+          topic=topic,
+          subscription=subscription,
+          id_label=id_label,
+          timestamp_attribute=timestamp_attribute)
+
+  @staticmethod
+  def from_proto_str(proto_msg):
+    # type: (bytes) -> bytes
+    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg.ParseFromString(proto_msg)
+    return msg.data
 
   def expand(self, pvalue):
     pcoll = pvalue.pipeline | Read(self._source)
-    pcoll.element_type = bytes
     if self.with_attributes:
       pcoll = pcoll | Map(PubsubMessage._from_proto_str)
       pcoll.element_type = PubsubMessage
+    else:
+      pcoll = pcoll | Map(self.from_proto_str)
+      pcoll.element_type = bytes
     return pcoll
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
     # TODO(BEAM-3812): Use an actual URN here.
     return self.to_runner_api_pickled(context)
+
+  def display_data(self):
+    return {
+        'id_label': DisplayDataItem(self.id_label,
+                                    label='ID Label Attribute').drop_if_none(),
+        'topic': DisplayDataItem(self.full_topic,
+                                 label='Pubsub Topic').drop_if_none(),
+        'subscription': DisplayDataItem(
+            self.full_subscription, label='Pubsub Subscription').drop_if_none(),
+        'with_attributes': DisplayDataItem(
+            self.with_attributes, label='With Attributes').drop_if_none(),
+        'timestamp_attribute': DisplayDataItem(
+            self.timestamp_attribute,
+            label='Timestamp Attribute').drop_if_none(),
+    }
 
 
 @deprecated(since='2.7.0', extra_message='Use ReadFromPubSub instead.')
@@ -348,16 +387,12 @@ class _PubSubSource(dataflow_io.NativeSource):
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
 
-  Attributes:
-    with_attributes: If False, will fetch just message data. Otherwise,
-      fetches ``PubsubMessage`` protobufs.
   """
 
   def __init__(self,
                topic=None,  # type: Optional[str]
                subscription=None,  # type: Optional[str]
                id_label=None,  # type: Optional[str]
-               with_attributes=False,  # type: bool
                timestamp_attribute=None  # type: Optional[str]
               ):
     self.coder = coders.BytesCoder()
@@ -366,7 +401,6 @@ class _PubSubSource(dataflow_io.NativeSource):
     self.topic_name = None
     self.subscription_name = None
     self.id_label = id_label
-    self.with_attributes = with_attributes
     self.timestamp_attribute = timestamp_attribute
 
     # Perform some validation on the topic and subscription.
@@ -384,21 +418,6 @@ class _PubSubSource(dataflow_io.NativeSource):
   def format(self):
     """Source format name required for remote execution."""
     return 'pubsub'
-
-  def display_data(self):
-    return {
-        'id_label': DisplayDataItem(self.id_label,
-                                    label='ID Label Attribute').drop_if_none(),
-        'topic': DisplayDataItem(self.full_topic,
-                                 label='Pubsub Topic').drop_if_none(),
-        'subscription': DisplayDataItem(
-            self.full_subscription, label='Pubsub Subscription').drop_if_none(),
-        'with_attributes': DisplayDataItem(
-            self.with_attributes, label='With Attributes').drop_if_none(),
-        'timestamp_attribute': DisplayDataItem(
-            self.timestamp_attribute,
-            label='Timestamp Attribute').drop_if_none(),
-    }
 
   def reader(self):
     raise NotImplementedError

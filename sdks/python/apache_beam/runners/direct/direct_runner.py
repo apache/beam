@@ -378,8 +378,8 @@ def _get_transform_overrides(pipeline_options):
 
 
 class _DirectReadFromPubSub(PTransform):
-  def __init__(self, source):
-    self._source = source
+  def __init__(self, transform):
+    self._transform = transform
 
   def _infer_output_coder(
       self, unused_input_type=None, unused_input_coder=None):
@@ -391,7 +391,8 @@ class _DirectReadFromPubSub(PTransform):
 
   def expand(self, pvalue):
     # This is handled as a native transform.
-    return PCollection(self.pipeline, is_bounded=self._source.is_bounded())
+    return PCollection(
+        self.pipeline, is_bounded=self._transform._source.is_bounded())
 
 
 class _DirectWriteToPubSubFn(DoFn):
@@ -461,7 +462,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
         raise Exception(
             'PubSub I/O is only available in streaming mode '
             '(use the --streaming flag).')
-      return _DirectReadFromPubSub(applied_ptransform.transform._source)
+      return _DirectReadFromPubSub(applied_ptransform.transform)
 
   class WriteToPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
