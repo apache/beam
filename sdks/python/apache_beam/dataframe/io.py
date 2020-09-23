@@ -218,7 +218,7 @@ class _WriteToPandas(beam.PTransform):
     if isinstance(other, frame_base.DeferredBase):
       from apache_beam.dataframe import convert  # avoid circular import
       # TODO(roberwb): Amortize the computation for multiple writes?
-      other = convert.to_pcollection(other)
+      other = convert.to_pcollection(other, yield_elements='pandas')
     return super(_WriteToPandas, self).__ror__(other, label)
 
   def expand(self, pcoll):

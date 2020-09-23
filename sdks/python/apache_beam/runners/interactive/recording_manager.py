@@ -268,10 +268,11 @@ class Recording:
 
 class RecordingManager:
   """Manages recordings of PCollections for a given pipeline."""
-  def __init__(self, user_pipeline):
-    # type: (beam.Pipeline) -> None
+  def __init__(self, user_pipeline, pipeline_var=None):
+    # type: (beam.Pipeline, str) -> None
 
     self.user_pipeline = user_pipeline  # type: beam.Pipeline
+    self.pipeline_var = pipeline_var if pipeline_var else ''  # type: str
     self._recordings = set()  # type: set[Recording]
     self._start_time_sec = 0  # type: float
 
@@ -354,7 +355,12 @@ class RecordingManager:
       state = bcj.state
     else:
       state = PipelineState.STOPPED
-    return {'size': size, 'start': start, 'state': state}
+    return {
+        'size': size,
+        'start': start,
+        'state': state,
+        'pipeline_var': self.pipeline_var
+    }
 
   def record_pipeline(self):
     # type: () -> bool

@@ -61,6 +61,7 @@
 * Update Snowflake JDBC dependency for SnowflakeIO ([BEAM-10864](https://issues.apache.org/jira/browse/BEAM-10864))
 * Added cross-language support to Java's SnowflakeIO.Write, now available in the Python module `apache_beam.io.snowflake` ([BEAM-9898](https://issues.apache.org/jira/browse/BEAM-9898)).
 * Added delete function to Java's `ElasticsearchIO#Write`. Now, Java's ElasticsearchIO can be used to selectively delete documents using `withIsDeleteFn` function ([BEAM-5757](https://issues.apache.org/jira/browse/BEAM-5757)).
+* Java SDK: Added new IO connector for InfluxDB - InfluxDbIO ([BEAM-2546](https://issues.apache.org/jira/browse/BEAM-2546)).
 
 ## New Features / Improvements
 
@@ -73,6 +74,11 @@
 * In Interactive Beam, ib.show() and ib.collect() now have "n" and "duration" as parameters. These mean read only up to "n" elements and up to "duration" seconds of data read from the recording ([BEAM-10603](https://issues.apache.org/jira/browse/BEAM-10603)).
 * Initial preview of [Dataframes](https://s.apache.org/simpler-python-pipelines-2020#slide=id.g905ac9257b_1_21) support.
     See also example at apache_beam/examples/wordcount_dataframe.py
+* Fixed support for type hints on `@ptransform_fn` decorators in the Python SDK.
+  ([BEAM-4091](https://issues.apache.org/jira/browse/BEAM-4091))
+  This has not enabled by default to preserve backwards compatibility; use the
+  `--type_check_additional=ptransform_fn` flag to enable. It may be enabled by
+  default in future versions of Beam.
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
