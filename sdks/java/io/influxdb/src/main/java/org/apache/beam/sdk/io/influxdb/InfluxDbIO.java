@@ -168,6 +168,7 @@ public class InfluxDbIO {
 
       abstract Read build();
     }
+
     /** Reads from the InfluxDB instance indicated by the given configuration. */
     public Read withDataSourceConfiguration(DataSourceConfiguration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
@@ -178,26 +179,32 @@ public class InfluxDbIO {
     public Read withDatabase(String database) {
       return builder().setDatabase(database).build();
     }
+
     /** Read metric data till the toDateTime. * */
     public Read withToDateTime(String toDateTime) {
       return builder().setToDateTime(toDateTime).build();
     }
+
     /** Read metric data from the fromDateTime. * */
     public Read withFromDateTime(String fromDateTime) {
       return builder().setFromDateTime(fromDateTime).build();
     }
+
     /** Sets the metric to use. * */
     public Read withMetric(@Nullable String metric) {
       return builder().setMetric(metric).build();
     }
+
     /** Disable SSL certification validation. * */
     public Read withDisableCertificateValidation(boolean disableCertificateValidation) {
       return builder().setDisableCertificateValidation(disableCertificateValidation).build();
     }
+
     /** Sets the retention policy to use. * */
     public Read withRetentionPolicy(String retentionPolicy) {
       return builder().setRetentionPolicy(retentionPolicy).build();
     }
+
     /** Sets the query to use. * */
     public Read withQuery(String query) {
       return builder().setQuery(query).build();
@@ -205,6 +212,13 @@ public class InfluxDbIO {
 
     @Override
     public PCollection<String> expand(PBegin input) {
+      checkArgument(dataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+      checkArgument(database() != null, "withDatabase() is required");
+      checkState(
+          checkDatabase(database(), dataSourceConfiguration(), disableCertificateValidation()),
+          "Database %s does not exist",
+          database());
+
       return input.apply(org.apache.beam.sdk.io.Read.from(new InfluxDBSource(this)));
     }
 
@@ -412,6 +426,8 @@ public class InfluxDbIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
+      checkArgument(dataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+      checkArgument(database() != null, "withDatabase() is required");
       checkState(
           checkDatabase(database(), dataSourceConfiguration(), disableCertificateValidation()),
           "Database %s does not exist",
@@ -461,18 +477,22 @@ public class InfluxDbIO {
 
       abstract Write build();
     }
+
     /** Number of elements to batch. * */
     public Write withBatchSize(int batchSize) {
       return builder().setBatchSize(batchSize).build();
     }
+
     /** Disable SSL certification validation. * */
     public Write withDisableCertificateValidation(boolean disableCertificateValidation) {
       return builder().setDisableCertificateValidation(disableCertificateValidation).build();
     }
+
     /** Sets the retention policy to use. * */
     public Write withRetentionPolicy(String rp) {
       return builder().setRetentionPolicy(rp).build();
     }
+
     /**
      * Sets the consistency level to use. ALL("all") Write succeeds only if write reached all
      * cluster members. ANY("any") Write succeeds if write reached at least one cluster members.
@@ -483,11 +503,13 @@ public class InfluxDbIO {
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
+    /** Writes to the InfluxDB instance indicated by the given configuration. */
     public Write withDataSourceConfiguration(DataSourceConfiguration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       return builder().setDataSourceConfiguration(configuration).build();
     }
 
+    /** Writes to the specified database. */
     public Write withDatabase(String database) {
       return builder().setDatabase(database).build();
     }
