@@ -682,6 +682,7 @@ class SnippetsTest(unittest.TestCase):
         snippets.model_bigqueryio(p, project, dataset, table)
     else:
       p = TestPipeline()
+      p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
       snippets.model_bigqueryio(p)
 
   def _run_test_pipeline_for_options(self, fn):

@@ -302,6 +302,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
         'use_standard_sql': False,
         'native': True,
+        'use_json_exports': True,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
         'experiments': 'use_legacy_bq_sink',

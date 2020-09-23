@@ -890,6 +890,11 @@ class Read(ptransform.PTransform):
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
       return pbegin | _SDFBoundedSourceWrapper(self.source)
+    elif isinstance(self.source, ptransform.PTransform):
+      # The Read transform can also admit a full PTransform as an input
+      # rather than an anctual source. If the input is a PTransform, then
+      # just apply it directly.
+      return pbegin.pipeline | self.source
     else:
       # Treat Read itself as a primitive.
       return pvalue.PCollection(
@@ -917,13 +922,17 @@ class Read(ptransform.PTransform):
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
-    return (
-        common_urns.deprecated_primitives.READ.urn,
-        beam_runner_api_pb2.ReadPayload(
-            source=self.source.to_runner_api(context),
-            is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
-            if self.source.is_bounded() else
-            beam_runner_api_pb2.IsBounded.UNBOUNDED))
+    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+    if isinstance(self.source, (BoundedSource, dataflow_io.NativeSource)):
+      return (
+          common_urns.deprecated_primitives.READ.urn,
+          beam_runner_api_pb2.ReadPayload(
+              source=self.source.to_runner_api(context),
+              is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+              if self.source.is_bounded() else
+              beam_runner_api_pb2.IsBounded.UNBOUNDED))
+    elif isinstance(self.source, ptransform.PTransform):
+      return self.source.to_runner_api_parameter(context)
 
   @staticmethod
   def from_runner_api_parameter(unused_ptransform, parameter, context):
