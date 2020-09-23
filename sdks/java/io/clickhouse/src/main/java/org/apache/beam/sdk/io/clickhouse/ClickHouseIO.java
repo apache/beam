@@ -167,7 +167,6 @@ public class ClickHouseIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
       Properties properties = properties();
 
       set(properties, ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, maxInsertBlockSize());
@@ -180,7 +179,6 @@ public class ClickHouseIO {
               .jdbcUrl(jdbcUrl())
               .table(table())
               .maxInsertBlockSize(maxInsertBlockSize())
-              .schema(tableSchema)
               .properties(properties)
               .initialBackoff(initialBackoff())
               .maxCumulativeBackoff(maxCumulativeBackoff())
@@ -342,6 +340,7 @@ public class ClickHouseIO {
     private final List<Row> buffer = new ArrayList<>();
     private final Distribution batchSize = Metrics.distribution(Write.class, "batch_size");
     private final Counter retries = Metrics.counter(Write.class, "retries");
+    private TableSchema tableSchemaInstance;
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
@@ -361,8 +360,6 @@ public class ClickHouseIO {
 
     public abstract Duration initialBackoff();
 
-    public abstract TableSchema schema();
-
     public abstract Properties properties();
 
     @VisibleForTesting
@@ -378,6 +375,9 @@ public class ClickHouseIO {
     @Setup
     public void setup() throws SQLException {
       connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
+      if (tableSchemaInstance == null) {
+        tableSchemaInstance = getTableSchema(jdbcUrl(), table());
+      }
 
       retryBackoff =
           FluentBackoff.DEFAULT
@@ -423,10 +423,10 @@ public class ClickHouseIO {
       while (true) {
         try (ClickHouseStatement statement = connection.createStatement()) {
           statement.sendRowBinaryStream(
-              insertSql(schema(), table()),
+              insertSql(tableSchemaInstance, table()),
               stream -> {
                 for (Row row : buffer) {
-                  ClickHouseWriter.writeRow(stream, schema(), row);
+                  ClickHouseWriter.writeRow(stream, tableSchemaInstance, row);
                 }
               });
           buffer.clear();
@@ -452,8 +452,6 @@ public class ClickHouseIO {
 
       public abstract Builder<T> maxInsertBlockSize(long maxInsertBlockSize);
 
-      public abstract Builder<T> schema(TableSchema schema);
-
       public abstract Builder<T> properties(Properties properties);
 
       public abstract Builder<T> maxRetries(int maxRetries);
@@ -473,7 +471,7 @@ public class ClickHouseIO {
    * @param table table name
    * @return table schema
    */
-  public static TableSchema getTableSchema(String jdbcUrl, String table) {
+  public static synchronized TableSchema getTableSchema(String jdbcUrl, String table) {
     List<TableSchema.Column> columns = new ArrayList<>();
 
     try (ClickHouseConnection connection = new ClickHouseDataSource(jdbcUrl).getConnection();
