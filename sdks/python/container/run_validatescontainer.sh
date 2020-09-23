@@ -51,11 +51,7 @@ REGION=${REGION:-us-central1}
 IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
 
 # Other variables branched by Python version.
-if [[ $1 == "python35" ]]; then
-  IMAGE_NAME="${IMAGE_PREFIX}python3.5_sdk"    # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="sdks:python:container:py35"  # Use this to build container by Gradle.
-  PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
-elif [[ $1 == "python36" ]]; then
+if [[ $1 == "python36" ]]; then
   IMAGE_NAME="${IMAGE_PREFIX}python3.6_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py36"  # Use this to build container by Gradle.
   PY_INTERPRETER="python3.6"    # Use this in virtualenv command.
@@ -68,7 +64,7 @@ elif [[ $1 == "python38" ]]; then
   CONTAINER_PROJECT="sdks:python:container:py38"  # Use this to build container by Gradle.
   PY_INTERPRETER="python3.8"    # Use this in virtualenv command.
 else
-  echo "Must set Python version with one of 'python35', 'python36', 'python37' and 'python38' from commandline."
+  echo "Must set Python version with one of 'python36', 'python37' and 'python38' from commandline."
   exit 1
 fi
 XUNIT_FILE="nosetests-$IMAGE_NAME.xml"

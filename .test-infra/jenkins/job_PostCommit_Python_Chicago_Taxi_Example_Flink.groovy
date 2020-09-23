@@ -33,7 +33,7 @@ def chicagoTaxiJob = { scope ->
   Flink flink = new Flink(scope, 'beam_PostCommit_Python_Chicago_Taxi_Flink')
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_python2.7_sdk:latest"
+        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
       ],
       numberOfWorkers,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
@@ -41,7 +41,7 @@ def chicagoTaxiJob = { scope ->
   def pipelineOptions = [
     parallelism             : numberOfWorkers,
     job_endpoint            : 'localhost:8099',
-    environment_config      : "${DOCKER_CONTAINER_REGISTRY}/beam_python2.7_sdk:latest",
+    environment_config      : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
     environment_type        : 'DOCKER',
     execution_mode_for_batch: 'BATCH_FORCED',
   ]
