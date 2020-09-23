@@ -1227,6 +1227,7 @@ class TextSinkTest(unittest.TestCase):
     self.assertEqual(sorted(read_result[:-1]), sorted(self.lines))
     self.assertEqual(read_result[-1], footer_text.encode('utf-8'))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
