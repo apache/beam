@@ -891,6 +891,9 @@ class Read(ptransform.PTransform):
     if isinstance(self.source, BoundedSource):
       return pbegin | _SDFBoundedSourceWrapper(self.source)
     elif isinstance(self.source, ptransform.PTransform):
+      # The Read transform can also admit a full PTransform as an input
+      # rather than an anctual source. If the input is a PTransform, then
+      # just apply it directly.
       return pbegin.pipeline | self.source
     else:
       # Treat Read itself as a primitive.
