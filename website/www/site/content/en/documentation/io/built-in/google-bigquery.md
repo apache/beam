@@ -725,10 +725,6 @@ You can either keep retrying, or return the failed records in a separate
 
 ### Using dynamic destinations
 
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support dynamic destinations.
-{{< /paragraph >}}
-
 You can use the dynamic destinations feature to write elements in a
 `PCollection` to different BigQuery tables, possibly with different schemas.
 
@@ -768,8 +764,18 @@ different table for each year.
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
 {{< /highlight >}}
 
+<!-- Python specific -->
+
+{{< paragraph class="language-py" >}}
+The `table` parameter can also be a dynamic parameter (i.e. a callable), which receives an element to be written to BigQuery, and returns the table that that element should be sent to.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
+You may also provide a tuple of `PCollectionView` elements to be passed as side inputs to your callable. For example, suppose that one wishes to send events of different types to different tables, and the table names are computed at pipeline runtime, one may do something like the following:
+{{< /paragraph >}}
+
 {{< highlight py >}}
-# The Beam SDK for Python does not currently support dynamic destinations.
+{{< code_sample "examples/py/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
 {{< /highlight >}}
 
 ### Using time partitioning
