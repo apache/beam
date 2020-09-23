@@ -188,8 +188,12 @@ class SchemaTest(unittest.TestCase):
       self.assertEqual(
           test_case, typing_to_runner_api(typing_from_runner_api(test_case)))
 
-  def test_unknown_primitive_raise_valueerror(self):
-    self.assertRaises(ValueError, lambda: typing_to_runner_api(np.uint32))
+  def test_unknown_primitive_maps_to_any(self):
+    self.assertEqual(
+        typing_to_runner_api(np.uint32),
+        schema_pb2.FieldType(
+            logical_type=schema_pb2.LogicalType(
+                urn="beam:logical:pythonsdk_any:v1")))
 
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(
