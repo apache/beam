@@ -27,7 +27,7 @@ set -e
 DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
 DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
 
-PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7" "python3.8")
+PYTHON_VER=("python3.6" "python3.7" "python3.8")
 FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "Publish SDK docker images to Docker Hub."
