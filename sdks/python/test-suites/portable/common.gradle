@@ -194,7 +194,7 @@ task sparkValidatesRunner() {
   dependsOn 'sparkCompatibilityMatrixLoopback'
 }
 
-project.task("preCommitPy${pythonVersionSuffix}") {
+project.task("preCommit") {
   dependsOn = [":sdks:python:container:py${pythonVersionSuffix}:docker",
                ':runners:flink:1.10:job-server:shadowJar',
                'portableWordCountFlinkRunnerBatch',
