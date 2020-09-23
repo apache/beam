@@ -17,43 +17,42 @@
 
 """ Support for mapping python types to proto Schemas and back again.
 
-Python              Schema
-np.int8     <-----> BYTE
-np.int16    <-----> INT16
-np.int32    <-----> INT32
-np.int64    <-----> INT64
-int         ---/
-np.float32  <-----> FLOAT
-np.float64  <-----> DOUBLE
-float       ---/
-bool        <-----> BOOLEAN
-Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
-Mapping     <-----> MapType
-Sequence    <-----> ArrayType
-NamedTuple  <-----> RowType
-beam.Row    ---/
+Imposes a mapping between common Python types and Beam portable schemas
+(https://s.apache.org/beam-schemas)::
 
-nullable=True on a Beam FieldType is represented in Python by wrapping the
-typing in Optional.
+  Python              Schema
+  np.int8     <-----> BYTE
+  np.int16    <-----> INT16
+  np.int32    <-----> INT32
+  np.int64    <-----> INT64
+  int         ------> INT64
+  np.float32  <-----> FLOAT
+  np.float64  <-----> DOUBLE
+  float       ------> DOUBLE
+  bool        <-----> BOOLEAN
+  str/unicode <-----> STRING
+  bytes       <-----> BYTES
+  ByteString  ------> BYTES
+  Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  Mapping     <-----> MapType
+  Sequence    <-----> ArrayType
+  NamedTuple  <-----> RowType
+  beam.Row    ------> RowType
 
-The mappings for STRING and BYTES are different between python 2 and python 3,
-because of the changes to str:
-py3:
-str/unicode <-----> STRING
-bytes       <-----> BYTES
-ByteString  ---/
+Note that some of these mappings are provided as conveniences,
+but they are lossy and will not survive a roundtrip from python to Beam schemas
+and back. For example, the Python type :code:`int` will map to :code:`INT64` in
+Beam schemas but converting that back to a Python type will yield
+:code:`np.int64`.
 
-py2:
-str will be rejected since it is ambiguous.
-unicode     <-----> STRING
-ByteString  <-----> BYTES
+:code:`nullable=True` on a Beam :code:`FieldType` is represented in Python by
+wrapping the type in :code:`Optional`.
 """
 
 # pytype: skip-file
 
 from __future__ import absolute_import
 
-import sys
 from typing import ByteString
 from typing import Generic
 from typing import Mapping
@@ -108,8 +107,7 @@ _PRIMITIVES = (
     (np.float64, schema_pb2.DOUBLE),
     (unicode, schema_pb2.STRING),
     (bool, schema_pb2.BOOLEAN),
-    # TODO(BEAM-7372): Use bytes instead of ByteString
-    (bytes if sys.version_info.major >= 3 else ByteString, schema_pb2.BYTES),
+    (bytes, schema_pb2.BYTES),
 )
 
 PRIMITIVE_TO_ATOMIC_TYPE = dict((typ, atomic) for typ, atomic in _PRIMITIVES)
@@ -117,10 +115,6 @@ ATOMIC_TYPE_TO_PRIMITIVE = dict((atomic, typ) for typ, atomic in _PRIMITIVES)
 
 # One-way mappings
 PRIMITIVE_TO_ATOMIC_TYPE.update({
-    # In python 2, this is a no-op because we define it as the bi-directional
-    # mapping above. This just ensures the one-way mapping is defined in python
-    # 3.
-    # TODO(BEAM-7372): Use bytes instead of ByteString
     ByteString: schema_pb2.BYTES,
     # Allow users to specify a native int, and use INT64 as the cross-language
     # representation. Technically ints have unlimited precision, but RowCoder
@@ -171,12 +165,6 @@ def typing_to_runner_api(type_):
   # a supported primitive type.
   elif type_ in PRIMITIVE_TO_ATOMIC_TYPE:
     return schema_pb2.FieldType(atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[type_])
-
-  elif sys.version_info.major == 2 and type_ == str:
-    raise ValueError(
-        "type 'str' is not supported in python 2. Please use 'unicode' or "
-        "'typing.ByteString' instead to unambiguously indicate if this is a "
-        "UTF-8 string or a byte array.")
 
   elif _match_is_exactly_mapping(type_):
     key_type, value_type = map(typing_to_runner_api, _get_args(type_))

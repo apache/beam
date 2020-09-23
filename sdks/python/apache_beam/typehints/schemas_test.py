@@ -22,7 +22,6 @@
 from __future__ import absolute_import
 
 import itertools
-import sys
 import unittest
 from typing import ByteString
 from typing import List
@@ -41,8 +40,6 @@ from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
-
-IS_PYTHON_3 = sys.version_info.major > 2
 
 
 class SchemaTest(unittest.TestCase):
@@ -63,14 +60,9 @@ class SchemaTest(unittest.TestCase):
         np.float64,
         unicode,
         bool,
+        bytes,
+        str,
     ]
-
-    # The bytes type cannot survive a roundtrip to/from proto in Python 2.
-    # In order to use BYTES a user type has to use typing.ByteString (because
-    # bytes == str, and we map str to STRING).
-    # TODO(BEAM-7372)
-    if IS_PYTHON_3:
-      all_nonoptional_primitives.extend([bytes])
 
     all_optional_primitives = [
         Optional[typ] for typ in all_nonoptional_primitives
@@ -118,13 +110,6 @@ class SchemaTest(unittest.TestCase):
         for typ in schema_pb2.AtomicType.values()
         if typ is not schema_pb2.UNSPECIFIED
     ]
-
-    # The bytes type cannot survive a roundtrip to/from proto in Python 2.
-    # In order to use BYTES a user type has to use typing.ByteString (because
-    # bytes == str, and we map str to STRING).
-    if not IS_PYTHON_3:
-      all_nonoptional_primitives.remove(
-          schema_pb2.FieldType(atomic_type=schema_pb2.BYTES))
 
     all_optional_primitives = [
         schema_pb2.FieldType(nullable=True, atomic_type=typ)
@@ -211,13 +196,6 @@ class SchemaTest(unittest.TestCase):
         ValueError,
         lambda: typing_from_runner_api(
             schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED)))
-
-  @unittest.skipIf(IS_PYTHON_3, 'str is acceptable in python 3')
-  def test_str_raises_error_py2(self):
-    self.assertRaises(lambda: typing_to_runner_api(str))
-    self.assertRaises(
-        lambda: typing_to_runner_api(
-            NamedTuple('Test', [('int', int), ('str', str)])))
 
   def test_int_maps_to_int64(self):
     self.assertEqual(
