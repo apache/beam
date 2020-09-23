@@ -251,13 +251,6 @@ def wont_implement_method(msg):
   return wrapper
 
 
-def not_implemented_method(op, jira='BEAM-9547'):
-  def wrapper(self, *args, **kwargs):
-    raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
-
-  return wrapper
-
-
 def copy_and_mutate(func):
   def wrapper(self, *args, **kwargs):
     copy = self.copy()
