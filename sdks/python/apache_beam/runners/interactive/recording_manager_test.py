@@ -317,6 +317,9 @@ class RecordingManagerTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
 
+  def tearDown(self):
+    ib.options.capture_control.set_limiters_for_test([])
+
   @unittest.skipIf(
       sys.version_info < (3, 6, 0),
       'This test requires at least Python 3.6 to work.')
