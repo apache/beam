@@ -201,7 +201,7 @@ public class ContextualTextIO {
 
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded {@link
-   * PCollection} containing one {@link Row}element for each line of the input files.
+   * PCollection} containing one {@link Row element} for each line in the input files.
    */
   public static Read read() {
     return new AutoValue_ContextualTextIO_Read.Builder()
@@ -444,7 +444,7 @@ public class ContextualTextIO {
                 KV.of(
                     record
                         .getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class)
-                        .getFilename(),
+                        .toString(),
                     record.getInt64(RecordWithMetadata.RANGE_OFFSET)),
                 record));
       }
