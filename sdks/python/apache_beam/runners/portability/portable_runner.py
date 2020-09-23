@@ -106,8 +106,9 @@ class JobServiceHandle(object):
     Submit and run the pipeline defined by `proto_pipeline`.
     """
     prepare_response = self.prepare(proto_pipeline)
-    artifact_endpoint = (self.artifact_endpoint
-                         or prepare_response.artifact_staging_endpoint.url)
+    artifact_endpoint = (
+        self.artifact_endpoint or
+        prepare_response.artifact_staging_endpoint.url)
     self.stage(
         proto_pipeline,
         artifact_endpoint,

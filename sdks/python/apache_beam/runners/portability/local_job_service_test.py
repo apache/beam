@@ -22,10 +22,14 @@ from __future__ import print_function
 import logging
 import unittest
 
+import mock
+
+from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability.portable_runner import JobServiceHandle
+from apache_beam.runners.portability.portable_runner import PortableRunner
 
 
 class TestJobServicePlan(JobServiceHandle):
@@ -102,6 +106,32 @@ class LocalJobServerTest(unittest.TestCase):
             'unsupported_requirement' in m.message_response.message_text
             for m in message_results),
         messages_again)
+
+  def test_artifact_service_override(self):
+    job_service = local_job_service.LocalJobServicer()
+    port = job_service.start_grpc_server()
+
+    test_artifact_endpoint = 'testartifactendpoint:4242'
+
+    options = pipeline_options.PipelineOptions([
+        '--job_endpoint',
+        'localhost:%d' % port,
+        '--artifact_endpoint',
+        test_artifact_endpoint,
+    ])
+    runner = PortableRunner()
+    job_service_handle = runner.create_job_service(options)
+
+    with mock.patch.object(job_service_handle, 'stage') as mocked_stage:
+      job_service_handle.submit(beam_runner_api_pb2.Pipeline())
+      mocked_stage.assert_called_once_with(
+          mock.ANY, test_artifact_endpoint, mock.ANY)
+
+    # Confirm the artifact_endpoint is in the options protobuf
+    options_proto = job_service_handle.get_pipeline_options()
+    self.assertEqual(
+        options_proto['beam:option:artifact_endpoint:v1'],
+        test_artifact_endpoint)
 
 
 if __name__ == '__main__':
