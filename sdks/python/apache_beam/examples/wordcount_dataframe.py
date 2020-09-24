@@ -72,7 +72,7 @@ def run(argv=None):
     counted_pc = to_pcollection(counted, include_indexes=True)
 
     # Print out every word that occurred >50 times
-    (
+    _ = (
         counted_pc
         | beam.Filter(lambda row: row.count > 50)
         | beam.Map(lambda row: f'{row.word}: {row.count}')
