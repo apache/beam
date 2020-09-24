@@ -32,6 +32,7 @@ import hamcrest as hc
 import mock
 
 import apache_beam as beam
+from apache_beam.io.gcp.pubsub import MultipleReadFromPubSub
 from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
@@ -57,6 +58,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 
@@ -218,6 +220,139 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     source = read_transform._source
     self.assertTrue(source.with_attributes)
     self.assertEqual('time', source.timestamp_attribute)
+
+
+@unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+class TestMultiReadFromPubSubOverride(unittest.TestCase):
+  def test_expand_with_multiple_sources(self):
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    topics = [
+        'projects/fakeprj/topics/a_topic',
+        'projects/fakeprj2/topics/b_topic',
+    ]
+    subscriptions = [
+        'projects/fakeprj/subscriptions/a_subscription',
+        'projects/fakeprj2/subscriptions/b_subscription',
+    ]
+    sources = topics + subscriptions
+    pcoll = (p | MultipleReadFromPubSub(sources) | beam.Map(lambda x: x))
+
+    # Apply the necessary PTransformOverrides.
+    overrides = _get_transform_overrides(options)
+    p.replace_all(overrides)
+
+    self.assertEqual(bytes, pcoll.element_type)
+
+    # Ensure that the sources are passed through correctly
+    read_transforms = pcoll.producer.inputs[0].producer.inputs
+    topics_list = []
+    subscription_list = []
+    for read_transform in read_transforms:
+      source = read_transform.producer.transform._source
+      if source.full_topic:
+        topics_list.append(source.full_topic)
+      else:
+        subscription_list.append(source.full_subscription)
+    self.assertEqual(topics_list, topics)
+    self.assertEqual(subscription_list, subscriptions)
+
+  def test_expand_with_multiple_sources_and_context(self):
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    topics = [
+        'projects/fakeprj/topics/a_topic',
+        'projects/fakeprj2/topics/b_topic',
+    ]
+    subscriptions = [
+        'projects/fakeprj/subscriptions/a_subscription',
+        'projects/fakeprj2/subscriptions/b_subscription',
+    ]
+    sources = topics + subscriptions
+    pcoll = (p | MultipleReadFromPubSub(sources, with_context=True))
+
+    # Apply the necessary PTransformOverrides.
+    overrides = _get_transform_overrides(options)
+    p.replace_all(overrides)
+
+    self.assertEqual(typehints.Tuple[str, bytes], pcoll.element_type)
+
+    # Ensure that the sources are passed through correctly
+    read_transforms = pcoll.producer.inputs
+    topics_list = []
+    subscription_list = []
+    for read_transform in read_transforms:
+      source = read_transform.producer.inputs[0].producer.transform._source
+      if source.full_topic:
+        topics_list.append(source.full_topic)
+      else:
+        subscription_list.append(source.full_subscription)
+    self.assertEqual(topics_list, topics)
+    self.assertEqual(subscription_list, subscriptions)
+
+  def test_expand_with_multiple_sources_and_other_options(self):
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    topics = [
+        'projects/fakeprj/topics/a_topic',
+        'projects/fakeprj2/topics/b_topic',
+    ]
+    subscriptions = [
+        'projects/fakeprj/subscriptions/a_subscription',
+        'projects/fakeprj2/subscriptions/b_subscription',
+    ]
+    sources = topics + subscriptions
+    pcoll = (
+        p
+        | MultipleReadFromPubSub(
+            sources,
+            id_label='a_label',
+            with_attributes=True,
+            timestamp_attribute='time')
+        | beam.Map(lambda x: x))
+
+    # Apply the necessary PTransformOverrides.
+    overrides = _get_transform_overrides(options)
+    p.replace_all(overrides)
+
+    self.assertEqual(PubsubMessage, pcoll.element_type)
+
+    # Ensure that the sources are passed through correctly
+    read_transforms = pcoll.producer.inputs[0].producer.inputs
+    for read_transform in read_transforms:
+      source = read_transform.producer.transform._source
+      self.assertEqual(source.id_label, 'a_label')
+      self.assertEqual(source.with_attributes, True)
+      self.assertEqual(source.timestamp_attribute, 'time')
+
+  def test_expand_with_wrong_source(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'PubSub source must be in the form "projects/<project>/'
+        'topics/<topic>" or "projects/<project>/subscription'
+        '/<subscription>".*'):
+      MultipleReadFromPubSub(['not_a_proper_source'])
+
+  def test_expand_with_topic(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Topics and subscriptions should be in "source_list". '
+        'Found topic.*'):
+      MultipleReadFromPubSub(
+          source_list=['projects/fakeprj/topics/a_topic'],
+          topic='projects/fakeprj/topics/b_topic')
+
+  def test_expand_with_subscription(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Subscriptions and topics should be in "source_list". '
+        'Found subscription.*'):
+      MultipleReadFromPubSub(
+          source_list=['projects/fakeprj/topics/a_topic'],
+          subscription='projects/fakeprj/subscriptions/a_subscription')
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
