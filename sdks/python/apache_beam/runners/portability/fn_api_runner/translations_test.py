@@ -24,6 +24,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
+from apache_beam import runners
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
@@ -118,6 +119,17 @@ class TranslationsTest(unittest.TestCase):
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
     self.assertIn('/Pack', combine_per_key_stages[0].name)
+
+  def test_optimize_empty_pipeline(self):
+    pipeline = beam.Pipeline()
+    pipeline_proto = pipeline.to_runner_api()
+    optimized_pipeline_proto = translations.optimize_pipeline(
+        pipeline_proto, [], known_runner_urns=frozenset(), partial=True)
+    runner = runners.DirectRunner()
+    beam.Pipeline.from_runner_api(
+        optimized_pipeline_proto,
+        runner,
+        pipeline_options.PipelineOptions())
 
 
 if __name__ == '__main__':
