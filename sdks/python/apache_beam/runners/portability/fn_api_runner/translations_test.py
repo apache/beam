@@ -22,9 +22,9 @@ import logging
 import unittest
 
 import apache_beam as beam
+from apache_beam import runners
 from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
-from apache_beam import runners
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
