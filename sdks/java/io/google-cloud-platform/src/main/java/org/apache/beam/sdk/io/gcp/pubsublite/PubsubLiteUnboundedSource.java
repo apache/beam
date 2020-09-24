@@ -100,7 +100,9 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
         statesBuilder.put(partition, state);
       }
       return new PubsubLiteUnboundedReader(
-          this, statesBuilder.build(), subscriberOptions.topicBacklogReader());
+          this,
+          statesBuilder.build(),
+          TopicBacklogReader.create(subscriberOptions.topicBacklogReaderSettings()));
     } catch (StatusException e) {
       throw new IOException(e);
     }

@@ -133,6 +133,7 @@ class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
             .refreshAfterWrite(10, TimeUnit.SECONDS)
             .build(
                 new CacheLoader<Object, Long>() {
+                  @Override
                   public Long load(Object val) throws InterruptedException, ExecutionException {
                     return computeSplitBacklog().get().getMessageBytes();
                   }

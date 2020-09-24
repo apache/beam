@@ -26,28 +26,23 @@ import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.internal.TopicStatsClientSettings;
 import com.google.cloud.pubsublite.proto.TopicStatsServiceGrpc.TopicStatsServiceBlockingStub;
-import io.grpc.Status;
 import io.grpc.StatusException;
-import java.util.Optional;
+import java.io.Serializable;
 import java.util.concurrent.ExecutionException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
-public abstract class TopicBacklogReaderSettings {
+public abstract class TopicBacklogReaderSettings implements Serializable {
+  private static final long serialVersionUID = -4001752066450248673L;
 
   /**
    * The topic path for this backlog reader. Either topicPath or subscriptionPath must be set. If
    * both are set, subscriptionPath will be ignored.
    */
-  abstract Optional<TopicPath> topicPath();
-
-  /**
-   * The subscription path for this backlog reader. Either topicPath or subscriptionPath must be
-   * set. If both are set, subscriptionPath will be ignored.
-   */
-  abstract Optional<SubscriptionPath> subscriptionPath();
+  abstract TopicPath topicPath();
 
   // Optional parameters
-  abstract Optional<TopicStatsServiceBlockingStub> stub();
+  abstract @Nullable SerializableSupplier<TopicStatsServiceBlockingStub> stub();
 
   public static Builder newBuilder() {
     return new AutoValue_TopicBacklogReaderSettings.Builder();
@@ -55,43 +50,38 @@ public abstract class TopicBacklogReaderSettings {
 
   @AutoValue.Builder
   public abstract static class Builder {
+
     // Required parameters.
     public abstract Builder setTopicPath(TopicPath topicPath);
 
-    public abstract Builder setSubscriptionPath(SubscriptionPath topicPath);
-
-    public abstract Builder setStub(TopicStatsServiceBlockingStub stub);
-
-    public abstract TopicBacklogReaderSettings build();
-  }
-
-  TopicBacklogReader instantiate() throws StatusException {
-    TopicStatsClientSettings.Builder builder = TopicStatsClientSettings.newBuilder();
-    if (stub().isPresent()) {
-      builder.setStub(stub().get());
-    }
-    TopicPath path;
-    if (topicPath().isPresent()) {
-      path = topicPath().get();
-    } else if (subscriptionPath().isPresent()) {
+    public Builder setTopicPathFromSubscriptionPath(SubscriptionPath subscriptionPath)
+        throws StatusException {
       try (AdminClient adminClient =
           AdminClient.create(
               AdminClientSettings.newBuilder()
-                  .setRegion(subscriptionPath().get().location().region())
+                  .setRegion(subscriptionPath.location().region())
                   .build())) {
-        path =
-            TopicPath.parse(adminClient.getSubscription(subscriptionPath().get()).get().getTopic());
+        return setTopicPath(
+            TopicPath.parse(adminClient.getSubscription(subscriptionPath).get().getTopic()));
       } catch (ExecutionException e) {
         throw ExtractStatus.toCanonical(e.getCause());
       } catch (Throwable t) {
         throw ExtractStatus.toCanonical(t);
       }
-    } else {
-      throw new StatusException(
-          Status.INVALID_ARGUMENT.withDescription(
-              "Either subscriptionPath or topicPath must be set"));
     }
-    builder.setRegion(path.location().region());
-    return new TopicBacklogReaderImpl(TopicStatsClient.create(builder.build()), path);
+
+    public abstract Builder setStub(SerializableSupplier<TopicStatsServiceBlockingStub> stub);
+
+    public abstract TopicBacklogReaderSettings build();
+  }
+
+  @SuppressWarnings("CheckReturnValue")
+  TopicBacklogReader instantiate() throws StatusException {
+    TopicStatsClientSettings.Builder builder = TopicStatsClientSettings.newBuilder();
+    if (stub() != null) {
+      builder.setStub(stub().get());
+    }
+    builder.setRegion(topicPath().location().region());
+    return new TopicBacklogReaderImpl(TopicStatsClient.create(builder.build()), topicPath());
   }
 }

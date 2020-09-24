@@ -85,7 +85,7 @@ public final class TopicBacklogReaderImplTest {
             ImmutableMap.of(Partition.of(1), Offset.of(10), Partition.of(2), Offset.of(20)));
 
     ExecutionException ex = assertThrows(ExecutionException.class, future::get);
-    assertEquals(ExtractStatus.extract(ex.getCause()).get().getCode(), Code.UNAVAILABLE);
+    assertEquals(Code.UNAVAILABLE, ExtractStatus.extract(ex.getCause()).get().getCode());
   }
 
   @Test

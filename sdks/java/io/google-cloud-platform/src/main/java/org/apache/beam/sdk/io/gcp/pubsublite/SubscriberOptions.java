@@ -55,7 +55,7 @@ public abstract class SubscriberOptions implements Serializable {
   public abstract Set<Partition> partitions();
 
   /** The class used to read backlog for the subscription described by subscriptionPath(). */
-  public abstract TopicBacklogReader topicBacklogReader();
+  public abstract TopicBacklogReaderSettings topicBacklogReaderSettings();
 
   /** A supplier for the subscriber stub to be used. */
   public abstract @Nullable SerializableSupplier<SubscriberServiceStub> subscriberStubSupplier();
@@ -141,7 +141,8 @@ public abstract class SubscriberOptions implements Serializable {
     public abstract Builder setCommitterStubSupplier(
         SerializableSupplier<CursorServiceStub> stubSupplier);
 
-    public abstract Builder setTopicBacklogReader(TopicBacklogReader topicBacklogReader);
+    public abstract Builder setTopicBacklogReaderSettings(
+        TopicBacklogReaderSettings topicBacklogReaderSettings);
 
     // Used in unit tests
     abstract Builder setSubscriberFactory(SubscriberFactory subscriberFactory);
@@ -153,12 +154,13 @@ public abstract class SubscriberOptions implements Serializable {
 
     abstract Set<Partition> partitions();
 
-    abstract Optional<TopicBacklogReader> topicBacklogReader();
+    abstract Optional<TopicBacklogReaderSettings> topicBacklogReaderSettings();
 
     abstract SubscriberOptions autoBuild();
 
+    @SuppressWarnings("CheckReturnValue")
     public SubscriberOptions build() throws StatusException {
-      if (!partitions().isEmpty() && topicBacklogReader().isPresent()) {
+      if (!partitions().isEmpty() && topicBacklogReaderSettings().isPresent()) {
         return autoBuild();
       }
 
@@ -170,12 +172,11 @@ public abstract class SubscriberOptions implements Serializable {
         }
         setPartitions(partitions.build());
       }
-      if (!topicBacklogReader().isPresent()) {
-        setTopicBacklogReader(
-            TopicBacklogReader.create(
-                TopicBacklogReaderSettings.newBuilder()
-                    .setSubscriptionPath(subscriptionPath())
-                    .build()));
+      if (!topicBacklogReaderSettings().isPresent()) {
+        setTopicBacklogReaderSettings(
+            TopicBacklogReaderSettings.newBuilder()
+                .setTopicPathFromSubscriptionPath(subscriptionPath())
+                .build());
       }
       return autoBuild();
     }
