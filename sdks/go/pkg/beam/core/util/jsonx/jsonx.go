@@ -49,5 +49,5 @@ func Unmarshal(elem interface{}, data []byte) error {
 // The passed in element must be a pointer of the given type.
 func UnmarshalFrom(elem interface{}, r io.Reader) error {
 	dec := json.NewDecoder(r)
-	return dec.Decode(r)
+	return dec.Decode(elem)
 }
