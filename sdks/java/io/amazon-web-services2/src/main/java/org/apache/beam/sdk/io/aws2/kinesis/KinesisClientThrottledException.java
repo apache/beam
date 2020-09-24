@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 import software.amazon.awssdk.services.kinesis.model.KinesisException;
 
 /** Thrown when the Kinesis client was throttled due to rate limits. */
-class KinesisClientThrottledException extends TransientKinesisException {
+public class KinesisClientThrottledException extends TransientKinesisException {
 
   public KinesisClientThrottledException(String s, KinesisException e) {
     super(s, e);

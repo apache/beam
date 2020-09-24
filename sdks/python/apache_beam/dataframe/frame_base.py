@@ -67,8 +67,8 @@ class DeferredBase(object):
     else:
       if expr.requires_partition_by() != partitionings.Singleton():
         raise ValueError(
-            'Scalar expression %s partitoned by non-singleton %s' %
-            (expr, expr.requires_partition_by()))
+            'Scalar expression %s of type %s partitoned by non-singleton %s' %
+            (expr, proxy_type, expr.requires_partition_by()))
       wrapper_type = _DeferredScalar
     return wrapper_type(expr)
 
@@ -213,11 +213,20 @@ def _proxy_function(
         full_args[ix] = arg
       return actual_func(*full_args, **kwargs)
 
+    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+           for arg in deferred_arg_exprs
+           ) and not requires_partition_by.is_subpartitioning_of(
+               partitionings.Index()):
+      # Implicit join on index.
+      actual_requires_partition_by = partitionings.Index()
+    else:
+      actual_requires_partition_by = requires_partition_by
+
     result_expr = expressions.ComputedExpression(
         name,
         apply,
         deferred_arg_exprs,
-        requires_partition_by=requires_partition_by,
+        requires_partition_by=actual_requires_partition_by,
         preserves_partition_by=preserves_partition_by)
     if inplace:
       args[0]._expr = result_expr
@@ -238,6 +247,13 @@ def _agg_method(func):
 def wont_implement_method(msg):
   def wrapper(self, *args, **kwargs):
     raise WontImplementError(msg)
+
+  return wrapper
+
+
+def not_implemented_method(op, jira='BEAM-9547'):
+  def wrapper(self, *args, **kwargs):
+    raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
   return wrapper
 

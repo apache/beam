@@ -601,12 +601,27 @@ public class AvroUtils {
     private Map<String, String> getMapping(Schema schema) {
       Map<String, String> mapping = Maps.newHashMap();
       for (Field field : schema.getFields()) {
-        String underscore = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName());
-        mapping.put(underscore, field.getName());
+        String fieldName = field.getName();
+        String getter;
+        if (fieldName.contains("_")) {
+          if (Character.isLowerCase(fieldName.charAt(0))) {
+            // field_name -> fieldName
+            getter = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, fieldName);
+          } else {
+            // FIELD_NAME -> fIELDNAME
+            // must remove underscore and then convert to match compiled Avro schema getter name
+            getter = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL, fieldName.replace("_", ""));
+          }
+        } else if (Character.isUpperCase(fieldName.charAt(0))) {
+          // FieldName -> fieldName
+          getter = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL, fieldName);
+        } else {
+          // If the field is in camel case already, then it's the identity mapping.
+          getter = fieldName;
+        }
+        mapping.put(getter, fieldName);
         // The Avro compiler might add a $ at the end of a getter to disambiguate.
-        mapping.put(underscore + "$", field.getName());
-        // If the field is in camel case already, then it's the identity mapping.
-        mapping.put(field.getName(), field.getName());
+        mapping.put(getter + "$", fieldName);
       }
       return mapping;
     }

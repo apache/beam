@@ -55,7 +55,7 @@ CHECK_USES_DEFERRED_DATAFRAMES = '''
 RangeIndex(start=0, stop=10, step=1)
 '''
 
-ERROR_RAISING_TESTS = '''
+WONT_IMPLEMENT_RAISING_TESTS = '''
 >>> import apache_beam
 >>> raise apache_beam.dataframe.frame_base.WontImplementError('anything')
 ignored exception
@@ -65,7 +65,7 @@ ignored result
 
 ERROR_RAISING_NAME_ERROR_TESTS = '''
 >>> import apache_beam
->>> raise apache_beam.dataframe.frame_base.WontImplementError('anything')
+>>> raise %s('anything')
 ignored exception
 >>> raise NameError
 ignored exception
@@ -76,6 +76,18 @@ ignored exception
 >>> raise NameError
 failed exception
 '''
+
+WONT_IMPLEMENT_RAISING_NAME_ERROR_TESTS = ERROR_RAISING_NAME_ERROR_TESTS % (
+    'apache_beam.dataframe.frame_base.WontImplementError', )
+
+NOT_IMPLEMENTED_RAISING_TESTS = '''
+>>> import apache_beam
+>>> raise NotImplementedError('anything')
+ignored exception
+'''
+
+NOT_IMPLEMENTED_RAISING_NAME_ERROR_TESTS = ERROR_RAISING_NAME_ERROR_TESTS % (
+    'NotImplementedError', )
 
 RST_IPYTHON = '''
 Here is an example
@@ -155,20 +167,48 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_wont_implement(self):
-    doctests.teststring(
-        ERROR_RAISING_TESTS,
+    result = doctests.teststring(
+        WONT_IMPLEMENT_RAISING_TESTS,
         optionflags=doctest.ELLIPSIS,
         wont_implement_ok=True)
-    doctests.teststring(
-        ERROR_RAISING_TESTS,
+    self.assertNotEqual(result.attempted, 0)
+    self.assertEqual(result.failed, 0)
+
+    result = doctests.teststring(
+        WONT_IMPLEMENT_RAISING_TESTS,
         optionflags=doctest.IGNORE_EXCEPTION_DETAIL,
         wont_implement_ok=True)
+    self.assertNotEqual(result.attempted, 0)
+    self.assertEqual(result.failed, 0)
 
   def test_wont_implement_followed_by_name_error(self):
     result = doctests.teststring(
-        ERROR_RAISING_NAME_ERROR_TESTS,
+        WONT_IMPLEMENT_RAISING_NAME_ERROR_TESTS,
         optionflags=doctest.ELLIPSIS,
         wont_implement_ok=True)
+    self.assertEqual(result.attempted, 6)
+    self.assertEqual(result.failed, 1)  # Only the very last one.
+
+  def test_not_implemented(self):
+    result = doctests.teststring(
+        NOT_IMPLEMENTED_RAISING_TESTS,
+        optionflags=doctest.ELLIPSIS,
+        not_implemented_ok=True)
+    self.assertNotEqual(result.attempted, 0)
+    self.assertEqual(result.failed, 0)
+
+    result = doctests.teststring(
+        NOT_IMPLEMENTED_RAISING_TESTS,
+        optionflags=doctest.IGNORE_EXCEPTION_DETAIL,
+        not_implemented_ok=True)
+    self.assertNotEqual(result.attempted, 0)
+    self.assertEqual(result.failed, 0)
+
+  def test_not_implemented_followed_by_name_error(self):
+    result = doctests.teststring(
+        NOT_IMPLEMENTED_RAISING_NAME_ERROR_TESTS,
+        optionflags=doctest.ELLIPSIS,
+        not_implemented_ok=True)
     self.assertEqual(result.attempted, 6)
     self.assertEqual(result.failed, 1)  # Only the very last one.
 

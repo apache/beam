@@ -171,6 +171,10 @@ class _InMemoryResultRecorder(object):
     return self._ALL_RESULTS[self._id][name]
 
 
+WONT_IMPLEMENT = 'apache_beam.dataframe.frame_base.WontImplementError'
+NOT_IMPLEMENTED = 'NotImplementedError'
+
+
 class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
   """Validates output by replacing DeferredBase[...] with computed values.
   """
@@ -181,12 +185,14 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     else:
       self.compute = self.compute_using_session
     self._seen_wont_implement = False
+    self._seen_not_implemented = False
 
   def reset(self):
     self._seen_wont_implement = False
+    self._seen_not_implemented = False
 
   def compute_using_session(self, to_compute):
-    session = expressions.Session(self._env._inputs)
+    session = expressions.PartitioningSession(self._env._inputs)
     return {
         name: frame._expr.evaluate_at(session)
         for name,
@@ -245,19 +251,28 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         got = traceback.format_exc()
     return want, got
 
+  @property
+  def _seen_error(self):
+    return self._seen_wont_implement or self._seen_not_implemented
+
   def check_output(self, want, got, optionflags):
-    if got.startswith('apache_beam.dataframe.frame_base.WontImplementError'):
+    # When an error occurs check_output is called with want=example.exc_msg,
+    # and got=exc_msg
+    if got.startswith(WONT_IMPLEMENT) and want.startswith(WONT_IMPLEMENT):
       self._seen_wont_implement = True
       return True
-    elif got.startswith('NameError') and self._seen_wont_implement:
-      # After raising WontImplementError, ignore NameErrors.
+    elif got.startswith(NOT_IMPLEMENTED) and want.startswith(NOT_IMPLEMENTED):
+      self._seen_not_implemented = True
+      return True
+    elif got.startswith('NameError') and self._seen_error:
+      # After raising WontImplementError or NotImplementError,
+      # ignore a NameError.
       # This allows us to gracefully skip tests like
       #    >>> res = df.unsupported_operation()
       #    >>> check(res)
       return True
     else:
-      # Reset.
-      self._seen_wont_implement = False
+      self.reset()
     want, got = self.fix(want, got)
     return super(_DeferrredDataframeOutputChecker,
                  self).check_output(want, got, optionflags)
@@ -281,7 +296,13 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   by beam.
   """
   def __init__(
-      self, env, use_beam=True, wont_implement_ok=None, skip=None, **kwargs):
+      self,
+      env,
+      use_beam=True,
+      wont_implement_ok=None,
+      not_implemented_ok=None,
+      skip=None,
+      **kwargs):
     self._test_env = env
 
     def to_callable(cond):
@@ -295,6 +316,11 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         for test,
         examples in (wont_implement_ok or {}).items()
     }
+    self._not_implemented_ok = {
+        test: [to_callable(cond) for cond in examples]
+        for test,
+        examples in (not_implemented_ok or {}).items()
+    }
     self._skip = {
         test: [to_callable(cond) for cond in examples]
         for test,
@@ -307,7 +333,19 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
     self.skipped = 0
     self.wont_implement = 0
     self._wont_implement_reasons = []
+    self.not_implemented = 0
+    self._not_implemented_reasons = []
     self._skipped_set = set()
+
+  def _is_wont_implement_ok(self, example, test):
+    return any(
+        wont_implement(example)
+        for wont_implement in self._wont_implement_ok.get(test.name, []))
+
+  def _is_not_implemented_ok(self, example, test):
+    return any(
+        not_implemented(example)
+        for not_implemented in self._not_implemented_ok.get(test.name, []))
 
   def run(self, test, **kwargs):
     self._checker.reset()
@@ -318,12 +356,14 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         example.source = 'pass'
         example.want = ''
         self.skipped += 1
-      elif example.exc_msg is None and any(
-          wont_implement(example)
-          for wont_implement in self._wont_implement_ok.get(test.name, [])):
+      elif example.exc_msg is None and self._is_wont_implement_ok(example,
+                                                                  test):
         # Don't fail doctests that raise this error.
-        example.exc_msg = (
-            'apache_beam.dataframe.frame_base.WontImplementError: ...')
+        example.exc_msg = '%s: ...' % WONT_IMPLEMENT
+      elif example.exc_msg is None and self._is_not_implemented_ok(example,
+                                                                   test):
+        # Don't fail doctests that raise this error.
+        example.exc_msg = '%s: ...' % NOT_IMPLEMENTED
     with self._test_env.context():
       result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
       # Can't add attributes to builtin result.
@@ -332,12 +372,12 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
       return result
 
   def report_success(self, out, test, example, got):
-    def extract_concise_reason(got):
-      m = re.search(r"WontImplementError:\s+(.*)\n$", got)
+    def extract_concise_reason(got, expected_exc):
+      m = re.search(r"%s:\s+(.*)\n$" % expected_exc, got)
       if m:
         return m.group(1)
       elif "NameError" in got:
-        return "NameError following WontImplementError"
+        return "NameError following %s" % expected_exc
       elif re.match(r"DeferredBase\[\d+\]\n", got):
         return "DeferredBase[*]"
       else:
@@ -345,7 +385,13 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
     if self._checker._seen_wont_implement:
       self.wont_implement += 1
-      self._wont_implement_reasons.append(extract_concise_reason(got))
+      self._wont_implement_reasons.append(
+          extract_concise_reason(got, WONT_IMPLEMENT))
+
+    if self._checker._seen_not_implemented:
+      self.not_implemented += 1
+      self._not_implemented_reasons.append(
+          extract_concise_reason(got, NOT_IMPLEMENTED))
 
     return super(BeamDataframeDoctestRunner,
                  self).report_success(out, test, example, got)
@@ -411,9 +457,19 @@ class Summary(object):
     for desc, count in reason_counts:
       print_partition(2, desc, count, self.wont_implement)
     print_partition(
+        1, "not implemented (yet)", self.not_implemented, self.tries)
+    reason_counts = sorted(
+        collections.Counter(self._not_implemented_reasons).items(),
+        key=lambda x: x[1],
+        reverse=True)
+    for desc, count in reason_counts:
+      print_partition(2, desc, count, self.not_implemented)
+    print_partition(1, "failed", self.failures, self.tries)
+    print_partition(
         1,
         "passed",
-        self.tries - self.skipped - self.wont_implement - self.failures,
+        self.tries - self.skipped - self.wont_implement - self.not_implemented -
+        self.failures,
         self.tries)
     print()
 
@@ -523,12 +579,14 @@ def teststring(text, report=False, **runner_kwargs):
       doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
 
   wont_implement_ok = runner_kwargs.pop('wont_implement_ok', False)
+  not_implemented_ok = runner_kwargs.pop('not_implemented_ok', False)
 
   parser = doctest.DocTestParser()
   runner = BeamDataframeDoctestRunner(
       TestEnvironment(),
       optionflags=optionflags,
       wont_implement_ok={'<string>': ['*']} if wont_implement_ok else None,
+      not_implemented_ok={'<string>': ['*']} if not_implemented_ok else None,
       **runner_kwargs)
   test = parser.get_doctest(
       text, {
@@ -572,6 +630,7 @@ def _run_patched(func, *args, **kwargs):
   use_beam = kwargs.pop('use_beam', True)
   skip = kwargs.pop('skip', {})
   wont_implement_ok = kwargs.pop('wont_implement_ok', {})
+  not_implemented_ok = kwargs.pop('not_implemented_ok', {})
   extraglobs = dict(kwargs.pop('extraglobs', {}))
   extraglobs['pd'] = env.fake_pandas_module()
 
@@ -582,6 +641,7 @@ def _run_patched(func, *args, **kwargs):
         env,
         use_beam=use_beam,
         wont_implement_ok=wont_implement_ok,
+        not_implemented_ok=not_implemented_ok,
         skip=skip,
         **kwargs)
     with expressions.allow_non_parallel_operations():

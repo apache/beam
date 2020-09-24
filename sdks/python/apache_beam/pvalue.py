@@ -660,6 +660,9 @@ class Row(object):
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
 
+  def as_dict(self):
+    return dict(self.__dict__)
+
   def __iter__(self):
     for _, value in sorted(self.__dict__.items()):
       yield value

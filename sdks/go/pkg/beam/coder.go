@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/jsonx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	protov1 "github.com/golang/protobuf/proto"
@@ -268,13 +269,13 @@ func protoDec(t reflect.Type, in []byte) (T, error) {
 
 // jsonEnc encodes the supplied value in JSON.
 func jsonEnc(in T) ([]byte, error) {
-	return json.Marshal(in)
+	return jsonx.Marshal(in)
 }
 
 // jsonDec decodes the supplied JSON into an instance of the supplied type.
 func jsonDec(t reflect.Type, in []byte) (T, error) {
 	val := reflect.New(t)
-	if err := json.Unmarshal(in, val.Interface()); err != nil {
+	if err := jsonx.Unmarshal(val.Interface(), in); err != nil {
 		return nil, err
 	}
 	return val.Elem().Interface(), nil

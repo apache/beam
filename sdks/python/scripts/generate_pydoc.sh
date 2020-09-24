@@ -196,6 +196,7 @@ ignore_identifiers = [
   'callable',
   'types.FunctionType',
   'typing.Generic',
+  'typing_extensions.Protocol',
   'concurrent.futures._base.Executor',
   'uuid',
   'google.cloud.datastore.key.Key',

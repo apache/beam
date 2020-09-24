@@ -40,10 +40,13 @@ class CreatePTransformOverride(PTransformOverride):
     else:
       return False
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import PTransform
+
+    ptransform = applied_ptransform.transform
 
     # Return a wrapper rather than ptransform.as_read() directly to
     # ensure backwards compatibility of the pipeline structure.
@@ -66,9 +69,13 @@ class ReadPTransformOverride(PTransformOverride):
         return True
     return False
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+
     from apache_beam import pvalue
     from apache_beam.io import iobase
+
+    transform = applied_ptransform.transform
 
     class Read(iobase.Read):
       override = True
@@ -77,8 +84,8 @@ class ReadPTransformOverride(PTransformOverride):
         return pvalue.PCollection(
             self.pipeline, is_bounded=self.source.is_bounded())
 
-    return Read(ptransform.source).with_output_types(
-        ptransform.get_type_hints().simple_output_type('Read'))
+    return Read(transform.source).with_output_types(
+        transform.get_type_hints().simple_output_type('Read'))
 
 
 class JrhReadPTransformOverride(PTransformOverride):
@@ -90,12 +97,13 @@ class JrhReadPTransformOverride(PTransformOverride):
         isinstance(applied_ptransform.transform, Read) and
         isinstance(applied_ptransform.transform.source, BoundedSource))
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     from apache_beam.io import Read
     from apache_beam.transforms import core
     from apache_beam.transforms import util
     # Make this a local to narrow what's captured in the closure.
-    source = ptransform.source
+    source = applied_ptransform.transform.source
 
     class JrhRead(core.PTransform):
       def expand(self, pbegin):
@@ -112,7 +120,8 @@ class JrhReadPTransformOverride(PTransformOverride):
                         split.start_position, split.stop_position))))
 
     return JrhRead().with_output_types(
-        ptransform.get_type_hints().simple_output_type('Read'))
+        applied_ptransform.transform.get_type_hints().simple_output_type(
+            'Read'))
 
 
 class CombineValuesPTransformOverride(PTransformOverride):

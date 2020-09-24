@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.InMemoryBundleFinalizer;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -71,6 +73,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -191,6 +194,17 @@ public class DoFnOperator<InputT, OutputT>
   private final boolean requiresStableInput;
 
   private final boolean finishBundleBeforeCheckpointing;
+
+  /** Stores new finalizations being gathered. */
+  private transient InMemoryBundleFinalizer bundleFinalizer;
+  /** Pending bundle finalizations which have not been acknowledged yet. */
+  private transient LinkedHashMap<Long, List<InMemoryBundleFinalizer.Finalization>>
+      pendingFinalizations;
+  /**
+   * Keep a maximum of 32 bundle finalizations for {@link
+   * BundleFinalizer.Callback#onBundleSuccess()}.
+   */
+  private static final int MAX_NUMBER_PENDING_BUNDLE_FINALIZATIONS = 32;
 
   protected transient InternalTimerService<TimerData> timerService;
   private transient InternalTimeServiceManager<?> timeServiceManagerCompat;
@@ -509,6 +523,9 @@ public class DoFnOperator<InputT, OutputT>
       pushbackDoFnRunner =
           SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
     }
+
+    bundleFinalizer = new InMemoryBundleFinalizer();
+    pendingFinalizations = new LinkedHashMap<>();
   }
 
   private void earlyBindStateIfNeeded() throws IllegalArgumentException, IllegalAccessException {
@@ -895,6 +912,15 @@ public class DoFnOperator<InputT, OutputT>
       bufferingDoFnRunner.checkpoint(context.getCheckpointId());
     }
 
+    int diff = pendingFinalizations.size() - MAX_NUMBER_PENDING_BUNDLE_FINALIZATIONS;
+    if (diff >= 0) {
+      for (Iterator<Long> iterator = pendingFinalizations.keySet().iterator(); diff >= 0; diff--) {
+        iterator.next();
+        iterator.remove();
+      }
+    }
+    pendingFinalizations.put(context.getCheckpointId(), bundleFinalizer.getAndClearFinalizations());
+
     try {
       outputManager.openBuffer();
       // Ensure that no new bundle gets started as part of finishing a bundle
@@ -913,6 +939,10 @@ public class DoFnOperator<InputT, OutputT>
     super.snapshotState(context);
   }
 
+  public BundleFinalizer getBundleFinalizer() {
+    return bundleFinalizer;
+  }
+
   @Override
   public final void notifyCheckpointComplete(long checkpointId) throws Exception {
     if (checkpointStats != null) {
@@ -923,6 +953,15 @@ public class DoFnOperator<InputT, OutputT>
       // We can now release all buffered data which was held back for
       // @RequiresStableInput guarantees.
       bufferingDoFnRunner.checkpointCompleted(checkpointId);
+    }
+
+    List<InMemoryBundleFinalizer.Finalization> finalizations =
+        pendingFinalizations.remove(checkpointId);
+    if (finalizations != null) {
+      // confirm all finalizations that were associated with the checkpoint
+      for (InMemoryBundleFinalizer.Finalization finalization : finalizations) {
+        finalization.getCallback().onBundleSuccess();
+      }
     }
 
     super.notifyCheckpointComplete(checkpointId);
@@ -1225,6 +1264,11 @@ public class DoFnOperator<InputT, OutputT>
     @Override
     public TimerInternals timerInternals() {
       return timerInternals;
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return bundleFinalizer;
     }
   }
 

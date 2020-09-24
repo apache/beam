@@ -41,11 +41,11 @@ pydot==1.4.1
 pytz==2019.3
 pyvcf==0.6.8;python_version<"3.0"
 pyyaml==5.1
-typing==3.7.4.1;python_full_version<"3.5.3"
-typing-extensions==3.7.4.1
+typing==3.7.4.3;python_full_version<"3.5.3"
+typing-extensions==3.7.4.3
 
 # GCP extra features
-google-api-core==1.21.0
+google-api-core==1.22.0
 google-apitools==0.5.28
 google-cloud-pubsub==1.0.2
 google-cloud-bigquery==1.26.1
