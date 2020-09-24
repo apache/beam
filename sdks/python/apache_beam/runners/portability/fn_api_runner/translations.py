@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import collections
 import functools
+import itertools
 import logging
 from builtins import object
 from typing import Container
@@ -350,8 +351,10 @@ def memoize_on_instance(f):
 class TransformContext(object):
 
   _KNOWN_CODER_URNS = set(
-      value.urn for key,
-      value in common_urns.coders.__dict__.items() if not key.startswith('_'))
+      value.urn for (key, value) in common_urns.coders.__dict__.items()
+      if not key.startswith('_')
+      # Length prefix Rows rather than re-coding them.
+  ) - set([common_urns.coders.ROW.urn])
 
   def __init__(
       self,
@@ -713,6 +716,71 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
   return stages
 
 
+def _group_stages_by_key(stages, get_stage_key):
+  grouped_stages = collections.defaultdict(list)
+  stages_with_none_key = []
+  for stage in stages:
+    stage_key = get_stage_key(stage)
+    if stage_key is None:
+      stages_with_none_key.append(stage)
+    else:
+      grouped_stages[stage_key].append(stage)
+  return (grouped_stages, stages_with_none_key)
+
+
+def eliminate_common_key_with_none(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
+
+  """Runs common subexpression elimination for sibling KeyWithNone stages.
+
+  If multiple KeyWithNone stages share a common input, then all but one stages
+  will be eliminated along with their output PCollections. Transforms that
+  originally read input from the output PCollection of the eliminated
+  KeyWithNone stages will be remapped to read input from the output PCollection
+  of the remaining KeyWithNone stage.
+  """
+
+  # Partition stages by whether they are eligible for common KeyWithNone
+  # elimination, and group eligible KeyWithNone stages by parent and
+  # environment.
+  def get_stage_key(stage):
+    if len(stage.transforms) == 1:
+      transform = only_transform(stage.transforms)
+      if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
+          len(transform.inputs) == 1 and len(transform.outputs) == 1):
+        pardo_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if pardo_payload.do_fn.urn == python_urns.KEY_WITH_NONE_DOFN:
+          return (only_element(transform.inputs.values()), stage.environment)
+    return None
+
+  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
+      stages, get_stage_key)
+
+  # Eliminate stages and build the PCollection remapping dictionary.
+  pcoll_id_remap = {}
+  remaining_stages = []
+  for sibling_stages in grouped_eligible_stages.values():
+    output_pcoll_ids = [
+        only_element(stage.transforms[0].outputs.values())
+        for stage in sibling_stages
+    ]
+    for to_delete_pcoll_id in output_pcoll_ids[1:]:
+      pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
+      del context.components.pcollections[to_delete_pcoll_id]
+    remaining_stages.append(sibling_stages[0])
+
+  # Yield stages while remapping input PCollections if needed.
+  stages_to_yield = itertools.chain(ineligible_stages, remaining_stages)
+  for stage in stages_to_yield:
+    for transform in stage.transforms:
+      for input_key in list(transform.inputs.keys()):
+        if transform.inputs[input_key] in pcoll_id_remap:
+          transform.inputs[input_key] = pcoll_id_remap[
+              transform.inputs[input_key]]
+    yield stage
+
+
 def pack_combiners(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
@@ -765,11 +833,9 @@ def pack_combiners(stages, context):
     else:
       raise ValueError
 
-  # Group stages by parent and environment, yielding ineligible stages.
-  combine_stages_by_input_pcoll_id = collections.defaultdict(list)
-  for stage in stages:
-    is_packable_combine = False
-
+  # Partition stages by whether they are eligible for CombinePerKey packing
+  # and group eligible CombinePerKey stages by parent and environment.
+  def get_stage_key(stage):
     if (len(stage.transforms) == 1 and stage.environment is not None and
         python_urns.PACKED_COMBINE_FN in context.components.environments[
             stage.environment].capabilities):
@@ -779,16 +845,15 @@ def pack_combiners(stages, context):
         combine_payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.CombinePayload)
         if combine_payload.combine_fn.urn == python_urns.PICKLED_COMBINE_FN:
-          is_packable_combine = True
+          return (only_element(transform.inputs.values()), stage.environment)
+    return None
 
-    if is_packable_combine:
-      input_pcoll_id = only_element(transform.inputs.values())
-      stage_key = (input_pcoll_id, stage.environment)
-      combine_stages_by_input_pcoll_id[stage_key].append(stage)
-    else:
-      yield stage
+  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
+      stages, get_stage_key)
+  for stage in ineligible_stages:
+    yield stage
 
-  for stage_key, packable_stages in combine_stages_by_input_pcoll_id.items():
+  for stage_key, packable_stages in grouped_eligible_stages.items():
     input_pcoll_id, _ = stage_key
     try:
       if not len(packable_stages) > 1:

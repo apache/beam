@@ -556,6 +556,25 @@ class SetupTest(unittest.TestCase):
         only_contains(
             contains_string('Invalid transform name mapping format.')))
 
+  def test_type_check_additional(self):
+    runner = MockRunners.OtherRunner()
+    options = PipelineOptions(['--type_check_additional=all'])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertFalse(errors)
+
+    options = PipelineOptions(['--type_check_additional='])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertFalse(errors)
+
+  def test_type_check_additional_unrecognized_feature(self):
+    runner = MockRunners.OtherRunner()
+    options = PipelineOptions(['--type_check_additional=all,dfgdf'])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

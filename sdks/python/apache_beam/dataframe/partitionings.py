@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import random
 from typing import Any
 from typing import Iterable
 from typing import Tuple
@@ -48,6 +49,9 @@ class Partitioning(object):
     achieve the desired partitioning.
     """
     raise NotImplementedError
+
+  def test_partition_fn(self, df):
+    return self.partition_fn(df)
 
 
 class Index(Partitioning):
@@ -139,3 +143,16 @@ class Nothing(Partitioning):
 
   def is_subpartitioning_of(self, other):
     return isinstance(other, Nothing)
+
+  def test_partition_fn(self, df):
+    num_partitions = max(df.size, 10)
+
+    def shuffled(seq):
+      seq = list(seq)
+      random.shuffle(seq)
+      return seq
+
+    # pylint: disable=range-builtin-not-iterating
+    part = pd.Series(shuffled(range(len(df))), index=df.index) % num_partitions
+    for k in range(num_partitions):
+      yield k, df[part == k]
