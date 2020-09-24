@@ -41,6 +41,7 @@ from apache_beam.io.iobase import Write
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
@@ -52,6 +53,7 @@ except ImportError:
   pubsub = None
 
 __all__ = [
+    'MultipleReadFromPubSub',
     'PubsubMessage',
     'ReadFromPubSub',
     'ReadStringsFromPubSub',
@@ -491,3 +493,71 @@ class _PubSubSink(dataflow_io.NativeSink):
 
   def writer(self):
     raise NotImplementedError
+
+
+class MultipleReadFromPubSub(PTransform):
+  """A ``PTransform`` that expands ``ReadFromPubSub`` to read from multiple
+  subscriptions and/or topics."""
+  def __init__(self, source_list, with_context=False, **kwargs):
+    """Initializes ``PubSubMultipleReader``.
+
+      Args:
+        source_list: List of Cloud Pub/Sub topics or subscriptions. Topics in
+          form "projects/<project>/topics/<topic>" and subscriptions in form
+          "projects/<project>/subscriptions/<subscription>".
+        with_context:
+          True - output elements will be key-value pairs with the source as the
+          key and the message as the value.
+          False - output elements will be of type ``bytes`` (message
+          data only).
+      """
+    self.source_list = source_list  # type: List[str]
+    self.with_context = with_context  # type: bool
+    self._kwargs = kwargs
+
+    for source in self.source_list:
+      match_topic = re.match(TOPIC_REGEXP, source)
+      match_subscription = re.match(SUBSCRIPTION_REGEXP, source)
+
+      if not (match_topic or match_subscription):
+        raise ValueError(
+            'PubSub source must be in the form "projects/<project>/topics'
+            '/<topic>" or "projects/<project>/subscription'
+            '/<subscription>" (got %r).' % source)
+
+    if 'topic' in self._kwargs:
+      raise ValueError(
+          'Topics and subscriptions should be in "source_list". '
+          'Found topic %s' % self._kwargs['topic'])
+
+    if 'subscription' in self._kwargs:
+      raise ValueError(
+          'Subscriptions and topics should be in "source_list". '
+          'Found subscription %s' % self._kwargs['subscription'])
+
+  def expand(self, pcol):
+    sources_pcol = []
+    for source in self.source_list:
+      source_split = source.split('/')
+      source_project = source_split[1]
+      source_type = source_split[2]
+      source_name = source_split[-1]
+
+      step_name_base = 'PubSub %s/project:%s' % (source_type, source_project)
+      read_step_name = '%s/Read %s' % (step_name_base, source_name)
+
+      if source_type == 'topics':
+        current_source = pcol | read_step_name >> ReadFromPubSub(
+            topic=source, **self._kwargs)
+      else:
+        current_source = pcol | read_step_name >> ReadFromPubSub(
+            subscription=source, **self._kwargs)
+
+      if self.with_context:
+        context_step_name = '%s/Add Context %s' % (step_name_base, source_name)
+        current_source = (
+            current_source
+            | context_step_name >> Map(lambda message: (source, message)))
+
+      sources_pcol.append(current_source)
+    return tuple(sources_pcol) | Flatten()
