@@ -272,18 +272,19 @@ class TestBigQueryWrapper(unittest.TestCase):
       client.tables.Get.side_effect = [None]
       wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
 
-      self.assertRaises(ValueError, wrapper.get_or_create_table,
-                        'project_id',
-                        'dataset_id',
-                        table_id,
-                        bigquery.TableSchema(
-                          fields=[
-                            bigquery.TableFieldSchema(
-                              name='b', type='BOOLEAN', mode='REQUIRED')
-                          ]),
-                        False,
-                        False)
-
+      self.assertRaises(
+          ValueError,
+          wrapper.get_or_create_table,
+          'project_id',
+          'dataset_id',
+          table_id,
+          bigquery.TableSchema(
+              fields=[
+                  bigquery.TableFieldSchema(
+                      name='b', type='BOOLEAN', mode='REQUIRED')
+              ]),
+          False,
+          False)
 
   def test_wait_for_job_returns_true_when_job_is_done(self):
     def make_response(state):

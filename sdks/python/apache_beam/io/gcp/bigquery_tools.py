@@ -582,11 +582,11 @@ class BigQueryWrapper(object):
     valid_tablename = re.match(r'^[\w]{1,1024}$', table_id, re.ASCII)
     if not valid_tablename:
       raise ValueError(
-        'Invalid BigQuery table name: %s \n'
-        'A table name in BigQuery must contain only letters (a-z, A-Z), '
-        'numbers (0-9), or underscores (_) and be up to 1024 characters:\n'
-        'See https://cloud.google.com/bigquery/docs/tables#table_naming'
-        % table_id)
+          'Invalid BigQuery table name: %s \n'
+          'A table name in BigQuery must contain only letters (a-z, A-Z), '
+          'numbers (0-9), or underscores (_) and be up to 1024 characters:\n'
+          'See https://cloud.google.com/bigquery/docs/tables#table_naming' %
+          table_id)
 
     additional_parameters = additional_parameters or {}
     table = bigquery.Table(
@@ -804,8 +804,7 @@ class BigQueryWrapper(object):
     return response.jobReference
 
   @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=no_retry_on_invalid_input)
+      num_retries=MAX_RETRIES, retry_filter=no_retry_on_invalid_input)
   def get_or_create_table(
       self,
       project_id,
