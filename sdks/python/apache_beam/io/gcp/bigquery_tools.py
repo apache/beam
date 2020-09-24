@@ -131,12 +131,6 @@ def get_hashable_destination(destination):
     return destination
 
 
-def no_retry_on_invalid_input(exn):
-  if isinstance(exn, ValueError):
-    return False
-  return retry.retry_on_server_errors_and_timeout_filter(exn)
-
-
 def parse_table_schema_from_json(schema_string):
   """Parse the Table Schema provided as string.
 
@@ -804,7 +798,9 @@ class BigQueryWrapper(object):
     return response.jobReference
 
   @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES, retry_filter=no_retry_on_invalid_input)
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.
+      retry_if_valid_input_but_server_error_and_timeout_filter)
   def get_or_create_table(
       self,
       project_id,
