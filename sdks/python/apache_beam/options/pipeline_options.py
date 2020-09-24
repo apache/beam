@@ -1037,6 +1037,33 @@ class SetupOptions(PipelineOptions):
             'staged in the staging area (--staging_location option) and the '
             'workers will install them in same order they were specified on '
             'the command line.'))
+    parser.add_argument(
+        '--prebuild_sdk_container_engine',
+        choices=['local_docker', 'cloud_build'],
+        help=(
+            'Prebuild sdk worker container image before job submission. If '
+            'enabled, SDK invokes the boot sequence in SDK worker '
+            'containers to install all pipeline dependencies in the '
+            'container, and uses the prebuilt image in the pipeline '
+            'environment. This may speed up pipeline execution. To enable, '
+            'select the Docker build engine: local_docker using '
+            'locally-installed Docker or cloud_build for using Google Cloud '
+            'Build (requires a GCP project with Cloud Build API enabled).'))
+    parser.add_argument(
+        '--prebuild_sdk_container_base_image',
+        default=None,
+        help=(
+            'The base image to use when pre-building the sdk container image '
+            'with dependencies, if not specified, by default the released '
+            'public apache beam python sdk container image corresponding to '
+            'the sdk version will be used, if a dev sdk is used the base '
+            'image will default to the latest released sdk image.'))
+    parser.add_argument(
+        '--docker_registry_push_url',
+        default=None,
+        help=(
+            'Docker registry url to use for tagging and pushing the prebuilt '
+            'sdk worker container image.'))
 
 
 class PortableOptions(PipelineOptions):
