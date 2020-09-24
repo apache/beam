@@ -127,9 +127,7 @@ class TranslationsTest(unittest.TestCase):
         pipeline_proto, [], known_runner_urns=frozenset(), partial=True)
     runner = runners.DirectRunner()
     beam.Pipeline.from_runner_api(
-        optimized_pipeline_proto,
-        runner,
-        pipeline_options.PipelineOptions())
+        optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
 
 
 if __name__ == '__main__':
