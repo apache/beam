@@ -161,6 +161,12 @@ def retry_on_beam_io_error_filter(exception):
   return isinstance(exception, BeamIOError)
 
 
+def retry_if_valid_input_but_server_error_and_timeout_filter(exception):
+  if isinstance(exception, ValueError):
+    return False
+  return retry_on_server_errors_and_timeout_filter(exception)
+
+
 SERVER_ERROR_OR_TIMEOUT_CODES = [408, 500, 502, 503, 504, 598, 599]
 
 

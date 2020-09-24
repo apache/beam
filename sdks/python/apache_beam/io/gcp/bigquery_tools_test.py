@@ -324,6 +324,27 @@ class TestBigQueryWrapper(unittest.TestCase):
         False)
     self.assertEqual(new_table, 'table_id')
 
+  def test_get_or_create_table_invalid_tablename(self):
+    invalid_names = ['big-query', 'table name', 'a' * 1025]
+    for table_id in invalid_names:
+      client = mock.Mock()
+      client.tables.Get.side_effect = [None]
+      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+      self.assertRaises(
+          ValueError,
+          wrapper.get_or_create_table,
+          'project_id',
+          'dataset_id',
+          table_id,
+          bigquery.TableSchema(
+              fields=[
+                  bigquery.TableFieldSchema(
+                      name='b', type='BOOLEAN', mode='REQUIRED')
+              ]),
+          False,
+          False)
+
   def test_wait_for_job_returns_true_when_job_is_done(self):
     def make_response(state):
       m = mock.Mock()
