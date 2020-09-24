@@ -45,9 +45,11 @@ from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
+from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import StaticValueProvider
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -94,6 +96,63 @@ class TestTableSchemaParser(unittest.TestCase):
         }]
     })
     self.assertEqual(parse_table_schema_from_json(json_str), expected_schema)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestTableReferenceParser(unittest.TestCase):
+  def test_calling_with_table_reference(self):
+    table_ref = bigquery.TableReference()
+    table_ref.projectId = 'test_project'
+    table_ref.datasetId = 'test_dataset'
+    table_ref.tableId = 'test_table'
+    parsed_ref = parse_table_reference(table_ref)
+    self.assertEqual(table_ref, parsed_ref)
+    self.assertIsNot(table_ref, parsed_ref)
+
+  def test_calling_with_callable(self):
+    callable_ref = lambda: 'foo'
+    parsed_ref = parse_table_reference(callable_ref)
+    self.assertIs(callable_ref, parsed_ref)
+
+  def test_calling_with_value_provider(self):
+    value_provider_ref = StaticValueProvider(str, 'test_dataset.test_table')
+    parsed_ref = parse_table_reference(value_provider_ref)
+    self.assertIs(value_provider_ref, parsed_ref)
+
+  def test_calling_with_fully_qualified_table_ref(self):
+    projectId = 'test_project'
+    datasetId = 'test_dataset'
+    tableId = 'test_table'
+    fully_qualified_table = '{}:{}.{}'.format(projectId, datasetId, tableId)
+    parsed_ref = parse_table_reference(fully_qualified_table)
+    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertEqual(parsed_ref.projectId, projectId)
+    self.assertEqual(parsed_ref.datasetId, datasetId)
+    self.assertEqual(parsed_ref.tableId, tableId)
+
+  def test_calling_with_partially_qualified_table_ref(self):
+    datasetId = 'test_dataset'
+    tableId = 'test_table'
+    partially_qualified_table = '{}.{}'.format(datasetId, tableId)
+    parsed_ref = parse_table_reference(partially_qualified_table)
+    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertEqual(parsed_ref.datasetId, datasetId)
+    self.assertEqual(parsed_ref.tableId, tableId)
+
+  def test_calling_with_insufficient_table_ref(self):
+    table = 'test_table'
+    self.assertRaises(ValueError, parse_table_reference, table)
+
+  def test_calling_with_all_arguments(self):
+    projectId = 'test_project'
+    datasetId = 'test_dataset'
+    tableId = 'test_table'
+    parsed_ref = parse_table_reference(
+        tableId, dataset=datasetId, project=projectId)
+    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertEqual(parsed_ref.projectId, projectId)
+    self.assertEqual(parsed_ref.datasetId, datasetId)
+    self.assertEqual(parsed_ref.tableId, tableId)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
