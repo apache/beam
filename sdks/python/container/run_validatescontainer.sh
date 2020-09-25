@@ -93,6 +93,7 @@ gcloud docker -- push $CONTAINER
 function cleanup_container {
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+  docker rmi $(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'prebuilt_sdk') || echo "Failed to remove prebuilt sdk container"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   echo "Removed the container"
 }
@@ -130,6 +131,8 @@ python setup.py nosetests \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
-    --num_workers=1"
+    --num_workers=1 \
+    --prebuild_sdk_container_base_image=$CONTAINER:$TAG \
+    --docker_registry_push_url=us.gcr.io/$PROJECT/$USER"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
