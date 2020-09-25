@@ -359,6 +359,10 @@ if (project.hasProperty('compileAndRunTestsWithJava11')) {
   project.sqlPreCommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
 } else {
   allprojects {
+    apply plugin: 'nebula.lint'
+    gradleLint {
+      rules=['unused-dependency']
+    }
     tasks.withType(Test) {
       exclude '**/JvmVerification.class'
     }
