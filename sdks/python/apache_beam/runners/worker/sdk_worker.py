@@ -449,7 +449,7 @@ class BundleProcessorCache(object):
     with self._lock:
       self.failed_instruction_ids[instruction_id] = True
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
-        self.failed_instruction_ids.popitem()
+        self.failed_instruction_ids.popitem(last=False)
       processor = self.active_bundle_processors[instruction_id][1]
       del self.active_bundle_processors[instruction_id]
 
@@ -469,7 +469,7 @@ class BundleProcessorCache(object):
       self.known_not_running_instruction_ids[instruction_id] = True
       while len(self.known_not_running_instruction_ids
                 ) > MAX_KNOWN_NOT_RUNNING_INSTRUCTIONS:
-        self.known_not_running_instruction_ids.popitem()
+        self.known_not_running_instruction_ids.popitem(last=False)
       descriptor_id, processor = (
           self.active_bundle_processors.pop(instruction_id))
 
