@@ -47,8 +47,9 @@ def main():
           PANDAS_VERSION)
       print('Downloading', url)
       with urllib.request.urlopen(url) as fin:
-        with open(zip, 'wb') as fout:
+        with open(zip + '.tmp', 'wb') as fout:
           fout.write(fin.read())
+        os.rename(zip + '.tmp', zip)
 
     print('Extrating', zip)
     with zipfile.ZipFile(zip, 'r') as handle:

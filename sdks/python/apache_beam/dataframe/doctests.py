@@ -409,7 +409,9 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         self.tries,
         self.skipped,
         self.wont_implement,
-        self._wont_implement_reasons)
+        self._wont_implement_reasons,
+        self.not_implemented,
+        self._not_implemented_reasons)
 
 
 class AugmentedTestResults(doctest.TestResults):
@@ -423,12 +425,16 @@ class Summary(object):
       tries=0,
       skipped=0,
       wont_implement=0,
-      wont_implement_reasons=None):
+      wont_implement_reasons=None,
+      not_implemented=0,
+      not_implemented_reasons=None):
     self.failures = failures
     self.tries = tries
     self.skipped = skipped
     self.wont_implement = wont_implement
     self.wont_implement_reasons = wont_implement_reasons or []
+    self.not_implemented = not_implemented
+    self.not_implemented_reasons = not_implemented_reasons or []
 
   def __add__(self, other):
     return Summary(
@@ -436,7 +442,9 @@ class Summary(object):
         self.tries + other.tries,
         self.skipped + other.skipped,
         self.wont_implement + other.wont_implement,
-        self.wont_implement_reasons + other.wont_implement_reasons)
+        self.wont_implement_reasons + other.wont_implement_reasons,
+        self.not_implemented + other.not_implemented,
+        self.not_implemented_reasons + other.not_implemented_reasons)
 
   def summarize(self):
     def print_partition(indent, desc, n, total):
@@ -459,7 +467,7 @@ class Summary(object):
     print_partition(
         1, "not implemented (yet)", self.not_implemented, self.tries)
     reason_counts = sorted(
-        collections.Counter(self._not_implemented_reasons).items(),
+        collections.Counter(self.not_implemented_reasons).items(),
         key=lambda x: x[1],
         reverse=True)
     for desc, count in reason_counts:
