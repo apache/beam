@@ -112,7 +112,7 @@ Where parameters can be:
 
 **Note** - either `.withUrl(...)` or `.withServerName(...)` **is required**.
 ## Pipeline options
-Use Beam’s [Pipeline options](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/options/PipelineOptions.html) to set options via the command line.
+Use Beam’s [Pipeline options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/options/PipelineOptions.html) to set options via the command line.
 ### Snowflake Pipeline options
 Snowflake IO library supports following options that can be passed via the [command line](https://beam.apache.org/documentation/io/built-in/snowflake/#running-main-command-with-pipeline-options) by default when a Pipeline uses them:
 
@@ -267,7 +267,7 @@ By default, pipelines are run on [Direct Runner](https://beam.apache.org/documen
 - `--appName=<JOB NAME>`
   - (optional) Prefix for the job name in the Dataflow Dashboard.
 
-More pipeline options for Dataflow can be found [here](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html).
+More pipeline options for Dataflow can be found [here](https://beam.apache.org/releases/javadoc/current/org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html).
 
 **Note**: To properly authenticate with Google Cloud, please use [gcloud](https://cloud.google.com/sdk/gcloud/) or follow the [Google Cloud documentation](https://cloud.google.com/docs/authentication/).
 
@@ -328,7 +328,7 @@ Currently, SnowflakeIO **doesn't support** following options at runtime:
 - `--loginTimeout` Login timeout. Optional.
 
 ## Writing to Snowflake tables
-One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/values/PCollection.html) to your Snowflake database.
+One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/values/PCollection.html) to your Snowflake database.
 ### Batch write (from a bounded source)
 The basic .`write()` operation usage is as follows:
 {{< highlight java >}}
@@ -448,7 +448,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to tabl
 
 - `.withFlushRowLimit()`
   - Default value: 10,000 rows
-  - Limit of rows written to each file staged file
+  - Limit of rows written to each staged file
   - Example: `.withFlushRowLimit(500000)`
 
 - `.withShardNumber()`
@@ -568,7 +568,7 @@ data.apply(
 )
 {{< /highlight >}}
 ## Reading from Snowflake
-One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/values/PCollection.html) of user-defined data type.
+One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/values/PCollection.html) of user-defined data type.
 
 ### General usage
 
@@ -611,8 +611,8 @@ Then:
 
 - `.withCsvMapper(mapper)`
   - Accepts a [CSVMapper](https://beam.apache.org/documentation/io/built-in/snowflake/#csvmapper) instance for mapping String[] to USER_DATA_TYPE.
-- `withCoder(coder)`
-  - Accepts the [Coder](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/Coder.html) for USER_DATA_TYPE.
+- `.withCoder(coder)`
+  - Accepts the [Coder](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/coders/Coder.html) for USER_DATA_TYPE.
 
 **Note**:
 SnowflakeIO uses COPY statements behind the scenes to read (using [COPY to location](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html)) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` and they will be removed automatically once Read operation finishes.
@@ -641,44 +641,19 @@ Snowflake cross-language implementation is supporting both reading and writing o
 cross-language which is part of [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/) which aims to provide full interoperability
 across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go).
 
-Currently, cross-language is supporting only [Apache Flink](https://flink.apache.org/) as a runner in a stable manner but plans are to support all runners.
 For more information about cross-language please see [multi sdk efforts](https://beam.apache.org/roadmap/connectors-multi-sdk/)
-and [Beam on top of Flink](https://flink.apache.org/ecosystem/2020/02/22/apache-beam-how-beam-runs-on-top-of-flink.html) articles.
-
-### Set up
-Please see [Apache Beam with Flink runner](https://beam.apache.org/documentation/runners/flink/) for a setup.
+and [Cross-language transforms API and expansion service](https://beam.apache.org/roadmap/connectors-multi-sdk/#cross-language-transforms-api-and-expansion-service) articles.
 
 ### Reading from Snowflake
-One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) of user-defined data type.
+One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) of user-defined data type.
 #### General usage
-{{< highlight >}}
-OPTIONS = [
-   "--runner=FlinkRunner",
-   "--flink_version=1.10",
-   "--flink_master=localhost:8081",
-   "--environment_type=LOOPBACK"
-]
+{{< highlight py >}}
+OPTIONS = ["--runner=FlinkRunner"]
 
 with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
    (p
-       | ReadFromSnowflake(
-           server_name=<SNOWFLAKE SERVER NAME>,
-           username=<SNOWFLAKE USERNAME>,
-           password=<SNOWFLAKE PASSWORD>,
-           o_auth_token=<OAUTH TOKEN>,
-           private_key_path=<PATH TO P8 FILE>,
-           raw_private_key=<PRIVATE_KEY>
-           private_key_passphrase=<PASSWORD FOR KEY>,
-           schema=<SNOWFLAKE SCHEMA>,
-           database=<SNOWFLAKE DATABASE>,
-           staging_bucket_name=<GCS BUCKET NAME>,
-           storage_integration_name=<SNOWFLAKE STORAGE INTEGRATION NAME>,
-           csv_mapper=<CSV MAPPER FUNCTION>,
-           table=<SNOWFALKE TABLE>,
-           query=<IF NOT TABLE THEN QUERY>,
-           role=<SNOWFLAKE ROLE>,
-           warehouse=<SNOWFLAKE WAREHOUSE>,
-           expansion_service=<EXPANSION SERVICE ADDRESS>))
+       | ReadFromSnowflake(...)
+       | <FURTHER TRANSFORMS>)
 {{< /highlight >}}
 
 #### Required parameters
@@ -694,40 +669,35 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `csv_mapper` Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/2.3.0/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
 Example:
-{{< highlight >}}
+{{< highlight py >}}
 def csv_mapper(strings_array):
     return User(strings_array[0], int(strings_array[1])))
 {{< /highlight >}}
 
-- `table or query` Specifies a Snowflake table name or custom SQL query
-
-- `expansion_service`: specifies URL of expansion service.
+- `table` or `query` Specifies a Snowflake table name or custom SQL query
 
 #### Authentication parameters
 It’s required to pass one of the following combinations of valid parameters for authentication:
-- `username and password` Specifies username and password for username/password authentication method.
+- `username` and `password` Specifies username and password for username/password authentication method.
 
-- `private_key_path and private_key_passphrase` Specifies a path to private key and passphrase for key/pair authentication method.
+- `private_key_path` and `private_key_passphrase` Specifies a path to private key and passphrase for key/pair authentication method.
 
-- `raw_private_key and private_key_passphrase` Specifies a private key and passphrase for key/pair authentication method.
+- `raw_private_key` and `private_key_passphrase` Specifies a private key and passphrase for key/pair authentication method.
 
 - `o_auth_token` Specifies access token for OAuth authentication method.
 
 #### Additional parameters
-- `role`: specifies Snowflake role. If not specified then the user's default will be used.
+- `role` specifies Snowflake role. If not specified the user's default will be used.
 
-- `warehouse`: specifies Snowflake warehouse name. If not specified then the user's default will be used.
+- `warehouse` specifies Snowflake warehouse name. If not specified the user's default will be used.
+
+- `expansion_service` specifies URL of expansion service.
 
 ### Writing to Snowflake
-One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) to your Snowflake database.
+One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) to your Snowflake database.
 #### General usage
-{{< highlight >}}
-OPTIONS = [
-   "--runner=FlinkRunner",
-   "--flink_version=1.10",
-   "--flink_master=localhost:8081",
-   "--environment_type=LOOPBACK"
-]
+{{< highlight py>}}
+OPTIONS = ["--runner=FlinkRunner"]
 
 with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
    (p
@@ -748,7 +718,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
            write_disposition=<WRITE DISPOSITION>,
            table_schema=<SNOWFLAKE TABLE SCHEMA>,
            user_data_mapper=<USER DATA MAPPER FUNCTION>,
-           table=<SNOWFALKE TABLE>,
+           table=<SNOWFLAKE TABLE>,
            query=<IF NOT TABLE THEN QUERY>,
            role=<SNOWFLAKE ROLE>,
            warehouse=<SNOWFLAKE WAREHOUSE>,
@@ -768,30 +738,28 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `user_data_mapper` Specifies a function which  maps data from a PCollection to an array of String values before the write operation saves the data to temporary .csv files.
 Example:
-{{< highlight >}}
+{{< highlight py >}}
 def user_data_mapper(user):
     return [user.name, str(user.age)]
 {{< /highlight >}}
 
-- `table or query` Specifies a Snowflake table name or custom SQL query
-
-- `expansion_service` Specifies URL of expansion service.
+- `table` or `query` Specifies a Snowflake table name or custom SQL query
 
 #### Authentication parameters
 It’s required to pass one of the following combination of valid parameters for authentication:
 
-- `username and password` Specifies username/password authentication method.
+- `username` and `password` Specifies username/password authentication method.
 
-- `private_key_path and private_key_passphrase` Specifies a path to private key and passphrase for key/pair authentication method.
+- `private_key_path` and `private_key_passphrase` Specifies a path to private key and passphrase for key/pair authentication method.
 
-- `raw_private_key and private_key_passphrase` Specifies a private key and passphrase for key/pair authentication method.
+- `raw_private_key` and `private_key_passphrase` Specifies a private key and passphrase for key/pair authentication method.
 
 - `o_auth_token` Specifies access token for OAuth authentication method.
 
 #### Additional parameters
-- `role`: specifies Snowflake role. If not specified then the user's default will be used.
+- `role` specifies Snowflake role. If not specified the user's default will be used.
 
-- `warehouse`: specifies Snowflake warehouse name. If not specified then the user's default will be used.
+- `warehouse` specifies Snowflake warehouse name. If not specified the user's default will be used.
 
 - `create_disposition` Defines the behaviour of the write operation if the target table does not exist. The following values are supported:
   - CREATE_IF_NEEDED - default behaviour. The write operation checks whether the specified target table exists; if it does not, the write operation attempts to create the table Specify the schema for the target table using the table_schema parameter.
@@ -802,9 +770,9 @@ It’s required to pass one of the following combination of valid parameters for
   - EMPTY - The target table must be empty;  otherwise, the write operation fails,
   - TRUNCATE - The write operation deletes all rows from the target table before writing to it.
 
-- `table_schema` When the create_disposition parameter is set to CREATE_IF_NEEDED, the table_schema  parameter  enables specifying the schema for the created target table. A table schema is as JSON with the following structure:
-{{< highlight >}}
-{"schema":[
+- `table_schema` When the `create_disposition` parameter is set to CREATE_IF_NEEDED, the table_schema parameter enables specifying the schema for the created target table. A table schema is a JSON array with the following structure:
+{{< highlight py >}}
+{"schema": [
     {
       "dataType":{"type":"<COLUMN DATA TYPE>"},
       "name":"<COLUMN  NAME> ",
@@ -815,28 +783,32 @@ It’s required to pass one of the following combination of valid parameters for
 {{< /highlight >}}
 All supported data types:
 {{< highlight >}}
-{"dataType":{"type":"date"},"name":"","nullable":false},
-{"dataType":{"type":"datetime"},"name":"","nullable":false},
-{"dataType":{"type":"time"},"name":"","nullable":false},
-{"dataType":{"type":"timestamp"},"name":"","nullable":false},
-{"dataType":{"type":"timestamp_ltz"},"name":"","nullable":false},
-{"dataType":{"type":"timestamp_ntz"},"name":"","nullable":false},
-{"dataType":{"type":"timestamp_tz"},"name":"","nullable":false},
-{"dataType":{"type":"boolean"},"name":"","nullable":false},
-{"dataType":{"type":"decimal","precision":38,"scale":1},"name":"","nullable":true},
-{"dataType":{"type":"double"},"name":"","nullable":false},
-{"dataType":{"type":"float"},"name":"","nullable":false},
-{"dataType":{"type":"integer","precision":38,"scale":0},"name":"","nullable":false},
-{"dataType":{"type":"number","precision":38,"scale":1},"name":"","nullable":false},
-{"dataType":{"type":"numeric","precision":40,"scale":2},"name":"","nullable":false},
-{"dataType":{"type":"real"},"name":"","nullable":false},
-{"dataType":{"type":"array"},"name":"","nullable":false},
-{"dataType":{"type":"object"},"name":"","nullable":false},
-{"dataType":{"type":"variant"},"name":"","nullable":true},
-{"dataType":{"type":"binary","size":null},"name":"","nullable":false},
-{"dataType":{"type":"char","length":1},"name":"","nullable":false},
-{"dataType":{"type":"string","length":null},"name":"","nullable":false},
-{"dataType":{"type":"text","length":null},"name":"","nullable":false},
-{"dataType":{"type":"varbinary","size":null},"name":"","nullable":false},
-{"dataType":{"type":"varchar","length":100},"name":"","nullable":false}]
+{"type":"date"},
+{"type":"datetime"},
+{"type":"time"},
+{"type":"timestamp"},
+{"type":"timestamp_ltz"},
+{"type":"timestamp_ntz"},
+{"type":"timestamp_tz"},
+{"type":"boolean"},
+{"type":"decimal","precision":38,"scale":1},
+{"type":"double"},
+{"type":"float"},
+{"type":"integer","precision":38,"scale":0},
+{"type":"number","precision":38,"scale":1},
+{"type":"numeric","precision":38,"scale":2},
+{"type":"real"},
+{"type":"array"},
+{"type":"object"},
+{"type":"variant"},
+{"type":"binary","size":null},
+{"type":"char","length":1},
+{"type":"string","length":null},
+{"type":"text","length":null},
+{"type":"varbinary","size":null},
+{"type":"varchar","length":100}]
 {{< /highlight >}}
+You can read about Snowflake data types at [Snowflake data types](https://docs.snowflake.com/en/sql-reference/data-types.html).
+
+- `expansion_service` Specifies URL of expansion service.
+
