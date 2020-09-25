@@ -85,6 +85,7 @@ public class HotKeyLoggerTest {
   }
 
   @Test
+  @SuppressWarnings("Slf4jIllegalPassedClass")
   public void logsHotKeyMessage() {
     mockStatic(LoggerFactory.class);
     Logger logger = mock(Logger.class);

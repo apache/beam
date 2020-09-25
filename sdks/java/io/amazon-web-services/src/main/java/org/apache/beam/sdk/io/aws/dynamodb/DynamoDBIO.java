@@ -495,7 +495,7 @@ public final class DynamoDBIO {
                   || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
                 DYNAMO_DB_WRITE_FAILURES.inc();
                 LOG.info(
-                    "Unable to write batch items {} due to {} ",
+                    "Unable to write batch items {}.",
                     batchRequest.getRequestItems().entrySet(),
                     ex);
                 throw new IOException("Error writing to DynamoDB (no attempt made to retry)", ex);
