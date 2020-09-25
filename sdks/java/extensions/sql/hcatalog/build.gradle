@@ -33,6 +33,5 @@ dependencies {
   testCompile("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
     // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
     // gets registered and gets started instead of ours
-    exclude group: "org.apache.calcite", module:"calcite-avatica"
   }
 }

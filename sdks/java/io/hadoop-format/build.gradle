@@ -67,14 +67,6 @@ dependencies {
   testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
     // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
     // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
-    exclude group: "cascading", module: "cascading-local"
-    exclude group: "cascading", module: "cascading-hadoop"
-    exclude group: "org.apache.hive", module: "hive-service"
-    exclude group: "org.apache.pig", module: "pig"
-    exclude group: "org.apache.spark", module: "spark-core_2.10"
-    exclude group: "org.apache.spark", module: "spark-streaming_2.10"
-    exclude group: "org.apache.spark", module: "spark-sql_2.10"
-    exclude group: "org.apache.storm", module: "storm-core"
   }
   // elasticsearch-hadoop 5.0.0 uses commons-httpclient's URIException
   testCompile "commons-httpclient:commons-httpclient:3.1"

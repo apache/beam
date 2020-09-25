@@ -55,8 +55,6 @@ dependencies {
   provided library.java.hadoop_common
   provided "org.apache.hive:hive-exec:$hive_version"
   provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
-    exclude group: "org.apache.hive", module: "hive-exec"
-    exclude group: "com.google.protobuf", module: "protobuf-java"
   }
   testCompile project(":sdks:java:io:common").sourceSets.test.output
   testCompile library.java.commons_io
