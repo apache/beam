@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 /** Batches input rows to reduce number of requests sent to Cloud DLP service. */
 @Experimental
 class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable<Table.Row>>> {
-  public static final Logger LOG = LoggerFactory.getLogger(BatchRequestForDLP.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BatchRequestForDLP.class);
 
   private final Counter numberOfRowsBagged =
       Metrics.counter(BatchRequestForDLP.class, "numberOfRowsBagged");
