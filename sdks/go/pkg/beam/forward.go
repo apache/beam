@@ -64,6 +64,13 @@ func RegisterFunction(fn interface{}) {
 // return types.
 //
 // RegisterDoFn will panic if the argument type is not a DoFn.
+//
+// Usage:
+//    func init() {
+//	    beam.RegisterDoFn(FunctionalDoFn)
+//	    beam.RegisterDoFn(reflect.TypeOf((*StructuralDoFn)(nil)).Elem())
+//    }
+//
 func RegisterDoFn(dofn interface{}) {
 	genx.RegisterDoFn(dofn)
 }
