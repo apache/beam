@@ -118,25 +118,12 @@ func (e *Extractor) Printf(f string, args ...interface{}) {
 func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*ast.File) error {
 	conf := types.Config{
 		Importer:                 imp,
-		IgnoreFuncBodies:         true,
+		IgnoreFuncBodies:         false,
 		DisableUnusedImportCheck: true,
 	}
 	info := &types.Info{
+		Uses: make(map[*ast.Ident]types.Object),
 		Defs: make(map[*ast.Ident]types.Object),
-	}
-	if len(e.Ids) != 0 {
-		// TODO(lostluck): This becomes unnnecessary iff we can figure out
-		// which ParDos are being passed to beam.ParDo or beam.Combine.
-		// If there are ids, we need to also look at function bodies, and uses.
-		var checkFuncBodies bool
-		for _, v := range e.Ids {
-			if strings.Contains(v, ".") {
-				checkFuncBodies = true
-				break
-			}
-		}
-		conf.IgnoreFuncBodies = !checkFuncBodies
-		info.Uses = make(map[*ast.Ident]types.Object)
 	}
 
 	if _, err := conf.Check(e.Package, fset, files, info); err != nil {
@@ -144,15 +131,25 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 	}
 
 	e.Print("/*\n")
+	e.Print("CHECKING for RegisterDoFn EXPRs\n")
+	visitor := findRegisterDoFnCalls{info, e, make(map[string]bool)}
+	for _, file := range files {
+		ast.Walk(visitor, file)
+	}
+	for id := range visitor.idsToFind {
+		e.Ids = append(e.Ids, id)
+	}
+
 	var idsRequired, idsFound map[string]bool
 	if len(e.Ids) > 0 {
-		e.Printf("Filtering by %d identifiers: %q\n", len(e.Ids), strings.Join(e.Ids, ", "))
+		e.Printf("Filtering by %d identifiers: %q\n\n", len(e.Ids), strings.Join(e.Ids, ", "))
 		idsRequired = make(map[string]bool)
 		idsFound = make(map[string]bool)
 		for _, id := range e.Ids {
 			idsRequired[id] = true
 		}
 	}
+
 	e.Print("CHECKING DEFS\n")
 	for id, obj := range info.Defs {
 		e.fromObj(fset, id, obj, idsRequired, idsFound)
@@ -172,6 +169,136 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 	}
 	e.Print("*/\n")
 
+	return nil
+}
+
+type findRegisterDoFnCalls struct {
+	info      *types.Info
+	e         *Extractor
+	idsToFind map[string]bool
+}
+
+func (v findRegisterDoFnCalls) Visit(node ast.Node) (w ast.Visitor) {
+	switch node := node.(type) {
+	case *ast.CallExpr:
+		if !v.isRegisterDoFnCall(node) {
+			return v
+		}
+		// We have the RegisterDoFn call, now we need to extract the parameter's local identifier
+		// for code gen.
+		param := node.Args[0]
+		v.e.Printf("\tparam - %v\n", types.ExprString(param))
+
+		// Strip the reflect.TypeOf call if present.
+		if node, ok := param.(*ast.CallExpr); ok {
+			if !v.isReflectTypeOf(node) {
+				break
+			}
+			param = node.Args[0]
+		}
+
+		switch node := param.(type) {
+		case *ast.CallExpr: // Strip a (*DoFn)(nil) structure.
+			param = node.Fun.(*ast.ParenExpr).X.(*ast.StarExpr).X
+		case *ast.UnaryExpr: // Handle &DoFn{} if present.
+			param = node.X
+			v.e.Printf("\t\tpost unary - %v %T\n", types.ExprString(param), param)
+		}
+		switch node := param.(type) {
+		case *ast.CompositeLit: // extract the DoFn from `DoFn{}`
+			param = node.Type
+			v.e.Printf("\t\tpost composite - %v %T\n", types.ExprString(param), param)
+		case *ast.SelectorExpr: // Handle function primitives
+			str := node.X.(*ast.Ident).String() + "." + node.Sel.Name
+			if pkgName := v.findPackageRename(node.X.(*ast.Ident)); pkgName != nil {
+				str = pkgName.Imported().Name() + "." + node.Sel.Name
+			}
+			v.e.Printf("\t\thave function - %v %s\n", types.ExprString(param), str)
+			v.idsToFind[str] = true
+			// Need to look up package identifiers for renamed imports.
+			return v
+		case *ast.Ident: // Already have DoFn.
+		default:
+			v.e.Printf("\t\t\t can't handle - %v %T\n", types.ExprString(param), param)
+			return v
+		}
+		iden := param.(*ast.Ident)
+		v.e.Printf("\t\thave type - %v\n", iden.Name)
+		v.idsToFind[iden.Name] = true
+	}
+	return v
+}
+
+func (v findRegisterDoFnCalls) isReflectTypeOf(node *ast.CallExpr) bool {
+	switch inner := node.Fun.(type) {
+	case *ast.SelectorExpr:
+		if inner.Sel.Name != "TypeOf" {
+			return false
+		}
+		iden, ok := inner.X.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		if iden.Name == "reflect" {
+			return true
+		}
+	}
+	return false
+}
+
+func (v findRegisterDoFnCalls) isRegisterDoFnCall(node *ast.CallExpr) bool {
+	switch inner := node.Fun.(type) {
+	case *ast.SelectorExpr:
+		if inner.Sel.Name != "RegisterDoFn" {
+			return false
+		}
+		// While it's unlikely that there will be other uses of "RegisterDoFn"
+		// outside of beam related code, from other packages, we should at least
+		// do some diligence to check that it's from one of the two packages we
+		// expect that call, either the user facing beam package or the internal
+		// genx package, and handle if those packages are renamed.
+
+		// We can't simply check the fully qualified path due to vendoring.
+		v.e.Printf("%v\n", types.ExprString(node))
+		iden, ok := inner.X.(*ast.Ident)
+		if !ok {
+			v.e.Printf("\tfail %v!\n", types.ExprString(iden))
+			return false
+		}
+		switch iden.Name {
+		case "beam", "genx":
+			v.e.Printf("\t success!\n")
+			return true
+		default:
+			v.e.Printf("\tpackage renamed %v!\n", iden)
+			// We have a *use* of the identifier, but not the original definition.
+			// Look up the definition and trust that typechecked name resolution
+			// is correct.
+			pkgName := v.findPackageRename(iden)
+			if pkgName == nil {
+				return false
+			}
+			switch pkgName.Imported().Name() {
+			case "beam", "genx":
+				return true
+			default:
+				v.e.Printf("\tfail - not likely the beam package? %v\n", types.ObjectString(pkgName, nil))
+			}
+		}
+	}
+	return false
+}
+
+func (v findRegisterDoFnCalls) findPackageRename(iden *ast.Ident) *types.PkgName {
+	for k, imp := range v.info.Defs {
+		if k.Name == iden.Name {
+			if pkgName, ok := imp.(*types.PkgName); ok {
+				v.e.Printf("\tfound package rename %#v  -  %v\n", k, types.ObjectString(imp, nil))
+				return pkgName
+			}
+		}
+	}
+	v.e.Printf("\tfail - %v not a package\n", types.ExprString(iden))
 	return nil
 }
 
@@ -203,7 +330,7 @@ func (e *Extractor) isRequired(ident string, obj types.Object, idsRequired, idsF
 			p, ok = t.(*types.Pointer)
 		}
 		ts := types.TypeString(t, e.qualifier)
-		e.Printf("RRR has %v, ts: %s %s--- ", sig, ts, ident)
+		e.Printf("recv %v has %v, ts: %s %s--- ", recv, sig, ts, ident)
 		if !idsRequired[ts] {
 			e.Print("IGNORE\n")
 			return false
@@ -287,7 +414,7 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 			fset.Position(id.Pos()), id.Name, obj, obj, id, obj.Pkg(), obj.Type(), obj.Name())
 		// Probably need to sanity check that this type actually is/has a ProcessElement
 		// or MergeAccumulators defined for this type so unnecessary registrations don't happen,
-		// an can explicitly produce an error if an explicitly named type *isn't* a DoFn or CombineFn.
+		// and can explicitly produce an error if an explicitly named type *isn't* a DoFn or CombineFn.
 		e.extractType(ot)
 	default:
 		e.Printf("%s: %q defines %v --- %T %v %v %v\n",
