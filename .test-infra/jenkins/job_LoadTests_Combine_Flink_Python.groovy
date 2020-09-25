@@ -171,7 +171,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H 16 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H 18 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
