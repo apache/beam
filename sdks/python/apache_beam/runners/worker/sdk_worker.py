@@ -367,7 +367,7 @@ class BundleProcessorCache(object):
     self.fns[bundle_descriptor.id] = bundle_descriptor
 
   def activate(self, instruction_id):
-    # type: str -> None
+    # type: (str) -> None
 
     """Makes the ``instruction_id`` known to the bundle processor.
 
