@@ -416,7 +416,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
-    def spark_version = "2.4.6"
+    def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
     def testcontainers_kafka_version = "1.14.3"
     def testcontainers_localstack_version = "1.14.3"
