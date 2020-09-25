@@ -163,8 +163,7 @@ class _SdkContainerImageLocalBuilder(SdkContainerImageBuilder):
     if self._docker_registry_push_url:
       _LOGGER.info("Pushing prebuilt sdk container...")
       try:
-        subprocess.run(['docker', 'push', container_image_name],
-                       check=True)
+        subprocess.run(['docker', 'push', container_image_name], check=True)
       except subprocess.CalledProcessError as err:
         raise RuntimeError(
             'Failed to push prebuilt sdk container %s, stderr: \n%s' %
