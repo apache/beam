@@ -27,8 +27,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_
 
       description('Builds the Direct Runner with Java 8 and runs ValidatesRunner test suite in Java 11.')
 
-      def JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
-      def JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
       publishers {
@@ -38,19 +36,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:direct-java:shadowJar')
-          tasks(':runners:direct-java:shadowTestJar')
-          switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
-        }
-
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':runners:direct-java:validatesRunner')
-          switches("-Dorg.gradle.java.home=${JAVA_11_HOME}")
-          switches('-x shadowJar')
-          switches('-x shadowTestJar')
-          switches('-x compileJava')
-          switches('-x compileTestJava')
+          switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}")
         }
       }
 
