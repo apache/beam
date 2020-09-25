@@ -696,13 +696,15 @@ There are 2 ways to perform this verification, either running automation script(
 &lt;ol>
 &lt;li>Create a personal access token from your Github account. See instruction &lt;a href="https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line">here&lt;/a>.
 It&amp;rsquo;ll be used by the script for accessing Github API.
-You don&amp;rsquo;t have to add any permissions to this token.&lt;/li>
+You only need to enable &amp;ldquo;repo&amp;rdquo; permissions to this token.&lt;/li>
 &lt;li>Update required configurations listed in &lt;code>RELEASE_BUILD_CONFIGS&lt;/code> in &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config&lt;/a>&lt;/li>
 &lt;li>Then run
 &lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./verify_release_build.sh
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>Trigger &lt;code>beam_Release_Gradle_Build&lt;/code> and all PostCommit Jenkins jobs from PR (which is created by previous step).
-To do so, only add one trigger phrase per comment. See &lt;code>JOB_TRIGGER_PHRASES&lt;/code> in &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43">verify_release_build.sh&lt;/a>
+You can run &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py&lt;/a> to do that.
+Or manually add one trigger phrase per PR comment.
+See &lt;code>COMMENTS_TO_ADD&lt;/code> in &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py&lt;/a>
 for full list of phrases.&lt;/li>
 &lt;/ol>
 &lt;/li>
@@ -716,7 +718,6 @@ for full list of phrases.&lt;/li>
 &lt;/ul>
 &lt;p>Jenkins job &lt;code>beam_Release_Gradle_Build&lt;/code> basically run &lt;code>./gradlew build -PisRelease&lt;/code>.
 This only verifies that everything builds with unit tests passing.&lt;/p>
-&lt;p>You can use &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py&lt;/a> to mass-comment on PR.&lt;/p>
 &lt;h4 id="verify-the-build-succeeds">Verify the build succeeds&lt;/h4>
 &lt;ul>
 &lt;li>Tasks you need to do manually to &lt;strong>verify the build succeed&lt;/strong>:
