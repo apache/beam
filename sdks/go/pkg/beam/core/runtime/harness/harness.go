@@ -269,7 +269,9 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		// check if we need to evict something, and then do so.
 		if len(c.inactive) >= len(c.removeQueue) {
-			delete(c.inactive, c.removeQueue[c.nextRemove])
+			toRemove := c.removeQueue[c.nextRemove]
+			delete(c.inactive, toRemove)
+			delete(c.failed, toRemove) // Also GC old failed bundles.
 		}
 		// nextRemove is now free, add the current instruction to the set.
 		c.removeQueue[c.nextRemove] = instID
