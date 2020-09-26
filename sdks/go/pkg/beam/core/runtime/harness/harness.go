@@ -96,6 +96,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		descriptors: make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
 		plans:       make(map[bundleDescriptorID][]*exec.Plan),
 		active:      make(map[instructionID]*exec.Plan),
+		inactive:    make(map[instructionID]struct{}),
 		failed:      make(map[instructionID]error),
 		data:        &DataChannelManager{},
 		state:       &StateChannelManager{},
@@ -139,6 +140,12 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		}
 
 		if req.GetProcessBundle() != nil {
+			// Add this to the inactive queue before allowing other requests
+			// to be processed. This prevents race conditions with split
+			// or progress requests for this instruction.
+			ctrl.mu.Lock()
+			ctrl.inactive[instructionID(req.GetInstructionId())] = struct{}{}
+			ctrl.mu.Unlock()
 			// Only process bundles in a goroutine. We at least need to process instructions for
 			// each plan serially. Perhaps just invoke plan.Execute async?
 			go fn(ctx, req)
@@ -159,6 +166,13 @@ type control struct {
 	// plans that are actively being executed.
 	// a plan can only be in one of these maps at any time.
 	active map[instructionID]*exec.Plan // protected by mu
+	// a plan that's either about to start or has finished recently
+	// instructions in this queue should return empty responses to control messages.
+	inactive map[instructionID]struct{} // protected by mu
+	// order that instructions should be removed from the inactive map.
+	// treated like a circular buffer with nextRemove as the pointer.
+	removeQueue [1000]instructionID // protected by mu
+	nextRemove  int                 // protected by mu
 	// plans that have failed during execution
 	failed map[instructionID]error // protected by mu
 	mu     sync.Mutex
@@ -229,6 +243,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		// Make the plan active.
 		c.mu.Lock()
+		delete(c.inactive, instID)
 		c.active[instID] = plan
 		c.mu.Unlock()
 
@@ -251,6 +266,19 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 		c.plans[bdID] = append(c.plans[bdID], plan)
 		delete(c.active, instID)
+
+		// check if we need to evict something, and then do so.
+		if len(c.inactive) >= len(c.removeQueue) {
+			delete(c.inactive, c.removeQueue[c.nextRemove])
+		}
+		// nextRemove is now free, add the current instruction to the set.
+		c.removeQueue[c.nextRemove] = instID
+		c.inactive[instID] = struct{}{}
+		// increment and wrap around.
+		c.nextRemove++
+		if c.nextRemove > len(c.removeQueue) {
+			c.nextRemove = 0
+		}
 		c.mu.Unlock()
 
 		if err != nil {
@@ -271,15 +299,18 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetProcessBundleProgress()
 
 		ref := instructionID(msg.GetInstructionId())
-		c.mu.Lock()
-		plan, ok := c.active[ref]
-		err := c.failed[ref]
-		c.mu.Unlock()
-		if err != nil {
-			return fail(ctx, instID, "failed to return progress: instruction %v failed: %v", ref, err)
+
+		plan, resp := c.getPlanOrResponse(ctx, "progress", instID, ref)
+		if resp != nil {
+			return resp
 		}
-		if !ok {
-			return fail(ctx, instID, "failed to return progress: instruction %v not active", ref)
+		if plan == nil && resp == nil {
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleProgress{
+					ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{},
+				},
+			}
 		}
 
 		mons, pylds := monitoring(plan)
@@ -299,15 +330,18 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		log.Debugf(ctx, "PB Split: %v", msg)
 		ref := instructionID(msg.GetInstructionId())
-		c.mu.Lock()
-		plan, ok := c.active[ref]
-		err := c.failed[ref]
-		c.mu.Unlock()
-		if err != nil {
-			return fail(ctx, instID, "failed to split: instruction %v failed: %v", ref, err)
+
+		plan, resp := c.getPlanOrResponse(ctx, "split", instID, ref)
+		if resp != nil {
+			return resp
 		}
-		if !ok {
-			return fail(ctx, instID, "failed to split: execution plan for %v not active", ref)
+		if plan == nil {
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+					ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				},
+			}
 		}
 
 		// Get the desired splits for the root FnAPI read operation.
@@ -370,6 +404,32 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 	default:
 		return fail(ctx, instID, "Unexpected request: %v", req)
 	}
+}
+
+// getPlanOrResponse returns the plan for the given instruction id.
+// Otherwise, provides an error response.
+// However, if that plan is known as inactive, it returns both the plan and response as nil,
+// indicating that an empty response of the appropriate type must be returned instead.
+// This is done because the OneOf types in Go protos are not exported, so we can't pass
+// them as a parameter here instead, and relying on those proto internal would be brittle.
+//
+// Since this logic is subtle, it's been abstracted to a method to scope the defer unlock.
+func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, ref instructionID) (*exec.Plan, *fnpb.InstructionResponse) {
+	c.mu.Lock()
+	plan, ok := c.active[ref]
+	err := c.failed[ref]
+	defer c.mu.Unlock()
+
+	if err != nil {
+		return nil, fail(ctx, instID, "failed to return %v: instruction %v failed: %v", kind, ref, err)
+	}
+	if !ok {
+		if _, ok := c.inactive[ref]; ok {
+			return nil, nil
+		}
+		return nil, fail(ctx, instID, "failed to return %v: instruction %v not active", kind, ref)
+	}
+	return plan, nil
 }
 
 func fail(ctx context.Context, id instructionID, format string, args ...interface{}) *fnpb.InstructionResponse {
