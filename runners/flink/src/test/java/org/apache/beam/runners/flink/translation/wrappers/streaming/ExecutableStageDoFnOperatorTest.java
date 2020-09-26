@@ -66,8 +66,10 @@ import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.streaming.FlinkStateInternalsTest;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -137,6 +139,7 @@ public class ExecutableStageDoFnOperatorTest {
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
   @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
+  @Mock private InstructionRequestHandler instructionRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
   // tests in general ignore the executable stage itself and mock around it.
@@ -185,6 +188,7 @@ public class ExecutableStageDoFnOperatorTest {
     when(processBundleDescriptor.getTimerSpecs()).thenReturn(Collections.emptyMap());
     when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(Collections.emptyMap());
     when(stageBundleFactory.getProcessBundleDescriptor()).thenReturn(processBundleDescriptor);
+    when(stageBundleFactory.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
   }
 
   @Test
@@ -202,7 +206,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -226,7 +230,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -304,7 +308,8 @@ public class ExecutableStageDoFnOperatorTest {
               OutputReceiverFactory receiverFactory,
               TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
-              BundleProgressHandler progressHandler) {
+              BundleProgressHandler progressHandler,
+              BundleFinalizationHandler finalizationHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -353,6 +358,11 @@ public class ExecutableStageDoFnOperatorTest {
           public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
               getProcessBundleDescriptor() {
             return processBundleDescriptor;
+          }
+
+          @Override
+          public InstructionRequestHandler getInstructionRequestHandler() {
+            return null;
           }
 
           @Override
@@ -431,7 +441,7 @@ public class ExecutableStageDoFnOperatorTest {
                 .put(KV.of("transform", "timer2"), Mockito.mock(FnDataReceiver.class))
                 .put(KV.of("transform", "timer3"), Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
     assertThat(
@@ -546,11 +556,12 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
     testHarness.close();
 
+    verify(stageBundleFactory).getInstructionRequestHandler();
     verify(stageBundleFactory).close();
     verify(stageContext).close();
     verifyNoMoreInteractions(stageBundleFactory);
@@ -588,7 +599,7 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
 
@@ -697,7 +708,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
 
     KV<String, String> timerInputKey = KV.of("transformId", "timerId");
     AtomicBoolean timerInputReceived = new AtomicBoolean();
@@ -877,7 +888,7 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
 
