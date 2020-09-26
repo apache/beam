@@ -87,6 +87,10 @@ class FuzzedExponentialIntervals(object):
     max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
+    stop_after_secs: Places a limit on the sum of intervals returned (in
+      seconds), such that the sum is <= stop_after_secs. Defaults to disabled
+      (None). You may need to increase num_retries to effectively use this
+      feature.
   """
   def __init__(
       self,
@@ -94,7 +98,8 @@ class FuzzedExponentialIntervals(object):
       num_retries,
       factor=2,
       fuzz=0.5,
-      max_delay_secs=60 * 60 * 1):
+      max_delay_secs=60 * 60 * 1,
+      stop_after_secs=None):
     self._initial_delay_secs = initial_delay_secs
     if num_retries > 10000:
       raise ValueError('num_retries parameter cannot exceed 10000.')
@@ -104,12 +109,19 @@ class FuzzedExponentialIntervals(object):
       raise ValueError('fuzz parameter expected to be in [0, 1] range.')
     self._fuzz = fuzz
     self._max_delay_secs = max_delay_secs
+    self._stop_after_secs = stop_after_secs
 
   def __iter__(self):
     current_delay_secs = min(self._max_delay_secs, self._initial_delay_secs)
+    total_delay_secs = 0
     for _ in range(self._num_retries):
       fuzz_multiplier = 1 - self._fuzz + random.random() * self._fuzz
-      yield current_delay_secs * fuzz_multiplier
+      delay_secs = current_delay_secs * fuzz_multiplier
+      total_delay_secs += delay_secs
+      if (self._stop_after_secs is not None and
+          total_delay_secs > self._stop_after_secs):
+        break
+      yield delay_secs
       current_delay_secs = min(
           self._max_delay_secs, current_delay_secs * self._factor)
 
@@ -183,7 +195,8 @@ def with_exponential_backoff(
     clock=Clock(),
     fuzz=True,
     factor=2,
-    max_delay_secs=60 * 60):
+    max_delay_secs=60 * 60,
+    stop_after_secs=None):
   """Decorator with arguments that control the retry logic.
 
   Args:
@@ -205,6 +218,10 @@ def with_exponential_backoff(
     max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
+    stop_after_secs: Places a limit on the sum of delays between retries, such
+      that the sum is <= stop_after_secs. Retries will stop after the limit is
+      reached. Defaults to disabled (None). You may need to increase num_retries
+      to effectively use this feature.
 
   Returns:
     As per Python decorators with arguments pattern returns a decorator
@@ -230,7 +247,8 @@ def with_exponential_backoff(
               num_retries,
               factor,
               fuzz=0.5 if fuzz else 0,
-              max_delay_secs=max_delay_secs))
+              max_delay_secs=max_delay_secs,
+              stop_after_secs=stop_after_secs))
       while True:
         try:
           return fun(*args, **kwargs)
