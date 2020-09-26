@@ -427,10 +427,28 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):
+  def __init__(self, *args, **kwargs):
+    super(FlinkRunnerTestStreaming, self).__init__(*args, **kwargs)
+    self.enable_commit = False
+
+  def setUp(self):
+    self.enable_commit = False
+
   def create_options(self):
     options = super(FlinkRunnerTestStreaming, self).create_options()
     options.view_as(StandardOptions).streaming = True
+    if self.enable_commit:
+      options._all_options['checkpointing_interval'] = 3000
+      options._all_options['shutdown_sources_after_idle_ms'] = 60000
     return options
+
+  def test_callbacks_with_exception(self):
+    self.enable_commit = True
+    super(FlinkRunnerTest, self).test_callbacks_with_exception()
+
+  def test_register_finalizations(self):
+    self.enable_commit = True
+    super(FlinkRunnerTest, self).test_register_finalizations()
 
 
 if __name__ == '__main__':
