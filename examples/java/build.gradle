@@ -18,7 +18,10 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  id 'com.github.johnrengelman.shadow'
+}
 applyJavaNature(
   exportJavadoc: false,
   enableChecker: false,
@@ -48,13 +51,13 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  provided library.java.kafka_clients
+  compile library.java.kafka_clients
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:extensions:ml")
-  compile project(":sdks:java:options:PipelineOptions")
+  compile project(":runners:google-cloud-dataflow-java")
   compile library.java.avro
   compile library.java.bigdataoss_util
   compile library.java.google_api_client
@@ -130,4 +133,3 @@ task preCommit() {
     dependsOn runner + "PreCommit"
   }
 }
-
