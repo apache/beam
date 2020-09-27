@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
  * {@link PTransform}s that read text files and collect contextual information of the elements in
  * the input.
  *
- * <p>Use {@link TextIO} when not reading file with Multiline Records or additional metadata is not
+ * <p>Prefer {@link TextIO} when not reading files with multi-line records or additional record metadata is not
  * required.
  *
  * <h2>Reading from text files</h2>
@@ -81,10 +81,10 @@ import org.slf4j.LoggerFactory;
  * Alternatively, if the filenames to be read are themselves in a {@link PCollection} you can use
  * {@link FileIO} to match them and {@link ContextualTextIO#readFiles()} to read them.
  *
- * <p>{@link #read} returns a {@link PCollection} of {@link Row} with schema {@link
+ * <p>{@link #read} returns a {@link PCollection} of {@link Row}s with schema {@link
  * RecordWithMetadata#getSchema()}, each corresponding to one line of an input UTF-8 text file
- * (split into lines delimited by '\n', '\r', '\r\n', or specified delimiter see {@link
- * ContextualTextIO.Read#withDelimiter})
+ * (split into lines delimited by '\n', '\r', '\r\n', or specified delimiter via {@link
+ * ContextualTextIO.Read#withDelimiter}).
  *
  * <h3>Filepattern expansion and watching</h3>
  *
@@ -420,7 +420,7 @@ public class ContextualTextIO {
       PCollectionView<Map<KV<String, Long>, Long>> numRecordsBeforeEachRange =
           singletonPcoll
               .apply(
-                  "ComputeRecordsBeforeRange",
+                  "ComputeNumRecordsBeforeRange",
                   ParDo.of(new ComputeRecordsBeforeEachRange(rangeSizes))
                       .withSideInputs(rangeSizes))
               .apply("NumRecordsBeforeEachRangeAsView", View.asMap());
@@ -484,9 +484,7 @@ public class ContextualTextIO {
         SortedMap<KV<String, Long>, Long> sorted = new TreeMap<>(new FileRangeComparator<>());
 
         // Initialize sorted map with values
-        for (Map.Entry<KV<String, Long>, Long> entry : rangeSizesMap.entrySet()) {
-          sorted.put(entry.getKey(), entry.getValue());
-        }
+        sorted.putAll(rangeSizesMap);
 
         // HashMap that tracks number of records passed for each file
         Map<String, Long> pastRecords = new HashMap<>();
