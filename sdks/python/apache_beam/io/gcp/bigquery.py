@@ -682,6 +682,7 @@ class _CustomBigQuerySource(BoundedSource):
       kms_key=None,
       bigquery_job_labels=None,
       use_json_exports=False,
+      temp_dataset_project=None,
       job_name=None,
       step_name=None):
     if table is not None and query is not None:
@@ -714,6 +715,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
     self.use_json_exports = use_json_exports
+    self.temp_dataset_project = temp_dataset_project
     self._job_name = job_name or 'AUTOMATIC_JOB_NAME'
     self._step_name = step_name
     self._source_uuid = str(uuid.uuid4())[0:10]
@@ -802,7 +804,8 @@ class _CustomBigQuerySource(BoundedSource):
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
-        self.table_reference = self._execute_query(bq)
+        self.table_reference = self._execute_query(
+            bq, project=self.temp_dataset_project)
 
       schema, metadata_list = self._export_files(bq)
       self.split_result = [
@@ -811,10 +814,15 @@ class _CustomBigQuerySource(BoundedSource):
       ]
 
       if self.query is not None:
-        bq.clean_up_temporary_dataset(self._get_project())
+        self._clean_up_temporary_dataset(bq)
 
     for source in self.split_result:
       yield SourceBundle(0, source, None, None)
+
+  def _clean_up_temporary_dataset(self, bq):
+    bq.clean_up_temporary_dataset(
+        self._get_project() if self.temp_dataset_project is None
+        else self.temp_dataset_project)
 
   def get_range_tracker(self, start_position, stop_position):
     class CustomBigQuerySourceRangeTracker(RangeTracker):
@@ -832,19 +840,25 @@ class _CustomBigQuerySource(BoundedSource):
 
   @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
+    project = self._get_project()
+    if self.temp_dataset_project is not None:
+      project = self.temp_dataset_project
     location = bq.get_query_location(
-        self._get_project(), self.query.get(), self.use_legacy_sql)
-    bq.create_temporary_dataset(self._get_project(), location)
+        project, self.query.get(), self.use_legacy_sql)
+    bq.create_temporary_dataset(project, location)
 
   @check_accessible(['query'])
-  def _execute_query(self, bq):
+  def _execute_query(self, bq, project=None):
+    if project is None:
+      project = self._get_project()
     query_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
         random.randint(0, 1000))
+
     job = bq._start_query_job(
-        self._get_project(),
+        project,
         self.query.get(),
         self.use_legacy_sql,
         self.flatten_results,
@@ -854,7 +868,9 @@ class _CustomBigQuerySource(BoundedSource):
             self.bigquery_job_labels))
     job_ref = job.jobReference
     bq.wait_for_bq_job(job_ref, max_retries=0)
-    return bq._get_temp_table(self._get_project())
+    return bq._get_temp_table(
+      self.temp_dataset_project if self.temp_dataset_project is not None
+      else project)
 
   def _export_files(self, bq):
     """Runs a BigQuery export job.

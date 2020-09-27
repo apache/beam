@@ -436,8 +436,16 @@ class BigQueryWrapper(object):
       job_id,
       dry_run=False,
       kms_key=None,
-      job_labels=None):
+      job_labels=None,
+      temp_dataset_project=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
+    if dry_run:
+      destination_table = None
+    else:
+      destination_table = self._get_temp_table(project_id) \
+        if temp_dataset_project is None \
+        else self._get_temp_table(temp_dataset_project)
+
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
@@ -447,8 +455,7 @@ class BigQueryWrapper(object):
                     query=query,
                     useLegacySql=use_legacy_sql,
                     allowLargeResults=not dry_run,
-                    destinationTable=self._get_temp_table(project_id)
-                    if not dry_run else None,
+                    destinationTable=destination_table,
                     flattenResults=flatten_results,
                     destinationEncryptionConfiguration=bigquery.
                     EncryptionConfiguration(kmsKeyName=kms_key)),
@@ -915,7 +922,8 @@ class BigQueryWrapper(object):
       use_legacy_sql,
       flatten_results,
       dry_run=False,
-      job_labels=None):
+      job_labels=None,
+      temp_dataset_project=None):
     job = self._start_query_job(
         project_id,
         query,
@@ -923,7 +931,8 @@ class BigQueryWrapper(object):
         flatten_results,
         job_id=uuid.uuid4().hex,
         dry_run=dry_run,
-        job_labels=job_labels)
+        job_labels=job_labels,
+        temp_dataset_project=temp_dataset_project)
     job_id = job.jobReference.jobId
     location = job.jobReference.location
 
@@ -1095,7 +1104,8 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
       test_bigquery_client=None,
       use_legacy_sql=True,
       flatten_results=True,
-      kms_key=None):
+      kms_key=None,
+      temp_dataset_project=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -1122,6 +1132,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.kms_key = kms_key
     self.bigquery_job_labels = {}
     self.bq_io_metadata = None
+    self.temp_dataset_project = temp_dataset_project
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
@@ -1168,22 +1179,30 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
+    temp_dataset_project = self.temp_dataset_project \
+      if self.temp_dataset_project else self.executing_project
     self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_location())
+        temp_dataset_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
-    self.client.clean_up_temporary_dataset(self.executing_project)
+    self.client.clean_up_temporary_dataset(
+        self.executing_project if self.temp_dataset_project is None else self.
+        temp_dataset_project)
 
   def __iter__(self):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata()
+    temp_dataset_project = self.temp_dataset_project \
+      if self.temp_dataset_project is not None else self.executing_project
     for rows, schema in self.client.run_query(
-        project_id=self.executing_project, query=self.query,
+        project_id=self.executing_project,
+        query=self.query,
         use_legacy_sql=self.use_legacy_sql,
         flatten_results=self.flatten_results,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
-            self.bigquery_job_labels)):
+            self.bigquery_job_labels),
+        temp_dataset_project=temp_dataset_project):
       if self.schema is None:
         self.schema = schema
       for row in rows:

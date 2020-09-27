@@ -399,6 +399,30 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertEqual(
         'Invalid GCS location: fs://bad_location', str(context.exception))
 
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
+  def test_temp_dataset_location_is_configurable(self, bq):
+    gcs_location='gs://gcs_location'
+    temp_dataset_project='temp_project'
+    c = beam.io.gcp.bigquery._CustomBigQuerySource(
+        query='select * from test_table',
+        gcs_location=gcs_location,
+        validate=True,
+        pipeline_options=beam.options.pipeline_options.PipelineOptions(),
+        job_name='job_name',
+        step_name='step_name',
+        project='execution_project',
+        **{'temp_dataset_project': temp_dataset_project})
+
+    c._setup_temporary_dataset(bq)
+    bq.create_temporary_dataset.assert_called_with(
+        temp_dataset_project, bq.get_query_location())
+    c._clean_up_temporary_dataset(bq)
+    bq.clean_up_temporary_dataset.assert_called_with(temp_dataset_project)
+    c._execute_query(bq)
+    bq._start_query_job.assert_called_with('execution_project', *[mock.ANY] * 3,
+                                           job_id=mock.ANY, job_labels=mock.ANY,
+                                           kms_key=mock.ANY)
+    bq._get_temp_table.assert_called_with(temp_dataset_project)
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
