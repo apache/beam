@@ -3539,8 +3539,8 @@ pipeline processes data, consider the following pipeline:
 
 **Figure 4:** `GroupByKey` and `ParDo` without windowing, on a bounded collection.
 
-In the above pipeline, we create a bounded `PCollection` by reading a set of
-key/value pairs using `TextIO`. We then group the collection using `GroupByKey`,
+In the above pipeline, we create a bounded `PCollection` by reading lines from a
+file using `TextIO`. We then group the collection using `GroupByKey`,
 and apply a `ParDo` transform to the grouped `PCollection`. In this example, the
 `GroupByKey` creates a collection of unique keys, and then `ParDo` gets applied
 exactly once per key.
@@ -3554,7 +3554,7 @@ Now, consider the same pipeline, but using a windowing function:
 
 **Figure 5:** `GroupByKey` and `ParDo` with windowing, on a bounded collection.
 
-As before, the pipeline creates a bounded `PCollection` of key/value pairs. We
+As before, the pipeline creates a bounded `PCollection` of file lines. We
 then set a [windowing function](#setting-your-pcollections-windowing-function)
 for that `PCollection`.  The `GroupByKey` transform groups the elements of the
 `PCollection` by both key and window, based on the windowing function. The
