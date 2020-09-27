@@ -4000,7 +4000,10 @@ sets the window's **accumulation mode**.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_setting_trigger >}}
+  pcollection | WindowInto(
+    FixedWindows(1 * 60),
+    trigger=AfterProcessingTime(1 * 60),
+    accumulation_mode=AccumulationMode.DISCARDING)
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
