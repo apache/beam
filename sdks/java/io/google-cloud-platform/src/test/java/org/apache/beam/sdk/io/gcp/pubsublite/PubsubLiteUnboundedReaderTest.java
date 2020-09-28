@@ -33,6 +33,7 @@ import com.google.api.core.ApiFutures;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.internal.FakeApiService;
+import com.google.cloud.pubsublite.internal.PullSubscriber;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
@@ -60,9 +61,9 @@ import org.mockito.Spy;
 
 @RunWith(JUnit4.class)
 public class PubsubLiteUnboundedReaderTest {
-  @Mock private PullSubscriber subscriber5;
+  @Mock private PullSubscriber<SequencedMessage> subscriber5;
 
-  @Mock private PullSubscriber subscriber8;
+  @Mock private PullSubscriber<SequencedMessage> subscriber8;
 
   abstract static class CommitterFakeService extends FakeApiService implements Committer {}
 

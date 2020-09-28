@@ -17,12 +17,28 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.cloud.pubsublite.internal.PullSubscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import io.grpc.StatusException;
 import java.util.List;
+import java.util.stream.Collectors;
 
-/** A PullSubscriber exposes a "pull" mechanism for retrieving messages. */
-interface PullSubscriber extends AutoCloseable {
-  /** Pull currently available messages from this subscriber. Does not block. */
-  List<SequencedMessage> pull() throws StatusException;
+class TranslatingPullSubscriber implements PullSubscriber<SequencedMessage> {
+  private final PullSubscriber<com.google.cloud.pubsublite.SequencedMessage> underlying;
+
+  TranslatingPullSubscriber(
+      PullSubscriber<com.google.cloud.pubsublite.SequencedMessage> underlying) {
+    this.underlying = underlying;
+  }
+
+  @Override
+  public List<SequencedMessage> pull() throws StatusException {
+    List<com.google.cloud.pubsublite.SequencedMessage> messages = underlying.pull();
+    return messages.stream().map(m -> m.toProto()).collect(Collectors.toList());
+  }
+
+  @Override
+  public void close() throws Exception {
+    underlying.close();
+  }
 }
