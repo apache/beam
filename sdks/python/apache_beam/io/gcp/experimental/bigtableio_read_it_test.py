@@ -45,9 +45,9 @@ class BigtableReadTest(unittest.TestCase):
     parser.add_argument('--instance', type=str)
     parser.add_argument('--table', type=str)
     parser.add_argument('--filter', type=str, default=None)
-    parser.add_argument('--row_count', type=int)
+    parser.add_argument('--row_count', type=int, default=0)
 
-    args, argv = parser.parse_known_args()
+    args, _ = parser.parse_known_args()
 
     self.options = {
         'instance': args.instance,
