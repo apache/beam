@@ -18,17 +18,19 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class KafkaTableProviderAvroIT extends KafkaTableProviderIT {
+  private final SerializableFunction<Row, byte[]> toBytesFn =
+      AvroUtils.getRowToAvroBytesFunction(TEST_TABLE_SCHEMA);
 
   @SuppressWarnings("unchecked")
   @Override
   protected ProducerRecord<String, ?> generateProducerRecord(int i) {
     return new ProducerRecord<>(
-        kafkaOptions.getKafkaTopic(),
-        "k" + i,
-        AvroUtils.rowToAvroBytes(row(TEST_TABLE_SCHEMA, i, (i % 3) + 1, i)));
+        kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
   }
 
   @Override

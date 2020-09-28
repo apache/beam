@@ -47,10 +47,10 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 
-/** This is a MockKafkaCSVTestTable. It will use a Mock Consumer. */
+/** This is a mock BeamKafkaTable. It will use a Mock Consumer. */
 public abstract class KafkaTestTable extends BeamKafkaTable {
   private final int partitionsPerTopic;
-  private List<KafkaTestRecord<?>> records;
+  private final List<KafkaTestRecord<?>> records;
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
 
   public KafkaTestTable(Schema beamSchema, List<String> topics, int partitionsPerTopic) {

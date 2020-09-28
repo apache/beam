@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
+
+import org.apache.commons.csv.CSVFormat;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class KafkaTableProviderCSVIT extends KafkaTableProviderIT {
@@ -24,7 +27,7 @@ public class KafkaTableProviderCSVIT extends KafkaTableProviderIT {
   @Override
   protected ProducerRecord<String, ?> generateProducerRecord(int i) {
     return new ProducerRecord<>(
-        kafkaOptions.getKafkaTopic(), "k" + i, i + "," + ((i % 3) + 1) + "," + i);
+        kafkaOptions.getKafkaTopic(), "k" + i, beamRow2CsvLine(generateRow(i), CSVFormat.DEFAULT));
   }
 
   @Override

@@ -17,47 +17,90 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
+  private static final Schema EMPTY_SCHEMA = Schema.builder().build();
+
+  private final Schema SCHEMA =
+      Schema.builder()
+          .addInt64Field("f_long")
+          .addInt32Field("f_int")
+          .addDoubleField("f_double")
+          .addStringField("f_string")
+          .addBooleanField("f_bool")
+          .addRowField("f_row", EMPTY_SCHEMA)
+          .addArrayField("f_array", Schema.FieldType.row(EMPTY_SCHEMA))
+          .build();
+
+  private final transient SerializableFunction<Row, byte[]> toBytesFn =
+      AvroUtils.getRowToAvroBytesFunction(SCHEMA);
+
   @Override
-  protected KafkaTestTable getTable(int numberOfPartitions) {
-    return new KafkaTestTableAvro(BEAM_SQL_SCHEMA, TOPICS, numberOfPartitions);
+  protected Schema getSchema() {
+    return SCHEMA;
   }
 
   @Override
-  protected KafkaTestRecord<?> createKafkaTestRecord(
-      String key, List<Object> values, long timestamp) {
-    Row row = Row.withSchema(SCHEMA).attachValues(values);
-    return KafkaTestRecord.create(key, AvroUtils.rowToAvroBytes(row), "topic1", timestamp);
+  protected List<Object> listFrom(int i) {
+    return ImmutableList.of(
+        (long) i,
+        i,
+        (double) i,
+        "avro_value" + i,
+        i % 2 == 0,
+        Row.withSchema(EMPTY_SCHEMA).build(),
+        ImmutableList.of(Row.withSchema(EMPTY_SCHEMA).build()));
   }
 
   @Override
-  protected PCollection<Row> createRecorderDecoder(TestPipeline pipeline) {
-    return pipeline
-        .apply(Create.of(ROW1, ROW2))
-        .apply(
-            MapElements.into(
-                    TypeDescriptors.kvs(
-                        TypeDescriptor.of(byte[].class), TypeDescriptor.of(byte[].class)))
-                .via(row -> KV.of(new byte[] {}, AvroUtils.rowToAvroBytes(row))))
-        .apply(new BeamKafkaAvroTable.AvroRecorderDecoder(SCHEMA));
+  protected KafkaTestTable getTestTable(int numberOfPartitions) {
+    return new KafkaTestTableAvro(getSchema(), TOPICS, numberOfPartitions);
   }
 
   @Override
-  protected PCollection<Row> createRecorderEncoder(TestPipeline pipeline) {
-    return pipeline
-        .apply(Create.of(ROW1, ROW2))
-        .apply(new BeamKafkaAvroTable.AvroRecorderEncoder())
-        .apply(new BeamKafkaAvroTable.AvroRecorderDecoder(SCHEMA));
+  protected BeamKafkaTable getBeamKafkaTable() {
+    return new BeamKafkaAvroTable(getSchema(), "", ImmutableList.of());
+  }
+
+  @Override
+  protected KafkaTestRecord<?> createKafkaTestRecord(String key, int i, long timestamp) {
+    Row row = generateRow(i);
+    return KafkaTestRecord.create(key, toBytesFn.apply(row), "topic1", timestamp);
+  }
+
+  @Override
+  protected PCollection<KV<byte[], byte[]>> applyRowToBytesKV(PCollection<Row> rows) {
+    return rows.apply(
+        MapElements.into(
+                TypeDescriptors.kvs(
+                    TypeDescriptor.of(byte[].class), TypeDescriptor.of(byte[].class)))
+            .via(
+                row -> {
+                  GenericRecord record = AvroUtils.toGenericRecord(row, null);
+                  AvroCoder<GenericRecord> coder =
+                      AvroCoder.of(AvroUtils.toAvroSchema(row.getSchema(), null, null));
+                  ByteArrayOutputStream out = new ByteArrayOutputStream();
+                  try {
+                    coder.encode(record, out);
+                  } catch (IOException e) {
+                    throw new RuntimeException("Unable to encode avro record", e);
+                  }
+                  return KV.of(new byte[] {}, out.toByteArray());
+                }));
   }
 }
