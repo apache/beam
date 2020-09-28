@@ -44,33 +44,37 @@ class BigtableReadTest(unittest.TestCase):
 
   @attr('IT')
   def test_bigtable_read(self):
-    logging.info('Reading table "{}" of {} rows...'
-                 .format(options['table'], options['row_count']))
+    logging.info(
+        'Reading table "%s" of %d rows...' %
+        (options['table'], options['row_count']))
 
     p = TestPipeline(is_integration_test=True)
     project = p.get_pipeline_options().get_all_options()['project']
 
-    logging.info('\nProject ID:  {}'.format(project))
-    logging.info('\nInstance ID: {}'.format(options['instance']))
-    logging.info('\nTable ID:    {}'.format(options['table']))
+    logging.info('\nProject ID:  %s' % project)
+    logging.info('\nInstance ID: %s' % options['instance'])
+    logging.info('\nTable ID:    %s' % options['table'])
 
-    _ = (p | 'Read Test' >> ReadFromBigtable(project_id=project,
-                                             instance_id=options['instance'],
-                                             table_id=options['table'],
-                                             filter_=options['filter']))
+    _ = (
+        p | 'Read Test' >> ReadFromBigtable(
+            project_id=project,
+            instance_id=options['instance'],
+            table_id=options['table'],
+            filter_=options['filter']))
     self.result = p.run()
     self.result.wait_until_finish()
     assert self.result.state == PipelineState.DONE
 
     query_result = self.result.metrics().query(
-      MetricsFilter().with_name('Rows Read'))
+        MetricsFilter().with_name('Rows Read'))
 
     if query_result['counters']:
       read_counter = query_result['counters'][0]
       final_count = read_counter.committed
       assert final_count == options['row_count']
-      logging.info('{} out of {} rows were read successfully.'
-                   .format(final_count, options['row_count']))
+      logging.info(
+          '%d out of %d rows were read successfully.' %
+          (final_count, options['row_count']))
 
     logging.info('DONE!')
 
@@ -86,10 +90,10 @@ if __name__ == '__main__':
   args, argv = parser.parse_known_args()
 
   options = {
-    'instance': args.instance,
-    'table': args.table,
-    'filter': args.filter,
-    'row_count': args.row_count,
+      'instance': args.instance,
+      'table': args.table,
+      'filter': args.filter,
+      'row_count': args.row_count,
   }
 
   test_suite = unittest.TestSuite()
