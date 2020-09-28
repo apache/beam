@@ -48,7 +48,9 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Sequence
+from typing import Set
 from typing import Tuple
+from typing import Type
 
 from fastavro import parse_schema
 from fastavro import schemaless_reader
@@ -64,6 +66,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
+  from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
 try:
@@ -363,7 +366,7 @@ ITERABLE_LIKE_TYPE = 10
 # lists, etc. due to being lazy.  The actual type is not preserved
 # through encoding, only the elements. This is particularly useful
 # for the value list types created in GroupByKey.
-_ITERABLE_LIKE_TYPES = set()
+_ITERABLE_LIKE_TYPES = set()  # type: Set[Type]
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -725,7 +728,7 @@ class TimerCoderImpl(StreamCoderImpl):
     self._tag_coder_impl = StrUtf8Coder().get_impl()
 
   def encode_to_stream(self, value, out, nested):
-    # type: (dict, create_OutputStream, bool) -> None
+    # type: (userstate.Timer, create_OutputStream, bool) -> None
     self._key_coder_impl.encode_to_stream(value.user_key, out, True)
     self._tag_coder_impl.encode_to_stream(value.dynamic_timer_tag, out, True)
     self._windows_coder_impl.encode_to_stream(value.windows, out, True)
@@ -738,7 +741,7 @@ class TimerCoderImpl(StreamCoderImpl):
       self._pane_info_coder_impl.encode_to_stream(value.paneinfo, out, True)
 
   def decode_from_stream(self, in_stream, nested):
-    # type: (create_InputStream, bool) -> dict
+    # type: (create_InputStream, bool) -> userstate.Timer
     from apache_beam.transforms import userstate
     user_key = self._key_coder_impl.decode_from_stream(in_stream, True)
     dynamic_timer_tag = self._tag_coder_impl.decode_from_stream(in_stream, True)

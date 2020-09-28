@@ -26,8 +26,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -39,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading from a table. */
-@Experimental(Kind.SOURCE_SINK)
 public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageTableSource.class);

@@ -39,8 +39,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
@@ -55,7 +53,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
-@Experimental(Kind.SOURCE_SINK)
 public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
@@ -147,7 +144,6 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   }
 
   /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
-  @Experimental(Kind.SOURCE_SINK)
   public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
     private final DatumReader<GenericRecord> datumReader;

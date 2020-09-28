@@ -96,6 +96,7 @@ class JobServiceHandle(object):
     self.job_service = job_service
     self.options = options
     self.timeout = options.view_as(PortableOptions).job_server_timeout
+    self.artifact_endpoint = options.view_as(PortableOptions).artifact_endpoint
     self._retain_unknown_options = retain_unknown_options
 
   def submit(self, proto_pipeline):
@@ -105,9 +106,12 @@ class JobServiceHandle(object):
     Submit and run the pipeline defined by `proto_pipeline`.
     """
     prepare_response = self.prepare(proto_pipeline)
+    artifact_endpoint = (
+        self.artifact_endpoint or
+        prepare_response.artifact_staging_endpoint.url)
     self.stage(
         proto_pipeline,
-        prepare_response.artifact_staging_endpoint.url,
+        artifact_endpoint,
         prepare_response.staging_session_token)
     return self.run(prepare_response.preparation_id)
 
