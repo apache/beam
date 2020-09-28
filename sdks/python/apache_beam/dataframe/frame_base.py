@@ -67,8 +67,8 @@ class DeferredBase(object):
     else:
       if expr.requires_partition_by() != partitionings.Singleton():
         raise ValueError(
-            'Scalar expression %s partitoned by non-singleton %s' %
-            (expr, expr.requires_partition_by()))
+            'Scalar expression %s of type %s partitoned by non-singleton %s' %
+            (expr, proxy_type, expr.requires_partition_by()))
       wrapper_type = _DeferredScalar
     return wrapper_type(expr)
 
@@ -247,6 +247,13 @@ def _agg_method(func):
 def wont_implement_method(msg):
   def wrapper(self, *args, **kwargs):
     raise WontImplementError(msg)
+
+  return wrapper
+
+
+def not_implemented_method(op, jira='BEAM-9547'):
+  def wrapper(self, *args, **kwargs):
+    raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
   return wrapper
 

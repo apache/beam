@@ -34,6 +34,7 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
@@ -322,7 +323,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.25.0'
+    project.version = '2.26.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -392,18 +393,19 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.10"
-    def google_cloud_bigdataoss_version = "2.1.3"
+    def google_cloud_bigdataoss_version = "2.1.5"
     def google_cloud_core_version = "1.93.7"
     def google_cloud_pubsublite_version = "0.1.6"
     def google_cloud_spanner_version = "1.59.0"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_code_gson_version = "2.8.6"
     def google_http_clients_version = "1.34.0"
-    def google_oauth_clients_version = "1.30.6"
+    def google_oauth_clients_version = "1.31.0"
     def grpc_version = "1.27.2"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
+    def influxdb_version = "2.19"
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
     def kafka_version = "1.0.0"
@@ -523,6 +525,7 @@ class BeamModulePlugin implements Plugin<Project> {
         hadoop_hdfs_tests                           : "org.apache.hadoop:hadoop-hdfs:$hadoop_version:tests",
         hamcrest_core                               : "org.hamcrest:hamcrest-core:$hamcrest_version",
         hamcrest_library                            : "org.hamcrest:hamcrest-library:$hamcrest_version",
+        influxdb_library                            : "org.influxdb:influxdb-java:$influxdb_version",
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",
         jackson_core                                : "com.fasterxml.jackson.core:jackson-core:$jackson_version",
@@ -1543,7 +1546,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // development image at docker.io (see sdks/CONTAINERS.md):
     //
     //    format: apache/beam_$NAME_sdk:latest
-    //    ie: apache/beam_python2.7_sdk:latest apache/beam_java_sdk:latest apache/beam_go_sdk:latest
+    //    ie: apache/beam_python3.7_sdk:latest apache/beam_java_sdk:latest apache/beam_go_sdk:latest
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
@@ -1981,6 +1984,7 @@ class BeamModulePlugin implements Plugin<Project> {
             '**/*.pyc',
             'sdks/python/*.egg*/**',
             'sdks/python/test-suites/**',
+            '**/reports/test/index.html',
           ])
           )
       def copiedSrcRoot = "${project.buildDir}/srcs"
@@ -2039,7 +2043,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.toxTask = { name, tox_env ->
-        project.tasks.create(name) {
+        project.tasks.register(name) {
           dependsOn 'setupVirtualenv'
           dependsOn ':sdks:python:sdist'
 
@@ -2056,8 +2060,13 @@ class BeamModulePlugin implements Plugin<Project> {
               args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
             }
           }
-          inputs.files project.pythonSdkDeps
-          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          outputs.cacheIf { true }
+          inputs.files(project.pythonSdkDeps)
+              .withPropertyName('pythonSdkDeps')
+              .withPathSensitivity(PathSensitivity.RELATIVE)
+
+          outputs.dir("${pythonRootDir}/target/.tox/${tox_env}/log/")
+              .withPropertyName('outputLog')
         }
       }
 
@@ -2108,10 +2117,9 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ':runners:flink:1.10:job-server:shadowJar',
             ':runners:spark:job-server:shadowJar',
-            ':sdks:python:container:py2:docker',
-            ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
-            ':sdks:python:container:py37:docker'
+            ':sdks:python:container:py37:docker',
+            ':sdks:python:container:py38:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

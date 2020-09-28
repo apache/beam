@@ -38,8 +38,6 @@ from past.builtins import unicode
 from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
-from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
@@ -149,14 +147,13 @@ class ReadFromPubSub(PTransform):
 
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(
-      self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+              ):
     # type: (...) -> None
 
     """Initializes ``ReadFromPubSub``.
@@ -208,31 +205,10 @@ class ReadFromPubSub(PTransform):
       pcoll.element_type = PubsubMessage
     return pcoll
 
-  def _pubsub_read_payload(self):
-    return beam_runner_api_pb2.PubSubReadPayload(
-        topic=self._source.full_topic,
-        subscription=self._source.full_subscription,
-        timestamp_attribute=self._source.timestamp_attribute,
-        id_attribute=self._source.id_label,
-        with_attributes=self.with_attributes,
-        serialized_attribute_fn='')
-
   def to_runner_api_parameter(self, context):
-    payload = self._pubsub_read_payload()
-    return (common_urns.composites.PUBSUB_READ.urn, payload)
-
-  @staticmethod
-  @PTransform.register_urn(
-      common_urns.composites.PUBSUB_READ.urn,
-      beam_runner_api_pb2.PubSubReadPayload)
-  def from_runner_api_parameter(
-      unused_ptransform, pubsub_read_payload, unused_context):
-    return ReadFromPubSub(
-        topic=pubsub_read_payload.topic,
-        subscription=pubsub_read_payload.subscription,
-        id_label=pubsub_read_payload.id_attribute,
-        with_attributes=pubsub_read_payload.with_attributes,
-        timestamp_attribute=pubsub_read_payload.timestamp_attribute)
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
 
 
 @deprecated(since='2.7.0', extra_message='Use ReadFromPubSub instead.')
@@ -286,13 +262,12 @@ class WriteToPubSub(PTransform):
 
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(
-      self,
-      topic,  # type: str
-      with_attributes=False,  # type: bool
-      id_label=None,  # type: Optional[str]
-      timestamp_attribute=None  # type: Optional[str]
-  ):
+  def __init__(self,
+               topic,  # type: str
+               with_attributes=False,  # type: bool
+               id_label=None,  # type: Optional[str]
+               timestamp_attribute=None  # type: Optional[str]
+              ):
     # type: (...) -> None
 
     """Initializes ``WriteToPubSub``.
@@ -335,32 +310,10 @@ class WriteToPubSub(PTransform):
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
-  def _pubsub_write_payload(self):
-    return beam_runner_api_pb2.PubSubWritePayload(
-        topic=self._sink.full_topic,
-        timestamp_attribute=self._sink.timestamp_attribute,
-        id_attribute=self._sink.id_label,
-        with_attributes=self.with_attributes,
-        serialized_attribute_fn='')
-
   def to_runner_api_parameter(self, context):
-    payload = self._pubsub_write_payload()
-    sink_coder = coders.WindowedValueCoder(
-        self._sink.coder, coders.coders.GlobalWindowCoder())
-    payload.coder_id = context.coders.get_id(sink_coder)
-    return (common_urns.composites.PUBSUB_WRITE.urn, payload)
-
-  @staticmethod
-  @PTransform.register_urn(
-      common_urns.composites.PUBSUB_WRITE.urn,
-      beam_runner_api_pb2.PubSubWritePayload)
-  def from_runner_api_parameter(
-      unused_ptransform, pubsub_write_payload, unused_context):
-    return WriteToPubSub(
-        topic=pubsub_write_payload.topic,
-        with_attributes=pubsub_write_payload.with_attributes,
-        id_label=pubsub_write_payload.id_attribute,
-        timestamp_attribute=pubsub_write_payload.timestamp_attribute)
+    # Required as this is identified by type in PTransformOverrides.
+    # TODO(BEAM-3812): Use an actual URN here.
+    return self.to_runner_api_pickled(context)
 
 
 PROJECT_ID_REGEXP = '[a-z][-a-z0-9:.]{4,61}[a-z0-9]'
@@ -401,14 +354,14 @@ class _PubSubSource(dataflow_io.NativeSource):
     with_attributes: If False, will fetch just message data. Otherwise,
       fetches ``PubsubMessage`` protobufs.
   """
-  def __init__(
-      self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
+
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+              ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -461,13 +414,13 @@ class _PubSubSink(dataflow_io.NativeSink):
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
   """
-  def __init__(
-      self,
-      topic,  # type: str
-      id_label,  # type: Optional[str]
-      with_attributes,  # type: bool
-      timestamp_attribute  # type: Optional[str]
-  ):
+
+  def __init__(self,
+               topic,  # type: str
+               id_label,  # type: Optional[str]
+               with_attributes,  # type: bool
+               timestamp_attribute  # type: Optional[str]
+              ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.id_label = id_label

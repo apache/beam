@@ -103,7 +103,7 @@ class CaptureControlTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(p, 'a signature')
     ie.current_env().mark_pcollection_computed(['fake_pcoll'])
     capture_control.evict_captured_data()
-    mocked_background_caching_job_cancel.assert_called_once()
+    mocked_background_caching_job_cancel.assert_called()
     mocked_test_stream_service_stop.assert_called_once()
     # Neither timer nor capture size limit is reached, thus, the cancelling
     # main job's background caching job is not considered as done.

@@ -19,7 +19,7 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.core" class="Pardo" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="ParDo" >}}
 
 A transform for generic parallel processing.
 A `ParDo` transform considers each element in the input `PCollection`,

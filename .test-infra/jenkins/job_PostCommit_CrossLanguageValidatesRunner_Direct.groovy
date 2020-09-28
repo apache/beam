@@ -34,19 +34,19 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Direct',
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN CROSS-LANGUAGE DIRECT USING PYTHON 2.7 ***"')
+        shell('echo "*** RUN CROSS-LANGUAGE DIRECT USING PYTHON 3.6 ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-PpythonVersion=2.7')
+          switches('-PpythonVersion=3.6')
         }
-        shell('echo "*** RUN CROSS-LANGUAGE DIRECT USING PYTHON 3.5 ***"')
+        shell('echo "*** RUN CROSS-LANGUAGE DIRECT USING PYTHON 3.8 ***"')
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-PpythonVersion=3.5')
+          switches('-PpythonVersion=3.8')
         }
       }
     }
