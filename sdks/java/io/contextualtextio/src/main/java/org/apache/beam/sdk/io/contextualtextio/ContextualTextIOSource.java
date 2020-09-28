@@ -325,7 +325,6 @@ class ContextualTextIOSource extends FileBasedSource<Row> {
               .withFieldValue(RecordWithMetadata.RECORD_NUM_IN_OFFSET, recordUniqueNum)
               .withFieldValue(RecordWithMetadata.RANGE_OFFSET, startingOffset)
               .withFieldValue(RecordWithMetadata.RECORD_OFFSET, startOfRecord)
-              .withFieldValue(RecordWithMetadata.RECORD_NUM, recordUniqueNum)
               .withFieldValue(
                   RecordWithMetadata.RESOURCE_ID,
                   getCurrentSource().getSingleFileMetadata().resourceId())
