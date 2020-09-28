@@ -33,37 +33,36 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <h3>Fields:</h3>
  *
  * <ul>
- *   <li>recordOffset: The offset of a record (the byte at which the record begins) in a file. This
- *       information can be useful if you wish to reconstruct the file. {@link
- *       RecordWithMetadata#RANGE_OFFSET}
- *   <li>recordNum: The ordinal number of the record in its file. {@link
- *       RecordWithMetadata#RECORD_NUM}
  *   <li>recordValue: The value / contents of the record {@link RecordWithMetadata#VALUE}
+ *   <li>resourceId: A resource descriptor representing which resource the record belongs to. See
+ *   <li>recordNum: The ordinal number of the record in its file. {@link
+ *       RecordWithMetadata#RECORD_NUM} {@link ResourceIdRow} for details.
  *   <li>rangeOffset: The starting offset of the range (split), which contained the record, when the
  *       record was read. {@link RecordWithMetadata#RANGE_OFFSET}
  *   <li>recordNumInOffset: The record number relative to the Range. (line number within the range)
  *       {@link RecordWithMetadata#RECORD_NUM_IN_OFFSET}
- *   <li>resourceId: A resource descriptor representing which resource the record belongs to. See
- *       {@link ResourceIdRow} for details.
+ *   <li>recordOffset: The offset of a record (the byte at which the record begins) in a file. This
+ *       information can be useful if you wish to reconstruct the file. {@link
+ *       RecordWithMetadata#RANGE_OFFSET}
  * </ul>
  */
 public class RecordWithMetadata {
 
-  public static final String RECORD_OFFSET = "recordOffset";
-  public static final String RECORD_NUM = "recordNum";
   public static final String VALUE = "value";
+  public static final String RESOURCE_ID = "resourceId";
+  public static final String RECORD_NUM = "recordNum";
   public static final String RANGE_OFFSET = "rangeOffSet";
   public static final String RECORD_NUM_IN_OFFSET = "recordNumInOffset";
-  public static final String RESOURCE_ID = "resourceId";
+  public static final String RECORD_OFFSET = "recordOffset";
 
   public static Schema getSchema() {
     return Schema.builder()
-        .addInt64Field(RECORD_OFFSET)
-        .addInt64Field(RECORD_NUM)
         .addStringField(VALUE)
-        .addInt64Field(RANGE_OFFSET)
-        .addInt64Field(RECORD_NUM_IN_OFFSET)
         .addLogicalTypeField(RESOURCE_ID, new ResourceIdRow())
+        .addNullableField(RECORD_NUM, FieldType.INT64)
+        .addInt64Field(RECORD_OFFSET)
+        .addInt64Field(RECORD_NUM_IN_OFFSET)
+        .addInt64Field(RANGE_OFFSET)
         .build();
   }
 

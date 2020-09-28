@@ -164,6 +164,16 @@ public class ContextualTextIOTest {
     return lines;
   }
 
+  private static class ConvertRecordToString extends DoFn<Row, String> {
+    @ProcessElement
+    public void processElement(@Element Row record, OutputReceiver<String> out) {
+      String resourceId =
+          record.getLogicalTypeValue(RecordWithMetadata.RESOURCE_ID, ResourceId.class).toString();
+      String file = resourceId.substring(resourceId.lastIndexOf('/') + 1);
+      out.output(file + " " + record.getString(VALUE));
+    }
+  }
+
   private static class ConvertRecordWithMetadataToString extends DoFn<Row, String> {
     @ProcessElement
     public void processElement(@Element Row record, OutputReceiver<String> out) {
@@ -198,25 +208,27 @@ public class ContextualTextIOTest {
     ContextualTextIO.Read read =
         ContextualTextIO.read().from(file.getPath()).withCompression(compression);
 
-    // Convert the expected output into RecordWithMetadata output Format
+    // Convert the expected output into Record output Format
     List<String> expectedOutput = new ArrayList<>();
     for (int lineNum = 0; lineNum < expected.size(); ++lineNum) {
-      expectedOutput.add(file.getName() + " " + lineNum + " " + expected.get(lineNum));
+      expectedOutput.add(file.getName() + " " + expected.get(lineNum));
+    }
+
+    // Convert the expected output into RecordWithRecordNum output Format
+    List<String> expectedOutputWithRecordNum = new ArrayList<>();
+    for (int lineNum = 0; lineNum < expected.size(); ++lineNum) {
+      expectedOutputWithRecordNum.add(file.getName() + " " + lineNum + " " + expected.get(lineNum));
     }
 
     PAssert.that(
             p.apply("Read_" + file + "_" + compression.toString(), read)
-                .apply(
-                    "ConvertRecordWithMetadataToString",
-                    ParDo.of(new ConvertRecordWithMetadataToString())))
+                .apply("ConvertRecordToString", ParDo.of(new ConvertRecordToString())))
         .containsInAnyOrder(expectedOutput);
     PAssert.that(
             p.apply(
                     "Read_" + file + "_" + compression.toString() + "_many",
                     read.withHintMatchesManyFiles())
-                .apply(
-                    "ConvertRecordWithMetadataToString" + "_many",
-                    ParDo.of(new ConvertRecordWithMetadataToString())))
+                .apply("ConvertRecordToString" + "_many", ParDo.of(new ConvertRecordToString())))
         .containsInAnyOrder(expectedOutput);
 
     PAssert.that(
@@ -224,19 +236,40 @@ public class ContextualTextIOTest {
                     "Read_" + file + "_" + compression.toString() + "_withRFC4180",
                     read.withHasMultilineCSVRecords(true))
                 .apply(
-                    "ConvertRecordWithMetadataToString" + "_withRFC4180",
-                    ParDo.of(new ConvertRecordWithMetadataToString())))
+                    "ConvertRecordToString" + "_withRFC4180",
+                    ParDo.of(new ConvertRecordToString())))
         .containsInAnyOrder(expectedOutput);
+
+    PAssert.that(
+            p.apply(
+                    "Read_" + file + "_" + compression.toString() + "_withRecordNumMetadata",
+                    read.withRecordNumMetadata())
+                .apply(
+                    "ConvertRecordWithMetadataToString" + "_many",
+                    ParDo.of(new ConvertRecordWithMetadataToString())))
+        .containsInAnyOrder(expectedOutputWithRecordNum);
 
     PAssert.that(
             p.apply("Create_Paths_ReadFiles_" + file, Create.of(file.getPath()))
                 .apply("Match_" + file, FileIO.matchAll())
                 .apply("ReadMatches_" + file, FileIO.readMatches().withCompression(compression))
                 .apply("ReadFiles_" + compression.toString(), ContextualTextIO.readFiles())
+                .apply("ConvertRecordToStringWithFileIO", ParDo.of(new ConvertRecordToString())))
+        .containsInAnyOrder(expectedOutput);
+
+    PAssert.that(
+            p.apply("Create_Paths_ReadFiles_ForRecordNum" + file, Create.of(file.getPath()))
+                .apply("Match_ForRecordNum" + file, FileIO.matchAll())
+                .apply(
+                    "ReadMatches_ForRecordNum" + file,
+                    FileIO.readMatches().withCompression(compression))
+                .apply(
+                    "ReadFiles_ForRecordNum" + compression.toString(),
+                    ContextualTextIO.readFiles().withRecordNumMetadata())
                 .apply(
                     "ConvertRecordWithMetadataToStringWithFileIO",
                     ParDo.of(new ConvertRecordWithMetadataToString())))
-        .containsInAnyOrder(expectedOutput);
+        .containsInAnyOrder(expectedOutputWithRecordNum);
   }
 
   /**
@@ -521,7 +554,7 @@ public class ContextualTextIOTest {
         }
       }
       String filePath = tempFolder.getRoot().toPath() + "/*";
-      p.apply(ContextualTextIO.read().from(filePath))
+      p.apply(ContextualTextIO.read().withRecordNumMetadata().from(filePath))
           .apply(
               MapElements.into(strings())
                   .via(
@@ -561,7 +594,11 @@ public class ContextualTextIOTest {
         }
       }
       String filePath = tempFolder.getRoot().toPath() + "/*";
-      p.apply(ContextualTextIO.read().from(filePath).withHintMatchesManyFiles())
+      p.apply(
+              ContextualTextIO.read()
+                  .withRecordNumMetadata()
+                  .from(filePath)
+                  .withHintMatchesManyFiles())
           .apply(
               MapElements.into(strings())
                   .via(
@@ -736,10 +773,7 @@ public class ContextualTextIOTest {
               .collect(Collectors.toList());
 
       ContextualTextIO.Read read =
-          ContextualTextIO.read()
-              .from(createFileFromList(input))
-              .withHasMultilineCSVRecords(true)
-              .withoutRecordNumMetadata();
+          ContextualTextIO.read().from(createFileFromList(input)).withHasMultilineCSVRecords(true);
       PCollection<Row> output = p.apply(read);
 
       PCollection<String> result =
@@ -799,7 +833,6 @@ public class ContextualTextIOTest {
     private void runTestReadLineNumsAndFileName(String[] expected) throws Exception {
       File tmpFile = tempFolder.newFile();
       String filePath = tmpFile.getPath();
-      String fileName = tmpFile.getName();
 
       List<String> actualExpected = new ArrayList<>();
 
@@ -814,7 +847,7 @@ public class ContextualTextIOTest {
         }
       }
 
-      ContextualTextIO.Read read = ContextualTextIO.read().from(filePath);
+      ContextualTextIO.Read read = ContextualTextIO.read().withRecordNumMetadata().from(filePath);
       PCollection<String> output =
           p.apply(read)
               .apply(
@@ -903,6 +936,7 @@ public class ContextualTextIOTest {
       PAssert.that(
               p.apply(
                       ContextualTextIO.read()
+                          .withRecordNumMetadata()
                           .from(absoluteFilePath)
                           .withDelimiter(new byte[] {'|', '*'}))
                   .apply(ParDo.of(new GetDetails())))
