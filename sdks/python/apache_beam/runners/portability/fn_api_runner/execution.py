@@ -383,6 +383,11 @@ class FnApiRunnerExecutionContext(object):
       for consuming_transform in transform_consumers[side_pc]:
         if consuming_transform.spec.urn not in translations.PAR_DO_URNS:
           continue
+        if side_pc not in producing_stages_by_pcoll:
+          raise ValueError(
+              'Unknown side input PCollection: %s'
+              ' - to be consumed by transform %s' % (
+                  side_pc, consuming_transform.unique_name))
         producing_stage = producing_stages_by_pcoll[side_pc]
         payload = proto_utils.parse_Bytes(
             consuming_transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
