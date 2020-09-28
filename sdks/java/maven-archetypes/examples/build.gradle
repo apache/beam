@@ -56,9 +56,15 @@ processResources {
 evaluationDependsOn(':examples:java')
 
 task generateSources(type: Exec) {
-  inputs.file './generate-sources.sh'
-  inputs.files project(':examples:java').sourceSets.main.allSource
-  inputs.files project(':examples:java').sourceSets.test.allSource
+  inputs.file('./generate-sources.sh')
+      .withPropertyName('generate-sources.sh')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(project(':examples:java').sourceSets.main.allSource)
+      .withPropertyName('sourcesMain')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(project(':examples:java').sourceSets.test.allSource)
+      .withPropertyName('sourcesTest')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
   outputs.dir('src/main/resources/archetype-resources/src')
   commandLine './generate-sources.sh'
 }
