@@ -88,6 +88,7 @@ from apache_beam.testing.benchmarks.nexmark.queries import query6
 from apache_beam.testing.benchmarks.nexmark.queries import query7
 from apache_beam.testing.benchmarks.nexmark.queries import query8
 from apache_beam.testing.benchmarks.nexmark.queries import query9
+from apache_beam.testing.benchmarks.nexmark.queries import query10
 from apache_beam.testing.benchmarks.nexmark.queries import query11
 from apache_beam.testing.benchmarks.nexmark.queries import query12
 from apache_beam.transforms import window
@@ -134,7 +135,7 @@ class NexmarkLauncher(object):
         type=int,
         action='append',
         required=True,
-        choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12],
+        choices=[i for i in range(13)],
         help='Query to run')
 
     parser.add_argument(
@@ -409,6 +410,7 @@ class NexmarkLauncher(object):
         7: query7,
         8: query8,
         9: query9,
+        10: query10,
         11: query11,
         12: query12
     }
