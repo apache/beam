@@ -24,22 +24,13 @@ import argparse
 import logging
 import unittest
 
-from nose.plugins.attrib import attr
-
-import apache_beam as beam
 from apache_beam.io.gcp.experimental.bigtableio import ReadFromBigtable
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineState
-
-try:
-  from google.cloud.bigtable import Client
-except ImportError:
-  Client = None
+from apache_beam.testing.test_pipeline import TestPipeline
+from nose.plugins.attrib import attr
 
 
-@unittest.skipIf(Client is None, 'GC Bigtable dependencies are not installed')
 class BigtableReadTest(unittest.TestCase):
   """ Bigtable Read Connector Test
 
@@ -48,122 +39,59 @@ class BigtableReadTest(unittest.TestCase):
   count known a priori.
   """
   def setUp(self):
-    self.options = parse_commane_line_arguments()
-
-    logging.info('\nProject ID:  %s', self.options['project'])
-    logging.info('\nInstance ID: %s', self.options['instance'])
-    logging.info('\nTable ID:    %s', self.options['table'])
-
-    self._p_options = PipelineOptions(**self.options)
-    self._p_options.view_as(SetupOptions).save_main_session = True
-
-    logging.getLogger().setLevel(self.options['log_level'])
-
-    # [OPTIONAL] Uncomment to save logs into a file
-    # self._setup_log_file()
-
-    # [OPTIONAL] Uncomment this to allow logging the pipeline options
-    # for key, value in self.p_options.get_all_options().items():
-    #   logging.info('Pipeline option {:32s} : {}'.format(key, value))
-
-  def _setup_log_file(self):
-    if self.options['log_directory']:
-      # logging.basicConfig(
-      #   filename='{}{}.log'.format(
-      #       options['log_directory'], options['table']
-      #   ),
-      #   filemode='w',
-      #   level=logging.DEBUG
-      # )
-
-      # Forward all the logs to a file
-      fh = logging.FileHandler(
-          filename='{}test_log_{}_RUNNER={}.log'.format(
-              self.options['log_directory'],
-              self.options['table'][-15:],
-              self.options['runner']))
-      fh.setLevel(logging.DEBUG)
-      logging.getLogger().addHandler(fh)
+    self.log_level = logging.INFO
+    logging.getLogger().setLevel(self.log_level)
 
   @attr('IT')
   def test_bigtable_read(self):
-    logging.info(
-        'Reading table "%s" of %d rows...',
-        self.options['table'],
-        self.options['row_count'] or 0)
+    logging.info('Reading table "{}" of {} rows...'
+                 .format(options['table'], options['row_count']))
 
-    p = beam.Pipeline(options=self._p_options)
-    _ = (
-        p | 'Read Test' >> ReadFromBigtable(
-            project_id=self.options['project'],
-            instance_id=self.options['instance'],
-            table_id=self.options['table'],
-            filter_=self.options['filter']))
+    p = TestPipeline(is_integration_test=True)
+    project = p.get_pipeline_options().get_all_options()['project']
+
+    logging.info('\nProject ID:  {}'.format(project))
+    logging.info('\nInstance ID: {}'.format(options['instance']))
+    logging.info('\nTable ID:    {}'.format(options['table']))
+
+    _ = (p | 'Read Test' >> ReadFromBigtable(project_id=project,
+                                             instance_id=options['instance'],
+                                             table_id=options['table'],
+                                             filter_=options['filter']))
     self.result = p.run()
     self.result.wait_until_finish()
     assert self.result.state == PipelineState.DONE
 
     query_result = self.result.metrics().query(
-        MetricsFilter().with_name('Rows Read'))
+      MetricsFilter().with_name('Rows Read'))
 
     if query_result['counters']:
       read_counter = query_result['counters'][0]
       final_count = read_counter.committed
-      assert final_count == self.options['row_count']
-      logging.info(
-          '%d out of %d rows were read successfully.',
-          final_count,
-          self.options['row_count'])
+      assert final_count == options['row_count']
+      logging.info('{} out of {} rows were read successfully.'
+                   .format(final_count, options['row_count']))
 
     logging.info('DONE!')
 
 
-def parse_commane_line_arguments():
+if __name__ == '__main__':
   parser = argparse.ArgumentParser()
 
-  parser.add_argument('--project', type=str)
   parser.add_argument('--instance', type=str)
   parser.add_argument('--table', type=str)
   parser.add_argument('--filter', type=str, default=None)
-  parser.add_argument('--region', type=str)
-  parser.add_argument('--setup_file', type=str)
-  parser.add_argument('--extra_package', type=str)
-  parser.add_argument('--staging_location', type=str)
-  parser.add_argument('--temp_location', type=str)
-  parser.add_argument('--runner', type=str, default='dataflow')
-  parser.add_argument('--num_workers', type=int, default=50)
-  parser.add_argument('--autoscaling_algorithm', type=str, default='NONE')
-  parser.add_argument('--disk_size_gb', type=int, default=50)
-  parser.add_argument('--job_name', type=str, default='bigtable-read-it-test')
   parser.add_argument('--row_count', type=int)
-  parser.add_argument('--log_level', type=int, default=logging.INFO)
-  parser.add_argument('--log_dir', type=str)
 
-  args, _ = parser.parse_known_args()
+  args, argv = parser.parse_known_args()
 
-  return {
-      'project': args.project,
-      'instance': args.instance,
-      'table': args.table,
-      'filter': args.filter,
-      'region': args.region,
-      'staging_location': args.staging_location,
-      'temp_location': args.temp_location,
-      'setup_file': args.setup_file,
-      'extra_package': args.extra_package,
-      'runner': args.runner,
-      'num_workers': args.num_workers,
-      'autoscaling_algorithm': args.autoscaling_algorithm,
-      'disk_size_gb': args.disk_size_gb,
-      'row_count': args.row_count,
-      'job_name': args.job_name,
-      'log_level': args.log_level,
-      'log_directory': args.log_dir,
+  options = {
+    'instance': args.instance,
+    'table': args.table,
+    'filter': args.filter,
+    'row_count': args.row_count,
   }
 
-
-if __name__ == '__main__':
-  # test_suite = unittest.TestSuite()
-  # test_suite.addTest(BigtableReadTest('test_bigtable_read'))
-  # unittest.TextTestRunner(verbosity=2).run(test_suite)
-  unittest.main()
+  test_suite = unittest.TestSuite()
+  test_suite.addTest(BigtableReadTest('test_bigtable_read'))
+  unittest.TextTestRunner(verbosity=2).run(test_suite)
