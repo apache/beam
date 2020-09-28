@@ -46,22 +46,27 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   }
 
   @Override
-  public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
+  protected BeamKafkaTable getTable() {
+    return this;
+  }
+
+  @Override
+  protected PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
     return new CsvRecorderDecoder(schema, csvFormat);
   }
 
   @Override
-  public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
+  protected PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
     return new CsvRecorderEncoder(csvFormat);
   }
 
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
-  public static class CsvRecorderDecoder
+  private static class CsvRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {
     private final Schema schema;
     private final CSVFormat format;
 
-    public CsvRecorderDecoder(Schema schema, CSVFormat format) {
+    CsvRecorderDecoder(Schema schema, CSVFormat format) {
       this.schema = schema;
       this.format = format;
     }
@@ -86,11 +91,11 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   }
 
   /** A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}. */
-  public static class CsvRecorderEncoder
+  private static class CsvRecorderEncoder
       extends PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> {
     private final CSVFormat format;
 
-    public CsvRecorderEncoder(CSVFormat format) {
+    CsvRecorderEncoder(CSVFormat format) {
       this.format = format;
     }
 

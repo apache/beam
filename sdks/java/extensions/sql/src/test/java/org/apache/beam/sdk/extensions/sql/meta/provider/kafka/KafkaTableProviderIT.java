@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
 import com.alibaba.fastjson.JSON;
 import java.util.Map;
 import java.util.Properties;
@@ -82,9 +79,9 @@ public abstract class KafkaTableProviderIT {
 
   protected static final Schema TEST_TABLE_SCHEMA =
       Schema.builder()
-          .addNullableField("order_id", Schema.FieldType.INT32)
-          .addNullableField("member_id", Schema.FieldType.INT32)
-          .addNullableField("item_name", Schema.FieldType.INT32)
+          .addNullableField("f_long", Schema.FieldType.INT64)
+          .addNullableField("f_int", Schema.FieldType.INT32)
+          .addNullableField("f_string", Schema.FieldType.STRING)
           .build();
 
   protected abstract <ValueT> ProducerRecord<String, ValueT> generateProducerRecord(int i);
@@ -108,12 +105,7 @@ public abstract class KafkaTableProviderIT {
             .name("kafka_table")
             .comment("kafka" + " table")
             .location("")
-            .schema(
-                Stream.of(
-                        Schema.Field.nullable("order_id", INT32),
-                        Schema.Field.nullable("member_id", INT32),
-                        Schema.Field.nullable("item_name", INT32))
-                    .collect(toSchema()))
+            .schema(TEST_TABLE_SCHEMA)
             .type("kafka")
             .properties(JSON.parseObject(getKafkaPropertiesString()))
             .build();
@@ -142,9 +134,9 @@ public abstract class KafkaTableProviderIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     String createTableString =
         "CREATE EXTERNAL TABLE kafka_table(\n"
-            + "order_id INTEGER, \n"
-            + "member_id INTEGER, \n"
-            + "item_name INTEGER \n"
+            + "f_long BIGINT, \n"
+            + "f_int INTEGER, \n"
+            + "f_string VARCHAR \n"
             + ") \n"
             + "TYPE 'kafka' \n"
             + "LOCATION '"
@@ -167,10 +159,7 @@ public abstract class KafkaTableProviderIT {
             "waitForSuccess",
             ParDo.of(
                 new StreamAssertEqual(
-                    ImmutableSet.of(
-                        row(TEST_TABLE_SCHEMA, 0, 1, 0),
-                        row(TEST_TABLE_SCHEMA, 1, 2, 1),
-                        row(TEST_TABLE_SCHEMA, 2, 3, 2)))));
+                    ImmutableSet.of(generateRow(0), generateRow(1), generateRow(2)))));
     queryOutput.apply(logRecords(""));
     pipeline.run();
     TimeUnit.MILLISECONDS.sleep(3000);
@@ -242,8 +231,8 @@ public abstract class KafkaTableProviderIT {
     }
   }
 
-  protected Row row(Schema schema, Object... values) {
-    return Row.withSchema(schema).addValues(values).build();
+  protected Row generateRow(int i) {
+    return Row.withSchema(TEST_TABLE_SCHEMA).addValues((long) i, i % 3 + 1, "value" + i).build();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")

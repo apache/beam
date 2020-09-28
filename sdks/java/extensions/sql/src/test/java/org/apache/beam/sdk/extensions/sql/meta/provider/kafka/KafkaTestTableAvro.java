@@ -30,4 +30,9 @@ public class KafkaTestTableAvro extends KafkaTestTable {
   protected byte[] getRecordValueBytes(KafkaTestRecord<?> record) {
     return (byte[]) record.getValue();
   }
+
+  @Override
+  protected BeamKafkaTable getTable() {
+    return this;
+  }
 }

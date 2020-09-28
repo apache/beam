@@ -424,6 +424,64 @@ public class AvroUtils {
     return new AvroRecordSchema().schemaFor(TypeDescriptor.of(clazz));
   }
 
+  /** Returns a function mapping encoded AVRO {@link GenericRecord}s to Beam {@link Row}s. */
+  public static SerializableFunction<byte[], Row> getAvroBytesToRowFunction(Schema beamSchema) {
+    return new AvroBytesToRowFn(beamSchema);
+  }
+
+  private static class AvroBytesToRowFn implements SerializableFunction<byte[], Row> {
+    private final AvroCoder<GenericRecord> coder;
+    private final Schema beamSchema;
+
+    AvroBytesToRowFn(Schema beamSchema) {
+      org.apache.avro.Schema avroSchema = toAvroSchema(beamSchema);
+      coder = AvroCoder.of(avroSchema);
+      this.beamSchema = beamSchema;
+    }
+
+    @Override
+    public Row apply(byte[] bytes) {
+      try {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+        GenericRecord record = coder.decode(inputStream);
+        return AvroUtils.toBeamRowStrict(record, beamSchema);
+      } catch (Exception e) {
+        throw new AvroRuntimeException(
+            "Could not decode avro record from given bytes "
+                + new String(bytes, Charset.defaultCharset()),
+            e);
+      }
+    }
+  }
+
+  /** Returns a function mapping Beam {@link Row}s to encoded AVRO {@link GenericRecord}s. */
+  public static SerializableFunction<Row, byte[]> getRowToAvroBytesFunction(Schema beamSchema) {
+    return new RowToAvroBytesFn(beamSchema);
+  }
+
+  private static class RowToAvroBytesFn implements SerializableFunction<Row, byte[]> {
+    private final transient org.apache.avro.Schema avroSchema;
+    private final AvroCoder<GenericRecord> coder;
+
+    RowToAvroBytesFn(Schema beamSchema) {
+      avroSchema = toAvroSchema(beamSchema);
+      coder = AvroCoder.of(avroSchema);
+    }
+
+    @Override
+    public byte[] apply(Row row) {
+      try {
+        GenericRecord record = toGenericRecord(row, avroSchema);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        coder.encode(record, outputStream);
+        return outputStream.toByteArray();
+      } catch (Exception e) {
+        throw new AvroRuntimeException(
+            String.format("Could not encode avro from given row: %s", row), e);
+      }
+    }
+  }
+
   /**
    * Returns a function mapping AVRO {@link GenericRecord}s to Beam {@link Row}s for use in {@link
    * org.apache.beam.sdk.values.PCollection#setSchema}.
@@ -431,35 +489,6 @@ public class AvroUtils {
   public static SerializableFunction<GenericRecord, Row> getGenericRecordToRowFunction(
       @Nullable Schema schema) {
     return new GenericRecordToRowFn(schema);
-  }
-
-  public static Row avroBytesToRow(byte[] bytes, Schema schema) {
-    try {
-      org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
-      AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
-      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
-      GenericRecord record = coder.decode(inputStream);
-      return AvroUtils.toBeamRowStrict(record, schema);
-    } catch (Exception e) {
-      throw new AvroRuntimeException(
-          "Could not decode avro record from given bytes "
-              + new String(bytes, Charset.defaultCharset()),
-          e);
-    }
-  }
-
-  public static byte[] rowToAvroBytes(Row row) {
-    try {
-      org.apache.avro.Schema avroSchema = toAvroSchema(row.getSchema());
-      AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
-      GenericRecord record = toGenericRecord(row, avroSchema);
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      coder.encode(record, outputStream);
-      return outputStream.toByteArray();
-    } catch (Exception e) {
-      throw new AvroRuntimeException(
-          String.format("Could not encode avro from given row: %s", row), e);
-    }
   }
 
   private static class GenericRecordToRowFn implements SerializableFunction<GenericRecord, Row> {

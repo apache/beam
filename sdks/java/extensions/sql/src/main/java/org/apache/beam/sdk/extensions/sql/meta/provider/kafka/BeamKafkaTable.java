@@ -91,11 +91,13 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
     return PCollection.IsBounded.UNBOUNDED;
   }
 
-  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
+  protected abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
       getPTransformForInput();
 
-  public abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
+  protected abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
+
+  protected abstract BeamKafkaTable getTable();
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {

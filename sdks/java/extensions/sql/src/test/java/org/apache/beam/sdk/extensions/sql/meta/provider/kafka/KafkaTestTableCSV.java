@@ -31,4 +31,9 @@ public class KafkaTestTableCSV extends KafkaTestTable {
   protected byte[] getRecordValueBytes(KafkaTestRecord<?> record) {
     return ((String) record.getValue()).getBytes(StandardCharsets.UTF_8);
   }
+
+  @Override
+  protected BeamKafkaTable getTable() {
+    return this;
+  }
 }

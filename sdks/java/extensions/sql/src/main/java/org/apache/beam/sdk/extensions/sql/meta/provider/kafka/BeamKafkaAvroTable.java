@@ -20,12 +20,13 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 public class BeamKafkaAvroTable extends BeamKafkaTable {
 
@@ -34,21 +35,26 @@ public class BeamKafkaAvroTable extends BeamKafkaTable {
   }
 
   @Override
-  public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
+  protected PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
     return new AvroRecorderDecoder(schema);
   }
 
   @Override
-  public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
-    return new AvroRecorderEncoder();
+  protected PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
+    return new AvroRecorderEncoder(schema);
+  }
+
+  @Override
+  protected BeamKafkaTable getTable() {
+    return this;
   }
 
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
-  public static class AvroRecorderDecoder
+  private static class AvroRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {
     private final Schema schema;
 
-    public AvroRecorderDecoder(Schema schema) {
+    AvroRecorderDecoder(Schema schema) {
       this.schema = schema;
     }
 
@@ -56,34 +62,37 @@ public class BeamKafkaAvroTable extends BeamKafkaTable {
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
       return input
           .apply(
+              "extractValue", MapElements.into(TypeDescriptor.of(byte[].class)).via(KV::getValue))
+          .apply(
               "decodeAvroRecord",
-              ParDo.of(
-                  new DoFn<KV<byte[], byte[]>, Row>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      c.output(AvroUtils.avroBytesToRow(c.element().getValue(), schema));
-                    }
-                  }))
+              MapElements.into(TypeDescriptors.rows())
+                  .via(AvroUtils.getAvroBytesToRowFunction(schema)))
           .setRowSchema(schema);
     }
   }
 
   /** A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}. */
-  public static class AvroRecorderEncoder
+  private static class AvroRecorderEncoder
       extends PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> {
+    private final Schema schema;
+
+    AvroRecorderEncoder(Schema schema) {
+      this.schema = schema;
+    }
 
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
-      return input.apply(
-          "encodeAvroRecord",
-          ParDo.of(
-              new DoFn<Row, KV<byte[], byte[]>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  Row in = c.element();
-                  c.output(KV.of(new byte[] {}, AvroUtils.rowToAvroBytes(in)));
-                }
-              }));
+      return input
+          .apply(
+              "encodeAvroRecord",
+              MapElements.into(TypeDescriptor.of(byte[].class))
+                  .via(AvroUtils.getRowToAvroBytesFunction(schema)))
+          .apply(
+              "mapToKV",
+              MapElements.into(
+                      TypeDescriptors.kvs(
+                          TypeDescriptor.of(byte[].class), TypeDescriptor.of(byte[].class)))
+                  .via(bytes -> KV.of(new byte[] {}, bytes)));
     }
   }
 }
