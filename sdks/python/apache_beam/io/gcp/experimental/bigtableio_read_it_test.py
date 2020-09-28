@@ -24,11 +24,12 @@ import argparse
 import logging
 import unittest
 
+from nose.plugins.attrib import attr
+
 from apache_beam.io.gcp.experimental.bigtableio import ReadFromBigtable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
-from nose.plugins.attrib import attr
 
 
 class BigtableReadTest(unittest.TestCase):
@@ -39,6 +40,22 @@ class BigtableReadTest(unittest.TestCase):
   count known a priori.
   """
   def setUp(self):
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--instance', type=str)
+    parser.add_argument('--table', type=str)
+    parser.add_argument('--filter', type=str, default=None)
+    parser.add_argument('--row_count', type=int)
+
+    args, argv = parser.parse_known_args()
+
+    self.options = {
+        'instance': args.instance,
+        'table': args.table,
+        'filter': args.filter,
+        'row_count': args.row_count,
+    }
+
     self.log_level = logging.INFO
     logging.getLogger().setLevel(self.log_level)
 
@@ -46,21 +63,21 @@ class BigtableReadTest(unittest.TestCase):
   def test_bigtable_read(self):
     logging.info(
         'Reading table "%s" of %d rows...' %
-        (options['table'], options['row_count']))
+        (self.options['table'], self.options['row_count']))
 
     p = TestPipeline(is_integration_test=True)
     project = p.get_pipeline_options().get_all_options()['project']
 
     logging.info('\nProject ID:  %s' % project)
-    logging.info('\nInstance ID: %s' % options['instance'])
-    logging.info('\nTable ID:    %s' % options['table'])
+    logging.info('\nInstance ID: %s' % self.options['instance'])
+    logging.info('\nTable ID:    %s' % self.options['table'])
 
     _ = (
         p | 'Read Test' >> ReadFromBigtable(
             project_id=project,
-            instance_id=options['instance'],
-            table_id=options['table'],
-            filter_=options['filter']))
+            instance_id=self.options['instance'],
+            table_id=self.options['table'],
+            filter_=self.options['filter']))
     self.result = p.run()
     self.result.wait_until_finish()
     assert self.result.state == PipelineState.DONE
@@ -71,31 +88,15 @@ class BigtableReadTest(unittest.TestCase):
     if query_result['counters']:
       read_counter = query_result['counters'][0]
       final_count = read_counter.committed
-      assert final_count == options['row_count']
+      assert final_count == self.options['row_count']
       logging.info(
           '%d out of %d rows were read successfully.' %
-          (final_count, options['row_count']))
+          (final_count, self.options['row_count']))
 
     logging.info('DONE!')
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
-
-  parser.add_argument('--instance', type=str)
-  parser.add_argument('--table', type=str)
-  parser.add_argument('--filter', type=str, default=None)
-  parser.add_argument('--row_count', type=int)
-
-  args, argv = parser.parse_known_args()
-
-  options = {
-      'instance': args.instance,
-      'table': args.table,
-      'filter': args.filter,
-      'row_count': args.row_count,
-  }
-
   test_suite = unittest.TestSuite()
   test_suite.addTest(BigtableReadTest('test_bigtable_read'))
   unittest.TextTestRunner(verbosity=2).run(test_suite)
