@@ -53,7 +53,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
 
-  // Add dependencies for the PreCommit configurations
+  // Add dependencies for the PostCommit configurations
   // For each runner a project level dependency on the test project.
   for (String runner : postCommitRunnerClass.keySet()) {
     delegate.add(runner + "PostCommit", project(":sdks:java:testing:jpms-tests"))
