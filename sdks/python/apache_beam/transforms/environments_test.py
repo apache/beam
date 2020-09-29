@@ -86,6 +86,44 @@ class RunnerApiTest(unittest.TestCase):
         set(proto.capabilities), set(environments.python_sdk_capabilities()))
 
 
+class EnvironmentOptionsTest(unittest.TestCase):
+  def test_process_variables_empty(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--sdk_location=container'
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment.command, 'foo')
+    self.assertEqual(environment.env, {})
+
+  def test_process_variables_set(self):
+    options = PortableOptions([
+        '--environment_type=PROCESS',
+        '--environment_option=process_command=foo',
+        '--environment_option=process_variables='
+        'BASH_VARIABLE_ONE=spam,BASH_VARIABLE_TWO=ham',
+        '--sdk_location=container'
+    ])
+    environment = ProcessEnvironment.from_options(options)
+    self.assertEqual(environment.command, 'foo')
+    self.assertEqual(
+        environment.env, {
+            'BASH_VARIABLE_ONE': 'spam', 'BASH_VARIABLE_TWO': 'ham'
+        })
+
+  def test_process_variables_missing_rvalue(self):
+    with self.assertRaises(ValueError):
+      options = PortableOptions([
+          '--environment_type=PROCESS',
+          '--environment_option=process_command=foo',
+          '--environment_option=process_variables='
+          'BASH_VARIABLE_ONE=spam,MISSING_RVALUE',
+          '--sdk_location=container'
+      ])
+      ProcessEnvironment.from_options(options)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
