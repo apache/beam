@@ -32,19 +32,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.commons.csv.CSVFormat;
 
 public class BeamKafkaTableCSVTest extends BeamKafkaTableTest {
-  private final Schema SCHEMA =
-      Schema.builder()
-          .addInt64Field("f_long")
-          .addInt32Field("f_int")
-          .addInt16Field("f_short")
-          .addByteField("f_byte")
-          .addDoubleField("f_double")
-          .addStringField("f_string")
-          .build();
-
   @Override
   protected Schema getSchema() {
-    return SCHEMA;
+    return Schema.builder()
+        .addInt64Field("f_long")
+        .addInt32Field("f_int")
+        .addInt16Field("f_short")
+        .addByteField("f_byte")
+        .addDoubleField("f_double")
+        .addStringField("f_string")
+        .build();
   }
 
   @Override
