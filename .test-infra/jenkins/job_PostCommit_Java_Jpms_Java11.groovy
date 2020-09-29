@@ -39,7 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Java11', 'Run Jpms
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:java:testing:jpms-tests:integrationTest')
+          tasks(':sdks:java:testing:jpms-tests:postCommit')
           commonJobProperties.setGradleSwitches(delegate)
           switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}")
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.

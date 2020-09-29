@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -31,13 +33,67 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: Testing :: JPMS Tests"
 ext.summary = "E2E test for Java 9 modules"
 
+/*
+ * List of runners to run post commit tests on.
+ */
+def postCommitRunnerClass = [
+        directRunner: "org.apache.beam.runners.direct.DirectRunner",
+        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
+        dataflowRunner: "org.apache.beam.runners.dataflow.TestDataflowRunner",
+]
+for (String runner : postCommitRunnerClass.keySet()) {
+  configurations.create(runner + "PostCommit")
+}
+
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:direct-java")
   compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
 
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+
+  // Add dependencies for the PreCommit configurations
+  // For each runner a project level dependency on the test project.
+  for (String runner : postCommitRunnerClass.keySet()) {
+    delegate.add(runner + "PostCommit", project(":sdks:java:testing:jpms-tests"))
+    delegate.add(runner + "PostCommit", project(path: ":sdks:java:testing:jpms-tests", configuration: "testRuntime"))
+  }
+  directRunnerPostCommit project(":runners:direct-java")
+  flinkRunnerPostCommit project(":runners:flink:1.10")
+  dataflowRunnerPostCommit project(":runners:google-cloud-dataflow-java")
+}
+
+/*
+ * Create a ${runner}PostCommit task for each runner which runs a set
+ * of integration tests for WordCount and WindowedWordCount.
+ */
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+for (String runner : postCommitRunnerClass.keySet()) {
+  tasks.create(name: runner + "PostCommit", type: Test) {
+    def postCommitBeamTestPipelineOptions = [
+            "--project=${gcpProject}",
+            "--tempRoot=${gcsTempRoot}",
+            "--runner=" + postCommitRunnerClass[runner],
+    ]
+    if ("dataflowRunner".equals(runner)) {
+      postCommitBeamTestPipelineOptions.add("--region=${gcpRegion}")
+    }
+    classpath = configurations."${runner}PostCommit"
+    include "**/*IT.class"
+    forkEvery 1
+    maxParallelForks 4
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(postCommitBeamTestPipelineOptions)
+  }
+}
+
+/* Define a common postcommit task which depends on all the individual postcommits. */
+task postCommit() {
+  for (String runner : postCommitRunnerClass.keySet()) {
+    dependsOn runner + "PostCommit"
+  }
 }
 
 // Activate module support
