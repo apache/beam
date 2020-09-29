@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import collections
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -32,6 +33,7 @@ from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import partitionings
+from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
@@ -205,10 +207,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                   self.stage.partitioning.partition_fn, num_partitions)
               for expr in tabular_inputs
           } | beam.CoGroupByKey()
-          partitioned_pcoll = main_pcolls | beam.MapTuple(
-              lambda _,
-              inputs: {tag: pd.concat(vs)
-                       for tag, vs in inputs.items()})
+          partitioned_pcoll = main_pcolls | beam.ParDo(_ReBatch())
 
         else:
           # Already partitioned, or no partitioning needed.
@@ -406,6 +405,41 @@ def _total_memory_usage(frame):
   except AttributeError:
     # Don't know, assume it's really big.
     float('inf')
+
+
+class _ReBatch(beam.DoFn):
+  """Groups all the parts from various workers into the same dataframe.
+
+  Also groups across partitions, up to a given data size, to recover some
+  efficiency in the face of over-partitioning.
+  """
+  def __init__(self, target_size=TARGET_PARTITION_SIZE):
+    self._target_size = target_size
+
+  def start_bundle(self):
+    self._parts = collections.defaultdict(lambda: collections.defaultdict(list))
+    self._running_size = 0
+
+  def process(
+      self,
+      element,
+      window=beam.DoFn.WindowParam,
+      timestamp=beam.DoFn.TimestampParam):
+    _, tagged_parts = element
+    for tag, parts in tagged_parts.items():
+      for part in parts:
+        self._running_size += _total_memory_usage(part)
+      self._parts[window, timestamp][tag].extend(parts)
+    if self._running_size >= self._target_size:
+      self.finish_bundle()
+
+  def finish_bundle(self):
+    for (window, timestamp), tagged_parts in self._parts.items():
+      yield windowed_value.WindowedValue(
+          {tag: pd.concat(parts)
+           for tag, parts in tagged_parts.items()},
+          timestamp, (window, ))
+    self.start_bundle()
 
 
 def memoize(f):
