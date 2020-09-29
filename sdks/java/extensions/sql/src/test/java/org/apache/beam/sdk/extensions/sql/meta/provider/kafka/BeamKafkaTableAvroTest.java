@@ -36,23 +36,20 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
   private static final Schema EMPTY_SCHEMA = Schema.builder().build();
 
-  private final Schema SCHEMA =
-      Schema.builder()
-          .addInt64Field("f_long")
-          .addInt32Field("f_int")
-          .addDoubleField("f_double")
-          .addStringField("f_string")
-          .addBooleanField("f_bool")
-          .addRowField("f_row", EMPTY_SCHEMA)
-          .addArrayField("f_array", Schema.FieldType.row(EMPTY_SCHEMA))
-          .build();
-
   private final transient SerializableFunction<Row, byte[]> toBytesFn =
-      AvroUtils.getRowToAvroBytesFunction(SCHEMA);
+      AvroUtils.getRowToAvroBytesFunction(getSchema());
 
   @Override
   protected Schema getSchema() {
-    return SCHEMA;
+    return Schema.builder()
+        .addInt64Field("f_long")
+        .addInt32Field("f_int")
+        .addDoubleField("f_double")
+        .addStringField("f_string")
+        .addBooleanField("f_bool")
+        .addRowField("f_row", EMPTY_SCHEMA)
+        .addArrayField("f_array", Schema.FieldType.row(EMPTY_SCHEMA))
+        .build();
   }
 
   @Override
