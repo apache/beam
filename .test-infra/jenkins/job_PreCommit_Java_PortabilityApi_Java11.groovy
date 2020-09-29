@@ -45,7 +45,7 @@ builder.build {
     gradle {
       rootBuildScriptDir(properties.checkoutDir)
       tasks 'javaPreCommitPortabilityApi'
-      switches '-Pdockerfile=Dockerfile-java11'
+      switches '-PimageJavaVersion=11'
       switches '-PdisableSpotlessCheck=true'
       switches '-PcompileAndRunTestsWithJava11'
       switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
