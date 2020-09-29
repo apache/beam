@@ -141,7 +141,7 @@ REQUIRED_PACKAGES = [
     # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
-    'fastavro>=1.0.0,<2',
+    'fastavro>=0.21.4,<2',
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.18.2,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
