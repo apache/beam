@@ -152,7 +152,6 @@ dependencies {
   compile "org.apache.flink:flink-metrics-core:$flink_version"
   compile "org.apache.flink:flink-java:$flink_version"
   compile "org.apache.flink:flink-runtime_2.11:$flink_version"
-  compile("com.lyft:streamingplatform-events-source:2.1-dryft-SNAPSHOT")
   compile "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
