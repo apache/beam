@@ -627,19 +627,11 @@ class _AvroSink(_BaseAvroSink):
     writer.append(value)
 
 
-class _FastAvroWriter(Writer):
-  """An adapter class which exposes a file handle so that it can be closed
-  by the sink. """
-  def __init__(self, file_handle, schema, codec):
-    super(_FastAvroWriter, self).__init__(file_handle, schema, codec)
-    self.fo = file_handle
-
-
 class _FastAvroSink(_BaseAvroSink):
   """A sink for avro files using FastAvro. """
   def open(self, temp_path):
     file_handle = super(_FastAvroSink, self).open(temp_path)
-    return _FastAvroWriter(file_handle, self._schema, self._codec)
+    return Writer(file_handle, self._schema, self._codec)
 
   def write_record(self, writer, value):
     writer.write(value)
