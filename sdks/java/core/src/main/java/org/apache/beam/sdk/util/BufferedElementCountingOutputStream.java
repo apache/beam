@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -194,7 +195,7 @@ public class BufferedElementCountingOutputStream extends OutputStream {
       // We are using a heap based buffer and not a direct buffer so it is safe to access
       // the underlying array.
       os.write(buffer.array(), buffer.arrayOffset(), buffer.position());
-      buffer.clear();
+      ((Buffer) buffer).clear();
       // The buffer has been flushed so we must write to the underlying stream until
       // we learn of the next element. We reset the count to zero marking that we should
       // not use the buffer.
