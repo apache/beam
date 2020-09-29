@@ -64,8 +64,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     }
 
     PayloadFormat payloadFormat =
-        properties.containsKey("payloadFormat")
-            ? PayloadFormat.valueOf(properties.getString("payloadFormat").toUpperCase())
+        properties.containsKey("format")
+            ? PayloadFormat.valueOf(properties.getString("format").toUpperCase())
             : PayloadFormat.CSV;
 
     switch (payloadFormat) {
