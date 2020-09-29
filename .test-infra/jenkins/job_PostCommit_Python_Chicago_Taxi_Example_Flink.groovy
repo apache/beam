@@ -41,7 +41,7 @@ def chicagoTaxiJob = { scope ->
   def pipelineOptions = [
     parallelism             : numberOfWorkers,
     job_endpoint            : 'localhost:8099',
-    environment_config      : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+    environment_options     : "docker_container_image=${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
     environment_type        : 'DOCKER',
     execution_mode_for_batch: 'BATCH_FORCED',
   ]
