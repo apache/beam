@@ -185,7 +185,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                   public void processElement(ProcessContext c) {
                     if (c.element().hasAnnotation("LATE")) {
                       lateCounter.inc();
-                      LOG.info("Observed late: %s", c.element());
+                      LOG.info("Observed late: {}", c.element());
                     } else {
                       onTimeCounter.inc();
                     }
@@ -249,20 +249,21 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                             window.maxTimestamp()));
                     if (c.pane().getTiming() == PaneInfo.Timing.LATE) {
                       if (numLate == 0) {
-                        LOG.error("ERROR! No late events in late pane for %s", shard);
+                        LOG.error("ERROR! No late events in late pane for {}", shard);
                         unexpectedLatePaneCounter.inc();
                       }
                       if (numOnTime > 0) {
                         LOG.error(
-                            "ERROR! Have %d on-time events in late pane for %s", numOnTime, shard);
+                            "ERROR! Have {} on-time events in late pane for {}", numOnTime, shard);
                         unexpectedOnTimeElementCounter.inc();
                       }
                       lateCounter.inc();
                     } else if (c.pane().getTiming() == PaneInfo.Timing.EARLY) {
                       if (numOnTime + numLate < configuration.maxLogEvents) {
                         LOG.error(
-                            "ERROR! Only have %d events in early pane for %s",
-                            numOnTime + numLate, shard);
+                            "ERROR! Only have {} events in early pane for {}",
+                            numOnTime + numLate,
+                            shard);
                       }
                       earlyCounter.inc();
                     } else {
@@ -290,7 +291,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                             "Writing %s with record timestamp %s, window timestamp %s, pane %s",
                             shard, c.timestamp(), window.maxTimestamp(), c.pane()));
                     if (outputFile.filename != null) {
-                      LOG.info("Beginning write to '%s'", outputFile.filename);
+                      LOG.info("Beginning write to '{}'", outputFile.filename);
                       int n = 0;
                       try (OutputStream output =
                           Channels.newOutputStream(
@@ -299,11 +300,11 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                           Event.CODER.encode(event, output, Coder.Context.OUTER);
                           writtenRecordsCounter.inc();
                           if (++n % 10000 == 0) {
-                            LOG.info("So far written %d records to '%s'", n, outputFile.filename);
+                            LOG.info("So far written {} records to '{}'", n, outputFile.filename);
                           }
                         }
                       }
-                      LOG.info("Written all %d records to '%s'", n, outputFile.filename);
+                      LOG.info("Written all {} records to '{}'", n, outputFile.filename);
                     }
                     savedFileCounter.inc();
                     c.output(KV.of(null, outputFile));
@@ -337,22 +338,24 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                       throws IOException {
                     if (c.pane().getTiming() == Timing.LATE) {
                       unexpectedLateCounter.inc();
-                      LOG.error("ERROR! Unexpected LATE pane: %s", c.pane());
+                      LOG.error("ERROR! Unexpected LATE pane: {}", c.pane());
                     } else if (c.pane().getTiming() == Timing.EARLY) {
                       unexpectedEarlyCounter.inc();
-                      LOG.error("ERROR! Unexpected EARLY pane: %s", c.pane());
+                      LOG.error("ERROR! Unexpected EARLY pane: {}", c.pane());
                     } else if (c.pane().getTiming() == Timing.ON_TIME && c.pane().getIndex() != 0) {
                       unexpectedIndexCounter.inc();
-                      LOG.error("ERROR! Unexpected ON_TIME pane index: %s", c.pane());
+                      LOG.error("ERROR! Unexpected ON_TIME pane index: {}", c.pane());
                     } else {
                       GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
                       LOG.info(
-                          "Index with record timestamp %s, window timestamp %s, pane %s",
-                          c.timestamp(), window.maxTimestamp(), c.pane());
+                          "Index with record timestamp {}, window timestamp {}, pane {}",
+                          c.timestamp(),
+                          window.maxTimestamp(),
+                          c.pane());
 
                       @Nullable String filename = indexPathFor(window);
                       if (filename != null) {
-                        LOG.info("Beginning write to '%s'", filename);
+                        LOG.info("Beginning write to '{}'", filename);
                         int n = 0;
                         try (OutputStream output =
                             Channels.newOutputStream(openWritableGcsFile(options, filename))) {
@@ -361,7 +364,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                             n++;
                           }
                         }
-                        LOG.info("Written all %d lines to '%s'", n, filename);
+                        LOG.info("Written all {} lines to '{}'", n, filename);
                       }
                       c.output(new Done("written for timestamp " + window.maxTimestamp()));
                       finalizedCounter.inc();

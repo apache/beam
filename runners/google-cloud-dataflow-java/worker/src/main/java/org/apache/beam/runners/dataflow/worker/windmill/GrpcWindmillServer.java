@@ -701,7 +701,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         try {
           sendHealthCheck();
         } catch (RuntimeException e) {
-          LOG.debug("Received exception sending health check {}", e);
+          LOG.debug("Received exception sending health check.", e);
         }
       }
     }
@@ -1226,7 +1226,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
           send(batchedRequest);
         } catch (IllegalStateException e) {
           // The stream broke before this call went through; onNewStream will retry the fetch.
-          LOG.warn("GetData stream broke before call started {}", e);
+          LOG.warn("GetData stream broke before call started.", e);
         }
       }
     }
@@ -1361,7 +1361,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
           } catch (RuntimeException e) {
             // Catch possible exceptions to ensure that an exception for one commit does not prevent
             // other commits from being processed.
-            LOG.warn("Exception while processing commit response {} ", e);
+            LOG.warn("Exception while processing commit response.", e);
             finalException = e;
           }
         }

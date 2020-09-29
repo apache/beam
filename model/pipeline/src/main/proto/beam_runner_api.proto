@@ -324,12 +324,6 @@ message StandardPTransforms {
 
     // Less well-known. Payload: WriteFilesPayload.
     WRITE_FILES = 3 [(beam_urn) = "beam:transform:write_files:v1"];
-
-    // Payload: PubSubReadPayload.
-    PUBSUB_READ = 4 [(beam_urn) = "beam:transform:pubsub_read:v1"];
-
-    // Payload: PubSubWritePayload.
-    PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -654,54 +648,6 @@ message WriteFilesPayload {
   bool runner_determined_sharding = 4;
 
   map<string, SideInput> side_inputs = 5;
-}
-
-// Payload used by Google Cloud Pub/Sub read transform.
-// This can be used by runners that wish to override Beam Pub/Sub read transform
-// with a native implementation.
-message PubSubReadPayload {
-
-  // Topic to read from. Exactly one of topic or subscription should be set.
-  string topic = 1;
-
-  // Subscription to read from. Exactly one of topic or subscription should be set.
-  string subscription = 2;
-
-  // Attribute that provides element timestamps.
-  string timestamp_attribute = 3;
-
-  // Attribute to be used for uniquely identifying messages.
-  string id_attribute = 4;
-
-  // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
-  bool with_attributes = 5;
-
-  // JSON serialized parse function for attibutes.
-  string serialized_attribute_fn = 6;
-}
-
-// Payload used by Google Cloud Pub/Sub write transform.
-// This can be used by runners that wish to override Beam Pub/Sub write transform
-// with a native implementation.
-message PubSubWritePayload {
-
-  // Topic to write to.
-  string topic = 1;
-
-  // Attribute that provides element timestamps.
-  string timestamp_attribute = 2;
-
-  // Attribute that uniquely identify messages.
-  string id_attribute = 3;
-
-  // If true, writes Pub/Sub payload as well as attributes. If false, reads only the payload.
-  bool with_attributes = 4;
-
-  // JSON serialized parse function for attributes.
-  string serialized_attribute_fn = 5;
-
-  // Coder ID for the Pub/Sub sink (if the runner requires it).
-  string coder_id = 6;
 }
 
 // A coder, the binary format for serialization and deserialization of data in

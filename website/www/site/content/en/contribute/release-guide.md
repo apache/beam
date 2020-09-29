@@ -399,14 +399,16 @@ There are 2 ways to perform this verification, either running automation script(
 * Usage
   1. Create a personal access token from your Github account. See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
      It'll be used by the script for accessing Github API.
-     You don't have to add any permissions to this token.
+     You only need to enable "repo" permissions to this token.
   1. Update required configurations listed in `RELEASE_BUILD_CONFIGS` in [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
      ```
      cd beam/release/src/main/scripts && ./verify_release_build.sh
      ```
   1. Trigger `beam_Release_Gradle_Build` and all PostCommit Jenkins jobs from PR (which is created by previous step).
-     To do so, only add one trigger phrase per comment. See `JOB_TRIGGER_PHRASES` in [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43)
+     You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
+     Or manually add one trigger phrase per PR comment.
+     See `COMMENTS_TO_ADD` in [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
      for full list of phrases.
 
 * Tasks included in the script
@@ -415,8 +417,6 @@ There are 2 ways to perform this verification, either running automation script(
 
 Jenkins job `beam_Release_Gradle_Build` basically run `./gradlew build -PisRelease`.
 This only verifies that everything builds with unit tests passing.
-
-You can use [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to mass-comment on PR.
 
 #### Verify the build succeeds
 

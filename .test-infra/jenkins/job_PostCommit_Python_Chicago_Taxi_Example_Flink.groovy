@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import CronJobBuilder
 import Flink
 import LoadTestsBuilder
-import PostcommitJobBuilder
+import PhraseTriggeringPostCommitBuilder
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
@@ -56,7 +56,7 @@ def chicagoTaxiJob = { scope ->
   }
 }
 
-PostcommitJobBuilder.postCommitJob(
+PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Flink',
     'Run Chicago Taxi on Flink',
     'Chicago Taxi Example on Flink ("Run Chicago Taxi on Flink")',

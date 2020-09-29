@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 class BigtableServiceImpl implements BigtableService {
-  private static final Logger LOG = LoggerFactory.getLogger(BigtableService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
 
   public BigtableServiceImpl(BigtableOptions options) {
     this.options = options;
