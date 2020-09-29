@@ -84,7 +84,6 @@ for (String runner : postCommitRunnerClass.keySet()) {
     }
     classpath = configurations."${runner}PostCommit"
     include "**/*IT.class"
-    forkEvery 1
     maxParallelForks 4
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(postCommitBeamTestPipelineOptions)
   }
