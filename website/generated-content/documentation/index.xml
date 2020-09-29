@@ -1549,8 +1549,9 @@ limitations under the License.
 &lt;/p>
 &lt;h3 id="key-pair">Key pair&lt;/h3>
 &lt;p>To use this authentication method, you must first generate a key pair and associate the public key with the Snowflake user that will connect using the IO transform. For instructions, see the &lt;a href="https://docs.snowflake.com/en/user-guide/jdbc-configure.html">Snowflake documentation&lt;/a>.&lt;/p>
-&lt;p>To use key pair authentication with SnowflakeIO, invoke your pipeline with following Pipeline options:
-&lt;pre>&lt;code>--username=&amp;lt;USERNAME&amp;gt; --privateKeyPath=&amp;lt;PATH_TO_P8_FILE&amp;gt; --privateKeyPassphrase=&amp;lt;PASSWORD_FOR_KEY&amp;gt;&lt;/code>&lt;/pre>
+&lt;p>To use key pair authentication with SnowflakeIO, invoke your pipeline with one of the following set of Pipeline options:
+&lt;pre>&lt;code>--username=&amp;lt;USERNAME&amp;gt; --privateKeyPath=&amp;lt;PATH_TO_P8_FILE&amp;gt; --privateKeyPassphrase=&amp;lt;PASSWORD_FOR_KEY&amp;gt;
+--username=&amp;lt;USERNAME&amp;gt; --rawPrivateKey=&amp;lt;PRIVATE_KEY&amp;gt; --privateKeyPassphrase=&amp;lt;PASSWORD_FOR_KEY&amp;gt;&lt;/code>&lt;/pre>
 &lt;/p>
 &lt;h3 id="oauth-token">OAuth token&lt;/h3>
 &lt;p>SnowflakeIO also supports OAuth token.&lt;/p>
@@ -1564,7 +1565,7 @@ limitations under the License.
 &lt;p>Create the DataSource configuration:
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">DataSourceConfiguration&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">SnowflakeCredentialsFactory&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withUrl&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getUrl&lt;/span>&lt;span class="o">())&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withServerName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getServerName&lt;/span>&lt;span class="o">())&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withDatabase&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getDatabase&lt;/span>&lt;span class="o">())&lt;/span>
@@ -1603,10 +1604,40 @@ Where parameters can be:&lt;/p>
 &lt;li>Example: &lt;code>.withSchema(&amp;quot;PUBLIC&amp;quot;)&lt;/code>&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;code>.withUsernamePasswordAuth(username, password)&lt;/code>
+&lt;ul>
+&lt;li>Sets username/password authentication.&lt;/li>
+&lt;li>Example: &lt;code>.withUsernamePasswordAuth(&amp;quot;USERNAME&amp;quot;, &amp;quot;PASSWORD&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withOAuth(token)&lt;/code>
+&lt;ul>
+&lt;li>Sets OAuth authentication.&lt;/li>
+&lt;li>Example: &lt;code>.withOAuth(&amp;quot;TOKEN&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withKeyPairAuth(username, privateKey)&lt;/code>
+&lt;ul>
+&lt;li>Sets key pair authentication using username and &lt;a href="https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html">PrivateKey&lt;/a>&lt;/li>
+&lt;li>Example: &lt;code>.withKeyPairAuth(&amp;quot;USERNAME&amp;quot;,&lt;/code> &lt;a href="https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html">PrivateKey&lt;/a>&lt;code>)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withKeyPairPathAuth(username, privateKeyPath, privateKeyPassphrase)&lt;/code>
+&lt;ul>
+&lt;li>Sets key pair authentication using username, path to private key file and passphrase.&lt;/li>
+&lt;li>Example: &lt;code>.withKeyPairPathAuth(&amp;quot;USERNAME&amp;quot;, &amp;quot;PATH/TO/KEY.P8&amp;quot;, &amp;quot;PASSPHRASE&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withKeyPairRawAuth(username, rawPrivateKey, privateKeyPassphrase)&lt;/code>
+&lt;ul>
+&lt;li>Sets key pair authentication using username, private key and passphrase.&lt;/li>
+&lt;li>Example: &lt;code>.withKeyPairRawAuth(&amp;quot;USERNAME&amp;quot;, &amp;quot;PRIVATE_KEY&amp;quot;, &amp;quot;PASSPHRASE&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Note&lt;/strong> - either &lt;code>.withUrl(...)&lt;/code> or &lt;code>.withServerName(...)&lt;/code> &lt;strong>is required&lt;/strong>.&lt;/p>
 &lt;h2 id="pipeline-options">Pipeline options&lt;/h2>
-&lt;p>Use Beam’s &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/options/PipelineOptions.html">Pipeline options&lt;/a> to set options via the command line.&lt;/p>
+&lt;p>Use Beam’s &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/options/PipelineOptions.html">Pipeline options&lt;/a> to set options via the command line.&lt;/p>
 &lt;h3 id="snowflake-pipeline-options">Snowflake Pipeline options&lt;/h3>
 &lt;p>Snowflake IO library supports following options that can be passed via the &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#running-main-command-with-pipeline-options">command line&lt;/a> by default when a Pipeline uses them:&lt;/p>
 &lt;p>&lt;code>--url&lt;/code> Snowflake&amp;rsquo;s JDBC-like url including account name and region without any parameters.&lt;/p>
@@ -1615,6 +1646,7 @@ Where parameters can be:&lt;/p>
 &lt;p>&lt;code>--oauthToken&lt;/code> Required for OAuth authentication only.&lt;/p>
 &lt;p>&lt;code>--password&lt;/code> Required for username/password authentication only.&lt;/p>
 &lt;p>&lt;code>--privateKeyPath&lt;/code> Path to Private Key file. Required for Private Key authentication only.&lt;/p>
+&lt;p>&lt;code>--rawPrivateKey&lt;/code> Private Key. Required for Private Key authentication only.&lt;/p>
 &lt;p>&lt;code>--privateKeyPassphrase&lt;/code> Private Key&amp;rsquo;s passphrase. Required for Private Key authentication only.&lt;/p>
 &lt;p>&lt;code>--stagingBucketName&lt;/code> External bucket path ending with &lt;code>/&lt;/code>. I.e. &lt;code>gs://bucket/&lt;/code>. Sub-directories are allowed.&lt;/p>
 &lt;p>&lt;code>--storageIntegrationName&lt;/code> Storage integration name&lt;/p>
@@ -1627,6 +1659,117 @@ Where parameters can be:&lt;/p>
 &lt;p>&lt;code>--authenticator&lt;/code> Authenticator to use. Optional.&lt;/p>
 &lt;p>&lt;code>--portNumber&lt;/code> Port number. Optional.&lt;/p>
 &lt;p>&lt;code>--loginTimeout&lt;/code> Login timeout. Optional.&lt;/p>
+&lt;p>&lt;code>--snowPipe&lt;/code> SnowPipe name. Optional.&lt;/p>
+&lt;h3 id="running-main-command-with-pipeline-options">Running main command with Pipeline options&lt;/h3>
+&lt;p>To pass Pipeline options via the command line, use &lt;code>--args&lt;/code> in a gradle command as follows:&lt;/p>
+&lt;p>
+&lt;pre>&lt;code>./gradle run
+--args=&amp;#34;
+--serverName=&amp;lt;SNOWFLAKE SERVER NAME&amp;gt;
+Example: --serverName=account.region.gcp.snowflakecomputing.com
+--username=&amp;lt;SNOWFLAKE USERNAME&amp;gt;
+Example: --username=testuser
+--password=&amp;lt;SNOWFLAKE PASSWORD&amp;gt;
+Example: --password=mypassword
+--database=&amp;lt;SNOWFLAKE DATABASE&amp;gt;
+Example: --database=TEST_DATABASE
+--schema=&amp;lt;SNOWFLAKE SCHEMA&amp;gt;
+Example: --schema=public
+--table=&amp;lt;SNOWFLAKE TABLE IN DATABASE&amp;gt;
+Example: --table=TEST_TABLE
+--query=&amp;lt;IF NOT TABLE THEN QUERY&amp;gt;
+Example: --query=‘SELECT column FROM TABLE’
+--storageIntegrationName=&amp;lt;SNOWFLAKE STORAGE INTEGRATION NAME&amp;gt;
+Example: --storageIntegrationName=my_integration
+--stagingBucketName=&amp;lt;GCS BUCKET NAME&amp;gt;
+Example: --stagingBucketName=gs://my_gcp_bucket/
+--runner=&amp;lt;DirectRunner/DataflowRunner&amp;gt;
+Example: --runner=DataflowRunner
+--project=&amp;lt;FOR DATAFLOW RUNNER: GCP PROJECT NAME&amp;gt;
+Example: --project=my_project
+--tempLocation=&amp;lt;FOR DATAFLOW RUNNER: GCS TEMP LOCATION STARTING
+WITH gs://…&amp;gt;
+Example: --tempLocation=gs://my_bucket/temp/
+--region=&amp;lt;FOR DATAFLOW RUNNER: GCP REGION&amp;gt;
+Example: --region=us-east-1
+--appName=&amp;lt;OPTIONAL: DATAFLOW JOB NAME PREFIX&amp;gt;
+Example: --appName=my_job&amp;#34;&lt;/code>&lt;/pre>
+Then in the code it is possible to access the parameters with arguments using the options.getStagingBucketName(); command.&lt;/p>
+&lt;h3 id="running-test-command-with-pipeline-options">Running test command with Pipeline options&lt;/h3>
+&lt;p>To pass Pipeline options via the command line, use &lt;code>-DintegrationTestPipelineOptions&lt;/code> in a gradle command as follows:
+&lt;pre>&lt;code>./gradlew test --tests nameOfTest
+-DintegrationTestPipelineOptions=&amp;#39;[
+&amp;#34;--serverName=&amp;lt;SNOWFLAKE SERVER NAME&amp;gt;&amp;#34;,
+Example: --serverName=account.region.gcp.snowflakecomputing.com
+&amp;#34;--username=&amp;lt;SNOWFLAKE USERNAME&amp;gt;&amp;#34;,
+Example: --username=testuser
+&amp;#34;--password=&amp;lt;SNOWFLAKE PASSWORD&amp;gt;&amp;#34;,
+Example: --password=mypassword
+&amp;#34;--schema=&amp;lt;SNOWFLAKE SCHEMA&amp;gt;&amp;#34;,
+Example: --schema=PUBLIC
+&amp;#34;--table=&amp;lt;SNOWFLAKE TABLE IN DATABASE&amp;gt;&amp;#34;,
+Example: --table=TEST_TABLE
+&amp;#34;--database=&amp;lt;SNOWFLAKE DATABASE&amp;gt;&amp;#34;,
+Example: --database=TEST_DATABASE
+&amp;#34;--storageIntegrationName=&amp;lt;SNOWFLAKE STORAGE INTEGRATION NAME&amp;gt;&amp;#34;,
+Example: --storageIntegrationName=my_integration
+&amp;#34;--stagingBucketName=&amp;lt;GCS BUCKET NAME&amp;gt;&amp;#34;,
+Example: --stagingBucketName=gs://my_gcp_bucket
+&amp;#34;--externalLocation=&amp;lt;GCS BUCKET URL STARTING WITH GS://&amp;gt;&amp;#34;,
+Example: --tempLocation=gs://my_bucket/temp/
+]&amp;#39; --no-build-cache&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;p>Where all parameters are starting with “&amp;ndash;”, they are surrounded with double quotation and separated with comma:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>--serverName=&amp;lt;SNOWFLAKE SERVER NAME&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Specifies the full name of your account (provided by Snowflake). Note that your full account name might include additional segments that identify the region and cloud platform where your account is hosted.&lt;/li>
+&lt;li>Example: &lt;code>--serverName=xy12345.eu-west-1.gcp..snowflakecomputing.com&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--username=&amp;lt;SNOWFLAKE USERNAME&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Specifies the login name of the user.&lt;/li>
+&lt;li>Example: &lt;code>--username=my_username&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--password=&amp;lt;SNOWFLAKE PASSWORD&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Specifies the password for the specified user.&lt;/li>
+&lt;li>Example: &lt;code>--password=my_secret&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--schema=&amp;lt;SNOWFLAKE SCHEMA&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Specifies the schema to use for the specified database once connected. The specified schema should be an existing schema for which the specified user’s role has privileges.&lt;/li>
+&lt;li>Example: &lt;code>--schema=PUBLIC&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--table=&amp;lt;SNOWFLAKE TABLE IN DATABASE&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Example: &lt;code>--table=MY_TABLE&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--database=&amp;lt;SNOWFLAKE DATABASE&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Specifies the database to use once connected. The specified database should be an existing database for which the specified user’s role has privileges.&lt;/li>
+&lt;li>Example: &lt;code>--database=MY_DATABASE&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--storageIntegrationName=&amp;lt;SNOWFLAKE STORAGE INTEGRATION NAME&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Name of storage integration created in &lt;a href="https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html">Snowflake&lt;/a> for a cloud storage of choice.&lt;/li>
+&lt;li>Example: &lt;code>--storageIntegrationName=my_google_integration&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
 &lt;h2 id="running-pipelines-on-dataflow">Running pipelines on Dataflow&lt;/h2>
 &lt;p>By default, pipelines are run on &lt;a href="https://beam.apache.org/documentation/runners/direct/">Direct Runner&lt;/a> on your local machine. To run a pipeline on &lt;a href="https://cloud.google.com/dataflow/">Google Dataflow&lt;/a>, you must provide the following Pipeline options:&lt;/p>
 &lt;ul>
@@ -1661,18 +1804,93 @@ Where parameters can be:&lt;/p>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
-&lt;p>More pipeline options for Dataflow can be found &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html">here&lt;/a>.&lt;/p>
+&lt;p>More pipeline options for Dataflow can be found &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html">here&lt;/a>.&lt;/p>
 &lt;p>&lt;strong>Note&lt;/strong>: To properly authenticate with Google Cloud, please use &lt;a href="https://cloud.google.com/sdk/gcloud/">gcloud&lt;/a> or follow the &lt;a href="https://cloud.google.com/docs/authentication/">Google Cloud documentation&lt;/a>.&lt;/p>
-&lt;p>&lt;strong>Important&lt;/strong>: Please acknowledge [Google Dataflow pricing](Important: Please acknowledge Google Dataflow pricing).&lt;/p>
+&lt;p>&lt;strong>Important&lt;/strong>: Please acknowledge &lt;a href="https://cloud.google.com/dataflow/pricing">Google Dataflow pricing&lt;/a>&lt;/p>
+&lt;h3 id="running-pipeline-templates-on-dataflow">Running pipeline templates on Dataflow&lt;/h3>
+&lt;p>Google Dataflow is supporting &lt;a href="https://cloud.google.com/dataflow/docs/guides/templates/overview">template&lt;/a> creation which means staging pipelines on Cloud Storage and running them with ability to pass runtime parameters that are only available during pipeline execution.&lt;/p>
+&lt;p>The process of creating own Dataflow template is following&lt;/p>
+&lt;ol>
+&lt;li>Create your own pipeline.&lt;/li>
+&lt;li>Create &lt;a href="https://cloud.google.com/dataflow/docs/guides/templates/creating-templates#creating-and-staging-templates">Dataflow template&lt;/a> with checking which options SnowflakeIO is supporting at runtime.&lt;/li>
+&lt;li>Run a Dataflow template using &lt;a href="https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-the-cloud-console">Cloud Console&lt;/a>, &lt;a href="https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-the-rest-api">REST API&lt;/a> or &lt;a href="https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-gcloud">gcloud&lt;/a>.&lt;/li>
+&lt;/ol>
+&lt;p>Currently, SnowflakeIO supports following options at runtime:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>--serverName&lt;/code> Full server name with account, zone and domain.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--username&lt;/code> Required for username/password and Private Key authentication.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--password&lt;/code> Required for username/password authentication only.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--rawPrivateKey&lt;/code> Private Key file. Required for Private Key authentication only.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--privateKeyPassphrase&lt;/code> Private Key&amp;rsquo;s passphrase. Required for Private Key authentication only.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--stagingBucketName&lt;/code> external bucket path ending with &lt;code>/&lt;/code>. I.e. &lt;code>gs://bucket/&lt;/code>. Sub-directories are allowed.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--storageIntegrationName&lt;/code> Storage integration name.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--warehouse&lt;/code> Warehouse to use. Optional.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--database&lt;/code> Database name to connect to. Optional.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--schema&lt;/code> Schema to use. Optional.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--table&lt;/code> Table to use. Optional. Note: table is not in default pipeline options.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--query&lt;/code> Query to use. Optional. Note: query is not in default pipeline options.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--role&lt;/code> Role to use. Optional.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--snowPipe&lt;/code> SnowPipe name. Optional.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Note&lt;/strong>: table and query is not in pipeline options by default, it may be added by &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options">extending&lt;/a> PipelineOptions.&lt;/p>
+&lt;p>Currently, SnowflakeIO &lt;strong>doesn&amp;rsquo;t support&lt;/strong> following options at runtime:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>--url&lt;/code> Snowflake&amp;rsquo;s JDBC-like url including account name and region without any parameters.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--oauthToken&lt;/code> Required for OAuth authentication only.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--privateKeyPath&lt;/code> Path to Private Key file. Required for Private Key authentication only.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--authenticator&lt;/code> Authenticator to use. Optional.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--portNumber&lt;/code> Port number. Optional.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--loginTimeout&lt;/code> Login timeout. Optional.&lt;/p>
+&lt;/li>
+&lt;/ul>
 &lt;h2 id="writing-to-snowflake-tables">Writing to Snowflake tables&lt;/h2>
-&lt;p>One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user&amp;rsquo;s &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a> to your Snowflake database.&lt;/p>
+&lt;p>One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user&amp;rsquo;s &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a> to your Snowflake database.&lt;/p>
 &lt;h3 id="batch-write-from-a-bounded-source">Batch write (from a bounded source)&lt;/h3>
 &lt;p>The basic .&lt;code>write()&lt;/code> operation usage is as follows:
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
 &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">type&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">toTable&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
@@ -1685,7 +1903,7 @@ Replace type with the data type of the PCollection object to write; for example,
 &lt;p>&lt;code>.withDataSourceConfiguration()&lt;/code> Accepts a DatasourceConfiguration object.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>&lt;code>.to()&lt;/code> Accepts the target Snowflake table name.&lt;/p>
+&lt;p>&lt;code>.toTable()&lt;/code> Accepts the target Snowflake table name.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>&lt;code>.withStagingBucketName()&lt;/code> Accepts a cloud bucket path ended with slash.
@@ -1708,6 +1926,150 @@ Then:
 &lt;/ul>
 &lt;p>&lt;strong>Note&lt;/strong>:
 SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html">COPY to table&lt;/a>). StagingBucketName will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under the “stagingBucketName” path.&lt;/p>
+&lt;p>&lt;strong>Optional&lt;/strong> for batching:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>.withQuotationMark()&lt;/code>
+&lt;ul>
+&lt;li>Default value: &lt;code>‘&lt;/code> (single quotation mark).&lt;/li>
+&lt;li>Accepts String with one character. It will surround all text (String) fields saved to CSV. It should be one of the accepted characters by &lt;a href="https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html">Snowflake’s&lt;/a> &lt;a href="https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html">FIELD_OPTIONALLY_ENCLOSED_BY&lt;/a> parameter (double quotation mark, single quotation mark or none).&lt;/li>
+&lt;li>Example: &lt;code>.withQuotationMark(&amp;quot;'&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="streaming-write--from-unbounded-source">Streaming write (from unbounded source)&lt;/h3>
+&lt;p>It is required to create a &lt;a href="https://docs.snowflake.com/en/user-guide/data-load-snowpipe.html">SnowPipe&lt;/a> in the Snowflake console. SnowPipe should use the same integration and the same bucket as specified by .withStagingBucketName and .withStorageIntegrationName methods. The write operation might look as follows:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">type&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withSnowPipe&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_SNOW_PIPE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withFlushTimeLimit&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">millis&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withFlushRowLimit&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">rowsNumber&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withShardsNumber&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">shardsNumber&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h4 id="parameters">Parameters&lt;/h4>
+&lt;p>&lt;strong>Required&lt;/strong> for streaming:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code> .withDataSourceConfiguration()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts a DatasourceConfiguration object.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.toTable()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts the target Snowflake table name.&lt;/li>
+&lt;li>Example: &lt;code>.toTable(&amp;quot;MY_TABLE)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withStagingBucketName()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts a cloud bucket path ended with slash.&lt;/li>
+&lt;li>Example: &lt;code>.withStagingBucketName(&amp;quot;gs://mybucket/my/dir/&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withStorageIntegrationName()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt.&lt;/li>
+&lt;li>Example:
+&lt;pre>&lt;code>CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
+STORAGE_ALLOWED_LOCATIONS = (&amp;#39;gcs://bucket/&amp;#39;);&lt;/code>&lt;/pre>
+Then:
+&lt;pre>&lt;code>.withStorageIntegrationName(test_integration)&lt;/code>&lt;/pre>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withSnowPipe()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Accepts the target SnowPipe name. &lt;code>.withSnowPipe()&lt;/code> accepts the exact name of snowpipe.
+Example:
+&lt;pre>&lt;code>CREATE OR REPLACE PIPE test_database.public.test_gcs_pipe
+AS COPY INTO stream_table from @streamstage;&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Then:
+&lt;pre>&lt;code>.withSnowPipe(test_gcs_pipe)&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Note&lt;/strong>: this is important to provide &lt;strong>schema&lt;/strong> and &lt;strong>database&lt;/strong> names.&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>.withUserDataMapper()&lt;/code>
+&lt;ul>
+&lt;li>Accepts the &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#userdatamapper-function">UserDataMapper&lt;/a> function that will map a user&amp;rsquo;s PCollection to an array of String values &lt;code>(String[]).&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Note&lt;/strong>:&lt;/p>
+&lt;p>SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html">COPY to table&lt;/a>). StagingBucketName will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under the “stagingBucketName” path.&lt;/p>
+&lt;p>&lt;strong>Optional&lt;/strong> for streaming:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>.withFlushTimeLimit()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Default value: 30 seconds&lt;/li>
+&lt;li>Accepts Duration objects with the specified time after each the streaming write will be repeated&lt;/li>
+&lt;li>Example: &lt;code>.withFlushTimeLimit(Duration.millis(180000))&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withFlushRowLimit()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Default value: 10,000 rows&lt;/li>
+&lt;li>Limit of rows written to each staged file&lt;/li>
+&lt;li>Example: &lt;code>.withFlushRowLimit(500000)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withShardNumber()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Default value: 1 shard&lt;/li>
+&lt;li>Number of files that will be saved in every flush (for purposes of parallel write).&lt;/li>
+&lt;li>Example: &lt;code>.withShardNumber(5)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withQuotationMark()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Default value: &lt;code>‘&lt;/code> (single quotation mark).&lt;/li>
+&lt;li>Accepts String with one character. It will surround all text (String) fields saved to CSV. It should be one of the accepted characters by &lt;a href="https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html">Snowflake’s&lt;/a> &lt;a href="https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html">FIELD_OPTIONALLY_ENCLOSED_BY&lt;/a> parameter (double quotation mark, single quotation mark or none). Example: .withQuotationMark(&amp;quot;&amp;quot;) (no quotation marks)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withDebugMode()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts:
+&lt;ul>
+&lt;li>&lt;code>SnowflakeIO.StreamingLogLevel.INFO&lt;/code> - shows whole info about loaded files&lt;/li>
+&lt;li>&lt;code>SnowflakeIO.StreamingLogLevel.ERROR&lt;/code> - shows only errors.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Shows logs about streamed files to Snowflake similarly to &lt;a href="https://docs.snowflake.com/en/user-guide/data-load-snowpipe-rest-apis.html#endpoint-insertreport">insertReport&lt;/a>. Enabling debug mode may influence performance.&lt;/li>
+&lt;li>Example: &lt;code>.withDebugMode(SnowflakeIO.StreamingLogLevel.INFO)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Important notice&lt;/strong>: Streaming accepts only &lt;strong>key pair authentication&lt;/strong>.&lt;/p>
+&lt;h4 id="flush-time-duration--number-of-rows">Flush time: duration &amp;amp; number of rows&lt;/h4>
+&lt;p>Duration: streaming write will write periodically files on stage according to time duration specified in flush time limit (for example. every 1 minute).&lt;/p>
+&lt;p>Number of rows: files staged for write will have number of rows specified in flush row limit unless the flush time limit will be reached (for example if the limit is 1000 rows and buffor collected 99 rows and the 1 minute flush time passes, the rows will be sent to SnowPipe for insertion).&lt;/p>
+&lt;p>Size of staged files will depend on the rows size and used compression (GZIP).&lt;/p>
 &lt;h3 id="userdatamapper-function">UserDataMapper function&lt;/h3>
 &lt;p>The UserDataMapper function is required to map data from a PCollection to an array of String values before the &lt;code>write()&lt;/code> operation saves the data to temporary .csv files. For example:
 &lt;div class=language-java>
@@ -1725,7 +2087,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="h
 &lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
 &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">toTable&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
@@ -1751,7 +2113,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="h
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
 &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">toTable&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
@@ -1774,7 +2136,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="h
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
 &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">toTable&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
@@ -1795,7 +2157,7 @@ A table schema is a list of &lt;code>SFColumn&lt;/code> objects with name and ty
 &lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
 &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">toTable&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
@@ -1804,7 +2166,7 @@ A table schema is a list of &lt;code>SFColumn&lt;/code> objects with name and ty
 &lt;/div>
 &lt;/p>
 &lt;h2 id="reading-from-snowflake">Reading from Snowflake&lt;/h2>
-&lt;p>One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a> of user-defined data type.&lt;/p>
+&lt;p>One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a> of user-defined data type.&lt;/p>
 &lt;h3 id="general-usage-1">General usage&lt;/h3>
 &lt;p>The basic &lt;code>.read()&lt;/code> operation usage:
 &lt;div class=language-java>
@@ -1861,14 +2223,14 @@ Then:
 &lt;li>
 &lt;p>&lt;code>.withCoder(coder)&lt;/code>&lt;/p>
 &lt;ul>
-&lt;li>Accepts the &lt;a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/Coder.html">Coder&lt;/a> for USER_DATA_TYPE.&lt;/li>
+&lt;li>Accepts the &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/coders/Coder.html">Coder&lt;/a> for USER_DATA_TYPE.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Note&lt;/strong>:
 SnowflakeIO uses COPY statements behind the scenes to read (using &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY to location&lt;/a>) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named &lt;code>sf_copy_csv_DATE_TIME_RANDOMSUFFIX&lt;/code> and they will be removed automatically once Read operation finishes.&lt;/p>
 &lt;h3 id="csvmapper">CSVMapper&lt;/h3>
-&lt;p>SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/2.3.0/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="http://opencsv.sourceforge.net/">OpenCSV&lt;/a> library.&lt;/p>
+&lt;p>SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="http://opencsv.sourceforge.net/">OpenCSV&lt;/a> library.&lt;/p>
 &lt;p>The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.&lt;/p>
 &lt;p>Example implementation of CsvMapper for GenericRecord:
 &lt;div class=language-java>
@@ -1883,7 +2245,224 @@ SnowflakeIO uses COPY statements behind the scenes to read (using &lt;a href="ht
 &lt;span class="o">};&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;/p></description></item><item><title>Documentation: ApproximateQuantiles</title><link>/documentation/transforms/java/aggregation/approximatequantiles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/approximatequantiles/</guid><description>
+&lt;/p>
+&lt;h2 id="using-snowflakeio-in-python-sdk">Using SnowflakeIO in Python SDK&lt;/h2>
+&lt;h3 id="intro">Intro&lt;/h3>
+&lt;p>Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language, thanks to
+cross-language which is part of &lt;a href="https://beam.apache.org/roadmap/portability/">Portability Framework Roadmap&lt;/a> which aims to provide full interoperability
+across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go).&lt;/p>
+&lt;p>For more information about cross-language please see &lt;a href="https://beam.apache.org/roadmap/connectors-multi-sdk/">multi sdk efforts&lt;/a>
+and &lt;a href="https://beam.apache.org/roadmap/connectors-multi-sdk/#cross-language-transforms-api-and-expansion-service">Cross-language transforms API and expansion service&lt;/a> articles.&lt;/p>
+&lt;h3 id="reading-from-snowflake-1">Reading from Snowflake&lt;/h3>
+&lt;p>One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.PCollection">PCollection&lt;/a> of user-defined data type.&lt;/p>
+&lt;h4 id="general-usage-2">General usage&lt;/h4>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">OPTIONS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;--runner=FlinkRunner&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">TestPipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">OPTIONS&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">ReadFromSnowflake&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">FURTHER&lt;/span> &lt;span class="n">TRANSFORMS&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h4 id="required-parameters">Required parameters&lt;/h4>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>server_name&lt;/code> Full Snowflake server name with an account, zone, and domain.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>schema&lt;/code> Name of the Snowflake schema in the database to use.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>database&lt;/code> Name of the Snowflake database to use.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>staging_bucket_name&lt;/code> Name of the Google Cloud Storage bucket. Bucket will be used as a temporary location for storing CSV files. Those temporary directories will be named &lt;code>sf_copy_csv_DATE_TIME_RANDOMSUFFIX&lt;/code> and they will be removed automatically once Read operation finishes.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>storage_integration_name&lt;/code> Is the name of a Snowflake storage integration object created according to &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/create-storage-integration.html">Snowflake documentation&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>csv_mapper&lt;/code> Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="http://opencsv.sourceforge.net/">OpenCSV&lt;/a> library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
+Example:
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">def&lt;/span> &lt;span class="nf">csv_mapper&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">strings_array&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">User&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">strings_array&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">strings_array&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>table&lt;/code> or &lt;code>query&lt;/code> Specifies a Snowflake table name or custom SQL query&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="authentication-parameters">Authentication parameters&lt;/h4>
+&lt;p>It’s required to pass one of the following combinations of valid parameters for authentication:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>username&lt;/code> and &lt;code>password&lt;/code> Specifies username and password for username/password authentication method.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>private_key_path&lt;/code> and &lt;code>private_key_passphrase&lt;/code> Specifies a path to private key and passphrase for key/pair authentication method.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>raw_private_key&lt;/code> and &lt;code>private_key_passphrase&lt;/code> Specifies a private key and passphrase for key/pair authentication method.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>o_auth_token&lt;/code> Specifies access token for OAuth authentication method.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="additional-parameters">Additional parameters&lt;/h4>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>role&lt;/code> specifies Snowflake role. If not specified the user&amp;rsquo;s default will be used.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>warehouse&lt;/code> specifies Snowflake warehouse name. If not specified the user&amp;rsquo;s default will be used.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>expansion_service&lt;/code> specifies URL of expansion service.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="writing-to-snowflake">Writing to Snowflake&lt;/h3>
+&lt;p>One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user&amp;rsquo;s &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.PCollection">PCollection&lt;/a> to your Snowflake database.&lt;/p>
+&lt;h4 id="general-usage-3">General usage&lt;/h4>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">OPTIONS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;--runner=FlinkRunner&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">TestPipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">OPTIONS&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">SOURCE&lt;/span> &lt;span class="n">OF&lt;/span> &lt;span class="n">DATA&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">WriteToSnowflake&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">server_name&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">SERVER&lt;/span> &lt;span class="n">NAME&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">username&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">USERNAME&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">password&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">PASSWORD&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">o_auth_token&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">OAUTH&lt;/span> &lt;span class="n">TOKEN&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">private_key_path&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">PATH&lt;/span> &lt;span class="n">TO&lt;/span> &lt;span class="n">P8&lt;/span> &lt;span class="n">FILE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">raw_private_key&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">PRIVATE_KEY&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="n">private_key_passphrase&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">PASSWORD&lt;/span> &lt;span class="n">FOR&lt;/span> &lt;span class="n">KEY&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">schema&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">SCHEMA&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">database&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">DATABASE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">staging_bucket_name&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">GCS&lt;/span> &lt;span class="n">BUCKET&lt;/span> &lt;span class="n">NAME&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">storage_integration_name&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">STORAGE&lt;/span> &lt;span class="n">INTEGRATION&lt;/span> &lt;span class="n">NAME&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">create_disposition&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">CREATE&lt;/span> &lt;span class="n">DISPOSITION&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">write_disposition&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">WRITE&lt;/span> &lt;span class="n">DISPOSITION&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">table_schema&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">TABLE&lt;/span> &lt;span class="n">SCHEMA&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">user_data_mapper&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">USER&lt;/span> &lt;span class="n">DATA&lt;/span> &lt;span class="n">MAPPER&lt;/span> &lt;span class="n">FUNCTION&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">table&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">TABLE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">query&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">IF&lt;/span> &lt;span class="n">NOT&lt;/span> &lt;span class="n">TABLE&lt;/span> &lt;span class="n">THEN&lt;/span> &lt;span class="n">QUERY&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">role&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">ROLE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">warehouse&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">SNOWFLAKE&lt;/span> &lt;span class="n">WAREHOUSE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">expansion_service&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">EXPANSION&lt;/span> &lt;span class="n">SERVICE&lt;/span> &lt;span class="n">ADDRESS&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h4 id="required-parameters-1">Required parameters&lt;/h4>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>server_name&lt;/code> Full Snowflake server name with account, zone and domain.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>schema&lt;/code> Name of the Snowflake schema in the database to use.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>database&lt;/code> Name of the Snowflake database to use.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>staging_bucket_name&lt;/code> Path to Google Cloud Storage bucket ended with slash. Bucket will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under “staging_bucket_name” path.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>storage_integration_name&lt;/code> Is the name of a Snowflake storage integration object created according to &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/create-storage-integration.html">Snowflake documentation&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>user_data_mapper&lt;/code> Specifies a function which maps data from a PCollection to an array of String values before the write operation saves the data to temporary .csv files.
+Example:
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">def&lt;/span> &lt;span class="nf">user_data_mapper&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">user&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">user&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">user&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">age&lt;/span>&lt;span class="p">)]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>table&lt;/code> or &lt;code>query&lt;/code> Specifies a Snowflake table name or custom SQL query&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="authentication-parameters-1">Authentication parameters&lt;/h4>
+&lt;p>It’s required to pass one of the following combination of valid parameters for authentication:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>username&lt;/code> and &lt;code>password&lt;/code> Specifies username/password authentication method.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>private_key_path&lt;/code> and &lt;code>private_key_passphrase&lt;/code> Specifies a path to private key and passphrase for key/pair authentication method.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>raw_private_key&lt;/code> and &lt;code>private_key_passphrase&lt;/code> Specifies a private key and passphrase for key/pair authentication method.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>o_auth_token&lt;/code> Specifies access token for OAuth authentication method.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="additional-parameters-1">Additional parameters&lt;/h4>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>role&lt;/code> specifies Snowflake role. If not specified the user&amp;rsquo;s default will be used.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>warehouse&lt;/code> specifies Snowflake warehouse name. If not specified the user&amp;rsquo;s default will be used.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>create_disposition&lt;/code> Defines the behaviour of the write operation if the target table does not exist. The following values are supported:&lt;/p>
+&lt;ul>
+&lt;li>CREATE_IF_NEEDED - default behaviour. The write operation checks whether the specified target table exists; if it does not, the write operation attempts to create the table Specify the schema for the target table using the table_schema parameter.&lt;/li>
+&lt;li>CREATE_NEVER - The write operation fails if the target table does not exist.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>write_disposition&lt;/code> Defines the write behaviour based on the table where data will be written to. The following values are supported:&lt;/p>
+&lt;ul>
+&lt;li>APPEND - Default behaviour. Written data is added to the existing rows in the table,&lt;/li>
+&lt;li>EMPTY - The target table must be empty; otherwise, the write operation fails,&lt;/li>
+&lt;li>TRUNCATE - The write operation deletes all rows from the target table before writing to it.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>table_schema&lt;/code> When the &lt;code>create_disposition&lt;/code> parameter is set to CREATE_IF_NEEDED, the table_schema parameter enables specifying the schema for the created target table. A table schema is a JSON array with the following structure:
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;schema&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;span class="p">{&lt;/span>
+&lt;span class="s2">&amp;#34;dataType&amp;#34;&lt;/span>&lt;span class="p">:{&lt;/span>&lt;span class="s2">&amp;#34;type&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="s2">&amp;#34;&amp;lt;COLUMN DATA TYPE&amp;gt;&amp;#34;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;span class="s2">&amp;#34;name&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="s2">&amp;#34;&amp;lt;COLUMN NAME&amp;gt; &amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s2">&amp;#34;nullable&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NULLABLE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="p">]}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+All supported data types:
+&lt;pre>&lt;code>{&amp;#34;type&amp;#34;:&amp;#34;date&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;datetime&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;time&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;timestamp&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;timestamp_ltz&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;timestamp_ntz&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;timestamp_tz&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;boolean&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;decimal&amp;#34;,&amp;#34;precision&amp;#34;:38,&amp;#34;scale&amp;#34;:1},
+{&amp;#34;type&amp;#34;:&amp;#34;double&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;float&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;integer&amp;#34;,&amp;#34;precision&amp;#34;:38,&amp;#34;scale&amp;#34;:0},
+{&amp;#34;type&amp;#34;:&amp;#34;number&amp;#34;,&amp;#34;precision&amp;#34;:38,&amp;#34;scale&amp;#34;:1},
+{&amp;#34;type&amp;#34;:&amp;#34;numeric&amp;#34;,&amp;#34;precision&amp;#34;:38,&amp;#34;scale&amp;#34;:2},
+{&amp;#34;type&amp;#34;:&amp;#34;real&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;array&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;object&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;variant&amp;#34;},
+{&amp;#34;type&amp;#34;:&amp;#34;binary&amp;#34;,&amp;#34;size&amp;#34;:null},
+{&amp;#34;type&amp;#34;:&amp;#34;char&amp;#34;,&amp;#34;length&amp;#34;:1},
+{&amp;#34;type&amp;#34;:&amp;#34;string&amp;#34;,&amp;#34;length&amp;#34;:null},
+{&amp;#34;type&amp;#34;:&amp;#34;text&amp;#34;,&amp;#34;length&amp;#34;:null},
+{&amp;#34;type&amp;#34;:&amp;#34;varbinary&amp;#34;,&amp;#34;size&amp;#34;:null},
+{&amp;#34;type&amp;#34;:&amp;#34;varchar&amp;#34;,&amp;#34;length&amp;#34;:100}]&lt;/code>&lt;/pre>
+You can read about Snowflake data types at &lt;a href="https://docs.snowflake.com/en/sql-reference/data-types.html">Snowflake data types&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>expansion_service&lt;/code> Specifies URL of expansion service.&lt;/p>
+&lt;/li>
+&lt;/ul></description></item><item><title>Documentation: ApproximateQuantiles</title><link>/documentation/transforms/java/aggregation/approximatequantiles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/approximatequantiles/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
