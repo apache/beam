@@ -45,7 +45,7 @@ public class RowToEntity extends PTransform<PCollection<Row>, PCollection<Entity
   private final Supplier<String> keySupplier;
   private final String kind;
   private final String keyField;
-  private static final Logger LOG = LoggerFactory.getLogger(DataStoreV1SchemaIOProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RowToEntity.class);
 
   private RowToEntity(Supplier<String> keySupplier, String kind, String keyField) {
     this.keySupplier = keySupplier;

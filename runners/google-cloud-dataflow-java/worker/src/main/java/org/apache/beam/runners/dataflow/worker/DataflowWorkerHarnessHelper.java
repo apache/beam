@@ -77,6 +77,7 @@ public final class DataflowWorkerHarnessHelper {
     return pipelineOptions;
   }
 
+  @SuppressWarnings("Slf4jIllegalPassedClass")
   public static void initializeLogging(Class<?> workerHarnessClass) {
     /* Set up exception handling tied to the workerHarnessClass. */
     Thread.setDefaultUncaughtExceptionHandler(

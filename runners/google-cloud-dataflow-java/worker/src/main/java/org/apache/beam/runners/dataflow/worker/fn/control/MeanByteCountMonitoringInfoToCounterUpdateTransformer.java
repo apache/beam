@@ -41,7 +41,8 @@ import org.slf4j.LoggerFactory;
 public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(MeanByteCountMonitoringInfoToCounterUpdateTransformer.class);
 
   private final SpecMonitoringInfoValidator specValidator;
   private final Map<String, NameContext> pcollectionIdToNameContext;

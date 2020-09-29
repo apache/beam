@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
  * PTransform}.
  */
 public class TranslationContext {
-  public static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
   private final StreamApplicationDescriptor appDescriptor;
   private final Map<PValue, MessageStream<?>> messsageStreams = new HashMap<>();
   private final Map<PCollectionView<?>, MessageStream<?>> viewStreams = new HashMap<>();
