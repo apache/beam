@@ -362,7 +362,8 @@ def show(*pcolls, **configs):
         more dive-in widget and statistically overview widget of the data.
         Otherwise, those 2 data visualization widgets will not be displayed.
     n: (optional) max number of elements to visualize. Default 'inf'.
-    duration: (optional) max duration of elements to read. Default 'inf'.
+    duration: (optional) max duration of elements to read in integer seconds or
+        a string duration. Default 'inf'.
 
   The given pcolls can be dictionary of PCollections (as values), or iterable
   of PCollections or plain PCollection values.
@@ -445,12 +446,9 @@ def show(*pcolls, **configs):
   elif isinstance(n, int):
     assert n > 0, 'n needs to be positive or the string \'inf\''
 
-  if isinstance(duration, str):
-    assert duration == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(duration, int):
-    assert duration > 0, 'duration needs to be positive or the string \'inf\''
+  if isinstance(duration, int):
+    assert duration > 0, ('duration needs to be positive, a duration string, '
+                          'or the string \'inf\'')
 
   if n == 'inf':
     n = float('inf')
@@ -466,8 +464,7 @@ def show(*pcolls, **configs):
 
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
-  recording = recording_manager.record(
-      pcolls, max_n=n, max_duration_secs=duration)
+  recording = recording_manager.record(pcolls, max_n=n, max_duration=duration)
 
   # Catch a KeyboardInterrupt to gracefully cancel the recording and
   # visualizations.
@@ -520,7 +517,8 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
 
   Args:
     n: (optional) max number of elements to visualize. Default 'inf'.
-    duration: (optional) max duration of elements to read. Default 'inf'.
+    duration: (optional) max duration of elements to read in integer seconds or
+        a string duration. Default 'inf'.
 
   For example::
 
@@ -541,12 +539,9 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   elif isinstance(n, int):
     assert n > 0, 'n needs to be positive or the string \'inf\''
 
-  if isinstance(duration, str):
-    assert duration == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(duration, int):
-    assert duration > 0, 'duration needs to be positive or the string \'inf\''
+  if isinstance(duration, int):
+    assert duration > 0, ('duration needs to be positive, a duration string, '
+                          'or the string \'inf\'')
 
   if n == 'inf':
     n = float('inf')
@@ -558,9 +553,7 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
 
-  recording = recording_manager.record([pcoll],
-                                       max_n=n,
-                                       max_duration_secs=duration)
+  recording = recording_manager.record([pcoll], max_n=n, max_duration=duration)
 
   try:
     elements = list(recording.stream(pcoll).read())
