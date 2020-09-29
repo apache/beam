@@ -51,7 +51,7 @@ def main():
           fout.write(fin.read())
         os.rename(zip + '.tmp', zip)
 
-    print('Extrating', zip)
+    print('Extracting', zip)
     with zipfile.ZipFile(zip, 'r') as handle:
       handle.extractall(os.path.dirname(PANDAS_DIR))
 

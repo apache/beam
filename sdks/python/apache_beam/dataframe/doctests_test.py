@@ -122,7 +122,7 @@ This one should be skipped:
    @verbatim
    not run or tested
 
-and someting that'll fail (due to fake vs. read pandas)
+and someting that'll fail (due to fake vs. real pandas)
 
 .. ipython::
 
