@@ -98,7 +98,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
         }
       };
     } catch (Exception e) {
-      LOG.warn("Could not read Source statistics: {}", e);
+      LOG.warn("Could not read Source statistics.", e);
     }
 
     return null;

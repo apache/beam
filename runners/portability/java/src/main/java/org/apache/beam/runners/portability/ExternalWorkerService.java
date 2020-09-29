@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase implements FnService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnExternalWorkerPoolImplBase.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExternalWorkerService.class);
 
   private final PipelineOptions options;
   private final ServerFactory serverFactory = ServerFactory.createDefault();
