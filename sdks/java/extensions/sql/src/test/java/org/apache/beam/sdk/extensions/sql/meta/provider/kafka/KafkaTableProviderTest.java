@@ -75,7 +75,7 @@ public class KafkaTableProviderTest {
     topics.add("topic2");
     properties.put("topics", topics);
     if (payloadFormat != null) {
-      properties.put("payloadFormat", payloadFormat);
+      properties.put("format", payloadFormat);
     }
 
     return Table.builder()

@@ -119,7 +119,7 @@ public abstract class KafkaTableProviderIT {
 
   private String getKafkaPropertiesString() {
     return "{ "
-        + (getPayloadFormat() == null ? "" : "\"payloadFormat\" : \"" + getPayloadFormat() + "\",")
+        + (getPayloadFormat() == null ? "" : "\"format\" : \"" + getPayloadFormat() + "\",")
         + "\"bootstrap.servers\" : \""
         + kafkaOptions.getKafkaBootstrapServerAddress()
         + "\",\"topics\":[\""
