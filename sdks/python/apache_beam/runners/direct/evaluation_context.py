@@ -102,8 +102,7 @@ class _SideInputsContainer(object):
         list
     )  # type: DefaultDict[Optional[AppliedPTransform], List[pvalue.AsSideInput]]
     # this appears unused:
-    self._side_input_to_blocked_tasks = collections.defaultdict(
-        list)  # type: ignore
+    self._side_input_to_blocked_tasks = collections.defaultdict(list)  # type: ignore
 
     for side in side_inputs:
       self._views[side] = _SideInputView(side)

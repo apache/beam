@@ -513,7 +513,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
       example = []
       example_srcs.append(example)
       while get_indent(line) >= indent:
-        if '@verbatim' in line or '@savefig' in line:
+        if '@verbatim' in line or ':verbatim:' in line or '@savefig' in line:
           example_srcs.pop()
           break
         example.append(line[indent:])
@@ -521,6 +521,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
         if get_indent(line) == indent:
           example = []
           example_srcs.append(example)
+    assert not line.startswith('.. ipython::')
 
   # TODO(robertwb): Would it be better to try and detect/compare the actual
   # objects in two parallel sessions than make (stringified) doctests?
