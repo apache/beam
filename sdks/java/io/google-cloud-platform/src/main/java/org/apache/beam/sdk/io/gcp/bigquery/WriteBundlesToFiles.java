@@ -74,7 +74,7 @@ class WriteBundlesToFiles<DestinationT, ElementT>
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
    */
-  static final class Result<DestinationT> implements Serializable {
+  public static final class Result<DestinationT> implements Serializable {
     private static final long serialVersionUID = 1L;
     public final String filename;
     public final Long fileByteSize;

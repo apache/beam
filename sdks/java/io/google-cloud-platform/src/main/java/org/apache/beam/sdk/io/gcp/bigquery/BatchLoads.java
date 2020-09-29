@@ -308,10 +308,12 @@ class BatchLoads<DestinationT, ElementT>
     // determinism.
     PCollectionTuple partitions =
         results
-            .apply("AttachSingletonKey", WithKeys.of((Void) null))
+            .apply(
+                "AttachDestinationKey",
+                WithKeys.of((Result<DestinationT> result) -> result.destination))
             .setCoder(
-                KvCoder.of(VoidCoder.of(), WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
-            .apply("GroupOntoSingleton", GroupByKey.create())
+                KvCoder.of(destinationCoder, WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
+            .apply("GroupTempFilesByDestination", GroupByKey.create())
             .apply("ExtractResultValues", Values.create())
             .apply(
                 "WritePartitionTriggered",
