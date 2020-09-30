@@ -227,7 +227,6 @@
 * Upgrade Sphinx to 3.0.3 for building PyDoc.
 * Added a PTransform for image annotation using Google Cloud AI image processing service
 ([BEAM-9646](https://issues.apache.org/jira/browse/BEAM-9646))
-* Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle ([BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543)).
 
 ## Breaking Changes
 
