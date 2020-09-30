@@ -38,8 +38,8 @@ python -m apache_beam.examples.wordcount \
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
 </code></pre><p>From 2.21.0, <code>docker-pull-licenses</code> tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when <code>docker-pull-licenses</code> was set.
 For example, <code>./gradlew :sdks:java:container:docker -Pdocker-pull-licenses</code>. The files are added to <code>/opt/apache/beam/third_party_licenses/</code>.
-By default, no licenses/notices are added to the docker images.</p><p>To examine the containers that you built, run <code>docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p><pre><code>REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
-apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
+By default, no licenses/notices are added to the docker images.</p><p>To examine the containers that you built, run <code>docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p><pre><code>REPOSITORY                         TAG                 IMAGE ID            CREATED           SIZE
+apache/beam_java8_sdk              latest              16ca619d489e        2 weeks ago        550MB
 apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
 apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
 apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB

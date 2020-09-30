@@ -913,7 +913,7 @@ ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;ul>
 &lt;li>For Java SDK images, there should be around 1400 dependencies.&lt;/li>
 &lt;/ul>
-&lt;pre>&lt;code>docker run -it --entrypoint=/bin/bash apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
+&lt;pre>&lt;code>docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;/ol>
