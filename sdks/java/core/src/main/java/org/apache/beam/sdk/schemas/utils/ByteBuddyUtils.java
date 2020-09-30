@@ -1417,7 +1417,7 @@ public class ByteBuddyUtils {
         if (fieldValue.getField() != null) {
           fieldsByJavaClassMember.put(fieldValue.getField().getName(), i);
         } else if (fieldValue.getMethod() != null) {
-          String name = ReflectUtils.stripPrefix(fieldValue.getMethod().getName(), "set");
+          String name = ReflectUtils.stripGetterPrefix(fieldValue.getMethod().getName());
           fieldsByJavaClassMember.put(name, i);
         }
       }
