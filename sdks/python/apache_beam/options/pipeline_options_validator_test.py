@@ -71,7 +71,7 @@ class SetupTest(unittest.TestCase):
           found = True
           break
       if not found:
-        missing.append('Missing error for: ' + arg)
+        missing.append('Missing error for: %s.' % arg)
 
     # Return missing and remaining (not matched) errors.
     return missing + remaining
@@ -574,6 +574,196 @@ class SetupTest(unittest.TestCase):
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertTrue(errors)
+
+  def test_environment_options(self):
+    test_cases = [
+        {
+            'options': ['--environment_type=dOcKeR'], 'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR',
+                '--environment_options=docker_container_image=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR', '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR',
+                '--environment_options=docker_container_image=foo',
+                '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo'
+            ],
+            'errors': [
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+        {
+            'options': ['--environment_type=pRoCeSs'],
+            'errors': ['process_command']
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs',
+                '--environment_options=process_command=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs', '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs',
+                '--environment_options=process_command=foo',
+                '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=external_service_address=foo'
+            ],
+            'errors': ['docker_container_image', 'external_service_address']
+        },
+        {
+            'options': ['--environment_type=eXtErNaL'],
+            'errors': ['external_service_address']
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL',
+                '--environment_options=external_service_address=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL', '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL',
+                '--environment_options=external_service_address=foo',
+                '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL',
+                '--environment_options=external_service_address=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=docker_container_image=foo',
+            ],
+            'errors': [
+                'process_command',
+                'process_variables',
+                'docker_container_image'
+            ]
+        },
+        {
+            'options': ['--environment_type=lOoPbACk'], 'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=lOoPbACk', '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=lOoPbACk',
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo',
+            ],
+            'errors': [
+                'docker_container_image',
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+        {
+            'options': ['--environment_type=beam:env:foo:v1'], 'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=beam:env:foo:v1',
+                '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=beam:env:foo:v1',
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo',
+            ],
+            'errors': [
+                'docker_container_image',
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+        {
+            'options': [
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo',
+            ],
+            'errors': [
+                'docker_container_image',
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+    ]
+    errors = []
+    for case in test_cases:
+      validator = PipelineOptionsValidator(
+          PipelineOptions(case['options']), MockRunners.OtherRunner())
+      validation_result = validator.validate()
+      validation_errors = self.check_errors_for_arguments(
+          validation_result, case['errors'])
+      if validation_errors:
+        errors.append(
+            'Options "%s" had unexpected validation results: "%s"' %
+            (' '.join(case['options']), ' '.join(validation_errors)))
+    self.assertEqual(errors, [])
 
 
 if __name__ == '__main__':
