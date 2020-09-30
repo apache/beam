@@ -411,7 +411,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
-    def postgres_version = "42.2.2"
+    def postgres_version = "42.2.14"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
