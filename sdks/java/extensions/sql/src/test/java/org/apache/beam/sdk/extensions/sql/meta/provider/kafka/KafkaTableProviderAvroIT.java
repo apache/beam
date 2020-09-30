@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class KafkaTableProviderAvroIT extends KafkaTableProviderIT {
-  private final SerializableFunction<Row, byte[]> toBytesFn =
+  private final SimpleFunction<Row, byte[]> toBytesFn =
       AvroUtils.getRowToAvroBytesFunction(TEST_TABLE_SCHEMA);
 
   @SuppressWarnings("unchecked")

@@ -49,7 +49,7 @@ import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -620,8 +620,8 @@ public class AvroUtilsTest {
             .addStringField("f_string")
             .build();
 
-    SerializableFunction<Row, byte[]> toBytesFn = AvroUtils.getRowToAvroBytesFunction(schema);
-    SerializableFunction<byte[], Row> toRowFn = AvroUtils.getAvroBytesToRowFunction(schema);
+    SimpleFunction<Row, byte[]> toBytesFn = AvroUtils.getRowToAvroBytesFunction(schema);
+    SimpleFunction<byte[], Row> toRowFn = AvroUtils.getAvroBytesToRowFunction(schema);
 
     Row row = Row.withSchema(schema).attachValues(1, 1L, 1d, "string");
 
