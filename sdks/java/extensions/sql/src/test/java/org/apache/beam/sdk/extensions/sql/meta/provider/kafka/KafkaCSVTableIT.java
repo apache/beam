@@ -65,11 +65,18 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /** This is an integration test for KafkaCSVTable. */
 public class KafkaCSVTableIT {
+  private static final String KAFKA_CONTAINER_VERSION = "5.2.1";
+
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
-  @Rule public transient KafkaContainer kafka = new KafkaContainer();
+
+  @Rule
+  public transient KafkaContainer kafka =
+      new KafkaContainer(
+          DockerImageName.parse("confluentinc/cp-kafka").withTag(KAFKA_CONTAINER_VERSION));
 
   private KafkaOptions kafkaOptions;
 
