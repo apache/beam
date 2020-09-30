@@ -915,7 +915,8 @@ class SimpleState(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   Only timers must hold the watermark (by their timestamp).
   """
   @abstractmethod
-  def set_timer(self, window, name, time_domain, timestamp):
+  def set_timer(
+      self, window, name, time_domain, timestamp, dynamic_timer_tag=''):
     pass
 
   @abstractmethod
@@ -923,7 +924,7 @@ class SimpleState(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
     pass
 
   @abstractmethod
-  def clear_timer(self, window, name, time_domain):
+  def clear_timer(self, window, name, time_domain, dynamic_timer_tag=''):
     pass
 
   @abstractmethod
@@ -971,12 +972,19 @@ class MergeableStateAdapter(SimpleState):
     self.window_ids = self.raw_state.get_global_state(self.WINDOW_IDS, {})
     self.counter = None
 
-  def set_timer(self, window, name, time_domain, timestamp):
-    self.raw_state.set_timer(self._get_id(window), name, time_domain, timestamp)
+  def set_timer(
+      self, window, name, time_domain, timestamp, dynamic_timer_tag=''):
+    self.raw_state.set_timer(
+        self._get_id(window),
+        name,
+        time_domain,
+        timestamp,
+        dynamic_timer_tag=dynamic_timer_tag)
 
-  def clear_timer(self, window, name, time_domain):
+  def clear_timer(self, window, name, time_domain, dynamic_timer_tag=''):
     for window_id in self._get_ids(window):
-      self.raw_state.clear_timer(window_id, name, time_domain)
+      self.raw_state.clear_timer(
+          window_id, name, time_domain, dynamic_timer_tag=dynamic_timer_tag)
 
   def add_state(self, window, tag, value):
     if isinstance(tag, _ReadModifyWriteStateTag):
@@ -1122,7 +1130,7 @@ class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
       yield wvalue.with_value((key, wvalue.value))
     while state.timers:
       fired = state.get_and_clear_timers()
-      for timer_window, (name, time_domain, fire_time) in fired:
+      for timer_window, (name, time_domain, fire_time, _) in fired:
         for wvalue in self.process_timer(timer_window,
                                          name,
                                          time_domain,
@@ -1445,11 +1453,12 @@ class InMemoryUnmergedState(UnmergedState):
   def get_global_state(self, tag, default=None):
     return self.global_state.get(tag.tag, default)
 
-  def set_timer(self, window, name, time_domain, timestamp):
-    self.timers[window][(name, time_domain)] = timestamp
+  def set_timer(
+      self, window, name, time_domain, timestamp, dynamic_timer_tag=''):
+    self.timers[window][(name, time_domain, dynamic_timer_tag)] = timestamp
 
-  def clear_timer(self, window, name, time_domain):
-    self.timers[window].pop((name, time_domain), None)
+  def clear_timer(self, window, name, time_domain, dynamic_timer_tag=''):
+    self.timers[window].pop((name, time_domain, dynamic_timer_tag), None)
     if not self.timers[window]:
       del self.timers[window]
 
@@ -1504,7 +1513,8 @@ class InMemoryUnmergedState(UnmergedState):
     expired = []
     has_realtime_timer = False
     for window, timers in list(self.timers.items()):
-      for (name, time_domain), timestamp in list(timers.items()):
+      for (name, time_domain, dynamic_timer_tag), timestamp in list(
+          timers.items()):
         if time_domain == TimeDomain.REAL_TIME:
           time_marker = processing_time
           has_realtime_timer = True
@@ -1515,9 +1525,10 @@ class InMemoryUnmergedState(UnmergedState):
               'TimeDomain error: No timers defined for time domain %s.',
               time_domain)
         if timestamp <= time_marker:
-          expired.append((window, (name, time_domain, timestamp)))
+          expired.append(
+              (window, (name, time_domain, timestamp, dynamic_timer_tag)))
           if clear:
-            del timers[(name, time_domain)]
+            del timers[(name, time_domain, dynamic_timer_tag)]
       if not timers and clear:
         del self.timers[window]
     return expired, has_realtime_timer
