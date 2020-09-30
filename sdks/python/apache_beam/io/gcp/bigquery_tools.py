@@ -794,6 +794,7 @@ class BigQueryWrapper(object):
             ),
             jobReference=job_reference,
         ))
+    logging.info('Performing BigQuery extract job: %s', request)
     response = self.client.jobs.Insert(request)
     return response.jobReference
 
