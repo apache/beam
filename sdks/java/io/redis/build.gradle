@@ -25,7 +25,7 @@ ext.summary ="IO to read and write on a Redis keystore."
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "redis.clients:jedis:3.0.1"
+  compile "redis.clients:jedis:3.3.0"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
