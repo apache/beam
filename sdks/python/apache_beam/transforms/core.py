@@ -643,6 +643,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # DoFn.KeyParam
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
+  DynamicTimerTagParam = _DoFnParam('DynamicTimerTagParam')
 
   DoFnProcessParams = [
       ElementParam,
@@ -654,7 +655,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       BundleFinalizerParam,
       KeyParam,
       StateParam,
-      TimerParam
+      TimerParam,
   ]
 
   RestrictionParam = _RestrictionDoFnParam

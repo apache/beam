@@ -493,6 +493,30 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(actual, is_buffered_correctly)
 
+  def test_pardo_dynamic_timer(self):
+    class DynamicTimerDoFn(beam.DoFn):
+      dynamic_timer_spec = userstate.TimerSpec(
+          'dynamic_timer', userstate.TimeDomain.WATERMARK)
+
+      def process(
+          self, element,
+          dynamic_timer=beam.DoFn.TimerParam(dynamic_timer_spec)):
+        dynamic_timer.set(element[1], dynamic_timer_tag=element[0])
+
+      @userstate.on_timer(dynamic_timer_spec)
+      def dynamic_timer_callback(
+          self,
+          tag=beam.DoFn.DynamicTimerTagParam,
+          timestamp=beam.DoFn.TimestampParam):
+        yield (tag, timestamp)
+
+    with self.create_pipeline() as p:
+      actual = (
+          p
+          | beam.Create([('key1', 10), ('key2', 20), ('key3', 30)])
+          | beam.ParDo(DynamicTimerDoFn()))
+      assert_that(actual, equal_to([('key1', 10), ('key2', 20), ('key3', 30)]))
+
   def test_sdf(self):
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
