@@ -48,7 +48,6 @@ idea {
 }
 
 def clickhouse_jdbc_version = "0.2.4"
-def testcontainers_version = "1.10.5"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -59,7 +58,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
-  testCompile "org.testcontainers:clickhouse:$testcontainers_version"
+  testCompile library.java.testcontainers_clickhouse
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
