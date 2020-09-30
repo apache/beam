@@ -23,6 +23,10 @@ import io.grpc.StatusException;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * A PullSubscriber translating from com.google.cloud.pubsublite.SequencedMessage
+ * to com.google.cloud.pubsublite.proto.SequencedMessage.
+ */
 class TranslatingPullSubscriber implements PullSubscriber<SequencedMessage> {
   private final PullSubscriber<com.google.cloud.pubsublite.SequencedMessage> underlying;
 
