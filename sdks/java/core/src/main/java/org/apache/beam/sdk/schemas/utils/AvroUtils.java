@@ -73,6 +73,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -425,11 +426,11 @@ public class AvroUtils {
   }
 
   /** Returns a function mapping encoded AVRO {@link GenericRecord}s to Beam {@link Row}s. */
-  public static SerializableFunction<byte[], Row> getAvroBytesToRowFunction(Schema beamSchema) {
+  public static SimpleFunction<byte[], Row> getAvroBytesToRowFunction(Schema beamSchema) {
     return new AvroBytesToRowFn(beamSchema);
   }
 
-  private static class AvroBytesToRowFn implements SerializableFunction<byte[], Row> {
+  private static class AvroBytesToRowFn extends SimpleFunction<byte[], Row> {
     private final AvroCoder<GenericRecord> coder;
     private final Schema beamSchema;
 
@@ -455,11 +456,11 @@ public class AvroUtils {
   }
 
   /** Returns a function mapping Beam {@link Row}s to encoded AVRO {@link GenericRecord}s. */
-  public static SerializableFunction<Row, byte[]> getRowToAvroBytesFunction(Schema beamSchema) {
+  public static SimpleFunction<Row, byte[]> getRowToAvroBytesFunction(Schema beamSchema) {
     return new RowToAvroBytesFn(beamSchema);
   }
 
-  private static class RowToAvroBytesFn implements SerializableFunction<Row, byte[]> {
+  private static class RowToAvroBytesFn extends SimpleFunction<Row, byte[]> {
     private final transient org.apache.avro.Schema avroSchema;
     private final AvroCoder<GenericRecord> coder;
 

@@ -17,26 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.List;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
   private static final Schema EMPTY_SCHEMA = Schema.builder().build();
 
-  private final transient SerializableFunction<Row, byte[]> toBytesFn =
+  private final SerializableFunction<Row, byte[]> toBytesFn =
       AvroUtils.getRowToAvroBytesFunction(getSchema());
 
   @Override
@@ -82,22 +77,19 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
 
   @Override
   protected PCollection<KV<byte[], byte[]>> applyRowToBytesKV(PCollection<Row> rows) {
-    return rows.apply(
-        MapElements.into(
-                TypeDescriptors.kvs(
-                    TypeDescriptor.of(byte[].class), TypeDescriptor.of(byte[].class)))
-            .via(
-                row -> {
-                  GenericRecord record = AvroUtils.toGenericRecord(row, null);
-                  AvroCoder<GenericRecord> coder =
-                      AvroCoder.of(AvroUtils.toAvroSchema(row.getSchema(), null, null));
-                  ByteArrayOutputStream out = new ByteArrayOutputStream();
-                  try {
-                    coder.encode(record, out);
-                  } catch (IOException e) {
-                    throw new RuntimeException("Unable to encode avro record", e);
-                  }
-                  return KV.of(new byte[] {}, out.toByteArray());
-                }));
+    return rows.apply(MapElements.via(new RowToBytesKV(toBytesFn)));
+  }
+
+  private static class RowToBytesKV extends SimpleFunction<Row, KV<byte[], byte[]>> {
+    private final SerializableFunction<Row, byte[]> toBytesFn;
+
+    RowToBytesKV(SerializableFunction<Row, byte[]> toBytesFn) {
+      this.toBytesFn = toBytesFn;
+    }
+
+    @Override
+    public KV<byte[], byte[]> apply(Row row) {
+      return KV.of(new byte[] {}, toBytesFn.apply(row));
+    }
   }
 }

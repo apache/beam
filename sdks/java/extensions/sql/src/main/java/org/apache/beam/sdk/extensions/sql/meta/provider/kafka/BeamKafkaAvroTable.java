@@ -22,11 +22,11 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 
 public class BeamKafkaAvroTable extends BeamKafkaTable {
 
@@ -63,10 +63,7 @@ public class BeamKafkaAvroTable extends BeamKafkaTable {
       return input
           .apply(
               "extractValue", MapElements.into(TypeDescriptor.of(byte[].class)).via(KV::getValue))
-          .apply(
-              "decodeAvroRecord",
-              MapElements.into(TypeDescriptors.rows())
-                  .via(AvroUtils.getAvroBytesToRowFunction(schema)))
+          .apply("decodeAvroRecord", MapElements.via(AvroUtils.getAvroBytesToRowFunction(schema)))
           .setRowSchema(schema);
     }
   }
@@ -83,16 +80,15 @@ public class BeamKafkaAvroTable extends BeamKafkaTable {
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
       return input
-          .apply(
-              "encodeAvroRecord",
-              MapElements.into(TypeDescriptor.of(byte[].class))
-                  .via(AvroUtils.getRowToAvroBytesFunction(schema)))
-          .apply(
-              "mapToKV",
-              MapElements.into(
-                      TypeDescriptors.kvs(
-                          TypeDescriptor.of(byte[].class), TypeDescriptor.of(byte[].class)))
-                  .via(bytes -> KV.of(new byte[] {}, bytes)));
+          .apply("encodeAvroRecord", MapElements.via(AvroUtils.getRowToAvroBytesFunction(schema)))
+          .apply("mapToKV", MapElements.via(new MakeBytesKVFn()));
+    }
+
+    private static class MakeBytesKVFn extends SimpleFunction<byte[], KV<byte[], byte[]>> {
+      @Override
+      public KV<byte[], byte[]> apply(byte[] bytes) {
+        return KV.of(new byte[] {}, bytes);
+      }
     }
   }
 }
