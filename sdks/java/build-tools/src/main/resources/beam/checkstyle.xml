@@ -42,13 +42,6 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="fileNamePattern" value=".*Tests\.java$" />
   </module>
 
-  <!--  Skip check on unsupported file : module-info.java
-        https://checkstyle.sourceforge.io/config_filefilters.html
-  -->
-  <module name="BeforeExecutionExclusionFileFilter">
-    <property name="fileNamePattern" value="module\-info\.java$"/>
-  </module>
-
   <!-- Check that every module has a package-info.java -->
   <module name="JavadocPackage"/>
 
