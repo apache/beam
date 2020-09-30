@@ -258,7 +258,8 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
   def check_output(self, want, got, optionflags):
     # When an error occurs check_output is called with want=example.exc_msg,
     # and got=exc_msg
-    if got.startswith(WONT_IMPLEMENT) and want.startswith(WONT_IMPLEMENT):
+    if got.startswith(WONT_IMPLEMENT) and (want.startswith(WONT_IMPLEMENT) or
+                                           want.startswith(NOT_IMPLEMENTED)):
       self._seen_wont_implement = True
       return True
     elif got.startswith(NOT_IMPLEMENTED) and want.startswith(NOT_IMPLEMENTED):
@@ -356,14 +357,14 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         example.source = 'pass'
         example.want = ''
         self.skipped += 1
-      elif example.exc_msg is None and self._is_wont_implement_ok(example,
-                                                                  test):
-        # Don't fail doctests that raise this error.
-        example.exc_msg = '%s: ...' % WONT_IMPLEMENT
       elif example.exc_msg is None and self._is_not_implemented_ok(example,
                                                                    test):
         # Don't fail doctests that raise this error.
         example.exc_msg = '%s: ...' % NOT_IMPLEMENTED
+      elif example.exc_msg is None and self._is_wont_implement_ok(example,
+                                                                  test):
+        # Don't fail doctests that raise this error.
+        example.exc_msg = '%s: ...' % WONT_IMPLEMENT
     with self._test_env.context():
       result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
       # Can't add attributes to builtin result.
@@ -373,7 +374,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
   def report_success(self, out, test, example, got):
     def extract_concise_reason(got, expected_exc):
-      m = re.search(r"%s:\s+(.*)\n$" % expected_exc, got)
+      m = re.search(r"Implement(?:ed)?Error:\s+(.*)\n$", got)
       if m:
         return m.group(1)
       elif "NameError" in got:
@@ -506,7 +507,10 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
        for line in rst.split('\n') if is_example_line(line)] + ['END'])
 
   # https://ipython.readthedocs.io/en/stable/sphinxext.html
-  for line in lines:
+  line = next(lines)
+  while True:
+    if line == 'END':
+      break
     if line.startswith('.. ipython::'):
       line = next(lines)
       indent = get_indent(line)
@@ -521,7 +525,8 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
         if get_indent(line) == indent:
           example = []
           example_srcs.append(example)
-    assert not line.startswith('.. ipython::')
+    else:
+      line = next(lines)
 
   # TODO(robertwb): Would it be better to try and detect/compare the actual
   # objects in two parallel sessions than make (stringified) doctests?
@@ -560,7 +565,13 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
 
 
 def test_rst_ipython(
-    rst, name, report=False, wont_implement_ok=(), skip=(), **kwargs):
+    rst,
+    name,
+    report=False,
+    wont_implement_ok=(),
+    not_implemented_ok=(),
+    skip=(),
+    **kwargs):
   """Extracts examples from an rst file and run them through pandas to get the
   expected output, and then compare them against our dataframe implementation.
   """
@@ -577,6 +588,7 @@ def test_rst_ipython(
   result = _run_patched(
       run_tests,
       wont_implement_ok={name: wont_implement_ok},
+      not_implemented_ok={name: not_implemented_ok},
       skip={name: skip},
       **kwargs)
   return result

@@ -80,7 +80,12 @@ def main():
     with open(path) as f:
       rst = f.read()
     running_summary += doctests.test_rst_ipython(
-        rst, path, report=True, wont_implement_ok=['*'], use_beam=False).summary
+        rst,
+        path,
+        report=True,
+        wont_implement_ok=['*'],
+        not_implemented_ok=['*'],
+        use_beam=False).summary
 
   print('*' * 70)
   print("Final summary:")
