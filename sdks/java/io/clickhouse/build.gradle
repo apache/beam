@@ -47,7 +47,7 @@ idea {
   }
 }
 
-def clickhouse_jdbc_version = "0.1.47"
+def clickhouse_jdbc_version = "0.2.4"
 def testcontainers_version = "1.10.5"
 
 dependencies {
