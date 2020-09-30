@@ -243,5 +243,12 @@ public class DataflowPipelineOptionsTest {
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("us-west1", options.getRegion());
     }
+
+    @Test
+    public void testHotKeyLoggingEnabled() {
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      options.setHotKeyLoggingEnabled(true);
+      assertEquals(true, options.getHotKeyLoggingEnabled());
+    }
   }
 }
