@@ -41,6 +41,7 @@ import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.utility.DockerImageName;
 
 /** Base setup for ClickHouse containers. */
 @SuppressWarnings("unchecked")
@@ -64,7 +65,7 @@ public class BaseClickHouseTest {
     network = Network.newNetwork();
 
     zookeeper =
-        new GenericContainer<>("zookeeper:3.4.13")
+        new GenericContainer<>(DockerImageName.parse("zookeeper:3.4.13"))
             .withStartupAttempts(10)
             .withExposedPorts(2181)
             .withNetwork(network)
