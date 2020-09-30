@@ -116,7 +116,7 @@ OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
   --parallelism 1 \
   --sdk_worker_parallelism 1 \
   --environment_type DOCKER \
-  --environment_config=$PYTHON_CONTAINER_IMAGE \
+  --environment_options "docker_container_image=$PYTHON_CONTAINER_IMAGE" \
 ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
 
 if [[ "$TEST_EXIT_CODE" -eq 0 ]]; then
