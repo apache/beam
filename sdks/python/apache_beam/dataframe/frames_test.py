@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import math
 import sys
 import unittest
 
@@ -35,10 +36,18 @@ class DeferredFrameTest(unittest.TestCase):
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
     ]
     expected = func(*args)
-    actual = expressions.Session({}).evaluate(func(*deferred_args)._expr)
+    actual = expressions.Session({}).evaluate(
+        func(*deferred_args)._expr)
+    if hasattr(expected, 'equals'):
+      cmp = expected.equals
+    elif isinstance(expected, float):
+      cmp = lambda x: (math.isnan(x) and math.isnan(expected)
+                       ) or x == expected == 0 or abs(expected - x) / (
+                           abs(expected) + abs(x)) < 1e-8
+    else:
+      cmp = expected.__eq__
     self.assertTrue(
-        getattr(expected, 'equals', expected.__eq__)(actual),
-        'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+        cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -136,6 +145,15 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)
     self._run_test(lambda df: df.nsmallest(3, 'A', keep='all'), df)
     self._run_test(lambda df: df.nlargest(3, ['A', 'B'], keep='all'), df)
+
+  def test_corr(self):
+    for s in [pd.Series([1, 2, 3]),
+              pd.Series(range(100)),
+              pd.Series([x**3 for x in range(-50, 50)])]:
+      self._run_test(lambda s: s.std(), s)
+      self._run_test(lambda s: s.corr(s), s)
+      self._run_test(lambda s: s.corr(s + 1), s)
+      self._run_test(lambda s: s.corr(s * s), s)
 
 
 class AllowNonParallelTest(unittest.TestCase):

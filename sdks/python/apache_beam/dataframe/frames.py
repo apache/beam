@@ -16,6 +16,8 @@
 
 from __future__ import absolute_import
 
+import math
+
 import pandas as pd
 
 from apache_beam.dataframe import expressions
@@ -72,6 +74,124 @@ class DeferredSeries(frame_base.DeferredFrame):
       return frame_base.DeferredFrame.wrap(result)
 
   __matmul__ = dot
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def std(self, axis, skipna, level, ddof, **kwargs):
+    if level is not None:
+      raise NotImplementedError("per-level aggregation")
+    if skipna:
+      self = self.dropna()
+
+    # See the online, numerically stable formulae at
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+    def compute_moments(x):
+      n = len(x)
+      m = x.std(ddof=0)**2 * n
+      s = x.sum()
+      return pd.DataFrame(dict(m=[m], s=[s], n=[n]))
+
+    def combine_moments(data):
+      m = s = n = 0.0
+      for datum in data.itertuples():
+        if datum.n == 0:
+          continue
+        elif n == 0:
+          m, s, n = datum.m, datum.s, datum.n
+        else:
+          m += datum.m + (s / n - datum.s / datum.n)**2 * n * datum.n / (
+              n + datum.n)
+          s += datum.s
+          n += datum.n
+      if n <= ddof:
+        return float('nan')
+      else:
+        return math.sqrt(m / (n - ddof))
+
+    moments = expressions.ComputedExpression(
+        'compute_moments',
+        compute_moments, [self._expr],
+        requires_partition_by=partitionings.Nothing())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_moments',
+              combine_moments, [moments],
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def corr(self, other, method, min_periods):
+    if method == 'pearson':  # Note that this is the default.
+      x = self.dropna()
+      y = other.dropna()
+
+      # Do this first to filter to the entries that are present on both sides.
+      def join(x, y):
+        return pd.concat([x, y], axis=1, join='inner').rename(
+            lambda c: 'xy'[c], axis=1)
+
+      # Use the formulae from
+      # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Covariance
+      def compute_co_moments(x, y):
+        n = len(x)
+        if n <= 1:
+          c = 0
+        else:
+          c = x.corr(y) * x.std() * y.std() * (n - 1)
+        sx = x.sum()
+        sy = y.sum()
+        return pd.DataFrame(dict(c=[c], sx=[sx], sy=[sy], n=[n]))
+
+      def combine_co_moments(data, std_x, std_y):
+        c = sx = sy = n = 0.0
+        for datum in data.itertuples():
+          if datum.n == 0:
+            continue
+          elif n == 0:
+            c, sx, sy, n = datum.c, datum.sx, datum.sy, datum.n
+          else:
+            c += (
+                datum.c + (sx / n - datum.sx / datum.n) *
+                (sy / n - datum.sy / datum.n) * n * datum.n / (n + datum.n))
+            sx += datum.sx
+            sy += datum.sy
+            n += datum.n
+        if n < max(2, min_periods or 0):
+          return float('nan')
+        else:
+          return c / (n - 1) / std_x / std_y
+
+      joined = frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'join',
+              join, [x._expr, y._expr],
+              requires_partition_by=partitionings.Index()))
+      std_x = joined.x.std()
+      std_y = joined.y.std()
+
+      moments = expressions.ComputedExpression(
+          'compute_co_moments',
+          compute_co_moments, [joined.x._expr, joined.y._expr])
+
+      with expressions.allow_non_parallel_operations(True):
+        return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'comnine_co_moments',
+                combine_co_moments, [moments, std_x._expr, std_y._expr],
+                requires_partition_by=partitionings.Singleton()))
+
+    else:
+      # The rank-based correlations are not obviously parallelizable, though
+      # perhaps an approximation could be done with a knowledge of quantiles
+      # and custom partitioning.
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'corr',
+              lambda df,
+              other: df.corr(other, method=method, DataFrame=min_periods)[
+                  self._expr, other._expr],
+              requires_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -373,7 +493,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   combine = frame_base.not_implemented_method('combine')
   combine_first = frame_base.not_implemented_method('combine_first')
   cov = frame_base.not_implemented_method('cov')
-  corr = frame_base.not_implemented_method('corr')
+  #  corr = frame_base.not_implemented_method('corr')
   count = frame_base.not_implemented_method('count')
   drop = frame_base.not_implemented_method('drop')
   eval = frame_base.not_implemented_method('eval')
