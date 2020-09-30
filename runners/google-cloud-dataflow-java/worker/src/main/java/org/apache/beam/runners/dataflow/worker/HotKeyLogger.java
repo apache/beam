@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.client.util.Clock;
-import java.text.MessageFormat;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -50,7 +49,27 @@ public class HotKeyLogger {
     if (isThrottled()) {
       return;
     }
-    LOG.warn(getHotKeyMessage(userStepName, TimeUtil.toCloudDuration(hotKeyAge)));
+    LOG.warn(
+        "A hot key was detected in step '{}' with age of '{}'. This is "
+            + "a symptom of key distribution being skewed. To fix, please inspect your data and "
+            + "pipeline to ensure that elements are evenly distributed across your key space.",
+        userStepName,
+        TimeUtil.toCloudDuration(hotKeyAge));
+  }
+
+  /** Logs a detection of the hot key every 5 minutes with the given key. */
+  public void logHotKeyDetection(String userStepName, Duration hotKeyAge, Object hotkey) {
+    if (isThrottled()) {
+      return;
+    }
+
+    LOG.warn(
+        "A hot key '{}' was detected in step '{}' with age of '{}'. This is "
+            + "a symptom of key distribution being skewed. To fix, please inspect your data and "
+            + "pipeline to ensure that elements are evenly distributed across your key space.",
+        hotkey,
+        userStepName,
+        TimeUtil.toCloudDuration(hotKeyAge));
   }
 
   /**
@@ -65,13 +84,5 @@ public class HotKeyLogger {
     }
     prevHotKeyDetectionLogMs = nowMs;
     return false;
-  }
-
-  protected String getHotKeyMessage(String userStepName, String hotKeyAge) {
-    return MessageFormat.format(
-        "A hot key was detected in step ''{0}'' with age of ''{1}''. This is"
-            + " a symptom of key distribution being skewed. To fix, please inspect your data and "
-            + "pipeline to ensure that elements are evenly distributed across your key space.",
-        userStepName, hotKeyAge);
   }
 }
