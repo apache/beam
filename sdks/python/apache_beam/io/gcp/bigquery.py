@@ -743,11 +743,13 @@ class _CustomBigQuerySource(BoundedSource):
       if (isinstance(self.table_reference, vp.ValueProvider) and
           self.table_reference.is_accessible()):
         table_ref = bigquery_tools.parse_table_reference(
-            self.table_reference.get(), project=self.project)
+            table_ref, project=self._get_project())
       elif isinstance(self.table_reference, vp.ValueProvider):
         # Size estimation is best effort. We return None as we have
         # no access to the table that we're querying.
         return None
+      if not table_ref.projectId:
+        table_ref.projectId = self._get_project()
       table = bq.get_table(
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
@@ -803,6 +805,9 @@ class _CustomBigQuerySource(BoundedSource):
       if self.query is not None:
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
+
+      if not self.table_reference.projectId:
+        self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
       self.split_result = [
