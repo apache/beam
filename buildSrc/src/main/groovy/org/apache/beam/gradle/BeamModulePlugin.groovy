@@ -1951,9 +1951,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
-      // If none of them applied, version set here will be used as default value.
+      // If none of them applied, version set here will be used as default value. Currently
+      // the minimum version supported by Beam is 3.6
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '2.7'
+          project.pythonVersion : '3.6'
 
       project.task('setupVirtualenv')  {
         doLast {
