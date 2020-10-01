@@ -30,7 +30,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.commons_compress
   compile "org.apache.solr:solr-solrj:5.5.4"
-  compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
+  compileOnly "org.apache.httpcomponents:httpclient:4.5.12"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:io:common")
   testCompile library.java.hamcrest_core
