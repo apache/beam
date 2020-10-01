@@ -42,18 +42,128 @@ it('builds show_graph query correctly', () => {
   );
 });
 
-it('builds show query correctly', () => {
+it('builds show query correctly with default values', () => {
+  const inspectableViewModel = new InspectableViewModel(
+    fakeSessionContext as any
+  );
+  inspectableViewModel.queryKernel('pcollection', 'id');
+  expect(inspectableViewModel.buildShowQuery({} as IShowOptions)).toBe(
+    "ib.show(ie.current_env().inspector.get_val('id')," +
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
+  );
+});
+
+it('builds show query with given checkbox values correctly', () => {
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
   inspectableViewModel.queryKernel('pcollection', 'id');
   expect(
     inspectableViewModel.buildShowQuery({
+      includeWindowInfo: true,
       visualizeInFacets: true
     } as IShowOptions)
   ).toBe(
     "ib.show(ie.current_env().inspector.get_val('id')," +
-      'include_window_info=False, visualize_data=True)'
+      'include_window_info=True, visualize_data=True, ' +
+      "duration='inf', n='inf')"
+  );
+});
+
+it('builds show query with string duration', () => {
+  const inspectableViewModel = new InspectableViewModel(
+    fakeSessionContext as any
+  );
+  inspectableViewModel.queryKernel('pcollection', 'id');
+  expect(
+    inspectableViewModel.buildShowQuery({
+      duration: '60s'
+    } as IShowOptions)
+  ).toBe(
+    "ib.show(ie.current_env().inspector.get_val('id')," +
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='60s', n='inf')"
+  );
+});
+
+it('builds show query with negative duration as inf', () => {
+  const inspectableViewModel = new InspectableViewModel(
+    fakeSessionContext as any
+  );
+  inspectableViewModel.queryKernel('pcollection', 'id');
+  expect(
+    inspectableViewModel.buildShowQuery({
+      duration: '-1'
+    } as IShowOptions)
+  ).toBe(
+    "ib.show(ie.current_env().inspector.get_val('id')," +
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
+  );
+});
+
+it('builds show query with positive duration as int', () => {
+  const inspectableViewModel = new InspectableViewModel(
+    fakeSessionContext as any
+  );
+  inspectableViewModel.queryKernel('pcollection', 'id');
+  expect(
+    inspectableViewModel.buildShowQuery({
+      duration: '5.5'
+    } as IShowOptions)
+  ).toBe(
+    "ib.show(ie.current_env().inspector.get_val('id')," +
+      'include_window_info=False, visualize_data=False, ' +
+      "duration=5, n='inf')"
+  );
+});
+
+it('builds show query with string n as inf', () => {
+  const inspectableViewModel = new InspectableViewModel(
+    fakeSessionContext as any
+  );
+  inspectableViewModel.queryKernel('pcollection', 'id');
+  expect(
+    inspectableViewModel.buildShowQuery({
+      n: 'abcd'
+    } as IShowOptions)
+  ).toBe(
+    "ib.show(ie.current_env().inspector.get_val('id')," +
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
+  );
+});
+
+it('builds show query with negative n as inf', () => {
+  const inspectableViewModel = new InspectableViewModel(
+    fakeSessionContext as any
+  );
+  inspectableViewModel.queryKernel('pcollection', 'id');
+  expect(
+    inspectableViewModel.buildShowQuery({
+      n: '-1'
+    } as IShowOptions)
+  ).toBe(
+    "ib.show(ie.current_env().inspector.get_val('id')," +
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n='inf')"
+  );
+});
+
+it('builds show query with positive n as int', () => {
+  const inspectableViewModel = new InspectableViewModel(
+    fakeSessionContext as any
+  );
+  inspectableViewModel.queryKernel('pcollection', 'id');
+  expect(
+    inspectableViewModel.buildShowQuery({
+      n: '5.5'
+    } as IShowOptions)
+  ).toBe(
+    "ib.show(ie.current_env().inspector.get_val('id')," +
+      'include_window_info=False, visualize_data=False, ' +
+      "duration='inf', n=5)"
   );
 });
 
