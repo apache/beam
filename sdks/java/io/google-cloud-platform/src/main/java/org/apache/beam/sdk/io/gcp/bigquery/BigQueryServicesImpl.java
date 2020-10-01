@@ -271,7 +271,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       Exception lastException;
       do {
         try {
-          client.jobs().insert(jobRef.getProjectId(), job).execute();
+          client.jobs().insert(jobRef.getProjectId(), job).setPrettyPrint(false).execute();
           LOG.info(
               "Started BigQuery job: {}.\n{}",
               jobRef,
@@ -314,6 +314,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .jobs()
                   .get(jobRef.getProjectId(), jobRef.getJobId())
                   .setLocation(jobRef.getLocation())
+                  .setPrettyPrint(false)
                   .execute();
           if (job == null) {
             LOG.info("Still waiting for BigQuery job {} to start", jobRef);
@@ -357,7 +358,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setJobReference(jobRef)
               .setConfiguration(new JobConfiguration().setQuery(queryConfig).setDryRun(true));
       return executeWithRetries(
-              client.jobs().insert(projectId, job),
+              client.jobs().insert(projectId, job).setPrettyPrint(false),
               String.format(
                   "Unable to dry run query: %s, aborting after %d retries.",
                   queryConfig, MAX_RPC_RETRIES),
@@ -390,6 +391,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .jobs()
               .get(jobRef.getProjectId(), jobId)
               .setLocation(jobRef.getLocation())
+              .setPrettyPrint(false)
               .execute();
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemNotFound(e)) {
@@ -494,7 +496,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         TableReference ref, @Nullable List<String> selectedFields, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
-          client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+          client
+              .tables()
+              .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
+              .setPrettyPrint(false);
       if (selectedFields != null && !selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
       }
@@ -557,6 +562,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                   table.getTableReference().getProjectId(),
                   table.getTableReference().getDatasetId(),
                   table)
+              .setPrettyPrint(false)
               .execute();
         } catch (IOException e) {
           ApiErrorExtractor extractor = new ApiErrorExtractor();
@@ -622,7 +628,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           executeWithRetries(
               client
                   .tabledata()
-                  .list(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+                  .list(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId())
+                  .setPrettyPrint(false),
               String.format(
                   "Unable to list table data: %s, aborting after %d retries.",
                   tableRef.getTableId(), MAX_RPC_RETRIES),
@@ -643,7 +650,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     public Dataset getDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
       return executeWithRetries(
-          client.datasets().get(projectId, datasetId),
+          client.datasets().get(projectId, datasetId).setPrettyPrint(false),
           String.format(
               "Unable to get dataset: %s, aborting after %d retries.", datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
@@ -703,7 +710,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       Exception lastException;
       do {
         try {
-          client.datasets().insert(projectId, dataset).execute();
+          client.datasets().insert(projectId, dataset).setPrettyPrint(false).execute();
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
@@ -819,7 +826,8 @@ class BigQueryServicesImpl implements BigQueryServices {
             final Bigquery.Tabledata.InsertAll insert =
                 client
                     .tabledata()
-                    .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content);
+                    .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content)
+                    .setPrettyPrint(false);
 
             futures.add(
                 executor.submit(
@@ -983,7 +991,8 @@ class BigQueryServicesImpl implements BigQueryServices {
                   tableReference.getProjectId(),
                   tableReference.getDatasetId(),
                   tableReference.getTableId(),
-                  table),
+                  table)
+              .setPrettyPrint(false),
           String.format(
               "Unable to patch table description: %s, aborting after %d retries.",
               tableReference, MAX_RPC_RETRIES),
