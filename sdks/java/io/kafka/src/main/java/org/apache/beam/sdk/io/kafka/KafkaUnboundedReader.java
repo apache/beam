@@ -284,7 +284,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaUnboundedSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaUnboundedReader.class);
 
   @VisibleForTesting static final String METRIC_NAMESPACE = "KafkaIOReader";
 

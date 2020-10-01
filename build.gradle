@@ -95,7 +95,7 @@ rat {
     "learning/katas/**/section-remote-info.yaml",
     "learning/katas/**/lesson-remote-info.yaml",
     "learning/katas/**/task-remote-info.yaml",
-    "learning/katas/*/IO/**/*.txt",
+    "learning/katas/**/*.txt",
 
     // test p8 file for SnowflakeIO
     "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",

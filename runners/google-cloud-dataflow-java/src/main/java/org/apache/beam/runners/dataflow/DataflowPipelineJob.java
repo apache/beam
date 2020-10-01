@@ -296,7 +296,7 @@ public class DataflowPipelineJob implements PipelineResult {
       } catch (IOException e) {
         exception = e;
         LOG.warn("Failed to get job state: {}", e.getMessage());
-        LOG.debug("Failed to get job state: {}", e);
+        LOG.debug("Failed to get job state.", e);
         continue;
       }
 
@@ -323,7 +323,7 @@ public class DataflowPipelineJob implements PipelineResult {
     if (exception == null) {
       LOG.warn("No terminal state was returned within allotted timeout. State value {}", state);
     } else {
-      LOG.error("Failed to fetch job metadata with error: {}", exception);
+      LOG.error("Failed to fetch job metadata.", exception);
     }
 
     return null;
@@ -392,7 +392,7 @@ public class DataflowPipelineJob implements PipelineResult {
         }
       } catch (GoogleJsonResponseException | SocketTimeoutException e) {
         LOG.warn("Failed to get job messages: {}", e.getMessage());
-        LOG.debug("Failed to get job messages: {}", e);
+        LOG.debug("Failed to get job messages.", e);
         return e;
       }
     }
