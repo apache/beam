@@ -866,8 +866,14 @@ public class Read {
                 UnboundedSourceRestriction.create(
                     EmptyUnboundedSource.INSTANCE, null, BoundedWindow.TIMESTAMP_MAX_VALUE),
                 currentRestriction);
-        currentReader =
-            EmptyUnboundedSource.INSTANCE.createReader(null, currentRestriction.getCheckpoint());
+        try {
+          currentReader.close();
+        } catch (IOException e) {
+          LOG.warn("Failed to close UnboundedReader.", e);
+        } finally {
+          currentReader =
+              EmptyUnboundedSource.INSTANCE.createReader(null, currentRestriction.getCheckpoint());
+        }
         return result;
       }
 
