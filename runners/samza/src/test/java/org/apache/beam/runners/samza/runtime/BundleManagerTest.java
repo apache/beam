@@ -19,6 +19,7 @@ package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.doThrow;
@@ -83,8 +84,7 @@ public final class BundleManagerTest {
 
   @Test
   public void testTryStartBundleThrowsExceptionAndSignalError() {
-    bundleManager.setCurrentBundleResultFutures(
-        Collections.singletonList(mock(CompletionStage.class)));
+    bundleManager.setCurrentBundleDoneFuture(CompletableFuture.completedFuture(null));
     try {
       bundleManager.tryStartBundle();
     } catch (IllegalArgumentException e) {
@@ -232,9 +232,9 @@ public final class BundleManagerTest {
     bundleManager.tryFinishBundle(mockEmitter);
 
     verify(mockEmitter, times(1)).emitFuture(anyObject());
-    assertTrue(
-        "tryFinishBundle() should not add futures when no bundle in progress",
-        bundleManager.getCurrentBundleResultFutures().isEmpty());
+    assertNull(
+        "tryFinishBundle() should not set the future when no bundle in progress",
+        bundleManager.getCurrentBundleDoneFuture());
   }
 
   @Test
@@ -347,6 +347,9 @@ public final class BundleManagerTest {
 
     when(mockTimerData.getTimerId()).thenReturn(BUNDLE_CHECK_TIMER_ID);
     when(mockTimer.getTimerData()).thenReturn(mockTimerData);
+
+    when(mockFutureCollector.finish())
+        .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
     bundleManager.tryStartBundle();
     bundleManager.processTimer(mockTimer, mockEmitter);

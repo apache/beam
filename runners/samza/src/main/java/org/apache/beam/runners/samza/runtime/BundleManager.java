@@ -17,18 +17,16 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -81,9 +79,9 @@ public class BundleManager<OutT> {
   private transient AtomicBoolean isBundleStarted;
   // Holder for watermark which gets propagated when the bundle is finished.
   private transient Instant bundleWatermarkHold;
-  // A container for futures belonging to the current active bundle
-  private transient List<CompletionStage<Collection<WindowedValue<OutT>>>>
-      currentBundleResultFutures;
+  // A future that is completed once all futures belonging to the current active bundle are
+  // completed.  The value is null if there are no futures in the current active bundle.
+  private transient AtomicReference<CompletionStage<Void>> currentActiveBundleDoneFutureReference;
   private transient CompletionStage<Void> watermarkFuture;
 
   public BundleManager(
@@ -106,7 +104,7 @@ public class BundleManager<OutT> {
 
     // instance variable initialization for bundle tracking
     this.bundleStartTime = new AtomicLong(Long.MAX_VALUE);
-    this.currentBundleResultFutures = Collections.synchronizedList(new ArrayList<>());
+    this.currentActiveBundleDoneFutureReference = new AtomicReference<>();
     this.currentBundleElementCount = new AtomicLong(0L);
     this.isBundleStarted = new AtomicBoolean(false);
     this.pendingBundleCount = new AtomicLong(0L);
@@ -140,8 +138,8 @@ public class BundleManager<OutT> {
       LOG.debug("Starting a new bundle.");
       // make sure the previous bundle is sealed and futures are cleared
       Preconditions.checkArgument(
-          currentBundleResultFutures.isEmpty(),
-          "Current bundle futures should be empty" + "before starting a new bundle.");
+          currentActiveBundleDoneFutureReference.get() == null,
+          "Current active bundle done future should be null before starting a new bundle.");
       bundleStartTime.set(System.currentTimeMillis());
       pendingBundleCount.incrementAndGet();
       bundleProgressListener.onBundleStarted();
@@ -211,7 +209,7 @@ public class BundleManager<OutT> {
       currentBundleElementCount.set(0L);
       bundleStartTime.set(Long.MAX_VALUE);
       pendingBundleCount.decrementAndGet();
-      currentBundleResultFutures.clear();
+      currentActiveBundleDoneFutureReference.set(null);
     }
   }
 
@@ -233,14 +231,17 @@ public class BundleManager<OutT> {
       Instant watermarkHold = bundleWatermarkHold;
       bundleWatermarkHold = null;
 
+      CompletionStage<Void> currentActiveBundleDoneFuture =
+          currentActiveBundleDoneFutureReference.get();
       outputFuture =
-          FutureUtils.flattenFutures(currentBundleResultFutures)
-              .thenCombine(
-                  outputFuture,
-                  (ignored, res) -> {
-                    bundleProgressListener.onBundleFinished(emitter);
-                    return res;
-                  });
+          outputFuture.thenCombine(
+              currentActiveBundleDoneFuture != null
+                  ? currentActiveBundleDoneFuture
+                  : CompletableFuture.completedFuture(null),
+              (res, ignored) -> {
+                bundleProgressListener.onBundleFinished(emitter);
+                return res;
+              });
 
       BiConsumer<Collection<WindowedValue<OutT>>, Void> watermarkPropagationFn;
       if (watermarkHold == null) {
@@ -258,9 +259,15 @@ public class BundleManager<OutT> {
       // since bundles can finish out of order but we still want the watermark to be emitted in
       // order.
       watermarkFuture = outputFuture.thenAcceptBoth(watermarkFuture, watermarkPropagationFn);
-      currentBundleResultFutures.clear();
+      currentActiveBundleDoneFutureReference.set(null);
     } else if (isBundleStarted.get()) {
-      currentBundleResultFutures.add(outputFuture);
+      CompletableFuture<Void> newFuture = new CompletableFuture<>();
+      CompletionStage<Void> oldFuture = currentActiveBundleDoneFutureReference.getAndSet(newFuture);
+      outputFuture
+          .thenCombine(
+              oldFuture != null ? oldFuture : CompletableFuture.completedFuture(null),
+              (ignored1, ignored2) -> newFuture.complete(null))
+          .exceptionally(newFuture::completeExceptionally);
     }
 
     // emit the future to the propagate it to rest of the DAG
@@ -273,14 +280,14 @@ public class BundleManager<OutT> {
   }
 
   @VisibleForTesting
-  List<CompletionStage<Collection<WindowedValue<OutT>>>> getCurrentBundleResultFutures() {
-    return currentBundleResultFutures;
+  @Nullable
+  CompletionStage<Void> getCurrentBundleDoneFuture() {
+    return currentActiveBundleDoneFutureReference.get();
   }
 
   @VisibleForTesting
-  void setCurrentBundleResultFutures(
-      List<CompletionStage<Collection<WindowedValue<OutT>>>> currentBundleResultFutures) {
-    this.currentBundleResultFutures = currentBundleResultFutures;
+  void setCurrentBundleDoneFuture(CompletionStage<Void> currentBundleResultFuture) {
+    this.currentActiveBundleDoneFutureReference.set(currentBundleResultFuture);
   }
 
   @VisibleForTesting
