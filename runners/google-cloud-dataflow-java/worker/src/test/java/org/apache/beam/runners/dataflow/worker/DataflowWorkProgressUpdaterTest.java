@@ -140,6 +140,18 @@ public class DataflowWorkProgressUpdaterTest {
     progressUpdater.stopReportingProgress();
   }
 
+  @Test
+  public void workProgressAskedToAbortWorker() throws Exception {
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceAbort());
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(worker, atLeastOnce()).abort();
+
+    progressUpdater.stopReportingProgress();
+  }
+
   /** Verifies that the update after a split is requested acknowledeges it. */
   @Test
   public void workProgressSendsSplitResults() throws Exception {
@@ -269,6 +281,16 @@ public class DataflowWorkProgressUpdaterTest {
     hotKeyDetection.setHotKeyAge(toCloudDuration(HOT_KEY_AGE));
     responseState.setHotKeyDetection(hotKeyDetection);
 
+    return responseState;
+  }
+
+  private WorkItemServiceState generateServiceAbort() {
+    WorkItemServiceState responseState = new WorkItemServiceState();
+    responseState.setCompleteWorkStatus(
+        com.google.rpc.Status.newBuilder()
+          .setCode(com.google.rpc.Code.ABORTED)
+          .setMessage("Worker was asked to abort!")
+          .build());
     return responseState;
   }
 }
