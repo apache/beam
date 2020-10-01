@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.Position;
+import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -285,12 +286,9 @@ public class DataflowWorkProgressUpdaterTest {
   }
 
   private WorkItemServiceState generateServiceAbort() {
+    System.out.println("TUDOR]");
     WorkItemServiceState responseState = new WorkItemServiceState();
-    responseState.setCompleteWorkStatus(
-        com.google.rpc.Status.newBuilder()
-          .setCode(com.google.rpc.Code.ABORTED)
-          .setMessage("Worker was asked to abort!")
-          .build());
+    responseState.setCompleteWorkStatus(new Status().setCode(com.google.rpc.Code.ABORTED_VALUE).setMessage("Worker was asked to abort!"));
     return responseState;
   }
 }
