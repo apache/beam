@@ -201,7 +201,7 @@ public interface DataflowPipelineOptions
   /** If enabled then the literal key will be logged to Cloud Logging if a hot key is detected. */
   @Description(
       "If enabled then the literal key will be logged to Cloud Logging if a hot key is detected.")
-  boolean getHotKeyLoggingEnabled();
+  boolean isHotKeyLoggingEnabled();
 
   void setHotKeyLoggingEnabled(boolean value);
 }
