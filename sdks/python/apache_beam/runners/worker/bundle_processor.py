@@ -74,6 +74,7 @@ from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
+from apache_beam.transforms import window
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
@@ -86,7 +87,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker import data_plane
   from apache_beam.runners.worker import sdk_worker
-  from apache_beam.transforms import window
   from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -1833,3 +1833,43 @@ def create_map_windows(
 
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, MapWindows())
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.primitives.MERGE_WINDOWS.urn, beam_runner_api_pb2.FunctionSpec)
+def create_map_windows(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
+    consumers  # type: Dict[str, List[operations.Operation]]
+):
+  assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOWFN
+  window_fn = pickler.loads(mapping_fn_spec.payload)
+
+  class MergeWindows(beam.DoFn):
+    def process(self, element):
+      nonce, windows = element
+
+      original_windows = set(windows)  # type: Set[window.BoundedWindow]
+      merged_windows = collections.defaultdict(set)  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]]
+
+      class RecordingMergeContext(window.WindowFn.MergeContext):
+        def merge(
+            self,
+            to_be_merged,  # type: Collection[window.BoundedWindow]
+            merge_result,  # type: window.BoundedWindow
+          ):
+          originals = merged_windows[merge_result]
+          for window in to_be_merged:
+            if window in original_windows:
+              originals.add(window)
+              original_windows.remove(window)
+            else:
+              originals.update(merged_windows.pop(window))
+
+      window_fn.merge(RecordingMergeContext(windows))
+      yield nonce, (original_windows, merged_windows.items())
+
+  return _create_simple_pardo_operation(
+      factory, transform_id, transform_proto, consumers, MergeWindows())
