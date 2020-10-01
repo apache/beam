@@ -484,7 +484,7 @@ class GaugeAggregator(MetricAggregator):
   @staticmethod
   def identity_element():
     # type: () -> GaugeData
-    return GaugeData(None, timestamp=0)
+    return GaugeData(0, timestamp=0)
 
   def combine(self, x, y):
     # type: (GaugeData, GaugeData) -> GaugeData

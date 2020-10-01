@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.cells import GaugeCell
 
 
 class MonitoringInfosTest(unittest.TestCase):
@@ -63,6 +64,12 @@ class MonitoringInfosTest(unittest.TestCase):
     namespace, name = monitoring_infos.parse_namespace_and_name(input)
     self.assertEqual(namespace, "counternamespace")
     self.assertEqual(name, "countername")
+
+  def test_int64_user_gauge(self):
+    metric = GaugeCell().get_cumulative()
+    result = monitoring_infos.int64_user_gauge('gaugenamespace', 'gaugename', metric)
+    ts, gauge_value = monitoring_infos.extract_gauge_value(result)
+    self.assertEqual(0, gauge_value)
 
 
 if __name__ == '__main__':
