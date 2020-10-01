@@ -57,8 +57,6 @@ dependencies {
   compile "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
   testCompile library.java.slf4j_api
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile "org.testcontainers:clickhouse:$testcontainers_version"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

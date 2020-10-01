@@ -43,10 +43,7 @@ dependencies {
   compile library.java.joda_time
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_api
-  testCompile library.java.jackson_dataformat_yaml
   testRuntimeOnly library.java.slf4j_simple
 }

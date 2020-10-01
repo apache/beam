@@ -31,11 +31,8 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile "com.clearspring.analytics:stream:$streamlib_version"
   compile "com.tdunning:t-digest:$tdigest_version"
-  compile library.java.slf4j_api
   testCompile library.java.avro
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

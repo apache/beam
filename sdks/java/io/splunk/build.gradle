@@ -26,7 +26,6 @@ ext.summary = "IO to write events to Splunk Http Event Collector (HEC)"
 
 dependencies {
     compile library.java.slf4j_api
-    compile library.java.google_api_client
     compile library.java.google_http_client_apache_v2
     compile library.java.google_code_gson
     compile project(path: ":sdks:java:core", configuration: "shadow")

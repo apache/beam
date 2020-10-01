@@ -225,8 +225,6 @@ dependencies {
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-    shadowTest library.java.hamcrest_core
-    shadowTest library.java.hamcrest_library
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core

@@ -40,7 +40,6 @@ dependencies {
   compile library.java.aws_java_sdk_sns
   compile library.java.aws_java_sdk_sqs
   compile library.java.aws_java_sdk_sts
-  compile "commons-lang:commons-lang:2.6"
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
@@ -50,8 +49,6 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile "io.findify:s3mock_2.12:0.2.4"
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.testcontainers_localstack

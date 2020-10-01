@@ -37,19 +37,12 @@ dependencies {
   compile library.java.guava
   compile library.java.grpc_api
   compile library.java.protobuf_java
-  compile library.java.protobuf_java_util
-  compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
-  compile "com.google.api.grpc:grpc-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
-  compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   compile "com.google.zetasql:zetasql-client:$zetasql_version"
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
   testCompile library.java.vendored_calcite_1_20_0
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
-  testCompile library.java.quickcheck_core
   testRuntimeClasspath library.java.slf4j_jdk14
 }
 

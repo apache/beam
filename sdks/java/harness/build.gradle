@@ -58,7 +58,6 @@ dependencies {
   dependOnProjects.each {
     compile project(it)
   }
-  compile library.java.jackson_databind
   shadow library.java.vendored_guava_26_0_jre
   shadowTest library.java.powermock
   shadowTest library.java.powermock_mockito
@@ -66,8 +65,6 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_26_0
   provided library.java.error_prone_annotations
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")

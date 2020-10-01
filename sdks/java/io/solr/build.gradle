@@ -33,8 +33,6 @@ dependencies {
   compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:io:common")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.slf4j_api
   testCompile "org.apache.solr:solr-test-framework:5.5.4"

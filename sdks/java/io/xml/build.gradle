@@ -24,15 +24,11 @@ ext.summary = "IO to read and write XML files."
 
 dependencies {
   compile library.java.jaxb_api
-  compile library.java.jaxb_impl
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.stax2_api
-  compile library.java.woodstox_core_asl
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

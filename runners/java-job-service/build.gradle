@@ -36,8 +36,6 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.args4j
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple
 }

@@ -81,7 +81,6 @@ dependencies {
   compile library.java.vendored_grpc_1_26_0
   compile google_api_services_dataflow
   compile library.java.avro
-  compile library.java.google_api_client
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
   compile library.java.jackson_annotations
@@ -94,8 +93,6 @@ dependencies {
   compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
   compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
   compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
-  compile library.java.error_prone_annotations
-  compile library.java.slf4j_jdk14
 
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
@@ -104,8 +101,6 @@ dependencies {
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   shadowTest project(path: ":runners:direct-java", configuration: "shadow")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
   shadowTest library.java.jsonassert
   shadowTest library.java.junit
   shadowTest library.java.mockito_core

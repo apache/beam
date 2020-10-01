@@ -28,8 +28,6 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

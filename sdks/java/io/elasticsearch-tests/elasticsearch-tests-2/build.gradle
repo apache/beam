@@ -37,11 +37,6 @@ dependencies {
   testCompile project(":sdks:java:io:elasticsearch")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.slf4j_api
-  testCompile "net.java.dev.jna:jna:$jna_version"
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"

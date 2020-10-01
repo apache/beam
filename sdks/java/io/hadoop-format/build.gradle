@@ -61,24 +61,18 @@ dependencies {
   testCompile project(path: ":examples:java", configuration: "testRuntime")
 
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile "org.elasticsearch.client:transport:$elastic_search_version"
-  testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
   testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
     // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
     // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
   }
   // elasticsearch-hadoop 5.0.0 uses commons-httpclient's URIException
-  testCompile "commons-httpclient:commons-httpclient:3.1"
   testCompile library.java.commons_io
   testCompile library.java.cassandra_driver_core
   testCompile library.java.cassandra_driver_mapping
   testCompile "org.apache.cassandra:cassandra-all:3.11.5"
   testCompile library.java.postgres
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 

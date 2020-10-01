@@ -50,11 +50,10 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.jackson_annotations
-  compile library.java.jackson_databind
+  testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.10.2'
   provided library.java.hamcrest_core
   provided library.java.junit
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
 }

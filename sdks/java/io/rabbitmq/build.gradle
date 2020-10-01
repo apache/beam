@@ -30,11 +30,7 @@ dependencies {
   provided library.java.jackson_dataformat_xml
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile "org.apache.qpid:qpid-broker-core:7.1.5"
-  testCompile "org.apache.qpid:qpid-broker-plugins-memory-store:7.1.5"
-  testCompile "org.apache.qpid:qpid-broker-plugins-amqp-0-8-protocol:7.1.5"
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

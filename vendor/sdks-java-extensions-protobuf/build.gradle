@@ -58,7 +58,6 @@ compileJava {
 }
 
 dependencies {
-    compile "com.google.guava:guava:${GrpcVendoring_1_26_0.guava_version}"
     compile "com.google.protobuf:protobuf-java:${GrpcVendoring_1_26_0.protobuf_version}"
     shadow project(path: ":sdks:java:core", configuration: "shadow")
 }

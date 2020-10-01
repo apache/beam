@@ -34,16 +34,12 @@ dependencies {
   compile project(":runners:core-construction-java")
   compile project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
   compile library.java.vendored_grpc_1_26_0
-  compile library.java.commons_compress
   compile library.java.slf4j_api
-  compile library.java.args4j
   testCompile project(":sdks:java:harness")
   testCompile project(":runners:core-construction-java")
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple
 }

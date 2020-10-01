@@ -91,7 +91,6 @@ dependencies {
   testCompile library.java.kafka_clients
   testCompile library.java.junit
   testCompile library.java.mockito_core
-  testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")

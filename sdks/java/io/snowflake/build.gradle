@@ -39,8 +39,6 @@ dependencies {
   testCompile 'com.google.cloud:google-cloud-storage:1.102.0'
   testCompile library.java.avro
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testRuntimeOnly library.java.hadoop_client
   testRuntimeOnly library.java.slf4j_jdk14

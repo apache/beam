@@ -29,10 +29,7 @@ dependencies {
   compile "org.apache.qpid:proton-j:0.13.1"
   testCompile library.java.slf4j_api
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.activemq_broker
-  testCompile library.java.activemq_amqp
   testCompile library.java.activemq_junit
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

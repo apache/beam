@@ -31,11 +31,6 @@ dependencies {
     compile "org.apache.thrift:libthrift:0.13.0"
     compile project(path: ":sdks:java:core", configuration: "shadow")
     testCompile library.java.junit
-    testCompile library.java.hamcrest_core
-    testCompile library.java.hamcrest_library
-    testCompile library.java.jackson_databind
-    testCompile "com.google.code.gson:gson:2.8.6"
-    testCompile "commons-io:commons-io:2.6"
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

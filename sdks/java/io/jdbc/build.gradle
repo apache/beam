@@ -35,13 +35,8 @@ dependencies {
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testCompile library.java.postgres
-  testCompile "org.apache.derby:derby:10.14.2.0"
-  testCompile "org.apache.derby:derbyclient:10.14.2.0"
-  testCompile "org.apache.derby:derbynet:10.14.2.0"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

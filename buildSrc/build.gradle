@@ -39,6 +39,7 @@ dependencies {
   compile localGroovy()
   compile 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
   compile "gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:4.5.0"
+  compile "com.google.code.findbugs:jsr305:3.0.2"
 
   runtime "net.ltgt.gradle:gradle-apt-plugin:0.21"                                                    // Enable a Java annotation processor
   runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.13"                                          // Enable proto code generation
@@ -59,6 +60,7 @@ dependencies {
   runtime "gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11"                                  // Enable dep vulnerability analysis
   runtime "org.checkerframework:checkerframework-gradle-plugin:0.5.10"                                 // Enable enhanced static checking plugin
   runtime "com.netflix.nebula:gradle-lint-plugin:16.9.1"
+  runtime "com.google.code.findbugs:jsr305:3.0.2"
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

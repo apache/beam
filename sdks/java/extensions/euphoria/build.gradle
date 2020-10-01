@@ -27,12 +27,8 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile library.java.mockito_core
   testCompile project(":sdks:java:extensions:kryo")
-  testCompile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
+  implementation 'org.slf4j:slf4j-api:1.7.30'
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

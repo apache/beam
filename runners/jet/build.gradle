@@ -45,8 +45,6 @@ dependencies {
     testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
     testCompile project(path: ":runners:core-java", configuration: "testRuntime")
     testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
-    testCompile library.java.hamcrest_core
-    testCompile library.java.junit
     testCompile library.java.joda_time
     testCompile "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
     testCompile "com.hazelcast:hazelcast:$hazelcast_version:tests"

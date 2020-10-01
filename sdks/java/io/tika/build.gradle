@@ -32,9 +32,6 @@ dependencies {
   compile "org.apache.tika:tika-core:$tika_version"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile "org.apache.tika:tika-parsers:$tika_version"
   testCompileOnly "biz.aQute:bndlib:$bndlib_version"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

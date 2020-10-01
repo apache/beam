@@ -57,29 +57,21 @@ dependencies {
   compile library.java.google_cloud_spanner
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
-  compile library.java.grpc_alts
   compile library.java.grpc_auth
-  compile library.java.grpc_core
-  compile library.java.grpc_context
-  compile library.java.grpc_grpclb
+  testImplementation 'io.grpc:grpc-core:1.27.2'
   compile library.java.grpc_netty
-  compile library.java.grpc_netty_shaded
   compile library.java.grpc_stub
   compile library.java.grpc_google_cloud_pubsub_v1
   compile library.java.grpc_google_cloud_pubsublite_v1
   compile library.java.guava
-  compile library.java.hamcrest_core
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.junit
   compile library.java.netty_handler
-  compile library.java.netty_tcnative_boringssl_static
-  compile library.java.proto_google_cloud_bigquery_storage_v1beta1
   compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.proto_google_cloud_pubsub_v1
   compile library.java.proto_google_cloud_pubsublite_v1
-  compile library.java.proto_google_cloud_spanner_admin_database_v1
   compile library.java.proto_google_common_protos
   compile library.java.protobuf_java
   compile library.java.slf4j_api
@@ -90,7 +82,6 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   // For testing Cross-language transforms
   testCompile project(":runners:core-construction-java")
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito

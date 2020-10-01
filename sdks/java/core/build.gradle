@@ -86,14 +86,10 @@ dependencies {
   provided library.java.hamcrest_library
   provided 'io.airlift:aircompressor:0.16'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
-  shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
   shadowTest library.java.mockito_core
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
-  shadowTest library.java.zstd_jni
   testRuntimeOnly library.java.slf4j_jdk14
 }

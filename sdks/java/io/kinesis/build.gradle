@@ -33,7 +33,6 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile library.java.jackson_dataformat_cbor
   compile library.java.guava
   compile library.java.aws_java_sdk_cloudwatch
   compile library.java.aws_java_sdk_core
@@ -45,8 +44,6 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
   testCompile library.java.testcontainers_localstack

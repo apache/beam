@@ -62,8 +62,6 @@ dependencies {
   // For testing Cross-language transforms
   testCompile project(":runners:core-construction-java")
   testCompile library.java.avro
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito

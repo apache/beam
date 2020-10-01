@@ -91,7 +91,7 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean ignoreRawtypeErrors = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
-    boolean enableStrictDependencies = false
+    boolean enableStrictDependencies = true
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
     String archivesBaseName = null;

@@ -43,7 +43,6 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
-  compile library.java.jackson_dataformat_cbor
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile "software.amazon.kinesis:amazon-kinesis-client:2.2.5"
@@ -53,13 +52,10 @@ dependencies {
   testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
-  testCompile library.java.hamcrest_library
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
-  testCompile library.java.testcontainers_localstack
   testCompile "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

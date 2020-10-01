@@ -47,36 +47,38 @@ class GrpcVendoring_1_26_0 {
   /** Returns the list of compile time dependencies. */
   static List<String> dependencies() {
     return [
-      "com.google.guava:guava:$guava_version",
+      //"com.google.guava:guava:$guava_version",
       "com.google.protobuf:protobuf-java:$protobuf_version",
       "com.google.protobuf:protobuf-java-util:$protobuf_version",
-      "com.google.code.gson:gson:$gson_version",
-      "io.grpc:grpc-auth:$grpc_version",
-      "io.grpc:grpc-core:$grpc_version",
-      "io.grpc:grpc-context:$grpc_version",
-      "io.grpc:grpc-netty:$grpc_version",
+      //"com.google.code.gson:gson:$gson_version",
+      //"com.google.code.findbugs:jsr305:3.0.2",
+      //"io.grpc:grpc-auth:$grpc_version",
+      //"io.grpc:grpc-core:$grpc_version",
+      //"io.grpc:grpc-context:$grpc_version",
+      //"io.grpc:grpc-netty:$grpc_version",
       "io.grpc:grpc-protobuf:$grpc_version",
       "io.grpc:grpc-stub:$grpc_version",
-      "io.netty:netty-transport-native-epoll:$netty_version",
+      "io.grpc:grpc-api:$grpc_version",
+      //"io.netty:netty-transport-native-epoll:$netty_version",
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-      "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
-      "com.google.auth:google-auth-library-credentials:$google_auth_version",
-      "io.grpc:grpc-testing:$grpc_version",
-      "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
-      "io.opencensus:opencensus-api:$opencensus_version",
-      "io.opencensus:opencensus-contrib-grpc-metrics:$opencensus_version",
-      "io.perfmark:perfmark-api:$perfmark_version",
-      "com.github.jponge:lzma-java:$lzma_java_version",
-      "com.google.protobuf.nano:protobuf-javanano:$protobuf_javanano_version",
-      "com.jcraft:jzlib:$jzlib_version",
-      "com.ning:compress-lzf:$compress_lzf_version",
-      "net.jpountz.lz4:lz4:$lz4_version",
-      "org.bouncycastle:bcpkix-jdk15on:$bouncycastle_version",
-      "org.bouncycastle:bcprov-jdk15on:$bouncycastle_version",
-      "org.eclipse.jetty.alpn:alpn-api:$alpn_api_version",
-      "org.eclipse.jetty.npn:npn-api:$npn_api_version",
-      "org.jboss.marshalling:jboss-marshalling:$jboss_marshalling_version",
-      "org.jboss.modules:jboss-modules:$jboss_modules_version"
+      //"io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
+      //"com.google.auth:google-auth-library-credentials:$google_auth_version",
+      //"io.grpc:grpc-testing:$grpc_version",
+      //"com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
+      //"io.opencensus:opencensus-api:$opencensus_version",
+      //"io.opencensus:opencensus-contrib-grpc-metrics:$opencensus_version",
+      //"io.perfmark:perfmark-api:$perfmark_version",
+      //"com.github.jponge:lzma-java:$lzma_java_version",
+      //"com.google.protobuf.nano:protobuf-javanano:$protobuf_javanano_version",
+      //"com.jcraft:jzlib:$jzlib_version",
+      //"com.ning:compress-lzf:$compress_lzf_version",
+      //"net.jpountz.lz4:lz4:$lz4_version",
+      //"org.bouncycastle:bcpkix-jdk15on:$bouncycastle_version",
+      //"org.bouncycastle:bcprov-jdk15on:$bouncycastle_version",
+      //"org.eclipse.jetty.alpn:alpn-api:$alpn_api_version",
+      //"org.eclipse.jetty.npn:npn-api:$npn_api_version",
+      //"org.jboss.marshalling:jboss-marshalling:$jboss_marshalling_version",
+      //"org.jboss.modules:jboss-modules:$jboss_modules_version"
     ]
   }
 
@@ -86,12 +88,12 @@ class GrpcVendoring_1_26_0 {
    */
   static List<String> runtimeDependencies() {
     return [
-      'com.google.errorprone:error_prone_annotations:2.3.3',
-      'commons-logging:commons-logging:1.2',
-      'org.apache.logging.log4j:log4j-api:2.6.2',
-      'org.slf4j:slf4j-api:1.7.30',
+      //'com.google.errorprone:error_prone_annotations:2.3.3',
+      //'commons-logging:commons-logging:1.2',
+      //'org.apache.logging.log4j:log4j-api:2.6.2',
+      //'org.slf4j:slf4j-api:1.7.30',
       // TODO(BEAM-9288): Enable relocation for conscrypt
-      "org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version"
+      //"org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version"
     ]
   }
 

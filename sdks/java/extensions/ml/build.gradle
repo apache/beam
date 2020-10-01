@@ -36,9 +36,9 @@ dependencies {
     compile 'com.google.cloud:google-cloud-vision:1.99.3'
     testCompile library.java.mockito_core
     testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
+    implementation 'com.google.cloud:google-cloud-dlp:1.1.4'
     testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-    testCompile 'com.google.cloud:google-cloud-language:1.99.4'
+    implementation 'com.google.cloud:google-cloud-language:1.99.4'
     testCompile 'com.google.cloud:google-cloud-vision:1.99.3'
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
