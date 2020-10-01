@@ -69,11 +69,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HadoopFormatIOElasticIT implements Serializable {
 
-  private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
   private static final String ELASTIC_INDEX_NAME = "test_data";
-  private static final String ELASTIC_TYPE_NAME = "test_type";
-  private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HadoopFormatIOTestOptions options;
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -92,7 +89,7 @@ public class HadoopFormatIOElasticIT implements Serializable {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     final long expectedRowCount = 1000L;
     String expectedHashCode = "42e254c8689050ed0a617ff5e80ea392";
-    Configuration conf = getConfiguration(options);
+    Configuration conf = getConfiguration();
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
@@ -112,9 +109,7 @@ public class HadoopFormatIOElasticIT implements Serializable {
           new SimpleFunction<LinkedMapWritable, String>() {
             @Override
             public String apply(LinkedMapWritable mapw) {
-              String rowValue = "";
-              rowValue = convertMapWRowToString(mapw);
-              return rowValue;
+              return convertMapWRowToString(mapw);
             }
           });
   /*
@@ -159,14 +154,13 @@ public class HadoopFormatIOElasticIT implements Serializable {
   public void testHifIOWithElasticQuery() {
     String expectedHashCode = "d7a7e4e42c2ca7b83ef7c1ad1ebce000";
     Long expectedRecordsCount = 1L;
-    Configuration conf = getConfiguration(options);
+    Configuration conf = getConfiguration();
     String query =
         "{"
             + "  \"query\": {"
             + "  \"match\" : {"
             + "    \"Title\" : {"
-            + "      \"query\" : \"Title9\","
-            + "      \"type\" : \"boolean\""
+            + "      \"query\" : \"Title9\""
             + "    }"
             + "  }"
             + "  }"
@@ -189,11 +183,11 @@ public class HadoopFormatIOElasticIT implements Serializable {
   /**
    * Returns Hadoop configuration for reading data from Elasticsearch. Configuration object should
    * have InputFormat class, key class and value class to be set. Mandatory fields for ESInputFormat
-   * to be set are es.resource, es.nodes, es.port, es.internal.es.version, es.nodes.wan.only. Please
-   * refer <a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
+   * to be set are es.resource, es.nodes, es.port, es.nodes.wan.only. Please refer <a
+   * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
-  private static Configuration getConfiguration(HadoopFormatIOTestOptions options) {
+  private static Configuration getConfiguration() {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, options.getElasticServerIp());
     conf.set(ConfigurationOptions.ES_PORT, options.getElasticServerPort().toString());
@@ -201,8 +195,7 @@ public class HadoopFormatIOElasticIT implements Serializable {
     // Set username and password if Elasticsearch is configured with security.
     conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_USER, options.getElasticUserName());
     conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_PASS, options.getElasticPassword());
-    conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
-    conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
+    conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_INDEX_NAME);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
     conf.setClass(
         "mapreduce.job.inputformat.class",
