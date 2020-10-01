@@ -164,15 +164,8 @@ class DeferredSeries(frame_base.DeferredFrame):
     std_x = self.std()
     std_y = other.std()
     cov = self._cov_aligned(other, min_periods)
-    with expressions.allow_non_parallel_operations(True):
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'normalize',
-              lambda cov,
-              std_x,
-              std_y: cov / (std_x * std_y),
-              [cov._expr, std_x._expr, std_y._expr],
-              requires_partition_by=partitionings.Singleton()))
+    return cov.apply(
+        lambda cov, std_x, std_y: cov / (std_x * std_y), args=[std_x, std_y])
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -651,13 +644,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     for col in columns:
       arg_indices.append((col, col))
       std = self[col].std(ddof)
-      with expressions.allow_non_parallel_operations(True):
-        args.append(frame_base.DeferredFrame.wrap(
-            expressions.ComputedExpression(
-                'square',
-                lambda x: x*x,
-                [std._expr],
-                requires_partition_by=partitionings.Singleton())))
+      args.append(std.apply(lambda x: x*x, 'square'))
     for ix, col1 in enumerate(columns):
       for col2 in columns[ix+1:]:
         arg_indices.append((col1, col2))
