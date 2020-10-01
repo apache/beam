@@ -102,9 +102,13 @@ public class BigQueryUtilTest {
       responses.add(response);
     }
 
+    Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
+    when(mockTabledata.insertAll(
+            anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class)))
+        .thenReturn(mockInsertAll);
+
     doAnswer(
             invocation -> {
-              Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
               when(mockInsertAll.execute())
                   .thenReturn(
                       responses.get(0),
@@ -113,8 +117,8 @@ public class BigQueryUtilTest {
                           .toArray(new TableDataInsertAllResponse[responses.size() - 1]));
               return mockInsertAll;
             })
-        .when(mockTabledata)
-        .insertAll(anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class));
+        .when(mockInsertAll)
+        .setPrettyPrint(false);
   }
 
   private void verifyInsertAll(int expectedRetries) throws IOException {
@@ -126,18 +130,21 @@ public class BigQueryUtilTest {
   private void onTableGet(Table table) throws IOException {
     when(mockClient.tables()).thenReturn(mockTables);
     when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockTablesGet);
+    when(mockTablesGet.setPrettyPrint(false)).thenReturn(mockTablesGet);
     when(mockTablesGet.execute()).thenReturn(table);
   }
 
   private void verifyTableGet() throws IOException {
     verify(mockClient).tables();
     verify(mockTables).get("project", "dataset", "table");
+    verify(mockTablesGet, atLeastOnce()).setPrettyPrint(false);
     verify(mockTablesGet, atLeastOnce()).execute();
   }
 
   private void onTableList(TableDataList result) throws IOException {
     when(mockClient.tabledata()).thenReturn(mockTabledata);
     when(mockTabledata.list(anyString(), anyString(), anyString())).thenReturn(mockTabledataList);
+    when(mockTabledataList.setPrettyPrint(false)).thenReturn(mockTabledataList);
     when(mockTabledataList.execute()).thenReturn(result);
   }
 
