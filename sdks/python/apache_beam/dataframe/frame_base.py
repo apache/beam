@@ -100,7 +100,16 @@ class DeferredFrame(DeferredBase):
 
 
 class _DeferredScalar(DeferredBase):
-  pass
+  def apply(self, func, name=None, args=()):
+    if name is None:
+      name = func.__name__
+    with expressions.allow_non_parallel_operations(
+        all(isinstance(arg, _DeferredScalar) for arg in args) or None):
+      return DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              name,
+              func, [self._expr] + [arg._expr for arg in args],
+              requires_partition_by=partitionings.Singleton()))
 
 
 DeferredBase._pandas_type_map[None] = _DeferredScalar
