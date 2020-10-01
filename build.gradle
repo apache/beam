@@ -161,6 +161,7 @@ task javaPostCommit() {
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
   dependsOn ":sdks:java:io:kinesis:integrationTest"
+  dependsOn ":sdks:java:io:hadoop-format:hadoopFormatIOElasticTest"
 }
 
 task sqlPostCommit() {
