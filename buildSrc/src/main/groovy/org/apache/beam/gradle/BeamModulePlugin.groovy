@@ -96,7 +96,7 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean enableStrictDependencies = false
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
-    String archivesBaseName = null;
+    String archivesBaseName = null
 
     /**
      * List of additional lint warnings to disable.
@@ -131,7 +131,7 @@ class BeamModulePlugin implements Plugin<Project> {
      *
      * The shadowJar / shadowTestJar tasks execute the specified closure to configure themselves.
      */
-    Closure shadowClosure;
+    Closure shadowClosure
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
@@ -150,7 +150,7 @@ class BeamModulePlugin implements Plugin<Project> {
     /**
      * The set of additional maven repositories that should be added into published POM file.
      */
-    List<Map> mavenRepositories = [];
+    List<Map> mavenRepositories = []
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -164,7 +164,7 @@ class BeamModulePlugin implements Plugin<Project> {
     List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
-    String archivesBaseName = null;
+    String archivesBaseName = null
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
@@ -575,6 +575,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
+        testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
