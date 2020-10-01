@@ -483,4 +483,29 @@ public class MapTaskExecutorTest {
       assertThat(e.getSuppressed()[0].getMessage(), equalTo("suppressed in abort"));
     }
   }
+
+  @Test
+  public void testAbort() throws Exception {
+    // Operation must be an instance of ReadOperation or ReceivingOperation per preconditions
+    // in MapTaskExecutor.
+    Operation o = Mockito.mock(ReadOperation.class);
+
+    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    try (MapTaskExecutor executor =
+        new MapTaskExecutor(Arrays.<Operation>asList(o), counterSet, stateTracker)) {
+      Mockito.doAnswer(
+              invocation -> {
+                executor.abort();
+                return null;
+              })
+          .when(o)
+          .start();
+      executor.execute();
+      fail("Should have aborted");
+    } catch (Exception e) {
+      Assert.assertTrue(e instanceof InterruptedException);
+      Mockito.verify(o).abort();
+    }
+    Assert.assertTrue(Thread.currentThread().isInterrupted());
+  }
 }
