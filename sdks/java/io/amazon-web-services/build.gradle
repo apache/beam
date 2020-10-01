@@ -56,7 +56,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.testcontainers_localstack
   testCompile "org.assertj:assertj-core:3.11.1"
-  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
