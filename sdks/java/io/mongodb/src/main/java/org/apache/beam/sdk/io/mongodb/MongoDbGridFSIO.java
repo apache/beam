@@ -24,8 +24,8 @@ import com.google.auto.value.AutoValue;
 import com.mongodb.DB;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
+import com.mongodb.Mongo;
+import com.mongodb.MongoURI;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
@@ -193,11 +193,11 @@ public class MongoDbGridFSIO {
       return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(uri, database, bucket);
     }
 
-    MongoClient setupMongo() {
-      return uri() == null ? new MongoClient() : new MongoClient(new MongoClientURI(uri()));
+    Mongo setupMongo() {
+      return uri() == null ? new Mongo() : new Mongo(new MongoURI(uri()));
     }
 
-    GridFS setupGridFS(MongoClient mongo) {
+    GridFS setupGridFS(Mongo mongo) {
       DB db = database() == null ? mongo.getDB("gridfs") : mongo.getDB(database());
       return bucket() == null ? new GridFS(db) : new GridFS(db, bucket());
     }
@@ -301,7 +301,7 @@ public class MongoDbGridFSIO {
               .apply(
                   ParDo.of(
                       new DoFn<ObjectId, T>() {
-                        MongoClient mongo;
+                        Mongo mongo;
                         GridFS gridfs;
 
                         @Setup
@@ -370,7 +370,7 @@ public class MongoDbGridFSIO {
       @Override
       public List<? extends BoundedSource<ObjectId>> split(
           long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-        MongoClient mongo = spec.connectionConfiguration().setupMongo();
+        Mongo mongo = spec.connectionConfiguration().setupMongo();
         try {
           GridFS gridfs = spec.connectionConfiguration().setupGridFS(mongo);
           DBCursor cursor = createCursor(gridfs);
@@ -399,14 +399,18 @@ public class MongoDbGridFSIO {
 
       @Override
       public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-        try (MongoClient mongo = spec.connectionConfiguration().setupMongo();
-            DBCursor cursor = createCursor(spec.connectionConfiguration().setupGridFS(mongo))) {
+        Mongo mongo = spec.connectionConfiguration().setupMongo();
+        try {
+          GridFS gridfs = spec.connectionConfiguration().setupGridFS(mongo);
+          DBCursor cursor = createCursor(gridfs);
           long size = 0;
           while (cursor.hasNext()) {
             GridFSDBFile file = (GridFSDBFile) cursor.next();
             size += file.getLength();
           }
           return size;
+        } finally {
+          mongo.close();
         }
       }
 
@@ -436,7 +440,7 @@ public class MongoDbGridFSIO {
          */
         final @Nullable List<ObjectId> objects;
 
-        MongoClient mongo;
+        Mongo mongo;
         DBCursor cursor;
         Iterator<ObjectId> iterator;
         ObjectId current;
@@ -603,7 +607,7 @@ public class MongoDbGridFSIO {
 
     private final Write<T> spec;
 
-    private transient MongoClient mongo;
+    private transient Mongo mongo;
     private transient GridFS gridfs;
 
     private transient GridFSInputFile gridFsFile;

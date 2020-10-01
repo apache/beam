@@ -147,10 +147,10 @@ public class MongoDbIOTest {
     List<BsonDocument> buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
     assertEquals(2, buckets.size());
     assertEquals(
-        "{\"$match\": {\"_id\": {\"$lte\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
+        "{ \"$match\" : { \"_id\" : { \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
         buckets.get(0).toString());
     assertEquals(
-        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
+        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
         buckets.get(1).toString());
 
     // add more splits and verify the buckets
@@ -159,16 +159,16 @@ public class MongoDbIOTest {
     buckets = MongoDbIO.BoundedMongoDbSource.splitKeysToMatch(documents);
     assertEquals(4, buckets.size());
     assertEquals(
-        "{\"$match\": {\"_id\": {\"$lte\": {\"$oid\": \"52cc8f6254c5317943000005\"}}}}",
+        "{ \"$match\" : { \"_id\" : { \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000005\" } } } }",
         buckets.get(0).toString());
     assertEquals(
-        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000005\"}, \"$lte\": {\"$oid\": \"52cc8f6254c5317943000007\"}}}}",
+        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"52cc8f6254c5317943000005\" }, \"$lte\" : { \"$oid\" : \"52cc8f6254c5317943000007\" } } } }",
         buckets.get(1).toString());
     assertEquals(
-        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"52cc8f6254c5317943000007\"}, \"$lte\": {\"$oid\": \"54242e9e54c531ef8800001f\"}}}}",
+        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"52cc8f6254c5317943000007\" }, \"$lte\" : { \"$oid\" : \"54242e9e54c531ef8800001f\" } } } }",
         buckets.get(2).toString());
     assertEquals(
-        "{\"$match\": {\"_id\": {\"$gt\": {\"$oid\": \"54242e9e54c531ef8800001f\"}}}}",
+        "{ \"$match\" : { \"_id\" : { \"$gt\" : { \"$oid\" : \"54242e9e54c531ef8800001f\" } } } }",
         buckets.get(3).toString());
   }
 

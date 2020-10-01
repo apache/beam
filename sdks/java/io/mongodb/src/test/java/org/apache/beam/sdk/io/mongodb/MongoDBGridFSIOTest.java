@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.mongodb.DB;
-import com.mongodb.MongoClient;
+import com.mongodb.Mongo;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
@@ -118,7 +118,7 @@ public class MongoDBGridFSIOTest {
 
     LOG.info("Insert test data");
 
-    MongoClient client = new MongoClient("localhost", port);
+    Mongo client = new Mongo("localhost", port);
     DB database = client.getDB(DATABASE);
     GridFS gridfs = new GridFS(database);
 
@@ -155,14 +155,14 @@ public class MongoDBGridFSIOTest {
       for (int y = 0; y < 5000; y++) {
         long time = now - random.nextInt(3600000);
         String name = scientists[y % scientists.length];
-        writer.write(time + "\t");
+        writer.write(Long.toString(time) + "\t");
         writer.write(name + "\t");
         writer.write(Integer.toString(random.nextInt(100)));
         writer.write("\n");
       }
       for (int y = 0; y < scientists.length; y++) {
         String name = scientists[y % scientists.length];
-        writer.write(now + "\t");
+        writer.write(Long.toString(now) + "\t");
         writer.write(name + "\t");
         writer.write("101");
         writer.write("\n");
@@ -309,10 +309,10 @@ public class MongoDBGridFSIOTest {
 
     pipeline.run();
 
-    MongoClient client = null;
+    Mongo client = null;
     try {
       StringBuilder results = new StringBuilder();
-      client = new MongoClient("localhost", port);
+      client = new Mongo("localhost", port);
       DB database = client.getDB(DATABASE);
       GridFS gridfs = new GridFS(database, "WriteTest");
       List<GridFSDBFile> files = gridfs.find("WriteTestData");
