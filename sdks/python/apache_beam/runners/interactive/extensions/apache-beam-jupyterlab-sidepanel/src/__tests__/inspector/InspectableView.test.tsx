@@ -73,26 +73,39 @@ it('renders options if inspecting a pcollection', () => {
     );
     const inspectableView = inspectableViewRef.current;
     if (inspectableView) {
-      inspectableView.updateRender();
+      inspectableView.setState({
+        options: fakeModel.options
+      });
     }
   });
   const inspectableViewElement: Element = container.firstElementChild;
   const optionsElement: Element = inspectableViewElement.firstElementChild;
   expect(optionsElement.tagName).toBe('DIV');
-  const includeWindowInfoCheckbox: Element = optionsElement.firstElementChild;
+  const includeWindowInfoCheckbox: Element =
+    optionsElement.firstElementChild.firstElementChild;
   expect(
     includeWindowInfoCheckbox.firstElementChild.getAttribute('class')
   ).toContain('mdc-checkbox');
   expect(
     includeWindowInfoCheckbox.firstElementChild.getAttribute('class')
   ).not.toContain('mdc-checkbox--selected');
-  const visualizeInFacetsCheckbox: Element = optionsElement.children[1];
+  const visualizeInFacetsCheckbox: Element =
+    optionsElement.firstElementChild.children[1];
   expect(
     visualizeInFacetsCheckbox.firstElementChild.getAttribute('class')
   ).toContain('mdc-checkbox');
   expect(
     visualizeInFacetsCheckbox.firstElementChild.getAttribute('class')
   ).toContain('mdc-checkbox--selected');
+  const durationTextField: Element =
+    optionsElement.firstElementChild.children[2];
+  expect(durationTextField.getAttribute('class')).toContain(
+    'mdc-text-field--outlined'
+  );
+  const nTextField: Element = optionsElement.firstElementChild.children[3];
+  expect(nTextField.getAttribute('class')).toContain(
+    'mdc-text-field--outlined'
+  );
 });
 
 it('renders an html view', () => {
