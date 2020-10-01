@@ -387,8 +387,15 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       private final Reiterator<ShuffleEntry> base;
 
+      private boolean atFirstValue = true;
+
       public ValuesIterator(Reiterator<ShuffleEntry> base) {
         this.base = checkNotNull(base);
+      }
+
+      private ValuesIterator(Reiterator<ShuffleEntry> base, boolean atFirstValue) {
+        this.base = checkNotNull(base);
+        this.atFirstValue = atFirstValue;
       }
 
       @Override
@@ -402,6 +409,14 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       @Override
       public V next() {
+        // Since checking for thread interruption may be expensive (e.g., if it is a native call),
+        // consider checking every few values.  Given that the underlying ReadOperation already
+        // checks the abort status after every record it advances over (i.e., for every distinct
+        // key), we skip the check when at the first value as that is redundant.
+        if (!atFirstValue && Thread.currentThread().isInterrupted()) {
+          throw new RuntimeException(new InterruptedException("Worker was asked to abort"));
+        }
+        atFirstValue = false;
         try (Closeable read = tracker.enterState(readState)) {
           ShuffleEntry entry = base.next();
           checkNotNull(entry);
@@ -442,7 +457,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       @Override
       public ValuesIterator copy() {
-        return new ValuesIterator(base.copy());
+        return new ValuesIterator(base.copy(), atFirstValue);
       }
     }
   }

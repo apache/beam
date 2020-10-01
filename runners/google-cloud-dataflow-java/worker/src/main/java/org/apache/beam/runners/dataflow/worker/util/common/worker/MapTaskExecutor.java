@@ -37,6 +37,9 @@ public class MapTaskExecutor implements WorkExecutor {
 
   private final ExecutionStateTracker executionStateTracker;
 
+  // Current thread that execute() is running on; null when not running.
+  private @Nullable Thread currentExecutorThread = null;
+
   private final CounterSet counters;
 
   /**
@@ -63,6 +66,12 @@ public class MapTaskExecutor implements WorkExecutor {
   @Override
   public void execute() throws Exception {
     LOG.debug("Executing map task");
+    // Save the current thread that is executing so that abort() can interrupt it, we save it before
+    // starting the progress reporter thread, therefore ensuring thread safety through implicit
+    // serialization of events.
+    synchronized (this) {
+      this.currentExecutorThread = Thread.currentThread();
+    }
 
     try (Closeable stateCloser = executionStateTracker.activate()) {
       try {
@@ -73,6 +82,9 @@ public class MapTaskExecutor implements WorkExecutor {
         LOG.debug("Starting operations");
         ListIterator<Operation> iterator = operations.listIterator(operations.size());
         while (iterator.hasPrevious()) {
+          if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("Worker aborted");
+          }
           Operation op = iterator.previous();
           op.start();
         }
@@ -82,6 +94,9 @@ public class MapTaskExecutor implements WorkExecutor {
         // consumers are themselves finished.
         LOG.debug("Finishing operations");
         for (Operation op : operations) {
+          if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("Worker aborted");
+          }
           op.finish();
         }
       } catch (Exception | Error exn) {
@@ -97,6 +112,10 @@ public class MapTaskExecutor implements WorkExecutor {
           }
         }
         throw exn;
+      }
+    } finally {
+      synchronized (this) {
+        this.currentExecutorThread = null;
       }
     }
 
@@ -146,11 +165,15 @@ public class MapTaskExecutor implements WorkExecutor {
   @Override
   public void abort() {
     // Signal the read loop to abort on the next record.
-    // TODO: Also interrupt the execution thread.
     for (Operation op : operations) {
       Preconditions.checkState(op instanceof ReadOperation || op instanceof ReceivingOperation);
       if (op instanceof ReadOperation) {
         ((ReadOperation) op).abortReadLoop();
+      }
+    }
+    synchronized (this) {
+      if (currentExecutorThread != null) {
+        currentExecutorThread.interrupt();
       }
     }
   }
