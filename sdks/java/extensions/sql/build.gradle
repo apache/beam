@@ -43,7 +43,7 @@ configurations {
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
-  fmppTask "org.freemarker:freemarker:2.3.28"
+  fmppTask "org.freemarker:freemarker:2.3.30"
   fmppTemplates library.java.vendored_calcite_1_20_0
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
