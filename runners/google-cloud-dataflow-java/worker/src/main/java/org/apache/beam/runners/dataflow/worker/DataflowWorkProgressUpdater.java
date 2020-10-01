@@ -51,6 +51,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private HotKeyLogger hotKeyLogger;
 
+  private boolean wasAskedToAbort = false;
+
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient, WorkItem workItem, WorkExecutor worker) {
     super(worker, Integer.MAX_VALUE);
@@ -95,11 +97,23 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   @Override
   protected void reportProgressHelper() throws Exception {
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return;
+    }
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
 
     if (result != null) {
+      if (result.getCompleteWorkStatus() != null
+          && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
+        LOG.info("Service asked worker to abort worker " + worker.toString());
+        wasAskedToAbort = true;
+        worker.abort();
+        return;
+      }
+
       if (result.getHotKeyDetection() != null
           && result.getHotKeyDetection().getUserStepName() != null) {
         HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
