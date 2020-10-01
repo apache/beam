@@ -2045,7 +2045,7 @@ class BeamModulePlugin implements Plugin<Project> {
         return argList.join(' ')
       }
 
-      project.ext.toxTask = { name, tox_env ->
+      project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.create(name) {
           dependsOn 'setupVirtualenv'
           dependsOn ':sdks:python:sdist'
@@ -2060,7 +2060,7 @@ class BeamModulePlugin implements Plugin<Project> {
             def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
             }
           }
           inputs.files project.pythonSdkDeps

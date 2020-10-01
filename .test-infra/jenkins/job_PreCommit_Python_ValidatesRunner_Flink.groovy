@@ -39,4 +39,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     )
 builder.build {
   previousNames('beam_PreCommit_Python_PVR_Flink')
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
 }

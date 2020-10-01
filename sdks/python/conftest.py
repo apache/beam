@@ -24,6 +24,11 @@ from apache_beam.options import pipeline_options
 
 MAX_SUPPORTED_PYTHON_VERSION = (3, 8)
 
+def pytest_addoption(parser):
+  parser.addoption('--test-pipeline-options',
+                   help='Options to use in test pipelines. NOTE: Tests may '
+                        'ignore some or all of these options.')
+
 # See pytest.ini for main collection rules.
 collect_ignore_glob = []
 if sys.version_info < (3,):

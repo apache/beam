@@ -21,14 +21,10 @@ from __future__ import print_function
 
 import inspect
 import logging
-import platform
-import signal
 import socket
 import subprocess
 import sys
-import threading
 import time
-import traceback
 import unittest
 
 import grpc
@@ -56,37 +52,10 @@ from apache_beam.transforms import userstate
 _LOGGER = logging.getLogger(__name__)
 
 
-# Disable timeout since this test implements its own.
-# TODO(BEAM-9011): Consider using pytest-timeout's mechanism instead.
-@pytest.mark.timeout(0)
 class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
-
-  TIMEOUT_SECS = 600
 
   # Controls job service interaction, not sdk harness interaction.
   _use_subprocesses = False
-
-  def setUp(self):
-    if platform.system() != 'Windows':
-
-      def handler(signum, frame):
-        msg = 'Timed out after %s seconds.' % self.TIMEOUT_SECS
-        print('=' * 20, msg, '=' * 20)
-        traceback.print_stack(frame)
-        threads_by_id = {th.ident: th for th in threading.enumerate()}
-        for thread_id, stack in sys._current_frames().items():
-          th = threads_by_id.get(thread_id)
-          print()
-          print('# Thread:', th or thread_id)
-          traceback.print_stack(stack)
-        raise BaseException(msg)
-
-      signal.signal(signal.SIGALRM, handler)
-      signal.alarm(self.TIMEOUT_SECS)
-
-  def tearDown(self):
-    if platform.system() != 'Windows':
-      signal.alarm(0)
 
   @classmethod
   def _pick_unused_port(cls):
