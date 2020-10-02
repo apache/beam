@@ -15,6 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import groovy.json.JsonOutput
+
 plugins {
   id 'org.apache.beam.module'
 }
@@ -31,13 +34,58 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: Testing :: JPMS Tests"
 ext.summary = "E2E test for Java 9 modules"
 
+/*
+ * List of runners to run integration tests on.
+ */
+def testRunnerClass = [
+        directRunnerIntegrationTest: "org.apache.beam.runners.direct.DirectRunner",
+        flinkRunnerIntegrationTest: "org.apache.beam.runners.flink.TestFlinkRunner",
+        dataflowRunnerIntegrationTest: "org.apache.beam.runners.dataflow.TestDataflowRunner",
+]
+
+configurations {
+  baseIntegrationTest
+  directRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
+  flinkRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
+  dataflowRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
+}
+
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:direct-java")
   compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
 
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+
+  baseIntegrationTest project(path: ":sdks:java:testing:jpms-tests", configuration: "testRuntime")
+  directRunnerIntegrationTest project(":runners:direct-java")
+  flinkRunnerIntegrationTest project(":runners:flink:1.10")
+  dataflowRunnerIntegrationTest project(":runners:google-cloud-dataflow-java")
+}
+
+/*
+ * Create a ${runner}IntegrationTest task for each runner which runs a set
+ * of integration tests for WordCount.
+ */
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+for (String runner : testRunnerClass.keySet()) {
+  tasks.create(name: runner, type: Test) {
+    def testPipelineOptions = [
+            "--project=${gcpProject}",
+            "--tempRoot=${gcsTempRoot}",
+            "--runner=" + testRunnerClass[runner],
+    ]
+    if ("dataflowRunnerIntegrationTest".equals(runner)) {
+      testPipelineOptions.add("--region=${gcpRegion}")
+    }
+    classpath = configurations."${runner}"
+    include "**/*IT.class"
+    maxParallelForks 4
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(testPipelineOptions)
+  }
 }
 
 // Activate module support
