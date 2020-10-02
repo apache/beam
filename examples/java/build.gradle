@@ -18,15 +18,12 @@
 
 import groovy.json.JsonOutput
 
-plugins {
-  id 'org.apache.beam.module'
-  id 'com.github.johnrengelman.shadow'
-}
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  exportJavadoc: false,
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
-  automaticModuleName: 'org.apache.beam.examples')
+        exportJavadoc: false,
+        enableChecker: false,
+        ignoreRawtypeErrors: true,
+        automaticModuleName: 'org.apache.beam.examples')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -51,13 +48,11 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  compile library.java.kafka_clients
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:extensions:ml")
-  compile project(":runners:google-cloud-dataflow-java")
   compile library.java.avro
   compile library.java.bigdataoss_util
   compile library.java.google_api_client
@@ -102,9 +97,9 @@ dependencies {
  * of integration tests for WordCount and WindowedWordCount.
  */
 def preCommitRunnerClass = [
-  directRunner: "org.apache.beam.runners.direct.DirectRunner",
-  flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
-  sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
+        directRunner: "org.apache.beam.runners.direct.DirectRunner",
+        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
+        sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
@@ -112,9 +107,9 @@ def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-
 for (String runner : preCommitRunners) {
   tasks.create(name: runner + "PreCommit", type: Test) {
     def preCommitBeamTestPipelineOptions = [
-       "--project=${gcpProject}",
-       "--tempRoot=${gcsTempRoot}",
-       "--runner=" + preCommitRunnerClass[runner],
+            "--project=${gcpProject}",
+            "--tempRoot=${gcsTempRoot}",
+            "--runner=" + preCommitRunnerClass[runner],
     ]
     classpath = configurations."${runner}PreCommit"
     include "**/WordCountIT.class"
@@ -133,3 +128,4 @@ task preCommit() {
     dependsOn runner + "PreCommit"
   }
 }
+
