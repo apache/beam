@@ -22,6 +22,7 @@ import static org.apache.beam.runners.core.construction.resources.PipelineResour
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.structuredstreaming.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetricSource;
@@ -133,6 +134,7 @@ public final class SparkStructuredStreamingRunner
 
   @Override
   public SparkStructuredStreamingPipelineResult run(final Pipeline pipeline) {
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     MetricsEnvironment.setMetricsSupported(true);
 
     LOG.info(
