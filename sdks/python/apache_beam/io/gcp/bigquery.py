@@ -244,6 +244,7 @@ import time
 import uuid
 from builtins import object
 from builtins import zip
+from typing import Optional
 
 from future.utils import itervalues
 from past.builtins import unicode
@@ -683,7 +684,8 @@ class _CustomBigQuerySource(BoundedSource):
       bigquery_job_labels=None,
       use_json_exports=False,
       job_name=None,
-      step_name=None):
+      step_name=None,
+      unique_id=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -716,7 +718,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.use_json_exports = use_json_exports
     self._job_name = job_name or 'AUTOMATIC_JOB_NAME'
     self._step_name = step_name
-    self._source_uuid = str(uuid.uuid4())[0:10]
+    self._source_uuid = unique_id
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -874,8 +876,11 @@ class _CustomBigQuerySource(BoundedSource):
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.EXPORT,
         random.randint(0, 1000))
+    temp_location = self.options.view_as(GoogleCloudOptions).temp_location
+    gcs_location = ReadFromBigQuery.get_destination_uri(
+        self.gcs_location, temp_location, self._source_uuid)
     if self.use_json_exports:
-      job_ref = bq.perform_extract_job([self.gcs_location],
+      job_ref = bq.perform_extract_job([gcs_location],
                                        export_job_name,
                                        self.table_reference,
                                        bigquery_tools.FileFormat.JSON,
@@ -883,7 +888,7 @@ class _CustomBigQuerySource(BoundedSource):
                                        job_labels=job_labels,
                                        include_header=False)
     else:
-      job_ref = bq.perform_extract_job([self.gcs_location],
+      job_ref = bq.perform_extract_job([gcs_location],
                                        export_job_name,
                                        self.table_reference,
                                        bigquery_tools.FileFormat.AVRO,
@@ -892,7 +897,7 @@ class _CustomBigQuerySource(BoundedSource):
                                        job_labels=job_labels,
                                        use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
-    metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
+    metadata_list = FileSystems.match([gcs_location])[0].metadata_list
 
     if isinstance(self.table_reference, vp.ValueProvider):
       table_ref = bigquery_tools.parse_table_reference(
@@ -1912,7 +1917,7 @@ class ReadFromBigQuery(PTransform):
    """
   COUNTER = 0
 
-  def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
+  def __init__(self, gcs_location=None, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):
         raise TypeError(
@@ -1924,53 +1929,57 @@ class ReadFromBigQuery(PTransform):
         gcs_location = StaticValueProvider(str, gcs_location)
 
     self.gcs_location = gcs_location
-    self.validate = validate
 
     self._args = args
     self._kwargs = kwargs
 
-  def _get_destination_uri(self, temp_location):
+  @staticmethod
+  def get_destination_uri(
+      gcs_location_vp,  # type: Optional[ValueProvider]
+      temp_location,  # type: Optional[str]
+      unique_id,  # type: str
+  ):
     """Returns the fully qualified Google Cloud Storage URI where the
     extracted table should be written.
     """
     file_pattern = 'bigquery-table-dump-*.json'
 
-    if self.gcs_location is not None:
-      gcs_base = self.gcs_location.get()
+    gcs_location = None
+    if gcs_location_vp is not None:
+      gcs_location = gcs_location_vp.get()
+
+    if gcs_location is not None:
+      gcs_base = gcs_location
     elif temp_location is not None:
       gcs_base = temp_location
-      logging.debug("gcs_location is empty, using temp_location instead")
+      _LOGGER.debug("gcs_location is empty, using temp_location instead")
     else:
       raise ValueError(
-          '{} requires a GCS location to be provided. Neither gcs_location in'
-          ' the constructor nor the fallback option --temp_location is set.'.
-          format(self.__class__.__name__))
-    if self.validate:
-      self._validate_gcs_location(gcs_base)
+          'ReadFromBigQuery requires a GCS location to be provided. Neither '
+          'gcs_location in the constructor nor the fallback option '
+          '--temp_location is set.')
 
-    job_id = uuid.uuid4().hex
-    return FileSystems.join(gcs_base, job_id, file_pattern)
-
-  @staticmethod
-  def _validate_gcs_location(gcs_location):
-    if not gcs_location.startswith('gs://'):
-      raise ValueError('Invalid GCS location: {}'.format(gcs_location))
+    return FileSystems.join(gcs_base, unique_id, file_pattern)
 
   def expand(self, pcoll):
-    class RemoveJsonFiles(beam.DoFn):
-      def __init__(self, gcs_location):
-        self._gcs_location = gcs_location
+    class RemoveExportedFiles(beam.DoFn):
+      def __init__(self, gcs_location_vp):
+        self._gcs_location_vp = gcs_location_vp
+        self._temp_location = temp_location
+        self._unique_id = unique_id
 
       def process(self, unused_element, signal):
-        match_result = FileSystems.match([self._gcs_location])[0].metadata_list
-        logging.debug(
+        gcs_location = ReadFromBigQuery.get_destination_uri(
+            self._gcs_location_vp, self._temp_location, self._unique_id)
+        match_result = FileSystems.match([gcs_location])[0].metadata_list
+        _LOGGER.debug(
             "%s: matched %s files", self.__class__.__name__, len(match_result))
         paths = [x.path for x in match_result]
         FileSystems.delete(paths)
 
+    unique_id = str(uuid.uuid4())[0:10]
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
-    gcs_location = self._get_destination_uri(temp_location)
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
 
     try:
@@ -1982,11 +1991,11 @@ class ReadFromBigQuery(PTransform):
         pcoll
         | beam.io.Read(
             _CustomBigQuerySource(
-                gcs_location=gcs_location,
-                validate=self.validate,
+                gcs_location=self.gcs_location,
                 pipeline_options=pcoll.pipeline.options,
                 job_name=job_name,
                 step_name=step_name,
+                unique_id=unique_id,
                 *self._args,
                 **self._kwargs))
-        | _PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))
+        | _PassThroughThenCleanup(RemoveExportedFiles(self.gcs_location)))
