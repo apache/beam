@@ -503,9 +503,13 @@ public class MapTaskExecutorTest {
       executor.execute();
       fail("Should have aborted");
     } catch (Exception e) {
-      Assert.assertTrue(e instanceof InterruptedException);
+      Assert.assertTrue(
+          "Aborting the executor interrupts the worker thread running execute() which then throws an InterruptedException",
+          e instanceof InterruptedException);
       Mockito.verify(o).abort();
     }
-    Assert.assertTrue(Thread.currentThread().isInterrupted());
+    Assert.assertTrue(
+        "Aborting the executor interrupts the worker thread running execute()",
+        Thread.currentThread().isInterrupted());
   }
 }

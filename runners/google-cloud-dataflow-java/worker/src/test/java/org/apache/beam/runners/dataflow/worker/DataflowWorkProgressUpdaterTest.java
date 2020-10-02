@@ -288,7 +288,9 @@ public class DataflowWorkProgressUpdaterTest {
   private WorkItemServiceState generateServiceAbort() {
     WorkItemServiceState responseState = new WorkItemServiceState();
     responseState.setCompleteWorkStatus(
-        new Status().setCode(com.google.rpc.Code.ABORTED_VALUE).setMessage("Worker was asked to abort!"));
+        new Status()
+            .setCode(com.google.rpc.Code.ABORTED_VALUE)
+            .setMessage("Worker was asked to abort!"));
     return responseState;
   }
 }
