@@ -726,7 +726,6 @@ class FnApiRunnerTest(unittest.TestCase):
     from apache_beam.runners.portability.fn_api_runner.execution import GenericMergingWindowFn
     self.assertEqual(GenericMergingWindowFn._HANDLES, {})
 
-
   @unittest.skip('BEAM-9119: test is flaky')
   def test_large_elements(self):
     with self.create_pipeline() as p:
@@ -1857,13 +1856,19 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
 # TODO(robertwb): Why does pickling break when this is inlined?
 class CustomMergingWindowFn(window.WindowFn):
   def assign(self, assign_context):
-    return [window.IntervalWindow(
-        assign_context.timestamp, assign_context.timestamp + 1)]
+    return [
+        window.IntervalWindow(
+            assign_context.timestamp, assign_context.timestamp + 1)
+    ]
+
   def merge(self, merge_context):
     evens = [w for w in merge_context.windows if w.start % 2 == 0]
     if evens:
-      merge_context.merge(evens, window.IntervalWindow(
-          min(w.start for w in evens), max(w.end for w in evens)))
+      merge_context.merge(
+          evens,
+          window.IntervalWindow(
+              min(w.start for w in evens), max(w.end for w in evens)))
+
   def get_window_coder(self):
     return coders.IntervalWindowCoder()
 
