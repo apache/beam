@@ -2028,9 +2028,9 @@ class JobConfigurationLoad(_messages.Message):
       value is false.
     autodetect: [Optional] Indicates if we should automatically infer the
       options and schema for CSV and JSON sources.
-    clustering: [Beta] Clustering specification for the destination table.
-      Must be specified with time-based partitioning, data in the table will
-      be first partitioned and subsequently clustered.
+    clustering: Clustering specification for the destination table.
+      BigQuery supports clustering for both partitioned and non-partitioned
+      tables.
     createDisposition: [Optional] Specifies whether the job is allowed to
       create new tables. The following values are supported: CREATE_IF_NEEDED:
       If the table does not exist, BigQuery creates the table. CREATE_NEVER:
@@ -2191,9 +2191,9 @@ class JobConfigurationQuery(_messages.Message):
       SQL queries, this flag is ignored and large results are always allowed.
       However, you must still set destinationTable when result size exceeds
       the allowed maximum response size.
-    clustering: [Beta] Clustering specification for the destination table.
-      Must be specified with time-based partitioning, data in the table will
-      be first partitioned and subsequently clustered.
+    clustering: Clustering specification for the destination table.
+      BigQuery supports clustering for both partitioned and non-partitioned
+      tables.
     createDisposition: [Optional] Specifies whether the job is allowed to
       create new tables. The following values are supported: CREATE_IF_NEEDED:
       If the table does not exist, BigQuery creates the table. CREATE_NEVER:
@@ -3564,9 +3564,9 @@ class Table(_messages.Message):
       and each label in the list must have a different key.
 
   Fields:
-    clustering: [Beta] Clustering specification for the table. Must be
-      specified with partitioning, data in the table will be first partitioned
-      and subsequently clustered.
+    clustering: Clustering specification for the destination table.
+      BigQuery supports clustering for both partitioned and non-partitioned
+      tables.
     creationTime: [Output-only] The time when this table was created, in
       milliseconds since the epoch.
     description: [Optional] A user-friendly description of this table.
@@ -3879,8 +3879,7 @@ class TableList(_messages.Message):
       ViewValue: Additional details for a view.
 
     Fields:
-      clustering: [Beta] Clustering specification for this table, if
-        configured.
+      clustering: Clustering specification for this table, if configured.
       creationTime: The time when this table was created, in milliseconds
         since the epoch.
       expirationTime: [Optional] The time when this table expires, in
