@@ -33,17 +33,17 @@ def createFlinkRunnerTestTask(String workerType) {
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
-  def task = toxTask(taskName, 'flink-runner-test', options)
-  // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
-  task.dependsOn ':runners:flink:1.10:job-server:shadowJar'
-  // The Java SDK worker is required to execute external transforms.
-  task.dependsOn ':sdks:java:container:docker'
-  if (workerType == 'DOCKER') {
-    task.dependsOn ext.pythonContainerTask
-  } else if (workerType == 'PROCESS') {
-    task.dependsOn 'createProcessWorker'
+  toxTask(taskName, 'flink-runner-test', options).configure {
+    // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
+    dependsOn ':runners:flink:1.10:job-server:shadowJar'
+    // The Java SDK worker is required to execute external transforms.
+    dependsOn ':sdks:java:container:docker'
+    if (workerType == 'DOCKER') {
+      dependsOn ext.pythonContainerTask
+    } else if (workerType == 'PROCESS') {
+      dependsOn 'createProcessWorker'
+    }
   }
-  return task
 }
 
 createFlinkRunnerTestTask('DOCKER')
@@ -126,14 +126,14 @@ def createSparkRunnerTestTask(String workerType) {
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
-  def task = toxTask(taskName, 'spark-runner-test', options)
-  task.dependsOn ':runners:spark:job-server:shadowJar'
-  if (workerType == 'DOCKER') {
-    task.dependsOn ext.pythonContainerTask
-  } else if (workerType == 'PROCESS') {
-    task.dependsOn 'createProcessWorker'
+  toxTask(taskName, 'spark-runner-test', options).configure {
+    dependsOn ':runners:spark:job-server:shadowJar'
+    if (workerType == 'DOCKER') {
+      dependsOn ext.pythonContainerTask
+    } else if (workerType == 'PROCESS') {
+      dependsOn 'createProcessWorker'
+    }
   }
-  return task
 }
 
 createSparkRunnerTestTask('DOCKER')
