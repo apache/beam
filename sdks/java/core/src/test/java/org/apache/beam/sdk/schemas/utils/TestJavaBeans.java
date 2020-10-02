@@ -1198,4 +1198,15 @@ public class TestJavaBeans {
   /** The schema for {@link NestedArrayBean}. * */
   public static final Schema ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA =
       Schema.builder().addArrayField("byteBuffers", FieldType.BYTES).build();
+
+  // A Bean that has no way for us to create an instance. Should throw an error during schema
+  // generation.
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class BeanWithNoCreateOption {
+    private String str;
+
+    public String getStr() {
+      return str;
+    }
+  }
 }

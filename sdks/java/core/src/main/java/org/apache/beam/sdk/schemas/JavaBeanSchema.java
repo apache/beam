@@ -110,12 +110,13 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
             typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
 
     // If there are no creator methods, then validate that we have setters for every field.
-    // Otherwise, we will have not way of creating the class.
+    // Otherwise, we will have no way of creating instances of the class.
     if (ReflectUtils.getAnnotatedCreateMethod(typeDescriptor.getRawType()) == null
         && ReflectUtils.getAnnotatedConstructor(typeDescriptor.getRawType()) == null) {
       JavaBeanUtils.validateJavaBean(
           GetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
-          SetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema));
+          SetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
+          schema);
     }
     return schema;
   }
