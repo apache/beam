@@ -26,6 +26,8 @@ type S struct {
 	a int
 }
 
+type R int
+
 var sKey string
 
 func init() {
@@ -33,7 +35,14 @@ func init() {
 	sKey = RegisterType(s)
 }
 
+func NonAnon(S) *S { return nil }
+
 func TestKey(t *testing.T) {
+	// We extract this early since we can't hardcode the package path
+	// for beam primitives. It would cause test failures if the
+	// package is vendored.
+	tR := reflect.TypeOf(R(2))
+
 	tests := []struct {
 		T   reflect.Type
 		Key string
@@ -43,8 +52,13 @@ func TestKey(t *testing.T) {
 		{reflectx.String, "", false},                   // predeclared type
 		{reflect.TypeOf(struct{ A int }{}), "", false}, // unnamed struct
 		{reflect.TypeOf(S{}), sKey, true},
-		{reflect.TypeOf(&S{}), "", false},  // ptr (= no name)
-		{reflect.TypeOf([]S{}), "", false}, // slice (= no name)
+		{reflect.TypeOf(&S{}), "", false},                            // ptr (= no name)
+		{reflect.TypeOf([]S{}), "", false},                           // slice (= no name)
+		{reflect.TypeOf([3]S{}), "", false},                          // array (= no name)
+		{reflect.TypeOf(map[S]S{}), "", false},                       // map (= no name)
+		{reflect.TypeOf(func(S) *S { return nil }), "", false},       // anon func (= no name)
+		{reflect.TypeOf(NonAnon), "", false},                         // func (= no name)
+		{reflect.TypeOf(R(2)), tR.PkgPath() + "." + tR.Name(), true}, // Declared non struct type (= no name)
 	}
 
 	for _, test := range tests {

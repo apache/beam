@@ -322,7 +322,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.25.0'
+    project.version = '2.26.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -392,14 +392,14 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.10"
-    def google_cloud_bigdataoss_version = "2.1.3"
+    def google_cloud_bigdataoss_version = "2.1.5"
     def google_cloud_core_version = "1.93.7"
     def google_cloud_pubsublite_version = "0.1.6"
     def google_cloud_spanner_version = "1.59.0"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_code_gson_version = "2.8.6"
     def google_http_clients_version = "1.34.0"
-    def google_oauth_clients_version = "1.30.6"
+    def google_oauth_clients_version = "1.31.0"
     def grpc_version = "1.27.2"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
@@ -957,6 +957,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.dependencies {
         errorprone("com.google.errorprone:error_prone_core:2.3.1")
+        errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
         // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
         // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
         errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
@@ -968,6 +969,9 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
         options.errorprone.errorproneArgs.add("MutableConstantField:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
       }
 
       if (configuration.shadowClosure) {
@@ -1545,7 +1549,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // development image at docker.io (see sdks/CONTAINERS.md):
     //
     //    format: apache/beam_$NAME_sdk:latest
-    //    ie: apache/beam_python3.7_sdk:latest apache/beam_java_sdk:latest apache/beam_go_sdk:latest
+    //    ie: apache/beam_python3.7_sdk:latest apache/beam_java8_sdk:latest apache/beam_go_sdk:latest
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
@@ -1947,9 +1951,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
-      // If none of them applied, version set here will be used as default value.
+      // If none of them applied, version set here will be used as default value. Currently
+      // the minimum version supported by Beam is 3.6
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '2.7'
+          project.pythonVersion : '3.6'
 
       project.task('setupVirtualenv')  {
         doLast {
@@ -2040,7 +2045,7 @@ class BeamModulePlugin implements Plugin<Project> {
         return argList.join(' ')
       }
 
-      project.ext.toxTask = { name, tox_env ->
+      project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.create(name) {
           dependsOn 'setupVirtualenv'
           dependsOn ':sdks:python:sdist'
@@ -2055,7 +2060,7 @@ class BeamModulePlugin implements Plugin<Project> {
             def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
             }
           }
           inputs.files project.pythonSdkDeps
@@ -2110,9 +2115,9 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ':runners:flink:1.10:job-server:shadowJar',
             ':runners:spark:job-server:shadowJar',
-            ':sdks:python:container:py35:docker',
             ':sdks:python:container:py36:docker',
-            ':sdks:python:container:py37:docker'
+            ':sdks:python:container:py37:docker',
+            ':sdks:python:container:py38:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

@@ -113,6 +113,12 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Dict[int, float], lambda k, v: {k: v}, [int, float])
     self.assertReturnType(
+        typehints.Tuple[str, typehints.Dict[int, float]],
+        lambda k,
+        v: ('s', {
+            k: v
+        }), [int, float])
+    self.assertReturnType(
         typehints.Dict[int, typehints.Union[float, str]],
         lambda k1,
         v1,
@@ -128,6 +134,12 @@ class TrivialInferenceTest(unittest.TestCase):
         b: {
             'a': a, 'b': b
         }, [int, float])
+    self.assertReturnType(
+        typehints.Tuple[int, typehints.Dict[str, typehints.Union[int, float]]],
+        lambda a,
+        b: (4, {
+            'a': a, 'b': b
+        }), [int, float])
 
   def testNoneReturn(self):
     def func(a):

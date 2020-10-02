@@ -12,7 +12,10 @@
 
 import * as React from 'react';
 
+import { Button } from '@rmwc/button';
 import { Checkbox } from '@rmwc/checkbox';
+import { TextField } from '@rmwc/textfield';
+import { Tooltip } from '@rmwc/tooltip';
 
 import {
   InspectableViewModel,
@@ -23,7 +26,10 @@ import { HtmlView } from '../common/HtmlView';
 import { IHtmlProvider } from '../common/HtmlView';
 import { InterruptKernelButton } from '../kernel/InterruptKernelButton';
 
+import '@rmwc/button/styles';
 import '@rmwc/checkbox/styles';
+import '@rmwc/textfield/styles';
+import '@rmwc/tooltip/styles';
 
 interface IInspectableViewProps {
   model: InspectableViewModel;
@@ -31,6 +37,7 @@ interface IInspectableViewProps {
 
 interface IInspectableViewState {
   inspectableType: string;
+  identifier: string;
   // options used in kernel messaging.
   options: IOptions;
 }
@@ -38,9 +45,9 @@ interface IInspectableViewState {
 /**
  * The display area of the InteractiveInspector parent component.
  *
- * The react component is composed with a top checkbox section of display
- * options and a main HtmlView area that displays HTML from IOPub messaging of
- * its kernel model.
+ * The react component is composed with a top section of display options and a
+ * main HtmlView area that displays HTML from IOPub messaging of its kernel
+ * model.
  */
 export class InspectableView extends React.Component<
   IInspectableViewProps,
@@ -49,13 +56,15 @@ export class InspectableView extends React.Component<
   constructor(props: IInspectableViewProps) {
     super(props);
     this.state = {
-      inspectableType: 'pipeline',
+      inspectableType: props.model.inspectableType,
+      identifier: props.model.identifier,
       options: props.model.options
     };
+    this.applyShowOptions = this.applyShowOptions.bind(this);
   }
 
   componentDidMount(): void {
-    this._updateRenderTimerId = setInterval(() => this.updateRender(), 1500);
+    this._updateRenderTimerId = setInterval(() => this.updateRender(), 1000);
   }
 
   componentWillUnmount(): void {
@@ -63,14 +72,20 @@ export class InspectableView extends React.Component<
   }
 
   updateRender(): void {
+    // Only self update when there is change in the selected item.
+    if (this.props.model.identifier === this.state.identifier) {
+      return;
+    }
     if (this.props.model.inspectableType === 'pcollection') {
       this.setState({
         inspectableType: 'pcollection',
+        identifier: this.props.model.identifier,
         options: this._buildShowOptions(this.props.model.options)
       });
     } else {
       this.setState({
         inspectableType: 'pipeline',
+        identifier: this.props.model.identifier,
         options: {}
       });
     }
@@ -81,28 +96,105 @@ export class InspectableView extends React.Component<
       return <span />;
     }
     const showOptions = this._buildShowOptions(this.state.options);
+    const includeWindowInfo = this._renderIncludeWindowInfo(showOptions);
+    const visualizeInFacets = this._renderVisualizeInFacets(showOptions);
+    const duration = this._renderDuration(showOptions);
+    const n = this._renderN(showOptions);
     return (
-      <React.Fragment>
+      <div
+        style={{
+          padding: '5px'
+        }}
+      >
+        {includeWindowInfo}
+        {visualizeInFacets}
+        {duration}
+        {n}
+        <Button
+          label="apply"
+          onClick={(): void => this.applyShowOptions(showOptions)}
+          raised
+        />
+      </div>
+    );
+  }
+
+  applyShowOptions(showOptions: IShowOptions): void {
+    this.setState({ options: showOptions });
+    // Back store the new state to the model.
+    this.props.model.options = showOptions;
+  }
+
+  private _renderIncludeWindowInfo(showOptions: IShowOptions): React.ReactNode {
+    return (
+      <Tooltip content="Whether to include window info.">
         <Checkbox
-          label="window info"
+          label="Include Window Info"
           checked={showOptions.includeWindowInfo}
           onChange={(e): void => {
             showOptions.includeWindowInfo = !!e.currentTarget.checked;
             this.setState({ options: showOptions });
-            // Back store the new state to the model.
-            this.props.model.options = showOptions;
           }}
         />
+      </Tooltip>
+    );
+  }
+
+  private _renderVisualizeInFacets(showOptions: IShowOptions): React.ReactNode {
+    return (
+      <Tooltip content="Whether to visualize the data in Facets.">
         <Checkbox
-          label="facets"
+          label="Visualize in Facets"
           checked={showOptions.visualizeInFacets}
           onChange={(e): void => {
             showOptions.visualizeInFacets = !!e.currentTarget.checked;
             this.setState({ options: showOptions });
-            this.props.model.options = showOptions;
           }}
         />
-      </React.Fragment>
+      </Tooltip>
+    );
+  }
+
+  private _renderDuration(showOptions: IShowOptions): React.ReactNode {
+    const tooltip =
+      'Max duration of elements to read in integer seconds or ' +
+      'a string duration that is parsable by pandas.to_timedelta, such as 1m ' +
+      'or 60s. Otherwise, default value `inf` is used: the visualization ' +
+      'will never end until manually stopped by interrupting the kernel or ' +
+      'reaches a hard cap set by ib.options.capture_size_limit.';
+    return (
+      <Tooltip content={tooltip}>
+        <TextField
+          outlined
+          label="Duration"
+          floatLabel
+          placeholder={showOptions.duration}
+          onChange={(e): void => {
+            showOptions.duration = e.currentTarget.value;
+          }}
+        />
+      </Tooltip>
+    );
+  }
+
+  private _renderN(showOptions: IShowOptions): React.ReactNode {
+    const tooltip =
+      'Max number of elements to visualize. Please fill in a ' +
+      'positive integer. Otherwise, default value `inf` is used: the ' +
+      'visualization will never end until manually stopped by interrupting ' +
+      'the kernel or reaches a hard cap set by ib.options.capture_duration.';
+    return (
+      <Tooltip content={tooltip}>
+        <TextField
+          outlined
+          label="Element Number"
+          floatLabel
+          placeholder={showOptions.n}
+          onChange={(e): void => {
+            showOptions.n = e.currentTarget.value;
+          }}
+        />
+      </Tooltip>
     );
   }
 
@@ -122,7 +214,9 @@ export class InspectableView extends React.Component<
     const optionsInput = options as IShowOptions;
     return {
       includeWindowInfo: !!optionsInput?.includeWindowInfo,
-      visualizeInFacets: !!optionsInput?.visualizeInFacets
+      visualizeInFacets: !!optionsInput?.visualizeInFacets,
+      duration: optionsInput?.duration,
+      n: optionsInput?.n
     } as IShowOptions;
   }
 

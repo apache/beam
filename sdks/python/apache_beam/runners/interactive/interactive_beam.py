@@ -42,9 +42,9 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
-from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import progress_indicated
+from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -199,6 +199,84 @@ class Options(interactive_options.InteractiveOptions):
     self._display_timezone = value
 
 
+class Recordings():
+  """An introspection interface for recordings for pipelines.
+
+  When a user materializes a PCollection onto disk (eg. ib.show) for a streaming
+  pipeline, a background recording job is started. This job pulls data from all
+  defined unbounded sources for that PCollection's pipeline. The following
+  methods allow for introspection into that background recording job.
+  """
+  def describe(self, pipeline=None):
+    # type: (Optional[beam.Pipeline]) -> dict[str, Any]
+
+    """Returns a description of all the recordings for the given pipeline.
+
+    If no pipeline is given then this returns a dictionary of descriptions for
+    all pipelines.
+    """
+
+    # Create the RecordingManager if it doesn't already exist.
+    if pipeline:
+      ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
+
+    description = ie.current_env().describe_all_recordings()
+
+    if pipeline:
+      return description[pipeline]
+    return description
+
+  def clear(self, pipeline):
+    # type: (beam.Pipeline) -> bool
+
+    """Clears all recordings of the given pipeline. Returns True if cleared."""
+
+    description = self.describe(pipeline)
+    if (not PipelineState.is_terminal(description['state']) and
+        description['state'] != PipelineState.STOPPED):
+      _LOGGER.warning(
+          'Trying to clear a recording with a running pipeline. Did '
+          'you forget to call ib.recordings.stop?')
+      return False
+
+    ie.current_env().cleanup(pipeline)
+    return True
+
+  def stop(self, pipeline):
+    # type: (beam.Pipeline) -> None
+
+    """Stops the background recording of the given pipeline."""
+
+    recording_manager = ie.current_env().get_recording_manager(
+        pipeline, create_if_absent=True)
+    recording_manager.cancel()
+
+  def record(self, pipeline):
+    # type: (beam.Pipeline) -> bool
+
+    """Starts a background recording job for the given pipeline. Returns True if
+    the recording job was started.
+    """
+
+    description = self.describe(pipeline)
+    if (not PipelineState.is_terminal(description['state']) and
+        description['state'] != PipelineState.STOPPED):
+      _LOGGER.warning(
+          'Trying to start a recording with a running pipeline. Did '
+          'you forget to call ib.recordings.stop?')
+      return False
+
+    if description['size'] > 0:
+      _LOGGER.warning(
+          'A recording already exists for this pipeline. To start a '
+          'recording, make sure to call ib.recordings.clear first.')
+      return False
+
+    recording_manager = ie.current_env().get_recording_manager(
+        pipeline, create_if_absent=True)
+    return recording_manager.record_pipeline()
+
+
 # Users can set options to guide how Interactive Beam works.
 # Examples:
 # from datetime import timedelta
@@ -208,6 +286,14 @@ class Options(interactive_options.InteractiveOptions):
 # ib.options.capturable_sources.add(SourceClass)
 # Check the docstrings for detailed usages.
 options = Options()
+
+# Users can introspect into recordings by using the recordings class.
+# Examples:
+# p = beam.Pipeline(InteractiveRunner())
+# elems = p | beam.Create([1, 2, 3])
+# ib.show(elems)
+# ib.recordings.describe(p)
+recordings = Recordings()
 
 
 def watch(watchable):
@@ -276,7 +362,8 @@ def show(*pcolls, **configs):
         more dive-in widget and statistically overview widget of the data.
         Otherwise, those 2 data visualization widgets will not be displayed.
     n: (optional) max number of elements to visualize. Default 'inf'.
-    duration: (optional) max duration of elements to read. Default 'inf'.
+    duration: (optional) max duration of elements to read in integer seconds or
+        a string duration. Default 'inf'.
 
   The given pcolls can be dictionary of PCollections (as values), or iterable
   of PCollections or plain PCollection values.
@@ -359,12 +446,9 @@ def show(*pcolls, **configs):
   elif isinstance(n, int):
     assert n > 0, 'n needs to be positive or the string \'inf\''
 
-  if isinstance(duration, str):
-    assert duration == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(duration, int):
-    assert duration > 0, 'duration needs to be positive or the string \'inf\''
+  if isinstance(duration, int):
+    assert duration > 0, ('duration needs to be positive, a duration string, '
+                          'or the string \'inf\'')
 
   if n == 'inf':
     n = float('inf')
@@ -378,9 +462,9 @@ def show(*pcolls, **configs):
       'The only supported arguments are include_window_info, visualize_data, '
       'n, and duration')
 
-  recording_manager = RecordingManager(user_pipeline)
-  recording = recording_manager.record(
-      pcolls, max_n=n, max_duration_secs=duration)
+  recording_manager = ie.current_env().get_recording_manager(
+      user_pipeline, create_if_absent=True)
+  recording = recording_manager.record(pcolls, max_n=n, max_duration=duration)
 
   # Catch a KeyboardInterrupt to gracefully cancel the recording and
   # visualizations.
@@ -433,7 +517,8 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
 
   Args:
     n: (optional) max number of elements to visualize. Default 'inf'.
-    duration: (optional) max duration of elements to read. Default 'inf'.
+    duration: (optional) max duration of elements to read in integer seconds or
+        a string duration. Default 'inf'.
 
   For example::
 
@@ -454,12 +539,9 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   elif isinstance(n, int):
     assert n > 0, 'n needs to be positive or the string \'inf\''
 
-  if isinstance(duration, str):
-    assert duration == 'inf', (
-        'Currently only the string \'inf\' is supported. This denotes reading '
-        'elements until the recording is stopped via a kernel interrupt.')
-  elif isinstance(duration, int):
-    assert duration > 0, 'duration needs to be positive or the string \'inf\''
+  if isinstance(duration, int):
+    assert duration > 0, ('duration needs to be positive, a duration string, '
+                          'or the string \'inf\'')
 
   if n == 'inf':
     n = float('inf')
@@ -468,11 +550,10 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
     duration = float('inf')
 
   user_pipeline = pcoll.pipeline
-  recording_manager = RecordingManager(user_pipeline)
+  recording_manager = ie.current_env().get_recording_manager(
+      user_pipeline, create_if_absent=True)
 
-  recording = recording_manager.record([pcoll],
-                                       max_n=n,
-                                       max_duration_secs=duration)
+  recording = recording_manager.record([pcoll], max_n=n, max_duration=duration)
 
   try:
     elements = list(recording.stream(pcoll).read())

@@ -72,6 +72,38 @@ public class Environments {
   public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
   public static final String ENVIRONMENT_LOOPBACK = "LOOPBACK"; // Non Public urn for testing
 
+  public enum JavaVersion {
+    v8("java8", "1.8"),
+    v11("java11", "11");
+
+    private final String name;
+    private final String specification;
+
+    JavaVersion(final String name, final String specification) {
+      this.name = name;
+      this.specification = specification;
+    }
+
+    @Override
+    public String toString() {
+      return this.name;
+    }
+
+    public String specification() {
+      return this.specification;
+    }
+
+    public static JavaVersion forSpecification(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+      throw new UnsupportedOperationException(
+          String.format("unsupported Java version: %s", specification));
+    }
+  }
+
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
    * container during a release.
@@ -79,12 +111,9 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
+
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot()
-          + "/"
-          + ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix()
-          + "java_sdk:"
-          + ReleaseInfo.getReleaseInfo().getSdkVersion();
+      getDefaultJavaSdkHarnessContainerUrl();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
@@ -319,6 +348,10 @@ public class Environments {
     return capabilities.build();
   }
 
+  public static JavaVersion getJavaVersion() {
+    return JavaVersion.forSpecification(System.getProperty("java.specification.version"));
+  }
+
   public static String createStagingFileName(File path, HashCode hash) {
     String encodedHash = Base64Variants.MODIFIED_FOR_URL.encode(hash.asBytes());
     String fileName = Files.getNameWithoutExtension(path.getAbsolutePath());
@@ -356,5 +389,14 @@ public class Environments {
     public @Nullable Map<String, String> getEnv() {
       return env;
     }
+  }
+
+  private static String getDefaultJavaSdkHarnessContainerUrl() {
+    return String.format(
+        "%s/%s%s_sdk:%s",
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
+        getJavaVersion().toString(),
+        ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }

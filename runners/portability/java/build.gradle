@@ -50,18 +50,24 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "testRuntime")
 }
 
-
 project.evaluationDependsOn(":sdks:java:core")
+project.evaluationDependsOn(":sdks:python")
 project.evaluationDependsOn(":runners:core-java")
 
-ext.localJobServicePidFile = "${project.buildDir}/local_job_service_pid"
+ext.pythonSdkDir = project.findProject(":sdks:python").getProjectDir().getAbsoluteFile().toString()
+
+// If this is set via -P then we assume it is already running and will not start it
+def needsLocalJobService = !project.hasProperty("localJobServicePortFile")
+
 ext.localJobServicePortFile = project.hasProperty("localJobServicePortFile") ? project.property("localJobServicePortFile") : "${project.buildDir}/local_job_service_port"
+
 ext.localJobServiceStdoutFile = "${project.buildDir}/local_job_service_stdout"
+ext.localJobServicePidFile = "${project.buildDir}/local_job_service_pid"
 
 void execInVirtualenv(String... args) {
   String shellCommand = ". ${project.ext.envdir}/bin/activate && " + args.collect { arg -> "'" + arg.replaceAll("'", "\\'") + "'" }.join(" ")
   exec {
-    workingDir pythonSdkDir
+    workingDir project.ext.pythonSdkDir
     commandLine "sh", "-c", shellCommand
   }
 }
@@ -69,8 +75,7 @@ void execInVirtualenv(String... args) {
 // Does not background the process, but allows the process to daemonize itself
 void execBackgroundInVirtualenv(String... args) {
   String shellCommand = ". ${project.ext.envdir}/bin/activate && " + args.collect { arg -> "'" + arg.replaceAll("'", "\\'") + "'" }.join(" ")
-  println "execBackgroundInVirtualEnv: ${shellCommand}"
-  ProcessBuilder pb = new ProcessBuilder().redirectErrorStream(true).directory(new File(pythonSdkDir)).command(["sh", "-c", shellCommand])
+  ProcessBuilder pb = new ProcessBuilder().redirectErrorStream(true).directory(new File(project.ext.pythonSdkDir)).command(["sh", "-c", shellCommand])
   Process proc = pb.start();
 
   // redirectIO does not work for connecting to groovy/gradle stdout
@@ -82,8 +87,15 @@ void execBackgroundInVirtualenv(String... args) {
   proc.waitFor();
 }
 
-task startLocalJobService {
+task installBeamPythonInVirtualenv {
   dependsOn setupVirtualenv
+  doLast {
+    execInVirtualenv "pip", "install", "-e", "."
+  }
+}
+
+task startLocalJobService {
+  dependsOn installBeamPythonInVirtualenv
 
   doLast {
     execBackgroundInVirtualenv "python",
@@ -108,95 +120,113 @@ startLocalJobService.finalizedBy stopLocalJobService
 
 /**
  * Runs Java ValidatesRunner tests against the Universal Local Runner (ULR) aka local_job_service_main
- * with subprocess SDK harness environments.
+ * with the specified environment type.
  */
-task ulrValidatesRunnerTests(type: Test) {
-  dependsOn ":sdks:java:container:docker"
+def createUlrValidatesRunnerTask = { name, environmentType ->
+  Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
+    description "PortableRunner Java docker ValidatesRunner suite"
+    classpath = configurations.validatesRunner
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+        "--runner=TestUniversalRunner",
+        "--experiments=beam_fn_api",
+        "--defaultEnvironmentType=${environmentType}",
+        "--localJobServicePortFile=${localJobServicePortFile}"
+    ])
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    }
+    filter {
+      // There is not currently a category for excluding these _only_ in committed mode
+      // https://issues.apache.org/jira/browse/BEAM-10445
+      excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics'
+      // https://issues.apache.org/jira/browse/BEAM-10446
+      excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedDistributionMetrics'
 
-  if (!project.hasProperty("localJobServicePortFile")) {
-    dependsOn startLocalJobService
+      // This test seems erroneously labeled ValidatesRunner
+      excludeTestsMatching 'org.apache.beam.sdk.schemas.AvroSchemaTest.testAvroPipelineGroupBy'
+
+      // Teardown not called in exceptions
+      // https://issues.apache.org/jira/browse/BEAM-10447
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
+
+      // Only known window fns supported, not general window merging
+      // https://issues.apache.org/jira/browse/BEAM-10448
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testMergingWindowing'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows'
+
+      // Flatten with empty PCollections hangs
+      // https://issues.apache.org/jira/browse/BEAM-10450
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo'
+
+      // Empty side inputs hang
+      // https://issues.apache.org/jira/browse/BEAM-10449
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputFixedToFixedWithDefault'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyIterableSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyListSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMultimapSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMultimapSideInputWithNonDeterministicKeyCoder'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMapSideInput'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMapSideInputWithNonDeterministicKeyCoder'
+
+      // Misc failures
+      // https://issues.apache.org/jira/browse/BEAM-10451
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testGlobalCombineWithDefaultsAndTriggers'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext'
+
+      // https://issues.apache.org/jira/browse/BEAM-10454
+      excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedIsEqualTo'
+
+      // https://issues.apache.org/jira/browse/BEAM-10453
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming'
+
+      // https://issues.apache.org/jira/browse/BEAM-10452
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
+
+      // https://issues.apache.org/jira/browse/BEAM-10995
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation'
+    }
   }
 
-  group = "Verification"
-  description "PortableRunner Java subprocess ValidatesRunner suite"
-  classpath = configurations.validatesRunner
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-      "--runner=TestUniversalRunner",
-      "--experiments=beam_fn_api",
-      "--localJobServicePortFile=${localJobServicePortFile}"
-  ])
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
-  useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+  if (environmentType == "DOCKER") {
+    vrTask.dependsOn ":sdks:java:container:docker"
   }
-  filter {
-    // There is not currently a category for excluding these _only_ in committed mode
-    // https://issues.apache.org/jira/browse/BEAM-10445
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics'
-    // https://issues.apache.org/jira/browse/BEAM-10446
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedDistributionMetrics'
 
-    // This test seems erroneously labeled ValidatesRunner
-    excludeTestsMatching 'org.apache.beam.sdk.schemas.AvroSchemaTest.testAvroPipelineGroupBy'
-
-    // Teardown not called in exceptions
-    // https://issues.apache.org/jira/browse/BEAM-10447
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
-
-    // Only known window fns supported, not general window merging
-    // https://issues.apache.org/jira/browse/BEAM-10448
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testMergingWindowing'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing'
-
-    // Flatten with empty PCollections hangs
-    // https://issues.apache.org/jira/browse/BEAM-10450
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo'
-
-    // Empty side inputs hang
-    // https://issues.apache.org/jira/browse/BEAM-10449
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputFixedToFixedWithDefault'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyIterableSideInput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyListSideInput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMultimapSideInput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMultimapSideInputWithNonDeterministicKeyCoder'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMapSideInput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMapSideInputWithNonDeterministicKeyCoder'
-
-    // Misc failures
-    // https://issues.apache.org/jira/browse/BEAM-10451
-    excludeTestsMatching 'org.apache.beam.sdk.testing.CombineTest$WindowingTests.testGlobalCombineWithDefaultsAndTriggers'
-    excludeTestsMatching 'org.apache.beam.sdk.testing.CombineTest$WindowingTests.testSessionsCombine'
-    excludeTestsMatching 'org.apache.beam.sdk.testing.CombineTest$WindowingTests.testSessionsCombineWithContext'
-
-    // https://issues.apache.org/jira/browse/BEAM-10454
-    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedIsEqualTo'
-
-    // https://issues.apache.org/jira/browse/BEAM-10453
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming'
-
-    // https://issues.apache.org/jira/browse/BEAM-10452
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
+  if (needsLocalJobService) {
+    vrTask.dependsOn startLocalJobService
+    stopLocalJobService.mustRunAfter vrTask
   }
+
+  return vrTask
 }
 
-stopLocalJobService.mustRunAfter ulrValidatesRunnerTests
+task ulrDockerValidatesRunner {
+  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER")
+}
+
+task ulrLoopbackValidatesRunner {
+  dependsOn createUlrValidatesRunnerTask("ulrLoopbackValidatesRunnerTests", "LOOPBACK")
+}
 

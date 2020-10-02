@@ -17,7 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
+import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import LoadTestsBuilder
 
@@ -44,7 +44,7 @@ def chicagoTaxiJob = { scope ->
   }
 }
 
-PostcommitJobBuilder.postCommitJob(
+PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
     'Run Chicago Taxi on Dataflow',
     'Chicago Taxi Example on Dataflow ("Run Chicago Taxi on Dataflow")',

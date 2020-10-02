@@ -37,6 +37,7 @@ import apache_beam as beam
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
+from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -136,6 +137,8 @@ class InteractiveEnvironment(object):
     # PCollection cache for each pipeline. Each key is a stringified user
     # defined pipeline instance's id.
     self._cache_managers = {}
+    # Holds RecordingManagers keyed by pipeline instance id.
+    self._recording_managers = {}
     # Holds class instances, module object, string of module names.
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
@@ -272,6 +275,7 @@ class InteractiveEnvironment(object):
         if cache_manager:
           cache_manager.cleanup()
 
+    self.evict_recording_manager(pipeline)
     self.evict_background_caching_job(pipeline)
     self.evict_test_stream_service_controller(pipeline)
     self.evict_computed_pcollections(pipeline)
@@ -347,6 +351,57 @@ class InteractiveEnvironment(object):
     if pipeline:
       return self._cache_managers.pop(str(id(pipeline)), None)
     self._cache_managers.clear()
+
+  def set_recording_manager(self, recording_manager, pipeline):
+    """Sets the recording manager for the given pipeline."""
+    if self.get_recording_manager(pipeline) is recording_manager:
+      # NOOP if setting to the same recording_manager.
+      return
+    self._recording_managers[str(id(pipeline))] = recording_manager
+
+  def get_recording_manager(self, pipeline, create_if_absent=False):
+    """Gets the recording manager for the given pipeline."""
+    recording_manager = self._recording_managers.get(str(id(pipeline)), None)
+    if not recording_manager and create_if_absent:
+      # Get the pipeline variable name for the user. This is useful if the user
+      # has multiple pipelines.
+      pipeline_var = ''
+      for w in self.watching():
+        for var, val in w:
+          if val is pipeline:
+            pipeline_var = var
+            break
+      recording_manager = RecordingManager(pipeline, pipeline_var)
+      self._recording_managers[str(id(pipeline))] = recording_manager
+    return recording_manager
+
+  def evict_recording_manager(self, pipeline):
+    """Evicts the recording manager for the given pipeline.
+
+    This stops the background caching job and clears the cache.
+    Noop if the pipeline is absent from the environment. If no
+    pipeline is specified, evicts for all pipelines.
+    """
+    if not pipeline:
+      for rm in self._recording_managers.values():
+        rm.cancel()
+        rm.clear()
+      self._recording_managers = {}
+      return
+
+    recording_manager = self.get_recording_manager(pipeline)
+    if recording_manager:
+      recording_manager.cancel()
+      recording_manager.clear()
+      del self._recording_managers[str(id(pipeline))]
+
+  def describe_all_recordings(self):
+    """Returns a description of the recording for all watched pipelnes."""
+    return {
+        self.pipeline_id_to_pipeline(pid): rm.describe()
+        for pid,
+        rm in self._recording_managers.items()
+    }
 
   def set_pipeline_result(self, pipeline, result):
     """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
@@ -465,6 +520,7 @@ class InteractiveEnvironment(object):
         if isinstance(val, beam.pipeline.Pipeline):
           self._tracked_user_pipelines.add(val)
           _ = self.get_cache_manager(val, create_if_absent=True)
+          _ = self.get_recording_manager(val, create_if_absent=True)
     all_tracked_pipeline_ids = set(self._background_caching_jobs.keys()).union(
         set(self._test_stream_service_controllers.keys()),
         set(self._cache_managers.keys()),

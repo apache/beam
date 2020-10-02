@@ -1604,9 +1604,7 @@ public class DataflowRunnerTest implements Serializable {
     verifyMergingStatefulParDoRejected(options);
   }
 
-  private void verifyGroupIntoBatchesOverride(PipelineOptions options) {
-    Pipeline p = Pipeline.create(options);
-
+  private void verifyGroupIntoBatchesOverride(Pipeline p) {
     final int batchSize = 2;
     List<KV<String, Integer>> testValues =
         Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
@@ -1641,12 +1639,12 @@ public class DataflowRunnerTest implements Serializable {
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (options.as(StreamingOptions.class).isStreaming()
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()
                 && node.getTransform()
                     instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatches) {
               sawGroupIntoBatchesOverride.set(true);
             }
-            if (!options.as(StreamingOptions.class).isStreaming()
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
                 && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
               sawGroupIntoBatchesOverride.set(true);
             }
@@ -1658,18 +1656,16 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testBatchGroupIntoBatchesOverride() throws IOException {
-    PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
-    verifyGroupIntoBatchesOverride(options);
+  public void testBatchGroupIntoBatchesOverride() {
+    verifyGroupIntoBatchesOverride(pipeline);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testStreamingGroupIntoBatchesOverride() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     options.as(StreamingOptions.class).setStreaming(true);
-    verifyGroupIntoBatchesOverride(options);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverride(p);
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
