@@ -1,0 +1,34 @@
+plugins {
+    id 'java'
+    id 'org.apache.beam.module'
+    id 'com.github.johnrengelman.shadow'
+}
+applyJavaNature(
+        exportJavadoc: false,
+        enableChecker: false,
+        ignoreRawtypeErrors: true,
+        automaticModuleName: 'org.apache.beam.templates.kafka-to-pubsub')
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: Templates :: Kafka to PubSub"
+ext.summary = """Apache Beam SDK provides a simple, Java-based
+interface for processing virtually any size data. This
+artifact includes Kafka to PubSub template for Google DataFlow"""
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile library.java.kafka_clients
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile project(":sdks:java:extensions:google-cloud-platform-core")
+    compile project(":sdks:java:io:google-cloud-platform")
+    compile project(":sdks:java:io:kafka")
+    compile project(":runners:google-cloud-dataflow-java")
+}
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
