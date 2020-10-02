@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -28,11 +30,13 @@ import java.nio.charset.Charset;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -566,5 +570,58 @@ public class AutoValueSchemaTest {
         new AutoValue_AutoValueSchemaTest_SchemaFieldNameSimpleClass("another value!");
     Row row = registry.getToRowFunction(SchemaFieldNameSimpleClass.class).apply(value);
     assertEquals("another value!", row.getValue("renamed"));
+  }
+
+  // Test that @SchemaCaseFormat can be used to rename fields
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public abstract static class SimpleAutoValueWithRenamedFields {
+    public abstract int getUserId();
+
+    public abstract int getAgeInYears();
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public abstract boolean getKnowsJavascript();
+
+    @SchemaFieldName("user")
+    public abstract String getUserName();
+
+    public static SimpleAutoValueWithRenamedFields of(
+        int userId, int ageInYears, boolean knowsJavascript, String userName) {
+      return new AutoValue_AutoValueSchemaTest_SimpleAutoValueWithRenamedFields(
+          userId, ageInYears, knowsJavascript, userName);
+    }
+  }
+
+  private static final Schema RENAMED_FIELDS_SCHEMA =
+      Schema.builder()
+          .addField("user_id", FieldType.INT32)
+          .addField("age_in_years", FieldType.INT32)
+          .addField("KnowsJavascript", FieldType.BOOLEAN)
+          .addField("user", FieldType.STRING)
+          .build();
+
+  @Test
+  public void testGetSchemaCaseFormat() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SimpleAutoValueWithRenamedFields.class);
+
+    assertThat(schema, equivalentTo(RENAMED_FIELDS_SCHEMA));
+
+    SimpleAutoValueWithRenamedFields autoValue =
+        SimpleAutoValueWithRenamedFields.of(1, 23, false, "hunter");
+    Row row =
+        Row.withSchema(RENAMED_FIELDS_SCHEMA)
+            .withFieldValue("user_id", 1)
+            .withFieldValue("age_in_years", 23)
+            .withFieldValue("KnowsJavascript", false)
+            .withFieldValue("user", "hunter")
+            .build();
+
+    Row output = registry.getToRowFunction(SimpleAutoValueWithRenamedFields.class).apply(autoValue);
+    assertThat(output, equivalentTo(row));
+    assertEquals(
+        registry.getFromRowFunction(SimpleAutoValueWithRenamedFields.class).apply(row), autoValue);
   }
 }
