@@ -67,8 +67,9 @@ class MonitoringInfosTest(unittest.TestCase):
 
   def test_int64_user_gauge(self):
     metric = GaugeCell().get_cumulative()
-    result = monitoring_infos.int64_user_gauge('gaugenamespace', 'gaugename', metric)
-    ts, gauge_value = monitoring_infos.extract_gauge_value(result)
+    result = monitoring_infos.int64_user_gauge(
+          'gaugenamespace', 'gaugename', metric)
+    _, gauge_value = monitoring_infos.extract_gauge_value(result)
     self.assertEqual(0, gauge_value)
 
 
