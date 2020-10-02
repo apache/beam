@@ -26,10 +26,12 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_MAP_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -41,6 +43,7 @@ import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.AllNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ArrayOfByteArray;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithNoCreateOption;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
@@ -503,5 +506,25 @@ public class JavaBeanSchemaTest {
             .build();
     ArrayOfByteArray converted = registry.getFromRowFunction(ArrayOfByteArray.class).apply(row);
     assertEquals(expectedArrayOfByteArray, converted);
+  }
+
+  @Test
+  public void testNoCreateOptionThrows() {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> registry.getSchema(BeanWithNoCreateOption.class));
+
+    assertThat(
+        "Message should mention there's an issue with setters.",
+        thrown.getMessage(),
+        containsString("setter"));
+    assertThat(
+        "Message should mention the problem field.", thrown.getMessage(), containsString("str"));
+    assertThat(
+        "Message should suggest alternative of using @SchemaCreate to avoid need for setters.",
+        thrown.getMessage(),
+        containsString("@SchemaCreate"));
   }
 }

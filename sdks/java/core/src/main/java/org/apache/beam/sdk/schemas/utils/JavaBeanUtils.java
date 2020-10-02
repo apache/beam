@@ -20,9 +20,9 @@ package org.apache.beam.sdk.schemas.utils;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -67,30 +67,41 @@ public class JavaBeanUtils {
 
   // Make sure that there are matching setters and getters.
   public static void validateJavaBean(
-      List<FieldValueTypeInformation> getters, List<FieldValueTypeInformation> setters) {
-    Map<String, FieldValueTypeInformation> setterMap =
-        setters.stream()
-            .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+      List<FieldValueTypeInformation> getters,
+      List<FieldValueTypeInformation> setters,
+      Schema schema) {
+
+    Map<String, FieldValueTypeInformation> setterMap = new HashMap<>();
+    int bound = schema.getFieldCount();
+    for (int i = 0; i < bound; i++) {
+      Integer integer = i;
+      if (setterMap.put(schema.getField(integer).getName(), setters.get(integer)) != null) {
+        throw new IllegalStateException("Duplicate key");
+      }
+    }
+
+    final String HELP_STRING =
+        "In order to infer a Schema from a Java Bean, it must have a constructor annotated with @SchemaCreate, or it must have a compatible setter for every getter used as a Schema field.";
 
     for (FieldValueTypeInformation type : getters) {
       FieldValueTypeInformation setterType = setterMap.get(type.getName());
       if (setterType == null) {
         throw new RuntimeException(
-            "JavaBean contained a getter for field "
-                + type.getName()
-                + "but did not contain a matching setter.");
+            String.format(
+                "Java Bean '%s' contains a getter for field '%s', but does not contain a matching setter. %s",
+                type.getMethod().getDeclaringClass(), type.getName(), HELP_STRING));
       }
       if (!type.getType().equals(setterType.getType())) {
         throw new RuntimeException(
-            "JavaBean contained setter for field "
-                + type.getName()
-                + " that had a mismatching type.");
+            String.format(
+                "Java Bean '%s' contains a setter for field '%s' that has a mismatching type. %s",
+                type.getMethod().getDeclaringClass(), type.getName(), HELP_STRING));
       }
       if (!type.isNullable() == setterType.isNullable()) {
         throw new RuntimeException(
-            "JavaBean contained setter for field "
-                + type.getName()
-                + " that had a mismatching nullable attribute.");
+            String.format(
+                "Java Bean '%s' contains a setter for field '%s' that has a mismatching nullable attribute. %s",
+                type.getMethod().getDeclaringClass(), type.getName(), HELP_STRING));
       }
     }
   }
