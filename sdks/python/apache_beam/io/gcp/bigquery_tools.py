@@ -443,7 +443,6 @@ class BigQueryWrapper(object):
             "BigQuery job %s already exists, will not retry inserting it: %s",
             request.job.jobReference,
             e)
-        created_table = self.get_table(project_id, dataset_id, table_id)
         return request.job
       else:
         _LOGGER.info("Failed to insert job %s: %s", request.job.jobReference, e)
