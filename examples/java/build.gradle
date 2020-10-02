@@ -20,10 +20,10 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        exportJavadoc: false,
-        enableChecker: false,
-        ignoreRawtypeErrors: true,
-        automaticModuleName: 'org.apache.beam.examples')
+  exportJavadoc: false,
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.examples')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -97,9 +97,9 @@ dependencies {
  * of integration tests for WordCount and WindowedWordCount.
  */
 def preCommitRunnerClass = [
-        directRunner: "org.apache.beam.runners.direct.DirectRunner",
-        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
-        sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
+  directRunner: "org.apache.beam.runners.direct.DirectRunner",
+  flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
+  sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
@@ -107,9 +107,9 @@ def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-
 for (String runner : preCommitRunners) {
   tasks.create(name: runner + "PreCommit", type: Test) {
     def preCommitBeamTestPipelineOptions = [
-            "--project=${gcpProject}",
-            "--tempRoot=${gcsTempRoot}",
-            "--runner=" + preCommitRunnerClass[runner],
+       "--project=${gcpProject}",
+       "--tempRoot=${gcsTempRoot}",
+       "--runner=" + preCommitRunnerClass[runner],
     ]
     classpath = configurations."${runner}PreCommit"
     include "**/WordCountIT.class"
