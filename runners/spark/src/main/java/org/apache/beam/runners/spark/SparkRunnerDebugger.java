@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
@@ -72,6 +73,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     JavaSparkContext jsc = new JavaSparkContext("local[1]", "Debug_Pipeline");
     JavaStreamingContext jssc =
         new JavaStreamingContext(jsc, new org.apache.spark.streaming.Duration(1000));

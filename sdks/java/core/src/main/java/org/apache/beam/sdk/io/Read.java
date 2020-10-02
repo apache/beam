@@ -27,7 +27,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -37,16 +36,15 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
@@ -62,8 +60,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
-import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -135,26 +131,16 @@ public class Read {
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
-
-      if (useSdf(input.getPipeline().getOptions())) {
-        // We don't use Create here since Create is defined as a BoundedSource and using it would
-        // cause an infinite expansion loop. We can reconsider this if Create is implemented
-        // directly as a SplittableDoFn.
-        return input
-            .getPipeline()
-            .apply(Impulse.create())
-            .apply(
-                MapElements.into(new TypeDescriptor<BoundedSource<T>>() {}).via(element -> source))
-            .setCoder(SerializableCoder.of(new TypeDescriptor<BoundedSource<T>>() {}))
-            .apply(ParDo.of(new BoundedSourceAsSDFWrapperFn<>()))
-            .setCoder(source.getOutputCoder());
-      }
-
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          PCollection.IsBounded.BOUNDED,
-          source.getOutputCoder());
+      // We don't use Create here since Create is defined as a BoundedSource and using it would
+      // cause an infinite expansion loop. We can reconsider this if Create is implemented
+      // directly as a SplittableDoFn.
+      return input
+          .getPipeline()
+          .apply(Impulse.create())
+          .apply(ParDo.of(new OutputSingleSource<>(source)))
+          .setCoder(SerializableCoder.of(new TypeDescriptor<BoundedSource<T>>() {}))
+          .apply(ParDo.of(new BoundedSourceAsSDFWrapperFn<>()))
+          .setCoder(source.getOutputCoder());
     }
 
     /** Returns the {@code BoundedSource} used to create this {@code Read} {@code PTransform}. */
@@ -178,11 +164,12 @@ public class Read {
 
   /** {@link PTransform} that reads from a {@link UnboundedSource}. */
   public static class Unbounded<T> extends PTransform<PBegin, PCollection<T>> {
-    private final UnboundedSource<T, ?> source;
+    private final UnboundedSource<T, CheckpointMark> source;
 
     private Unbounded(@Nullable String name, UnboundedSource<T, ?> source) {
       super(name);
-      this.source = SerializableUtils.ensureSerializable(source);
+      this.source =
+          (UnboundedSource<T, CheckpointMark>) SerializableUtils.ensureSerializable(source);
     }
 
     /**
@@ -208,41 +195,29 @@ public class Read {
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
+      // We don't use Create here since Create is defined as a BoundedSource and using it would
+      // cause an infinite expansion loop. We can reconsider this if Create is implemented
+      // directly as a SplittableDoFn.
+      PCollection<ValueWithRecordId<T>> outputWithIds =
+          input
+              .getPipeline()
+              .apply(Impulse.create())
+              .apply(ParDo.of(new OutputSingleSource<>(source)))
+              .setCoder(
+                  SerializableCoder.of(new TypeDescriptor<UnboundedSource<T, CheckpointMark>>() {}))
+              .apply(
+                  ParDo.of(
+                      new UnboundedSourceAsSDFWrapperFn<>(
+                          (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
+              .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
 
-      if (useSdf(input.getPipeline().getOptions())) {
-        // We don't use Create here since Create is defined as a BoundedSource and using it would
-        // cause an infinite expansion loop. We can reconsider this if Create is implemented
-        // directly as a SplittableDoFn.
-        PCollection<ValueWithRecordId<T>> outputWithIds =
-            input
-                .getPipeline()
-                .apply(Impulse.create())
-                .apply(
-                    MapElements.into(new TypeDescriptor<UnboundedSource<T, CheckpointMark>>() {})
-                        .via(element -> (UnboundedSource<T, CheckpointMark>) source))
-                .setCoder(
-                    SerializableCoder.of(
-                        new TypeDescriptor<UnboundedSource<T, CheckpointMark>>() {}))
-                .apply(
-                    ParDo.of(
-                        new UnboundedSourceAsSDFWrapperFn<>(
-                            (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
-                .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
-
-        if (source.requiresDeduping()) {
-          outputWithIds.apply(
-              Deduplicate.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
-                      element -> element.getId())
-                  .withRepresentativeType(TypeDescriptor.of(byte[].class)));
-        }
-        return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
+      if (source.requiresDeduping()) {
+        outputWithIds.apply(
+            Deduplicate.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
+                    element -> element.getId())
+                .withRepresentativeType(TypeDescriptor.of(byte[].class)));
       }
-
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          PCollection.IsBounded.UNBOUNDED,
-          source.getOutputCoder());
+      return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
     }
 
     /** Returns the {@code UnboundedSource} used to create this {@code Read} {@code PTransform}. */
@@ -921,41 +896,26 @@ public class Read {
     }
   }
 
-  private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
+  private static class OutputSingleSource<T extends HasDisplayData> extends DoFn<byte[], T> {
+    private final T source;
 
-  /**
-   * Used to migrate runners to use splittable DoFn without needing to rely on PTransform
-   * replacement which allows removal of the migration code without changing the pipeline shape
-   * since pipeline shape affects pipeline update for some runners.
-   */
-  private static final Set<String> SPLITTABLE_DOFN_PREFERRED_RUNNERS =
-      ImmutableSet.of(
-          "DirectRunner",
-          "FlinkRunner",
-          "TestFlinkRunner",
-          "JetRunner",
-          "TestJetRunner",
-          "SamzaRunner",
-          "TestSamzaRunner",
-          "Twister2Runner",
-          "Twister2TestRunner");
-
-  private static boolean useSdf(PipelineOptions options) {
-    // TODO(BEAM-10670): Make this by default true and have runners opt-out instead.
-    boolean runnerPrefersSdf = false;
-    try {
-      runnerPrefersSdf =
-          SPLITTABLE_DOFN_PREFERRED_RUNNERS.contains(options.getRunner().getSimpleName());
-    } catch (Exception e) {
-      // Ignore construction failures since there may not be a runner on the classpath if this is a
-      // test.
+    private OutputSingleSource(T source) {
+      this.source = source;
     }
 
-    // We keep the old names of experiments around for portable runners and existing users.
-    return (runnerPrefersSdf
-            || ExperimentalOptions.hasExperiment(options, "beam_fn_api")
-            || ExperimentalOptions.hasExperiment(options, "use_sdf_read"))
-        && !(ExperimentalOptions.hasExperiment(options, "beam_fn_api_use_deprecated_read")
-            || ExperimentalOptions.hasExperiment(options, "use_deprecated_read"));
+    @ProcessElement
+    public void processElement(OutputReceiver<T> outputReceiver) {
+      outputReceiver.output(source);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .add(DisplayData.item("source", source.getClass()).withLabel("Read Source"))
+          .include("source", source);
+    }
   }
+
+  private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
 }
