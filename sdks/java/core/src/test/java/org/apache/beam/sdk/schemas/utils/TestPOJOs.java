@@ -27,10 +27,12 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -1010,6 +1012,50 @@ public class TestPOJOs {
           .addNullableField("byteBuffer", FieldType.BYTES)
           .addNullableField("bigDecimal", FieldType.DECIMAL)
           .addNullableField("stringBuilder", FieldType.STRING)
+          .build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public static class PojoWithCaseFormat {
+    public String user;
+    public int ageInYears;
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public boolean knowsJavascript;
+
+    @SchemaCreate
+    public PojoWithCaseFormat(String user, int ageInYears, boolean knowsJavascript) {
+      this.user = user;
+      this.ageInYears = ageInYears;
+      this.knowsJavascript = knowsJavascript;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PojoWithCaseFormat that = (PojoWithCaseFormat) o;
+      return ageInYears == that.ageInYears
+          && knowsJavascript == that.knowsJavascript
+          && user.equals(that.user);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, ageInYears, knowsJavascript);
+    }
+  }
+
+  /** The schema for {@link PojoWithCaseFormat}. * */
+  public static final Schema CASE_FORMAT_POJO_SCHEMA =
+      Schema.builder()
+          .addField("user", FieldType.STRING)
+          .addField("age_in_years", FieldType.INT32)
+          .addField("KnowsJavascript", FieldType.BOOLEAN)
           .build();
 
   @DefaultSchema(JavaFieldSchema.class)

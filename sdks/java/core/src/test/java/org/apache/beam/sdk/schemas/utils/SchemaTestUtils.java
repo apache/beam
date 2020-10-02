@@ -36,6 +36,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 
 /** Utilities for testing schemas. */
 public class SchemaTestUtils {
@@ -43,6 +44,27 @@ public class SchemaTestUtils {
   // (recursively) contain the same fields with the same names, but possibly different orders.
   public static void assertSchemaEquivalent(Schema expected, Schema actual) {
     assertTrue("Expected: " + expected + "  Got: " + actual, actual.equivalent(expected));
+  }
+
+  public static Matcher<Schema> equivalentTo(Schema expected) {
+    return new BaseMatcher<Schema>() {
+      @Override
+      public boolean matches(Object actual) {
+        if (!(actual instanceof Schema)) {
+          return false;
+        }
+        return expected.equivalent((Schema) actual);
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(expected.toString());
+      }
+    };
+  }
+
+  public static Matcher<Row> equivalentTo(Row expected) {
+    return new RowEquivalent(expected);
   }
 
   public static class RowEquivalent extends BaseMatcher<Row> {

@@ -27,9 +27,11 @@ import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -1199,6 +1201,60 @@ public class TestJavaBeans {
   public static final Schema ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA =
       Schema.builder().addArrayField("byteBuffers", FieldType.BYTES).build();
 
+  @DefaultSchema(JavaBeanSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public static class BeanWithCaseFormat {
+    private String user;
+    private int ageInYears;
+    private boolean knowsJavascript;
+
+    @SchemaCreate
+    public BeanWithCaseFormat(String user, int ageInYears, boolean knowsJavascript) {
+      this.user = user;
+      this.ageInYears = ageInYears;
+      this.knowsJavascript = knowsJavascript;
+    }
+
+    public String getUser() {
+      return user;
+    }
+
+    public int getAgeInYears() {
+      return ageInYears;
+    }
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public boolean getKnowsJavascript() {
+      return knowsJavascript;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      BeanWithCaseFormat that = (BeanWithCaseFormat) o;
+      return ageInYears == that.ageInYears
+          && knowsJavascript == that.knowsJavascript
+          && Objects.equals(user, that.user);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, ageInYears, knowsJavascript);
+    }
+  }
+
+  public static final Schema CASE_FORMAT_BEAM_SCHEMA =
+      Schema.builder()
+          .addStringField("user")
+          .addInt32Field("age_in_years")
+          .addBooleanField("KnowsJavascript")
+          .build();
+
   // A Bean that has no way for us to create an instance. Should throw an error during schema
   // generation.
   @DefaultSchema(JavaBeanSchema.class)
@@ -1209,4 +1265,66 @@ public class TestJavaBeans {
       return str;
     }
   }
+
+  // A Bean that has no @SchemaCreate, so it must be created with Setters.
+  // It also renames fields, which has the potential to make us misidentify setters.
+  @DefaultSchema(JavaBeanSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public static class BeanWithRenamedFieldsAndSetters {
+    private String user;
+    private int ageInYears;
+    private boolean knowsJavascript;
+
+    @SchemaFieldName("username")
+    public String getUser() {
+      return user;
+    }
+
+    public int getAgeInYears() {
+      return ageInYears;
+    }
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public boolean getKnowsJavascript() {
+      return knowsJavascript;
+    }
+
+    public void setUser(String user) {
+      this.user = user;
+    }
+
+    public void setAgeInYears(int ageInYears) {
+      this.ageInYears = ageInYears;
+    }
+
+    public void setKnowsJavascript(boolean knowsJavascript) {
+      this.knowsJavascript = knowsJavascript;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      BeanWithCaseFormat that = (BeanWithCaseFormat) o;
+      return ageInYears == that.ageInYears
+          && knowsJavascript == that.knowsJavascript
+          && Objects.equals(user, that.user);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, ageInYears, knowsJavascript);
+    }
+  }
+
+  public static final Schema RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA =
+      Schema.builder()
+          .addStringField("username")
+          .addInt32Field("age_in_years")
+          .addBooleanField("KnowsJavascript")
+          .build();
 }

@@ -17,15 +17,19 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ALL_NULLABLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.CASE_FORMAT_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_MAP_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_ARRAY_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -43,7 +47,9 @@ import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.AllNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ArrayOfByteArray;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithCaseFormat;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithNoCreateOption;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithRenamedFieldsAndSetters;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
@@ -60,6 +66,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.joda.time.DateTime;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -509,6 +516,27 @@ public class JavaBeanSchemaTest {
   }
 
   @Test
+  public void testGetSchemaCaseFormat() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(BeanWithCaseFormat.class);
+
+    assertThat(schema, equivalentTo(CASE_FORMAT_BEAM_SCHEMA));
+
+    BeanWithCaseFormat beanWithCaseFormat = new BeanWithCaseFormat("joe", 23, false);
+    Row row =
+        Row.withSchema(CASE_FORMAT_BEAM_SCHEMA)
+            .withFieldValue("user", "joe")
+            .withFieldValue("age_in_years", 23)
+            .withFieldValue("KnowsJavascript", false)
+            .build();
+
+    Row output = registry.getToRowFunction(BeanWithCaseFormat.class).apply(beanWithCaseFormat);
+    assertThat(output, equivalentTo(row));
+    assertEquals(
+        registry.getFromRowFunction(BeanWithCaseFormat.class).apply(row), beanWithCaseFormat);
+  }
+
+  @Test
   public void testNoCreateOptionThrows() {
     SchemaRegistry registry = SchemaRegistry.createDefault();
 
@@ -526,5 +554,27 @@ public class JavaBeanSchemaTest {
         "Message should suggest alternative of using @SchemaCreate to avoid need for setters.",
         thrown.getMessage(),
         containsString("@SchemaCreate"));
+  }
+
+  @Test
+  @Ignore("TODO file bug")
+  public void testSetterConstructionWithRenamedFields() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(BeanWithRenamedFieldsAndSetters.class);
+
+    SchemaTestUtils.assertSchemaEquivalent(RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA, schema);
+
+    BeanWithCaseFormat beanWithCaseFormat = new BeanWithCaseFormat("joe", 23, false);
+    Row row =
+        Row.withSchema(RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA)
+            .withFieldValue("username", "joe")
+            .withFieldValue("age_in_years", 23)
+            .withFieldValue("KnowsJavascript", false)
+            .build();
+
+    Row output = registry.getToRowFunction(BeanWithCaseFormat.class).apply(beanWithCaseFormat);
+    assertEquals(output, row);
+    assertEquals(
+        registry.getFromRowFunction(BeanWithCaseFormat.class).apply(row), beanWithCaseFormat);
   }
 }

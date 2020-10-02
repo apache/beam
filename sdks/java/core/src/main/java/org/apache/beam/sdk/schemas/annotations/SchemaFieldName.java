@@ -27,13 +27,16 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * When used on a POJO field or a JavaBean getter, the specified name is used for the generated
- * schema field.
+ * When used on a {@link org.apache.beam.sdk.schemas.JavaFieldSchema POJO} field, a {@link
+ * org.apache.beam.sdk.schemas.JavaBeanSchema Java Bean} getter, or an {@link
+ * org.apache.beam.sdk.schemas.AutoValueSchema AutoValue} getter, the specified name is used for the
+ * generated schema field.
  *
- * <p>For example, a Java POJO with a field that we want in our schema but under a different name.
+ * <p>For example, say we have a Java POJO with a field that we want in our schema but under a
+ * different name:
  *
  * <pre><code>
- *  {@literal @}DefaultSchema(JavaBeanSchema.class)
+ *  {@literal @}DefaultSchema(JavaFieldSchema.class)
  *   class MyClass {
  *     public String user;
  *
