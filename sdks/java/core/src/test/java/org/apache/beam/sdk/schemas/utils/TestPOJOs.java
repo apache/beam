@@ -1011,4 +1011,14 @@ public class TestPOJOs {
           .addNullableField("bigDecimal", FieldType.DECIMAL)
           .addNullableField("stringBuilder", FieldType.STRING)
           .build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoNoCreateOption {
+    public String user;
+
+    // JavaFieldSchema will not try to use this constructor unless annotated with @SchemaCreate
+    public PojoNoCreateOption(String user) {
+      this.user = user;
+    }
+  }
 }
