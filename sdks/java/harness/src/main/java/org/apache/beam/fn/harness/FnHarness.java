@@ -25,7 +25,6 @@ import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.fn.harness.control.RegisterHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -193,7 +192,6 @@ public class FnHarness {
       BeamFnControlGrpc.BeamFnControlBlockingStub blockingControlStub =
           BeamFnControlGrpc.newBlockingStub(channel);
 
-      RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
           new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
@@ -210,14 +208,10 @@ public class FnHarness {
                   new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
                     @Override
                     public BeamFnApi.ProcessBundleDescriptor load(String id) {
-                      try {
-                        return blockingControlStub.getProcessBundleDescriptor(
-                            BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
-                                .setProcessBundleDescriptorId(id)
-                                .build());
-                      } catch (Throwable th) {
-                        return (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.getById(id);
-                      }
+                      return blockingControlStub.getProcessBundleDescriptor(
+                          BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                              .setProcessBundleDescriptorId(id)
+                              .build());
                     }
                   });
 
@@ -228,7 +222,12 @@ public class FnHarness {
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler);
-      handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER, fnApiRegistry::register);
+      // TODO(BEAM-9729): Remove once runners no longer send this instruction.
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.REGISTER,
+          request ->
+              BeamFnApi.InstructionResponse.newBuilder()
+                  .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance()));
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.FINALIZE_BUNDLE,
           finalizeBundleHandler::finalizeBundle);
