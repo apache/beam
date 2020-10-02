@@ -47,6 +47,35 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
 
+# [2.26.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
+## I/Os
+
+* Java BigQuery streaming inserts now have timeouts enabled by default. Pass `--HTTPWriteTimeout=0` to revert to the old behavior. ([BEAM-6103](https://issues.apache.org/jira/browse/BEAM-6103))
+* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Breaking Changes
+
+* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Known Issues
+
+* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+
 # [2.25.0] - Unreleased
 
 ## Highlights
@@ -61,6 +90,7 @@
 * Update Snowflake JDBC dependency for SnowflakeIO ([BEAM-10864](https://issues.apache.org/jira/browse/BEAM-10864))
 * Added cross-language support to Java's SnowflakeIO.Write, now available in the Python module `apache_beam.io.snowflake` ([BEAM-9898](https://issues.apache.org/jira/browse/BEAM-9898)).
 * Added delete function to Java's `ElasticsearchIO#Write`. Now, Java's ElasticsearchIO can be used to selectively delete documents using `withIsDeleteFn` function ([BEAM-5757](https://issues.apache.org/jira/browse/BEAM-5757)).
+* Java SDK: Added new IO connector for InfluxDB - InfluxDbIO ([BEAM-2546](https://issues.apache.org/jira/browse/BEAM-2546)).
 
 ## New Features / Improvements
 
@@ -73,6 +103,11 @@
 * In Interactive Beam, ib.show() and ib.collect() now have "n" and "duration" as parameters. These mean read only up to "n" elements and up to "duration" seconds of data read from the recording ([BEAM-10603](https://issues.apache.org/jira/browse/BEAM-10603)).
 * Initial preview of [Dataframes](https://s.apache.org/simpler-python-pipelines-2020#slide=id.g905ac9257b_1_21) support.
     See also example at apache_beam/examples/wordcount_dataframe.py
+* Fixed support for type hints on `@ptransform_fn` decorators in the Python SDK.
+  ([BEAM-4091](https://issues.apache.org/jira/browse/BEAM-4091))
+  This has not enabled by default to preserve backwards compatibility; use the
+  `--type_check_additional=ptransform_fn` flag to enable. It may be enabled by
+  default in future versions of Beam.
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
@@ -113,7 +148,7 @@
 
 ## New Features / Improvements
 
-* Shared library for simplifying management of large shared objects added to Python SDK. Example use case is sharing a large TF model object across threads ([BEAM-10417](https://issues.apache.org/jira/browse/BEAM-10417)).
+* Shared library for simplifying management of large shared objects added to Python SDK. An example use case is sharing a large TF model object across threads ([BEAM-10417](https://issues.apache.org/jira/browse/BEAM-10417)).
 * Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle ([BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543)).
 * OnTimerContext should not create a new one when processing each element/timer in FnApiDoFnRunner ([BEAM-9839](https://issues.apache.org/jira/browse/BEAM-9839))
 * Key should be available in @OnTimer methods (Spark Runner) ([BEAM-9850](https://issues.apache.org/jira/browse/BEAM-9850))
@@ -192,7 +227,6 @@
 * Upgrade Sphinx to 3.0.3 for building PyDoc.
 * Added a PTransform for image annotation using Google Cloud AI image processing service
 ([BEAM-9646](https://issues.apache.org/jira/browse/BEAM-9646))
-* Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle ([BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543)).
 
 ## Breaking Changes
 
@@ -233,7 +267,7 @@ for example usage.
     and an upcoming
     [blog post](https://beam.apache.org/blog/python-typing/index.html).
 
-* Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
+* Java SDK: Introducing the concept of options in Beam Schemas. These options add extra
 context to fields and schemas. This replaces the current Beam metadata that is present
 in a FieldType only, options are available in fields and row schemas. Schema options are
 fully typed and can contain complex rows. *Remark: Schema aware is still experimental.*

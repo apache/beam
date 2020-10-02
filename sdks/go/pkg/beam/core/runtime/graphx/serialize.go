@@ -16,9 +16,9 @@
 package graphx
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"time"
 
@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/jsonx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
@@ -243,7 +244,7 @@ func encodeFn(u *graph.Fn) (*v1pb.Fn, error) {
 			panic(errors.WithContextf(wrapped, "encoding structural DoFn %v", u))
 		}
 
-		data, err := json.Marshal(u.Recv)
+		data, err := jsonx.Marshal(u.Recv)
 		if err != nil {
 			wrapped := errors.Wrapf(err, "failed to marshal receiver %v", u.Recv)
 			return nil, errors.WithContextf(wrapped, "encoding structural DoFn %v", u)
@@ -294,11 +295,12 @@ func decodeFn(u *v1pb.Fn) (*graph.Fn, error) {
 		wrapped := errors.Wrap(err, "bad type")
 		return nil, errors.WithContextf(wrapped, "decoding structural DoFn %v", u)
 	}
-	fn, err := reflectx.UnmarshalJSON(t, u.Opt)
-	if err != nil {
+	elem := reflect.New(t)
+	if err := jsonx.UnmarshalFrom(elem.Interface(), strings.NewReader(u.Opt)); err != nil {
 		wrapped := errors.Wrap(err, "bad struct encoding")
 		return nil, errors.WithContextf(wrapped, "decoding structural DoFn %v", u)
 	}
+	fn := elem.Elem().Interface()
 	return graph.NewFn(fn)
 }
 

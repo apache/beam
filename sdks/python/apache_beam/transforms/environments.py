@@ -42,15 +42,17 @@ from typing import overload
 from google.protobuf import message
 
 from apache_beam import coders
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import stager
+from apache_beam.runners.portability.sdk_container_builder import SdkContainerImageBuilder
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
-  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PortablePipelineOptions
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
@@ -202,12 +204,12 @@ class Environment(object):
 
   @classmethod
   def from_options(cls, options):
-    # type: (Type[EnvironmentT], PipelineOptions) -> EnvironmentT
+    # type: (Type[EnvironmentT], PortablePipelineOptions) -> EnvironmentT
 
-    """Creates an Environment object from PipelineOptions.
+    """Creates an Environment object from PortablePipelineOptions.
 
     Args:
-      options: The PipelineOptions object.
+      options: The PortablePipelineOptions object.
     """
     raise NotImplementedError
 
@@ -252,8 +254,15 @@ class DockerEnvironment(Environment):
   @classmethod
   def from_options(cls, options):
     # type: (PipelineOptions) -> DockerEnvironment
+    if options.view_as(SetupOptions).prebuild_sdk_container_engine:
+      prebuilt_container_image = SdkContainerImageBuilder.build_container_image(
+          options)
+      return cls.from_container_image(
+          container_image=prebuilt_container_image,
+          artifacts=python_sdk_dependencies(options))
     return cls.from_container_image(
-        container_image=options.environment_config,
+        container_image=options.lookup_environment_option(
+            'docker_container_image') or options.environment_config,
         artifacts=python_sdk_dependencies(options))
 
   @classmethod
@@ -338,14 +347,36 @@ class ProcessEnvironment(Environment):
         capabilities=capabilities,
         artifacts=artifacts)
 
+  @staticmethod
+  def parse_environment_variables(variables):
+    env = {}
+    for var in variables:
+      try:
+        name, value = var.split('=', 1)
+        env[name] = value
+      except ValueError:
+        raise ValueError(
+            'Invalid process_variables "%s" (expected assignment in the '
+            'form "FOO=bar").' % var)
+    return env
+
   @classmethod
   def from_options(cls, options):
-    config = json.loads(options.environment_config)
+    if options.environment_config:
+      config = json.loads(options.environment_config)
+      return cls(
+          config.get('command'),
+          os=config.get('os', ''),
+          arch=config.get('arch', ''),
+          env=config.get('env', ''),
+          capabilities=python_sdk_capabilities(),
+          artifacts=python_sdk_dependencies(options))
+    env = cls.parse_environment_variables(
+        options.lookup_environment_option('process_variables').split(',')
+        if options.lookup_environment_option('process_variables') else [])
     return cls(
-        config.get('command'),
-        os=config.get('os', ''),
-        arch=config.get('arch', ''),
-        env=config.get('env', ''),
+        options.lookup_environment_option('process_command'),
+        env=env,
         capabilities=python_sdk_capabilities(),
         artifacts=python_sdk_dependencies(options))
 
@@ -399,8 +430,11 @@ class ExternalEnvironment(Environment):
       if not url:
         raise ValueError('External environment endpoint must be set.')
       params = config.get('params')
-    else:
+    elif options.environment_config:
       url = options.environment_config
+      params = None
+    else:
+      url = options.lookup_environment_option('external_service_address')
       params = None
 
     return cls(
@@ -602,6 +636,8 @@ def _python_sdk_capabilities_iter():
 def python_sdk_dependencies(options, tmp_dir=None):
   if tmp_dir is None:
     tmp_dir = tempfile.mkdtemp()
+  skip_prestaged_dependencies = options.view_as(
+      SetupOptions).prebuild_sdk_container_engine is not None
   return tuple(
       beam_runner_api_pb2.ArtifactInformation(
           type_urn=common_urns.artifact_types.FILE.urn,
@@ -610,4 +646,7 @@ def python_sdk_dependencies(options, tmp_dir=None):
           role_urn=common_urns.artifact_roles.STAGING_TO.urn,
           role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
               staged_name=staged_name).SerializeToString()) for local_path,
-      staged_name in stager.Stager.create_job_resources(options, tmp_dir))
+      staged_name in stager.Stager.create_job_resources(
+          options,
+          tmp_dir,
+          skip_prestaged_dependencies=skip_prestaged_dependencies))

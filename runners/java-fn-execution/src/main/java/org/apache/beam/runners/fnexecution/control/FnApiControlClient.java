@@ -189,7 +189,7 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
 
     @Override
     public void onError(Throwable cause) {
-      LOG.error("{} received error {}", FnApiControlClient.class.getSimpleName(), cause);
+      LOG.error("{} received an error.", FnApiControlClient.class.getSimpleName(), cause);
       closeAndTerminateOutstandingRequests(cause);
     }
   }

@@ -373,16 +373,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // Adding the Java version to the SDK name for user's and support convenience.
-    String javaVersion =
-        Float.parseFloat(System.getProperty("java.specification.version")) >= 9
-            ? "(JDK 11 environment)"
-            : "(JRE 8 environment)";
+    String agentJavaVer =
+        (Environments.getJavaVersion() == Environments.JavaVersion.v8)
+            ? "(JRE 8 environment)"
+            : "(JDK 11 environment)";
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgent =
         String.format(
                 "%s/%s%s",
-                dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), javaVersion)
+                dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), agentJavaVer)
             .replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 
@@ -2005,8 +2005,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static String getContainerImageForJob(DataflowPipelineOptions options) {
     String workerHarnessContainerImage = options.getWorkerHarnessContainerImage();
 
+    Environments.JavaVersion javaVersion = Environments.getJavaVersion();
     String javaVersionId =
-        Float.parseFloat(System.getProperty("java.specification.version")) >= 9 ? "java11" : "java";
+        (javaVersion == Environments.JavaVersion.v8) ? "java" : javaVersion.toString();
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
     } else if (hasExperiment(options, "beam_fn_api")) {

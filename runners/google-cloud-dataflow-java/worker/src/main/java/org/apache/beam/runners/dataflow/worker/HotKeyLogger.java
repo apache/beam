@@ -25,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HotKeyLogger {
-  Logger LOG = LoggerFactory.getLogger(HotKeyLogger.class);
+  private final Logger LOG = LoggerFactory.getLogger(HotKeyLogger.class);
 
   /** Clock used to either provide real system time or mocked to virtualize time for testing. */
   private Clock clock = Clock.SYSTEM;

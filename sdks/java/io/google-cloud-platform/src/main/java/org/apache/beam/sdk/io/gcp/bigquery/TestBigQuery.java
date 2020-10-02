@@ -214,6 +214,7 @@ public class TestBigQuery implements TestRule {
             pipelineOptions.getTargetDataset(),
             table.getTableReference().getTableId(),
             new TableDataInsertAllRequest().setRows(bqRows))
+        .setPrettyPrint(false)
         .execute();
   }
 
@@ -281,6 +282,7 @@ public class TestBigQuery implements TestRule {
               pipelineOptions.getProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
+          .setPrettyPrint(false)
           .execute()
           .getSchema();
     } catch (IOException e) {
@@ -295,6 +297,7 @@ public class TestBigQuery implements TestRule {
               pipelineOptions.getProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
+          .setPrettyPrint(false)
           .execute()
           .getRows();
     } catch (IOException e) {

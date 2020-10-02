@@ -32,7 +32,7 @@ public class CallingSubProcessUtils {
   // Prevent Instantiation
   private CallingSubProcessUtils() {}
 
-  static final Logger LOG = LoggerFactory.getLogger(CallingSubProcessUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CallingSubProcessUtils.class);
 
   static boolean initCompleted = false;
 

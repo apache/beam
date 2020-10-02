@@ -18,6 +18,7 @@
 from __future__ import absolute_import
 
 import sys
+import time
 import unittest
 
 import apache_beam as beam
@@ -29,6 +30,7 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as pi
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+from apache_beam.runners.interactive.options.capture_limiters import Limiter
 from apache_beam.runners.interactive.recording_manager import ElementStream
 from apache_beam.runners.interactive.recording_manager import Recording
 from apache_beam.runners.interactive.recording_manager import RecordingManager
@@ -36,6 +38,7 @@ from apache_beam.runners.interactive.testing.test_cache_manager import FileRecor
 from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
@@ -149,54 +152,44 @@ class ElementStreamTest(unittest.TestCase):
 
   def test_read_duration(self):
     """Test that the stream only reads a 'duration' of elements."""
+    def as_windowed_value(element):
+      return WindowedValueHolder(WindowedValue(element, 0, []))
 
     values = (FileRecordsBuilder(tag=self.cache_key)
               .advance_processing_time(1)
-              .add_element(element=0, event_time_secs=0)
+              .add_element(element=as_windowed_value(0), event_time_secs=0)
               .advance_processing_time(1)
-              .add_element(element=1, event_time_secs=1)
+              .add_element(element=as_windowed_value(1), event_time_secs=1)
               .advance_processing_time(1)
-              .add_element(element=2, event_time_secs=3)
+              .add_element(element=as_windowed_value(2), event_time_secs=3)
               .advance_processing_time(1)
-              .add_element(element=3, event_time_secs=4)
+              .add_element(element=as_windowed_value(3), event_time_secs=4)
               .advance_processing_time(1)
-              .add_element(element=4, event_time_secs=5)
+              .add_element(element=as_windowed_value(4), event_time_secs=5)
               .build()) # yapf: disable
+
+    values = [
+        v.recorded_event for v in values if isinstance(v, TestStreamFileRecord)
+    ]
 
     self.mock_result.set_state(PipelineState.DONE)
     self.cache.write(values, 'full', self.cache_key)
-    self.cache.save_pcoder(None, 'full', self.cache_key)
-
-    # The elements read from the cache are TestStreamFileRecord instances and
-    # have the underlying elements encoded. This method decodes the elements
-    # from the TestStreamFileRecord.
-    def get_elements(events):
-      coder = coders.FastPrimitivesCoder()
-      elements = []
-      for e in events:
-        if not isinstance(e, TestStreamFileRecord):
-          continue
-
-        if e.recorded_event.element_event:
-          elements += ([
-              coder.decode(el.encoded_element)
-              for el in e.recorded_event.element_event.elements
-          ])
-      return elements
+    self.cache.save_pcoder(coders.FastPrimitivesCoder(), 'full', self.cache_key)
 
     # The following tests a progression of reading different durations from the
     # cache.
+
     stream = ElementStream(
         self.pcoll, '', self.cache_key, max_n=100, max_duration_secs=1)
-    self.assertSequenceEqual(get_elements(stream.read()), [0])
+    self.assertSequenceEqual([e.value for e in stream.read()], [0])
 
     stream = ElementStream(
         self.pcoll, '', self.cache_key, max_n=100, max_duration_secs=2)
-    self.assertSequenceEqual(get_elements(stream.read()), [0, 1])
+    self.assertSequenceEqual([e.value for e in stream.read()], [0, 1])
 
     stream = ElementStream(
         self.pcoll, '', self.cache_key, max_n=100, max_duration_secs=10)
-    self.assertSequenceEqual(get_elements(stream.read()), [0, 1, 2, 3, 4])
+    self.assertSequenceEqual([e.value for e in stream.read()], [0, 1, 2, 3, 4])
 
 
 class RecordingTest(unittest.TestCase):
@@ -293,14 +286,12 @@ class RecordingTest(unittest.TestCase):
     ie.current_env().set_cache_manager(cache_manager, p)
 
     # Create a recording with an arbitrary start time.
-    start_time = 100
     recording = Recording(
         p, [numbers, letters],
         mock_result,
         pi.PipelineInstrument(p),
         max_n=10,
-        max_duration_secs=60,
-        start_time_for_test=start_time)
+        max_duration_secs=60)
 
     # Get the cache key of the stream and write something to cache. This is
     # so that a pipeline doesn't have to run in the test.
@@ -315,18 +306,19 @@ class RecordingTest(unittest.TestCase):
     # Get the description.
     description = recording.describe()
     size = description['size']
-    start = description['start']
 
     self.assertEqual(
         size,
         cache_manager.size('full', numbers_stream.cache_key) +
         cache_manager.size('full', letters_stream.cache_key))
-    self.assertEqual(start, start_time)
 
 
 class RecordingManagerTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
+
+  def tearDown(self):
+    ib.options.capture_control.set_limiters_for_test([])
 
   @unittest.skipIf(
       sys.version_info < (3, 6, 0),
@@ -347,7 +339,7 @@ class RecordingManagerTest(unittest.TestCase):
     # Create the recording objects. By calling `record` a new PipelineFragment
     # is started to compute the given PCollections and cache to disk.
     rm = RecordingManager(p)
-    numbers_recording = rm.record([numbers], max_n=3, max_duration_secs=500)
+    numbers_recording = rm.record([numbers], max_n=3, max_duration=500)
     numbers_stream = numbers_recording.stream(numbers)
     numbers_recording.wait_until_finish()
 
@@ -360,7 +352,7 @@ class RecordingManagerTest(unittest.TestCase):
     self.assertListEqual(elems, expected_elems)
 
     # Make an extra recording and test the description.
-    letters_recording = rm.record([letters], max_n=3, max_duration_secs=500)
+    letters_recording = rm.record([letters], max_n=3, max_duration=500)
     letters_recording.wait_until_finish()
 
     self.assertEqual(
@@ -369,6 +361,26 @@ class RecordingManagerTest(unittest.TestCase):
         letters_recording.describe()['size'])
 
     rm.cancel()
+
+  @unittest.skipIf(
+      sys.version_info < (3, 6, 0),
+      'This test requires at least Python 3.6 to work.')
+  def test_duration_parsing(self):
+    p = beam.Pipeline(InteractiveRunner())
+    elems = p | beam.Create([0, 1, 2])
+
+    # Watch the pipeline and PCollections. This is normally done in a notebook
+    # environment automatically, but we have to do it manually here.
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    # Create the recording objects.
+    rm = RecordingManager(p)
+    recording = rm.record([elems], max_n=3, max_duration='500s')
+    recording.wait_until_finish()
+
+    # Assert that the duration was parsed correctly to integer seconds.
+    self.assertEqual(recording.describe()['duration'], 500)
 
   @unittest.skipIf(
       sys.version_info < (3, 6, 0),
@@ -395,7 +407,7 @@ class RecordingManagerTest(unittest.TestCase):
 
     # Get the recording then the BackgroundCachingJob.
     rm = RecordingManager(p)
-    recording = rm.record([squares], max_n=10, max_duration_secs=30)
+    recording = rm.record([squares], max_n=10, max_duration=30)
 
     # The BackgroundCachingJob is still waiting for more elements, so it isn't
     # done yet.
@@ -438,10 +450,11 @@ class RecordingManagerTest(unittest.TestCase):
     # Do the first recording to get the timestamp of the first time the fragment
     # was run.
     rm = RecordingManager(p)
-    rm.record([squares], max_n=10, max_duration_secs=2)
+    rm.record([squares], max_n=10, max_duration=2)
     first_recording_start = rm.describe()['start']
     rm.cancel()
 
+    # Get the cache, key, and coder to read the PCollection from the cache.
     pipeline_instrument = pi.PipelineInstrument(p)
     cache = ie.current_env().get_cache_manager(p)
     cache_key = pipeline_instrument.cache_key(squares)
@@ -455,13 +468,105 @@ class RecordingManagerTest(unittest.TestCase):
     # the PCollection wasn't considered to be computedand was cleared from
     # cache. Thus the pipeline fragment was rerun for that PCollection at a
     # later time.
-    rm.record([squares], max_n=10, max_duration_secs=1)
+    rm.record([squares], max_n=10, max_duration=1)
     second_recording_start = rm.describe()['start']
     rm.cancel()
     self.assertGreater(second_recording_start, first_recording_start)
 
     # Assert that the cache cleared the PCollection.
     cache.clear.assert_called_with('full', cache_key)
+
+  @unittest.skipIf(
+      sys.version_info < (3, 6, 0),
+      'This test requires at least Python 3.6 to work.')
+  def test_clear(self):
+    """Tests that clear can empty the cache for a specific pipeline."""
+
+    # Create two pipelines so we can check that clearing the cache won't clear
+    # all defined pipelines.
+    p1 = beam.Pipeline(InteractiveRunner())
+    elems_1 = p1 | 'elems 1' >> beam.Create([0, 1, 2])
+
+    p2 = beam.Pipeline(InteractiveRunner())
+    elems_2 = p2 | 'elems 2' >> beam.Create([0, 1, 2])
+
+    # Watch the pipeline and PCollections. This is normally done in a notebook
+    # environment automatically, but we have to do it manually here.
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    # Create the recording objects. By calling `record` a new PipelineFragment
+    # is started to compute the given PCollections and cache to disk.
+    rm_1 = RecordingManager(p1)
+    recording = rm_1.record([elems_1], max_n=3, max_duration=500)
+    recording.wait_until_finish()
+
+    rm_2 = RecordingManager(p2)
+    recording = rm_2.record([elems_2], max_n=3, max_duration=500)
+    recording.wait_until_finish()
+
+    # Assert that clearing only one recording clears that recording.
+    self.assertGreater(rm_1.describe()['size'], 0)
+    self.assertGreater(rm_2.describe()['size'], 0)
+    rm_1.clear()
+    self.assertEqual(rm_1.describe()['size'], 0)
+    self.assertGreater(rm_2.describe()['size'], 0)
+
+    rm_2.clear()
+    self.assertEqual(rm_2.describe()['size'], 0)
+
+  @unittest.skipIf(
+      sys.version_info < (3, 6, 0),
+      'This test requires at least Python 3.6 to work.')
+  def test_record_pipeline(self):
+    # Add the TestStream so that it can be cached.
+    ib.options.capturable_sources.add(TestStream)
+    p = beam.Pipeline(
+        InteractiveRunner(), options=PipelineOptions(streaming=True))
+    # pylint: disable=unused-variable
+    _ = (p
+         | TestStream()
+             .advance_watermark_to(0)
+             .advance_processing_time(1)
+             .add_elements(list(range(10)))
+             .advance_processing_time(1))  # yapf: disable
+
+    # Watch the local scope for Interactive Beam so that referenced PCollections
+    # will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    # Create a lmiter that stops the background caching job when something is
+    # written to cache. This is used to make ensure that the pipeline is
+    # functioning properly and that there are no data races with the test.
+    class SizeLimiter(Limiter):
+      def __init__(self, recording_manager):
+        self.recording_manager = recording_manager
+
+      def is_triggered(self):
+        return self.recording_manager.describe()['size'] > 0
+
+    # Do the first recording to get the timestamp of the first time the fragment
+    # was run.
+    rm = RecordingManager(p)
+
+    ib.options.capture_control.set_limiters_for_test([SizeLimiter(rm)])
+
+    self.assertEqual(rm.describe()['state'], PipelineState.STOPPED)
+    self.assertTrue(rm.record_pipeline())
+    self.assertFalse(rm.record_pipeline())
+
+    for _ in range(60):
+      if rm.describe()['state'] == PipelineState.CANCELLED:
+        break
+      time.sleep(1)
+    self.assertTrue(
+        rm.describe()['state'] == PipelineState.CANCELLED,
+        'Test timed out waiting for pipeline to be cancelled. This indicates '
+        'that the BackgroundCachingJob did not cache anything.')
 
 
 if __name__ == '__main__':

@@ -47,7 +47,7 @@ public class FhirIOLROIT {
   public FhirIOLROIT() {
     long testTime = System.currentTimeMillis();
     this.fhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
-    this.deidFhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.deidFhirStoreId = fhirStoreId + "_deid";
     this.version = "STU3";
     this.project =
         TestPipeline.testingPipelineOptions()

@@ -39,7 +39,8 @@ import org.slf4j.LoggerFactory;
 public class ElementCountMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ElementCountMonitoringInfoToCounterUpdateTransformer.class);
 
   private final SpecMonitoringInfoValidator specValidator;
   private final Map<String, NameContext> pcollectionIdToNameContext;

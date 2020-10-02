@@ -202,7 +202,7 @@ public class KuduIOTest {
     @Override
     public void close() {
       // called on teardown which give no guarantees
-      LOG.debug("FakeWriter[{}] close {}", id);
+      LOG.debug("FakeWriter[{}] closed.", id);
     }
 
     /** Sets the unique id on deserialzation using the shared counter. */

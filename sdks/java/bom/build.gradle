@@ -72,7 +72,9 @@ tasks.whenTaskAdded { task ->
   }
 }
 
-jar.enabled = false
+// Starting in Gradle 6.2 a sanity check is performed before uploading. The
+// check fails without generating the jar.
+jar.enabled = true
 
 // Remove the default jar archive which is added by the 'java' plugin.
 configurations.archives.artifacts.with { archives ->
@@ -106,6 +108,11 @@ afterEvaluate {
         groupId = project.mavenGroupId
         artifactId = archivesBaseName
         version = project.version
+
+        // Ensures the published components are included in the maven metadata.
+        // Gradle 6.6.1 changed the way metadata was generated and this ensures
+        // the proper snapshot versions are present for the nightly build.
+        from components.java
       }
     }
     repositories project.ext.repositories

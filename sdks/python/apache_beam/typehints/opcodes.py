@@ -269,7 +269,7 @@ def build_map(state, arg):
   if sys.version_info <= (2, ) or arg == 0:
     state.stack.append(Dict[Union[()], Union[()]])
   else:
-    state.stack[-arg:] = [
+    state.stack[-2 * arg:] = [
         Dict[reduce(union, state.stack[-2 * arg::2], Union[()]),
              reduce(union, state.stack[-2 * arg + 1::2], Union[()])]
     ]
