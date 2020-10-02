@@ -54,8 +54,8 @@ public class KafkaToPubsub {
    *
    * <pre>
    * # Set the pipeline vars
-   * PROJECT=ID_OF_MY_PROJECT
-   * BUCKET_NAME=MY_BUCKET
+   * PROJECT=id-of-my-project
+   * BUCKET_NAME=my-bucket
    *
    * # Set containerization vars
    * IMAGE_NAME=my-image-name
@@ -73,11 +73,10 @@ public class KafkaToPubsub {
    *
    * <b>FLEX TEMPLATE</b>
    * # Assemble uber-jar
-   * ./gradlew -p examples/java clean shadowJar
+   * ./gradlew -p templates/kafka-to-pubsub clean shadowJar
    *
    * # Go to the template folder
-   *
-   * cd /path/to/beam/templates/kafka-to-pubsub
+   *cd /path/to/beam/templates/kafka-to-pubsub
    *
    * # Build the flex template
    * gcloud dataflow flex-template build $TEMPLATE_PATH \
@@ -85,7 +84,7 @@ public class KafkaToPubsub {
    *       --sdk-language "JAVA" \
    *       --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
    *       --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
-   *       --jar "build/libs/beam-examples-java-2.25.0-SNAPSHOT-all.jar" \
+   *       --jar "build/libs/beam-templates-kafka-to-pubsub-2.25.0-SNAPSHOT-all.jar" \
    *       --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
    *
    * # Execute template:
@@ -105,11 +104,7 @@ public class KafkaToPubsub {
    *       "parameters": {
    *           "bootstrapServers":"broker_1:9092,broker_2:9092",
    *           "inputTopics":"topic1,topic2",
-   *           "outputDirectory":"'$BUCKET_NAME/path/to/output-location'",
-   *           "outputFileFormat":"text",
-   *           "outputFilenamePrefix":"output",
-   *           "windowDuration":"5m",
-   *           "numShards":"5"
+   *           "outputTopic":"projects/${PROJECT}/topics/your-topic-name"
    *        }
    *       }
    *      '
