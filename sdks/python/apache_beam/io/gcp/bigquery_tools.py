@@ -442,10 +442,11 @@ class BigQueryWrapper(object):
         _LOGGER.info(
             "BigQuery job %s already exists, will not retry inserting it: %s",
             request.job.jobReference,
-            e)
+            exn)
         return request.job
       else:
-        _LOGGER.info("Failed to insert job %s: %s", request.job.jobReference, e)
+        _LOGGER.info(
+            "Failed to insert job %s: %s", request.job.jobReference, exn)
         raise
 
   @retry.with_exponential_backoff(
