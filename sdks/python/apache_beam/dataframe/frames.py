@@ -52,14 +52,14 @@ class DeferredSeries(frame_base.DeferredFrame):
     dots = expressions.ComputedExpression(
         'dot',
         # Transpose so we can sum across rows.
-        lambda left,
-        right: pd.DataFrame(left @ right).T,
+        (lambda left, right: pd.DataFrame(left @ right).T),
         [left, right],
         requires_partition_by=partitionings.Index())
     with expressions.allow_non_parallel_operations(True):
       sums = expressions.ComputedExpression(
           'sum',
-          lambda dots: dots.sum(), [dots],
+          lambda dots: dots.sum(),  #
+          [dots],
           requires_partition_by=partitionings.Singleton())
 
       if right_is_series:
