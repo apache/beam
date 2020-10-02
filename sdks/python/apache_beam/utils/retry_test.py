@@ -24,8 +24,9 @@ from __future__ import absolute_import
 import unittest
 from builtins import object
 
-from apache_beam.utils import retry
 from parameterized import parameterized
+
+from apache_beam.utils import retry
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
