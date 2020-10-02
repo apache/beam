@@ -34,6 +34,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -42,6 +43,8 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
@@ -52,6 +55,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NullablePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoNoCreateOption;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum.Color;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithIterable;
@@ -653,5 +657,31 @@ public class JavaFieldSchemaTest {
     assertEquals(new PojoWithEnum(Color.RED, allColorsJava), fromRow.apply(redRow));
     assertEquals(new PojoWithEnum(Color.GREEN, allColorsJava), fromRow.apply(greenRow));
     assertEquals(new PojoWithEnum(Color.BLUE, allColorsJava), fromRow.apply(blueRow));
+  }
+
+  @Test
+  public void testNoCreateOptionThrows() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> {
+              registry
+                  .getFromRowFunction(PojoNoCreateOption.class)
+                  .apply(
+                      Row.withSchema(Schema.of(Field.of("user", FieldType.STRING)))
+                          .withFieldValue("user", "foo")
+                          .build());
+            });
+
+    assertThat(
+        "Message should suggest using @SchemaCreate.",
+        thrown.getMessage(),
+        containsString("@SchemaCreate"));
+    assertThat(
+        "Message should suggest using zero-argument constructor.",
+        thrown.getMessage(),
+        containsString("zero-argument constructor"));
   }
 }
