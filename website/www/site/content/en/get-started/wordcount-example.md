@@ -1405,10 +1405,11 @@ messages from a Pub/Sub subscription or topic using
 {{< highlight py >}}
   # Read from Pub/Sub into a PCollection.
   if known_args.input_subscription:
-    lines = p | beam.io.ReadFromPubSub(
+    data = p | beam.io.ReadFromPubSub(
         subscription=known_args.input_subscription)
   else:
-    lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+    data = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+  lines = data | 'DecodeString' >> beam.Map(lambda d: d.decode('utf-8'))
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -1432,7 +1433,9 @@ using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param
 
 {{< highlight py >}}
   # Write to Pub/Sub
-  output | beam.io.WriteToPubSub(known_args.output_topic)
+  _ = (output
+    | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
+    | beam.io.WriteToPubSub(known_args.output_topic))
 {{< /highlight >}}
 
 {{< highlight go >}}
