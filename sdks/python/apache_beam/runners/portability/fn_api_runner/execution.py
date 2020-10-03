@@ -352,7 +352,7 @@ class GenericMergingWindowFn(window.WindowFn):
     result_future = worker_handler.control_conn.push(process_bundle_req)
     for output in worker_handler.data_conn.input_elements(
         process_bundle_id,
-        self.FROM_SDK_TRANSFORM,
+        [self.FROM_SDK_TRANSFORM],
         abort_callback=lambda:
         (result_future.is_done() and result_future.get().error)):
       if isinstance(output, beam_fn_api_pb2.Elements.Data):
@@ -386,7 +386,7 @@ class GenericMergingWindowFn(window.WindowFn):
     return self._worker_handler
 
   def make_process_bundle_descriptor(
-      self, state_api_service_descriptor, data_api_service_descriptor):
+      self, data_api_service_descriptor, state_api_service_descriptor):
     """Creates a ProcessBundleDescriptor for invoking the WindowFn's
     merge operation.
     """

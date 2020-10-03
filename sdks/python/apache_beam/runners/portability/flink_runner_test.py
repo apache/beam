@@ -384,6 +384,9 @@ if __name__ == '__main__':
     def test_register_finalizations(self):
       raise unittest.SkipTest("BEAM-6868")
 
+    def test_custom_merging_window(self):
+      raise unittest.SkipTest("BEAM-11004")
+
     # Inherits all other tests.
 
   class FlinkRunnerTestOptimized(FlinkRunnerTest):
