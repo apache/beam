@@ -141,7 +141,7 @@ REQUIRED_PACKAGES = [
     # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
-    'fastavro>=0.21.4,<0.24',
+    'fastavro>=0.21.4,<2',
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.18.2,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
@@ -151,7 +151,7 @@ REQUIRED_PACKAGES = [
     'mock>=1.0.1,<3.0.0',
     'numpy>=1.14.3,<2',
     'pymongo>=3.8.0,<4.0.0',
-    'oauth2client>=2.0.1,<4',
+    'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
@@ -199,7 +199,7 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-    'cachetools>=3.1.0,<4',
+    'cachetools>=3.1.0,<5',
     'google-apitools>=0.5.31,<0.5.32',
     'google-auth>=1.18.0,<2',
     'google-cloud-datastore>=1.7.1,<2',

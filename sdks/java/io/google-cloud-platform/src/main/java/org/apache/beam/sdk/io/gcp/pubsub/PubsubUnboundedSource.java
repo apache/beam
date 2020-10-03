@@ -1068,7 +1068,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           checkpoint.nackAll(reader);
         } catch (IOException e) {
           LOG.error(
-              "Pubsub {} cannot have {} lost messages NACKed, ignoring: {}",
+              "Pubsub {} cannot have {} lost messages NACKed, ignoring exception.",
               subscriptionPath,
               checkpoint.notYetReadIds.size(),
               e);

@@ -104,7 +104,11 @@ class DoctestTest(unittest.TestCase):
             # Difficult to parallelize but should be possible?
             'pandas.core.frame.DataFrame.corr': ['*'],
             'pandas.core.frame.DataFrame.cov': ['*'],
-            'pandas.core.frame.DataFrame.dot': ['*'],
+            'pandas.core.frame.DataFrame.dot': [
+                # reindex not supported
+                's2 = s.reindex([1, 0, 2, 3])',
+                'df.dot(s2)',
+            ],
 
             # element-wise
             'pandas.core.frame.DataFrame.eval': ['*'],
@@ -161,8 +165,6 @@ class DoctestTest(unittest.TestCase):
                 "          ignore_index=True)"
             ],
             'pandas.core.frame.DataFrame.eval': ['df'],
-            # No override for __matmul__ and friends
-            'pandas.core.frame.DataFrame.dot': ['df @ other'],
             'pandas.core.frame.DataFrame.melt': [
                 "df.columns = [list('ABC'), list('DEF')]", "df"
             ],
@@ -210,6 +212,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.cumsum': ['*'],
             'pandas.core.series.Series.cumprod': ['*'],
             'pandas.core.series.Series.diff': ['*'],
+            'pandas.core.series.Series.dot': [
+                's.dot(arr)',  # non-deferred result
+            ],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -248,7 +253,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.corr': ['*'],
             'pandas.core.series.Series.count': ['*'],
             'pandas.core.series.Series.cov': ['*'],
-            'pandas.core.series.Series.dot': ['*'],
             'pandas.core.series.Series.drop': ['*'],
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],

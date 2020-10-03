@@ -15,27 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+module org.apache.beam.sdk.jpmstests {
+  exports org.apache.beam.sdk.jpmstests;
 
-import PrecommitJobBuilder
-
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'JavaPortabilityApi',
-    gradleTask: ':javaPreCommitPortabilityApi',
-    gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
-    ], // spotless checked in separate pre-commit
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/java/.*$',
-      '^runners/google-cloud-dataflow-java/worker.*$',
-      '^examples/java/.*$',
-      '^examples/kotlin/.*$',
-      '^release/.*$',
-    ]
-    )
-builder.build {
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+  requires transitive org.apache.beam.sdk;
 }

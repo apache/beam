@@ -1,0 +1,104 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins {
+  id 'org.apache.beam.module'
+}
+javaVersion="1.11"
+applyJavaNature(
+  enableChecker:false,
+  exportJavadoc: false,
+  publish: false,
+  disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic']
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: Testing :: JPMS Tests"
+ext.summary = "E2E test for Java 9 modules"
+
+/*
+ * List of runners to run integration tests on.
+ */
+def testRunnerClass = [
+        directRunnerIntegrationTest: "org.apache.beam.runners.direct.DirectRunner",
+        flinkRunnerIntegrationTest: "org.apache.beam.runners.flink.TestFlinkRunner",
+        dataflowRunnerIntegrationTest: "org.apache.beam.runners.dataflow.TestDataflowRunner",
+]
+
+configurations {
+  baseIntegrationTest
+  directRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
+  flinkRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
+  dataflowRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
+}
+
+dependencies {
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
+
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+
+  baseIntegrationTest project(path: ":sdks:java:testing:jpms-tests", configuration: "testRuntime")
+  directRunnerIntegrationTest project(":runners:direct-java")
+  flinkRunnerIntegrationTest project(":runners:flink:1.10")
+  dataflowRunnerIntegrationTest project(":runners:google-cloud-dataflow-java")
+}
+
+/*
+ * Create a ${runner}IntegrationTest task for each runner which runs a set
+ * of integration tests for WordCount.
+ */
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+for (String runner : testRunnerClass.keySet()) {
+  tasks.create(name: runner, type: Test) {
+    def testPipelineOptions = [
+            "--project=${gcpProject}",
+            "--tempRoot=${gcsTempRoot}",
+            "--runner=" + testRunnerClass[runner],
+    ]
+    if ("dataflowRunnerIntegrationTest".equals(runner)) {
+      testPipelineOptions.add("--region=${gcpRegion}")
+    }
+    classpath = configurations."${runner}"
+    include "**/*IT.class"
+    maxParallelForks 4
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(testPipelineOptions)
+  }
+}
+
+// Activate module support
+// https://docs.gradle.org/current/samples/sample_java_modules_multi_project.html
+plugins.withType(JavaPlugin).configureEach{
+  java {
+    modularity.inferModulePath = true
+  }
+}
+
+// JPMS requires JDK > 8
+project.tasks.each {
+  it.onlyIf {
+    JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
+  }
+}

@@ -19,6 +19,8 @@ import { KernelModel } from '../kernel/KernelModel';
 export interface IShowOptions {
   includeWindowInfo?: boolean;
   visualizeInFacets?: boolean;
+  duration?: string;
+  n?: string;
 }
 
 // Options depend on the inspectableType. Currently only one variation of
@@ -63,6 +65,30 @@ export class InspectableViewModel implements IHtmlProvider {
     } else {
       optionsAsString += 'visualize_data=False';
     }
+    optionsAsString += ', ';
+    if (!options.duration) {
+      options.duration = 'inf';
+    }
+    const durationNum = Number(options.duration);
+    if (isNaN(durationNum)) {
+      optionsAsString += `duration='${options.duration}'`;
+    } else if (durationNum <= 0) {
+      options.duration = 'inf';
+      optionsAsString += "duration='inf'";
+    } else {
+      options.duration = Math.floor(durationNum).toString(10);
+      optionsAsString += 'duration=' + Math.floor(durationNum);
+    }
+    optionsAsString += ', ';
+    const nNum = Number(options.n);
+    const nInt = Math.floor(nNum);
+    if (isNaN(nNum) || nInt <= 0) {
+      options.n = 'inf';
+      optionsAsString += "n='inf'";
+    } else {
+      options.n = nInt.toString(10);
+      optionsAsString += 'n=' + nInt;
+    }
     return (
       'ib.show(' +
       `ie.current_env().inspector.get_val('${this._identifier}'),` +
@@ -75,11 +101,18 @@ export class InspectableViewModel implements IHtmlProvider {
     return this._model;
   }
 
+  interruptKernelIfNotDone(): void {
+    if (!this._model.isDone) {
+      this._model.interruptKernel();
+    }
+  }
+
   queryKernel(
     inspectableType: string,
     identifier: string,
     options: IOptions = {}
   ): void {
+    this.interruptKernelIfNotDone();
     this._inspectableType = inspectableType.toLowerCase();
     this._identifier = identifier;
     this._options = options;

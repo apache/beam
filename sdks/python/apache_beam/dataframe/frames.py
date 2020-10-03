@@ -34,6 +34,45 @@ class DeferredSeries(frame_base.DeferredFrame):
 
   between = frame_base._elementwise_method('between')
 
+  def dot(self, other):
+    left = self._expr
+    if isinstance(other, DeferredSeries):
+      right = expressions.ComputedExpression(
+          'to_dataframe',
+          pd.DataFrame, [other._expr],
+          requires_partition_by=partitionings.Nothing(),
+          preserves_partition_by=partitionings.Index())
+      right_is_series = True
+    elif isinstance(other, DeferredDataFrame):
+      right = other._expr
+      right_is_series = False
+    else:
+      raise frame_base.WontImplementError('non-deferred result')
+
+    dots = expressions.ComputedExpression(
+        'dot',
+        # Transpose so we can sum across rows.
+        (lambda left, right: pd.DataFrame(left @ right).T),
+        [left, right],
+        requires_partition_by=partitionings.Index())
+    with expressions.allow_non_parallel_operations(True):
+      sums = expressions.ComputedExpression(
+          'sum',
+          lambda dots: dots.sum(),  #
+          [dots],
+          requires_partition_by=partitionings.Singleton())
+
+      if right_is_series:
+        result = expressions.ComputedExpression(
+            'extract',
+            lambda df: df[0], [sums],
+            requires_partition_by=partitionings.Singleton())
+      else:
+        result = sums
+      return frame_base.DeferredFrame.wrap(result)
+
+  __matmul__ = dot
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
@@ -336,7 +375,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   cov = frame_base.not_implemented_method('cov')
   corr = frame_base.not_implemented_method('corr')
   count = frame_base.not_implemented_method('count')
-  dot = frame_base.not_implemented_method('dot')
   drop = frame_base.not_implemented_method('drop')
   eval = frame_base.not_implemented_method('eval')
   reindex = frame_base.not_implemented_method('reindex')
@@ -414,6 +452,37 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
+
+  def dot(self, other):
+    # We want to broadcast the right hand side to all partitions of the left.
+    # This is OK, as its index must be the same size as the columns set of self,
+    # so cannot be too large.
+    class AsScalar(object):
+      def __init__(self, value):
+        self.value = value
+
+    if isinstance(other, frame_base.DeferredFrame):
+      proxy = other._expr.proxy()
+      with expressions.allow_non_parallel_operations():
+        side = expressions.ComputedExpression(
+            'as_scalar',
+            lambda df: AsScalar(df),
+            [other._expr],
+            requires_partition_by=partitionings.Singleton())
+    else:
+      proxy = pd.DataFrame(columns=range(len(other[0])))
+      side = expressions.ConstantExpression(AsScalar(other))
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'dot',
+            lambda left, right: left @ right.value,
+            [self._expr, side],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Index(),
+            proxy=proxy))
+
+  __matmul__ = dot
 
   head = tail = frame_base.wont_implement_method('order-sensitive')
 

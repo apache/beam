@@ -339,7 +339,7 @@ class RecordingManagerTest(unittest.TestCase):
     # Create the recording objects. By calling `record` a new PipelineFragment
     # is started to compute the given PCollections and cache to disk.
     rm = RecordingManager(p)
-    numbers_recording = rm.record([numbers], max_n=3, max_duration_secs=500)
+    numbers_recording = rm.record([numbers], max_n=3, max_duration=500)
     numbers_stream = numbers_recording.stream(numbers)
     numbers_recording.wait_until_finish()
 
@@ -352,7 +352,7 @@ class RecordingManagerTest(unittest.TestCase):
     self.assertListEqual(elems, expected_elems)
 
     # Make an extra recording and test the description.
-    letters_recording = rm.record([letters], max_n=3, max_duration_secs=500)
+    letters_recording = rm.record([letters], max_n=3, max_duration=500)
     letters_recording.wait_until_finish()
 
     self.assertEqual(
@@ -361,6 +361,26 @@ class RecordingManagerTest(unittest.TestCase):
         letters_recording.describe()['size'])
 
     rm.cancel()
+
+  @unittest.skipIf(
+      sys.version_info < (3, 6, 0),
+      'This test requires at least Python 3.6 to work.')
+  def test_duration_parsing(self):
+    p = beam.Pipeline(InteractiveRunner())
+    elems = p | beam.Create([0, 1, 2])
+
+    # Watch the pipeline and PCollections. This is normally done in a notebook
+    # environment automatically, but we have to do it manually here.
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    # Create the recording objects.
+    rm = RecordingManager(p)
+    recording = rm.record([elems], max_n=3, max_duration='500s')
+    recording.wait_until_finish()
+
+    # Assert that the duration was parsed correctly to integer seconds.
+    self.assertEqual(recording.describe()['duration'], 500)
 
   @unittest.skipIf(
       sys.version_info < (3, 6, 0),
@@ -387,7 +407,7 @@ class RecordingManagerTest(unittest.TestCase):
 
     # Get the recording then the BackgroundCachingJob.
     rm = RecordingManager(p)
-    recording = rm.record([squares], max_n=10, max_duration_secs=30)
+    recording = rm.record([squares], max_n=10, max_duration=30)
 
     # The BackgroundCachingJob is still waiting for more elements, so it isn't
     # done yet.
@@ -430,7 +450,7 @@ class RecordingManagerTest(unittest.TestCase):
     # Do the first recording to get the timestamp of the first time the fragment
     # was run.
     rm = RecordingManager(p)
-    rm.record([squares], max_n=10, max_duration_secs=2)
+    rm.record([squares], max_n=10, max_duration=2)
     first_recording_start = rm.describe()['start']
     rm.cancel()
 
@@ -448,7 +468,7 @@ class RecordingManagerTest(unittest.TestCase):
     # the PCollection wasn't considered to be computedand was cleared from
     # cache. Thus the pipeline fragment was rerun for that PCollection at a
     # later time.
-    rm.record([squares], max_n=10, max_duration_secs=1)
+    rm.record([squares], max_n=10, max_duration=1)
     second_recording_start = rm.describe()['start']
     rm.cancel()
     self.assertGreater(second_recording_start, first_recording_start)
@@ -478,11 +498,11 @@ class RecordingManagerTest(unittest.TestCase):
     # Create the recording objects. By calling `record` a new PipelineFragment
     # is started to compute the given PCollections and cache to disk.
     rm_1 = RecordingManager(p1)
-    recording = rm_1.record([elems_1], max_n=3, max_duration_secs=500)
+    recording = rm_1.record([elems_1], max_n=3, max_duration=500)
     recording.wait_until_finish()
 
     rm_2 = RecordingManager(p2)
-    recording = rm_2.record([elems_2], max_n=3, max_duration_secs=500)
+    recording = rm_2.record([elems_2], max_n=3, max_duration=500)
     recording.wait_until_finish()
 
     # Assert that clearing only one recording clears that recording.
