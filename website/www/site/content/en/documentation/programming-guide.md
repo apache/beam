@@ -3554,8 +3554,8 @@ Now, consider the same pipeline, but using a windowing function:
 
 **Figure 5:** `GroupByKey` and `ParDo` with windowing, on a bounded collection.
 
-As before, the pipeline creates a bounded `PCollection` of file lines. We
-then set a [windowing function](#setting-your-pcollections-windowing-function)
+As before, the pipeline creates a bounded `PCollection` by reading lines from a
+file. We then set a [windowing function](#setting-your-pcollections-windowing-function)
 for that `PCollection`.  The `GroupByKey` transform groups the elements of the
 `PCollection` by both key and window, based on the windowing function. The
 subsequent `ParDo` transform gets applied multiple times per key, once for each
