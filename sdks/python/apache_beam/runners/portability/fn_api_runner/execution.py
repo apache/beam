@@ -351,8 +351,7 @@ class GenericMergingWindowFn(window.WindowFn):
             process_bundle_descriptor_id=self._bundle_processor_id))
     result_future = worker_handler.control_conn.push(process_bundle_req)
     for output in worker_handler.data_conn.input_elements(
-        process_bundle_id,
-        [self.FROM_SDK_TRANSFORM],
+        process_bundle_id, [self.FROM_SDK_TRANSFORM],
         abort_callback=lambda:
         (result_future.is_done() and result_future.get().error)):
       if isinstance(output, beam_fn_api_pb2.Elements.Data):
