@@ -34,7 +34,7 @@ require high performance, and provide.
 * Native support for Beam side-inputs.
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
-supported capabilities of the Jet Runner.
+supported capabilities of the Twister2 Runner.
 
 ## Running WordCount with the Twister2 Runner
 
