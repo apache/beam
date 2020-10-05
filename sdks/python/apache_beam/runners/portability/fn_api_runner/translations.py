@@ -18,6 +18,7 @@
 """Pipeline transformations for the FnApiRunner.
 """
 # pytype: skip-file
+# mypy: check-untyped-defs
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -307,6 +308,9 @@ class Stage(object):
           for side in side_inputs
       },
                           main_input=main_input_id)
+      # at this point we should have resolved an environment, as the key of
+      # components.environments cannot be None.
+      assert self.environment is not None
       exec_payload = beam_runner_api_pb2.ExecutableStagePayload(
           environment=components.environments[self.environment],
           input=main_input_id,
@@ -373,7 +377,7 @@ class TransformContext(object):
         None)  # type: ignore[arg-type]
     self.bytes_coder_id = self.add_or_get_coder_id(coder_proto, 'bytes_coder')
     self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
-    self.data_channel_coders = {}
+    self.data_channel_coders = {}  # type: Dict[str, str]
 
   def add_or_get_coder_id(
       self,
@@ -812,7 +816,8 @@ def pack_combiners(stages, context):
 
   def _get_fallback_coder_id():
     return context.add_or_get_coder_id(
-        coders.registry.get_coder(object).to_runner_api(None))
+        # passing None works here because there are no component coders
+        coders.registry.get_coder(object).to_runner_api(None))  # type: ignore[arg-type]
 
   def _get_component_coder_id_from_kv_coder(coder, index):
     assert index < 2
@@ -922,11 +927,14 @@ def pack_combiners(stages, context):
             is_bounded=input_pcoll.is_bounded))
 
     # Set up Pack stage.
+    # TODO(BEAM-7746): classes that inherit from RunnerApiFn are expected to
+    #  accept a PipelineContext for from_runner_api/to_runner_api.  Determine
+    #  how to accomodate this.
     pack_combine_fn = combiners.SingleInputTupleCombineFn(
         *[
-            core.CombineFn.from_runner_api(combine_payload.combine_fn, context)
+            core.CombineFn.from_runner_api(combine_payload.combine_fn, context)  # type: ignore[arg-type]
             for combine_payload in combine_payloads
-        ]).to_runner_api(context)
+        ]).to_runner_api(context)  # type: ignore[arg-type]
     pack_transform = beam_runner_api_pb2.PTransform(
         unique_name=pack_combine_name + '/Pack',
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -1480,14 +1488,17 @@ def sink_flattens(stages, pipeline_context):
 
 
 def greedily_fuse(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> FrozenSet[Stage]
+
   """Places transforms sharing an edge in the same stage, whenever possible.
   """
-  producers_by_pcoll = {}
-  consumers_by_pcoll = collections.defaultdict(list)
+  producers_by_pcoll = {}  # type: Dict[str, Stage]
+  consumers_by_pcoll = collections.defaultdict(
+      list)  # type: DefaultDict[str, List[Stage]]
 
   # Used to always reference the correct stage as the producer and
   # consumer maps are not updated when stages are fused away.
-  replacements = {}
+  replacements = {}  # type: Dict[Stage, Stage]
 
   def replacement(s):
     old_ss = []
