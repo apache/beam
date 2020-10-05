@@ -1,20 +1,22 @@
-# Dataflow Kafka to Pub/Sub Flex template
+# Dataflow Kafka to Pub/Sub Flex Template
 
-This directory contains the template that creates the Dataflow pipeline 
+This directory contains a Flex template that creates a Dataflow pipeline 
 to read data from a single topic or multiple topics from 
-[Apache Kafka](https://kafka.apache.org/) and write it into a single topic 
+[Apache Kafka](https://kafka.apache.org/) and write data into a single topic 
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
+
+This template supports serializable string formats, such as JSON.
 
 ## Requirements
 
 - Java 11
 - Kafka Bootstrap Server(s) up and running
-- Kafka Topic(s) exists
-- The PubSub output topic exists
+- Source Kafka Topic(s)
+- Destination PubSub output topic created
 
 ## Getting Started
 
-This section describes the preparation steps that need to be done before 
+This section describes the preparation steps that are prerequisite for 
 the template build and execution.
 
 ### Setting Environment Variables
@@ -40,7 +42,7 @@ TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
 
 ### Bucket Creation
 
-The Dataflow Flex templates has to store its metadata in a bucket in 
+The Dataflow Flex template has to store its metadata in a bucket in 
 Google Cloud Storage, so it can be executed from the Google Cloud Platform.
 Create the bucket in Google Cloud Storage if it doesn't exist yet:
 
@@ -58,7 +60,7 @@ on your project's Container Registry.
 The Dataflow Flex templates require your Java project to be built into 
 an Uber JAR file.
 
-Go to the Beam folder:
+Navigate to the Beam folder:
 
 ```
 cd /path/to/beam
@@ -83,7 +85,7 @@ To execute the template you need to create the template spec file containing all
 the necessary information to run the job. This template already has such [metadata
 file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
 
-Go to the template folder:
+Navigate to the template folder:
 
 ```
 cd /path/to/beam/templates/kafka-to-pubsub
