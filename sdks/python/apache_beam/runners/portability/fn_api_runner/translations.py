@@ -725,7 +725,8 @@ class _StagePacker(object):
 
   def process_stages(self, stages, context):
     stages = list(stages)
-    stages_with_group_key = [(stage, self.get_group_key(stage, context)) for stage in stages]
+    stages_with_group_key = [(stage, self.get_group_key(stage, context))
+                             for stage in stages]
     stages_by_group_key = collections.defaultdict(list)
     for stage, group_key in stages_with_group_key:
       if group_key is not None:
@@ -734,7 +735,8 @@ class _StagePacker(object):
     pcoll_id_remap = {}
     for group_key, grouped_stages in stages_by_group_key.items():
       if len(grouped_stages) > 1:
-        pack_stages_result = self.pack_stages(group_key, grouped_stages, context)
+        pack_stages_result = self.pack_stages(
+            group_key, grouped_stages, context)
         if pack_stages_result is not None:
           packed_stages, group_pcoll_id_remap = pack_stages_result
           packed_stages_by_group_key[group_key] = packed_stages
@@ -749,10 +751,12 @@ class _StagePacker(object):
         if group_key not in group_keys_with_yielded_packed_stages:
           group_keys_with_yielded_packed_stages.add(group_key)
           for packed_stage in packed_stages_by_group_key[group_key]:
-            self._remap_input_pcolls(only_transform(stage.transforms), pcoll_id_remap)
+            self._remap_input_pcolls(
+                only_transform(stage.transforms), pcoll_id_remap)
             yield packed_stage
       else:
-        self._remap_input_pcolls(only_transform(stage.transforms), pcoll_id_remap)
+        self._remap_input_pcolls(
+            only_transform(stage.transforms), pcoll_id_remap)
         yield stage
 
   def _remap_input_pcolls(self, transform, pcoll_id_remap):
@@ -775,12 +779,16 @@ class _EliminateCommonKeyWithNoneStagePacker(_StagePacker):
     return None
 
   def pack_stages(self, group_key, grouped_stages, context):
-    first_pcoll_id = only_element(only_transform(grouped_stages[0].transforms).outputs.values())
-    pcoll_ids_to_remap = [only_element(only_transform(stage.transforms).outputs.values())
-                          for stage in grouped_stages[1:]]
+    first_pcoll_id = only_element(
+        only_transform(grouped_stages[0].transforms).outputs.values())
+    pcoll_ids_to_remap = [
+        only_element(only_transform(stage.transforms).outputs.values())
+        for stage in grouped_stages[1:]
+    ]
     return (
         grouped_stages[:1],
-        {pcoll_id: first_pcoll_id for pcoll_id in pcoll_ids_to_remap})
+        {pcoll_id: first_pcoll_id
+         for pcoll_id in pcoll_ids_to_remap})
 
 
 def eliminate_common_key_with_none(stages, context):
@@ -830,8 +838,8 @@ def _try_fuse_stages(a, b):
 class _PackCombinersStagePacker(_StagePacker):
   def get_group_key(self, stage, context):
     if (len(stage.transforms) == 1 and stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN in context.components.environments[
-            stage.environment].capabilities):
+        python_urns.PACKED_COMBINE_FN
+        in context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
@@ -859,6 +867,7 @@ class _PackCombinersStagePacker(_StagePacker):
             core.pvalue.TaggedOutput(tag, (key, value)) for tag,
             value in zip(self._tags, values)
         ]
+
     input_pcoll_id, _ = group_key
     try:
       if not len(grouped_stages) > 1:
@@ -971,7 +980,6 @@ class _PackCombinersStagePacker(_StagePacker):
         pack_combine_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        # TODO(yifanmai): Diff
         parent=stage_parent,
         environment=fused_stage.environment)
     return ([pack_stage, unpack_stage], {})
