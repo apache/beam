@@ -24,6 +24,8 @@ from __future__ import absolute_import
 import unittest
 from builtins import object
 
+from parameterized import parameterized
+
 from apache_beam.utils import retry
 
 # Protect against environments where apitools library is not available.
@@ -152,6 +154,24 @@ class RetryTest(unittest.TestCase):
         b=20)
     self.assertEqual(len(self.clock.calls), 7)
     self.assertEqual(self.clock.calls[0], 10.0)
+
+  @parameterized.expand([(str(i), i) for i in range(0, 1000, 47)])
+  def test_with_stop_after_secs(self, _, stop_after_secs):
+    max_delay_secs = 10
+    self.assertRaises(
+        NotImplementedError,
+        retry.with_exponential_backoff(
+            num_retries=10000,
+            initial_delay_secs=10.0,
+            clock=self.clock,
+            fuzz=False,
+            max_delay_secs=max_delay_secs,
+            stop_after_secs=stop_after_secs)(self.permanent_failure),
+        10,
+        b=20)
+    total_delay = sum(self.clock.calls)
+    self.assertLessEqual(total_delay, stop_after_secs)
+    self.assertGreaterEqual(total_delay, stop_after_secs - max_delay_secs)
 
   def test_log_calls_for_permanent_failure(self):
     self.assertRaises(
