@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -152,6 +153,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
     LOG.info("Executing pipeline using the SparkRunner.");
+
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
 
     final SparkPipelineResult result;
     final Future<?> startPipeline;
