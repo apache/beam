@@ -716,16 +716,71 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
   return stages
 
 
-def _group_stages_by_key(stages, get_stage_key):
-  grouped_stages = collections.defaultdict(list)
-  stages_with_none_key = []
-  for stage in stages:
-    stage_key = get_stage_key(stage)
-    if stage_key is None:
-      stages_with_none_key.append(stage)
-    else:
-      grouped_stages[stage_key].append(stage)
-  return (grouped_stages, stages_with_none_key)
+class _StagePacker(object):
+  def get_group_key(self, stage, context):
+    raise NotImplementedError()
+
+  def pack_stages(self, group_key, grouped_stages, context):
+    raise NotImplementedError()
+
+  def process_stages(self, stages, context):
+    stages = list(stages)
+    stages_with_group_key = [(stage, self.get_group_key(stage, context)) for stage in stages]
+    stages_by_group_key = collections.defaultdict(list)
+    for stage, group_key in stages_with_group_key:
+      if group_key is not None:
+        stages_by_group_key[group_key].append(stage)
+    packed_stages_by_group_key = {}
+    pcoll_id_remap = {}
+    for group_key, grouped_stages in stages_by_group_key.items():
+      if len(grouped_stages) > 1:
+        pack_stages_result = self.pack_stages(group_key, grouped_stages, context)
+        if pack_stages_result is not None:
+          packed_stages, group_pcoll_id_remap = pack_stages_result
+          packed_stages_by_group_key[group_key] = packed_stages
+          pcoll_id_remap.update(group_pcoll_id_remap)
+
+    for transform in context.components.transforms.values():
+      self._remap_input_pcolls(transform, pcoll_id_remap)
+
+    group_keys_with_yielded_packed_stages = set()
+    for stage, group_key in stages_with_group_key:
+      if group_key is not None and group_key in packed_stages_by_group_key:
+        if group_key not in group_keys_with_yielded_packed_stages:
+          group_keys_with_yielded_packed_stages.add(group_key)
+          for packed_stage in packed_stages_by_group_key[group_key]:
+            self._remap_input_pcolls(only_transform(stage.transforms), pcoll_id_remap)
+            yield packed_stage
+      else:
+        self._remap_input_pcolls(only_transform(stage.transforms), pcoll_id_remap)
+        yield stage
+
+  def _remap_input_pcolls(self, transform, pcoll_id_remap):
+    for input_key in list(transform.inputs.keys()):
+      if transform.inputs[input_key] in pcoll_id_remap:
+        transform.inputs[input_key] = pcoll_id_remap[
+            transform.inputs[input_key]]
+
+
+class _EliminateCommonKeyWithNoneStagePacker(_StagePacker):
+  def get_group_key(self, stage, context):
+    if len(stage.transforms) == 1:
+      transform = only_transform(stage.transforms)
+      if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
+          len(transform.inputs) == 1 and len(transform.outputs) == 1):
+        pardo_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if pardo_payload.do_fn.urn == python_urns.KEY_WITH_NONE_DOFN:
+          return (only_element(transform.inputs.values()), stage.environment)
+    return None
+
+  def pack_stages(self, group_key, grouped_stages, context):
+    first_pcoll_id = only_element(only_transform(grouped_stages[0].transforms).outputs.values())
+    pcoll_ids_to_remap = [only_element(only_transform(stage.transforms).outputs.values())
+                          for stage in grouped_stages[1:]]
+    return (
+        grouped_stages[:1],
+        {pcoll_id: first_pcoll_id for pcoll_id in pcoll_ids_to_remap})
 
 
 def eliminate_common_key_with_none(stages, context):
@@ -739,103 +794,41 @@ def eliminate_common_key_with_none(stages, context):
   KeyWithNone stages will be remapped to read input from the output PCollection
   of the remaining KeyWithNone stage.
   """
-
-  # Partition stages by whether they are eligible for common KeyWithNone
-  # elimination, and group eligible KeyWithNone stages by parent and
-  # environment.
-  def get_stage_key(stage):
-    if len(stage.transforms) == 1:
-      transform = only_transform(stage.transforms)
-      if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
-          len(transform.inputs) == 1 and len(transform.outputs) == 1):
-        pardo_payload = proto_utils.parse_Bytes(
-            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        if pardo_payload.do_fn.urn == python_urns.KEY_WITH_NONE_DOFN:
-          return (only_element(transform.inputs.values()), stage.environment)
-    return None
-
-  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
-      stages, get_stage_key)
-
-  # Eliminate stages and build the PCollection remapping dictionary.
-  pcoll_id_remap = {}
-  remaining_stages = []
-  for sibling_stages in grouped_eligible_stages.values():
-    output_pcoll_ids = [
-        only_element(stage.transforms[0].outputs.values())
-        for stage in sibling_stages
-    ]
-    for to_delete_pcoll_id in output_pcoll_ids[1:]:
-      pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
-      del context.components.pcollections[to_delete_pcoll_id]
-    remaining_stages.append(sibling_stages[0])
-
-  # Yield stages while remapping input PCollections if needed.
-  stages_to_yield = itertools.chain(ineligible_stages, remaining_stages)
-  for stage in stages_to_yield:
-    for transform in stage.transforms:
-      for input_key in list(transform.inputs.keys()):
-        if transform.inputs[input_key] in pcoll_id_remap:
-          transform.inputs[input_key] = pcoll_id_remap[
-              transform.inputs[input_key]]
+  packer = _EliminateCommonKeyWithNoneStagePacker()
+  for stage in packer.process_stages(stages, context):
     yield stage
 
 
-def pack_combiners(stages, context):
-  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+def _get_fallback_coder_id():
+  return context.add_or_get_coder_id(
+      coders.registry.get_coder(object).to_runner_api(None))
 
-  """Packs sibling CombinePerKey stages into a single CombinePerKey.
 
-  If CombinePerKey stages have a common input, one input each, and one output
-  each, pack the stages into a single stage that runs all CombinePerKeys and
-  outputs resulting tuples to a new PCollection. A subsequent stage unpacks
-  tuples from this PCollection and sends them to the original output
-  PCollections.
-  """
-  class _UnpackFn(core.DoFn):
-    """A DoFn that unpacks a packed to multiple tagged outputs.
+def _get_component_coder_id_from_kv_coder(coder, index):
+  assert index < 2
+  if coder.spec.urn == common_urns.coders.KV.urn and len(
+      coder.component_coder_ids) == 2:
+    return coder.component_coder_ids[index]
+  return _get_fallback_coder_id()
 
-    Example:
-      tags = (T1, T2, ...)
-      input = (K, (V1, V2, ...))
-      output = TaggedOutput(T1, (K, V1)), TaggedOutput(T2, (K, V1)), ...
-    """
-    def __init__(self, tags):
-      self._tags = tags
 
-    def process(self, element):
-      key, values = element
-      return [
-          core.pvalue.TaggedOutput(tag, (key, value)) for tag,
-          value in zip(self._tags, values)
-      ]
+def _get_key_coder_id_from_kv_coder(coder):
+  return _get_component_coder_id_from_kv_coder(coder, 0)
 
-  def _get_fallback_coder_id():
-    return context.add_or_get_coder_id(
-        coders.registry.get_coder(object).to_runner_api(None))
 
-  def _get_component_coder_id_from_kv_coder(coder, index):
-    assert index < 2
-    if coder.spec.urn == common_urns.coders.KV.urn and len(
-        coder.component_coder_ids) == 2:
-      return coder.component_coder_ids[index]
-    return _get_fallback_coder_id()
+def _get_value_coder_id_from_kv_coder(coder):
+  return _get_component_coder_id_from_kv_coder(coder, 1)
 
-  def _get_key_coder_id_from_kv_coder(coder):
-    return _get_component_coder_id_from_kv_coder(coder, 0)
 
-  def _get_value_coder_id_from_kv_coder(coder):
-    return _get_component_coder_id_from_kv_coder(coder, 1)
+def _try_fuse_stages(a, b):
+  if a.can_fuse(b, context):
+    return a.fuse(b)
+  else:
+    raise ValueError
 
-  def _try_fuse_stages(a, b):
-    if a.can_fuse(b, context):
-      return a.fuse(b)
-    else:
-      raise ValueError
 
-  # Partition stages by whether they are eligible for CombinePerKey packing
-  # and group eligible CombinePerKey stages by parent and environment.
-  def get_stage_key(stage):
+class _PackCombinersStagePacker(_StagePacker):
+  def get_group_key(self, stage, context):
     if (len(stage.transforms) == 1 and stage.environment is not None and
         python_urns.PACKED_COMBINE_FN in context.components.environments[
             stage.environment].capabilities):
@@ -848,26 +841,35 @@ def pack_combiners(stages, context):
           return (only_element(transform.inputs.values()), stage.environment)
     return None
 
-  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
-      stages, get_stage_key)
-  for stage in ineligible_stages:
-    yield stage
+  def pack_stages(self, group_key, grouped_stages, context):
+    class _UnpackFn(core.DoFn):
+      """A DoFn that unpacks a packed to multiple tagged outputs.
 
-  for stage_key, packable_stages in grouped_eligible_stages.items():
-    input_pcoll_id, _ = stage_key
+      Example:
+        tags = (T1, T2, ...)
+        input = (K, (V1, V2, ...))
+        output = TaggedOutput(T1, (K, V1)), TaggedOutput(T2, (K, V1)), ...
+      """
+      def __init__(self, tags):
+        self._tags = tags
+
+      def process(self, element):
+        key, values = element
+        return [
+            core.pvalue.TaggedOutput(tag, (key, value)) for tag,
+            value in zip(self._tags, values)
+        ]
+    input_pcoll_id, _ = group_key
     try:
-      if not len(packable_stages) > 1:
+      if not len(grouped_stages) > 1:
         raise ValueError('Only one stage in this group: Skipping stage packing')
       # Fused stage is used as template and is not yielded.
-      fused_stage = functools.reduce(_try_fuse_stages, packable_stages)
+      fused_stage = functools.reduce(_try_fuse_stages, grouped_stages)
     except ValueError:
       # Skip packing stages in this group.
-      # Yield the stages unmodified, and then continue to the next group.
-      for stage in packable_stages:
-        yield stage
-      continue
+      return None
 
-    transforms = [only_transform(stage.transforms) for stage in packable_stages]
+    transforms = [only_transform(stage.transforms) for stage in grouped_stages]
     combine_payloads = [
         proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.CombinePayload)
@@ -921,6 +923,12 @@ def pack_combiners(stages, context):
             windowing_strategy_id=input_pcoll.windowing_strategy_id,
             is_bounded=input_pcoll.is_bounded))
 
+    # Use the parent of the first stage as the parent stage for the Pack and
+    # Unpack stages. This ensures that the Pack and Unpack transform nodes are
+    # placed after all transforms that produce its input PCollections and before
+    # all transforms that consume its output PCollections.
+    stage_parent = grouped_stages[0].parent
+
     # Set up Pack stage.
     pack_combine_fn = combiners.SingleInputTupleCombineFn(
         *[
@@ -942,9 +950,8 @@ def pack_combiners(stages, context):
         pack_combine_name + '/Pack', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        parent=stage_parent,
         environment=fused_stage.environment)
-    yield pack_stage
 
     # Set up Unpack stage
     tags = [str(i) for i in range(len(output_pcoll_ids))]
@@ -964,9 +971,26 @@ def pack_combiners(stages, context):
         pack_combine_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        # TODO(yifanmai): Diff
+        parent=stage_parent,
         environment=fused_stage.environment)
-    yield unpack_stage
+    return ([pack_stage, unpack_stage], {})
+
+
+def pack_combiners(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+
+  """Packs sibling CombinePerKey stages into a single CombinePerKey.
+
+  If CombinePerKey stages have a common input, one input each, and one output
+  each, pack the stages into a single stage that runs all CombinePerKeys and
+  outputs resulting tuples to a new PCollection. A subsequent stage unpacks
+  tuples from this PCollection and sends them to the original output
+  PCollections.
+  """
+  packer = _PackCombinersStagePacker()
+  for stage in packer.process_stages(stages, context):
+    yield stage
 
 
 def lift_combiners(stages, context):
