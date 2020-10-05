@@ -2482,11 +2482,10 @@ def _dynamic_named_tuple(type_name, field_names):
     import collections
     result = _dynamic_named_tuple_cache[cache_key] = collections.namedtuple(
         type_name, field_names)
-    if not typing.TYPE_CHECKING:
-      # typing: can't override a method. also, self type is unknown and can't
-      # be cast to tuple
-      result.__reduce__ = lambda self: (
-          _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))
+    # typing: can't override a method. also, self type is unknown and can't
+    # be cast to tuple
+    result.__reduce__ = lambda self: (  # type: ignore[assignment]
+        _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))  # type: ignore[arg-type]
   return result
 
 
