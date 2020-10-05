@@ -219,20 +219,8 @@ After successful login, authorization info will be stored at ~/.docker/config.js
    "auth": "xxxxxx"
 }
 ```
-Release managers should have push permission; please ask for help at dev@.
-```
-From: Release Manager
-To: dev@beam.apache.org
-Subject: DockerHub Push Permission
+Release managers should have push permission; request membership in the [`beammaintainers` team](https://hub.docker.com/orgs/apache/teams/beammaintainers) by filing a JIRA with the Apache Infrastructure team, like [INFRA-20900](https://issues.apache.org/jira/browse/INFRA-20900).
 
-Hi DockerHub Admins
-
-I need push permission to proceed with release, can you please add me to maintainer team?
-My docker hub ID is: xxx
-
-Thanks,
-Release Manager
-```
 ### Create a new version in JIRA
 
 When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:
