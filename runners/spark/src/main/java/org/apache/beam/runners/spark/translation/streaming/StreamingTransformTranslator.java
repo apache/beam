@@ -34,6 +34,7 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.ConsoleIO;
@@ -58,7 +59,6 @@ import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -115,10 +115,11 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <T> TransformEvaluator<Read.Unbounded<T>> readUnbounded() {
-    return new TransformEvaluator<Read.Unbounded<T>>() {
+  private static <T> TransformEvaluator<SplittableParDo.PrimitiveUnboundedRead<T>> readUnbounded() {
+    return new TransformEvaluator<SplittableParDo.PrimitiveUnboundedRead<T>>() {
       @Override
-      public void evaluate(Read.Unbounded<T> transform, EvaluationContext context) {
+      public void evaluate(
+          SplittableParDo.PrimitiveUnboundedRead<T> transform, EvaluationContext context) {
         final String stepName = context.getCurrentTransform().getFullName();
         context.putDataset(
             transform,
