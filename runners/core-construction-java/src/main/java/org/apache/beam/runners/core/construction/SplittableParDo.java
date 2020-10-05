@@ -672,14 +672,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
    * A transform override for {@link Read.Bounded} that converts it to a {@link
    * PrimitiveBoundedRead}.
    */
-  public static PTransformOverride PRIMITIVE_BOUNDED_READ_OVERRIDE =
+  public static final PTransformOverride PRIMITIVE_BOUNDED_READ_OVERRIDE =
       PTransformOverride.of(
           PTransformMatchers.classEqualTo(Read.Bounded.class), new BoundedReadOverrideFactory<>());
   /**
    * A transform override for {@link Read.Unbounded} that converts it to a {@link
    * PrimitiveUnboundedRead}.
    */
-  public static PTransformOverride PRIMITIVE_UNBOUNDED_READ_OVERRIDE =
+  public static final PTransformOverride PRIMITIVE_UNBOUNDED_READ_OVERRIDE =
       PTransformOverride.of(
           PTransformMatchers.classEqualTo(Read.Unbounded.class),
           new UnboundedReadOverrideFactory<>());
