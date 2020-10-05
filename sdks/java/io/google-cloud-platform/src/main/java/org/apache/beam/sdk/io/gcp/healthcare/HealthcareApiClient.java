@@ -1,18 +1,23 @@
-// Copyright 2020 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
@@ -21,12 +26,11 @@ import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
-import com.google.api.services.healthcare.v1beta1.model.ParserConfig;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.Map;
-import javax.annotation.Nullable;
+import java.util.List;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Defines a client that talks to the Cloud Healthcare API. */
@@ -133,8 +137,12 @@ public interface HealthcareApiClient {
   Operation importFhirResource(
       String fhirStore, String gcsSourcePath, @Nullable String contentStructure) throws IOException;
 
-  Operation exportHl7v2Messages(String hl7v2Store, String start, String end, String gcsPrefix)
-      throws IOException, HealthcareHttpException;
+  Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
+      throws IOException;
+
+  Operation deidentifyFhirStore(
+      String sourceFhirStore, String destinationFhirStore, DeidentifyConfig deidConfig)
+      throws IOException;
 
   Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException;
@@ -160,18 +168,6 @@ public interface HealthcareApiClient {
   HttpBody readFhirResource(String resourceId) throws IOException;
 
   /**
-   * Search fhir resource http body.
-   *
-   * @param fhirStore the fhir store
-   * @param resourceType the resource type
-   * @param parameters the parameters
-   * @return the http body
-   * @throws IOException
-   */
-  HttpBody searchFhirResource(String fhirStore, String resourceType,
-      @Nullable Map<String, Object> parameters) throws IOException;
-
-  /**
    * Create hl 7 v 2 store hl 7 v 2 store.
    *
    * @param dataset the dataset
@@ -181,13 +177,20 @@ public interface HealthcareApiClient {
    */
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
 
-  Hl7V2Store createHL7v2Store(String dataset, String name, @Nullable ParserConfig parserConfig,
-      @Nullable String pubsubTopic) throws IOException;
-
-  FhirStore createFhirStore(String dataset, String name, String version,
-      @Nullable String pubsubTopic) throws IOException;
+  FhirStore createFhirStore(String dataset, String name, String version, String pubsubTopic)
+      throws IOException;
 
   FhirStore createFhirStore(String dataset, String name, String version) throws IOException;
+
+  /**
+   * List all FHIR stores in a dataset.
+   *
+   * @param dataset the dataset, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id
+   * @return a list of FhirStore
+   * @throws IOException
+   */
+  List<FhirStore> listAllFhirStores(String dataset) throws IOException;
 
   /**
    * Delete hl 7 v 2 store empty.
@@ -199,13 +202,4 @@ public interface HealthcareApiClient {
   Empty deleteHL7v2Store(String store) throws IOException;
 
   Empty deleteFhirStore(String store) throws IOException;
-
-
-  /**
-   * Retrieve metadata of a study in a dicom Store
-   * @param fullWebPath the full path of the study
-   * @return the metadata of the study as a json string
-   * @throws IOException the io exception
-   */
-  String retrieveStudyMetadata(String fullWebPath) throws IOException;
 }

@@ -1,16 +1,20 @@
-// Copyright 2020 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.http.HttpHeaders;
@@ -18,27 +22,28 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1beta1.CloudHealthcare;
-import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.Search;
 import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
 import com.google.api.services.healthcare.v1beta1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1beta1.model.CreateMessageRequest;
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyFhirStoreRequest;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
+import com.google.api.services.healthcare.v1beta1.model.ExportResourcesRequest;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
+import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsDestination;
 import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsSource;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.ImportResourcesRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
+import com.google.api.services.healthcare.v1beta1.model.ListFhirStoresResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
-import com.google.api.services.healthcare.v1beta1.model.ParserConfig;
-import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
@@ -52,12 +57,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.FieldNamingPolicy;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.Gson;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.GsonBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -70,6 +71,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,13 +86,10 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       String.format(
           "apache-beam-io-google-cloud-platform-healthcare/%s",
           ReleaseInfo.getReleaseInfo().getSdkVersion());
-  private static final JsonFactory PARSER = new GsonFactory();
   private static final String FHIRSTORE_HEADER_CONTENT_TYPE = "application/fhir+json";
   private static final String FHIRSTORE_HEADER_ACCEPT = "application/fhir+json; charset=utf-8";
   private static final String FHIRSTORE_HEADER_ACCEPT_CHARSET = "utf-8";
   private static final Logger LOG = LoggerFactory.getLogger(HttpHealthcareApiClient.class);
-  private static final Gson GSON = new GsonBuilder()
-      .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
   private transient CloudHealthcare client;
   private transient HttpClient httpClient;
   private transient GoogleCredentials credentials;
@@ -134,31 +133,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public Hl7V2Store createHL7v2Store(
-      String dataset,
-      String name,
-      @Nullable ParserConfig parserConfig,
-      @Nullable String pubsubTopic)
-      throws IOException {
-    Hl7V2Store store = new Hl7V2Store();
-    if (parserConfig != null) {
-      store.setParserConfig(parserConfig);
-    }
-    if (pubsubTopic != null) {
-      NotificationConfig notificationConfig = new NotificationConfig().setPubsubTopic(pubsubTopic);
-      store.setNotificationConfig(notificationConfig);
-    }
-    return client
-        .projects()
-        .locations()
-        .datasets()
-        .hl7V2Stores()
-        .create(dataset, store)
-        .setHl7V2StoreId(name)
-        .execute();
-  }
-
-  @Override
   public FhirStore createFhirStore(String dataset, String name, String version) throws IOException {
     return createFhirStore(dataset, name, version, null);
   }
@@ -188,6 +162,31 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public List<FhirStore> listAllFhirStores(String dataset) throws IOException {
+    ArrayList<FhirStore> fhirStores = new ArrayList<>();
+    String pageToken = "";
+    do {
+      ListFhirStoresResponse resp =
+          client
+              .projects()
+              .locations()
+              .datasets()
+              .fhirStores()
+              .list(dataset)
+              .setPageToken(pageToken)
+              .execute();
+      for (FhirStore fs : resp.getFhirStores()) {
+        fhirStores.add(fs);
+      }
+      if (resp.getNextPageToken() == null) {
+        break;
+      }
+      pageToken = resp.getNextPageToken();
+    } while (!pageToken.equals(""));
+    return fhirStores;
+  }
+
+  @Override
   public Empty deleteHL7v2Store(String name) throws IOException {
     return client.projects().locations().datasets().hl7V2Stores().delete(name).execute();
   }
@@ -195,40 +194,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Empty deleteFhirStore(String name) throws IOException {
     return client.projects().locations().datasets().fhirStores().delete(name).execute();
-  }
-
-  @Override
-  public String retrieveStudyMetadata(String fullWebPath) throws IOException {
-    // need error checking
-    String[] webPathSplit = fullWebPath.split("/dicomWeb/");
-
-    String dicomStorePath = webPathSplit[0];
-
-    String[] searchParameters = webPathSplit[1].split("/");
-    String studyId = searchParameters[1];
-//        String seriesId = searchParameters[3];
-//        String instanceId = searchParameters[5];
-
-    String searchQuery = String.format("studies/%s/metadata",
-            studyId);
-
-    return makeRetrieveStudyMetadataRequest(dicomStorePath, searchQuery);
-  }
-
-  private String makeRetrieveStudyMetadataRequest(String dicomStorePath, String searchQuery) throws IOException {
-    CloudHealthcare.Projects.Locations.Datasets.DicomStores.Studies.RetrieveMetadata request = this.client
-            .projects()
-            .locations()
-            .datasets()
-            .dicomStores()
-            .studies()
-            .retrieveMetadata(dicomStorePath, searchQuery);
-    com.google.api.client.http.HttpResponse response = request.executeUnparsed();
-
-    List<Map> instances = response.parseAs(List.class);
-    String firstOrDefaultInstance = instances.get(0).toString();
-
-    return firstOrDefaultInstance;
   }
 
   @Override
@@ -449,6 +414,40 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
+      throws IOException {
+    GoogleCloudHealthcareV1beta1FhirRestGcsDestination gcsDst =
+        new GoogleCloudHealthcareV1beta1FhirRestGcsDestination();
+
+    gcsDst.setUriPrefix(gcsDestinationPrefix);
+    ExportResourcesRequest exportRequest = new ExportResourcesRequest();
+    exportRequest.setGcsDestination(gcsDst);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .export(fhirStore, exportRequest)
+        .execute();
+  }
+
+  @Override
+  public Operation deidentifyFhirStore(
+      String sourcefhirStore, String destinationFhirStore, DeidentifyConfig deidConfig)
+      throws IOException {
+    DeidentifyFhirStoreRequest deidRequest = new DeidentifyFhirStoreRequest();
+    deidRequest.setDestinationStore(destinationFhirStore);
+    deidRequest.setConfig(deidConfig);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .deidentify(sourcefhirStore, deidRequest)
+        .execute();
+  }
+
+  @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException {
     LOG.debug(String.format("started opertation %s. polling until complete.", operation.getName()));
@@ -459,69 +458,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
           client.projects().locations().datasets().operations().get(operation.getName()).execute();
     }
     return operation;
-  }
-
-  // TODO(b/160591826): remove the following classes once ExportMessages are launched to beta.
-  private static class ExportMessagesRequest {
-    private static class GcsDestination {
-      private String uriPrefix;
-      private String messageView;
-      private String contentStructure;
-
-      GcsDestination(String uriPrefix, String messageView, String contentStructure) {
-        this.uriPrefix = uriPrefix;
-        this.messageView = messageView;
-        this.contentStructure = contentStructure;
-      }
-    }
-
-    private String startTime;
-    private String endTime;
-    private GcsDestination gcsDestination;
-
-    ExportMessagesRequest(String startTime, String endTime, GcsDestination gcsDestination) {
-      this.startTime = startTime;
-      this.endTime = endTime;
-      this.gcsDestination = gcsDestination;
-    }
-  }
-
-  @Override
-  public Operation exportHl7v2Messages(String hl7v2Store, String start, String end,
-      String gcsPrefix) throws IOException, HealthcareHttpException {
-    if (httpClient == null || client == null) {
-      initClient();
-    }
-
-    credentials.refreshIfExpired();
-    String payload = GSON.toJson(
-        new ExportMessagesRequest(start, end,
-            new ExportMessagesRequest.GcsDestination(gcsPrefix, "FULL", "MESSAGE_JSON")));
-    StringEntity entity = new StringEntity(payload);
-    URI uri;
-    try {
-      uri =
-          new URIBuilder(client.getRootUrl() + "v1alpha2/" + hl7v2Store + "/messages:export")
-              .setParameter("access_token", credentials.getAccessToken().getTokenValue())
-              .build();
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException(e);
-    }
-
-    HttpUriRequest request =
-        RequestBuilder.post()
-            .setUri(uri)
-            .setEntity(entity)
-            .build();
-
-    HttpResponse response = httpClient.execute(request);
-    HttpEntity responseEntity = response.getEntity();
-    String content = EntityUtils.toString(responseEntity);
-    int statusCode = response.getStatusLine().getStatusCode();
-    if (!(statusCode / 100 == 2)) {
-      throw HealthcareHttpException.of(statusCode, content);
-    }
-    return PARSER.fromString(content, Operation.class);
   }
 
   @Override
@@ -535,10 +471,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
     URI uri;
     try {
-      uri =
-          new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir")
-              .setParameter("access_token", credentials.getAccessToken().getTokenValue())
-              .build();
+      uri = new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir").build();
     } catch (URISyntaxException e) {
       LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
       throw new IllegalArgumentException(e);
@@ -548,6 +481,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         RequestBuilder.post()
             .setUri(uri)
             .setEntity(requestEntity)
+            .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
             .addHeader("User-Agent", USER_AGENT)
             .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
             .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
@@ -557,6 +491,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     HttpResponse response = httpClient.execute(request);
     HttpEntity responseEntity = response.getEntity();
     String content = EntityUtils.toString(responseEntity);
+
     // Check 2XX code.
     int statusCode = response.getStatusLine().getStatusCode();
     if (!(statusCode / 100 == 2)) {
@@ -605,25 +540,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public HttpBody readFhirResource(String resourceId) throws IOException {
     return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
-  }
-
-  public HttpBody searchFhirResource(
-      String fhirStore,
-      String resourceType,
-      @Nullable Map<String, Object> parameters)
-      throws IOException {
-    SearchResourcesRequest request = new SearchResourcesRequest().setResourceType(resourceType);
-    Search search = client
-        .projects()
-        .locations()
-        .datasets()
-        .fhirStores()
-        .fhir()
-        .search(fhirStore, request);
-    if (parameters != null && !parameters.isEmpty()) {
-      parameters.forEach(search::set);
-    }
-    return search.execute();
   }
 
   public static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
@@ -697,12 +613,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         String hl7v2Store,
         @Nullable Instant start,
         @Nullable Instant end) {
-      this.client = client;
-      this.hl7v2Store = hl7v2Store;
-      this.filter = null;
-      this.orderBy = null;
-      this.start = start;
-      this.end = end;
+      this(client, hl7v2Store, start, end, null, null);
     }
 
     /**
@@ -809,9 +720,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             List<Message> msgs = response.getHl7V2Messages();
             if (msgs == null) {
               return false;
-            } else {
-              return !msgs.isEmpty();
             }
+            return !msgs.isEmpty();
           } catch (IOException e) {
             throw new NoSuchElementException(
                 String.format(
