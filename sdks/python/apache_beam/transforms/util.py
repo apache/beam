@@ -709,12 +709,11 @@ class Reshuffle(PTransform):
       KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(KeyedT)
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
+            32), t)).with_input_types(T).with_output_types(KeyedT)
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-            KeyedT).with_output_types(T)
-    )
+        | 'RemoveRandomKeys' >>
+        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
