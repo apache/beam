@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -198,11 +199,14 @@ public class GroupByKeyOp<K, InputT, OutputT>
   public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> emitter) {
     timerInternalsFactory.setInputWatermark(watermark);
 
-    fnRunner.startBundle();
-    for (KeyedTimerData<K> keyedTimerData : timerInternalsFactory.removeReadyTimers()) {
-      fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+    Collection<KeyedTimerData<K>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    if (!readyTimers.isEmpty()) {
+      fnRunner.startBundle();
+      for (KeyedTimerData<K> keyedTimerData : readyTimers) {
+        fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+      }
+      fnRunner.finishBundle();
     }
-    fnRunner.finishBundle();
 
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(watermark)) {
