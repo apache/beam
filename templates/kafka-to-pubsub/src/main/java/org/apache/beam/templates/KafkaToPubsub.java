@@ -39,7 +39,7 @@ public class KafkaToPubsub {
 
   /**
    * The {@link KafkaToPubsub} pipeline is a streaming pipeline which ingests data in JSON format
-   * from Kafka, and outputs the resulting records to PubSub. Input topic, output topic, Bootstrap
+   * from Kafka, and outputs the resulting records to PubSub. Input topics, output topic, Bootstrap
    * servers are specified by the user as template parameters.
    *
    * <p><b>Pipeline Requirements</b>
@@ -65,21 +65,21 @@ public class KafkaToPubsub {
    * TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
    * TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
    *
-   * # Go to the beam folder
-   * cd /path/to/beam
-   *
    * # Create bucket in the cloud storage
    * gsutil mb gs://${BUCKET_NAME}
+   *
+   * # Go to the beam folder
+   * cd /path/to/beam
    *
    * <b>FLEX TEMPLATE</b>
    * # Assemble uber-jar
    * ./gradlew -p templates/kafka-to-pubsub clean shadowJar
    *
    * # Go to the template folder
-   *cd /path/to/beam/templates/kafka-to-pubsub
+   * cd /path/to/beam/templates/kafka-to-pubsub
    *
    * # Build the flex template
-   * gcloud dataflow flex-template build $TEMPLATE_PATH \
+   * gcloud dataflow flex-template build ${TEMPLATE_PATH} \
    *       --image-gcr-path "{$TARGET_GCR_IMAGE}" \
    *       --sdk-language "JAVA" \
    *       --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
@@ -100,7 +100,7 @@ public class KafkaToPubsub {
    *     `"&dynamicTemplate.stagingLocation=${BUCKET_NAME}/staging" \
    *     -d '
    *      {
-   *       "jobName":"'$JOB_NAME'",
+   *       "jobName":"${JOB_NAME}",
    *       "parameters": {
    *           "bootstrapServers":"broker_1:9092,broker_2:9092",
    *           "inputTopics":"topic1,topic2",
