@@ -517,6 +517,7 @@ def pipeline_from_stages(
   new_proto.CopyFrom(pipeline_proto)
   components = new_proto.components
   components.transforms.clear()
+  components.pcollections.clear()
 
   roots = set()
   parents = {
@@ -525,6 +526,11 @@ def pipeline_from_stages(
       proto in pipeline_proto.components.transforms.items()
       for child in proto.subtransforms
   }
+
+  def copy_output_pcollections(transform):
+    for pcoll_id in transform.outputs.values():
+      components.pcollections[pcoll_id].CopyFrom(
+          pipeline_proto.components.pcollections[pcoll_id])
 
   def add_parent(child, parent):
     if parent is None:
@@ -536,6 +542,7 @@ def pipeline_from_stages(
           parent in pipeline_proto.components.transforms):
         components.transforms[parent].CopyFrom(
             pipeline_proto.components.transforms[parent])
+        copy_output_pcollections(components.transforms[parent])
         del components.transforms[parent].subtransforms[:]
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
@@ -547,6 +554,7 @@ def pipeline_from_stages(
             'Could not find subtransform to copy: ' + subtransform_id)
       subtransform = pipeline_proto.components.transforms[subtransform_id]
       components.transforms[subtransform_id].CopyFrom(subtransform)
+      copy_output_pcollections(components.transforms[subtransform_id])
       copy_subtransforms(subtransform)
 
   all_consumers = collections.defaultdict(
@@ -565,6 +573,7 @@ def pipeline_from_stages(
           known_runner_urns, all_consumers, components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
+    copy_output_pcollections(transform)
     add_parent(transform_id, stage.parent)
 
   del new_proto.root_transform_ids[:]
@@ -837,8 +846,8 @@ def pack_combiners(stages, context):
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
     if (len(stage.transforms) == 1 and stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN in context.components.environments[
-            stage.environment].capabilities):
+        python_urns.PACKED_COMBINE_FN
+        in context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
