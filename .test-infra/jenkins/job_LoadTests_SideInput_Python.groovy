@@ -171,7 +171,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_SideInput_Dataflow_Batch',
-    'Run Python Load Tests SideInput Dataflow Batch',
+    'Run Load Tests Python SideInput Dataflow Batch',
     'Load Tests Python SideInput Dataflow Batch suite',
     this
     ) {
