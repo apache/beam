@@ -108,7 +108,9 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     if (result != null) {
       if (result.getCompleteWorkStatus() != null
           && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
-        LOG.info("Service asked worker to abort worker " + worker.toString());
+        LOG.info(
+            "Service asked worker to abort with message "
+                + result.getCompleteWorkStatus().toString());
         wasAskedToAbort = true;
         worker.abort();
         return;
