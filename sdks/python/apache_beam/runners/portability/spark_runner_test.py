@@ -35,10 +35,8 @@ from apache_beam.runners.portability import portable_runner_test
 
 # Run as
 #
-# pytest spark_runner_test.py \
-#     [--test_pipeline_options "--spark_job_server_jar=/path/to/job_server.jar \
-#                               --environment_type=DOCKER"] \
-#     [SparkRunnerTest.test_method, ...]
+# pytest spark_runner_test.py[::TestClass::test_case] \
+#     --test-pipeline-options "--environment_type=LOOPBACK"
 
 _LOGGER = logging.getLogger(__name__)
 
