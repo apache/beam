@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -91,7 +92,10 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.dstream.ConstantInputDStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import scala.reflect.ClassTag;
+import scala.reflect.ClassTag$;
 
 /** Supports translation between a Beam transform, and Spark's operations on DStreams. */
 public final class StreamingTransformTranslator {
@@ -111,6 +115,31 @@ public final class StreamingTransformTranslator {
       @Override
       public String toNativeString() {
         return ".print(...)";
+      }
+    };
+  }
+
+  private static TransformEvaluator<Impulse> impulse() {
+    return new TransformEvaluator<Impulse>() {
+      @Override
+      public void evaluate(Impulse transform, EvaluationContext context) {
+        ClassTag<WindowedValue<byte[]>> classTag = ClassTag$.MODULE$.apply(WindowedValue.class);
+        JavaRDD<WindowedValue<byte[]>> rdd =
+            context
+                .getSparkContext()
+                .parallelize(
+                    Collections.singletonList(WindowedValue.valueInGlobalWindow(new byte[0])));
+        ConstantInputDStream<WindowedValue<byte[]>> inputStream =
+            new ConstantInputDStream<>(context.getStreamingContext().ssc(), rdd.rdd(), classTag);
+        JavaDStream<WindowedValue<byte[]>> stream = new JavaDStream<>(inputStream, classTag);
+        UnboundedDataset<byte[]> output =
+            new UnboundedDataset<>(stream, Collections.singletonList(inputStream.id()));
+        context.putDataset(transform, output);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.<impulse>()";
       }
     };
   }
@@ -500,6 +529,7 @@ public final class StreamingTransformTranslator {
   private static final Map<String, TransformEvaluator<?>> EVALUATORS = new HashMap<>();
 
   static {
+    EVALUATORS.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, impulse());
     EVALUATORS.put(PTransformTranslation.READ_TRANSFORM_URN, readUnbounded());
     EVALUATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, groupByKey());
     EVALUATORS.put(PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN, combineGrouped());
