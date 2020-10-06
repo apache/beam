@@ -50,7 +50,7 @@ import org.apache.kafka.common.record.TimestampType;
 /** This is a mock BeamKafkaTable. It will use a Mock Consumer. */
 public abstract class KafkaTestTable extends BeamKafkaTable {
   private final int partitionsPerTopic;
-  private final List<KafkaTestRecord<?>> records;
+  private final List<KafkaTestRecord> records;
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
 
   public KafkaTestTable(Schema beamSchema, List<String> topics, int partitionsPerTopic) {
@@ -59,14 +59,12 @@ public abstract class KafkaTestTable extends BeamKafkaTable {
     this.records = new ArrayList<>();
   }
 
-  protected abstract byte[] getRecordValueBytes(KafkaTestRecord<?> record);
-
   @Override
   KafkaIO.Read<byte[], byte[]> createKafkaRead() {
     return super.createKafkaRead().withConsumerFactoryFn(this::mkMockConsumer);
   }
 
-  public void addRecord(KafkaTestRecord<?> record) {
+  public void addRecord(KafkaTestRecord record) {
     records.add(record);
   }
 
@@ -79,7 +77,11 @@ public abstract class KafkaTestTable extends BeamKafkaTable {
     this.numberOfRecordsForRate = numberOfRecordsForRate;
   }
 
-  private <ValueT> MockConsumer<byte[], byte[]> mkMockConsumer(Map<String, Object> config) {
+  private byte[] getRecordValueBytes(KafkaTestRecord record) {
+    return record.getValue().toByteArray();
+  }
+
+  private MockConsumer<byte[], byte[]> mkMockConsumer(Map<String, Object> config) {
     OffsetResetStrategy offsetResetStrategy = OffsetResetStrategy.EARLIEST;
     final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> kafkaRecords = new HashMap<>();
     Map<String, List<PartitionInfo>> partitionInfoMap = new HashMap<>();
@@ -105,7 +107,7 @@ public abstract class KafkaTestTable extends BeamKafkaTable {
                 config.getOrDefault(
                     TIMESTAMP_TYPE_CONFIG, TimestampType.LOG_APPEND_TIME.toString()));
 
-    for (KafkaTestRecord<?> record : this.records) {
+    for (KafkaTestRecord record : this.records) {
       int partitionIndex = record.getKey().hashCode() % partitionsPerTopic;
       TopicPartition tp = partitionMap.get(record.getTopic()).get(partitionIndex);
       byte[] key = record.getKey().getBytes(UTF_8);

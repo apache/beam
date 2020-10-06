@@ -18,22 +18,24 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.ByteArray;
 import java.io.Serializable;
 
 /** This class is created because Kafka Consumer Records are not serializable. */
 @AutoValue
-public abstract class KafkaTestRecord<ValueT> implements Serializable {
+public abstract class KafkaTestRecord implements Serializable {
 
   public abstract String getKey();
 
-  public abstract ValueT getValue();
+  public abstract ByteArray getValue();
 
   public abstract String getTopic();
 
   public abstract long getTimeStamp();
 
-  public static <ValueT> KafkaTestRecord<ValueT> create(
-      String newKey, ValueT newValue, String newTopic, long newTimeStamp) {
-    return new AutoValue_KafkaTestRecord<>(newKey, newValue, newTopic, newTimeStamp);
+  public static KafkaTestRecord create(
+      String newKey, byte[] newValue, String newTopic, long newTimeStamp) {
+    return new AutoValue_KafkaTestRecord(
+        newKey, ByteArray.copyFrom(newValue), newTopic, newTimeStamp);
   }
 }
