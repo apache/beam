@@ -64,7 +64,7 @@ import org.junit.Test;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
-/** This is an integration test for KafkaCSVTable. */
+/** Integration Test utility for KafkaTableProvider implementations. */
 public abstract class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 

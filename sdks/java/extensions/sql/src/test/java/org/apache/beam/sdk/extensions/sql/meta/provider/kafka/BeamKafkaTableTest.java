@@ -17,16 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -35,27 +32,23 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Test for BeamKafkaCSVTable. */
+/** Test utility for BeamKafkaTable implementations. */
 public abstract class BeamKafkaTableTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   protected static final List<String> TOPICS = ImmutableList.of("topic1", "topic2");
 
-  private static final Map<String, BeamSqlTable> tables = new HashMap<>();
-
-  protected static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
-
-  protected abstract KafkaTestRecord<?> createKafkaTestRecord(String key, int i, long timestamp);
-
+  /** Returns proper implementation of KafkaTestTable for the tested format */
   protected abstract KafkaTestTable getTestTable(int numberOfPartitions);
 
+  /** Returns proper implementation of BeamKafkaTable for the tested format */
   protected abstract BeamKafkaTable getBeamKafkaTable();
 
-  protected abstract PCollection<KV<byte[], byte[]>> applyRowToBytesKV(PCollection<Row> rows);
+  /** Returns encoded payload for the tested format. */
+  protected abstract byte[] generateEncodedPayload(int i);
 
-  protected abstract List<Object> listFrom(int i);
-
-  protected abstract Schema getSchema();
+  /** Provides a deterministic row from the given integer. */
+  protected abstract Row generateRow(int i);
 
   @Test
   public void testOrderedArrivalSinglePartitionRate() {
@@ -142,10 +135,11 @@ public abstract class BeamKafkaTableTest {
   public void testRecorderDecoder() {
     BeamKafkaTable kafkaTable = getBeamKafkaTable();
 
-    PCollection<Row> initialRows = pipeline.apply(Create.of(generateRow(1), generateRow(2)));
-
-    PCollection<KV<byte[], byte[]>> bytesKV = applyRowToBytesKV(initialRows);
-    PCollection<Row> result = bytesKV.apply(kafkaTable.getPTransformForInput());
+    PCollection<Row> result =
+        pipeline
+            .apply(Create.of(generateEncodedPayload(1), generateEncodedPayload(2)))
+            .apply(MapElements.via(new ToKV()))
+            .apply(kafkaTable.getPTransformForInput());
 
     PAssert.that(result).containsInAnyOrder(generateRow(1), generateRow(2));
     pipeline.run();
@@ -163,7 +157,14 @@ public abstract class BeamKafkaTableTest {
     pipeline.run();
   }
 
-  protected Row generateRow(int i) {
-    return Row.withSchema(getSchema()).addValues(listFrom(i)).build();
+  private static class ToKV extends SimpleFunction<byte[], KV<byte[], byte[]>> {
+    @Override
+    public KV<byte[], byte[]> apply(byte[] bytes) {
+      return KV.of(new byte[] {}, bytes);
+    }
+  }
+
+  private KafkaTestRecord createKafkaTestRecord(String key, int i, long timestamp) {
+    return KafkaTestRecord.create(key, generateEncodedPayload(i), "topic1", timestamp);
   }
 }
