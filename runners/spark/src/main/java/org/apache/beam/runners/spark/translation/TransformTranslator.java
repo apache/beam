@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -38,6 +39,7 @@ import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkCompat;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -603,6 +606,25 @@ public final class TransformTranslator {
     };
   }
 
+  private static TransformEvaluator<Impulse> impulse() {
+    return new TransformEvaluator<Impulse>() {
+      @Override
+      public void evaluate(Impulse transform, EvaluationContext context) {
+        BoundedDataset<byte[]> output =
+            new BoundedDataset<>(
+                Collections.singletonList(new byte[0]),
+                context.getSparkContext(),
+                ByteArrayCoder.of());
+        context.putDataset(transform, output);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.<impulse>()";
+      }
+    };
+  }
+
   private static <T> TransformEvaluator<SplittableParDo.PrimitiveBoundedRead<T>> readBounded() {
     return new TransformEvaluator<SplittableParDo.PrimitiveBoundedRead<T>>() {
       @Override
@@ -720,6 +742,7 @@ public final class TransformTranslator {
   private static final Map<String, TransformEvaluator<?>> EVALUATORS = new HashMap<>();
 
   static {
+    EVALUATORS.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, impulse());
     EVALUATORS.put(PTransformTranslation.READ_TRANSFORM_URN, readBounded());
     EVALUATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, parDo());
     EVALUATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, groupByKey());
