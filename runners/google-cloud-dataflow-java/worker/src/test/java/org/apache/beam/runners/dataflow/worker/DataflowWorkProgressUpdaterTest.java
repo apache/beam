@@ -291,6 +291,7 @@ public class DataflowWorkProgressUpdaterTest {
         new Status()
             .setCode(com.google.rpc.Code.ABORTED_VALUE)
             .setMessage("Worker was asked to abort!"));
+
     return responseState;
   }
 }
