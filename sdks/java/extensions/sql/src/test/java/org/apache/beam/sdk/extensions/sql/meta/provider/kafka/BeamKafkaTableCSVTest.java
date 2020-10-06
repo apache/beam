@@ -18,61 +18,46 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.commons.csv.CSVFormat;
 
 public class BeamKafkaTableCSVTest extends BeamKafkaTableTest {
+  private static final Schema TEST_SCHEMA =
+      Schema.builder()
+          .addInt64Field("f_long")
+          .addInt32Field("f_int")
+          .addInt16Field("f_short")
+          .addByteField("f_byte")
+          .addDoubleField("f_double")
+          .addStringField("f_string")
+          .build();
+
   @Override
-  protected Schema getSchema() {
-    return Schema.builder()
-        .addInt64Field("f_long")
-        .addInt32Field("f_int")
-        .addInt16Field("f_short")
-        .addByteField("f_byte")
-        .addDoubleField("f_double")
-        .addStringField("f_string")
-        .build();
+  protected byte[] generateEncodedPayload(int i) {
+    return createCsv(i).getBytes(UTF_8);
   }
 
   @Override
-  protected List<Object> listFrom(int i) {
-    return ImmutableList.of((long) i, i, (short) i, (byte) i, (double) i, "csv_value" + i);
+  protected Row generateRow(int i) {
+    List<Object> values =
+        ImmutableList.of((long) i, i, (short) i, (byte) i, (double) i, "csv_value" + i);
+    return Row.withSchema(TEST_SCHEMA).attachValues(values);
   }
 
   @Override
   protected KafkaTestTable getTestTable(int numberOfPartitions) {
-    return new KafkaTestTableCSV(getSchema(), TOPICS, numberOfPartitions);
+    return new KafkaTestTableCSV(TEST_SCHEMA, TOPICS, numberOfPartitions);
   }
 
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaCSVTable(getSchema(), "", ImmutableList.of());
+    return new BeamKafkaCSVTable(TEST_SCHEMA, "", ImmutableList.of());
   }
 
-  @Override
-  protected KafkaTestRecord<?> createKafkaTestRecord(String key, int i, long timestamp) {
-    String csv = beamRow2CsvLine(generateRow(i), CSVFormat.DEFAULT);
-    return KafkaTestRecord.create(key, csv, "topic1", timestamp);
-  }
-
-  @Override
-  protected PCollection<KV<byte[], byte[]>> applyRowToBytesKV(PCollection<Row> rows) {
-    return rows.apply(
-        MapElements.into(
-                TypeDescriptors.kvs(
-                    TypeDescriptor.of(byte[].class), TypeDescriptor.of(byte[].class)))
-            .via(
-                row ->
-                    KV.of(new byte[] {}, beamRow2CsvLine(row, CSVFormat.DEFAULT).getBytes(UTF_8))));
+  private String createCsv(int i) {
+    return String.format("%s,%s,%s,%s,%s,\"%s\"", i, i, i, i, (double) i, "csv_value" + i);
   }
 }

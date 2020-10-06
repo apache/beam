@@ -29,7 +29,7 @@ public class KafkaTestTableCSV extends KafkaTestTable {
 
   @Override
   protected byte[] getRecordValueBytes(KafkaTestRecord<?> record) {
-    return ((String) record.getValue()).getBytes(StandardCharsets.UTF_8);
+    return (byte[]) record.getValue();
   }
 
   @Override

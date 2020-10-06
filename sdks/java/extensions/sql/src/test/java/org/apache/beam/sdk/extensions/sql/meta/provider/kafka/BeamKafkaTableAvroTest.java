@@ -17,79 +17,82 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
   private static final Schema EMPTY_SCHEMA = Schema.builder().build();
+  private static final Schema TEST_SCHEMA =
+      Schema.builder()
+          .addInt64Field("f_long")
+          .addInt32Field("f_int")
+          .addDoubleField("f_double")
+          .addStringField("f_string")
+          .addBooleanField("f_bool")
+          .addRowField("f_row", EMPTY_SCHEMA)
+          .addArrayField("f_array", Schema.FieldType.row(EMPTY_SCHEMA))
+          .build();
 
-  private final SerializableFunction<Row, byte[]> toBytesFn =
-      AvroUtils.getRowToAvroBytesFunction(getSchema());
+  private static final org.apache.avro.Schema EMPTY_AVRO_SCHEMA =
+      AvroUtils.toAvroSchema(EMPTY_SCHEMA);
+  private static final org.apache.avro.Schema AVRO_SCHEMA = AvroUtils.toAvroSchema(TEST_SCHEMA);
+  private static final AvroCoder<GenericRecord> AVRO_CODER = AvroCoder.of(AVRO_SCHEMA);
+
+  private static final SerializableFunction<Row, byte[]> toBytesFn =
+      AvroUtils.getRowToAvroBytesFunction(TEST_SCHEMA);
 
   @Override
-  protected Schema getSchema() {
-    return Schema.builder()
-        .addInt64Field("f_long")
-        .addInt32Field("f_int")
-        .addDoubleField("f_double")
-        .addStringField("f_string")
-        .addBooleanField("f_bool")
-        .addRowField("f_row", EMPTY_SCHEMA)
-        .addArrayField("f_array", Schema.FieldType.row(EMPTY_SCHEMA))
-        .build();
+  protected Row generateRow(int i) {
+    List<Object> values =
+        ImmutableList.of(
+            (long) i,
+            i,
+            (double) i,
+            "avro_value" + i,
+            i % 2 == 0,
+            Row.withSchema(EMPTY_SCHEMA).build(),
+            ImmutableList.of(Row.withSchema(EMPTY_SCHEMA).build()));
+    return Row.withSchema(TEST_SCHEMA).addValues(values).build();
   }
 
   @Override
-  protected List<Object> listFrom(int i) {
-    return ImmutableList.of(
-        (long) i,
-        i,
-        (double) i,
-        "avro_value" + i,
-        i % 2 == 0,
-        Row.withSchema(EMPTY_SCHEMA).build(),
-        ImmutableList.of(Row.withSchema(EMPTY_SCHEMA).build()));
+  protected byte[] generateEncodedPayload(int i) {
+    GenericRecord record =
+        new GenericRecordBuilder(AVRO_SCHEMA)
+            .set("f_long", (long) i)
+            .set("f_int", i)
+            .set("f_double", (double) i)
+            .set("f_string", "avro_value" + i)
+            .set("f_bool", i % 2 == 0)
+            .set("f_row", new GenericRecordBuilder(EMPTY_AVRO_SCHEMA).build())
+            .set("f_array", ImmutableList.of(new GenericRecordBuilder(EMPTY_AVRO_SCHEMA).build()))
+            .build();
+
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    try {
+      AVRO_CODER.encode(record, out);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return out.toByteArray();
   }
 
   @Override
   protected KafkaTestTable getTestTable(int numberOfPartitions) {
-    return new KafkaTestTableAvro(getSchema(), TOPICS, numberOfPartitions);
+    return new KafkaTestTableAvro(TEST_SCHEMA, TOPICS, numberOfPartitions);
   }
 
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaAvroTable(getSchema(), "", ImmutableList.of());
-  }
-
-  @Override
-  protected KafkaTestRecord<?> createKafkaTestRecord(String key, int i, long timestamp) {
-    Row row = generateRow(i);
-    return KafkaTestRecord.create(key, toBytesFn.apply(row), "topic1", timestamp);
-  }
-
-  @Override
-  protected PCollection<KV<byte[], byte[]>> applyRowToBytesKV(PCollection<Row> rows) {
-    return rows.apply(MapElements.via(new RowToBytesKV(toBytesFn)));
-  }
-
-  private static class RowToBytesKV extends SimpleFunction<Row, KV<byte[], byte[]>> {
-    private final SerializableFunction<Row, byte[]> toBytesFn;
-
-    RowToBytesKV(SerializableFunction<Row, byte[]> toBytesFn) {
-      this.toBytesFn = toBytesFn;
-    }
-
-    @Override
-    public KV<byte[], byte[]> apply(Row row) {
-      return KV.of(new byte[] {}, toBytesFn.apply(row));
-    }
+    return new BeamKafkaAvroTable(TEST_SCHEMA, "", ImmutableList.of());
   }
 }
