@@ -88,11 +88,8 @@ if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker import data_plane
   from apache_beam.runners.worker import sdk_worker
-<<<<<<< HEAD
-=======
   from apache_beam.transforms import window
   from apache_beam.transforms.core import Windowing
->>>>>>> master
   from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
