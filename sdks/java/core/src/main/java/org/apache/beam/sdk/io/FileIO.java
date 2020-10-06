@@ -472,9 +472,9 @@ public class FileIO {
           .build();
     }
 
-    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    public abstract EmptyMatchTreatment getEmptyMatchTreatment();
 
-    abstract @Nullable Duration getWatchInterval();
+    public abstract @Nullable Duration getWatchInterval();
 
     abstract @Nullable TerminationCondition<String, ?> getWatchTerminationCondition();
 

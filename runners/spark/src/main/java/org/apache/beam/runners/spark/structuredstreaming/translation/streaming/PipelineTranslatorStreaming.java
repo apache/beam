@@ -19,12 +19,12 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -65,7 +65,8 @@ public class PipelineTranslatorStreaming extends PipelineTranslator {
     //
     //    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(Read.Unbounded.class, new ReadSourceTranslatorStreaming());
+    TRANSFORM_TRANSLATORS.put(
+        SplittableParDo.PrimitiveUnboundedRead.class, new ReadSourceTranslatorStreaming());
 
     //    TRANSFORM_TRANSLATORS
     //        .put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());

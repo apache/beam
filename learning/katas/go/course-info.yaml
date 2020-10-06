@@ -27,3 +27,4 @@ content:
 - core_transforms
 - common_transforms
 - io
+- windowing
