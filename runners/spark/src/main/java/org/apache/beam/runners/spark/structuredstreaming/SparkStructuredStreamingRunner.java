@@ -37,6 +37,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -134,7 +135,6 @@ public final class SparkStructuredStreamingRunner
 
   @Override
   public SparkStructuredStreamingPipelineResult run(final Pipeline pipeline) {
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     MetricsEnvironment.setMetricsSupported(true);
 
     LOG.info(
@@ -182,6 +182,16 @@ public final class SparkStructuredStreamingRunner
 
   private TranslationContext translatePipeline(Pipeline pipeline) {
     PipelineTranslator.detectTranslationMode(pipeline, options);
+
+    // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
+    // executing an unbounded pipeline or the user specifically requested it.
+    if (options.isStreaming()
+        || ExperimentalOptions.hasExperiment(
+            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    }
+
     PipelineTranslator.replaceTransforms(pipeline, options);
     PipelineTranslator.prepareFilesToStageForRemoteClusterExecution(options);
     PipelineTranslator pipelineTranslator =
