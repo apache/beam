@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 
@@ -25,11 +24,6 @@ public class KafkaTestTableCSV extends KafkaTestTable {
 
   public KafkaTestTableCSV(Schema beamSchema, List<String> topics, int partitionsPerTopic) {
     super(beamSchema, topics, partitionsPerTopic);
-  }
-
-  @Override
-  protected byte[] getRecordValueBytes(KafkaTestRecord<?> record) {
-    return (byte[]) record.getValue();
   }
 
   @Override
