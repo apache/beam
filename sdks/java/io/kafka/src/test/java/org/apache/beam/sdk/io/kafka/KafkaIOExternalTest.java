@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,7 +31,6 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfiguratio
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -120,28 +120,15 @@ public class KafkaIOExternalTest {
 
     RunnerApi.PTransform kafkaComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform kafkaRead =
+    RunnerApi.PTransform kafkaReadComposite =
         result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(0));
-    RunnerApi.ReadPayload readPayload =
-        RunnerApi.ReadPayload.parseFrom(kafkaRead.getSpec().getPayload());
-    KafkaUnboundedSource source =
-        (KafkaUnboundedSource) ReadTranslation.unboundedSourceFromProto(readPayload);
-    KafkaIO.Read spec = source.getSpec();
-
-    assertThat(spec.getConsumerConfig(), Matchers.is(consumerConfig));
-    assertThat(spec.getTopics(), Matchers.is(topics));
-    assertThat(
-        spec.getKeyDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), true)
-            .getClass()
-            .getName(),
-        Matchers.is(keyDeserializer));
-    assertThat(
-        spec.getValueDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), false)
-            .getClass()
-            .getName(),
-        Matchers.is(valueDeserializer));
+    RunnerApi.PTransform kafkaSdfComposite =
+        result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(2));
+    RunnerApi.PTransform kafkaSdfParDo =
+        result.getComponents().getTransformsOrThrow(kafkaSdfComposite.getSubtransforms(0));
+    RunnerApi.ParDoPayload parDoPayload =
+        RunnerApi.ParDoPayload.parseFrom(kafkaSdfParDo.getSpec().getPayload());
+    assertNotNull(parDoPayload.getRestrictionCoderId());
   }
 
   @Test

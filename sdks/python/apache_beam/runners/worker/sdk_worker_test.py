@@ -609,7 +609,7 @@ class ShortIdCacheTest(unittest.TestCase):
     # Retrieve all of the monitoring infos by short id, and verify that the
     # metadata (everything but the payload) matches the originals
     actual_recovered_infos = cache.getInfos(
-        case.expectedShortId for case in test_cases)
+        case.expectedShortId for case in test_cases).values()
     for recoveredInfo, case in zip(actual_recovered_infos, test_cases):
       self.assertEqual(
           monitoringInfoMetadata(case.info),

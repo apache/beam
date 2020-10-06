@@ -32,6 +32,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils.sentinel import Sentinel
 
 try:
   from guppy import hpy
@@ -116,7 +117,7 @@ def _active_processing_bundles_state(bundle_process_cache):
   return '\n'.join(active_bundles)
 
 
-DONE = object()
+DONE = Sentinel.sentinel
 
 
 class FnApiWorkerStatusHandler(object):

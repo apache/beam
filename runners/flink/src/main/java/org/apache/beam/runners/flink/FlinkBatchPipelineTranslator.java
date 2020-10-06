@@ -64,15 +64,6 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     LOG.info("{} enterCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
     this.depth++;
 
-    // TODO(BEAM-10670): Remove this and the ReadTranslator once the "use_deprecated_read"
-    // experiment is removed. Don't translate composite Read transforms since we expect the
-    // primitive expansion containing an SDF to be used.
-    if (node.getTransform() != null
-        && PTransformTranslation.READ_TRANSFORM_URN.equals(
-            PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
-      return CompositeBehavior.ENTER_TRANSFORM;
-    }
-
     BatchTransformTranslator<?> translator = getTranslator(node, batchContext);
 
     if (translator != null) {
