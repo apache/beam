@@ -164,16 +164,12 @@ public class MapTaskExecutor implements WorkExecutor {
 
   @Override
   public void abort() {
-    // Signal the read loop to abort on the next record.
+    // Signal the read loop to abort on the next record and async abort any iterators.
+    // TODO: Also interrupt the execution thread.
     for (Operation op : operations) {
       Preconditions.checkState(op instanceof ReadOperation || op instanceof ReceivingOperation);
       if (op instanceof ReadOperation) {
         ((ReadOperation) op).abortReadLoop();
-      }
-    }
-    synchronized (this) {
-      if (currentExecutorThread != null) {
-        currentExecutorThread.interrupt();
       }
     }
   }

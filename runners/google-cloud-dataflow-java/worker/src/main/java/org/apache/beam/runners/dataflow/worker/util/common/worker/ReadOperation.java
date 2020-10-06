@@ -264,6 +264,11 @@ public class ReadOperation extends Operation {
    */
   public void abortReadLoop() {
     abortRead.set(true);
+    synchronized (initializationStateLock) {
+      if (readerIterator != null) {
+        readerIterator.asyncAbort();
+      }
+    }
   }
 
   /**
