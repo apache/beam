@@ -84,7 +84,10 @@ void execBackgroundInVirtualenv(String... args) {
   while ((line = reader.readLine()) != null) {
     println line
   }
-  proc.waitFor();
+  int exitCode = proc.waitFor();
+  if (exitCode != 0) {
+    throw new RuntimeException("Local job service startup failed with exit code ${exitCode}")
+  }
 }
 
 task installBeamPythonInVirtualenv {
