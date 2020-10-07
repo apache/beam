@@ -1,6 +1,6 @@
-# Dataflow Kafka to Pub/Sub Flex Template
+# Dataflow Flex Template to ingest data from Apache Kafka to Google Cloud Pub/Sub
 
-This directory contains a Flex template that creates a Dataflow pipeline 
+This directory contains a Dataflow Flex Template that creates a pipeline 
 to read data from a single topic or multiple topics from 
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic 
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
@@ -11,13 +11,13 @@ This template supports serializable string formats, such as JSON.
 
 - Java 11
 - Kafka Bootstrap Server(s) up and running
-- Source Kafka Topic(s)
-- Destination PubSub output topic created
+- Existing Kafka topic(s)
+- An existing Pub/Sub destination output topic
 
 ## Getting Started
 
-This section describes the preparation steps that are prerequisite for 
-the template build and execution.
+This section describes what is needed in order to get the template 
+up and running.
 
 ### Setting Environment Variables
 
