@@ -34,5 +34,6 @@ jobs:
         name: "Cancel duplicate workflow runs"
         with:
           cancelMode: duplicates
+          notifyPRCancel: true
           token: ${{ secrets.GITHUB_TOKEN }}
           sourceRunId: ${{ github.event.workflow_run.id }}
