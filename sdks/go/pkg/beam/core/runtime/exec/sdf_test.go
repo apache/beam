@@ -400,10 +400,6 @@ func TestAsSplittableUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
-	//wdfn, err := graph.NewDoFn(&VetWindowSdf{}, graph.NumMainInputs(graph.MainSingle))
-	//if err != nil {
-	//	t.Fatalf("invalid function: %v", err)
-	//}
 	multiWindows := []typex.Window{
 		window.IntervalWindow{Start: 10, End: 20},
 		window.IntervalWindow{Start: 11, End: 21},

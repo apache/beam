@@ -132,7 +132,8 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 	elm := &mainIn.Key
 
 	// If the function observes windows, we must invoke it for each window. The expected fast path
-	// is that either there is a single window or the function doesn't observes windows.
+	// is that either there is a single window or the function doesn't observe windows, so we can
+	// optimize it by treating all windows as a single one.
 	if !mustExplodeWindows(n.inv.fn, elm, len(n.Side) > 0) {
 		return n.processSingleWindow(mainIn)
 	} else {
@@ -149,8 +150,9 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 }
 
 // processSingleWindow processes an element given as a MainInput with a single
-// window. To use this with elements with multiple windows, the windows must be
-// exploded and the element converted into multiple single-window MainInputs.
+// window. If the element has multiple windows, they are treated as a single
+// window. For DoFns that observe windows, this function should be called on
+// each individual window by exploding the windows first.
 func (n *ParDo) processSingleWindow(mainIn *MainInput) error {
 	elm := &mainIn.Key
 	val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, mainIn)
