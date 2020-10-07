@@ -61,7 +61,7 @@ public class ViewEvaluatorFactoryTest {
             .apply(GroupByKey.create())
             .apply(Values.create());
     PCollection<Iterable<String>> view =
-        concat.apply(new ViewOverrideFactory.WriteView<>(pCollectionView));
+        concat.apply(new DirectWriteViewVisitor.WriteView<>(pCollectionView));
 
     EvaluationContext context = mock(EvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();

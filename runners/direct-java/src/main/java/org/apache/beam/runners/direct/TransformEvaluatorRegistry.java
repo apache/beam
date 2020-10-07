@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
@@ -25,10 +26,10 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.RE
 import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GABW_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GBKO_URN;
+import static org.apache.beam.runners.direct.DirectWriteViewVisitor.DIRECT_WRITE_VIEW_URN;
 import static org.apache.beam.runners.direct.MultiStepCombine.DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN;
 import static org.apache.beam.runners.direct.ParDoMultiOverrideFactory.DIRECT_STATEFUL_PAR_DO_URN;
 import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
-import static org.apache.beam.runners.direct.ViewOverrideFactory.DIRECT_WRITE_VIEW_URN;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +97,9 @@ class TransformEvaluatorRegistry {
             .put(
                 SPLITTABLE_PROCESS_URN,
                 new SplittableProcessElementsEvaluatorFactory<>(ctxt, options))
+
+            // Deprecated primitives already handled
+            .put(CREATE_VIEW_TRANSFORM_URN, new CreateViewNoopEvaluatorFactory())
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -119,7 +124,7 @@ class TransformEvaluatorRegistry {
               ParDoMultiOverrideFactory.StatefulParDo.class,
               TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_STATEFUL_PAR_DO_URN))
           .put(
-              ViewOverrideFactory.WriteView.class,
+              DirectWriteViewVisitor.WriteView.class,
               TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_WRITE_VIEW_URN))
           .put(
               DirectTestStream.class,
@@ -157,7 +162,7 @@ class TransformEvaluatorRegistry {
     this.factories = factories;
   }
 
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public <InputT> @Nullable TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
