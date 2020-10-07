@@ -1323,7 +1323,6 @@ public class Combine {
                 insertDefault,
                 insertDefault ? fn.defaultValue() : null,
                 combined.getCoder());
-        combined.apply("CreatePCollectionView", CreatePCollectionView.of(view));
         return view;
       }
 
@@ -1341,7 +1340,6 @@ public class Combine {
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
               combined.getCoder());
-      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
 

@@ -274,7 +274,6 @@ public class View {
                 materializationInput,
                 (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
                 input.getWindowingStrategy());
-        materializationInput.apply(CreatePCollectionView.of(view));
         return view;
       }
 
@@ -286,7 +285,6 @@ public class View {
               materializationInput,
               (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -356,7 +354,6 @@ public class View {
                 input,
                 (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
                 input.getWindowingStrategy());
-        input.apply(CreatePCollectionView.of(view));
         return view;
       }
 
@@ -368,7 +365,6 @@ public class View {
               materializationInput,
               (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -517,7 +513,6 @@ public class View {
                 (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
                 (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
                 input.getWindowingStrategy());
-        input.apply(CreatePCollectionView.of(view));
         return view;
       }
 
@@ -532,7 +527,6 @@ public class View {
               (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
               (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -577,7 +571,6 @@ public class View {
                 (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
                 (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
                 input.getWindowingStrategy());
-        input.apply(CreatePCollectionView.of(view));
         return view;
       }
 
@@ -593,7 +586,6 @@ public class View {
               (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
               (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
