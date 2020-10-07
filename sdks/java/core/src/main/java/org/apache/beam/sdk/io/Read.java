@@ -507,8 +507,7 @@ public class Read {
           tracker.currentRestriction();
 
       // Advance the watermark even if zero elements may have been output.
-      watermarkEstimator.setWatermark(
-          ensureTimestampWithinBounds(currentRestriction.getWatermark()));
+      watermarkEstimator.setWatermark(currentRestriction.getWatermark());
 
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial and is not
       // the initial restriction. The initial restriction would have been finalized as part of
@@ -537,7 +536,7 @@ public class Read {
       return currentElementTimestamp;
     }
 
-    private Instant ensureTimestampWithinBounds(Instant timestamp) {
+    private static Instant ensureTimestampWithinBounds(Instant timestamp) {
       if (timestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
         timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
       } else if (timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
@@ -817,10 +816,23 @@ public class Read {
         if (currentReader == null) {
           return initialRestriction;
         }
+        Instant watermark = ensureTimestampWithinBounds(currentReader.getWatermark());
+        // We convert the reader to the empty reader to mark that we are done.
+        if (!(currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader)
+            && BoundedWindow.TIMESTAMP_MAX_VALUE.equals(watermark)) {
+          CheckpointT checkpointT = (CheckpointT) currentReader.getCheckpointMark();
+          try {
+            currentReader.close();
+          } catch (IOException e) {
+            LOG.warn("Failed to close UnboundedReader.", e);
+          } finally {
+            currentReader = EmptyUnboundedSource.INSTANCE.createReader(null, checkpointT);
+          }
+        }
         return UnboundedSourceRestriction.create(
             (UnboundedSource<OutputT, CheckpointT>) currentReader.getCurrentSource(),
             (CheckpointT) currentReader.getCheckpointMark(),
-            currentReader.getWatermark());
+            watermark);
       }
 
       @Override
