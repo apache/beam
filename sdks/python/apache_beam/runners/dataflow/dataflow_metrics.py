@@ -106,7 +106,20 @@ class DataflowMetrics(MetricResults):
           step.properties.additionalProperties,
           lambda x: x.key == 'user_name').value.string_value
     except ValueError:
-      raise ValueError('Could not translate the internal step name.')
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.runners.dataflow.internal import apiclient
+      if apiclient._use_unified_worker(self._job_graph.options):
+        # Runner V2 with portable job submission uses proto transform map IDs
+        # for step names. Also PTransform.unique_name maps to user step names.
+        # Hence we lookup user step names based on the proto.
+        proto_pipeline = self._job_graph.proto_pipeline
+        for transform_id in proto_pipeline.components.transforms.keys():
+          if internal_name == transform_id:
+            user_step_name = proto_pipeline.components.transforms[
+                transform_id].unique_name
+            break
+      if not user_step_name:
+        raise ValueError('Could not translate the internal step name.')
     return user_step_name
 
   def _get_metric_key(self, metric):

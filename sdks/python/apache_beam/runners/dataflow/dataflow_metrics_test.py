@@ -30,14 +30,28 @@ from builtins import object
 
 import mock
 
+from apache_beam import DoFn
+from apache_beam import ParDo
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pipeline import Pipeline
 from apache_beam.runners.dataflow import dataflow_metrics
 from apache_beam.testing import metric_result_matchers
 from apache_beam.testing.metric_result_matchers import MetricResultMatcher
+from apache_beam.transforms import Create
+from apache_beam.transforms.environments import DockerEnvironment
+
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.runners.dataflow.internal import apiclient
+except ImportError:
+  apiclient = None  # type: ignore
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class DictToObject(object):
@@ -485,6 +499,31 @@ class TestDataflowMetrics(unittest.TestCase):
             DistributionResult(DistributionData(18, 2, 2, 16))),
     ]
     self.assertEqual(query_result['distributions'], expected_distributions)
+
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  def test_translate_portable_job_step_name(self):
+    mock_client, mock_job_result = self.setup_mock_client_result(
+        self.ONLY_COUNTERS_LIST)
+
+    pipeline_options = PipelineOptions([
+        '--experiments=beam_fn_api',
+        '--experiments=use_runner_v2',
+        '--temp_location=gs://any-location/temp',
+        '--project=dummy_project',
+    ])
+
+    pipeline = Pipeline(options=pipeline_options)
+    pipeline | Create([1, 2, 3]) | 'MyTestParDo' >> ParDo(DoFn())  # pylint:disable=expression-not-assigned
+
+    test_environment = DockerEnvironment(container_image='test_default_image')
+    proto_pipeline, _ = pipeline.to_runner_api(
+        return_context=True, default_environment=test_environment)
+
+    job = apiclient.Job(pipeline_options, proto_pipeline)
+    dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result, job)
+    self.assertEqual(
+        'MyTestParDo',
+        dm._translate_step_name('ref_AppliedPTransform_MyTestParDo_14'))
 
   def test_query_counters(self):
     mock_client, mock_job_result = self.setup_mock_client_result(
