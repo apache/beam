@@ -1,7 +1,7 @@
 # Dataflow Flex Template to ingest data from Apache Kafka to Google Cloud Pub/Sub
 
 This directory contains a Dataflow Flex Template that creates a pipeline 
-to read data from a single topic or multiple topics from 
+to read data from a single or multiple topics from 
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic 
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
 
@@ -11,17 +11,16 @@ This template supports serializable string formats, such as JSON.
 
 - Java 11
 - Kafka Bootstrap Server(s) up and running
-- Existing Kafka topic(s)
+- Existing source Kafka topic(s)
 - An existing Pub/Sub destination output topic
 
 ## Getting Started
 
-This section describes what is needed in order to get the template 
-up and running.
+This section describes steps to set up the environment, build [Apache Kafka](https://kafka.apache.org/) to [Google Pub/Sub](https://cloud.google.com/pubsub) Flex Dataflow template, and create a Dataflow job to ingest data usign the template.
 
-### Setting Environment Variables
+### Setting Up Project Environment
 
-Pipeline variables:
+#### Pipeline variables:
 
 ```
 PROJECT=id-of-my-project
@@ -29,7 +28,17 @@ BUCKET_NAME=my-bucket
 REGION=my-region
 ```
 
-Containerization variables:
+#### Template Metadata Storage Bucket Creation
+
+The Dataflow Flex template has to store its metadata in a bucket in 
+Google Cloud Storage, so it can be executed from the Google Cloud Platform.
+Create the bucket in Google Cloud Storage if it doesn't exist yet:
+
+```
+gsutil mb gs://${BUCKET_NAME}
+```
+
+#### Containerization variables:
 
 ```
 IMAGE_NAME=my-image-name
@@ -40,17 +49,7 @@ TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
 TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
 ```
 
-### Bucket Creation
-
-The Dataflow Flex template has to store its metadata in a bucket in 
-Google Cloud Storage, so it can be executed from the Google Cloud Platform.
-Create the bucket in Google Cloud Storage if it doesn't exist yet:
-
-```
-gsutil mb gs://${BUCKET_NAME}
-```
-
-## The Dataflow Flex Template
+## Build Apache Kafka to Google Pub/Sub Flex Dataflow Template
 
 Flex Templates package the pipeline as a Docker image and stage these images 
 on your project's Container Registry.
@@ -82,7 +81,7 @@ under the `build/libs/` folder in kafka-to-pubsub directory.
 ### Creating the Flex Template
 
 To execute the template you need to create the template spec file containing all
-the necessary information to run the job. This template already has such [metadata
+the necessary information to run the job. This template already has the following [metadata
 file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
 
 Navigate to the template folder:
@@ -103,7 +102,7 @@ gcloud dataflow flex-template build ${TEMPLATE_PATH} \
        --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
 ```
 
-### Running the Pipeline
+### Create Dataflow Job from the Apache Kafka to Google Pub/Sub Flex Dataflow Template
 
 To deploy the pipeline, you should refer to the template file and pass the 
 [parameters](https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#setting-other-cloud-dataflow-pipeline-options) 
