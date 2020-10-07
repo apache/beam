@@ -1,6 +1,6 @@
-# Dataflow Flex Template to ingest data from Apache Kafka to Google Cloud Pub/Sub
+# Apache Beam Template to ingest data from Apache Kafka to Google Cloud Pub/Sub
 
-This directory contains a Dataflow Flex Template that creates a pipeline 
+This directory contains an Apache Beam Template that creates a pipeline 
 to read data from a single or multiple topics from 
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic 
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
@@ -17,9 +17,51 @@ This template supports serializable string formats, such as JSON.
 ## Getting Started
 
 This section describes what is needed to get the template up and running.
-- Set up the environment
-- Build Apache Kafka to Google Pub/Sub Dataflow Flex Template
-- Create a Dataflow job to ingest data using the template.
+- Assembling the Uber-JAR
+- Local execution
+- Google Dataflow Template
+  - Set up the environment
+  - Creating the Dataflow Flex Template
+  - Create a Dataflow job to ingest data using the template.
+
+## Assembling the Uber-JAR
+
+To run this template correctly needs to your Java project to be built into 
+an Uber JAR file.
+
+Navigate to the Beam folder:
+
+```
+cd /path/to/beam
+```
+
+In order to create Uber JAR with Gradle, [Shadow plugin](https://github.com/johnrengelman/shadow) 
+is used. It creates the `shadowJar` task that builds the Uber JAR:
+
+```
+./gradlew -p templates/kafka-to-pubsub clean shadowJar
+```
+
+ℹ️ An **Uber JAR** - also known as **fat JAR** - is a single JAR file that contains 
+both target package *and* all its dependencies.
+
+The result of the `shadowJar` task execution is a `.jar` file that is generated 
+under the `build/libs/` folder in kafka-to-pubsub directory.
+
+## Local execution
+To execute this pipeline locally, specify the parameters: Kafka Bootstrap servers, Kafka input topic, Pub/Sub output topic with the form:
+```bash
+--bootstrapServers=host:port \
+--inputTopic=your-input-topic \
+--outputTopic=projects/your-project-id/topics/your-topic-pame
+```
+To change the runner, specify:
+
+```--runner=YOUR_SELECTED_RUNNER```
+
+See examples/java/README.md for instructions about how to configure different runners.
+
+## Google Dataflow Template
 
 ### Setting Up Project Environment
 
@@ -52,36 +94,10 @@ TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
 TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
 ```
 
-## Build Apache Kafka to Google Pub/Sub Flex Dataflow Template
+### Creating the Dataflow Flex Template
 
 Dataflow Flex Templates package the pipeline as a Docker image and stage these images 
 on your project's [Container Registry](https://cloud.google.com/container-registry).
-
-### Assembling the Uber-JAR
-
-The Dataflow Flex Templates require your Java project to be built into 
-an Uber JAR file.
-
-Navigate to the Beam folder:
-
-```
-cd /path/to/beam
-```
-
-In order to create Uber JAR with Gradle, [Shadow plugin](https://github.com/johnrengelman/shadow) 
-is used. It creates the `shadowJar` task that builds the Uber JAR:
-
-```
-./gradlew -p templates/kafka-to-pubsub clean shadowJar
-```
-
-ℹ️ An **Uber JAR** - also known as **fat JAR** - is a single JAR file that contains 
-both target package *and* all its dependencies.
-
-The result of the `shadowJar` task execution is a `.jar` file that is generated 
-under the `build/libs/` folder in kafka-to-pubsub directory.
-
-### Creating the Dataflow Flex Template
 
 To execute the template you need to create the template spec file containing all
 the necessary information to run the job. This template already has the following [metadata
