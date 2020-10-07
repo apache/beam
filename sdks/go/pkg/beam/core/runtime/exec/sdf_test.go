@@ -411,42 +411,23 @@ func TestAsSplittableUnit(t *testing.T) {
 	t.Run("Progress", func(t *testing.T) {
 		tests := []struct {
 			name          string
-			fn            *graph.DoFn
-			in            FullValue
+			windows       []typex.Window
 			doneWork      float64 // Will be output by RTracker's GetProgress.
 			remainingWork float64 // Will be output by RTracker's GetProgress.
 			currWindow    int
 			wantProgress  float64
 		}{
 			{
-				name: "SingleWindow",
-				fn:   dfn,
-				in: FullValue{
-					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
-					},
-					Elm2:      1.0,
-					Timestamp: testTimestamp,
-					Windows:   testWindows,
-				},
+				name:          "SingleWindow",
+				windows:       testWindows,
 				doneWork:      1.0,
 				remainingWork: 1.0,
 				currWindow:    0,
 				wantProgress:  0.5,
 			},
 			{
-				name: "MultipleWindows",
-				fn:   dfn,
-				in: FullValue{
-					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
-					},
-					Elm2:      1.0,
-					Timestamp: testTimestamp,
-					Windows:   multiWindows,
-				},
+				name:          "MultipleWindows",
+				windows:       multiWindows,
 				doneWork:      1.0,
 				remainingWork: 1.0,
 				currWindow:    1,
@@ -457,15 +438,27 @@ func TestAsSplittableUnit(t *testing.T) {
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
+				// The contents of the element don't really matter in the test,
+				// but the element is still built to be valid.
+				elm := FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &VetRestriction{ID: "Sdf"},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   test.windows,
+				}
+
 				// Setup, create transforms, inputs, and desired outputs.
-				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}}
+				n := &ParDo{UID: 1, Fn: dfn, Out: []Node{}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
 				node.rt = &SplittableUnitRTracker{
-					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*VetRestriction)},
+					VetRTracker: VetRTracker{Rest: elm.Elm.(*FullValue).Elm2.(*VetRestriction)},
 					Done:        test.doneWork,
 					Remaining:   test.remainingWork,
 				}
-				node.elm = &test.in
+				node.elm = &elm
 				node.currW = test.currWindow
 
 				// Call from SplittableUnit and check results.
