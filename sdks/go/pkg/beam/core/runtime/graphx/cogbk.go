@@ -16,13 +16,12 @@
 package graphx
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // CoGBK support
@@ -70,37 +69,47 @@ const (
 )
 
 // MakeKVUnionCoder returns KV<K,KV<int,[]byte>> for a given CoGBK.
-func MakeKVUnionCoder(gbk *graph.MultiEdge) *coder.Coder {
+func MakeKVUnionCoder(gbk *graph.MultiEdge) (*coder.Coder, error) {
 	if gbk.Op != graph.CoGBK {
-		panic(fmt.Sprintf("expected CoGBK, got %v", gbk))
+		err := errors.Errorf("expected CoGBK, got %v", gbk)
+		return nil, errors.WithContext(err, "failed to make KV Union coder")
 	}
 
 	from := gbk.Input[0].From
 	key := from.Coder.Components[0]
-	return coder.NewKV([]*coder.Coder{key, makeUnionCoder()})
+	kvCoder, err := makeUnionCoder()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to make KV Union coder.")
+	}
+	return coder.NewKV([]*coder.Coder{key, kvCoder}), nil
 }
 
 // MakeGBKUnionCoder returns CoGBK<K,KV<int,[]byte>> for a given CoGBK.
-func MakeGBKUnionCoder(gbk *graph.MultiEdge) *coder.Coder {
+func MakeGBKUnionCoder(gbk *graph.MultiEdge) (*coder.Coder, error) {
 	if gbk.Op != graph.CoGBK {
-		panic(fmt.Sprintf("expected CoGBK, got %v", gbk))
+		err := errors.Errorf("expected CoGBK, got %v", gbk)
+		return nil, errors.WithContext(err, "failed to make GBK Union coder")
 	}
 
 	from := gbk.Input[0].From
 	key := from.Coder.Components[0]
-	return coder.NewCoGBK([]*coder.Coder{key, makeUnionCoder()})
+	kvCoder, err := makeUnionCoder()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to make GBK Union coder.")
+	}
+	return coder.NewCoGBK([]*coder.Coder{key, kvCoder}), nil
 }
 
 // makeUnionCoder returns a coder for the raw union value, KV<int,[]byte>. It uses
 // varintz instead of the built-in varint to avoid the implicit length-prefixing
 // of varint otherwise introduced by Dataflow.
-func makeUnionCoder() *coder.Coder {
+func makeUnionCoder() (*coder.Coder, error) {
 	c, err := coderx.NewVarIntZ(reflectx.Int)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return coder.NewKV([]*coder.Coder{
 		{Kind: coder.Custom, T: typex.New(reflectx.Int), Custom: c},
 		coder.NewBytes(),
-	})
+	}), nil
 }

@@ -156,7 +156,10 @@ func TestExpandedTransform(t *testing.T) {
 		want := newTransform("x")
 		exp := &graph.ExpandedTransform{Transform: want}
 
-		got := ExpandedTransform(exp)
+		got, err := ExpandedTransform(exp)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
 			t.Errorf("diff (-want, +got): %v", d)
@@ -165,9 +168,12 @@ func TestExpandedTransform(t *testing.T) {
 	})
 
 	t.Run("Malformed PTransform", func(t *testing.T) {
-		defer expectPanic(t, "string can't be type asserted into a pipeline PTransform")
 		exp := &graph.ExpandedTransform{Transform: "gibberish"}
-		ExpandedTransform(exp)
+		expectedError := fmt.Sprintf("malformed transform; %v lacks a conforming pipeline ptransform", exp)
+		if _, actualError := ExpandedTransform(exp); actualError.Error() != expectedError {
+			t.Errorf("got error %v, want error %v", actualError, expectedError)
+		}
+
 	})
 }
 
@@ -176,7 +182,11 @@ func TestExpandedComponents(t *testing.T) {
 		want := newComponents([]string{"x"})
 		exp := &graph.ExpandedTransform{Components: want}
 
-		got := ExpandedComponents(exp)
+		got, err := ExpandedComponents(exp)
+
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
 			t.Errorf("diff (-want, +got): %v", d)
@@ -185,8 +195,11 @@ func TestExpandedComponents(t *testing.T) {
 	})
 
 	t.Run("Malformed Components", func(t *testing.T) {
-		defer expectPanic(t, "string can't be type asserted into a pipeline Components")
 		exp := &graph.ExpandedTransform{Transform: "gibberish"}
-		ExpandedComponents(exp)
+		expectedError := fmt.Sprintf("malformed components; %v lacks a conforming pipeline component", exp)
+		if _, actualError := ExpandedComponents(exp); actualError.Error() != expectedError {
+			t.Errorf("got error %v, want error %v", actualError, expectedError)
+		}
+
 	})
 }
