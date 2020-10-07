@@ -17,13 +17,15 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets.UTF_8;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -160,10 +162,29 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   // Sets the schema id, and then recursively ensures that all schemas have ids set.
   private static void setSchemaIds(Schema schema) {
     if (schema.getUUID() == null) {
-      schema.setUUID(UUID.randomUUID());
-    }
-    for (Field field : schema.getFields()) {
-      setSchemaIds(field.getType());
+
+      List<Schema.Field> fields =
+              schema.getFields().stream()
+              .sorted(Comparator.comparing(Field::getName))
+              .collect(Collectors.toList());
+
+      StringBuilder UUIDStringBuilder = new StringBuilder();
+
+      for (Field field : fields) {
+        Schema.TypeName typeName = field.getType().getTypeName();
+        if (typeName.isPrimitiveType()) {
+          UUIDStringBuilder
+                  .append(field.getName())
+                  .append(":")
+                  .append(typeName.toString())
+                  .append(":")
+                  .append(field.getType().getNullable())
+                  .append("-");
+        } else {
+          setSchemaIds(field.getType());
+        }
+      }
+      schema.setUUID(UUID.nameUUIDFromBytes(UUIDStringBuilder.toString().getBytes(UTF_8)));
     }
   }
 
