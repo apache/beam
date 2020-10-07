@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnerV2Incompatible;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
@@ -127,13 +128,13 @@ public class SplittableDoFnTest implements Serializable {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, RunnerV2Incompatible.class})
   public void testPairWithIndexBasicBounded() {
     testPairWithIndexBasic(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, RunnerV2Incompatible.class})
   public void testPairWithIndexBasicUnbounded() {
     testPairWithIndexBasic(IsBounded.UNBOUNDED);
   }
@@ -160,7 +161,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, RunnerV2Incompatible.class})
   public void testPairWithIndexWindowedTimestampedBounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);
   }
@@ -292,13 +293,13 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, RunnerV2Incompatible.class})
   public void testOutputAfterCheckpointBounded() {
     testOutputAfterCheckpoint(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, RunnerV2Incompatible.class})
   public void testOutputAfterCheckpointUnbounded() {
     testOutputAfterCheckpoint(IsBounded.UNBOUNDED);
   }

@@ -476,7 +476,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  @Category({ValidatesRunner.class, UsesFailureMessage.class, RunnerV2Incompatible.class})
   public void testEmptyFalse() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that("Vals should have been empty", vals).empty();
@@ -490,7 +490,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  @Category({ValidatesRunner.class, UsesFailureMessage.class, RunnerV2Incompatible.class})
   public void testEmptyFalseDefaultReasonString() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that(vals).empty();
@@ -518,7 +518,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  @Category({ValidatesRunner.class, UsesFailureMessage.class, RunnerV2Incompatible.class})
   public void testAssertionSiteIsCapturedWithMessage() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithMessage(vals);
@@ -534,7 +534,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  @Category({ValidatesRunner.class, UsesFailureMessage.class, RunnerV2Incompatible.class})
   public void testAssertionSiteIsCapturedWithoutMessage() throws Exception {
     PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithoutMessage(vals);

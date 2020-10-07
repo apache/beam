@@ -93,6 +93,7 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnerV2Incompatible;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesBundleFinalizer;
@@ -2165,7 +2166,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, RunnerV2Incompatible.class})
     public void testValueStateTaggedOutput() {
       final String stateId = "foo";
 
@@ -4211,7 +4212,8 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesStatefulParDo.class,
-      UsesStrictTimerOrdering.class
+      UsesStrictTimerOrdering.class,
+      RunnerV2Incompatible.class
     })
     public void testEventTimeTimerOrderingWithCreate() throws Exception {
       final int numTestElements = 100;
@@ -4398,7 +4400,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesStrictTimerOrdering.class,
+      RunnerV2Incompatible.class
+    })
     public void testTwoTimersSettingEachOtherWithCreateAsInput() {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
@@ -5416,6 +5423,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
       UsesOnWindowExpiration.class,
+      RunnerV2Incompatible.class
     })
     public void testOnWindowExpirationSimpleBounded() {
       runOnWindowExpirationSimple(false);
@@ -5428,6 +5436,7 @@ public class ParDoTest implements Serializable {
       UsesTimersInParDo.class,
       UsesOnWindowExpiration.class,
       UsesUnboundedPCollections.class,
+      RunnerV2Incompatible.class
     })
     public void testOnWindowExpirationSimpleUnbounded() {
       runOnWindowExpirationSimple(true);

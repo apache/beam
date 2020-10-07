@@ -227,6 +227,34 @@ task validatesRunner {
   dependsOn validatesRunnerLegacyWorkerTest
 }
 
+task validatesRunnerV2Test(type: Test) {
+  group = "Verification"
+  dependsOn buildAndPushDockerContainer
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
+          "--tempRoot=${dataflowValidatesTempRoot}",
+          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+          "--experiments=beam_fn_api,use_unified_worker",
+  ])
+
+  // Increase test parallelism up to the number of Gradle workers. By default this is equal
+  // to the number of CPU cores, but can be increased by setting --max-workers=N.
+  maxParallelForks Integer.MAX_VALUE
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
+          files(project(project.path).sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.RunnerV2Incompatible'
+    commonExcludeCategories.each {
+      excludeCategories it
+    }
+  }
+}
+
 task copyGoogleCloudPlatformTestResources(type: Copy){
   from project(':sdks:java:io:google-cloud-platform').fileTree("src/test/resources")
   into "$buildDir/resources/test/"
