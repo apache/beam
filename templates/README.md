@@ -1,6 +1,6 @@
 # Apache Beam Template to ingest data from Apache Kafka to Google Cloud Pub/Sub
 
-This directory contains an Apache Beam Template that creates a pipeline 
+This directory contains an [Apache Beam](https://beam.apache.org/) Template that creates a pipeline 
 to read data from a single or multiple topics from 
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic 
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
@@ -26,7 +26,7 @@ This section describes what is needed to get the template up and running.
 
 ## Assembling the Uber-JAR
 
-To run this template correctly needs to your Java project to be built into 
+To run this template the template Java project should be built into 
 an Uber JAR file.
 
 Navigate to the Beam folder:
