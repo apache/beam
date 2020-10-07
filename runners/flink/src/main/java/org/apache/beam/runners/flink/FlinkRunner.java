@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -71,7 +73,14 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    if (ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    } else {
+      // TODO(BEAM-10670): Flink NPE's when executing nexmark benchmark when using SDF powered Read.
+      pipeline.replaceAll(
+          Collections.singletonList(SplittableParDo.PRIMITIVE_UNBOUNDED_READ_OVERRIDE));
+    }
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
 
     MetricsEnvironment.setMetricsSupported(true);
