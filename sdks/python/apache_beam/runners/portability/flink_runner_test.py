@@ -56,10 +56,8 @@ from apache_beam.transforms.sql import SqlTransform
 
 # Run as
 #
-# pytest flink_runner_test.py \
-#     [--test_pipeline_options "--flink_job_server_jar=/path/to/job_server.jar \
-#                               --environment_type=DOCKER"] \
-#     [FlinkRunnerTest.test_method, ...]
+# pytest flink_runner_test.py[::TestClass::test_case] \
+#     --test-pipeline-options "--environment_type=LOOPBACK"
 
 _LOGGER = logging.getLogger(__name__)
 
