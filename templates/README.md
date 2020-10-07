@@ -16,10 +16,10 @@ This template supports serializable string formats, such as JSON.
 
 ## Getting Started
 
-This section describes what is needed to get the template up and rrunning.
+This section describes what is needed to get the template up and running.
 - Set up the environment
-- Build Apache Kafka to Google Pub/Sub Dataflow Flex template
-- Create a Dataflow job to ingest data usign the template.
+- Build Apache Kafka to Google Pub/Sub Dataflow Flex Template
+- Create a Dataflow job to ingest data using the template.
 
 ### Setting Up Project Environment
 
@@ -54,12 +54,12 @@ TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
 
 ## Build Apache Kafka to Google Pub/Sub Flex Dataflow Template
 
-Dataflow Flex templates package the pipeline as a Docker image and stage these images 
+Dataflow Flex Templates package the pipeline as a Docker image and stage these images 
 on your project's [Container Registry](https://cloud.google.com/container-registry).
 
 ### Assembling the Uber-JAR
 
-The Dataflow Flex templates require your Java project to be built into 
+The Dataflow Flex Templates require your Java project to be built into 
 an Uber JAR file.
 
 Navigate to the Beam folder:
@@ -93,7 +93,7 @@ Navigate to the template folder:
 cd /path/to/beam/templates/kafka-to-pubsub
 ```
 
-Build the Dataflow Flex template:
+Build the Dataflow Flex Template:
 
 ```
 gcloud dataflow flex-template build ${TEMPLATE_PATH} \
