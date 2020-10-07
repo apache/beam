@@ -55,7 +55,7 @@ dependencies {
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
-  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
   testCompile library.java.hamcrest_library
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito

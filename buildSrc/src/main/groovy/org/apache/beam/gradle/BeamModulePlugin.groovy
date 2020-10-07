@@ -386,7 +386,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def activemq_version = "5.14.5"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
-    def cassandra_driver_version = "3.8.0"
+    def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
     def gax_version = "1.57.1"
@@ -411,7 +411,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
-    def postgres_version = "42.2.2"
+    def postgres_version = "42.2.16"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
@@ -569,7 +569,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
-        stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",

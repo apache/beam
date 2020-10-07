@@ -32,7 +32,7 @@ test {
   systemProperty "tests.security.manager", "false"
 }
 
-def jna_version = "4.1.0"
+def jna_version = "5.6.0"
 def log4j_version = "2.6.2"
 def elastic_search_version = "6.4.0"
 

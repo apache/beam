@@ -25,7 +25,7 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
 ext.summary = "IO to read and write on Parquet storage format."
 
-def parquet_version = "1.10.0"
+def parquet_version = "1.11.1"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
