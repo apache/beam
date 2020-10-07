@@ -742,7 +742,7 @@ following requirements:
   that value in any way.
 {{< /paragraph >}}
 
-{{< paragraph class="language-python" >}}
+{{< paragraph class="language-py" >}}
 * You should not in any way modify the `element` argument provided to the
   `process` method, or any side inputs.
 * Once you output a value using `yield` or `return`, you should not modify
@@ -2155,6 +2155,10 @@ In Java you could use the following set of classes to represent the purchase sch
 infer the correct schema based on the members of the class.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class Purchase {
@@ -2198,10 +2202,34 @@ public class Transaction {
 }
 {{< /highlight >}}
 
+{{< highlight py >}}
+import typing
+
+class Purchase(typing.NamedTuple):
+  user_id: str  # The id of the user who made the purchase.
+  item_id: int  # The identifier of the item that was purchased.
+  shipping_address: ShippingAddress  # The shipping address, a nested type.
+  cost_cents: int  # The cost of the item
+  transactions: typing.Sequence[Transaction]  # The transactions that paid for this purchase (a list, since the purchase might be spread out over multiple credit cards).
+
+class ShippingAddress(typing.NamedTuple):
+  street_address: str
+  city: str
+  state: typing.Optional[str]
+  country: str
+  postal_code: str
+
+class Transaction(typing.NamedTuple):
+  bank: str
+  purchase_amount: float
+{{< /highlight >}}
+
+{{< paragraph class="language-java" >}}
 Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
 the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
 conversions between types that have matching schemas. For example, the above
 `Transaction` class has the same schema as the following class:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaFieldSchema.class)
@@ -2211,15 +2239,19 @@ public class TransactionPojo {
 }
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 So if we had two `PCollection`s as follows
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PCollection<Transaction> transactionBeans = readTransactionsAsJavaBean();
 PCollection<TransactionPojos> transactionPojos = readTransactionsAsPojo();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Then these two `PCollection`s would have the same schema, even though their Java types would be different. This means
 for example the following two code snippets are valid:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 transactionBeans.apply(ParDo.of(new DoFn<...>() {
@@ -2229,7 +2261,10 @@ transactionBeans.apply(ParDo.of(new DoFn<...>() {
 }));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 and
+{{< /paragraph >}}
+
 {{< highlight java >}}
 transactionPojos.apply(ParDo.of(new DoFn<...>() {
    @ProcessElement public void process(@Element Transaction row) {
@@ -2237,9 +2272,11 @@ transactionPojos.apply(ParDo.of(new DoFn<...>() {
 }));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Even though the in both cases the `@Element` parameter differs from the the `PCollection`'s Java type, since the
 schemas are the same Beam will automatically make the conversion. The built-in `Convert` transform can also be used
 to translate between Java types of equivalent schemas, as detailed below.
+{{< /paragraph >}}
 
 ### 6.3. Schema definition {#schema-definition}
 
@@ -2447,17 +2484,25 @@ In order to take advantage of schemas, your `PCollection`s must have a schema at
 Beam is able to infer schemas from a variety of common Java types. The `@DefaultSchema` annotation can be used to tell Beam to infer schemas from a specific type. The annotation takes a `SchemaProvider` as an argument, and `SchemaProvider` classes are already built in for common Java types. The `SchemaRegistry` can also be invoked programmatically for cases where it is not practical to annotate the Java type itself.
 {{< /paragraph >}}
 
-##### **Java POJOs**
+{{< paragraph class="language-java" >}}
+**Java POJOs**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 A POJO (Plain Old Java Object) is a Java object that is not bound by any restriction other than the Java Language
 Specification. A POJO can contain member variables that are primitives, that are other POJOs, or are collections maps or
 arrays thereof. POJOs do not have to extend prespecified classes or extend any specific interfaces.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 If a POJO class is annotated with `@DefaultSchema(JavaFieldSchema.class)`, Beam will automatically infer a schema for
 this class. Nested classes are supported as are classes with `List`, array, and `Map` fields.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 For example, annotating the following class tells Beam to infer a schema from this POJO class and apply it to any
 `PCollection<TransactionPojo>`.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaFieldSchema.class)
@@ -2474,32 +2519,42 @@ public class TransactionPojo {
 PCollection<TransactionPojo> pojos = readPojos();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The `@SchemaCreate` annotation tells Beam that this constructor can be used to create instances of TransactionPojo,
 assuming that constructor parameters have the same names as the field names. `@SchemaCreate` can also be used to annotate
 static factory methods on the class, allowing the constructor to remain private. If there is no `@SchemaCreate`
  annotation then all the fields must be non-final and the class must have a zero-argument constructor.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 There are a couple of other useful annotations that affect how Beam infers schemas. By default the schema field names
 inferred will match that of the class field names. However `@SchemaFieldName` can be used to specify a different name to
 be used for the schema field. `@SchemaIgnore` can be used to mark specific class fields as excluded from the inferred
 schema. For example, it’s common to have ephemeral fields in a class that should not be included in a schema
 (e.g. caching the hash value to prevent expensive recomputation of the hash), and `@SchemaIgnore` can be used to
 exclude these fields. Note that ignored fields will not be included in the encoding of these records.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 In some cases it is not convenient to annotate the POJO class, for example if the POJO is in a different package that is
 not owned by the Beam pipeline author. In these cases the schema inference can be triggered programmatically in
 pipeline’s main function as follows:
+{{< /paragraph >}}
 
 {{< highlight java >}}
  pipeline.getSchemaRegistry().registerPOJO(TransactionPOJO.class);
 {{< /highlight >}}
 
-##### **Java Beans**
+{{< paragraph class="language-java" >}}
+**Java Beans**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Java Beans are a de-facto standard for creating reusable property classes in Java. While the full
 standard has many characteristics, the key ones are that all properties are accessed via getter and setter classes, and
 the name format for these getters and setters is standardized. A Java Bean class can be annotated with
 `@DefaultSchema(JavaBeanSchema.class)` and Beam will automatically infer a schema for this class. For example:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
@@ -2514,8 +2569,10 @@ public class TransactionBean {
 PCollection<TransactionBean> beans = readBeans();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The `@SchemaCreate` annotation can be used to specify a constructor or a static factory method, in which case the
 setters and zero-argument constructor can be omitted.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
@@ -2527,15 +2584,23 @@ public class TransactionBean {
 }
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 `@SchemaFieldName` and `@SchemaIgnore` can be used to alter the schema inferred, just like with POJO classes.
+{{< /paragraph >}}
 
-##### **AutoValue**
+{{< paragraph class="language-java" >}}
+**AutoValue**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in
 order to properly implement a value class. AutoValue is a popular library for easily generating such classes by
 implementing a simple abstract base class.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Beam can infer a schema from an AutoValue class. For example:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(AutoValueSchema.class)
@@ -2546,10 +2611,68 @@ public abstract class TransactionValue {
 }
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 This is all that’s needed to generate a simple AutoValue class, and the above `@DefaultSchema` annotation tells Beam to
 infer a schema from it. This also allows AutoValue elements to be used inside of `PCollection`s.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 `@SchemaFieldName` and `@SchemaIgnore` can be used to alter the schema inferred.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Beam has a few different mechanisms for inferring schemas from Python code.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+**NamedTuple classes**
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+A [NamedTuple](https://docs.python.org/3/library/typing.html#typing.NamedTuple)
+class is a Python class that wraps a `tuple`, assigning a name to each element
+and restricting it to a particular type. Beam will automatically infer the
+schema for PCollections with `NamedTuple` output types. For example:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class Transaction(typing.NamedTuple):
+  bank: str
+  purchase_amount: float
+
+pc = input | beam.Map(lambda ...).with_output_types(Transaction)
+{{< /highlight >}}
+
+
+{{< paragraph class="language-py" >}}
+**beam.Row**
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+It's also possible to create ad-hoc schema declarations with a simple lambda
+that returns instances of `beam.Row`:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
+                                                      purchase_amount=item["purchase_amount"])
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Note that this declaration doesn't include any specific information about the
+types of the `bank` and `purchase_amount` fields. Beam will attempt to infer
+type information, if it's unable to it will fall back to the generic type
+`Any`. Sometimes this is not ideal, you can use casts to make sure Beam
+correctly infers types with `beam.Row`:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=str(item["bank"]),
+                                                      purchase_amount=float(item["purchase_amount"]))
+{{< /highlight >}}
+
 
 ### 6.6. Using Schema Transforms {#using-schemas}
 
