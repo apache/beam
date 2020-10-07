@@ -846,8 +846,8 @@ def pack_combiners(stages, context):
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
     if (len(stage.transforms) == 1 and stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN
-        in context.components.environments[stage.environment].capabilities):
+        python_urns.PACKED_COMBINE_FN in context.components.environments[
+            stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
