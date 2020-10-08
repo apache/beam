@@ -115,7 +115,18 @@ public class FlinkExecutableStageFunctionTest {
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
     RemoteBundle remoteBundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class)))
+        .thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(TimerReceiverFactory.class),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class)))
+        .thenReturn(remoteBundle);
     ImmutableMap input =
         ImmutableMap.builder().put("input", Mockito.mock(FnDataReceiver.class)).build();
     when(remoteBundle.getInputReceivers()).thenReturn(input);
@@ -129,7 +140,12 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -148,7 +164,12 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);

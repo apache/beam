@@ -393,10 +393,10 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     raise unittest.SkipTest("BEAM-2939")
 
   def test_callbacks_with_exception(self):
-    raise unittest.SkipTest("BEAM-6868")
+    raise unittest.SkipTest("BEAM-11021")
 
   def test_register_finalizations(self):
-    raise unittest.SkipTest("BEAM-6868")
+    raise unittest.SkipTest("BEAM-11021")
 
   # Inherits all other tests.
 
