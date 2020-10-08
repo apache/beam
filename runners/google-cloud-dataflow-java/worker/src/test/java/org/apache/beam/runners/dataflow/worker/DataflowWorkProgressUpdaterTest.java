@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.Position;
+import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -136,6 +137,18 @@ public class DataflowWorkProgressUpdaterTest {
     executor.runNextRunnable();
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE);
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressAskedToAbortWorker() throws Exception {
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceAbort());
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(worker, atLeastOnce()).abort();
 
     progressUpdater.stopReportingProgress();
   }
@@ -268,6 +281,16 @@ public class DataflowWorkProgressUpdaterTest {
     hotKeyDetection.setUserStepName(STEP_ID);
     hotKeyDetection.setHotKeyAge(toCloudDuration(HOT_KEY_AGE));
     responseState.setHotKeyDetection(hotKeyDetection);
+
+    return responseState;
+  }
+
+  private WorkItemServiceState generateServiceAbort() {
+    WorkItemServiceState responseState = new WorkItemServiceState();
+    responseState.setCompleteWorkStatus(
+        new Status()
+            .setCode(com.google.rpc.Code.ABORTED_VALUE)
+            .setMessage("Worker was asked to abort!"));
 
     return responseState;
   }

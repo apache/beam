@@ -29,6 +29,7 @@ import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -208,6 +209,15 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
     private ExecutionState readState;
     private WindowedValue<KV<K, Reiterable<V>>> current;
 
+    /**
+     * If the task is cancelled for any reason, signal that the iterator and any underlying
+     * ValuesIterable should abort. This is typically signalled via Thread.interrupted(), but user
+     * code (and other libraries, including IO ones) may improperly handle that signal. We use this
+     * as a fail-safe to ensure that no further records are processed, especially when there may be
+     * hot keys with many values.
+     */
+    private final AtomicBoolean aborted = new AtomicBoolean(false);
+
     public GroupingShuffleReaderIterator(
         final GroupingShuffleReader<K, V> parentReader, ShuffleEntryReader entryReader) {
       this.parentReader = parentReader;
@@ -279,7 +289,8 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       parentReader.executionContext.setKey(key);
       current =
           new ValueInEmptyWindows<>(
-              KV.<K, Reiterable<V>>of(key, new ValuesIterable(groups.getCurrent().values)));
+              KV.<K, Reiterable<V>>of(
+                  key, new ValuesIterable(groups.getCurrent().values, aborted)));
       return true;
     }
 
@@ -350,6 +361,11 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       entryReader.close();
     }
 
+    @Override
+    public void asyncAbort() {
+      aborted.set(true);
+    }
+
     /**
      * Provides the {@link Reiterable} used to iterate through the values part of a {@code KV<K,
      * Reiterable<V>>} entry produced by a {@link GroupingShuffleReader}.
@@ -360,14 +376,16 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       // its enclosing GroupingShuffleReader.
 
       private final Reiterable<ShuffleEntry> base;
+      private final AtomicBoolean aborted;
 
-      public ValuesIterable(Reiterable<ShuffleEntry> base) {
+      public ValuesIterable(Reiterable<ShuffleEntry> base, AtomicBoolean aborted) {
         this.base = checkNotNull(base);
+        this.aborted = aborted;
       }
 
       @Override
       public ValuesIterator iterator() {
-        return new ValuesIterator(base.iterator());
+        return new ValuesIterator(base.iterator(), aborted);
       }
 
       @Override
@@ -387,8 +405,20 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       private final Reiterator<ShuffleEntry> base;
 
-      public ValuesIterator(Reiterator<ShuffleEntry> base) {
+      private final AtomicBoolean aborted;
+
+      private boolean atFirstValue = true;
+
+      public ValuesIterator(Reiterator<ShuffleEntry> base, AtomicBoolean aborted) {
         this.base = checkNotNull(base);
+        this.aborted = aborted;
+      }
+
+      private ValuesIterator(
+          Reiterator<ShuffleEntry> base, AtomicBoolean aborted, boolean atFirstValue) {
+        this.base = checkNotNull(base);
+        this.aborted = aborted;
+        this.atFirstValue = atFirstValue;
       }
 
       @Override
@@ -402,6 +432,14 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       @Override
       public V next() {
+        // Given that the underlying ReadOperation already checks the abort status after every
+        // record it advances over (i.e., for every distinct key), we skip the check when at
+        // the first value as that is redundant. Signal by thread interruption may be better, but
+        // it may also have unintended side-effects.
+        if (!atFirstValue && aborted.get()) {
+          throw new RuntimeException(new InterruptedException("Worker was asked to abort"));
+        }
+        atFirstValue = false;
         try (Closeable read = tracker.enterState(readState)) {
           ShuffleEntry entry = base.next();
           checkNotNull(entry);
@@ -442,7 +480,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       @Override
       public ValuesIterator copy() {
-        return new ValuesIterator(base.copy());
+        return new ValuesIterator(base.copy(), aborted, atFirstValue);
       }
     }
   }
