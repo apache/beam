@@ -35,7 +35,11 @@ func ResolveArtifacts(ctx context.Context, edges []*graph.MultiEdge, p *pipepb.P
 	}
 	for _, e := range edges {
 		if e.Op == graph.External {
-			envs := graphx.ExpandedComponents(e.External.Expanded).Environments
+			components, err := graphx.ExpandedComponents(e.External.Expanded)
+			if err != nil {
+				panic(err)
+			}
+			envs := components.Environments
 			for eid, env := range envs {
 
 				if strings.HasPrefix(eid, "go") {
