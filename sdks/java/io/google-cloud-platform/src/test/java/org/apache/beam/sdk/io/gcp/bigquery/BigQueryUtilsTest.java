@@ -31,6 +31,8 @@ import static org.junit.Assert.assertThrows;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -68,6 +70,7 @@ public class BigQueryUtilsTest {
           .addNullableField("timestamp_variant4", Schema.FieldType.DATETIME)
           .addNullableField("valid", Schema.FieldType.BOOLEAN)
           .addNullableField("binary", Schema.FieldType.BYTES)
+          .addNullableField("numeric", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema ARRAY_TYPE =
@@ -111,6 +114,9 @@ public class BigQueryUtilsTest {
   private static final TableFieldSchema BINARY =
       new TableFieldSchema().setName("binary").setType(StandardSQLTypeName.BYTES.toString());
 
+  private static final TableFieldSchema NUMERIC =
+      new TableFieldSchema().setName("numeric").setType(StandardSQLTypeName.NUMERIC.toString());
+
   private static final TableFieldSchema IDS =
       new TableFieldSchema()
           .setName("ids")
@@ -132,7 +138,8 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
                   VALID,
-                  BINARY));
+                  BINARY,
+                  NUMERIC));
 
   private static final TableFieldSchema ROWS =
       new TableFieldSchema()
@@ -149,7 +156,8 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
                   VALID,
-                  BINARY));
+                  BINARY,
+                  NUMERIC));
 
   // Make sure that chosen BYTES test value is the same after a full base64 round trip.
   private static final Row FLAT_ROW =
@@ -169,7 +177,8 @@ public class BigQueryUtilsTest {
                   .parseDateTime("2019-08-18T15:52:07.123"),
               new DateTime(123456),
               false,
-              Base64.getDecoder().decode("ABCD1234"))
+              Base64.getDecoder().decode("ABCD1234"),
+              new BigDecimal(123.456).setScale(3, RoundingMode.HALF_UP))
           .build();
 
   private static final TableRow BQ_FLAT_ROW =
@@ -186,11 +195,12 @@ public class BigQueryUtilsTest {
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
           .set("valid", "false")
-          .set("binary", "ABCD1234");
+          .set("binary", "ABCD1234")
+          .set("numeric", "123.456");
 
   private static final Row NULL_FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
-          .addValues(null, null, null, null, null, null, null, null, null)
+          .addValues(null, null, null, null, null, null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
@@ -203,7 +213,8 @@ public class BigQueryUtilsTest {
           .set("timestamp_variant3", null)
           .set("timestamp_variant4", null)
           .set("valid", null)
-          .set("binary", null);
+          .set("binary", null)
+          .set("numeric", null);
 
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
@@ -238,7 +249,8 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
                   VALID,
-                  BINARY));
+                  BINARY,
+                  NUMERIC));
 
   private static final TableSchema BQ_ARRAY_TYPE = new TableSchema().setFields(Arrays.asList(IDS));
 
@@ -276,7 +288,8 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
             VALID,
-            BINARY));
+            BINARY,
+            NUMERIC));
   }
 
   @Test
@@ -306,7 +319,8 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
             VALID,
-            BINARY));
+            BINARY,
+            NUMERIC));
   }
 
   @Test
@@ -329,7 +343,8 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
             VALID,
-            BINARY));
+            BINARY,
+            NUMERIC));
   }
 
   @Test
@@ -337,7 +352,7 @@ public class BigQueryUtilsTest {
     TableRow row = toTableRow().apply(FLAT_ROW);
     System.out.println(row);
 
-    assertThat(row.size(), equalTo(9));
+    assertThat(row.size(), equalTo(10));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
@@ -359,7 +374,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(9));
+    assertThat(row.size(), equalTo(10));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("value", "123.456"));
@@ -368,6 +383,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
+    assertThat(row, hasEntry("numeric", "123.456"));
   }
 
   @Test
@@ -376,7 +392,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(9));
+    assertThat(row.size(), equalTo(10));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("name", "test"));
@@ -388,7 +404,7 @@ public class BigQueryUtilsTest {
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(9));
+    assertThat(row.size(), equalTo(10));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
@@ -398,6 +414,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("timestamp_variant4", null));
     assertThat(row, hasEntry("valid", null));
     assertThat(row, hasEntry("binary", null));
+    assertThat(row, hasEntry("numeric", null));
   }
 
   private static final BigQueryUtils.ConversionOptions TRUNCATE_OPTIONS =

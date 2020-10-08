@@ -165,7 +165,7 @@ def sparkCompatibilityMatrix = {
       def argString = mapToArgString(argMap)
 
       // Optionally specify test function names separated by space e.g.:
-      // ./gradlew :sdks:python:test-suites:portable:py2:sparkValidatesRunner -Ptests="test_external_transforms test_read"
+      // ./gradlew :sdks:python:test-suites:portable:py37:sparkValidatesRunner -Ptests="test_external_transforms test_read"
       // Otherwise run all test functions under SparkRunnerTest
       def tests = project.hasProperty('tests') ?
               project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
