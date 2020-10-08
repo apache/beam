@@ -3198,7 +3198,7 @@ elements from the input collection).&lt;/li>
 &lt;li>Once you output a value using &lt;code>OutputReceiver.output()&lt;/code> you should not modify
 that value in any way.&lt;/li>
 &lt;/ul>&lt;/p>
-&lt;p class="language-python">&lt;ul>
+&lt;p class="language-py">&lt;ul>
 &lt;li>You should not in any way modify the &lt;code>element&lt;/code> argument provided to the
 &lt;code>process&lt;/code> method, or any side inputs.&lt;/li>
 &lt;li>Once you output a value using &lt;code>yield&lt;/code> or &lt;code>return&lt;/code>, you should not modify
@@ -4529,6 +4529,7 @@ of the Beam SDK being used. This allows Beam users to continue using native type
 having Beam understand their element schemas.&lt;/p>
 &lt;p class="language-java">In Java you could use the following set of classes to represent the purchase schema. Beam will automatically
 infer the correct schema based on the members of the class.&lt;/p>
+&lt;p class="language-py">In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@DefaultSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JavaBeanSchema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Purchase&lt;/span> &lt;span class="o">{&lt;/span>
@@ -4567,7 +4568,25 @@ infer the correct schema based on the members of the class.&lt;/p>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">typing&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">Purchase&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">user_id&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span> &lt;span class="c1"># The id of the user who made the purchase.&lt;/span>
+&lt;span class="n">item_id&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span> &lt;span class="c1"># The identifier of the item that was purchased.&lt;/span>
+&lt;span class="n">shipping_address&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">ShippingAddress&lt;/span> &lt;span class="c1"># The shipping address, a nested type.&lt;/span>
+&lt;span class="n">cost_cents&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span> &lt;span class="c1"># The cost of the item&lt;/span>
+&lt;span class="n">transactions&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Sequence&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">Transaction&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1"># The transactions that paid for this purchase (a list, since the purchase might be spread out over multiple credit cards).&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">ShippingAddress&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">street_address&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;span class="n">city&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="n">country&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;span class="n">postal_code&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">Transaction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">bank&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;span class="n">purchase_amount&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="language-java">Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
 the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
 conversions between types that have matching schemas. For example, the above
 &lt;code>Transaction&lt;/code> class has the same schema as the following class:&lt;/p>
@@ -4578,12 +4597,12 @@ conversions between types that have matching schemas. For example, the above
 &lt;span class="kd">public&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="n">purchaseAmount&lt;/span>&lt;span class="o">;&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>So if we had two &lt;code>PCollection&lt;/code>s as follows&lt;/p>
+&lt;p class="language-java">So if we had two &lt;code>PCollection&lt;/code>s as follows&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Transaction&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">transactionBeans&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readTransactionsAsJavaBean&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">TransactionPojos&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">transactionPojos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readTransactionsAsPojo&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>Then these two &lt;code>PCollection&lt;/code>s would have the same schema, even though their Java types would be different. This means
+&lt;p class="language-java">Then these two &lt;code>PCollection&lt;/code>s would have the same schema, even though their Java types would be different. This means
 for example the following two code snippets are valid:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">transactionBeans&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
@@ -4592,15 +4611,14 @@ for example the following two code snippets are valid:&lt;/p>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>and
+&lt;p class="language-java">and&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">transactionPojos&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="nd">@ProcessElement&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="nd">@Element&lt;/span> &lt;span class="n">Transaction&lt;/span> &lt;span class="n">row&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;/p>
-&lt;p>Even though the in both cases the &lt;code>@Element&lt;/code> parameter differs from the the &lt;code>PCollection&lt;/code>'s Java type, since the
+&lt;p class="language-java">Even though the in both cases the &lt;code>@Element&lt;/code> parameter differs from the the &lt;code>PCollection&lt;/code>'s Java type, since the
 schemas are the same Beam will automatically make the conversion. The built-in &lt;code>Convert&lt;/code> transform can also be used
 to translate between Java types of equivalent schemas, as detailed below.&lt;/p>
 &lt;h3 id="schema-definition">6.3. Schema definition&lt;/h3>
@@ -4771,13 +4789,13 @@ also be used.&lt;/p>
 &lt;p>In order to take advantage of schemas, your &lt;code>PCollection&lt;/code>s must have a schema attached to it. Often, the source itself will attach a schema to the PCollection. For example, when using &lt;code>AvroIO&lt;/code> to read Avro files, the source can automatically infer a Beam schema from the Avro schema and attach that to the Beam &lt;code>PCollection&lt;/code>. However not all sources produce schemas. In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from the expressiveness of schemas.&lt;/p>
 &lt;h4 id="inferring-schemas">6.5.1. Inferring schemas&lt;/h4>
 &lt;p class="language-java">Beam is able to infer schemas from a variety of common Java types. The &lt;code>@DefaultSchema&lt;/code> annotation can be used to tell Beam to infer schemas from a specific type. The annotation takes a &lt;code>SchemaProvider&lt;/code> as an argument, and &lt;code>SchemaProvider&lt;/code> classes are already built in for common Java types. The &lt;code>SchemaRegistry&lt;/code> can also be invoked programmatically for cases where it is not practical to annotate the Java type itself.&lt;/p>
-&lt;h5 id="java-pojos">&lt;strong>Java POJOs&lt;/strong>&lt;/h5>
-&lt;p>A POJO (Plain Old Java Object) is a Java object that is not bound by any restriction other than the Java Language
+&lt;p class="language-java">&lt;strong>Java POJOs&lt;/strong>&lt;/p>
+&lt;p class="language-java">A POJO (Plain Old Java Object) is a Java object that is not bound by any restriction other than the Java Language
 Specification. A POJO can contain member variables that are primitives, that are other POJOs, or are collections maps or
 arrays thereof. POJOs do not have to extend prespecified classes or extend any specific interfaces.&lt;/p>
-&lt;p>If a POJO class is annotated with &lt;code>@DefaultSchema(JavaFieldSchema.class)&lt;/code>, Beam will automatically infer a schema for
+&lt;p class="language-java">If a POJO class is annotated with &lt;code>@DefaultSchema(JavaFieldSchema.class)&lt;/code>, Beam will automatically infer a schema for
 this class. Nested classes are supported as are classes with &lt;code>List&lt;/code>, array, and &lt;code>Map&lt;/code> fields.&lt;/p>
-&lt;p>For example, annotating the following class tells Beam to infer a schema from this POJO class and apply it to any
+&lt;p class="language-java">For example, annotating the following class tells Beam to infer a schema from this POJO class and apply it to any
 &lt;code>PCollection&amp;lt;TransactionPojo&amp;gt;&lt;/code>.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@DefaultSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JavaFieldSchema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
@@ -4793,24 +4811,24 @@ this class. Nested classes are supported as are classes with &lt;code>List&lt;/c
 &lt;span class="c1">// Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">TransactionPojo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">pojos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readPojos&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>The &lt;code>@SchemaCreate&lt;/code> annotation tells Beam that this constructor can be used to create instances of TransactionPojo,
+&lt;p class="language-java">The &lt;code>@SchemaCreate&lt;/code> annotation tells Beam that this constructor can be used to create instances of TransactionPojo,
 assuming that constructor parameters have the same names as the field names. &lt;code>@SchemaCreate&lt;/code> can also be used to annotate
 static factory methods on the class, allowing the constructor to remain private. If there is no &lt;code>@SchemaCreate&lt;/code>
 annotation then all the fields must be non-final and the class must have a zero-argument constructor.&lt;/p>
-&lt;p>There are a couple of other useful annotations that affect how Beam infers schemas. By default the schema field names
+&lt;p class="language-java">There are a couple of other useful annotations that affect how Beam infers schemas. By default the schema field names
 inferred will match that of the class field names. However &lt;code>@SchemaFieldName&lt;/code> can be used to specify a different name to
 be used for the schema field. &lt;code>@SchemaIgnore&lt;/code> can be used to mark specific class fields as excluded from the inferred
 schema. For example, it’s common to have ephemeral fields in a class that should not be included in a schema
 (e.g. caching the hash value to prevent expensive recomputation of the hash), and &lt;code>@SchemaIgnore&lt;/code> can be used to
 exclude these fields. Note that ignored fields will not be included in the encoding of these records.&lt;/p>
-&lt;p>In some cases it is not convenient to annotate the POJO class, for example if the POJO is in a different package that is
+&lt;p class="language-java">In some cases it is not convenient to annotate the POJO class, for example if the POJO is in a different package that is
 not owned by the Beam pipeline author. In these cases the schema inference can be triggered programmatically in
 pipeline’s main function as follows:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getSchemaRegistry&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">registerPOJO&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TransactionPOJO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h5 id="java-beans">&lt;strong>Java Beans&lt;/strong>&lt;/h5>
-&lt;p>Java Beans are a de-facto standard for creating reusable property classes in Java. While the full
+&lt;p class="language-java">&lt;strong>Java Beans&lt;/strong>&lt;/p>
+&lt;p class="language-java">Java Beans are a de-facto standard for creating reusable property classes in Java. While the full
 standard has many characteristics, the key ones are that all properties are accessed via getter and setter classes, and
 the name format for these getters and setters is standardized. A Java Bean class can be annotated with
 &lt;code>@DefaultSchema(JavaBeanSchema.class)&lt;/code> and Beam will automatically infer a schema for this class. For example:&lt;/p>
@@ -4826,7 +4844,7 @@ the name format for these getters and setters is standardized. A Java Bean class
 &lt;span class="c1">// Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">TransactionBean&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">beans&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readBeans&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>The &lt;code>@SchemaCreate&lt;/code> annotation can be used to specify a constructor or a static factory method, in which case the
+&lt;p class="language-java">The &lt;code>@SchemaCreate&lt;/code> annotation can be used to specify a constructor or a static factory method, in which case the
 setters and zero-argument constructor can be omitted.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@DefaultSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JavaBeanSchema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
@@ -4837,12 +4855,12 @@ setters and zero-argument constructor can be omitted.&lt;/p>
 &lt;span class="kd">public&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="nf">getPurchaseAmount&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="err">…&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>&lt;code>@SchemaFieldName&lt;/code> and &lt;code>@SchemaIgnore&lt;/code> can be used to alter the schema inferred, just like with POJO classes.&lt;/p>
-&lt;h5 id="autovalue">&lt;strong>AutoValue&lt;/strong>&lt;/h5>
-&lt;p>Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in
+&lt;p class="language-java">&lt;code>@SchemaFieldName&lt;/code> and &lt;code>@SchemaIgnore&lt;/code> can be used to alter the schema inferred, just like with POJO classes.&lt;/p>
+&lt;p class="language-java">&lt;strong>AutoValue&lt;/strong>&lt;/p>
+&lt;p class="language-java">Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in
 order to properly implement a value class. AutoValue is a popular library for easily generating such classes by
 implementing a simple abstract base class.&lt;/p>
-&lt;p>Beam can infer a schema from an AutoValue class. For example:&lt;/p>
+&lt;p class="language-java">Beam can infer a schema from an AutoValue class. For example:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@DefaultSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">AutoValueSchema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="nd">@AutoValue&lt;/span>
@@ -4851,9 +4869,39 @@ implementing a simple abstract base class.&lt;/p>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="nf">getPurchaseAmount&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>This is all that’s needed to generate a simple AutoValue class, and the above &lt;code>@DefaultSchema&lt;/code> annotation tells Beam to
+&lt;p class="language-java">This is all that’s needed to generate a simple AutoValue class, and the above &lt;code>@DefaultSchema&lt;/code> annotation tells Beam to
 infer a schema from it. This also allows AutoValue elements to be used inside of &lt;code>PCollection&lt;/code>s.&lt;/p>
-&lt;p>&lt;code>@SchemaFieldName&lt;/code> and &lt;code>@SchemaIgnore&lt;/code> can be used to alter the schema inferred.&lt;/p>
+&lt;p class="language-java">&lt;code>@SchemaFieldName&lt;/code> and &lt;code>@SchemaIgnore&lt;/code> can be used to alter the schema inferred.&lt;/p>
+&lt;p class="language-py">Beam has a few different mechanisms for inferring schemas from Python code.&lt;/p>
+&lt;p class="language-py">&lt;strong>NamedTuple classes&lt;/strong>&lt;/p>
+&lt;p class="language-py">A &lt;a href="https://docs.python.org/3/library/typing.html#typing.NamedTuple">NamedTuple&lt;/a>
+class is a Python class that wraps a &lt;code>tuple&lt;/code>, assigning a name to each element
+and restricting it to a particular type. Beam will automatically infer the
+schema for PCollections with &lt;code>NamedTuple&lt;/code> output types. For example:&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">Transaction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">bank&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;span class="n">purchase_amount&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span>
+&lt;span class="n">pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">input&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="o">...&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Transaction&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="language-py">&lt;strong>beam.Row&lt;/strong>&lt;/p>
+&lt;p class="language-py">It&amp;rsquo;s also possible to create ad-hoc schema declarations with a simple lambda
+that returns instances of &lt;code>beam.Row&lt;/code>:&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bank&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;bank&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;span class="n">purchase_amount&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;purchase_amount&amp;#34;&lt;/span>&lt;span class="p">])&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="language-py">Note that this declaration doesn&amp;rsquo;t include any specific information about the
+types of the &lt;code>bank&lt;/code> and &lt;code>purchase_amount&lt;/code> fields. Beam will attempt to infer
+type information, if it&amp;rsquo;s unable to it will fall back to the generic type
+&lt;code>Any&lt;/code>. Sometimes this is not ideal, you can use casts to make sure Beam
+correctly infers types with &lt;code>beam.Row&lt;/code>:&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bank&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;bank&amp;#34;&lt;/span>&lt;span class="p">]),&lt;/span>
+&lt;span class="n">purchase_amount&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">float&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;purchase_amount&amp;#34;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;h3 id="using-schemas">6.6. Using Schema Transforms&lt;/h3>
 &lt;p>A schema on a &lt;code>PCollection&lt;/code> enables a rich variety of relational transforms. The fact that each record is composed of
 named fields allows for simple and readable aggregations that reference fields by name, similar to the aggregations in
