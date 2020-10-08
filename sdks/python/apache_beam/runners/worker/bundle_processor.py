@@ -26,6 +26,7 @@ from __future__ import print_function
 import base64
 import bisect
 import collections
+import copy
 import json
 import logging
 import random
@@ -468,7 +469,9 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
   def __init__(self, underlying_bag_state, combinefn):
     # type: (userstate.AccumulatingRuntimeState, core.CombineFn) -> None
     self._combinefn = combinefn
+    self._combinefn.setup()
     self._underlying_bag_state = underlying_bag_state
+    self._finalized = False
 
   def _read_accumulator(self, rewrite=True):
     merged_accumulator = self._combinefn.merge_accumulators(
@@ -501,6 +504,11 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
 
   def commit(self):
     self._underlying_bag_state.commit()
+
+  def finalize(self):
+    if not self._finalized:
+      self._combinefn.teardown()
+      self._finalized = True
 
 
 class _ConcatIterable(object):
@@ -773,7 +781,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
       elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
         return ReadModifyWriteRuntimeState(bag_state)
       else:
-        return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
+        return CombiningValueRuntimeState(
+            bag_state, copy.deepcopy(state_spec.combine_fn))
     elif isinstance(state_spec, userstate.SetStateSpec):
       return SynchronousSetRuntimeState(
           self._state_handler,
@@ -795,6 +804,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
 
   def reset(self):
     # type: () -> None
+    for state in self._all_states.values():
+      state.finalize()
     self._all_states = {}
 
 
