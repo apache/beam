@@ -62,6 +62,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -753,8 +754,13 @@ public class AvroUtils {
           break;
 
         case UNION:
-          throw new IllegalArgumentException("Union types not yet supported");
-
+          fieldType =
+              FieldType.logicalType(
+                  OneOfType.create(
+                      avroSchema.getTypes().stream()
+                          .map(x -> Field.of(x.getName(), toFieldType(new TypeWithNullability(x))))
+                          .collect(Collectors.toList())));
+          break;
         case NULL:
           throw new IllegalArgumentException("Can't convert 'null' to FieldType");
 
@@ -824,6 +830,14 @@ public class AvroUtils {
             EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
             baseType =
                 org.apache.avro.Schema.createEnum(fieldName, "", "", enumerationType.getValues());
+            break;
+          case OneOfType.IDENTIFIER:
+            OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
+            baseType =
+                org.apache.avro.Schema.createUnion(
+                    oneOfType.getOneOfSchema().getFields().stream()
+                        .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
+                        .collect(Collectors.toList()));
             break;
           default:
             throw new RuntimeException(
@@ -924,6 +938,18 @@ public class AvroUtils {
                 .createEnum(
                     enumerationType.toString((EnumerationType.Value) value),
                     typeWithNullability.type);
+          case OneOfType.IDENTIFIER:
+            OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
+            OneOfType.Value oneOfValue = (OneOfType.Value) value;
+            FieldType innerFieldType = oneOfType.getFieldType(oneOfValue);
+            if (typeWithNullability.nullable && oneOfValue.getValue() == null) {
+              return null;
+            } else {
+              return genericFromBeamField(
+                  innerFieldType.withNullable(false),
+                  typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
+                  oneOfValue.getValue());
+            }
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -1049,7 +1075,7 @@ public class AvroUtils {
             (Map<CharSequence, Object>) value, type.type.getValueType(), fieldType);
 
       case UNION:
-        throw new IllegalArgumentException("Union types not yet supported");
+        return convertUnionStrict(value, type.type, fieldType);
 
       case NULL:
         throw new IllegalArgumentException("Can't convert 'null' to non-nullable field");
@@ -1128,6 +1154,18 @@ public class AvroUtils {
     checkArgument(fieldType.getLogicalType().getIdentifier().equals(EnumerationType.IDENTIFIER));
     EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
     return enumerationType.valueOf(value.toString());
+  }
+
+  private static Object convertUnionStrict(
+      Object value, org.apache.avro.Schema unionAvroSchema, Schema.FieldType fieldType) {
+    checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "oneOfType");
+    checkArgument(fieldType.getLogicalType().getIdentifier().equals(OneOfType.IDENTIFIER));
+    OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
+    int fieldNumber = GenericData.get().resolveUnion(unionAvroSchema, value);
+    FieldType baseFieldType = oneOfType.getOneOfSchema().getField(fieldNumber).getType();
+    Object convertedValue =
+        convertAvroFieldStrict(value, unionAvroSchema.getTypes().get(fieldNumber), baseFieldType);
+    return oneOfType.createValue(fieldNumber, convertedValue);
   }
 
   private static Object convertArrayStrict(
