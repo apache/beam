@@ -30,7 +30,9 @@ from __future__ import absolute_import
 import re
 from builtins import object
 from typing import Any
+from typing import List
 from typing import Optional
+from typing import Union
 
 from future.utils import iteritems
 from past.builtins import unicode
@@ -498,22 +500,62 @@ class _PubSubSink(dataflow_io.NativeSink):
 class MultipleReadFromPubSub(PTransform):
   """A ``PTransform`` that expands ``ReadFromPubSub`` to read from multiple
   subscriptions and/or topics."""
-  def __init__(self, source_list, with_context=False, **kwargs):
+  def __init__(
+      self,
+      source_list,  # type: List[str]
+      with_context=False,  # type: bool
+      id_label=None,  # type: Optional[Union[List[str], str]]
+      with_attributes=False,  # type: bool
+      timestamp_attribute=None,  # type: Optional[Union[List[str], str]]
+      **kwargs
+  ):
     """Initializes ``PubSubMultipleReader``.
 
-      Args:
-        source_list: List of Cloud Pub/Sub topics or subscriptions. Topics in
-          form "projects/<project>/topics/<topic>" and subscriptions in form
-          "projects/<project>/subscriptions/<subscription>".
-        with_context:
-          True - output elements will be key-value pairs with the source as the
-          key and the message as the value.
-          False - output elements will be of type ``bytes`` (message
-          data only).
-      """
-    self.source_list = source_list  # type: List[str]
-    self.with_context = with_context  # type: bool
+    Args:
+      source_list: List of Cloud Pub/Sub topics or subscriptions. Topics in
+        form "projects/<project>/topics/<topic>" and subscriptions in form
+        "projects/<project>/subscriptions/<subscription>".
+      with_context:
+        True - output elements will be key-value pairs with the source as the
+        key and the message as the value.
+        False - output elements will be the messages.
+      with_attributes:
+        True - input elements will be :class:`~PubsubMessage` objects.
+        False - input elements will be of type ``bytes`` (message data only).
+      id_label: If set, will set an attribute for each Cloud Pub/Sub message
+        with the given name and a unique value. This attribute can then be
+        used in a ReadFromPubSub PTransform to deduplicate messages. If type
+        is string, all sources will share the same value; if type is
+        ``List``, each source will use the value of its index.
+      timestamp_attribute: If set, will set an attribute for each Cloud
+        Pub/Sub message with the given name and the message's publish time as
+        the value. If type is ``string``, all sources will share the same
+        value; if type List, each source will use the value of its index.
+    """
+    self.source_list = source_list
+    self.with_context = with_context
+    self.with_attributes = with_attributes
     self._kwargs = kwargs
+
+    self._total_sources = len(source_list)
+
+    if isinstance(id_label, str) or id_label is None:
+      self.id_label = [id_label] * self._total_sources
+    else:
+      if len(id_label) != self._total_sources:
+        raise ValueError(
+            'Length of "id_label" (%d) is not the same as length of '
+            '"sources" (%d)' % (len(id_label), self._total_sources))
+      self.id_label = id_label
+
+    if isinstance(timestamp_attribute, str) or timestamp_attribute is None:
+      self.timestamp_attribute = [timestamp_attribute] * self._total_sources
+    else:
+      if len(timestamp_attribute) != self._total_sources:
+        raise ValueError(
+            'Length of "timestamp_attribute" (%d) is not the same as length of '
+            '"sources" (%d)' % (len(timestamp_attribute), self._total_sources))
+      self.timestamp_attribute = timestamp_attribute
 
     for source in self.source_list:
       match_topic = re.match(TOPIC_REGEXP, source)
@@ -537,7 +579,10 @@ class MultipleReadFromPubSub(PTransform):
 
   def expand(self, pcol):
     sources_pcol = []
-    for source in self.source_list:
+    for i, source in enumerate(self.source_list):
+      id_label = self.id_label[i]
+      timestamp_attribute = self.timestamp_attribute[i]
+
       source_split = source.split('/')
       source_project = source_split[1]
       source_type = source_split[2]
@@ -548,10 +593,18 @@ class MultipleReadFromPubSub(PTransform):
 
       if source_type == 'topics':
         current_source = pcol | read_step_name >> ReadFromPubSub(
-            topic=source, **self._kwargs)
+            topic=source,
+            id_label=id_label,
+            with_attributes=self.with_attributes,
+            timestamp_attribute=timestamp_attribute,
+            **self._kwargs)
       else:
         current_source = pcol | read_step_name >> ReadFromPubSub(
-            subscription=source, **self._kwargs)
+            subscription=source,
+            id_label=id_label,
+            with_attributes=self.with_attributes,
+            timestamp_attribute=timestamp_attribute,
+            **self._kwargs)
 
       if self.with_context:
         context_step_name = '%s/Add Context %s' % (step_name_base, source_name)
