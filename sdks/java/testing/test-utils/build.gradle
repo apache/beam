@@ -26,6 +26,7 @@ applyJavaNature(enableChecker:false,
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
+  compile platform(library.java.google_cloud_platform_libraries_bom)
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.vendored_guava_26_0_jre
   compile library.java.google_cloud_bigquery

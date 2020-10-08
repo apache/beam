@@ -25,6 +25,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Splunk"
 ext.summary = "IO to write events to Splunk Http Event Collector (HEC)"
 
 dependencies {
+    compile platform(library.java.google_cloud_platform_libraries_bom)
     compile library.java.slf4j_api
     compile library.java.google_api_client
     compile library.java.google_http_client_apache_v2
