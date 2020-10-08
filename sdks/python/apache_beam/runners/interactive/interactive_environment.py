@@ -202,10 +202,6 @@ class InteractiveEnvironment(object):
           'ipython kernel is not connected any notebook frontend.')
     if self._is_in_notebook:
       self.load_jquery_with_datatable()
-      self.import_html_to_head([
-          'https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist'
-          '/facets-jupyter.html'
-      ])
       register_ipython_log_handler()
 
     # A singleton inspector instance to message information of current
