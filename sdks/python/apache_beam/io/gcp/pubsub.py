@@ -559,6 +559,7 @@ class MultipleReadFromPubSub(PTransform):
             timestamp_attribute=timestamp_attribute,
             **self._kwargs)
 
+      # pylint: disable=cell-var-from-loop
       if self.with_context:
         context_step_name = '%s/Add Context %s' % (step_name_base, source_name)
         current_source = (
