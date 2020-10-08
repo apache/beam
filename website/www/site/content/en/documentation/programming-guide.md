@@ -2645,12 +2645,12 @@ pc = input | beam.Map(lambda ...).with_output_types(Transaction)
 
 
 {{< paragraph class="language-py" >}}
-**beam.Row**
+**beam.Row and Select**
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-It's also possible to create ad-hoc schema declarations with a simple lambda
-that returns instances of `beam.Row`:
+There are also methods for creating ad-hoc schema declarations. First, you can
+use a lambda that returns instances of `beam.Row`:
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2660,17 +2660,28 @@ output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Note that this declaration doesn't include any specific information about the
-types of the `bank` and `purchase_amount` fields. Beam will attempt to infer
-type information, if it's unable to it will fall back to the generic type
+Sometimes it can be more concise to express the same logic with the
+[`Select`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Select) transform:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(bank=lambda item: item["bank"],
+                                   purchase_amount=lambda item: item["purchase_amount"])
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Note that these declaration don't include any specific information about the
+types of the `bank` and `purchase_amount` fields, so Beam will attempt to infer
+type information. If it's unable to it will fall back to the generic type
 `Any`. Sometimes this is not ideal, you can use casts to make sure Beam
-correctly infers types with `beam.Row`:
+correctly infers types with `beam.Row` or with `Select`:
 {{< /paragraph >}}
 
 {{< highlight py >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=str(item["bank"]),
-                                                      purchase_amount=float(item["purchase_amount"]))
+                                                      purchase_amount=float(item["purchase_amount"])))
 {{< /highlight >}}
 
 
