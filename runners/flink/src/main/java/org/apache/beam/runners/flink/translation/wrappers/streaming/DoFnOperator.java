@@ -944,7 +944,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
-  public final void notifyCheckpointComplete(long checkpointId) throws Exception {
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
     if (checkpointStats != null) {
       checkpointStats.reportCheckpointDuration(checkpointId);
     }

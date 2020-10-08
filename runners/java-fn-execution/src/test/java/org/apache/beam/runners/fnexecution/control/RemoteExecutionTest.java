@@ -1172,7 +1172,8 @@ public class RemoteExecutionTest implements Serializable {
             outputReceivers,
             timerReceivers,
             StateRequestHandler.unsupported(),
-            BundleProgressHandler.ignored())) {
+            BundleProgressHandler.ignored(),
+            null)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(valueInGlobalWindow(KV.of("X", "X")));
       bundle
