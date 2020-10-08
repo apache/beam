@@ -391,12 +391,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.8.0"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
-    def gax_version = "1.57.1"
-    def generated_grpc_ga_version = "1.85.1"
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.5"
     def google_cloud_pubsublite_version = "0.1.6"
-    def google_http_clients_version = "1.34.0"
+    def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.27.2"
@@ -490,29 +488,29 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite:$google_cloud_pubsublite_version",
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/4.2.0/artifact_details.html
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:4.2.0",
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/12.0.0/artifact_details.html
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:12.0.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
-        google_code_gson                            : "com.google.code.gson:gson",
+        google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
         google_http_client                          : "com.google.http-client:google-http-client", // google_cloud_platform_libraries_bom sets version
-        google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2:$google_http_clients_version",
+        google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2", // google_cloud_platform_libraries_bom sets version
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
         google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2", // google_cloud_platform_libraries_bom sets version
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf", // google_cloud_platform_libraries_bom sets version
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
         // Don't use grpc_all, it can cause issues in Bazel builds. Reference the gRPC libraries you need individually instead.
-        grpc_api                                    : "io.grpc:grpc-api:$grpc_version",
-        grpc_alts                                   : "io.grpc:grpc-alts:$grpc_version",
+        grpc_alts                                   : "io.grpc:grpc-alts", // google_cloud_platform_libraries_bom sets version
+        grpc_api                                    : "io.grpc:grpc-api", // google_cloud_platform_libraries_bom sets version
         grpc_auth                                   : "io.grpc:grpc-auth", // google_cloud_platform_libraries_bom sets version
         grpc_core                                   : "io.grpc:grpc-core", // google_cloud_platform_libraries_bom sets version
         grpc_context                                : "io.grpc:grpc-context", // google_cloud_platform_libraries_bom sets version
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_cloud_pubsublite_v1             : "com.google.api.grpc:grpc-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         grpc_grpclb                                 : "io.grpc:grpc-grpclb", // google_cloud_platform_libraries_bom sets version
-        grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
+        grpc_protobuf                               : "io.grpc:grpc-protobuf", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
         grpc_netty                                  : "io.grpc:grpc-netty", // google_cloud_platform_libraries_bom sets version
         grpc_netty_shaded                           : "io.grpc:grpc-netty-shaded", // google_cloud_platform_libraries_bom sets version
