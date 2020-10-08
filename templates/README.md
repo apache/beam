@@ -113,7 +113,7 @@ Build the Dataflow Flex Template:
 
 ```
 gcloud dataflow flex-template build ${TEMPLATE_PATH} \
-       --image-gcr-path "{$TARGET_GCR_IMAGE}" \
+       --image-gcr-path {$TARGET_GCR_IMAGE} \
        --sdk-language "JAVA" \
        --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
        --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
