@@ -67,6 +67,7 @@ dependencies {
   //
   // All main sourceset dependencies here should be listed as compile scope so that the dependencies
   // are all packaged into a single uber jar allowing the jar to serve as an application.
+  compile platform(library.java.google_cloud_platform_libraries_bom)
   compile project(":runners:google-cloud-dataflow-java")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
