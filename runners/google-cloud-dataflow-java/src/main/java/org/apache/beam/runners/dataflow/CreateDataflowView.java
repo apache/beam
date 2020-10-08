@@ -18,10 +18,14 @@
 package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/** A {@link DataflowRunner} marker class for creating a {@link PCollectionView}. */
+/**
+ * A {@link DataflowRunner} marker class for creating a {@link PCollectionView}, identical to {@link
+ * View.CreatePCollectionView} but working around ordering constraint of overrides.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -51,7 +55,7 @@ public class CreateDataflowView<ElemT, ViewT>
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
     }
-    return (PCollection) view.getPCollection();
+    return (PCollection) input;
   }
 
   public PCollectionView<ViewT> getView() {

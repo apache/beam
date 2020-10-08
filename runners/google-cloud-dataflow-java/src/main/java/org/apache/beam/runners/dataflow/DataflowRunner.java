@@ -71,6 +71,7 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.PrePortableViewOverrideFactories;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -477,6 +478,31 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
 
+  private void addPrePortabilityViewOverrides(
+      ImmutableList.Builder<PTransformOverride> overridesBuilder) {
+    overridesBuilder
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+                new PrePortableViewOverrideFactories.CombineAsSingletonViewOverrideFactory<>()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsIterable.class),
+                new PrePortableViewOverrideFactories.ViewAsIterableOverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsList.class),
+                new PrePortableViewOverrideFactories.ViewAsListOverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsMap.class),
+                new PrePortableViewOverrideFactories.ViewAsMapOverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsMultimap.class),
+                new PrePortableViewOverrideFactories.ViewAsMultiMapOverrideFactory()));
+  }
+
   private List<PTransformOverride> getOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
 
@@ -490,20 +516,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
-
-    // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
-    // However, we want a different expansion for single-output splittable ParDo.
-    overridesBuilder
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDoSingle(),
-                new ReflectiveOneToOneOverrideFactory(
-                    SplittableParDoOverrides.ParDoSingleViaMulti.class, this)))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDoMulti(),
-                new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
-
     if (streaming) {
       if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         overridesBuilder.add(
@@ -542,6 +554,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
                   new StreamingUnboundedReadOverrideFactory()));
+
+      addPrePortabilityViewOverrides(overridesBuilder);
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
+              new StreamingCreatePCollectionViewFactory()));
 
       overridesBuilder.add(
           PTransformOverride.of(
@@ -583,28 +601,34 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformMatchers.splittableProcessKeyedBounded(),
               new SplittableParDoNaiveBounded.OverrideFactory()));
 
+      addPrePortabilityViewOverrides(overridesBuilder);
       overridesBuilder
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.AsMap.class),
+                  PTransformMatchers.classEqualTo(
+                      PrePortableViewOverrideFactories.PrePortableAsMap.class),
                   new ReflectiveViewOverrideFactory(BatchViewOverrides.BatchViewAsMap.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.AsMultimap.class),
+                  PTransformMatchers.classEqualTo(
+                      PrePortableViewOverrideFactories.PrePortableAsMultimap.class),
                   new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsMultimap.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+                  PTransformMatchers.classEqualTo(
+                      PrePortableViewOverrideFactories.PrePortableCombineAsSingletonView.class),
                   new CombineGloballyAsSingletonViewOverrideFactory(this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.AsList.class),
+                  PTransformMatchers.classEqualTo(
+                      PrePortableViewOverrideFactories.PrePortableAsList.class),
                   new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsList.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.AsIterable.class),
+                  PTransformMatchers.classEqualTo(
+                      PrePortableViewOverrideFactories.PrePortableAsIterable.class),
                   new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsIterable.class, this)));
     }
@@ -657,13 +681,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                     PCollectionView<ViewT>,
                     PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
                 transform) {
-      Combine.GloballyAsSingletonView<?, ?> combineTransform =
-          (Combine.GloballyAsSingletonView) transform.getTransform();
+      PrePortableViewOverrideFactories.PrePortableCombineAsSingletonView<?, ?> combineTransform =
+          (PrePortableViewOverrideFactories.PrePortableCombineAsSingletonView)
+              transform.getTransform();
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
           new BatchViewOverrides.BatchViewAsSingleton(
               runner,
-              findCreatePCollectionView(transform),
+              findCreatePCollectionView(transform).getView(),
               (CombineFn) combineTransform.getCombineFn(),
               combineTransform.getFanout()));
     }
@@ -753,7 +778,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       PTransform<PCollection<InputT>, PCollectionView<ViewT>> rep =
           InstanceBuilder.ofType(replacement)
               .withArg(DataflowRunner.class, runner)
-              .withArg(CreatePCollectionView.class, findCreatePCollectionView(transform))
+              .withArg(PCollectionView.class, findCreatePCollectionView(transform).getView())
               .build();
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform), (PTransform) rep);
@@ -1333,7 +1358,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Ensure all outputs of all reads are consumed before potentially replacing any
     // Read PTransforms
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
-    pipeline.replaceAll(getOverrides(streaming));
+    List<PTransformOverride> overrides = getOverrides(streaming);
+    pipeline.replaceAll(overrides);
   }
 
   private boolean containsUnboundedPCollection(Pipeline p) {
