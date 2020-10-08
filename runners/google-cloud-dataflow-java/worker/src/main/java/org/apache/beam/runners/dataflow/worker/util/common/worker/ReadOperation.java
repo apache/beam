@@ -173,11 +173,18 @@ public class ReadOperation extends Operation {
         return;
       }
 
+      if (abortRead.get()) {
+        throw new InterruptedException("Read loop was aborted.");
+      }
+
       // Call reader.iterator() outside the lock, because it can take an
       // unbounded amount of time.
       NativeReader.NativeReaderIterator<?> iterator = reader.iterator();
       synchronized (initializationStateLock) {
         readerIterator = new SynchronizedReaderIterator<>(iterator, progress);
+        if (abortRead.get()) { // If the abort signal may have been delivered already.
+          readerIterator.asyncAbort();
+        }
       }
 
       Runnable setProgressFromIterator =
@@ -264,6 +271,11 @@ public class ReadOperation extends Operation {
    */
   public void abortReadLoop() {
     abortRead.set(true);
+    synchronized (initializationStateLock) {
+      if (readerIterator != null) {
+        readerIterator.asyncAbort();
+      }
+    }
   }
 
   /**
@@ -367,6 +379,12 @@ public class ReadOperation extends Operation {
     @Override
     public synchronized void abort() throws IOException {
       readerIterator.abort();
+    }
+
+    /** The asyncAbort() method does not need to be synchronized. */
+    @Override
+    public void asyncAbort() {
+      readerIterator.asyncAbort();
     }
 
     public synchronized void setProgressFromIterator() {
