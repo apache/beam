@@ -179,8 +179,9 @@ public class SdkHarnessClient implements AutoCloseable {
      * }
      * }</pre>
      *
-     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization or
-     * attempts to checkpoint by returning a {@link BeamFnApi.DelayedBundleApplication}.
+     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization if
+     * {@link BundleFinalizationHandler} is {@code null} or attempts to checkpoint by returning a
+     * {@link BeamFnApi.DelayedBundleApplication} .
      */
     public ActiveBundle newBundle(
         Map<String, RemoteOutputReceiver<?>> outputReceivers,
