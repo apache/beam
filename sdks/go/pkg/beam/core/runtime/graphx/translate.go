@@ -219,7 +219,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 	}
 
 	if err := m.updateIfCombineComposite(s, transform); err != nil {
-		return "", errors.Wrapf(err, "failed to add socpe tree: %v", s)
+		return "", errors.Wrapf(err, "failed to add scope tree: %v", s)
 	}
 
 	m.transforms[id] = transform
