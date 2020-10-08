@@ -19,21 +19,21 @@
 -->
 <svg width="1158px" height="468px" viewBox="0 0 1158 468" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <title>Pipeline applying windowing.</title>
-	<g id="windowing-pipeline-unbounded" transform="translate(1.000000, 0.000000)">
-	    <g id="Legend" transform="translate(0.000000, 413.000000)">
-	        <rect id="PTransform-symbol" fill="#3062A8" x="0" y="4" width="15" height="15"></rect>
-	        <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
-	            <tspan x="22" y="17">PTransform</tspan>
-	        </text>
-	        <text id="Aggregation" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
-	            <tspan x="162" y="17">Aggregating PTransform</tspan>
-	        </text>
-	        <text id="PCollection" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
-	            <tspan x="22" y="52">PCollection</tspan>
-	        </text>
-	        <circle id="PCollection-symbol" fill="#FFFFFF" stroke="#757575" stroke-width="2" cx="7.5" cy="46.5" r="7.5"></circle>
-	        <path d="M143.364341,5 L154,12.4782609 L143.364341,20 L133,12.5217391 L143.364341,5 Z" id="Rectangle" fill="#3062A8"></path>
-	    </g>
+    <g id="windowing-pipeline-unbounded" transform="translate(1.000000, 0.000000)">
+        <g id="Legend" transform="translate(0.000000, 413.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="4" width="15" height="15"></rect>
+            <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="22" y="17">PTransform</tspan>
+            </text>
+            <text id="Aggregation" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="162" y="17">Aggregating PTransform</tspan>
+            </text>
+            <text id="PCollection" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="22" y="52">PCollection</tspan>
+            </text>
+            <circle id="PCollection-symbol" fill="#FFFFFF" stroke="#757575" stroke-width="2" cx="7.5" cy="46.5" r="7.5"></circle>
+            <path d="M143.364341,5 L154,12.4782609 L143.364341,20 L133,12.5217391 L143.364341,5 Z" id="Rectangle" fill="#3062A8"></path>
+        </g>
         <path d="M270.05,290.765 L270.05,310.765" id="Directed-edge" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(270.050000, 300.765000) rotate(-90.000000) translate(-270.050000, -300.765000) "></path>
         <g id="PCollection" transform="translate(281.550000, 257.265000)">
             <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="42.5" cy="42.5" r="42.5"></circle>
@@ -57,9 +57,9 @@
         <g id="PCollection" transform="translate(1021.000000, 27.000000)">
             <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="35" cy="35" r="35"></circle>
             <text id="Rows-after-ParDo" font-family="Roboto-Regular, Roboto" font-size="15" font-weight="normal" fill="#000000">
-                <tspan x="17.1015625" y="21">Rows </tspan>
-                <tspan x="19.8554688" y="39">after </tspan>
-                <tspan x="14.9555664" y="57">ParDo</tspan>
+                <tspan x="20" y="21">Coll </tspan>
+                <tspan x="20" y="39">after </tspan>
+                <tspan x="17" y="57">ParDo</tspan>
             </text>
         </g>
         <g id="PTransform" transform="translate(804.500000, 0.000000)">
@@ -74,9 +74,9 @@
         </g>
         <g id="PCollection" transform="translate(696.500000, 31.000000)">
             <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
-            <text id="Table-rows" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
-                <tspan x="11.7070312" y="28">Table </tspan>
-                <tspan x="14.09375" y="47">rows</tspan>
+            <text id="KV-pairs" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="17" y="28">K/V</tspan>
+                <tspan x="16" y="47">pairs</tspan>
             </text>
         </g>
         <g id="PTransform" transform="translate(482.000000, 0.000000)">
@@ -92,9 +92,9 @@
         </g>
         <g id="PCollection" transform="translate(374.000000, 31.000000)">
             <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
-            <text id="Table-rows" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
-                <tspan x="11.2070312" y="28">Table </tspan>
-                <tspan x="13.59375" y="47">rows</tspan>
+            <text id="KV-pairs" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+                <tspan x="17" y="28">K/V</tspan>
+                <tspan x="16" y="47">pairs</tspan>
             </text>
         </g>
         <g id="PTransform" transform="translate(160.000000, 0.000000)">
@@ -105,16 +105,16 @@
             </text>
         </g>
         <path id="Directed-edge" d="M146,62 L113,62 L113,60 L146,60 L146,54 L160,61 L146,68 L146,62 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
-        <g id="Database" transform="translate(0.000000, 10.000000)">
-            <g id="Database-symbol" transform="translate(0.000000, 0.000000)">
+        <g id="Kafka" transform="translate(0.000000, 10.000000)">
+            <g id="Kafka-topic-symbol" transform="translate(0.000000, 0.000000)">
                 <ellipse id="Oval" fill="#E0E0E0" cx="56.5" cy="83.2631579" rx="56.5" ry="17.8421053"></ellipse>
                 <rect id="Rectangle" fill="#E0E0E0" x="0" y="17.8421053" width="113" height="65.4210526"></rect>
                 <ellipse id="Oval" fill="#EFEFEF" cx="56.5" cy="17.8421053" rx="56.5" ry="17.8421053"></ellipse>
             </g>
-            <text id="Database-table" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
-                <tspan x="18" y="61">Database </tspan>
-                <tspan x="18" y="82">table</tspan>
+            <text id="Kafka-topic" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+                <tspan x="34" y="61">Kafka </tspan>
+                <tspan x="34" y="82">topic</tspan>
             </text>
-	    </g>
-	</g>
+        </g>
+    </g>
 </svg>
