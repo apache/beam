@@ -27,6 +27,7 @@ from __future__ import division
 
 import base64
 import datetime
+import html
 import logging
 from datetime import timedelta
 
@@ -68,30 +69,46 @@ _CSS = """
             </style>"""
 _DIVE_SCRIPT_TEMPLATE = """
             try {{
-              document.querySelector("#{display_id}").data = {jsonstr};
+              document
+                .getElementById("{display_id}")
+                .contentDocument
+                .getElementById("{display_id}")
+                .data = {jsonstr};
             }} catch (e) {{
               // NOOP when the user has cleared the output from the notebook.
             }}"""
 _DIVE_HTML_TEMPLATE = _CSS + """
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
-            <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
-            <facets-dive sprite-image-width="{sprite_size}" sprite-image-height="{sprite_size}" id="{display_id}" height="600"></facets-dive>
-            <script>
-              document.querySelector("#{display_id}").data = {jsonstr};
-            </script>"""
+            <iframe id={display_id} style="border:none" width="100%" height="600px"
+              srcdoc='
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
+                <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
+                <facets-dive sprite-image-width="{sprite_size}" sprite-image-height="{sprite_size}" id="{display_id}" height="600"></facets-dive>
+                <script>
+                  document.getElementById("{display_id}").data = {jsonstr};
+                </script>
+              '>
+            </iframe>"""
 _OVERVIEW_SCRIPT_TEMPLATE = """
               try {{
-                document.querySelector("#{display_id}").protoInput = "{protostr}";
+                document
+                  .getElementById("{display_id}")
+                  .contentDocument
+                  .getElementById("{display_id}")
+                  .protoInput = "{protostr}";
               }} catch (e) {{
                 // NOOP when the user has cleared the output from the notebook.
               }}"""
 _OVERVIEW_HTML_TEMPLATE = _CSS + """
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
-            <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
-            <facets-overview id="{display_id}"></facets-overview>
-            <script>
-              document.querySelector("#{display_id}").protoInput = "{protostr}";
-            </script>"""
+            <iframe id={display_id} style="border:none" width="100%" height="600px"
+              srcdoc='
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
+                <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
+                <facets-overview id="{display_id}"></facets-overview>
+                <script>
+                  document.getElementById("{display_id}").protoInput = "{protostr}";
+                </script>
+              '>
+            </iframe>"""
 _DATATABLE_INITIALIZATION_CONFIG = """
             bAutoWidth: false,
             columns: {columns},
@@ -312,11 +329,11 @@ class PCollectionVisualization(object):
           display_id=update._dive_display_id, jsonstr=jsonstr)
       display_javascript(Javascript(script))
     else:
-      html = _DIVE_HTML_TEMPLATE.format(
+      html_str = _DIVE_HTML_TEMPLATE.format(
           display_id=self._dive_display_id,
-          jsonstr=jsonstr,
+          jsonstr=html.escape(jsonstr),
           sprite_size=sprite_size)
-      display(HTML(html))
+      display(HTML(html_str))
 
   def _display_overview(self, data, update=None):
     if (not data.empty and self._include_window_info and
@@ -335,9 +352,9 @@ class PCollectionVisualization(object):
           display_id=update._overview_display_id, protostr=protostr)
       display_javascript(Javascript(script))
     else:
-      html = _OVERVIEW_HTML_TEMPLATE.format(
+      html_str = _OVERVIEW_HTML_TEMPLATE.format(
           display_id=self._overview_display_id, protostr=protostr)
-      display(HTML(html))
+      display(HTML(html_str))
 
   def _display_dataframe(self, data, update=None):
     table_id = 'table_{}'.format(
@@ -371,9 +388,9 @@ class PCollectionVisualization(object):
       display_javascript(Javascript(script_in_jquery_with_datatable))
     else:
       if data.empty:
-        html = _NO_DATA_TEMPLATE.format(id=table_id)
+        html_str = _NO_DATA_TEMPLATE.format(id=table_id)
       else:
-        html = _DATAFRAME_PAGINATION_TEMPLATE.format(
+        html_str = _DATAFRAME_PAGINATION_TEMPLATE.format(
             table_id=table_id,
             script_in_jquery_with_datatable=script_in_jquery_with_datatable)
       if update:
@@ -384,10 +401,10 @@ class PCollectionVisualization(object):
                   ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(
                       customized_script=_NO_DATA_REMOVAL_SCRIPT.format(
                           id=table_id))))
-          display(HTML(html), display_id=update._df_display_id)
+          display(HTML(html_str), display_id=update._df_display_id)
           update._is_datatable_empty = False
       else:
-        display(HTML(html), display_id=self._df_display_id)
+        display(HTML(html_str), display_id=self._df_display_id)
         if not data.empty:
           self._is_datatable_empty = False
 
