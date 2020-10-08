@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +27,6 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -260,36 +257,19 @@ public class View {
        * Long#MIN_VALUE} key is used to store all known {@link OffsetRange ranges} allowing us to
        * compute such an ordering.
        */
-
-      // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
-          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
-              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
-        Coder<T> inputCoder = input.getCoder();
-        PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> materializationInput =
-            input
-                .apply("IndexElements", ParDo.of(new ToListViewDoFn<>()))
-                .setCoder(
-                    KvCoder.of(
-                        BigEndianLongCoder.of(),
-                        ValueOrMetadataCoder.create(inputCoder, OffsetRange.Coder.of())));
-        PCollectionView<List<T>> view =
-            PCollectionViews.listView(
-                materializationInput,
-                (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
-                input.getWindowingStrategy());
-        materializationInput.apply(CreatePCollectionView.of(view));
-        return view;
-      }
-
-      PCollection<KV<Void, T>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
       Coder<T> inputCoder = input.getCoder();
+      PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> materializationInput =
+          input
+              .apply("IndexElements", ParDo.of(new ToListViewDoFn<>()))
+              .setCoder(
+                  KvCoder.of(
+                      BigEndianLongCoder.of(),
+                      ValueOrMetadataCoder.create(inputCoder, OffsetRange.Coder.of())));
       PCollectionView<List<T>> view =
-          PCollectionViews.listViewUsingVoidKey(
+          PCollectionViews.listView(
               materializationInput,
               (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
-              materializationInput.getWindowingStrategy());
+              input.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -300,8 +280,8 @@ public class View {
    * range for each window seen. We use random offset ranges to minimize the chance that two ranges
    * overlap increasing the odds that each "key" represents a single index.
    */
-  private static class ToListViewDoFn<T>
-      extends DoFn<T, KV<Long, ValueOrMetadata<T, OffsetRange>>> {
+  @Internal
+  public static class ToListViewDoFn<T> extends DoFn<T, KV<Long, ValueOrMetadata<T, OffsetRange>>> {
     private Map<BoundedWindow, OffsetRange> windowsToOffsets = new HashMap<>();
 
     private OffsetRange generateRange(BoundedWindow window) {
@@ -350,29 +330,13 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
-          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
-              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
-        Coder<T> inputCoder = input.getCoder();
-        PCollectionView<Iterable<T>> view =
-            PCollectionViews.iterableView(
-                input,
-                (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
-                input.getWindowingStrategy());
-        input.apply(CreatePCollectionView.of(view));
-        return view;
-      }
-
-      PCollection<KV<Void, T>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
       Coder<T> inputCoder = input.getCoder();
       PCollectionView<Iterable<T>> view =
-          PCollectionViews.iterableViewUsingVoidKey(
-              materializationInput,
+          PCollectionViews.iterableView(
+              input,
               (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
-              materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
+              input.getWindowingStrategy());
+      input.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -508,35 +472,16 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
-          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
-              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
-        KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
-        Coder<K> keyCoder = kvCoder.getKeyCoder();
-        Coder<V> valueCoder = kvCoder.getValueCoder();
-        PCollectionView<Map<K, Iterable<V>>> view =
-            PCollectionViews.multimapView(
-                input,
-                (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
-                (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
-                input.getWindowingStrategy());
-        input.apply(CreatePCollectionView.of(view));
-        return view;
-      }
-
       KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
       Coder<K> keyCoder = kvCoder.getKeyCoder();
       Coder<V> valueCoder = kvCoder.getValueCoder();
-      PCollection<KV<Void, KV<K, V>>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<Map<K, Iterable<V>>> view =
-          PCollectionViews.multimapViewUsingVoidKey(
-              materializationInput,
+          PCollectionViews.multimapView(
+              input,
               (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
               (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
-              materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
+              input.getWindowingStrategy());
+      input.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -567,37 +512,17 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      // TODO(BEAM-10097): Make this the default expansion for all portable runners.
-      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
-          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
-              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
-        KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
-        Coder<K> keyCoder = kvCoder.getKeyCoder();
-        Coder<V> valueCoder = kvCoder.getValueCoder();
-
-        PCollectionView<Map<K, V>> view =
-            PCollectionViews.mapView(
-                input,
-                (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
-                (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
-                input.getWindowingStrategy());
-        input.apply(CreatePCollectionView.of(view));
-        return view;
-      }
-
       KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
       Coder<K> keyCoder = kvCoder.getKeyCoder();
       Coder<V> valueCoder = kvCoder.getValueCoder();
 
-      PCollection<KV<Void, KV<K, V>>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<Map<K, V>> view =
-          PCollectionViews.mapViewUsingVoidKey(
-              materializationInput,
+          PCollectionViews.mapView(
+              input,
               (TypeDescriptorSupplier<K>) keyCoder::getEncodedTypeDescriptor,
               (TypeDescriptorSupplier<V>) valueCoder::getEncodedTypeDescriptor,
-              materializationInput.getWindowingStrategy());
-      materializationInput.apply(CreatePCollectionView.of(view));
+              input.getWindowingStrategy());
+      input.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -606,34 +531,11 @@ public class View {
   // Internal details below
 
   /**
-   * A {@link PTransform} which converts all values into {@link KV}s with {@link Void} keys.
-   *
-   * <p>TODO(BEAM-10097): Replace this materialization with specializations that optimize the
-   * various SDK requested views.
-   */
-  @Internal
-  public static class VoidKeyToMultimapMaterialization<T>
-      extends PTransform<PCollection<T>, PCollection<KV<Void, T>>> {
-
-    private static class VoidKeyToMultimapMaterializationDoFn<T> extends DoFn<T, KV<Void, T>> {
-      @ProcessElement
-      public void processElement(@Element T element, OutputReceiver<KV<Void, T>> r) {
-        r.output(KV.of((Void) null, element));
-      }
-    }
-
-    @Override
-    public PCollection<KV<Void, T>> expand(PCollection<T> input) {
-      PCollection output = input.apply(ParDo.of(new VoidKeyToMultimapMaterializationDoFn<>()));
-      output.setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
-      return output;
-    }
-  }
-
-  /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * <p>Creates a primitive {@link PCollectionView}.
+   * <p>Placeholder transform for runners to have a hook to materialize a {@link PCollection} as a
+   * side input. The metadata included in the {@link PCollectionView} is how the {@link PCollection}
+   * will be read as a side input.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
