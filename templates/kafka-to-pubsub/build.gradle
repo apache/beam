@@ -21,13 +21,14 @@ repositories {
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
     compile library.java.kafka_clients
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":sdks:java:extensions:google-cloud-platform-core")
     compile project(":sdks:java:io:google-cloud-platform")
     compile project(":sdks:java:io:kafka")
     compile project(":runners:google-cloud-dataflow-java")
+    runtime project(path: ":runners:direct-java", configuration: "shadow")
+    testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'

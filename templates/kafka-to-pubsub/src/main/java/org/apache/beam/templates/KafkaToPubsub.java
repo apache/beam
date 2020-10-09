@@ -29,7 +29,11 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -61,9 +65,7 @@ public class KafkaToPubsub {
    * IMAGE_NAME=my-image-name
    * TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
    * BASE_CONTAINER_IMAGE=my-base-container-image
-   * BASE_CONTAINER_IMAGE_VERSION=my-base-container-image-version
    * TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
-   * TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
    *
    * # Create bucket in the cloud storage
    * gsutil mb gs://${BUCKET_NAME}
@@ -80,7 +82,7 @@ public class KafkaToPubsub {
    *
    * # Build the flex template
    * gcloud dataflow flex-template build ${TEMPLATE_PATH} \
-   *       --image-gcr-path "{$TARGET_GCR_IMAGE}" \
+   *       --image-gcr-path "${TARGET_GCR_IMAGE}" \
    *       --sdk-language "JAVA" \
    *       --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
    *       --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
@@ -126,6 +128,17 @@ public class KafkaToPubsub {
     run(options);
   }
 
+  public static PTransform<PBegin, PCollection<KV<String, String>>> readFromKafka(String bootstrapServers, List<String> topicsList) {
+    return KafkaIO.<String, String>read()
+            .withBootstrapServers(bootstrapServers)
+            .withTopics(topicsList)
+            .withKeyDeserializerAndCoder(
+                    StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+            .withValueDeserializerAndCoder(
+                    StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+            .withoutMetadata();
+  }
+
   /**
    * Runs a pipeline which reads message from Kafka and writes it to GCS.
    *
@@ -164,14 +177,7 @@ public class KafkaToPubsub {
     pipeline
         .apply(
             "ReadFromKafka",
-            KafkaIO.<String, String>read()
-                .withBootstrapServers(options.getBootstrapServers())
-                .withTopics(topicsList)
-                .withKeyDeserializerAndCoder(
-                    StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
-                .withValueDeserializerAndCoder(
-                    StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
-                .withoutMetadata())
+            readFromKafka(options.getBootstrapServers(), topicsList))
         .apply(Values.create())
         .apply("Write PubSub Events", PubsubIO.writeStrings().to(options.getOutputTopic()));
 

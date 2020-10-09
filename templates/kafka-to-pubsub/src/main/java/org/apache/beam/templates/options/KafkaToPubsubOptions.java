@@ -28,11 +28,11 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   void setBootstrapServers(String value);
 
-  @Description("Kafka topic to read the input from")
+  @Description("Kafka topics to read the input from")
   @Validation.Required
   String getInputTopics();
 
-  void setInputTopic(String value);
+  void setInputTopics(String value);
 
   @Description(
       "The Cloud Pub/Sub topic to publish to. "

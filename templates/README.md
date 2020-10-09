@@ -89,9 +89,7 @@ gsutil mb gs://${BUCKET_NAME}
 IMAGE_NAME=my-image-name
 TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
 BASE_CONTAINER_IMAGE=my-base-container-image
-BASE_CONTAINER_IMAGE_VERSION=my-base-container-image-version
 TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
-TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
 ```
 
 ### Creating the Dataflow Flex Template
@@ -113,7 +111,7 @@ Build the Dataflow Flex Template:
 
 ```
 gcloud dataflow flex-template build ${TEMPLATE_PATH} \
-       --image-gcr-path {$TARGET_GCR_IMAGE} \
+       --image-gcr-path ${TARGET_GCR_IMAGE} \
        --sdk-language "JAVA" \
        --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
        --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \

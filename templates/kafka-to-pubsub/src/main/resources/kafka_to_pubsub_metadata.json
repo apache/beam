@@ -5,14 +5,14 @@
     {
       "name": "bootstrapServers",
       "label": "Kafka Bootstrap Servers",
-      "helpText": "Comma separated kafka bootstrap servers in format ip:port",
+      "helpText": "Comma separated Kafka bootstrap servers in format ip:port",
       "regexes": [],
       "paramType": "TEXT"
     },
     {
-      "name": "inputTopic",
-      "label": "Kafka input topic",
-      "helpText": "Kafka topic to read data",
+      "name": "inputTopics",
+      "label": "Kafka input topics",
+      "helpText": "Comma separated Kafka topics to read data",
       "regexes": [],
       "paramType": "TEXT"
     },
