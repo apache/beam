@@ -99,8 +99,7 @@ class DataflowMetrics(MetricResults):
     if not self._job_graph:
       raise ValueError(
           'Could not translate the internal step name %r since job graph is '
-          'not available.'
-          % internal_name)
+          'not available.' % internal_name)
     user_step_name = None
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners.dataflow.internal import apiclient
