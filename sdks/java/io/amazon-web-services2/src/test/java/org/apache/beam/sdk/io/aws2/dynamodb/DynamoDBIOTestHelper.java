@@ -29,7 +29,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Assert;
 import org.junit.Rule;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -57,8 +56,7 @@ class DynamoDBIOTestHelper implements Serializable {
 
   @Rule
   public static GenericContainer dynamoContainer =
-      new GenericContainer<>(DockerImageName.parse("amazon/dynamodb-local:latest"))
-          .withExposedPorts(8000);
+      new GenericContainer<>("amazon/dynamodb-local:latest").withExposedPorts(8000);
 
   private static DynamoDbClient dynamoDBClient;
 
