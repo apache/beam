@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import collections
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -32,12 +33,18 @@ from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import partitionings
+from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
   from apache_beam.pvalue import PCollection
 
 T = TypeVar('T')
+
+TARGET_PARTITION_SIZE = 1 << 23  # 8M
+MAX_PARTITIONS = 1000
+DEFAULT_PARTITIONS = 100
+MIN_PARTITIONS = 10
 
 
 class DataframeTransform(transforms.PTransform):
@@ -166,16 +173,41 @@ class _DataframeExpressionsTransform(transforms.PTransform):
           partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
 
         elif self.stage.partitioning != partitionings.Nothing():
+          # Partitioning required for these operations.
+          # Compute the number of partitions to use for the inputs based on
+          # the estimated size of the inputs.
+          if self.stage.partitioning == partitionings.Singleton():
+            # Always a single partition, don't waste time computing sizes.
+            num_partitions = 1
+          else:
+            # Estimate the sizes from the outputs of a *previous* stage such
+            # that using these estimates will not cause a fusion break.
+            input_sizes = [
+                estimate_size(input, same_stage_ok=False)
+                for input in tabular_inputs
+            ]
+            if None in input_sizes:
+              # We were unable to (cheaply) compute the size of one or more
+              # inputs.
+              num_partitions = DEFAULT_PARTITIONS
+            else:
+              num_partitions = beam.pvalue.AsSingleton(
+                  input_sizes
+                  | 'FlattenSizes' >> beam.Flatten()
+                  | 'SumSizes' >> beam.CombineGlobally(sum)
+                  | 'NumPartitions' >> beam.Map(
+                      lambda size: max(
+                          MIN_PARTITIONS,
+                          min(MAX_PARTITIONS, size // TARGET_PARTITION_SIZE))))
+
           # Arrange such that partitioned_pcoll is properly partitioned.
           main_pcolls = {
-              expr._id: pcolls[expr._id] | 'Flat%s' % expr._id >> beam.FlatMap(
-                  self.stage.partitioning.partition_fn)
+              expr._id: pcolls[expr._id] | 'Partition_%s_%s' %
+              (self.stage.partitioning, expr._id) >> beam.FlatMap(
+                  self.stage.partitioning.partition_fn, num_partitions)
               for expr in tabular_inputs
           } | beam.CoGroupByKey()
-          partitioned_pcoll = main_pcolls | beam.MapTuple(
-              lambda _,
-              inputs: {tag: pd.concat(vs)
-                       for tag, vs in inputs.items()})
+          partitioned_pcoll = main_pcolls | beam.ParDo(_ReBatch())
 
         else:
           # Already partitioned, or no partitioning needed.
@@ -201,6 +233,9 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
     class Stage(object):
       """Used to build up a set of operations that can be fused together.
+
+      Note that these Dataframe "stages" contain a CoGBK and hence are often
+      split across multiple "executable" stages.
       """
       def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
@@ -321,17 +356,100 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       else:
         return stage_to_result(expr_to_stage(expr))[expr._id]
 
+    @memoize
+    def estimate_size(expr, same_stage_ok):
+      # Returns a pcollection of ints whose sum is the estimated size of the
+      # given expression.
+      pipeline = next(iter(inputs.values())).pipeline
+      label = 'Size[%s, %s]' % (expr._id, same_stage_ok)
+      if is_scalar(expr):
+        return pipeline | label >> beam.Create([0])
+      elif same_stage_ok:
+        return expr_to_pcoll(expr) | label >> beam.Map(_total_memory_usage)
+      elif expr in inputs:
+        return None
+      else:
+        # This is the stage to avoid.
+        expr_stage = expr_to_stage(expr)
+        # If the stage doesn't start with a shuffle, it's not safe to fuse
+        # the computation into its parent either.
+        has_shuffle = expr_stage.partitioning != partitionings.Nothing()
+        # We assume the size of an expression is the sum of the size of its
+        # inputs, which may be off by quite a bit, but the goal is to get
+        # within an order of magnitude or two.
+        arg_sizes = []
+        for arg in expr.args():
+          if is_scalar(arg):
+            continue
+          elif arg in inputs:
+            return None
+          arg_size = estimate_size(
+              arg,
+              same_stage_ok=has_shuffle and expr_to_stage(arg) != expr_stage)
+          if arg_size is None:
+            return None
+          arg_sizes.append(arg_size)
+        return arg_sizes | label >> beam.Flatten(pipeline=pipeline)
+
     # Now we can compute and return the result.
     return {k: expr_to_pcoll(expr) for k, expr in outputs.items()}
+
+
+def _total_memory_usage(frame):
+  assert isinstance(frame, (pd.core.generic.NDFrame, pd.Index))
+  try:
+    size = frame.memory_usage()
+    if not isinstance(size, int):
+      size = size.sum()
+    return size
+  except AttributeError:
+    # Don't know, assume it's really big.
+    float('inf')
+
+
+class _ReBatch(beam.DoFn):
+  """Groups all the parts from various workers into the same dataframe.
+
+  Also groups across partitions, up to a given data size, to recover some
+  efficiency in the face of over-partitioning.
+  """
+  def __init__(self, target_size=TARGET_PARTITION_SIZE):
+    self._target_size = target_size
+
+  def start_bundle(self):
+    self._parts = collections.defaultdict(lambda: collections.defaultdict(list))
+    self._running_size = 0
+
+  def process(
+      self,
+      element,
+      window=beam.DoFn.WindowParam,
+      timestamp=beam.DoFn.TimestampParam):
+    _, tagged_parts = element
+    for tag, parts in tagged_parts.items():
+      for part in parts:
+        self._running_size += _total_memory_usage(part)
+      self._parts[window, timestamp][tag].extend(parts)
+    if self._running_size >= self._target_size:
+      self.finish_bundle()
+
+  def finish_bundle(self):
+    for (window, timestamp), tagged_parts in self._parts.items():
+      yield windowed_value.WindowedValue(
+          {tag: pd.concat(parts)
+           for tag, parts in tagged_parts.items()},
+          timestamp, (window, ))
+    self.start_bundle()
 
 
 def memoize(f):
   cache = {}
 
-  def wrapper(*args):
-    if args not in cache:
-      cache[args] = f(*args)
-    return cache[args]
+  def wrapper(*args, **kwargs):
+    key = args, tuple(sorted(kwargs.items()))
+    if key not in cache:
+      cache[key] = f(*args, **kwargs)
+    return cache[key]
 
   return wrapper
 
