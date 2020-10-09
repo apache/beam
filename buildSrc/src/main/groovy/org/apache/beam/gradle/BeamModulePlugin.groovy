@@ -383,6 +383,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // These versions are defined here because they represent
     // a dependency version which should match across multiple
     // Maven artifacts.
+    def activemq_version = "5.14.5"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
     def cassandra_driver_version = "3.8.0"
@@ -427,13 +428,13 @@ class BeamModulePlugin implements Plugin<Project> {
     // }
     project.ext.library = [
       java : [
-        activemq_amqp                               : "org.apache.activemq:activemq-amqp:5.13.1",
-        activemq_broker                             : "org.apache.activemq:activemq-broker:5.13.1",
-        activemq_client                             : "org.apache.activemq:activemq-client:5.13.1",
-        activemq_jaas                               : "org.apache.activemq:activemq-jaas:5.13.1",
-        activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:5.13.1",
-        activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:5.13.1",
-        activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:5.13.1",
+        activemq_amqp                               : "org.apache.activemq:activemq-amqp:$activemq_version",
+        activemq_broker                             : "org.apache.activemq:activemq-broker:$activemq_version",
+        activemq_client                             : "org.apache.activemq:activemq-client:$activemq_version",
+        activemq_jaas                               : "org.apache.activemq:activemq-jaas:$activemq_version",
+        activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
+        activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
+        activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
         antlr                                       : "org.antlr:antlr4:4.7",
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
