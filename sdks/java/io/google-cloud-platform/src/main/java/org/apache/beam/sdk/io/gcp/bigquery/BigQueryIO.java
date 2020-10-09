@@ -2632,7 +2632,7 @@ public class BigQueryIO {
                 	new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
                 .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
 
-        RowWriterFactory<TableRow, DestinationT> rowWriterFactory =
+        RowWriterFactory<T, DestinationT> rowWriterFactory =
             RowWriterFactory.tableRows(formatFunction, failsafeFormatFunction);
 
         return continueExpandTyped(
