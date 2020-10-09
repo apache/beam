@@ -17,6 +17,9 @@
  */
 package org.apache.beam.templates;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.Rule;
@@ -25,29 +28,22 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 /** Test of KafkaToPubsub. */
 @RunWith(JUnit4.class)
 public class KafkaToPubsubTest {
 
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-    @Test
-    public void testKafkaReadingFailsWrongBootstrapServer() {
-        final String bootstrapServers = "some-server:9092";
-        final List<String> topicsList = new ArrayList<>(Collections.singletonList("TEST-TOPIC"));
+  @Test
+  public void testKafkaReadingFailsWrongBootstrapServer() {
+    final String bootstrapServers = "some-server:9092";
+    final List<String> topicsList = new ArrayList<>(Collections.singletonList("TEST-TOPIC"));
 
-        pipeline.apply(
-                KafkaToPubsub.readFromKafka(bootstrapServers, topicsList));
-        thrown.expect(Pipeline.PipelineExecutionException.class);
-        thrown.expectMessage("Failed to construct kafka consumer");
-        pipeline.run();
-    }
+    pipeline.apply(KafkaToPubsub.readFromKafka(bootstrapServers, topicsList));
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage("Failed to construct kafka consumer");
+    pipeline.run();
+  }
 }

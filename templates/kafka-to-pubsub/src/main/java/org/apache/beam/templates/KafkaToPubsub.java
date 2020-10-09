@@ -128,15 +128,16 @@ public class KafkaToPubsub {
     run(options);
   }
 
-  public static PTransform<PBegin, PCollection<KV<String, String>>> readFromKafka(String bootstrapServers, List<String> topicsList) {
+  public static PTransform<PBegin, PCollection<KV<String, String>>> readFromKafka(
+      String bootstrapServers, List<String> topicsList) {
     return KafkaIO.<String, String>read()
-            .withBootstrapServers(bootstrapServers)
-            .withTopics(topicsList)
-            .withKeyDeserializerAndCoder(
-                    StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
-            .withValueDeserializerAndCoder(
-                    StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
-            .withoutMetadata();
+        .withBootstrapServers(bootstrapServers)
+        .withTopics(topicsList)
+        .withKeyDeserializerAndCoder(
+            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+        .withValueDeserializerAndCoder(
+            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+        .withoutMetadata();
   }
 
   /**
@@ -175,9 +176,7 @@ public class KafkaToPubsub {
      *  3) Write successful records to PubSub
      */
     pipeline
-        .apply(
-            "ReadFromKafka",
-            readFromKafka(options.getBootstrapServers(), topicsList))
+        .apply("ReadFromKafka", readFromKafka(options.getBootstrapServers(), topicsList))
         .apply(Values.create())
         .apply("Write PubSub Events", PubsubIO.writeStrings().to(options.getOutputTopic()));
 
