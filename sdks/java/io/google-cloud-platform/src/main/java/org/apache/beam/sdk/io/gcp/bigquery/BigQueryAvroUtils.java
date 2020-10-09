@@ -323,7 +323,7 @@ class BigQueryAvroUtils {
         }
       case "INTEGER":
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
-        return ((Long) v).toString();
+        return (Long) v;
       case "FLOAT":
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
