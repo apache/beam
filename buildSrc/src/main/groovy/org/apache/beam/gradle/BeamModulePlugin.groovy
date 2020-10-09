@@ -22,8 +22,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.util.concurrent.atomic.AtomicInteger
-import org.gradle.api.attributes.Attribute
-import org.gradle.api.attributes.AttributeContainer
+import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -1256,16 +1255,14 @@ class BeamModulePlugin implements Plugin<Project> {
 
                 def dependenciesNode = root.appendNode('dependencies')
 
-                // BOMs, declared with 'platform', appear in <dependencyManagement> section
+                // BOMs, declared with 'platform' or 'enforced-platform', appear in <dependencyManagement> section
                 def boms = []
 
-                // This value is from PlatformSupport.COMPONENT_CATEGORY (Gradle's internal API)
-                def componentCategory = Attribute.of('org.gradle.component.category', java.lang.String.class);
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
-                    AttributeContainer attributes = it.getAttributes()
-                    if (attributes.getAttribute(componentCategory) == 'platform') {
-                      boms.add(it);
+                    String category = it.getAttributes().getAttribute(Category.CATEGORY_ATTRIBUTE)
+                    if (Category.ENFORCED_PLATFORM == category || Category.REGULAR_PLATFORM == category) {
+                      boms.add(it)
                       return
                     }
 
