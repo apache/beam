@@ -2576,8 +2576,8 @@ public class BigQueryIO {
       }
 
       Method method = resolveMethod(input);
+      RowWriterFactory<T, DestinationT> rowWriterFactory;
       if (optimizeWrites) {
-        RowWriterFactory<T, DestinationT> rowWriterFactory;
         if (avroRowWriterFactory != null) {
           checkArgument(
               formatFunction == null,
@@ -2602,20 +2602,6 @@ public class BigQueryIO {
                   + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                   + "A format function is not required if Beam schemas are used.");
         }
-
-        PCollection<KV<DestinationT, T>> rowsWithDestination =
-            input
-                .apply(
-                    "PrepareWrite",
-                    new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
-                .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
-        return continueExpandTyped(
-            rowsWithDestination,
-            input.getCoder(),
-            destinationCoder,
-            dynamicDestinations,
-            rowWriterFactory,
-            method);
       } else {
         checkArgument(avroRowWriterFactory == null);
         checkArgument(
@@ -2625,24 +2611,22 @@ public class BigQueryIO {
                 + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                 + "A format function is not required if Beam schemas are used.");
 
-        PCollection<KV<DestinationT, T>> rowsWithDestination =
-            input
-                .apply(
-                	"PrepareWrite",
-                	new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
-                .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
-
         RowWriterFactory<T, DestinationT> rowWriterFactory =
             RowWriterFactory.tableRows(formatFunction, failsafeFormatFunction);
-
-        return continueExpandTyped(
-            rowsWithDestination,
-            input.getCoder(),
-            destinationCoder,
-            dynamicDestinations,
-            rowWriterFactory,
-            method);
       }
+      PCollection<KV<DestinationT, T>> rowsWithDestination =
+          input
+              .apply(
+                  "PrepareWrite",
+                  new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
+              .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
+      return continueExpandTyped(
+          rowsWithDestination,
+          input.getCoder(),
+          destinationCoder,
+          dynamicDestinations,
+          rowWriterFactory,
+          method);
     }
 
     private <DestinationT, ElementT> WriteResult continueExpandTyped(
