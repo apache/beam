@@ -40,21 +40,33 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
       String tempFilePrefix, DestinationT destination) throws Exception;
 
   static <ElementT, DestinationT> RowWriterFactory<ElementT, DestinationT> tableRows(
-      SerializableFunction<ElementT, TableRow> toRow) {
-    return new TableRowWriterFactory<ElementT, DestinationT>(toRow);
+      SerializableFunction<ElementT, TableRow> toRow,
+      SerializableFunction<ElementT, TableRow> toFailsafeRow) {
+    return new TableRowWriterFactory<ElementT, DestinationT>(toRow, toFailsafeRow);
   }
 
   static final class TableRowWriterFactory<ElementT, DestinationT>
       extends RowWriterFactory<ElementT, DestinationT> {
 
     private final SerializableFunction<ElementT, TableRow> toRow;
+    private final SerializableFunction<ElementT, TableRow> toFailsafeRow;
 
-    private TableRowWriterFactory(SerializableFunction<ElementT, TableRow> toRow) {
+    private TableRowWriterFactory(
+        SerializableFunction<ElementT, TableRow> toRow,
+        SerializableFunction<ElementT, TableRow> toFailsafeRow) {
       this.toRow = toRow;
+      this.toFailsafeRow = toFailsafeRow; // TODO yummy
     }
 
     public SerializableFunction<ElementT, TableRow> getToRowFn() {
       return toRow;
+    }
+
+    public SerializableFunction<ElementT, TableRow> getToFailsafeRowFn() {
+      if (toFailsafeRow == null) {
+        return toRow;
+      }
+      return toFailsafeRow;
     }
 
     @Override

@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
@@ -34,14 +35,18 @@ public interface ErrorContainer<T> extends Serializable {
       List<ValueInSingleWindow<T>> failedInserts,
       TableDataInsertAllResponse.InsertErrors error,
       TableReference ref,
-      ValueInSingleWindow<TableRow> tableRow);
+      FailsafeValueInSingleWindow<TableRow, TableRow> tableRow);
 
   ErrorContainer<TableRow> TABLE_ROW_ERROR_CONTAINER =
-      (failedInserts, error, ref, tableRow) -> failedInserts.add(tableRow);
+      (failedInserts, error, ref, tableRow) -> failedInserts.add(
+          ValueInSingleWindow.of(
+              tableRow.getFailsafeValue(), tableRow.getTimestamp(),
+              tableRow.getWindow(), tableRow.getPane()));
 
   ErrorContainer<BigQueryInsertError> BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER =
       (failedInserts, error, ref, tableRow) -> {
-        BigQueryInsertError err = new BigQueryInsertError(tableRow.getValue(), error, ref);
+        BigQueryInsertError err =
+            new BigQueryInsertError(tableRow.getFailsafeValue(), error, ref);
         failedInserts.add(
             ValueInSingleWindow.of(
                 err, tableRow.getTimestamp(), tableRow.getWindow(), tableRow.getPane()));

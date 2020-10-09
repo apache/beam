@@ -42,13 +42,15 @@ public class StreamingInserts<DestinationT, ElementT>
   private final String kmsKey;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
+  private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
 
   /** Constructor. */
   public StreamingInserts(
       CreateDisposition createDisposition,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       Coder<ElementT> elementCoder,
-      SerializableFunction<ElementT, TableRow> toTableRow) {
+      SerializableFunction<ElementT, TableRow> toTableRow,
+      SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
     this(
         createDisposition,
         dynamicDestinations,
@@ -60,6 +62,7 @@ public class StreamingInserts<DestinationT, ElementT>
         false,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         null);
   }
 
@@ -75,6 +78,7 @@ public class StreamingInserts<DestinationT, ElementT>
       boolean ignoreInsertIds,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
+      SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
       String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
@@ -86,6 +90,7 @@ public class StreamingInserts<DestinationT, ElementT>
     this.ignoreInsertIds = ignoreInsertIds;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
+    this.toFailsafeTableRow = toFailsafeTableRow;
     this.kmsKey = kmsKey;
   }
 
@@ -103,6 +108,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -119,6 +125,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -134,6 +141,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -149,6 +157,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -164,6 +173,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -179,6 +189,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -194,6 +205,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -215,6 +227,7 @@ public class StreamingInserts<DestinationT, ElementT>
             .withIgnoreUnknownValues(ignoreUnknownValues)
             .withIgnoreInsertIds(ignoreInsertIds)
             .withElementCoder(elementCoder)
-            .withToTableRow(toTableRow));
+            .withToTableRow(toTableRow)
+            .withToFailsafeTableRow(toFailsafeTableRow));
   }
 }

@@ -92,6 +92,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -752,7 +753,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @VisibleForTesting
     <T> long insertAll(
         TableReference ref,
-        List<ValueInSingleWindow<TableRow>> rowList,
+        List<ValueInSingleWindow<TableRow, TableRow>> rowList, // TODO(dhercher): should second TableRow be T?
         @Nullable List<String> insertIdList,
         BackOff backoff,
         FluentBackoff rateLimitBackoffFactory,
@@ -781,13 +782,13 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
-      List<ValueInSingleWindow<TableRow>> rowsToPublish = rowList;
+      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowsToPublish = rowList;
       List<String> idsToPublish = null;
       if (!ignoreInsertIds) {
         idsToPublish = insertIdList;
       }
       while (true) {
-        List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
 
         int strideIndex = 0;
@@ -944,7 +945,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public <T> long insertAll(
         TableReference ref,
-        List<ValueInSingleWindow<TableRow>> rowList,
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,

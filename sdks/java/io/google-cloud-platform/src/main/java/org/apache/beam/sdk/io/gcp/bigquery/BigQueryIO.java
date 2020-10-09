@@ -1723,6 +1723,8 @@ public class BigQueryIO {
 
     abstract @Nullable SerializableFunction<T, TableRow> getFormatFunction();
 
+    abstract @Nullable SerializableFunction<T, TableRow> getFailsafeFormatFunction();
+
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
     abstract @Nullable SerializableFunction<TableSchema, org.apache.avro.Schema>
@@ -1797,6 +1799,8 @@ public class BigQueryIO {
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
 
       abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
+
+      abstract Builder<T> setFailsafeFormatFunction(SerializableFunction<T, TableRow> formatFunction);
 
       abstract Builder<T> setAvroRowWriterFactory(
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
@@ -2001,6 +2005,11 @@ public class BigQueryIO {
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
+
+    /** Formats the user's type into a {@link TableRow} to be written to an error collector. */
+     public Write<T> withFailsafeFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
+       return toBuilder().setFailsafeFormatFunction(formatFunction).build();
+     }
 
     /**
      * Formats the user's type into a {@link GenericRecord} to be written to BigQuery. The
@@ -2521,6 +2530,7 @@ public class BigQueryIO {
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
       boolean optimizeWrites = getOptimizeWrites();
       SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
+      SerializableFunction<T, TableRow> failsafeFormatFunction = getFailsafeFormatFunction();
       RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT> avroRowWriterFactory =
           (RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT>) getAvroRowWriterFactory();
 
@@ -2584,7 +2594,7 @@ public class BigQueryIO {
           }
           rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
-          rowWriterFactory = RowWriterFactory.tableRows(formatFunction);
+          rowWriterFactory = RowWriterFactory.tableRows(formatFunction, failsafeFormatFunction);
         } else {
           throw new IllegalArgumentException(
               "A function must be provided to convert the input type into a TableRow or "
@@ -2615,17 +2625,19 @@ public class BigQueryIO {
                 + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                 + "A format function is not required if Beam schemas are used.");
 
-        PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
+        PCollection<KV<DestinationT, T>> rowsWithDestination =
             input
-                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, formatFunction))
-                .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
+                .apply(
+                	"PrepareWrite",
+                	new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
+                .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
 
         RowWriterFactory<TableRow, DestinationT> rowWriterFactory =
-            RowWriterFactory.tableRows(SerializableFunctions.identity());
+            RowWriterFactory.tableRows(formatFunction, failsafeFormatFunction);
 
         return continueExpandTyped(
             rowsWithDestination,
-            TableRowJsonCoder.of(),
+            input.getCoder(),
             destinationCoder,
             dynamicDestinations,
             rowWriterFactory,
@@ -2659,7 +2671,8 @@ public class BigQueryIO {
                     getCreateDisposition(),
                     dynamicDestinations,
                     elementCoder,
-                    tableRowWriterFactory.getToRowFn())
+                    tableRowWriterFactory.getToRowFn(),
+                    tableRowWriterFactory.getToFailsafeRowFn())
                 .withInsertRetryPolicy(retryPolicy)
                 .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())
