@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 
 import inspect
+import functools
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -71,6 +72,9 @@ def to_dataframe(
     pcoll = pcoll | label >> schemas.BatchRowsAsDataFrame(proxy=proxy)
   return frame_base.DeferredFrame.wrap(
       expressions.PlaceholderExpression(proxy, pcoll))
+
+
+TO_PCOLLECTION_CACHE = {}
 
 
 # TODO: Or should this be called from_dataframe?
@@ -128,11 +132,27 @@ def to_pcollection(
 
   placeholders = frozenset.union(
       frozenset(), *[df._expr.placeholders() for df in dataframes])
-  results = {p: extract_input(p)
-             for p in placeholders
-             } | label >> transforms._DataframeExpressionsTransform(
-                 dict((ix, df._expr) for ix, df in enumerate(
-                     dataframes)))  # type: Dict[Any, pvalue.PCollection]
+
+  # Exclude any dataframes that have already been converted to PCollections.
+  # We only want to convert each DF expression once, then re-use.
+  new_dataframes = [
+      df for df in dataframes if df._expr not in TO_PCOLLECTION_CACHE
+  ]
+  new_results = {p: extract_input(p)
+                 for p in placeholders
+                 } | label >> transforms._DataframeExpressionsTransform(
+                     dict(
+                         (ix, df._expr) for ix, df in enumerate(new_dataframes))
+                 )  # type: Dict[Any, pvalue.PCollection]
+
+  TO_PCOLLECTION_CACHE.update(
+      {new_dataframes[ix]._expr: pc
+       for ix, pc in new_results.items()})
+
+  raw_results = {
+      ix: TO_PCOLLECTION_CACHE[df._expr]
+      for ix, df in enumerate(dataframes)
+  }
 
   if yield_elements == "schemas":
 
@@ -140,13 +160,14 @@ def to_pcollection(
       if isinstance(value, frame_base._DeferredScalar):
         return pc
       else:
-        return pc | "Unbatch '%s'" % value._expr._id >> schemas.UnbatchPandas(
-            value._expr.proxy(), include_indexes=include_indexes)
+        return _make_unbatched_pcoll(pc, value._expr, include_indexes)
 
     results = {
-        key: maybe_unbatch(pc, dataframes[key])
-        for (key, pc) in results.items()
+        ix: maybe_unbatch(pc, dataframes[ix])
+        for (ix, pc) in raw_results.items()
     }
+  else:
+    results = raw_results
 
   if len(results) == 1 and not always_return_tuple:
     return results[0]
@@ -167,3 +188,11 @@ def _var_name(obj, level):
     if obj is value:
       return key
   return '...'
+
+memoize = functools.lru_cache(maxsize=None)
+
+
+@memoize
+def _make_unbatched_pcoll(pc, expr, include_indexes):
+  return pc | "Unbatch '%s'" % expr._id >> schemas.UnbatchPandas(
+      expr.proxy(), include_indexes=include_indexes)
