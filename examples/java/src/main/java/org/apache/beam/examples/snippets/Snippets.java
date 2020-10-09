@@ -29,7 +29,11 @@ import com.google.cloud.language.v1.Entity;
 import com.google.cloud.language.v1.Sentence;
 import com.google.cloud.language.v1.Token;
 import com.google.gson.Gson;
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.io.Serializable;
+import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -38,16 +42,20 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.ml.AnnotateText;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -59,6 +67,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -70,6 +79,8 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
@@ -80,6 +91,10 @@ import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
+import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -98,6 +113,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -1156,6 +1172,207 @@ public class Snippets {
         Gson gson = new Gson();
         return gson.toJson(this);
       }
+    }
+  }
+
+  private static class BundleFinalization {
+    private static class BundleFinalizationDoFn extends DoFn<String, Integer> {
+      // [START BundleFinalize]
+      @ProcessElement
+      public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
+        // ... produce output ...
+
+        bundleFinalizer.afterBundleCommit(Instant.now().plus(Duration.standardMinutes(5)), () -> {
+          // ... perform a side effect ...
+        });
+      }
+      // [END BundleFinalize]
+    }
+  }
+
+  private static class SplittableDoFn {
+
+    private static void seekToNextRecordBoundaryInFile(RandomAccessFile file, long initialPosition) {
+
+    }
+
+    private static Integer readNextRecord(RandomAccessFile file) {
+      // ... read a record ...
+      return null;
+    }
+
+    // [START SDF_BasicExample]
+    @BoundedPerElement
+    private static class FileToWordsFn extends DoFn<String, Integer> {
+      @GetInitialRestriction
+      public OffsetRange getInitialRestriction(@Element String fileName) throws IOException {
+        return new OffsetRange(0, new File(fileName).length());
+      }
+
+      @ProcessElement
+      public void processElement(@Element String fileName, RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Integer> outputReceiver) throws IOException {
+        RandomAccessFile file = new RandomAccessFile(fileName, "r");
+        seekToNextRecordBoundaryInFile(file, tracker.currentRestriction().getFrom());
+        while (tracker.tryClaim(file.getFilePointer())) {
+          outputReceiver.output(readNextRecord(file));
+        }
+      }
+
+      // Providing the coder is only necessary if it can not be inferred at runtime.
+      @GetRestrictionCoder
+      public Coder<OffsetRange> getRestrictionCoder() {
+        return OffsetRange.Coder.of();
+      }
+    }
+    // [START SDF_BasicExample]
+
+    private static class BasicExampleWithInitialSplitting extends FileToWordsFn {
+      // [START SDF_BasicExampleWithSplitting]
+      void splitRestriction(@Restriction OffsetRange restriction, OutputReceiver<OffsetRange> splitReceiver) {
+        long splitSize = 64 * (1 << 20);
+        long i = restriction.getFrom();
+        while (i < restriction.getTo() - splitSize) {
+          // Compute and output 64 MiB size ranges to process in parallel
+          long end = i + splitSize;
+          splitReceiver.output(new OffsetRange(i, end));
+          i = end;
+        }
+        // Output the last range
+        splitReceiver.output(new OffsetRange(i, restriction.getTo()));
+      }
+      // [END SDF_BasicExampleWithSplitting]
+    }
+
+    private static class BasicExampleWithBadTryClaimLoop extends DoFn<String, Integer> {
+      // [START SDF_BadTryClaimLoop]
+      @ProcessElement
+      public void badTryClaimLoop(@Element String fileName, RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Integer> outputReceiver) throws IOException {
+        RandomAccessFile file = new RandomAccessFile(fileName, "r");
+        seekToNextRecordBoundaryInFile(file, tracker.currentRestriction().getFrom());
+        while (file.getFilePointer() < tracker.currentRestriction().getTo()) {
+          // The restriction tracker can be modified by another thread in parallel. Only after
+          // successfully claiming should we produce any output and/or perform side effects.
+          tracker.tryClaim(file.getFilePointer());
+          outputReceiver.output(readNextRecord(file));
+        }
+      }
+      // [START SDF_BadTryClaimLoop]
+    }
+
+    private static class CustomWatermarkEstimatorExample extends DoFn<String, Integer> {
+      // [START SDF_CustomWatermarkEstimator]
+      @GetInitialWatermarkEstimatorState
+      public MyCustomWatermarkType getInitialWatermarkEstimatorState(@Element String element, @Restriction OffsetRange restriction) {
+        // Compute and return the initial watermark estimator state for each element and restriction.
+        // All subsequent processing of an element and restriction will be restored from the existing state.
+        return new MyCustomWatermarkType(element, restriction);
+      }
+
+      @NewWatermarkEstimator
+      public WatermarkEstimator<MyCustomWatermarkType> newWatermarkEstimator(@WatermarkEstimatorState MyCustomWatermarkType oldState) {
+        return new MyCustomWatermarkEstimator(oldState);
+      }
+
+      @GetWatermarkEstimatorStateCoder
+      public Coder<MyCustomWatermarkType> getWatermarkEstimatorStateCoder() {
+        return AvroCoder.of(MyCustomWatermarkType.class);
+      }
+
+      public static class MyCustomWatermarkType {
+        public MyCustomWatermarkType(String element, OffsetRange restriction) {
+          // store data necessary for future watermark computations
+        }
+      }
+
+      public static class MyCustomWatermarkEstimator implements TimestampObservingWatermarkEstimator<MyCustomWatermarkType> {
+        public MyCustomWatermarkEstimator(MyCustomWatermarkType type) {
+          // initialize watermark estimator state
+        }
+
+        @Override
+        public void observeTimestamp(Instant timestamp) {
+          // will be invoked on each output
+        }
+
+        @Override
+        public Instant currentWatermark() {
+          // return a monotonically increasing value
+          return null;
+        }
+
+        @Override
+        public MyCustomWatermarkType getState() {
+          // Return state that will be restored during subsequent processing of this element and restriction.
+          return null;
+        }
+      }
+    }
+    // [END SDF_CustomWatermarkEstimator]
+
+    private static class SdkInitiatedCheckpointExample extends DoFn<String, Integer> {
+      public static class ThrottlingException extends Exception {
+      }
+
+      public static class ElementNotReadyException extends Exception {
+      }
+
+      private Service initializeService() {
+        return null;
+      }
+
+      // [START SDF_SdkInitiatedCheckpoint]
+      public interface Service {
+        Record readNextRecord(long position) throws ThrottlingException, ElementNotReadyException;
+      }
+
+      public interface Record {
+        long getPosition();
+      }
+
+      @ProcessElement
+      public ProcessContinuation processElement(RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Record> outputReceiver) {
+        long currentPosition = tracker.currentRestriction().getFrom();
+        Service service = initializeService();
+        try {
+            while (true) {
+              Record record = service.readNextRecord(currentPosition);
+              if (!tracker.tryClaim(record.getPosition())) {
+                return ProcessContinuation.stop();
+              }
+              currentPosition = record.getPosition() + 1;
+
+              outputReceiver.output(record);
+            }
+        } catch (ThrottlingException exception) {
+          return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(60));
+        } catch (ElementNotReadyException e) {
+          return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(10));
+        }
+      }
+      // [END SDF_SdkInitiatedCheckpoint]
+    }
+
+    private static class TruncateExample extends DoFn<String, Integer> {
+      // [START SDF_Truncate]
+      @TruncateRestriction
+      @Nullable
+      TruncateResult<OffsetRange> truncateRestriction(@Element String fileName, @Restriction OffsetRange restriction) {
+        if (fileName.contains("optional")) {
+          // Skip optional files
+          return null;
+        }
+        return TruncateResult.of(restriction);
+      }
+      // [END SDF_Truncate]
+    }
+
+    private static class GetSizeExample extends DoFn<String, Integer> {
+      // [START SDF_GetSize]
+      @GetSize
+      double getSize(@Element String fileName, @Restriction OffsetRange restriction) {
+        return (fileName.contains("expensiveRecords") ? 2 : 1) * restriction.getTo() - restriction.getFrom();
+      }
+      // [END SDF_GetSize]
     }
   }
 }

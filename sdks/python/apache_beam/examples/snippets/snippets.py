@@ -1609,3 +1609,40 @@ def nlp_analyze_text():
         | 'Parse adjacency list to JSON' >> beam.Map(json.dumps)
         | 'Write adjacency list' >> beam.io.WriteToText('adjancency_list.txt'))
   # [END nlp_analyze_text]
+
+def sdf_basic_example():
+  # [START SDF_BasicExample]
+  class FileToWordsFn(beam.DoFn):
+    def process(self, file_name, tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
+      with open(file_name) as file_handle:
+        file_handle.seek(tracker.current_restriction.start())
+        while tracker.try_claim(file_handle.tell()):
+          yield read_next_record(file)
+
+  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+    def initial_restriction(self, file_name):
+      return OffsetRange(0, size(file_name))
+
+    def create_tracker(self, restriction):
+      return beam.io.restriction_trackers.OffsetRestrictionTracker()
+  # [END SDF_BasicExample]
+
+def sdf_get_size():
+  # [START SDF_GetSize]
+  # The RestrictionProvider is responsible for calculating the size of given restriction.
+  class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
+    def restriction_size(self, filename, restriction):
+      weight = 2 if "expensiveRecords" in filename else 1
+      return restriction.size() * weight
+  # [END SDF_GetSize]
+
+def bundle_finalize():
+  # [START BundleFinalize]
+  class MySplittableDoFn(beam.DoFn):
+
+    def process(self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+      # ... produce output ...
+      …
+      # Register callback function for this bundle.
+      bundle_finalizer.register(my_callback_func)
+  # [END BundleFinalize]
