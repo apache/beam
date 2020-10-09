@@ -76,11 +76,6 @@ public class MergeSortCombineFnTest {
     public int hashCode() {
       return Objects.hash(country, age);
     }
-
-    @Override
-    public String toString() {
-      return "Person{" + country + ", " + age + '}';
-    }
   }
 
   private static Random RANDOM = new Random();
