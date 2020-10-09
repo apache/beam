@@ -132,8 +132,7 @@ task validatesRunnerBatch(type: Test) {
         )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
-
-          // Only one SparkContext may be running in a JVM (SPARK-2243)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
@@ -142,7 +141,6 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
