@@ -73,7 +73,8 @@ import org.junit.runners.JUnit4;
 public class BigQuerySamplesIT {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-  private static final BigQuery BIGQUERY = BigQueryOptions.getDefaultInstance().getService();
+  private static final BigQuery BIGQUERY =
+      BigQueryOptions.newBuilder().setProjectId(PROJECT).build().getService();
   private static final String DATASET =
       "beam_bigquery_samples_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
