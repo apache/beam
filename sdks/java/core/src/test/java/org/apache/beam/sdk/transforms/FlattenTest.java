@@ -47,10 +47,10 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnerV2Incompatible;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -137,7 +137,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, RunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, DataflowRunnerV2Incompatible.class})
   public void testFlattenInputMultipleCopies() {
     int count = 5;
     PCollection<Long> longs = p.apply("mkLines", GenerateSequence.from(0).to(count));
@@ -172,7 +172,7 @@ public class FlattenTest implements Serializable {
   @Category({
     ValidatesRunner.class,
     FlattenWithHeterogeneousCoders.class,
-    RunnerV2Incompatible.class
+    DataflowRunnerV2Incompatible.class
   })
   public void testFlattenMultipleCoders() throws CannotProvideCoderException {
     PCollection<Long> bigEndianLongs =
@@ -380,7 +380,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, RunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, DataflowRunnerV2Incompatible.class})
   public void testFlattenWithDifferentInputAndOutputCoders2() {
     // This test exists to prevent a regression in Dataflow. It tests a
     // GroupByKey followed by a Flatten with an SDK-specific output coder.

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -232,7 +233,8 @@ public class MetricsTest implements Serializable {
       UsesCommittedMetrics.class,
       UsesCounterMetrics.class,
       UsesDistributionMetrics.class,
-      UsesGaugeMetrics.class
+      UsesGaugeMetrics.class,
+      DataflowRunnerV2Incompatible.class
     })
     @Test
     public void testAllCommittedMetrics() {
@@ -258,7 +260,12 @@ public class MetricsTest implements Serializable {
       assertDistributionMetrics(metrics, true);
     }
 
-    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesGaugeMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesCommittedMetrics.class,
+      UsesGaugeMetrics.class,
+      DataflowRunnerV2Incompatible.class
+    })
     @Test
     public void testCommittedGaugeMetrics() {
       PipelineResult result = runPipelineWithMetrics();
@@ -335,7 +342,8 @@ public class MetricsTest implements Serializable {
       UsesAttemptedMetrics.class,
       UsesCounterMetrics.class,
       UsesDistributionMetrics.class,
-      UsesGaugeMetrics.class
+      UsesGaugeMetrics.class,
+      DataflowRunnerV2Incompatible.class
     })
     @Test
     public void testAllAttemptedMetrics() {
@@ -362,7 +370,12 @@ public class MetricsTest implements Serializable {
       assertDistributionMetrics(metrics, false);
     }
 
-    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesGaugeMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesAttemptedMetrics.class,
+      UsesGaugeMetrics.class,
+      DataflowRunnerV2Incompatible.class
+    })
     @Test
     public void testAttemptedGaugeMetrics() {
       PipelineResult result = runPipelineWithMetrics();

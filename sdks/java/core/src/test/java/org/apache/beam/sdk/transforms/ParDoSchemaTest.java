@@ -43,6 +43,7 @@ import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -832,7 +833,12 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class,
+    UsesMapState.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testMapStateSchemaInference() throws NoSuchSchemaException {
     final String stateId = "foo";
     final String countStateId = "count";

@@ -38,9 +38,9 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnerV2Incompatible;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
@@ -128,13 +128,21 @@ public class SplittableDoFnTest implements Serializable {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, RunnerV2Incompatible.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesBoundedSplittableParDo.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testPairWithIndexBasicBounded() {
     testPairWithIndexBasic(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, RunnerV2Incompatible.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesUnboundedSplittableParDo.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testPairWithIndexBasicUnbounded() {
     testPairWithIndexBasic(IsBounded.UNBOUNDED);
   }
@@ -161,7 +169,11 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, RunnerV2Incompatible.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesBoundedSplittableParDo.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testPairWithIndexWindowedTimestampedBounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);
   }
@@ -293,13 +305,21 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, RunnerV2Incompatible.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesBoundedSplittableParDo.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testOutputAfterCheckpointBounded() {
     testOutputAfterCheckpoint(IsBounded.BOUNDED);
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, RunnerV2Incompatible.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesUnboundedSplittableParDo.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testOutputAfterCheckpointUnbounded() {
     testOutputAfterCheckpoint(IsBounded.UNBOUNDED);
   }
@@ -507,7 +527,8 @@ public class SplittableDoFnTest implements Serializable {
   @Category({
     ValidatesRunner.class,
     UsesBoundedSplittableParDo.class,
-    UsesSplittableParDoWithWindowedSideInputs.class
+    UsesSplittableParDoWithWindowedSideInputs.class,
+    DataflowRunnerV2Incompatible.class
   })
   public void testWindowedSideInputWithCheckpointsBounded() {
     testWindowedSideInputWithCheckpoints(IsBounded.BOUNDED);
@@ -867,7 +888,12 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesBundleFinalizer.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesBoundedSplittableParDo.class,
+    UsesBundleFinalizer.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testBundleFinalizationOccursOnBoundedSplittableDoFn() throws Exception {
     @BoundedPerElement
     class BoundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
@@ -878,7 +904,12 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, UsesBundleFinalizer.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesUnboundedSplittableParDo.class,
+    UsesBundleFinalizer.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testBundleFinalizationOccursOnUnboundedSplittableDoFn() throws Exception {
     @UnboundedPerElement
     class UnboundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}

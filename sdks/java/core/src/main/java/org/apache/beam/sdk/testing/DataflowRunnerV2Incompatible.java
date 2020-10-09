@@ -21,4 +21,4 @@ import org.apache.beam.sdk.annotations.Internal;
 
 /** Category tag for sick-baying validation tests which are incompatible with Dataflow Runner V2. */
 @Internal
-public interface RunnerV2Incompatible {}
+public interface DataflowRunnerV2Incompatible {}

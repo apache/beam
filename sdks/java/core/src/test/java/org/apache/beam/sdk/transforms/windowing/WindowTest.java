@@ -50,8 +50,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnerV2Incompatible;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCustomWindowMerging;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -388,7 +388,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, RunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, DataflowRunnerV2Incompatible.class})
   public void testNoWindowFnDoesNotReassignWindows() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
@@ -613,7 +613,11 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesCustomWindowMerging.class, RunnerV2Incompatible.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesCustomWindowMerging.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testMergingCustomWindows() {
     Instant startInstant = new Instant(0L);
     PCollection<String> inputCollection =
@@ -636,7 +640,11 @@ public class WindowTest implements Serializable {
   //  This test is usefull because some runners have a special merge implementation
   // for keyed collections
   @Test
-  @Category({ValidatesRunner.class, UsesCustomWindowMerging.class, RunnerV2Incompatible.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesCustomWindowMerging.class,
+    DataflowRunnerV2Incompatible.class
+  })
   public void testMergingCustomWindowsKeyedCollection() {
     Instant startInstant = new Instant(0L);
     PCollection<KV<Integer, String>> inputCollection =

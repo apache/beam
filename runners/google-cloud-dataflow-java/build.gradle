@@ -248,10 +248,7 @@ task validatesRunnerV2Test(type: Test) {
           files(project(project.path).sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    excludeCategories 'org.apache.beam.sdk.testing.RunnerV2Incompatible'
-    commonExcludeCategories.each {
-      excludeCategories it
-    }
+    excludeCategories 'org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible'
   }
 }
 
