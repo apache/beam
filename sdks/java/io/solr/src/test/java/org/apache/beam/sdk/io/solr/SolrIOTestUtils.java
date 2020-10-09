@@ -37,10 +37,7 @@ public class SolrIOTestUtils {
       String collection, int numShards, int replicationFactor, AuthorizedSolrClient client)
       throws Exception {
     CollectionAdminRequest.Create create =
-        new CollectionAdminRequest.Create()
-            .setCollectionName(collection)
-            .setNumShards(numShards)
-            .setReplicationFactor(replicationFactor)
+        CollectionAdminRequest.Create.createCollection(collection, numShards, replicationFactor)
             .setMaxShardsPerNode(2);
     client.process(create);
   }
