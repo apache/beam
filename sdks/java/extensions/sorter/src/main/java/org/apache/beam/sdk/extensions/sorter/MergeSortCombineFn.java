@@ -49,6 +49,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * order every time the input is reduced. The sort key K is extracted from each input V when it is
  * added to the accumulator.
  *
+ * <p>Unlike {@link SortValues}, MergeSortCombineFn will NOT spill to disk if available memory is
+ * exceeded.
+ *
  * @param <K> the class of the sort key
  * @param <V> the class of the input PCollection elements
  */
@@ -135,7 +138,10 @@ public class MergeSortCombineFn<K, V> extends CombineFn<V, SortingAccumulator, I
             });
   }
 
-  // An iterator that maintains a byte[] ordering across its objects.
+  /**
+   * An Iterable composed of several pre-sorted Sources. It merges its Sources maintaining their
+   * sorted lexicographic byte order.
+   */
   static class MergeSortingIterable implements Iterable<KV<byte[], byte[]>> {
     private final List<Iterator<KV<byte[], byte[]>>> sources;
 
@@ -150,7 +156,10 @@ public class MergeSortCombineFn<K, V> extends CombineFn<V, SortingAccumulator, I
     }
   }
 
-  /** Accumulator of KV<byte[], byte[]> pairs that maintains them in a lexicographical order. */
+  /**
+   * Accumulator of `KV<byte[], byte[]>` pairs that maintains them in a lexicographically sorted
+   * order at all times.
+   */
   static class SortingAccumulator implements Iterable<KV<byte[], byte[]>> {
     private Iterable<KV<byte[], byte[]>> sortedItems;
     private boolean isMaterialized;
@@ -164,7 +173,7 @@ public class MergeSortCombineFn<K, V> extends CombineFn<V, SortingAccumulator, I
     }
 
     // Items are always sorted during ser/de and when accumulators merge, so we know this
-    // Iterable is sorted
+    // Iterable is always sorted
     SortingAccumulator(Iterable<KV<byte[], byte[]>> sortedItems) {
       this.sortedItems = sortedItems;
       this.isMaterialized = List.class.isAssignableFrom(sortedItems.getClass());
