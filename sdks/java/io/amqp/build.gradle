@@ -26,7 +26,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.joda_time
-  compile "org.apache.qpid:proton-j:0.13.1"
+  compile "org.apache.qpid:proton-j:0.16.0"
   testCompile library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
