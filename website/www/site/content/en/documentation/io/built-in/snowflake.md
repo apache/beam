@@ -132,7 +132,7 @@ Snowflake IO library supports following options that can be passed via the [comm
 
 `--privateKeyPassphrase` Private Key's passphrase. Required for Private Key authentication only.
 
-`--stagingBucketName` External bucket path ending with `/`. I.e. `gs://bucket/`. Sub-directories are allowed.
+`--stagingBucketName` External bucket path ending with `/`. I.e. `<gs or s3>://bucket/`. Sub-directories are allowed.
 
 `--storageIntegrationName` Storage integration name
 
@@ -178,8 +178,8 @@ To pass Pipeline options via the command line, use `--args` in a gradle command 
            Example: --query=‘SELECT column FROM TABLE’
         --storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>
            Example: --storageIntegrationName=my_integration
-        --stagingBucketName=<GCS BUCKET NAME>
-           Example: --stagingBucketName=gs://my_gcp_bucket/
+        --stagingBucketName=<GCS OR S3 BUCKET NAME>
+           Example: --stagingBucketName=<gs or s3>://my_gcp_bucket/
         --runner=<DirectRunner/DataflowRunner>
            Example: --runner=DataflowRunner
         --project=<FOR DATAFLOW RUNNER: GCP PROJECT NAME>
@@ -213,8 +213,8 @@ To pass Pipeline options via the command line, use `-DintegrationTestPipelineOpt
       Example: --database=TEST_DATABASE
   "--storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>",
       Example: --storageIntegrationName=my_integration
-  "--stagingBucketName=<GCS BUCKET NAME>",
-      Example: --stagingBucketName=gs://my_gcp_bucket
+  "--stagingBucketName=<GCS OR S3 BUCKET NAME>",
+      Example: --stagingBucketName=<gs or s3>://my_gcp_bucket
   "--externalLocation=<GCS BUCKET URL STARTING WITH GS://>",
       Example: --tempLocation=gs://my_bucket/temp/
 ]' --no-build-cache
@@ -258,8 +258,8 @@ By default, pipelines are run on [Direct Runner](https://beam.apache.org/documen
 - `--project=<GCS PROJECT>`
   - Name of the Google Cloud Platform project.
 
-- `--stagingBucketName=<GCS BUCKET NAME>`
-  - Google Cloud Services bucket where the Beam files will be staged.
+- `--stagingBucketName=<GCS OR S3 BUCKET NAME>`
+  - Google Cloud Services bucket or AWS S3 bucket where the Beam files will be staged.
 
 - `--maxNumWorkers=5`
   - (optional) Maximum number of workers.
@@ -293,7 +293,7 @@ Currently, SnowflakeIO supports following options at runtime:
 
 - `--privateKeyPassphrase` Private Key's passphrase. Required for Private Key authentication only.
 
-- `--stagingBucketName` external bucket path ending with `/`. I.e. `gs://bucket/`. Sub-directories are allowed.
+- `--stagingBucketName` external bucket path ending with `/`. I.e. `<gs or s3>://bucket/`. Sub-directories are allowed.
 
 - `--storageIntegrationName` Storage integration name.
 
@@ -310,8 +310,6 @@ Currently, SnowflakeIO supports following options at runtime:
 - `--role` Role to use. Optional.
 
 - `--snowPipe` SnowPipe name. Optional.
-
-**Note**: table and query is not in pipeline options by default, it may be added by [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) PipelineOptions.
 
 Currently, SnowflakeIO **doesn't support** following options at runtime:
 
@@ -350,15 +348,23 @@ All the below parameters are required:
 - `.toTable()` Accepts the target Snowflake table name.
 
 - `.withStagingBucketName()` Accepts a cloud bucket path ended with slash.
- -Example: `.withStagingBucketName("gs://mybucket/my/dir/")`
+ -Example: `.withStagingBucketName("<gs or s3>://mybucket/my/dir/")`
 
-- `.withStorageIntegrationName()` Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt. Example:
+- `.withStorageIntegrationName()` Accepts a name of a Snowflake storage integration object created according to Snowflake documentation. Examples:
 {{< highlight >}}
 CREATE OR REPLACE STORAGE INTEGRATION test_integration
 TYPE = EXTERNAL_STAGE
 STORAGE_PROVIDER = GCS
 ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
+{{< /highlight >}}
+{{< highlight >}}
+CREATE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = S3
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = '<ARN ROLE NAME>'
+STORAGE_ALLOWED_LOCATIONS = ('s3://bucket/')
 {{< /highlight >}}
 Then:
 {{< highlight >}}
@@ -402,7 +408,7 @@ data.apply(
 
 - `.withStagingBucketName()`
   - Accepts a cloud bucket path ended with slash.
-  - Example: `.withStagingBucketName("gs://mybucket/my/dir/")`
+  - Example: `.withStagingBucketName("<gs or s3>://mybucket/my/dir/")`
 
 - `.withStorageIntegrationName()`
   - Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt.
@@ -413,6 +419,14 @@ TYPE = EXTERNAL_STAGE
 STORAGE_PROVIDER = GCS
 ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
+{{< /highlight >}}
+{{< highlight >}}
+CREATE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = S3
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = '<ARN ROLE NAME>'
+STORAGE_ALLOWED_LOCATIONS = ('s3://bucket/')
 {{< /highlight >}}
 Then:
 {{< highlight >}}
@@ -604,6 +618,14 @@ STORAGE_PROVIDER = GCS
 ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
 {{< /highlight >}}
+{{< highlight >}}
+CREATE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = S3
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = '<ARN ROLE NAME>'
+STORAGE_ALLOWED_LOCATIONS = ('s3://bucket/')
+{{< /highlight >}}
 Then:
 {{< highlight >}}
 .withStorageIntegrationName(test_integration)
@@ -618,7 +640,7 @@ Then:
 SnowflakeIO uses COPY statements behind the scenes to read (using [COPY to location](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html)) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` and they will be removed automatically once Read operation finishes.
 
 ### CSVMapper
-SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library.
+SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library.
 
 The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.
 
@@ -635,6 +657,44 @@ static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
            };
 }
 {{< /highlight >}}
+## Using SnowflakeIO with AWS S3
+To be able to use AWS S3 bucket as `stagingBucketName` is required to:
+1. Create `PipelineOptions` interface which is [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html)
+with `AwsAccessKey` and `AwsSecretKey` options. Example:
+
+{{< highlight java >}}
+public interface AwsPipelineOptions extends SnowflakePipelineOptions, S3Options {
+
+    @Description("AWS Access Key")
+    @Default.String("access_key")
+    String getAwsAccessKey();
+
+    void setAwsAccessKey(String awsAccessKey);
+
+    @Description("AWS secret key")
+    @Default.String("secret_key")
+    String getAwsSecretKey();
+
+    void setAwsSecretKey(String awsSecretKey);
+}
+{{< /highlight >}}
+2. Set `AwsCredentialsProvider` option by using `AwsAccessKey` and `AwsSecretKey` options.
+
+{{< highlight java >}}
+options.setAwsCredentialsProvider(
+    new AWSStaticCredentialsProvider(
+        new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey())
+    )
+);
+{{< /highlight >}}
+3. Create pipeline
+
+{{< highlight java >}}
+Pipeline p = Pipeline.create(options);
+{{< /highlight >}}
+
+note: remember to set `awsRegion` from [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html).
+
 ## Using SnowflakeIO in Python SDK
 ### Intro
 Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language, thanks to
@@ -663,11 +723,11 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `database` Name of the Snowflake database to use.
 
-- `staging_bucket_name` Name of the Google Cloud Storage bucket. Bucket will be used as a temporary location for storing CSV files. Those temporary directories will be named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` and they will be removed automatically once Read operation finishes.
+- `staging_bucket_name` Name of the Google Cloud Storage bucket or AWS S3 bucket. Bucket will be used as a temporary location for storing CSV files. Those temporary directories will be named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` and they will be removed automatically once Read operation finishes.
 
 - `storage_integration_name` Is the name of a Snowflake storage integration object created according to [Snowflake documentation](https://docs.snowflake.net/manuals/sql-reference/sql/create-storage-integration.html).
 
-- `csv_mapper` Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
+- `csv_mapper` Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
 Example:
 {{< highlight py >}}
 def csv_mapper(strings_array):
@@ -712,7 +772,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
            private_key_passphrase=<PASSWORD FOR KEY>,
            schema=<SNOWFLAKE SCHEMA>,
            database=<SNOWFLAKE DATABASE>,
-           staging_bucket_name=<GCS BUCKET NAME>,
+           staging_bucket_name=<GCS OR S3 BUCKET NAME>,
            storage_integration_name=<SNOWFLAKE STORAGE INTEGRATION NAME>,
            create_disposition=<CREATE DISPOSITION>,
            write_disposition=<WRITE DISPOSITION>,
@@ -732,7 +792,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `database` Name of the Snowflake database to use.
 
-- `staging_bucket_name` Path to Google Cloud Storage bucket ended with slash. Bucket will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under “staging_bucket_name” path.
+- `staging_bucket_name` Path to Google Cloud Storage bucket or AWS S3 bucket ended with slash. Bucket will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under “staging_bucket_name” path.
 
 - `storage_integration_name` Is the name of a Snowflake storage integration object created according to [Snowflake documentation](https://docs.snowflake.net/manuals/sql-reference/sql/create-storage-integration.html).
 
