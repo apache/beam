@@ -2612,8 +2612,7 @@ public class BigQueryIO {
                 + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                 + "A format function is not required if Beam schemas are used.");
 
-        rowWriterFactory =
-            RowWriterFactory.tableRows(formatFunction, failsafeFormatFunction);
+        rowWriterFactory = RowWriterFactory.tableRows(formatFunction, failsafeFormatFunction);
       }
       PCollection<KV<DestinationT, T>> rowsWithDestination =
           input
