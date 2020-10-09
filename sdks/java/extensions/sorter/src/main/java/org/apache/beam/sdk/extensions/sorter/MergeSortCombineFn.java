@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -198,18 +199,11 @@ public class MergeSortCombineFn<K, V> extends CombineFn<V, SortingAccumulator, I
 
     // Merge a new item into the sorted list
     void add(KV<byte[], byte[]> item) {
-      final int itemCount = materialized().size();
-      boolean isAdded = false;
-      for (int i = 0; i < itemCount; i++) {
-        if (KV_COMPARATOR.compare(item, materialized().get(i)) <= 0) {
-          materialized().add(i, item);
-          isAdded = true;
-          break;
-        }
+      int index = Collections.binarySearch(materialized(), item, KV_COMPARATOR);
+      if (index < 0) {
+        index = -index - 1;
       }
-      if (!isAdded) { // If we've reached end of list, append to tail
-        materialized().add(item);
-      }
+      materialized().add(index, item);
     }
 
     static class SortingAccumulatorCoder extends AtomicCoder<SortingAccumulator> {
