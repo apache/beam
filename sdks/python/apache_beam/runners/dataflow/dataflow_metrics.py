@@ -97,29 +97,35 @@ class DataflowMetrics(MetricResults):
   def _translate_step_name(self, internal_name):
     """Translate between internal step names (e.g. "s1") and user step names."""
     if not self._job_graph:
-      raise ValueError('Could not translate the internal step name.')
-
-    try:
-      step = _get_match(
-          self._job_graph.proto.steps, lambda x: x.name == internal_name)
-      user_step_name = _get_match(
-          step.properties.additionalProperties,
-          lambda x: x.key == 'user_name').value.string_value
-    except ValueError:
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.runners.dataflow.internal import apiclient
-      if apiclient._use_unified_worker(self._job_graph.options):
-        # Runner V2 with portable job submission uses proto transform map IDs
-        # for step names. Also PTransform.unique_name maps to user step names.
-        # Hence we lookup user step names based on the proto.
-        proto_pipeline = self._job_graph.proto_pipeline
-        for transform_id in proto_pipeline.components.transforms.keys():
-          if internal_name == transform_id:
-            user_step_name = proto_pipeline.components.transforms[
-                transform_id].unique_name
-            break
-      if not user_step_name:
-        raise ValueError('Could not translate the internal step name.')
+      raise ValueError(
+          'Could not translate the internal step name %r since job graph is '
+          'not available.'
+          % internal_name)
+    user_step_name = None
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners.dataflow.internal import apiclient
+    if apiclient._use_unified_worker_portable_job(self._job_graph.options):
+      # Dataflow Runner v2 with portable job submission uses proto transform map
+      # IDs for step names. Also PTransform.unique_name maps to user step names.
+      # Hence we lookup user step names based on the proto.
+      proto_pipeline = self._job_graph.proto_pipeline
+      for transform_id in proto_pipeline.components.transforms.keys():
+        if internal_name == transform_id:
+          user_step_name = proto_pipeline.components.transforms[
+              transform_id].unique_name
+          break
+    else:
+      try:
+        step = _get_match(
+            self._job_graph.proto.steps, lambda x: x.name == internal_name)
+        user_step_name = _get_match(
+            step.properties.additionalProperties,
+            lambda x: x.key == 'user_name').value.string_value
+      except ValueError:
+        pass  # Exception is handled below.
+    if not user_step_name:
+      raise ValueError(
+          'Could not translate the internal step name %r.' % internal_name)
     return user_step_name
 
   def _get_metric_key(self, metric):

@@ -506,8 +506,8 @@ class TestDataflowMetrics(unittest.TestCase):
         self.ONLY_COUNTERS_LIST)
 
     pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
         '--experiments=use_runner_v2',
+        '--experiments=use_portable_job_submission',
         '--temp_location=gs://any-location/temp',
         '--project=dummy_project',
     ])
