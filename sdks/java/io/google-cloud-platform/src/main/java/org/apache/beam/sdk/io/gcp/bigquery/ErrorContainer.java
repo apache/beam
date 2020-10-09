@@ -38,15 +38,15 @@ public interface ErrorContainer<T> extends Serializable {
       FailsafeValueInSingleWindow<TableRow, TableRow> tableRow);
 
   ErrorContainer<TableRow> TABLE_ROW_ERROR_CONTAINER =
-      (failedInserts, error, ref, tableRow) -> failedInserts.add(
-          ValueInSingleWindow.of(
-              tableRow.getFailsafeValue(), tableRow.getTimestamp(),
-              tableRow.getWindow(), tableRow.getPane()));
+      (failedInserts, error, ref, tableRow) ->
+          failedInserts.add(
+              ValueInSingleWindow.of(
+                  tableRow.getFailsafeValue(), tableRow.getTimestamp(),
+                  tableRow.getWindow(), tableRow.getPane()));
 
   ErrorContainer<BigQueryInsertError> BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER =
       (failedInserts, error, ref, tableRow) -> {
-        BigQueryInsertError err =
-            new BigQueryInsertError(tableRow.getFailsafeValue(), error, ref);
+        BigQueryInsertError err = new BigQueryInsertError(tableRow.getFailsafeValue(), error, ref);
         failedInserts.add(
             ValueInSingleWindow.of(
                 err, tableRow.getTimestamp(), tableRow.getWindow(), tableRow.getPane()));

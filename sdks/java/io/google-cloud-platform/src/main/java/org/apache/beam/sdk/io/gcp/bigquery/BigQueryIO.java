@@ -1800,7 +1800,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
 
-      abstract Builder<T> setFailsafeFormatFunction(SerializableFunction<T, TableRow> formatFunction);
+      abstract Builder<T> setFailsafeFormatFunction(
+          SerializableFunction<T, TableRow> formatFunction);
 
       abstract Builder<T> setAvroRowWriterFactory(
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
@@ -2007,9 +2008,9 @@ public class BigQueryIO {
     }
 
     /** Formats the user's type into a {@link TableRow} to be written to an error collector. */
-     public Write<T> withFailsafeFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
-       return toBuilder().setFailsafeFormatFunction(formatFunction).build();
-     }
+    public Write<T> withFailsafeFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
+      return toBuilder().setFailsafeFormatFunction(formatFunction).build();
+    }
 
     /**
      * Formats the user's type into a {@link GenericRecord} to be written to BigQuery. The

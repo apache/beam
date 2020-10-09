@@ -32,10 +32,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -141,8 +141,8 @@ class StreamingWriteFn<ErrorT, ElementT>
   public void finishBundle(FinishBundleContext context) throws Exception {
     List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
     BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-    for (Map.Entry<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> entry:
-          tableRows.entrySet()) {
+    for (Map.Entry<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> entry :
+        tableRows.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
       flushRows(
           tableReference,
