@@ -400,6 +400,79 @@ func TestAsSplittableUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
+	multiWindows := []typex.Window{
+		window.IntervalWindow{Start: 10, End: 20},
+		window.IntervalWindow{Start: 11, End: 21},
+		window.IntervalWindow{Start: 12, End: 22},
+		window.IntervalWindow{Start: 13, End: 23},
+	}
+
+	// Test that progress returns expected results and respects windows.
+	t.Run("Progress", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			windows       []typex.Window
+			doneWork      float64 // Will be output by RTracker's GetProgress.
+			remainingWork float64 // Will be output by RTracker's GetProgress.
+			currWindow    int
+			wantProgress  float64
+		}{
+			{
+				name:          "SingleWindow",
+				windows:       testWindows,
+				doneWork:      1.0,
+				remainingWork: 1.0,
+				currWindow:    0,
+				wantProgress:  0.5,
+			},
+			{
+				name:          "MultipleWindows",
+				windows:       multiWindows,
+				doneWork:      1.0,
+				remainingWork: 1.0,
+				currWindow:    1,
+				// Progress should be halfway through second window.
+				wantProgress: 1.5 / 4.0,
+			},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				// The contents of the element don't really matter in the test,
+				// but the element is still built to be valid.
+				elm := FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &VetRestriction{ID: "Sdf"},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   test.windows,
+				}
+
+				// Setup, create transforms, inputs, and desired outputs.
+				n := &ParDo{UID: 1, Fn: dfn, Out: []Node{}}
+				node := &ProcessSizedElementsAndRestrictions{PDo: n}
+				node.rt = &SplittableUnitRTracker{
+					VetRTracker: VetRTracker{Rest: elm.Elm.(*FullValue).Elm2.(*VetRestriction)},
+					Done:        test.doneWork,
+					Remaining:   test.remainingWork,
+				}
+				node.elm = &elm
+				node.currW = test.currWindow
+
+				// Call from SplittableUnit and check results.
+				su := SplittableUnit(node)
+				if err := node.Up(context.Background()); err != nil {
+					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
+				}
+				got := su.GetProgress()
+				if !floatEquals(got, test.wantProgress, 0.00001) {
+					t.Fatalf("SplittableUnit.GetProgress() got incorrect progress: got %v, want %v", got, test.wantProgress)
+				}
+			})
+		}
+	})
 
 	// Test that Split returns properly structured results and calls Split on
 	// the restriction tracker.
@@ -519,6 +592,7 @@ func TestAsSplittableUnit(t *testing.T) {
 // TestAsSplittableUnit.
 type SplittableUnitRTracker struct {
 	VetRTracker
+	Done, Remaining float64 // Allows manually setting progress.
 }
 
 func (rt *SplittableUnitRTracker) IsDone() bool { return false }
@@ -529,4 +603,8 @@ func (rt *SplittableUnitRTracker) TrySplit(_ float64) (interface{}, interface{},
 	rest2 := rt.Rest.copy()
 	rest2.ID += ".2"
 	return &rest1, &rest2, nil
+}
+
+func (rt *SplittableUnitRTracker) GetProgress() (float64, float64) {
+	return rt.Done, rt.Remaining
 }

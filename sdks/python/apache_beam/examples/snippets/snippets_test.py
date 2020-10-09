@@ -682,6 +682,7 @@ class SnippetsTest(unittest.TestCase):
         snippets.model_bigqueryio(p, project, dataset, table)
     else:
       p = TestPipeline()
+      p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
       snippets.model_bigqueryio(p)
 
   def _run_test_pipeline_for_options(self, fn):
@@ -1010,12 +1011,10 @@ class SnippetsTest(unittest.TestCase):
           | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
 
       counts = (
-          # [START model_setting_trigger]
           pcollection | WindowInto(
               FixedWindows(1 * 60),
               trigger=AfterProcessingTime(10 * 60),
               accumulation_mode=AccumulationMode.DISCARDING)
-          # [END model_setting_trigger]
           | 'group' >> beam.GroupByKey()
           | 'count' >>
           beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1]))))

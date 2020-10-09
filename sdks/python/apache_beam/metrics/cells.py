@@ -29,7 +29,9 @@ from __future__ import division
 import threading
 import time
 from builtins import object
+from typing import Any
 from typing import Optional
+from typing import SupportsInt
 
 try:
   import cython
@@ -62,6 +64,13 @@ class MetricCell(object):
   def get_cumulative(self):
     raise NotImplementedError
 
+  def to_runner_api_monitoring_info(self, name, transform_id):
+    raise NotImplementedError
+
+  def reset(self):
+    # type: () -> None
+    raise NotImplementedError
+
   def __reduce__(self):
     raise NotImplementedError
 
@@ -82,6 +91,7 @@ class CounterCell(MetricCell):
     self.value = CounterAggregator.identity_element()
 
   def reset(self):
+    # type: () -> None
     self.value = CounterAggregator.identity_element()
 
   def combine(self, other):
@@ -135,6 +145,7 @@ class DistributionCell(MetricCell):
     self.data = DistributionAggregator.identity_element()
 
   def reset(self):
+    # type: () -> None
     self.data = DistributionAggregator.identity_element()
 
   def combine(self, other):
@@ -205,6 +216,7 @@ class GaugeCell(MetricCell):
     self.update(value)
 
   def update(self, value):
+    # type: (SupportsInt) -> None
     value = int(value)
     with self._lock:
       # Set the value directly without checking timestamp, because
@@ -233,40 +245,50 @@ class DistributionResult(object):
     self.data = data
 
   def __eq__(self, other):
+    # type: (object) -> bool
     if isinstance(other, DistributionResult):
       return self.data == other.data
     else:
       return False
 
   def __hash__(self):
+    # type: () -> int
     return hash(self.data)
 
   def __ne__(self, other):
+    # type: (object) -> bool
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
+    # type: () -> str
     return 'DistributionResult(sum={}, count={}, min={}, max={})'.format(
         self.sum, self.count, self.min, self.max)
 
   @property
   def max(self):
+    # type: () -> Optional[int]
     return self.data.max if self.data.count else None
 
   @property
   def min(self):
+    # type: () -> Optional[int]
     return self.data.min if self.data.count else None
 
   @property
   def count(self):
+    # type: () -> Optional[int]
     return self.data.count
 
   @property
   def sum(self):
+    # type: () -> Optional[int]
     return self.data.sum
 
   @property
   def mean(self):
+    # type: () -> Optional[float]
+
     """Returns the float mean of the distribution.
 
     If the distribution contains no elements, it returns None.
@@ -282,15 +304,18 @@ class GaugeResult(object):
     self.data = data
 
   def __eq__(self, other):
+    # type: (object) -> bool
     if isinstance(other, GaugeResult):
       return self.data == other.data
     else:
       return False
 
   def __hash__(self):
+    # type: () -> int
     return hash(self.data)
 
   def __ne__(self, other):
+    # type: (object) -> bool
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
@@ -300,10 +325,12 @@ class GaugeResult(object):
 
   @property
   def value(self):
+    # type: () -> Optional[int]
     return self.data.value
 
   @property
   def timestamp(self):
+    # type: () -> Optional[int]
     return self.data.timestamp
 
 
@@ -318,20 +345,28 @@ class GaugeData(object):
   by other than the GaugeCell that contains it.
   """
   def __init__(self, value, timestamp=None):
+    # type: (Optional[int], Optional[int]) -> None
     self.value = value
     self.timestamp = timestamp if timestamp is not None else 0
 
   def __eq__(self, other):
-    return self.value == other.value and self.timestamp == other.timestamp
+    # type: (object) -> bool
+    if isinstance(other, GaugeData):
+      return self.value == other.value and self.timestamp == other.timestamp
+    else:
+      return False
 
   def __hash__(self):
+    # type: () -> int
     return hash((self.value, self.timestamp))
 
   def __ne__(self, other):
+    # type: (object) -> bool
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
+    # type: () -> str
     return '<GaugeData(value={}, timestamp={})>'.format(
         self.value, self.timestamp)
 
@@ -351,7 +386,7 @@ class GaugeData(object):
 
   @staticmethod
   def singleton(value, timestamp=None):
-    # type: (...) -> GaugeData
+    # type: (Optional[int], Optional[int]) -> GaugeData
     return GaugeData(value, timestamp=timestamp)
 
 
@@ -366,6 +401,7 @@ class DistributionData(object):
   by other than the DistributionCell that contains it.
   """
   def __init__(self, sum, count, min, max):
+    # type: (int, int, int, int) -> None
     if count:
       self.sum = sum
       self.count = count
@@ -378,18 +414,25 @@ class DistributionData(object):
       self.max = -self.min - 1
 
   def __eq__(self, other):
-    return (
-        self.sum == other.sum and self.count == other.count and
-        self.min == other.min and self.max == other.max)
+    # type: (object) -> bool
+    if isinstance(other, DistributionData):
+      return (
+          self.sum == other.sum and self.count == other.count and
+          self.min == other.min and self.max == other.max)
+    else:
+      return False
 
   def __hash__(self):
+    # type: () -> int
     return hash((self.sum, self.count, self.min, self.max))
 
   def __ne__(self, other):
+    # type: (object) -> bool
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
+    # type: () -> str
     return 'DistributionData(sum={}, count={}, min={}, max={})'.format(
         self.sum, self.count, self.min, self.max)
 
@@ -410,6 +453,7 @@ class DistributionData(object):
 
   @staticmethod
   def singleton(value):
+    # type: (int) -> DistributionData
     return DistributionData(value, 1, value, value)
 
 
@@ -418,6 +462,8 @@ class MetricAggregator(object):
 
   Base interface for aggregating metric data during pipeline execution."""
   def identity_element(self):
+    # type: () -> Any
+
     """Returns the identical element of an Aggregation.
 
     For the identity element, it must hold that
@@ -426,9 +472,11 @@ class MetricAggregator(object):
     raise NotImplementedError
 
   def combine(self, x, y):
+    # type: (Any, Any) -> Any
     raise NotImplementedError
 
   def result(self, x):
+    # type: (Any) -> Any
     raise NotImplementedError
 
 
@@ -445,11 +493,11 @@ class CounterAggregator(MetricAggregator):
     return 0
 
   def combine(self, x, y):
-    # type: (...) -> int
+    # type: (SupportsInt, SupportsInt) -> int
     return int(x) + int(y)
 
   def result(self, x):
-    # type: (...) -> int
+    # type: (SupportsInt) -> int
     return int(x)
 
 
@@ -484,7 +532,7 @@ class GaugeAggregator(MetricAggregator):
   @staticmethod
   def identity_element():
     # type: () -> GaugeData
-    return GaugeData(None, timestamp=0)
+    return GaugeData(0, timestamp=0)
 
   def combine(self, x, y):
     # type: (GaugeData, GaugeData) -> GaugeData

@@ -380,10 +380,7 @@ class BigQueryWrapper(object):
             jobReference=reference,
         ))
 
-    _LOGGER.info("Inserting job request: %s", request)
-    response = self.client.jobs.Insert(request)
-    _LOGGER.info("Response was %s", response)
-    return response.jobReference
+    return self._start_job(request).jobReference
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -421,8 +418,36 @@ class BigQueryWrapper(object):
             ),
             jobReference=reference,
         ))
-    response = self.client.jobs.Insert(request)
-    return response.jobReference
+    return self._start_job(request).jobReference
+
+  def _start_job(
+      self,
+      request  # type: bigquery.BigqueryJobsInsertRequest
+  ):
+    """Inserts a BigQuery job.
+
+    If the job exists already, it returns it.
+    """
+    try:
+      response = self.client.jobs.Insert(request)
+      _LOGGER.info(
+          "Stated BigQuery job: %s\n "
+          "bq show -j --format=prettyjson --project_id=%s %s",
+          response.jobReference,
+          response.jobReference.projectId,
+          response.jobReference.jobId)
+      return response
+    except HttpError as exn:
+      if exn.status_code == 409:
+        _LOGGER.info(
+            "BigQuery job %s already exists, will not retry inserting it: %s",
+            request.job.jobReference,
+            exn)
+        return request.job
+      else:
+        _LOGGER.info(
+            "Failed to insert job %s: %s", request.job.jobReference, exn)
+        raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -456,8 +481,7 @@ class BigQueryWrapper(object):
             ),
             jobReference=reference))
 
-    response = self.client.jobs.Insert(request)
-    return response
+    return self._start_job(request)
 
   def wait_for_bq_job(self, job_reference, sleep_duration_sec=5, max_retries=0):
     """Poll job until it is DONE.
@@ -572,6 +596,16 @@ class BigQueryWrapper(object):
       table_id,
       schema,
       additional_parameters=None):
+
+    valid_tablename = re.match(r'^[\w]{1,1024}$', table_id, re.ASCII)
+    if not valid_tablename:
+      raise ValueError(
+          'Invalid BigQuery table name: %s \n'
+          'A table name in BigQuery must contain only letters (a-z, A-Z), '
+          'numbers (0-9), or underscores (_) and be up to 1024 characters:\n'
+          'See https://cloud.google.com/bigquery/docs/tables#table_naming' %
+          table_id)
+
     additional_parameters = additional_parameters or {}
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -784,12 +818,12 @@ class BigQueryWrapper(object):
             ),
             jobReference=job_reference,
         ))
-    response = self.client.jobs.Insert(request)
-    return response.jobReference
+    return self._start_job(request).jobReference
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.
+      retry_if_valid_input_but_server_error_and_timeout_filter)
   def get_or_create_table(
       self,
       project_id,

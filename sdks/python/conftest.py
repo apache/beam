@@ -20,7 +20,14 @@ from __future__ import absolute_import
 
 import sys
 
+from apache_beam.options import pipeline_options
+
 MAX_SUPPORTED_PYTHON_VERSION = (3, 8)
+
+def pytest_addoption(parser):
+  parser.addoption('--test-pipeline-options',
+                   help='Options to use in test pipelines. NOTE: Tests may '
+                        'ignore some or all of these options.')
 
 # See pytest.ini for main collection rules.
 collect_ignore_glob = []
@@ -30,3 +37,8 @@ else:
   for minor in range(sys.version_info.minor + 1,
                      MAX_SUPPORTED_PYTHON_VERSION[1] + 1):
     collect_ignore_glob.append('*_py3%d.py' % minor)
+
+
+def pytest_configure(config):
+  # Enable optional type checks on all tests.
+  pipeline_options.enable_all_additional_type_checks()

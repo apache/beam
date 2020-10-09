@@ -141,7 +141,7 @@ REQUIRED_PACKAGES = [
     # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
-    'fastavro>=0.21.4,<0.24',
+    'fastavro>=0.21.4,<2',
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.18.2,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
@@ -151,7 +151,7 @@ REQUIRED_PACKAGES = [
     'mock>=1.0.1,<3.0.0',
     'numpy>=1.14.3,<2',
     'pymongo>=3.8.0,<4.0.0',
-    'oauth2client>=2.0.1,<4',
+    'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
@@ -177,8 +177,8 @@ REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
-    'pandas>=0.24.2,<1; python_full_version < "3.5.3"',
-    'pandas>=0.25.2,<1; python_full_version >= "3.5.3"',
+    'pandas>=0.24.2,<2; python_full_version < "3.5.3"',
+    'pandas>=0.25.2,<2; python_full_version >= "3.5.3"',
     'parameterized>=0.7.1,<0.8.0',
     # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
     # See: https://github.com/hamcrest/PyHamcrest/issues/131.
@@ -199,7 +199,7 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-    'cachetools>=3.1.0,<4',
+    'cachetools>=3.1.0,<5',
     'google-apitools>=0.5.31,<0.5.32',
     'google-auth>=1.18.0,<2',
     'google-cloud-datastore>=1.7.1,<2',
@@ -215,6 +215,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
+    # GCP packages required by prebuild sdk container functionality.
+    'google-cloud-build>=2.0.0,<3; python_version >= "3.6"',
 ]
 
 INTERACTIVE_BEAM = [
@@ -265,17 +267,7 @@ def generate_protos_first(original_cmd):
     return original_cmd
 
 
-python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
-
-if sys.version_info.major == 2:
-  warnings.warn(
-      'You are using the final Apache Beam release with Python 2 support. '
-      'New releases of Apache Beam will require Python 3.6 or a newer version.')
-
-if sys.version_info.major == 3 and sys.version_info.minor == 5:
-  warnings.warn(
-      'You are using the final Apache Beam release with Python 3.5 support. '
-      'New releases of Apache Beam will require Python 3.6 or a newer version.')
+python_requires = '>=3.6'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 9:
   warnings.warn(
@@ -328,8 +320,6 @@ setuptools.setup(
         'Intended Audience :: End Users/Desktop',
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',

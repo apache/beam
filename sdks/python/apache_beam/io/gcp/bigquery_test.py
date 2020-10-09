@@ -44,6 +44,7 @@ from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _JsonToDictCoder
@@ -58,8 +59,10 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
-from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
@@ -168,7 +171,8 @@ class TestTableRowJsonCoder(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySource(unittest.TestCase):
   def test_display_data_item_on_validate_true(self):
-    source = beam.io.BigQuerySource('dataset.table', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table', validate=True, use_dataflow_native_source=True)
 
     dd = DisplayData.create_from(source)
     expected_items = [
@@ -178,7 +182,8 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_table_reference_display_data(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -186,7 +191,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -194,7 +200,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -203,27 +210,32 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_table_reference(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
     self.assertTrue(source.use_legacy_sql)
 
   def test_query_only_display_data(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -232,25 +244,36 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_sql_format(self):
-    source = beam.io.BigQuerySource(query='my_query', use_standard_sql=True)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        use_standard_sql=True,
+        use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
   def test_specify_query_flattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=False)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        flatten_results=False,
+        use_dataflow_native_source=True)
     self.assertFalse(source.flatten_results)
 
   def test_specify_query_unflattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=True)
+    source = beam.io.BigQuerySource(
+        query='my_query', flatten_results=True, use_dataflow_native_source=True)
     self.assertTrue(source.flatten_results)
 
   def test_specify_query_without_table(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
 
   def test_date_partitioned_table_name(self):
-    source = beam.io.BigQuerySource('dataset.table$20030102', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table$20030102',
+        validate=True,
+        use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', True),
@@ -350,34 +373,69 @@ class TestJsonToDictCoder(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
-  def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
-    with self.assertRaises(ValueError):
-      p = beam.Pipeline()
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
+  @classmethod
+  def setUpClass(cls):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--gcs_location')
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
-  def test_fallback_to_temp_location(self, BigQueryWrapper):
-    pipeline_options = beam.pipeline.PipelineOptions()
-    pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
-    try:
-      p = beam.Pipeline(options=pipeline_options)
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
-    except ValueError:
-      self.fail('ValueError was raised unexpectedly')
+    cls.UserDefinedOptions = UserDefinedOptions
 
-  def test_gcs_location_validation_works_properly(self):
-    with self.assertRaises(ValueError) as context:
-      p = beam.Pipeline()
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project',
-          dataset='dataset',
-          table='table',
-          validate=True,
-          gcs_location='fs://bad_location')
+  def tearDown(self):
+    # Reset runtime options to avoid side-effects caused by other tests.
+    RuntimeValueProvider.set_runtime_options(None)
+
+  def test_get_destination_uri_empty_runtime_vp(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      # Don't provide any runtime values.
+      RuntimeValueProvider.set_runtime_options({})
+      options = self.UserDefinedOptions()
+
+      ReadFromBigQuery.get_destination_uri(
+          options.gcs_location, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_none(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      ReadFromBigQuery.get_destination_uri(None, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_runtime_vp(self):
+    # Provide values at job-execution time.
+    RuntimeValueProvider.set_runtime_options({'gcs_location': 'gs://bucket'})
+    options = self.UserDefinedOptions()
+    unique_id = uuid.uuid4().hex
+
+    uri = ReadFromBigQuery.get_destination_uri(
+        options.gcs_location, None, unique_id)
     self.assertEqual(
-        'Invalid GCS location: fs://bad_location', str(context.exception))
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_static_vp(self):
+    unique_id = uuid.uuid4().hex
+    uri = ReadFromBigQuery.get_destination_uri(
+        StaticValueProvider(str, 'gs://bucket'), None, unique_id)
+    self.assertEqual(
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_fallback_temp_location(self):
+    # Don't provide any runtime values.
+    RuntimeValueProvider.set_runtime_options({})
+    options = self.UserDefinedOptions()
+
+    with self.assertLogs('apache_beam.io.gcp.bigquery',
+                         level='DEBUG') as context:
+      ReadFromBigQuery.get_destination_uri(
+          options.gcs_location, 'gs://bucket', uuid.uuid4().hex)
+    self.assertEqual(
+        context.output,
+        [
+            'DEBUG:apache_beam.io.gcp.bigquery:gcs_location is empty, '
+            'using temp_location instead'
+        ])
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

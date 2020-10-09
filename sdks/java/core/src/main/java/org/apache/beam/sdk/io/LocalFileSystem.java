@@ -195,7 +195,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         Files.delete(resourceId.getPath());
       } catch (NoSuchFileException e) {
         LOG.info(
-            "Ignoring failed deletion of file {} which already does not exist: {}", resourceId, e);
+            "Ignoring failed deletion of file {} which already does not exist.", resourceId, e);
       }
     }
   }

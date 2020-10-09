@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
@@ -30,7 +28,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -47,6 +44,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -58,8 +56,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
@@ -76,8 +72,6 @@ public class AvroUtilsTest {
   @SuppressWarnings("unchecked")
   public void supportsAnyAvroSchema(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
-    // not everything is possible to translate
-    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
@@ -92,12 +86,6 @@ public class AvroUtilsTest {
   @SuppressWarnings("unchecked")
   public void avroToBeamRoundTrip(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
-    // not everything is possible to translate
-    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
-    // roundtrip for enums returns strings because Beam doesn't have enum type
-    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.ENUM)));
-    // roundtrip for fixed returns bytes because Beam doesn't have FIXED type
-    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.FIXED)));
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
@@ -512,6 +500,53 @@ public class AvroUtilsTest {
   }
 
   @Test
+  public void testUnionFieldInAvroSchema() {
+
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
+
+    unionFields.add(org.apache.avro.Schema.create(Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
+    OneOfType oneOfType =
+        OneOfType.create(Field.of("int", FieldType.INT32), Field.of("string", FieldType.STRING));
+
+    Schema expectedSchema = Schema.builder().addLogicalTypeField("union", oneOfType).build();
+    assertEquals(expectedSchema, AvroUtils.toBeamSchema(avroSchema));
+    GenericRecord genericRecord = new GenericRecordBuilder(avroSchema).set("union", 23423).build();
+    Row expectedRow =
+        Row.withSchema(expectedSchema).addValue(oneOfType.createValue(0, 23423)).build();
+    assertEquals(expectedRow, AvroUtils.toBeamRowStrict(genericRecord, expectedSchema));
+  }
+
+  @Test
+  public void testUnionFieldInBeamSchema() {
+    OneOfType oneOfType =
+        OneOfType.create(Field.of("int", FieldType.INT32), Field.of("string", FieldType.STRING));
+
+    Schema beamSchema = Schema.builder().addLogicalTypeField("union", oneOfType).build();
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
+
+    unionFields.add(org.apache.avro.Schema.create(Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
+    GenericRecord expectedGenericRecord =
+        new GenericRecordBuilder(avroSchema).set("union", 23423).build();
+    Row row = Row.withSchema(beamSchema).addValue(oneOfType.createValue(0, 23423)).build();
+    assertEquals(expectedGenericRecord, AvroUtils.toGenericRecord(row, avroSchema));
+  }
+
+  @Test
   public void testBeamRowToGenericRecord() {
     GenericRecord genericRecord = AvroUtils.toGenericRecord(getBeamRow(), null);
     assertEquals(getAvroSchema(), genericRecord.getSchema());
@@ -572,66 +607,5 @@ public class AvroUtilsTest {
     users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
     assertTrue(users.hasSchema());
     CoderProperties.coderSerializable(users.getCoder());
-  }
-
-  public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {
-    return new ContainsField(predicate);
-  }
-
-  // doesn't work because Beam doesn't have unions, only nullable fields
-  public static boolean hasNonNullUnion(org.apache.avro.Schema schema) {
-    if (schema.getType() == Type.UNION) {
-      final List<org.apache.avro.Schema> types = schema.getTypes();
-
-      if (types.size() == 2) {
-        return !types.contains(NULL_SCHEMA);
-      } else {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  static class ContainsField extends BaseMatcher<org.apache.avro.Schema> {
-
-    private final Function<org.apache.avro.Schema, Boolean> predicate;
-
-    ContainsField(final Function<org.apache.avro.Schema, Boolean> predicate) {
-      this.predicate = predicate;
-    }
-
-    @Override
-    public boolean matches(final Object item0) {
-      if (!(item0 instanceof org.apache.avro.Schema)) {
-        return false;
-      }
-
-      org.apache.avro.Schema item = (org.apache.avro.Schema) item0;
-
-      if (predicate.apply(item)) {
-        return true;
-      }
-
-      switch (item.getType()) {
-        case RECORD:
-          return item.getFields().stream().anyMatch(x -> matches(x.schema()));
-
-        case UNION:
-          return item.getTypes().stream().anyMatch(this::matches);
-
-        case ARRAY:
-          return matches(item.getElementType());
-
-        case MAP:
-          return matches(item.getValueType());
-
-        default:
-          return false;
-      }
-    }
-
-    @Override
-    public void describeTo(final Description description) {}
   }
 }

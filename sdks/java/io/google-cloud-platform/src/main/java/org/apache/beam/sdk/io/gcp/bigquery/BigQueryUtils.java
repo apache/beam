@@ -253,6 +253,8 @@ public class BigQueryUtils {
       case "BOOL":
       case "BOOLEAN":
         return FieldType.BOOLEAN;
+      case "NUMERIC":
+        return FieldType.DECIMAL;
       case "TIMESTAMP":
         return FieldType.DATETIME;
       case "TIME":

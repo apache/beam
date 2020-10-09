@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -175,9 +176,9 @@ public class QueryablePipelineTest {
           rootTransform.getTransform().getInputsCount(),
           equalTo(0));
       assertThat(
-          "Only added source reads to the pipeline",
+          "Only added impulse transforms to the pipeline",
           rootTransform.getTransform().getSpec().getUrn(),
-          equalTo(PTransformTranslation.READ_TRANSFORM_URN));
+          equalTo(PTransformTranslation.IMPULSE_TRANSFORM_URN));
     }
   }
 
@@ -189,10 +190,10 @@ public class QueryablePipelineTest {
   @Test
   public void transformWithSideAndMainInputs() {
     Pipeline p = Pipeline.create();
-    PCollection<Long> longs = p.apply("BoundedRead", Read.from(CountingSource.upTo(100L)));
+    PCollection<byte[]> impulse = p.apply("Impulse", Impulse.create());
     PCollectionView<String> view =
         p.apply("Create", Create.of("foo")).apply("View", View.asSingleton());
-    longs.apply(
+    impulse.apply(
         "par_do",
         ParDo.of(new TestFn())
             .withSideInputs(view)
@@ -203,7 +204,7 @@ public class QueryablePipelineTest {
 
     String mainInputName =
         getOnlyElement(
-            PipelineNode.pTransform("BoundedRead", components.getTransformsOrThrow("BoundedRead"))
+            PipelineNode.pTransform("Impulse", components.getTransformsOrThrow("Impulse"))
                 .getTransform()
                 .getOutputsMap()
                 .values());
@@ -313,17 +314,19 @@ public class QueryablePipelineTest {
     Components components = PipelineTranslation.toProto(p).getComponents();
     QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
-    String longsOutputName =
+    String impulseOutputName =
         getOnlyElement(
-            PipelineNode.pTransform("BoundedRead", components.getTransformsOrThrow("BoundedRead"))
+            PipelineNode.pTransform(
+                    "BoundedRead/Impulse", components.getTransformsOrThrow("BoundedRead/Impulse"))
                 .getTransform()
                 .getOutputsMap()
                 .values());
-    PTransformNode longsProducer =
-        PipelineNode.pTransform("BoundedRead", components.getTransformsOrThrow("BoundedRead"));
-    PCollectionNode longsOutput =
+    PTransformNode impulseProducer =
+        PipelineNode.pTransform(
+            "BoundedRead/Impulse", components.getTransformsOrThrow("BoundedRead/Impulse"));
+    PCollectionNode impulseOutput =
         PipelineNode.pCollection(
-            longsOutputName, components.getPcollectionsOrThrow(longsOutputName));
+            impulseOutputName, components.getPcollectionsOrThrow(impulseOutputName));
     String flattenOutputName =
         getOnlyElement(
             PipelineNode.pTransform("flatten", components.getTransformsOrThrow("flatten"))
@@ -336,35 +339,37 @@ public class QueryablePipelineTest {
         PipelineNode.pCollection(
             flattenOutputName, components.getPcollectionsOrThrow(flattenOutputName));
 
-    assertThat(qp.getProducer(longsOutput), equalTo(longsProducer));
+    assertThat(qp.getProducer(impulseOutput), equalTo(impulseProducer));
     assertThat(qp.getProducer(flattenOutput), equalTo(flattenProducer));
   }
 
   @Test
   public void getEnvironmentWithEnvironment() {
     Pipeline p = Pipeline.create();
-    PCollection<Long> longs = p.apply("BoundedRead", Read.from(CountingSource.upTo(100L)));
+    PCollection<Long> longs =
+        p.apply("Impulse", Impulse.create()).apply("ParDo", ParDo.of(new TestFn()));
     longs.apply(WithKeys.of("a")).apply("groupByKey", GroupByKey.create());
 
     Components components = PipelineTranslation.toProto(p).getComponents();
     QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
-    PTransformNode environmentalRead =
-        PipelineNode.pTransform("BoundedRead", components.getTransformsOrThrow("BoundedRead"));
+    PTransformNode environmentalTransform =
+        PipelineNode.pTransform(
+            "ParDo/ParMultiDo(Test)", components.getTransformsOrThrow("ParDo/ParMultiDo(Test)"));
     PTransformNode nonEnvironmentalTransform =
         PipelineNode.pTransform("groupByKey", components.getTransformsOrThrow("groupByKey"));
 
-    assertThat(qp.getEnvironment(environmentalRead).isPresent(), is(true));
+    assertThat(qp.getEnvironment(environmentalTransform).isPresent(), is(true));
     assertThat(
-        qp.getEnvironment(environmentalRead).get().getUrn(),
+        qp.getEnvironment(environmentalTransform).get().getUrn(),
         equalTo(Environments.JAVA_SDK_HARNESS_ENVIRONMENT.getUrn()));
     assertThat(
-        qp.getEnvironment(environmentalRead).get().getPayload(),
+        qp.getEnvironment(environmentalTransform).get().getPayload(),
         equalTo(Environments.JAVA_SDK_HARNESS_ENVIRONMENT.getPayload()));
     assertThat(qp.getEnvironment(nonEnvironmentalTransform).isPresent(), is(false));
   }
 
-  private static class TestFn extends DoFn<Long, Long> {
+  private static class TestFn extends DoFn<byte[], Long> {
     @ProcessElement
     public void process(ProcessContext ctxt) {}
   }
@@ -372,7 +377,7 @@ public class QueryablePipelineTest {
   @Test
   public void retainOnlyPrimitivesWithOnlyPrimitivesUnchanged() {
     Pipeline p = Pipeline.create();
-    p.apply("Read", Read.from(CountingSource.unbounded()))
+    p.apply("Impulse", Impulse.create())
         .apply(
             "multi-do",
             ParDo.of(new TestFn()).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
@@ -392,9 +397,9 @@ public class QueryablePipelineTest {
           @Override
           public PCollection<Long> expand(PBegin input) {
             return input
-                .apply(GenerateSequence.from(2L))
+                .apply(Impulse.create())
                 .apply(Window.into(FixedWindows.of(Duration.standardMinutes(5L))))
-                .apply(MapElements.into(TypeDescriptors.longs()).via(l -> l + 1));
+                .apply(MapElements.into(TypeDescriptors.longs()).via(l -> 1L));
           }
         });
 

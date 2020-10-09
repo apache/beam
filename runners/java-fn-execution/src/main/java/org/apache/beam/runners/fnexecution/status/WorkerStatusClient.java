@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 class WorkerStatusClient implements Closeable {
 
-  public static final Logger LOG = LoggerFactory.getLogger(WorkerStatusClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WorkerStatusClient.class);
   private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
   private final StreamObserver<WorkerStatusRequest> requestReceiver;
   private final Map<String, CompletableFuture<WorkerStatusResponse>> pendingResponses =
@@ -149,7 +149,7 @@ class WorkerStatusClient implements Closeable {
 
     @Override
     public void onError(Throwable throwable) {
-      LOG.error("{} received error {}", WorkerStatusClient.class.getSimpleName(), throwable);
+      LOG.error("{} received error.", WorkerStatusClient.class.getSimpleName(), throwable);
       onCompleted();
     }
 

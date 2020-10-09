@@ -56,7 +56,7 @@ func (s Scope) String() string {
 // Pipeline manages a directed acyclic graph of primitive PTransforms, and the
 // PCollections that the PTransforms consume and produce. Each Pipeline is
 // self-contained and isolated from any other Pipeline. The Pipeline owns the
-// PCollections and PTransforms and they can by used by that Pipeline only.
+// PCollections and PTransforms and they can be used by that Pipeline only.
 // Pipelines can safely be executed concurrently.
 type Pipeline struct {
 	// real is the deferred execution Graph as it is being constructed.
