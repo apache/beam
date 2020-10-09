@@ -22,7 +22,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.joda.time.Instant;
 
 /** Implementation of ValueInSingleWindow to support failsafe items in value. */
-final class FailsafeValueInSingleWindow<T, ErrorT>
+public final class FailsafeValueInSingleWindow<T, ErrorT>
     extends ValueInSingleWindow<T> {
   private final T value;
   private final Instant timestamp;
