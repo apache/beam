@@ -78,6 +78,7 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -483,12 +484,13 @@ public class BigQueryServicesImplTest {
     verify(response, times(1)).getContentType();
   }
 
-  private <T> ValueInSingleWindow<T> wrapValue(T value) {
-    return ValueInSingleWindow.of(
+  private <T> FailsafeValueInSingleWindow<T, T> wrapValue(T value) {
+    return new FailsafeValueInSingleWindow<T, T>(
         value,
         GlobalWindow.TIMESTAMP_MAX_VALUE,
         GlobalWindow.INSTANCE,
-        PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        PaneInfo.ON_TIME_AND_ONLY_FIRING,
+        value);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} retries rate limited attempts. */
@@ -496,7 +498,7 @@ public class BigQueryServicesImplTest {
   public void testInsertRateLimitRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
     // First response is 403 rate limited, second response has valid payload.
@@ -532,7 +534,7 @@ public class BigQueryServicesImplTest {
   public void testInsertQuotaExceededRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
     // First response is 403 quota exceeded, second response has valid payload.
@@ -568,7 +570,7 @@ public class BigQueryServicesImplTest {
   public void testInsertStoppedRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
     // Respond 403 four times, then valid payload.
@@ -620,7 +622,7 @@ public class BigQueryServicesImplTest {
   public void testInsertRetrySelectRows() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows =
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(
             wrapValue(new TableRow().set("row", "a")), wrapValue(new TableRow().set("row", "b")));
     List<String> insertIds = ImmutableList.of("a", "b");
@@ -664,7 +666,7 @@ public class BigQueryServicesImplTest {
   public void testInsertFailsGracefully() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows =
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(wrapValue(new TableRow()), wrapValue(new TableRow()));
 
     final TableDataInsertAllResponse row1Failed =
@@ -723,7 +725,7 @@ public class BigQueryServicesImplTest {
   public void testFailInsertOtherRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
     // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
@@ -767,7 +769,7 @@ public class BigQueryServicesImplTest {
   public void testInsertRetryPolicy() throws InterruptedException, IOException {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows =
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(wrapValue(new TableRow()), wrapValue(new TableRow()));
 
     // First time row0 fails with a retryable error, and row1 fails with a persistent error.
@@ -836,7 +838,7 @@ public class BigQueryServicesImplTest {
       throws InterruptedException, IOException {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows =
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(wrapValue(new TableRow()), wrapValue(new TableRow()));
 
     final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
@@ -1051,7 +1053,7 @@ public class BigQueryServicesImplTest {
   public void testSimpleErrorRetrieval() throws InterruptedException, IOException {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows =
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(
             wrapValue(new TableRow().set("a", 1)), wrapValue(new TableRow().set("b", 2)));
 
@@ -1098,7 +1100,7 @@ public class BigQueryServicesImplTest {
   public void testExtendedErrorRetrieval() throws InterruptedException, IOException {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows =
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(
             wrapValue(new TableRow().set("a", 1)), wrapValue(new TableRow().set("b", 2)));
 
