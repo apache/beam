@@ -44,6 +44,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.typehints import schemas
 from apache_beam.utils import windowed_value
+from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
@@ -190,6 +191,9 @@ class StandardCodersTest(unittest.TestCase):
                   x['pane']['index'],
                   x['pane']['on_time_index'])),
       'beam:coder:double:v1': parse_float,
+      'beam:coder:sharded_key:v1': lambda x,
+      value_parser: ShardedKey(
+          key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8'))
   }
 
   def test_standard_coders(self):
