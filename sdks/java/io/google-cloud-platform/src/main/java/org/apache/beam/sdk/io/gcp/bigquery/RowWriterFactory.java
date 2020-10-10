@@ -55,7 +55,7 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
         SerializableFunction<ElementT, TableRow> toRow,
         SerializableFunction<ElementT, TableRow> toFailsafeRow) {
       this.toRow = toRow;
-      this.toFailsafeRow = toFailsafeRow; // TODO yummy
+      this.toFailsafeRow = toFailsafeRow;
     }
 
     public SerializableFunction<ElementT, TableRow> getToRowFn() {
