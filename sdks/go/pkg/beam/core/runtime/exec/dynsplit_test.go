@@ -103,11 +103,11 @@ func TestDynamicSplit(t *testing.T) {
 			// with the input coder to the path.
 			// TODO(BEAM-10579) Switch to using splittable unit's input coder
 			// once that is implemented.
-			p, err := decodeDynSplitElm(splitRes.split.PS, cdr)
+			p, err := decodeDynSplitElm(splitRes.split.PS[0], cdr)
 			if err != nil {
 				t.Errorf("Failed decoding primary element split: %v", err)
 			}
-			_, err = decodeDynSplitElm(splitRes.split.RS, cdr)
+			_, err = decodeDynSplitElm(splitRes.split.RS[0], cdr)
 			if err != nil {
 				t.Errorf("Failed decoding residual element split: %v", err)
 			}

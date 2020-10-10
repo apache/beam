@@ -18,6 +18,7 @@ package exec
 import (
 	"context"
 	"fmt"
+	"math"
 	"path"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -238,6 +239,12 @@ type ProcessSizedElementsAndRestrictions struct {
 	elm   *FullValue   // Currently processing element.
 	rt    sdf.RTracker // Currently processing element's restriction tracker.
 	currW int          // Index of the current window in elm being processed.
+
+	// Number of windows being processed. This number can differ from the number
+	// of windows in an element, indicating to only process a subset of windows.
+	// This can change during processing due to splits, but it should always be
+	// set greater than currW.
+	numW int
 }
 
 // ID calls the ParDo's ID method.
@@ -323,10 +330,13 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 	// Begin processing elements, exploding windows if necessary.
 	n.currW = 0
 	if !mustExplodeWindows(n.PDo.inv.fn, elm, len(n.PDo.Side) > 0) {
+		// If windows don't need to be exploded (i.e. aren't observed), treat
+		// all windows as one as an optimization.
 		rest := elm.Elm.(*FullValue).Elm2
 		rt := n.ctInv.Invoke(rest)
 		mainIn.RTracker = rt
 
+		n.numW = 1 // Even if there's more than one window, treat them as one.
 		n.rt = rt
 		n.elm = elm
 		n.SU <- n
@@ -338,12 +348,17 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		// If we need to process the element in multiple windows, each one needs
 		// its own RTracker and progress must be tracked among all windows by
 		// currW updated between processing.
-		for _, w := range elm.Windows {
+		n.numW = len(elm.Windows)
+
+		//for _, w := range elm.Windows {
+		for i := 0; i < n.numW; i++ {
 			rest := elm.Elm.(*FullValue).Elm2
 			rt := n.ctInv.Invoke(rest)
 			key := &mainIn.Key
+			w := elm.Windows[i]
 			wElm := FullValue{Elm: key.Elm, Elm2: key.Elm2, Timestamp: key.Timestamp, Windows: []typex.Window{w}}
 
+			n.currW = i
 			n.rt = rt
 			n.elm = elm
 			n.SU <- n
@@ -353,7 +368,6 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 				return n.PDo.fail(err)
 			}
 			<-n.SU
-			n.currW++
 		}
 	}
 	return nil
@@ -380,9 +394,15 @@ func (n *ProcessSizedElementsAndRestrictions) String() string {
 // for a unit, and provides access to them on other threads.
 type SplittableUnit interface {
 	// Split performs a split on a fraction of a currently processing element
-	// and returns the primary and residual elements resulting from it, or an
+	// and returns zero or more primaries and residuals resulting from it, or an
 	// error if the split failed.
-	Split(fraction float64) (primary, residual *FullValue, err error)
+	//
+	// Zero primaries/residuals can be returned if the split succeeded but
+	// resulted in no change. In this case, an empty slice is returned.
+	//
+	// More than one primary/residual can happen if the split result cannot be
+	// fully represented in just one.
+	Split(fraction float64) (primaries, residuals []*FullValue, err error)
 
 	// GetProgress returns the fraction of progress the current element has
 	// made in processing. (ex. 0.0 means no progress, and 1.0 means fully
@@ -398,77 +418,204 @@ type SplittableUnit interface {
 }
 
 // Split splits the currently processing element using its restriction tracker.
-// Then it returns an element for primary and residual, following the expected
+// Then it returns zero or more primaries and residuals, following the expected
 // input structure to this unit, including updating the size of the split
 // elements.
-func (n *ProcessSizedElementsAndRestrictions) Split(f float64) (*FullValue, *FullValue, error) {
+//
+// This implementation of Split considers whether windows are being exploded
+// for window-observing DoFns, and has significantly different behavior if
+// windows need to be taken into account. For implementation details on when
+// each case occurs and the implementation details, see the documentation for
+// the singleWindowSplit and multiWindowSplit methods.
+func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []*FullValue, error) {
 	addContext := func(err error) error {
 		return errors.WithContext(err, "Attempting split in ProcessSizedElementsAndRestrictions")
 	}
 
-	// Check that the restriction tracker is in a state where it can be split.
+	// Errors checking.
 	if n.rt == nil {
 		return nil, nil, addContext(errors.New("Restriction tracker missing."))
 	}
 	if err := n.rt.GetError(); err != nil {
 		return nil, nil, addContext(err)
 	}
+
+	// Split behavior differs depending on whether this is a window-observing
+	// DoFn or not.
+	if len(n.elm.Windows) > 1 {
+		p, r, err := n.multiWindowSplit(f)
+		if err != nil {
+			return nil, nil, addContext(err)
+		}
+		return p, r, nil
+	}
+
+	// Not window-observing, or window-observing but only one window.
+	p, r, err := n.singleWindowSplit(f)
+	if err != nil {
+		return nil, nil, addContext(err)
+	}
+	return p, r, nil
+}
+
+// singleWindowSplit is intended for splitting elements in non window-observing
+// DoFns (or single-window elements in window-observing DoFns, since the
+// behavior is identical). A single restriction split will occur and all windows
+// present in the unsplit element will be present in both the resulting primary
+// and residual.
+func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64) ([]*FullValue, []*FullValue, error) {
 	if n.rt.IsDone() { // Not an error, but not splittable.
-		return nil, nil, nil
+		return []*FullValue{}, []*FullValue{}, nil
 	}
 
 	p, r, err := n.rt.TrySplit(f)
 	if err != nil {
-		return nil, nil, addContext(err)
+		return nil, nil, err
 	}
 	if r == nil { // If r is nil then the split failed/returned an empty residual.
-		return nil, nil, nil
+		return []*FullValue{}, []*FullValue{}, nil
 	}
 
-	var pfv, rfv *FullValue
-	var pSize, rSize float64
+	pfv := n.newSplitResult(p, n.elm.Windows)
+	rfv := n.newSplitResult(r, n.elm.Windows)
+	return []*FullValue{pfv}, []*FullValue{rfv}, nil
+}
+
+// multiWindowSplit is intended for splitting multi-window elements in
+// window-observing DoFns. In window-observing DoFns, windows are exploded,
+// and are processed one at a time, creating a new RTracker each time. This
+// means a split occurs in a single spot somewhere in that sequence of single
+// windows, so a restriction will be split only inside one window, or the split
+// may occur at a boundary between windows and the restriction will not be split
+// at all.
+//
+// Therefore, when such a split happens, the split result consists of:
+// 1. A primary containing the unsplit restriction and a subset of windows that
+//    fall within the primary.
+// 2. (Optional) A second primary containing the primary half of a split
+//    restriction and the single window it was split in.
+// 3. A residual containing the unsplit restriction and a subset of windows that
+//    fall within the residual.
+// 4. (Optional) A second residual containing the residual half of a split
+//    restriction and the window it was split in (same window as primary half).
+//
+// The current implementation does not split restrictions outside of the current
+// RTracker (i.e. the current window). Otherwise, the split will occur at the
+// nearest window boundary.
+//
+// This method also updates the current number of windows (n.numW) so that
+// windows in the residual will no longer be processed.
+func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(f float64) ([]*FullValue, []*FullValue, error) {
+	// Get the split point in window range, to see what window it falls in.
+	done, rem := n.rt.GetProgress()
+	cwp := done / (done + rem)                      // Progress in current window.
+	p := (float64(n.currW) + cwp) / float64(n.numW) // Progress of whole element.
+	sp := p + (f * (1.0 - p))                       // Split point in range of entire element [0, 1].
+	wsp := sp * float64(n.numW)                     // Split point in window range [0, numW].
+
+	if int(wsp) == n.currW {
+		// Split point lands in current window, so we can split via RTracker.
+		if n.rt.IsDone() {
+			// Current RTracker is done so we can't split within the window, so
+			// split at window boundary instead.
+			return n.windowBoundarySplit(n.currW + 1)
+		}
+
+		// Get the fraction of remaining work in the current window to split at.
+		cwsp := wsp - float64(n.currW) // Split point in current window.
+		rf := (cwsp - cwp) / (1 - cwp) // Fraction of work in RTracker to split at.
+
+		return n.currentWindowSplit(rf)
+	} else {
+		// Split at nearest window boundary to split point.
+		wb := math.Round(wsp)
+		return n.windowBoundarySplit(int(wb))
+	}
+}
+
+// currentWindowSplit performs an appropriate split at the given fraction of
+// remaining work in the current window. Also updates numW to stop after the
+// current window.
+func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64) ([]*FullValue, []*FullValue, error) {
+	p, r, err := n.rt.TrySplit(f)
+	if err != nil {
+		return nil, nil, err
+	}
+	if r == nil {
+		// If r is nil then the split failed/returned an empty residual, but
+		// we can still split at a window boundary.
+		return n.windowBoundarySplit(n.currW + 1)
+	}
+
+	// Split of currently processing restriction in a single window.
+	ps := make([]*FullValue, 1)
+	ps[0] = n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1])
+	rs := make([]*FullValue, 1)
+	rs[0] = n.newSplitResult(r, n.elm.Windows[n.currW:n.currW+1])
+	// Window boundary split surrounding the split restriction above.
+	full := n.elm.Elm.(*FullValue).Elm2
+	if 0 < n.currW {
+		ps = append(ps, n.newSplitResult(full, n.elm.Windows[0:n.currW]))
+	}
+	if n.currW+1 < n.numW {
+		rs = append(rs, n.newSplitResult(full, n.elm.Windows[n.currW+1:n.numW]))
+	}
+	n.numW = n.currW + 1
+	return ps, rs, nil
+}
+
+// windowBoundarySplit performs an appropriate split at a window boundary. The
+// split point taken should be the index of the first window in the residual.
+// Also updates numW to stop at the split point.
+func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int) ([]*FullValue, []*FullValue, error) {
+	// If this is at the boundary of the last window, split is a no-op.
+	if splitPt == n.numW {
+		return []*FullValue{}, []*FullValue{}, nil
+	}
+	full := n.elm.Elm.(*FullValue).Elm2
+	pFv := n.newSplitResult(full, n.elm.Windows[0:splitPt])
+	rFv := n.newSplitResult(full, n.elm.Windows[splitPt:n.numW])
+	n.numW = splitPt
+	return []*FullValue{pFv}, []*FullValue{rFv}, nil
+}
+
+// newSplitResult creates a FullValue containing a properly structured and sized
+// element restriction pair based on the currently processing element, but with
+// a modified restriction and windows. Intended for creating primaries and
+// residuals to return as split results.
+func (n *ProcessSizedElementsAndRestrictions) newSplitResult(rest interface{}, w []typex.Window) *FullValue {
+	var size float64
 	elm := n.elm.Elm.(*FullValue).Elm
 	if fv, ok := elm.(*FullValue); ok {
-		pSize = n.sizeInv.Invoke(fv, p)
-		rSize = n.sizeInv.Invoke(fv, r)
+		size = n.sizeInv.Invoke(fv, rest)
 	} else {
 		fv := &FullValue{Elm: elm}
-		pSize = n.sizeInv.Invoke(fv, p)
-		rSize = n.sizeInv.Invoke(fv, r)
+		size = n.sizeInv.Invoke(fv, rest)
 	}
-	pfv = &FullValue{
+	return &FullValue{
 		Elm: &FullValue{
 			Elm:  elm,
-			Elm2: p,
+			Elm2: rest,
 		},
-		Elm2:      pSize,
+		Elm2:      size,
 		Timestamp: n.elm.Timestamp,
-		Windows:   n.elm.Windows,
+		Windows:   w,
 	}
-	rfv = &FullValue{
-		Elm: &FullValue{
-			Elm:  elm,
-			Elm2: r,
-		},
-		Elm2:      rSize,
-		Timestamp: n.elm.Timestamp,
-		Windows:   n.elm.Windows,
-	}
-	return pfv, rfv, nil
 }
 
 // GetProgress returns the current restriction tracker's progress as a fraction.
+// This implementation accounts for progress across windows in window-observing
+// DoFns, so 1.0 is only returned once all windows have been processed.
 func (n *ProcessSizedElementsAndRestrictions) GetProgress() float64 {
 	d, r := n.rt.GetProgress()
 	frac := d / (d + r)
 
-	numW := len(n.elm.Windows)
-	if numW == 1 {
+	if n.numW == 1 {
 		return frac
 	}
 	// Frac only covers currently processing element+window pair, so adjust it
 	// to measure finished work throughout all windows.
-	return (float64(n.currW) + frac) / float64(numW)
+	return (float64(n.currW) + frac) / float64(n.numW)
 }
 
 // GetTransformId returns this transform's transform ID.
