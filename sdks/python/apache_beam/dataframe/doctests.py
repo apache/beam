@@ -530,6 +530,8 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
         if '@verbatim' in line or ':verbatim:' in line or '@savefig' in line:
           example_srcs.pop()
           break
+        line = re.sub(r'In \[\d+\]: ', '', line)
+        line = re.sub(r'\.\.\.+:', '', line)
         example.append(line[indent:])
         lineno, line = next(lines)
         if get_indent(line) == indent and line[indent] not in ')]}':
