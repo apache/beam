@@ -102,8 +102,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.combine_first': ['*'],
 
             # Difficult to parallelize but should be possible?
-            'pandas.core.frame.DataFrame.corr': ['*'],
-            'pandas.core.frame.DataFrame.cov': ['*'],
             'pandas.core.frame.DataFrame.dot': [
                 # reindex not supported
                 's2 = s.reindex([1, 0, 2, 3])',
@@ -128,6 +126,12 @@ class DoctestTest(unittest.TestCase):
         },
         skip={
             'pandas.core.frame.DataFrame.compare': ['*'],
+            'pandas.core.frame.DataFrame.cov': [
+                # Relies on setting entries ahead of time.
+                "df.loc[df.index[:5], 'a'] = np.nan",
+                "df.loc[df.index[5:10], 'b'] = np.nan",
+                'df.cov(min_periods=12)',
+            ],
             'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
             'pandas.core.frame.DataFrame.duplicated': ['*'],
             'pandas.core.frame.DataFrame.groupby': [
@@ -250,9 +254,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
-            'pandas.core.series.Series.corr': ['*'],
             'pandas.core.series.Series.count': ['*'],
-            'pandas.core.series.Series.cov': ['*'],
+            'pandas.core.series.Series.cov': [
+                # Differs in LSB on jenkins.
+                "s1.cov(s2)",
+            ],
             'pandas.core.series.Series.drop': ['*'],
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
