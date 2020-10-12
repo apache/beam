@@ -630,3 +630,4 @@ public class AvroUtilsTest {
 
     assertEquals(row, deserializedRow);
   }
+}
