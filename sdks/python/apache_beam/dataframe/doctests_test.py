@@ -110,6 +110,9 @@ and a multi-line example
     def foo(x):
         return x * x
     foo(4)
+    foo(
+        4
+    )
 
 history is preserved
 
@@ -234,7 +237,7 @@ class DoctestTest(unittest.TestCase):
     except ImportError:
       raise unittest.SkipTest('IPython not available')
     result = doctests.test_rst_ipython(RST_IPYTHON, 'test_rst_ipython')
-    self.assertEqual(result.attempted, 5)
+    self.assertEqual(result.attempted, 6)
     self.assertEqual(result.failed, 1)  # Only the very last one.
 
 

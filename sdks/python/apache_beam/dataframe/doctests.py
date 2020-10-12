@@ -532,7 +532,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
           break
         example.append(line[indent:])
         lineno, line = next(lines)
-        if get_indent(line) == indent:
+        if get_indent(line) == indent and line[indent] not in ')]}':
           example = []
           example_srcs.append((lineno, example))
     else:
