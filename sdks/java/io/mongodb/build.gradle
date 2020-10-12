@@ -29,7 +29,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile "org.mongodb:mongo-java-driver:3.9.1"
+  compile "org.mongodb:mongo-java-driver:3.12.7"
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
