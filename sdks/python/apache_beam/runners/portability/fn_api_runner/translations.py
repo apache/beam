@@ -517,7 +517,6 @@ def pipeline_from_stages(
   new_proto.CopyFrom(pipeline_proto)
   components = new_proto.components
   components.transforms.clear()
-  components.pcollections.clear()
 
   roots = set()
   parents = {
@@ -526,11 +525,6 @@ def pipeline_from_stages(
       proto in pipeline_proto.components.transforms.items()
       for child in proto.subtransforms
   }
-
-  def copy_output_pcollections(transform):
-    for pcoll_id in transform.outputs.values():
-      components.pcollections[pcoll_id].CopyFrom(
-          pipeline_proto.components.pcollections[pcoll_id])
 
   def add_parent(child, parent):
     if parent is None:
@@ -542,7 +536,6 @@ def pipeline_from_stages(
           parent in pipeline_proto.components.transforms):
         components.transforms[parent].CopyFrom(
             pipeline_proto.components.transforms[parent])
-        copy_output_pcollections(components.transforms[parent])
         del components.transforms[parent].subtransforms[:]
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
@@ -554,7 +547,6 @@ def pipeline_from_stages(
             'Could not find subtransform to copy: ' + subtransform_id)
       subtransform = pipeline_proto.components.transforms[subtransform_id]
       components.transforms[subtransform_id].CopyFrom(subtransform)
-      copy_output_pcollections(components.transforms[subtransform_id])
       copy_subtransforms(subtransform)
 
   all_consumers = collections.defaultdict(
@@ -573,7 +565,6 @@ def pipeline_from_stages(
           known_runner_urns, all_consumers, components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
-    copy_output_pcollections(transform)
     add_parent(transform_id, stage.parent)
 
   del new_proto.root_transform_ids[:]
