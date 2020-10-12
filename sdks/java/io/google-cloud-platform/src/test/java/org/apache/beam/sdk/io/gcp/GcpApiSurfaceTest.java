@@ -85,14 +85,6 @@ public class GcpApiSurfaceTest {
             Matchers.<Class<?>>equalTo(com.google.cloud.ByteArray.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Date.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Timestamp.class),
-            // TODO: remove the following classes once spanner updates APIs of AsyncResultSet:
-            // https://github.com/googleapis/java-spanner/issues/410
-            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableCollection.class),
-            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableCollection.Builder.class),
-            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableList.class),
-            Matchers.<Class<?>>equalTo(com.google.common.collect.ImmutableList.Builder.class),
-            Matchers.<Class<?>>equalTo(com.google.common.collect.UnmodifiableIterator.class),
-            Matchers.<Class<?>>equalTo(com.google.common.collect.UnmodifiableListIterator.class),
             classesInPackage("com.google.cloud.spanner"),
             classesInPackage("com.google.datastore.v1"),
             classesInPackage("com.google.protobuf"),
