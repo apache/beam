@@ -1065,6 +1065,10 @@ public class BigQueryServicesImplTest {
         ImmutableList.of(
             wrapValue(new TableRow().set("a", 1)), wrapValue(new TableRow().set("b", 2)));
 
+    final List<ValueInSingleWindow<TableRow>> expected =
+        ImmutableList.of(
+            wrapErrorValue(new TableRow().set("a", 1)), wrapErrorValue(new TableRow().set("b", 2)));
+
     final TableDataInsertAllResponse failures =
         new TableDataInsertAllResponse()
             .setInsertErrors(
@@ -1100,7 +1104,7 @@ public class BigQueryServicesImplTest {
         false,
         false);
 
-    assertThat(failedInserts, is(rows));
+    assertThat(failedInserts, is(expected));
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} uses the supplied {@link ErrorContainer}. */
