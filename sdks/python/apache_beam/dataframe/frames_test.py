@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import math
 import sys
 import unittest
 
@@ -29,16 +30,28 @@ from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(self, func, *args):
+  def _run_test(self, func, *args, distributed=False):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
     ]
     expected = func(*args)
-    actual = expressions.Session({}).evaluate(func(*deferred_args)._expr)
+    session_type = (
+        expressions.PartitioningSession if distributed else expressions.Session)
+    actual = session_type({}).evaluate(func(*deferred_args)._expr)
+    if hasattr(expected, 'equals'):
+      if distributed:
+        cmp = lambda df: expected.sort_index().equals(df.sort_index())
+      else:
+        cmp = expected.equals
+    elif isinstance(expected, float):
+      cmp = lambda x: (math.isnan(x) and math.isnan(expected)
+                       ) or x == expected == 0 or abs(expected - x) / (
+                           abs(expected) + abs(x)) < 1e-8
+    else:
+      cmp = expected.__eq__
     self.assertTrue(
-        getattr(expected, 'equals', expected.__eq__)(actual),
-        'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+        cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -136,6 +149,27 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)
     self._run_test(lambda df: df.nsmallest(3, 'A', keep='all'), df)
     self._run_test(lambda df: df.nlargest(3, ['A', 'B'], keep='all'), df)
+
+  def test_series_cov_corr(self):
+    for s in [pd.Series([1, 2, 3]),
+              pd.Series(range(100)),
+              pd.Series([x**3 for x in range(-50, 50)])]:
+      self._run_test(lambda s: s.std(), s, distributed=True)
+      self._run_test(lambda s: s.corr(s), s, distributed=True)
+      self._run_test(lambda s: s.corr(s + 1), s, distributed=True)
+      self._run_test(lambda s: s.corr(s * s), s, distributed=True)
+      self._run_test(lambda s: s.cov(s * s), s, distributed=True)
+
+  def test_dataframe_cov_corr(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    df.loc[df.index[:5], 'a'] = np.nan
+    df.loc[df.index[5:10], 'b'] = np.nan
+    self._run_test(lambda df: df.corr().round(8), df, distributed=True)
+    self._run_test(lambda df: df.cov().round(8), df, distributed=True)
+    self._run_test(
+        lambda df: df.corr(min_periods=12).round(8), df, distributed=True)
+    self._run_test(
+        lambda df: df.cov(min_periods=12).round(8), df, distributed=True)
 
 
 class AllowNonParallelTest(unittest.TestCase):
