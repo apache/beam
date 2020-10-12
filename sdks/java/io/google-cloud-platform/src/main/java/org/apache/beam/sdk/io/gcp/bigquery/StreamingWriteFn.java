@@ -132,8 +132,7 @@ class StreamingWriteFn<ErrorT, ElementT>
     TableRow tableRow = toTableRow.apply(element.getValue().tableRow);
     TableRow failsafeTableRow = toFailsafeTableRow.apply(element.getValue().tableRow);
     rows.add( // TODO should support FailsafeValueInSingleWindow.of()
-        FailsafeValueInSingleWindow.of(
-            tableRow, timestamp, window, pane, failsafeTableRow));
+        FailsafeValueInSingleWindow.of(tableRow, timestamp, window, pane, failsafeTableRow));
     uniqueIds.add(element.getValue().uniqueId);
   }
 
