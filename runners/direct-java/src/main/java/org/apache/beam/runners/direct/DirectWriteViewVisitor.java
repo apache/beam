@@ -17,66 +17,62 @@
  */
 package org.apache.beam.runners.direct;
 
-import java.io.IOException;
-import java.util.Map;
-import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} that provides overrides for the {@link CreatePCollectionView}
- * {@link PTransform}.
+ * Adds a {@link DirectRunner}-specific {@link WriteView} step for each {@link PCollectionView} for
+ * scheduling materialization of side inputs.
  */
-class ViewOverrideFactory<ElemT, ViewT>
-    implements PTransformOverrideFactory<
-        PCollection<ElemT>,
-        PCollection<ElemT>,
-        PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
+class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
+
+  /** Private URN for identifying {@link DirectRunner}-specific view writing transform. */
+  static final String DIRECT_WRITE_VIEW_URN = "beam:directrunner:transforms:write_view:v1";
+
+  private Set<PCollectionView<?>> viewsToWrite;
 
   @Override
-  public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
-      AppliedPTransform<
-              PCollection<ElemT>,
-              PCollection<ElemT>,
-              PTransform<PCollection<ElemT>, PCollection<ElemT>>>
-          transform) {
+  public void enterPipeline(Pipeline p) {
+    viewsToWrite = new HashSet<>();
+  }
 
-    PCollectionView<ViewT> view;
-    try {
-      view = CreatePCollectionViewTranslation.getView(transform);
-    } catch (IOException exc) {
-      throw new RuntimeException(
-          String.format(
-              "Could not extract %s from transform %s",
-              PCollectionView.class.getSimpleName(), transform),
-          exc);
+  @Override
+  public void leavePipeline(Pipeline p) {
+    // This modifies the transform hierarchy so cannot be performed until the traversal is complete
+    for (PCollectionView<?> view : viewsToWrite) {
+      visitView(view);
     }
-
-    return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform), new GroupAndWriteView<>(view));
   }
 
   @Override
-  public Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, PCollection<ElemT> newOutput) {
-    return ReplacementOutputs.singleton(outputs, newOutput);
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+    if (node.getTransform() instanceof ParDo.MultiOutput) {
+      ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) node.getTransform();
+      viewsToWrite.addAll(parDo.getSideInputs().values());
+    }
   }
 
-  /** The {@link DirectRunner} composite override for {@link CreatePCollectionView}. */
-  static class GroupAndWriteView<ElemT, ViewT>
+  private <ElemT, ViewT> void visitView(PCollectionView<ViewT> view) {
+    PCollection<ElemT> collectionToMaterialize = (PCollection<ElemT>) view.getPCollection();
+    collectionToMaterialize.apply("GroupAndWriteView", new GroupAndWriteView<>(view));
+  }
+
+  /**
+   * The {@link DirectRunner} composite for materializing each side input {@link PCollectionView}.
+   */
+  private static class GroupAndWriteView<ElemT, ViewT>
       extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
     private final PCollectionView<ViewT> view;
 
@@ -87,17 +83,17 @@ class ViewOverrideFactory<ElemT, ViewT>
     @Override
     public PCollection<ElemT> expand(final PCollection<ElemT> input) {
       input
-          .apply(WithKeys.of((Void) null))
+          .apply("Key by null", WithKeys.of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
-          .apply(GroupByKey.create())
-          .apply(Values.create())
-          .apply(new WriteView<>(view));
+          .apply("GBK", GroupByKey.create())
+          .apply("Get values", Values.create())
+          .apply("WriteView", new WriteView<>(view));
       return input;
     }
   }
 
   /**
-   * The {@link DirectRunner} implementation of the {@link CreatePCollectionView} primitive.
+   * The {@link DirectRunner}-specific primitive step for materializing a side input.
    *
    * <p>This implementation requires the input {@link PCollection} to be an iterable of {@code
    * WindowedValue<ElemT>}, which is provided to {@link PCollectionView#getViewFn()} for conversion
@@ -123,6 +119,4 @@ class ViewOverrideFactory<ElemT, ViewT>
       return view;
     }
   }
-
-  public static final String DIRECT_WRITE_VIEW_URN = "beam:directrunner:transforms:write_view:v1";
 }
