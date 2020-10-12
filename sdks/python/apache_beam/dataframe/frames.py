@@ -1006,21 +1006,6 @@ class _DeferredLoc(object):
             preserves_partition_by=partitionings.Singleton()))
 
 class _DeferredStringMethods(frame_base.DeferredBase):
-  def __init__(self, expr):
-    str_expr = expressions.ComputedExpression(
-        'str',
-        lambda df: df.str, [expr],
-        requires_partition_by=partitionings.Nothing(),
-        preserves_partition_by=partitionings.Singleton())
-    # Use str_expr (i.e. Series.str) as self._expr. This allows us
-    # to use frame_base.elementwise_method for most methods.
-    super(_DeferredStringMethods, self).__init__(str_expr)
-
-    # But also keep an expr for the underlying series, for when we need to
-    # partition it.
-    self._series_expr = expr
-    self._str_expr = str_expr
-
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   @frame_base.populate_defaults(pd.core.strings.StringMethods)
   def cat(self, others, join, **kwargs):
@@ -1028,7 +1013,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       # Concatenate series into a single String
       requires = partitionings.Singleton()
       func = lambda df: df.str.cat(join=join, **kwargs)
-      args = [self._series_expr]
+      args = [self._expr]
 
     elif (isinstance(others, frame_base.DeferredBase) or
          (isinstance(others, list) and
@@ -1044,7 +1029,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       requires = partitionings.Index()
       def func(*args):
         return args[0].str.cat(others=args[1:], join=join, **kwargs)
-      args = [self._series_expr] + [other._expr for other in others]
+      args = [self._expr] + [other._expr for other in others]
 
     else:
       raise frame_base.WontImplementError("others must be None, Series, or "
@@ -1066,7 +1051,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
           expressions.ComputedExpression(
               'repeat',
               lambda series: series.str.repeat(repeats),
-              [self._series_expr],
+              [self._expr],
               requires_partition_by=partitionings.Nothing(),
               preserves_partition_by=partitionings.Singleton()))
     elif isinstance(repeats, frame_base.DeferredBase):
@@ -1074,7 +1059,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
           expressions.ComputedExpression(
               'repeat',
               lambda series, repeats_series: series.str.repeat(repeats_series),
-              [self._series_expr, repeats._expr],
+              [self._expr, repeats._expr],
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Singleton()))
     elif isinstance(repeats, list):
@@ -1124,10 +1109,15 @@ ELEMENTWISE_STRING_METHODS = [
             '__getitem__',
 ]
 
+def make_str_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.str, method)(*args, **kwargs)
+  return func
+
 for method in ELEMENTWISE_STRING_METHODS:
   setattr(_DeferredStringMethods,
           method,
-          frame_base._elementwise_method(method))
+          frame_base._elementwise_method(make_str_func(method)))
 
 for base in ['add',
              'sub',
