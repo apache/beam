@@ -69,7 +69,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** This is an integration test for KafkaCSVTable. */
 public class KafkaCSVTableIT {
-  private static final String KAFKA_CONTAINER_VERSION = "5.2.1";
+  private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
