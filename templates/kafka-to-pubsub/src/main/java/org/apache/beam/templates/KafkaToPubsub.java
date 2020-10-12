@@ -19,9 +19,14 @@ package org.apache.beam.templates;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -35,6 +40,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
+import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.kafka.common.security.scram.ScramMechanism;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,7 +143,7 @@ public class KafkaToPubsub {
   }
 
   public static PTransform<PBegin, PCollection<KV<String, String>>> readFromKafka(
-      String bootstrapServers, List<String> topicsList) {
+      String bootstrapServers, List<String> topicsList, Map<String, Object> config) {
     return KafkaIO.<String, String>read()
         .withBootstrapServers(bootstrapServers)
         .withTopics(topicsList)
@@ -137,7 +151,41 @@ public class KafkaToPubsub {
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
         .withValueDeserializerAndCoder(
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+        .withConsumerConfigUpdates(config)
         .withoutMetadata();
+  }
+
+  public static Map<String, Object> configureKafka(String secretStoreUrl, String token)
+      throws KafkaException {
+    try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
+      HttpGet request = new HttpGet(secretStoreUrl);
+      request.addHeader("X-Vault-Token", token);
+      HttpResponse response = client.execute(request);
+      String json = EntityUtils.toString(response.getEntity(), "UTF-8");
+
+      JsonObject credentials =
+          JsonParser.parseString(json)
+              .getAsJsonObject()
+              .get("data")
+              .getAsJsonObject()
+              .getAsJsonObject("data");
+      String username = credentials.get("username").getAsString();
+      String password = credentials.get("password").getAsString();
+
+      Map<String, Object> config = new HashMap<>();
+      config.put(SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_256.mechanismName());
+      config.put("security.protocol", SecurityProtocol.SASL_PLAINTEXT.name());
+      config.put(
+          SaslConfigs.SASL_JAAS_CONFIG,
+          String.format(
+              "org.apache.kafka.common.security.scram.ScramLoginModule required "
+                  + "username=\"%s\" password=\"%s\";",
+              username, password));
+      return config;
+
+    } catch (IOException exception) {
+      throw new KafkaException("Failed to retrieve credentials for Kafka client:", exception);
+    }
   }
 
   /**
@@ -146,6 +194,16 @@ public class KafkaToPubsub {
    * @param options arguments to the pipeline
    */
   public static PipelineResult run(KafkaToPubsubOptions options) {
+    Map<String, Object> kafkaConfig = new HashMap<>();
+    try {
+      String secretStoreUrl = options.getSecretStoreUrl();
+      String token = options.getVaultToken();
+      kafkaConfig.putAll(configureKafka(secretStoreUrl, token));
+    } catch (NullPointerException exception) {
+      LOG.info(
+          "No information to retrieve Kafka credentials was provided. "
+              + "Trying to initiate unauthorized connection.");
+    }
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.getInputTopics().split(",")));
 
@@ -173,10 +231,12 @@ public class KafkaToPubsub {
     /*
      * Steps:
      *  1) Read messages in from Kafka
+     *  2) Extract values only
      *  3) Write successful records to PubSub
      */
     pipeline
-        .apply("ReadFromKafka", readFromKafka(options.getBootstrapServers(), topicsList))
+        .apply(
+            "ReadFromKafka", readFromKafka(options.getBootstrapServers(), topicsList, kafkaConfig))
         .apply(Values.create())
         .apply("Write PubSub Events", PubsubIO.writeStrings().to(options.getOutputTopic()));
 

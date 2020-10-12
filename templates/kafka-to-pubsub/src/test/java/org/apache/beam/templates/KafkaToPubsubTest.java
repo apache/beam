@@ -19,6 +19,7 @@ package org.apache.beam.templates;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,8 +41,9 @@ public class KafkaToPubsubTest {
   public void testKafkaReadingFailsWrongBootstrapServer() {
     final String bootstrapServers = "some-server:9092";
     final List<String> topicsList = new ArrayList<>(Collections.singletonList("TEST-TOPIC"));
+    final HashMap<String, Object> config = new HashMap<>();
 
-    pipeline.apply(KafkaToPubsub.readFromKafka(bootstrapServers, topicsList));
+    pipeline.apply(KafkaToPubsub.readFromKafka(bootstrapServers, topicsList, config));
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage("Failed to construct kafka consumer");
     pipeline.run();
