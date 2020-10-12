@@ -64,19 +64,23 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
   public static class Coder<T, ErrorT>
       extends StructuredCoder<FailsafeValueInSingleWindow<T, ErrorT>> {
     private final org.apache.beam.sdk.coders.Coder<T> valueCoder;
+    private final org.apache.beam.sdk.coders.Coder<ErrorT> failsafeValueCoder;
     private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
 
     public static <T, ErrorT> Coder<T, ErrorT> of(
         org.apache.beam.sdk.coders.Coder<T> valueCoder,
+        org.apache.beam.sdk.coders.Coder<ErrorT> failsafeValueCoder,
         org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
-      return new Coder<>(valueCoder, windowCoder);
+      return new Coder<>(valueCoder, failsafeValueCoder, windowCoder);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     Coder(
         org.apache.beam.sdk.coders.Coder<T> valueCoder,
+        org.apache.beam.sdk.coders.Coder<ErrorT> failsafeValueCoder,
         org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
       this.valueCoder = valueCoder;
+      this.failsafeValueCoder = failsafeValueCoder;
       this.windowCoder = (org.apache.beam.sdk.coders.Coder) windowCoder;
     }
 
@@ -96,6 +100,7 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
       windowCoder.encode(windowedElem.getWindow(), outStream);
       PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
+      failsafeValueCoder.encode(windowedElem.getFailsafeValue(), outStream, context);
     }
 
     @Override
@@ -110,24 +115,26 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
-      return new AutoValue_FailsafeValueInSingleWindow<>(value, timestamp, window, paneInfo, null);
+      ErrorT failsafeValue = failsafeValueCoder.decode(inStream, context);
+      return new AutoValue_FailsafeValueInSingleWindow<>(value, timestamp, window, paneInfo, failsafeValue);
     }
 
     @Override
     public List<? extends org.apache.beam.sdk.coders.Coder<?>> getCoderArguments() {
-      // Coder arguments are coders for the type parameters of the coder - i.e. only T.
-      return ImmutableList.of(valueCoder);
+      // Coder arguments are coders for the type parameters of the coder - i.e. T and ErrorT
+      return ImmutableList.of(valueCoder, failsafeValueCoder);
     }
 
     @Override
     public List<? extends org.apache.beam.sdk.coders.Coder<?>> getComponents() {
-      // Coder components are all inner coders that it uses - i.e. both T and BoundedWindow.
-      return ImmutableList.of(valueCoder, windowCoder);
+      // Coder components are all inner coders that it uses - i.e. both T, ErrorT and BoundedWindow.
+      return ImmutableList.of(valueCoder, failsafeValueCoder, windowCoder);
     }
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       valueCoder.verifyDeterministic();
+      failsafeValueCoder.verifyDeterministic();
       windowCoder.verifyDeterministic();
     }
   }
