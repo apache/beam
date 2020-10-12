@@ -125,7 +125,7 @@ class StreamingWriteFn<ErrorT, ElementT>
       PaneInfo pane) {
     String tableSpec = element.getKey().getKey();
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
-        BigQueryHelpers.getOrCreateMapListValue(tableRows, tableSpec); // TODO do I change this?
+        BigQueryHelpers.getOrCreateMapListValue(tableRows, tableSpec);
     List<String> uniqueIds =
         BigQueryHelpers.getOrCreateMapListValue(uniqueIdsForTableRows, tableSpec);
 
