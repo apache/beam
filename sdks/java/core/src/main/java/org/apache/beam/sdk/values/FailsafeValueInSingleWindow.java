@@ -56,11 +56,13 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
 
   public static <T, ErrorT> FailsafeValueInSingleWindow<T, ErrorT> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, ErrorT failsafeValue) {
-    return new AutoValue_FailsafeValueInSingleWindow<>(value, timestamp, window, paneInfo, failsafeValue);
+    return new AutoValue_FailsafeValueInSingleWindow<>(
+        value, timestamp, window, paneInfo, failsafeValue);
   }
 
   /** A coder for {@link FailsafeValueInSingleWindow}. */
-  public static class Coder<T, ErrorT> extends StructuredCoder<FailsafeValueInSingleWindow<T, ErrorT>> {
+  public static class Coder<T, ErrorT>
+      extends StructuredCoder<FailsafeValueInSingleWindow<T, ErrorT>> {
     private final org.apache.beam.sdk.coders.Coder<T> valueCoder;
     private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
 
@@ -85,7 +87,10 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
     }
 
     @Override
-    public void encode(FailsafeValueInSingleWindow<T, ErrorT> windowedElem, OutputStream outStream, Context context)
+    public void encode(
+        FailsafeValueInSingleWindow<T, ErrorT> windowedElem,
+        OutputStream outStream,
+        Context context)
         throws IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
@@ -99,7 +104,8 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
     }
 
     @Override
-    public FailsafeValueInSingleWindow<T, ErrorT> decode(InputStream inStream, Context context) throws IOException {
+    public FailsafeValueInSingleWindow<T, ErrorT> decode(InputStream inStream, Context context)
+        throws IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
