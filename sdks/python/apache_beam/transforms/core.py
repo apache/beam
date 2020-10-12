@@ -889,12 +889,31 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   5. The extract_output operation is invoked on the final accumulator to get
      the output value.
 
-  Note: If this **CombineFn** is used with a transform that has defaults,
-  **apply** will be called with an empty list at expansion time to get the
-  default value.
   """
   def default_label(self):
     return self.__class__.__name__
+
+  def default_value(self, *args, **kwargs):
+    """Returns a default reduction of an empty input.
+
+    Some combiners require a default value when reducing an empty collection,
+    which may be necessary when combining elements in an empty window.
+
+    If **CombineFn** is used with a transform that requires defaults,
+    default_value may be called during transform expansion.
+
+    Args:
+      *args: Additional arguments and side inputs.
+      **kwargs: Additional arguments and side inputs.
+    """
+    # Defalut values may be evaluated at pipeline construction time.
+    # Make a copy to avoid passing any side-effects to the serialized pipeline
+    # representaiton.
+    combine_copy = copy.copy(self)
+    # TODO(BEAM-3736): add setup.
+    default = combine_copy.apply([], *args, **kwargs)
+    # TODO(BEAM-3736): add teardown.
+    return default
 
   def create_accumulator(self, *args, **kwargs):
     """Return a fresh, empty accumulator for the combine operation.
@@ -1984,7 +2003,7 @@ class CombineGlobally(PTransform):
       combine_fn = (
           self.fn if isinstance(self.fn, CombineFn) else
           CombineFn.from_callable(self.fn))
-      default_value = combine_fn.apply([], *self.args, **self.kwargs)
+      default_value = combine_fn.default_value(*self.args, **self.kwargs)
     else:
       default_value = pvalue.AsSingleton._NO_DEFAULT  # pylint: disable=protected-access
     view = pvalue.AsSingleton(combined, default_value=default_value)
