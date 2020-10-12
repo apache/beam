@@ -89,6 +89,14 @@ ignored exception
 NOT_IMPLEMENTED_RAISING_NAME_ERROR_TESTS = ERROR_RAISING_NAME_ERROR_TESTS % (
     'NotImplementedError', )
 
+FAILED_ASSIGNMENT = '''
+>>> def foo(): raise NotImplementedError()
+>>> res = 'old_value'
+>>> res = foo()
+>>> print(res)
+ignored NameError
+'''
+
 RST_IPYTHON = '''
 Here is an example
 .. ipython::
@@ -211,6 +219,14 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok=True)
     self.assertEqual(result.attempted, 6)
     self.assertEqual(result.failed, 1)  # Only the very last one.
+
+  def test_failed_assignment(self):
+    result = doctests.teststring(
+        FAILED_ASSIGNMENT,
+        optionflags=doctest.ELLIPSIS,
+        not_implemented_ok=True)
+    self.assertNotEqual(result.attempted, 0)
+    self.assertEqual(result.failed, 0)
 
   def test_rst_ipython(self):
     try:

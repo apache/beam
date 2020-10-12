@@ -394,6 +394,16 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
       self._not_implemented_reasons.append(
           extract_concise_reason(got, NOT_IMPLEMENTED))
 
+    if self._checker._seen_error:
+      m = re.search('^([a-zA-Z0-9_, ]+)=', example.source)
+      if m:
+        for var in m.group(1).split(','):
+          var = var.strip()
+          if var in test.globs:
+            # More informative to get a NameError than
+            # use the wrong previous value.
+            del test.globs[var]
+
     return super(BeamDataframeDoctestRunner,
                  self).report_success(out, test, example, got)
 
