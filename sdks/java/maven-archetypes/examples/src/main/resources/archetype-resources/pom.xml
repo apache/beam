@@ -28,13 +28,14 @@
 
   <properties>
     <beam.version>@project.version@</beam.version>
-    <libraries-bom.version>@libraries-bom.version@</libraries-bom.version>
+
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-api-client.version>@google-api-client.version@</google-api-client.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
     <junit.version>@junit.version@</junit.version>
+    <libraries-bom.version>@libraries-bom.version@</libraries-bom.version>
     <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
     <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
