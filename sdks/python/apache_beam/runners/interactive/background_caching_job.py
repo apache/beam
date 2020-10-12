@@ -19,21 +19,21 @@
 
 For internal use only; no backwards-compatibility guarantees.
 
-A background caching job is a job that captures events for all capturable
+A background caching job is a job that records events for all recordable
 sources of a given pipeline. With Interactive Beam, one such job is started when
 a pipeline run happens (which produces a main job in contrast to the background
 caching job) and meets the following conditions:
 
-  #. The pipeline contains capturable sources, configured through
-     interactive_beam.options.capturable_sources.
+  #. The pipeline contains recordable sources, configured through
+     interactive_beam.options.recordable_sources.
   #. No such background job is running.
   #. No such background job has completed successfully and the cached events are
-     still valid (invalidated when capturable sources change in the pipeline).
+     still valid (invalidated when recordable sources change in the pipeline).
 
 Once started, the background caching job runs asynchronously until it hits some
-capture limit configured in interactive_beam.options. Meanwhile, the main job
+record limit configured in interactive_beam.options. Meanwhile, the main job
 and future main jobs from the pipeline will run using the deterministic
-replayable captured events until they are invalidated.
+replayable recorded events until they are invalidated.
 """
 
 # pytype: skip-file
@@ -56,7 +56,7 @@ class BackgroundCachingJob(object):
   """A simple abstraction that controls necessary components of a timed and
   space limited background caching job.
 
-  A background caching job successfully completes source data capture in 2
+  A background caching job successfully completes source data record in 2
   conditions:
 
     #. The job is finite and runs into DONE state;
@@ -165,9 +165,9 @@ def is_background_caching_job_needed(user_pipeline):
   # If this is True, we can invalidate a previous done/running job if there is
   # one.
   cache_changed = is_source_to_cache_changed(user_pipeline)
-  # When capture replay is disabled, cache is always needed for capturable
+  # When record replay is disabled, cache is always needed for recordable
   # sources (if any).
-  if need_cache and not ie.current_env().options.enable_capture_replay:
+  if need_cache and not ie.current_env().options.enable_record_replay:
     from apache_beam.runners.interactive.options import capture_control
     capture_control.evict_captured_data()
     return True
@@ -285,8 +285,8 @@ def is_source_to_cache_changed(
   # change by default.
   if is_changed and update_cached_source_signature:
     options = ie.current_env().options
-    # No info needed when capture replay is disabled.
-    if options.enable_capture_replay:
+    # No info needed when record replay is disabled.
+    if options.enable_record_replay:
       if not recorded_signature:
 
         def sizeof_fmt(num, suffix='B'):
@@ -301,13 +301,13 @@ def is_source_to_cache_changed(
             'In order to have a deterministic replay, a segment of data will '
             'be recorded from all sources for %s seconds or until a total of '
             '%s have been written to disk.',
-            options.capture_duration.total_seconds(),
-            sizeof_fmt(options.capture_size_limit))
+            options.record_duration.total_seconds(),
+            sizeof_fmt(options.record_size_limit))
       else:
         _LOGGER.info(
             'Interactive Beam has detected a new streaming source was '
             'added to the pipeline. In order for the cached streaming '
-            'data to start at the same time, all captured data has been '
+            'data to start at the same time, all recorded data has been '
             'cleared and a new segment of data will be recorded.')
 
     ie.current_env().cleanup(user_pipeline)
