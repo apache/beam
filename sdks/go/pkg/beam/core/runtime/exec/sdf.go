@@ -350,7 +350,6 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		// currW updated between processing.
 		n.numW = len(elm.Windows)
 
-		//for _, w := range elm.Windows {
 		for i := 0; i < n.numW; i++ {
 			rest := elm.Elm.(*FullValue).Elm2
 			rt := n.ctInv.Invoke(rest)
