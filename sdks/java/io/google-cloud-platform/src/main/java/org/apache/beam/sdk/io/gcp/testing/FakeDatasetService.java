@@ -217,7 +217,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> windowedRows = Lists.newArrayList();
     for (TableRow row : rowList) {
       windowedRows.add(
-          new FailsafeValueInSingleWindow<TableRow, TableRow>(
+          FailsafeValueInSingleWindow.of(
               row,
               GlobalWindow.TIMESTAMP_MAX_VALUE,
               GlobalWindow.INSTANCE,

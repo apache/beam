@@ -485,12 +485,20 @@ public class BigQueryServicesImplTest {
   }
 
   private <T> FailsafeValueInSingleWindow<T, T> wrapValue(T value) {
-    return new FailsafeValueInSingleWindow<T, T>(
+    return FailsafeValueInSingleWindow.of(
         value,
         GlobalWindow.TIMESTAMP_MAX_VALUE,
         GlobalWindow.INSTANCE,
         PaneInfo.ON_TIME_AND_ONLY_FIRING,
         value);
+  }
+
+  private <T> ValueInSingleWindow<T> wrapErrorValue(T value) {
+    return ValueInSingleWindow.of(
+        value,
+        GlobalWindow.TIMESTAMP_MAX_VALUE,
+        GlobalWindow.INSTANCE,
+        PaneInfo.ON_TIME_AND_ONLY_FIRING);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} retries rate limited attempts. */
@@ -1117,10 +1125,10 @@ public class BigQueryServicesImplTest {
 
     final List<ValueInSingleWindow<BigQueryInsertError>> expected =
         ImmutableList.of(
-            wrapValue(
+            wrapErrorValue(
                 new BigQueryInsertError(
                     rows.get(0).getValue(), failures.getInsertErrors().get(0), ref)),
-            wrapValue(
+            wrapErrorValue(
                 new BigQueryInsertError(
                     rows.get(1).getValue(), failures.getInsertErrors().get(1), ref)));
 

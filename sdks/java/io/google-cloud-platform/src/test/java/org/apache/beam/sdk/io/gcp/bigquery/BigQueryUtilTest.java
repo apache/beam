@@ -200,7 +200,7 @@ public class BigQueryUtilTest {
     List<String> ids = new ArrayList<>();
     for (int i = 0; i < 25; ++i) {
       rows.add(
-          new FailsafeValueInSingleWindow<TableRow, TableRow>(
+          FailsafeValueInSingleWindow.of(
               rawRow("foo", 1234),
               GlobalWindow.TIMESTAMP_MAX_VALUE,
               GlobalWindow.INSTANCE,

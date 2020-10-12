@@ -17,61 +17,112 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.auto.value.AutoValue;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-/** Implementation of ValueInSingleWindow to support failsafe items in value. */
-public final class FailsafeValueInSingleWindow<T, ErrorT>
-    extends ValueInSingleWindow<T> {
-  private final T value;
-  private final Instant timestamp;
-  private final BoundedWindow window;
-  private final PaneInfo pane;
-  private final ErrorT failsafeValue;
+/**
+ * An immutable tuple of value, timestamp, window, and pane.
+ *
+ * @param <T> the type of the value
+ */
+@AutoValue
+@Internal
+public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
+  /** Returns the value of this {@code FailsafeValueInSingleWindow}. */
+  public abstract @Nullable T getValue();
 
-  // public <T, ErrorT> FailsafeValueInSingleWindow<T, ErrorT> of(
-  //     T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, ErrorT failsafeValue) {
-  public FailsafeValueInSingleWindow(
+  /** Returns the timestamp of this {@code FailsafeValueInSingleWindow}. */
+  public abstract Instant getTimestamp();
+
+  /** Returns the window of this {@code FailsafeValueInSingleWindow}. */
+  public abstract BoundedWindow getWindow();
+
+  /** Returns the pane of this {@code FailsafeValueInSingleWindow} in its window. */
+  public abstract PaneInfo getPane();
+
+  /** Returns the failsafe value of this {@code FailsafeValueInSingleWindow}. */
+  public abstract @Nullable ErrorT getFailsafeValue();
+
+  public static <T, ErrorT> FailsafeValueInSingleWindow<T, ErrorT> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, ErrorT failsafeValue) {
-    this.value = value;
-    this.failsafeValue = failsafeValue;
-    if (timestamp == null) {
-      throw new NullPointerException("Null timestamp");
+    return new AutoValue_FailsafeValueInSingleWindow<>(value, timestamp, window, paneInfo, failsafeValue);
+  }
+
+  /** A coder for {@link FailsafeValueInSingleWindow}. */
+  public static class Coder<T, ErrorT> extends StructuredCoder<FailsafeValueInSingleWindow<T, ErrorT>> {
+    private final org.apache.beam.sdk.coders.Coder<T> valueCoder;
+    private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
+
+    public static <T, ErrorT> Coder<T, ErrorT> of(
+        org.apache.beam.sdk.coders.Coder<T> valueCoder,
+        org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
+      return new Coder<>(valueCoder, windowCoder);
     }
-    this.timestamp = timestamp;
-    if (window == null) {
-      throw new NullPointerException("Null window");
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    Coder(
+        org.apache.beam.sdk.coders.Coder<T> valueCoder,
+        org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
+      this.valueCoder = valueCoder;
+      this.windowCoder = (org.apache.beam.sdk.coders.Coder) windowCoder;
     }
-    this.window = window;
-    if (paneInfo == null) {
-      throw new NullPointerException("Null pane");
+
+    @Override
+    public void encode(FailsafeValueInSingleWindow<T, ErrorT> windowedElem, OutputStream outStream)
+        throws IOException {
+      encode(windowedElem, outStream, Context.NESTED);
     }
-    this.pane = paneInfo;
-  }
 
-  @Override
-  public T getValue() {
-    return value;
-  }
+    @Override
+    public void encode(FailsafeValueInSingleWindow<T, ErrorT> windowedElem, OutputStream outStream, Context context)
+        throws IOException {
+      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
+      windowCoder.encode(windowedElem.getWindow(), outStream);
+      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
+      valueCoder.encode(windowedElem.getValue(), outStream, context);
+    }
 
-  @Override
-  public Instant getTimestamp() {
-    return timestamp;
-  }
+    @Override
+    public FailsafeValueInSingleWindow<T, ErrorT> decode(InputStream inStream) throws IOException {
+      return decode(inStream, Context.NESTED);
+    }
 
-  @Override
-  public BoundedWindow getWindow() {
-    return window;
-  }
+    @Override
+    public FailsafeValueInSingleWindow<T, ErrorT> decode(InputStream inStream, Context context) throws IOException {
+      Instant timestamp = InstantCoder.of().decode(inStream);
+      BoundedWindow window = windowCoder.decode(inStream);
+      PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
+      T value = valueCoder.decode(inStream, context);
+      return new AutoValue_FailsafeValueInSingleWindow<>(value, timestamp, window, paneInfo, null);
+    }
 
-  @Override
-  public PaneInfo getPane() {
-    return pane;
-  }
+    @Override
+    public List<? extends org.apache.beam.sdk.coders.Coder<?>> getCoderArguments() {
+      // Coder arguments are coders for the type parameters of the coder - i.e. only T.
+      return ImmutableList.of(valueCoder);
+    }
 
-  public ErrorT getFailsafeValue() {
-    return failsafeValue;
+    @Override
+    public List<? extends org.apache.beam.sdk.coders.Coder<?>> getComponents() {
+      // Coder components are all inner coders that it uses - i.e. both T and BoundedWindow.
+      return ImmutableList.of(valueCoder, windowCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      valueCoder.verifyDeterministic();
+      windowCoder.verifyDeterministic();
+    }
   }
 }
-
