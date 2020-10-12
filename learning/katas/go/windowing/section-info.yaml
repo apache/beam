@@ -18,4 +18,4 @@
 #
 
 content:
-- windowing
+- fixed_time_window

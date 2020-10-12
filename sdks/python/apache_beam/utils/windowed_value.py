@@ -207,7 +207,7 @@ class WindowedValue(object):
                value,
                timestamp,  # type: TimestampTypes
                windows,  # type: Tuple[BoundedWindow, ...]
-               pane_info=PANE_INFO_UNKNOWN
+               pane_info=PANE_INFO_UNKNOWN  # type: PaneInfo
               ):
     # type: (...) -> None
     # For performance reasons, only timestamp_micros is stored by default

@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
@@ -234,8 +235,9 @@ type ProcessSizedElementsAndRestrictions struct {
 	// channel once finished with it, or it will block indefinitely.
 	SU chan SplittableUnit
 
-	elm *FullValue   // Currently processing element.
-	rt  sdf.RTracker // Currently processing element's restriction tracker.
+	elm   *FullValue   // Currently processing element.
+	rt    sdf.RTracker // Currently processing element's restriction tracker.
+	currW int          // Index of the current window in elm being processed.
 }
 
 // ID calls the ParDo's ID method.
@@ -291,19 +293,10 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		return errors.WithContextf(err, "%v", n)
 	}
 
-	rest := elm.Elm.(*FullValue).Elm2
-	rt := n.ctInv.Invoke(rest)
-
-	n.rt = rt
-	n.elm = elm
-	n.SU <- n
-	defer func() {
-		<-n.SU
-	}()
-
+	// Package our element in a MainInput struct so the underlying ParDo can
+	// process it.
 	mainIn := &MainInput{
-		Values:   values,
-		RTracker: rt,
+		Values: values,
 	}
 
 	// For the key, the way we fill it out depends on whether the input element
@@ -327,7 +320,43 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		}
 	}
 
-	return n.PDo.processMainInput(mainIn)
+	// Begin processing elements, exploding windows if necessary.
+	n.currW = 0
+	if !mustExplodeWindows(n.PDo.inv.fn, elm, len(n.PDo.Side) > 0) {
+		rest := elm.Elm.(*FullValue).Elm2
+		rt := n.ctInv.Invoke(rest)
+		mainIn.RTracker = rt
+
+		n.rt = rt
+		n.elm = elm
+		n.SU <- n
+		defer func() {
+			<-n.SU
+		}()
+		return n.PDo.processSingleWindow(mainIn)
+	} else {
+		// If we need to process the element in multiple windows, each one needs
+		// its own RTracker and progress must be tracked among all windows by
+		// currW updated between processing.
+		for _, w := range elm.Windows {
+			rest := elm.Elm.(*FullValue).Elm2
+			rt := n.ctInv.Invoke(rest)
+			key := &mainIn.Key
+			wElm := FullValue{Elm: key.Elm, Elm2: key.Elm2, Timestamp: key.Timestamp, Windows: []typex.Window{w}}
+
+			n.rt = rt
+			n.elm = elm
+			n.SU <- n
+			err := n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
+			if err != nil {
+				<-n.SU
+				return n.PDo.fail(err)
+			}
+			<-n.SU
+			n.currW++
+		}
+	}
+	return nil
 }
 
 // FinishBundle resets the invokers and then calls the ParDo's FinishBundle method.
@@ -431,7 +460,15 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) (*FullValue, *Ful
 // GetProgress returns the current restriction tracker's progress as a fraction.
 func (n *ProcessSizedElementsAndRestrictions) GetProgress() float64 {
 	d, r := n.rt.GetProgress()
-	return d / (d + r)
+	frac := d / (d + r)
+
+	numW := len(n.elm.Windows)
+	if numW == 1 {
+		return frac
+	}
+	// Frac only covers currently processing element+window pair, so adjust it
+	// to measure finished work throughout all windows.
+	return (float64(n.currW) + frac) / float64(numW)
 }
 
 // GetTransformId returns this transform's transform ID.

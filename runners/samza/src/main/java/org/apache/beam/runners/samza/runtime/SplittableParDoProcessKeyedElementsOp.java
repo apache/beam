@@ -219,11 +219,14 @@ public class SplittableParDoProcessKeyedElementsOp<
   public void processWatermark(Instant watermark, OpEmitter<RawUnionValue> emitter) {
     timerInternalsFactory.setInputWatermark(watermark);
 
-    fnRunner.startBundle();
-    for (KeyedTimerData<byte[]> keyedTimerData : timerInternalsFactory.removeReadyTimers()) {
-      fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+    Collection<KeyedTimerData<byte[]>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    if (!readyTimers.isEmpty()) {
+      fnRunner.startBundle();
+      for (KeyedTimerData<byte[]> keyedTimerData : readyTimers) {
+        fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+      }
+      fnRunner.finishBundle();
     }
-    fnRunner.finishBundle();
 
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(watermark)) {

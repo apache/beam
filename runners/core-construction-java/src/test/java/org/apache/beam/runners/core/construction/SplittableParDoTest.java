@@ -18,15 +18,20 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -35,6 +40,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -205,47 +211,55 @@ public class SplittableParDoTest {
   }
 
   @Test
-  public void testValidateNoPrimitiveReadsIsSkippedWhenUsingDeprecatedRead() {
+  public void testConvertIsSkippedWhenUsingDeprecatedRead() {
+    Pipeline sdfRead = Pipeline.create();
+    sdfRead.apply(Read.from(new FakeBoundedSource()));
+    sdfRead.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(sdfRead);
+    pipeline.traverseTopologically(
+        new Defaults() {
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            assertThat(
+                node.getTransform(), not(instanceOf(SplittableParDo.PrimitiveBoundedRead.class)));
+            assertThat(
+                node.getTransform(), not(instanceOf(SplittableParDo.PrimitiveUnboundedRead.class)));
+          }
+        });
+  }
+
+  @Test
+  public void testConvertToPrimitiveReadsHappen() {
     PipelineOptions deprecatedReadOptions = PipelineOptionsFactory.create();
     deprecatedReadOptions.setRunner(CrashingRunner.class);
     ExperimentalOptions.addExperiment(
         deprecatedReadOptions.as(ExperimentalOptions.class), "use_deprecated_read");
 
-    Pipeline deprecatedReadAllowed = Pipeline.create(deprecatedReadOptions);
-    deprecatedReadAllowed.apply(Read.from(new FakeBoundedSource()));
-    deprecatedReadAllowed.apply(
-        Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
-    // We expect that the experiment will skip validation.
-    SplittableParDo.validateNoPrimitiveReads(deprecatedReadAllowed);
-  }
+    Pipeline pipeline = Pipeline.create(deprecatedReadOptions);
+    pipeline.apply(Read.from(new FakeBoundedSource()));
+    pipeline.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    AtomicBoolean sawPrimitiveBoundedRead = new AtomicBoolean();
+    AtomicBoolean sawPrimitiveUnboundedRead = new AtomicBoolean();
+    pipeline.traverseTopologically(
+        new Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            assertThat(node.getTransform(), not(instanceOf(Read.Bounded.class)));
+            assertThat(node.getTransform(), not(instanceOf(Read.Unbounded.class)));
+            return super.enterCompositeTransform(node);
+          }
 
-  @Test
-  public void testValidateNoPrimitiveReadsWhenThereAreNone() {
-    PipelineOptions sdfOptions = PipelineOptionsFactory.create();
-    sdfOptions.setRunner(CrashingRunner.class);
-    ExperimentalOptions.addExperiment(sdfOptions.as(ExperimentalOptions.class), "beam_fn_api");
-    Pipeline sdf = Pipeline.create(sdfOptions);
-    sdf.apply(Read.from(new FakeBoundedSource()));
-    sdf.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
-    // We expect that the experiment will have caused the transform to use SDF wrappers during
-    // execution.
-    SplittableParDo.validateNoPrimitiveReads(sdf);
-  }
-
-  @Test
-  public void testValidateNoPrimitiveReadsFindsPrimitiveReads() {
-    PipelineOptions noSdfOptions = PipelineOptionsFactory.create();
-    noSdfOptions.setRunner(CrashingRunner.class);
-    Pipeline boundedRead = Pipeline.create(noSdfOptions);
-    boundedRead.apply(Read.from(new FakeBoundedSource()));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> SplittableParDo.validateNoPrimitiveReads(boundedRead));
-
-    Pipeline unboundedRead = Pipeline.create(noSdfOptions);
-    unboundedRead.apply(Read.from(new BoundedToUnboundedSourceAdapter<>(new FakeBoundedSource())));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> SplittableParDo.validateNoPrimitiveReads(unboundedRead));
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            if (node.getTransform() instanceof SplittableParDo.PrimitiveBoundedRead) {
+              sawPrimitiveBoundedRead.set(true);
+            } else if (node.getTransform() instanceof SplittableParDo.PrimitiveUnboundedRead) {
+              sawPrimitiveUnboundedRead.set(true);
+            }
+          }
+        });
+    assertTrue(sawPrimitiveBoundedRead.get());
+    assertTrue(sawPrimitiveUnboundedRead.get());
   }
 }

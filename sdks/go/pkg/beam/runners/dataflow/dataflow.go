@@ -171,8 +171,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
-		ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)})
+	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
+	if err != nil {
+		return errors.WithContext(err, "generating model pipeline")
+	}
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
 	if err != nil {
 		return errors.WithContext(err, "generating model pipeline")
 	}

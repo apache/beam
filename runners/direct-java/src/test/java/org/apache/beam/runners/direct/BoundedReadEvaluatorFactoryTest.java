@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CountDownLatch;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.BoundedReadEvaluatorFactory.BoundedSourceShard;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -77,11 +78,7 @@ public class BoundedReadEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
   private AppliedPTransform<?, ?, ?> longsProducer;
 
-  @Rule
-  public TestPipeline p =
-      TestPipeline.fromOptions(
-              PipelineOptionsFactory.fromArgs("--experiments=use_deprecated_read").create())
-          .enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   private PipelineOptions options;
 
@@ -90,7 +87,7 @@ public class BoundedReadEvaluatorFactoryTest {
     MockitoAnnotations.initMocks(this);
     source = CountingSource.upTo(10L);
     longs = p.apply(Read.from(source));
-
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     factory =
         new BoundedReadEvaluatorFactory(
             context, p.getOptions(), Long.MAX_VALUE /* minimum size for dynamic splits */);
@@ -143,6 +140,7 @@ public class BoundedReadEvaluatorFactoryTest {
       elems[i] = (long) i;
     }
     PCollection<Long> read = p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
     Collection<CommittedBundle<?>> unreadInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context, options)
@@ -193,6 +191,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     PCollection<Long> read =
         p.apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());

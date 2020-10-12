@@ -186,7 +186,8 @@ public class SdkHarnessClient implements AutoCloseable {
         Map<String, RemoteOutputReceiver<?>> outputReceivers,
         Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler) {
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler) {
       return newBundle(
           outputReceivers,
           timerReceivers,
@@ -199,12 +200,14 @@ public class SdkHarnessClient implements AutoCloseable {
                     "The %s does not have a registered bundle checkpoint handler.",
                     ActiveBundle.class.getSimpleName()));
           },
-          bundleId -> {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "The %s does not have a registered bundle finalization handler.",
-                    ActiveBundle.class.getSimpleName()));
-          });
+          finalizationHandler == null
+              ? bundleId -> {
+                throw new UnsupportedOperationException(
+                    String.format(
+                        "The %s does not have a registered bundle finalization handler.",
+                        ActiveBundle.class.getSimpleName()));
+              }
+              : finalizationHandler);
     }
 
     /**
@@ -561,6 +564,10 @@ public class SdkHarnessClient implements AutoCloseable {
     this.idGenerator = idGenerator;
     this.fnApiControlClient = fnApiControlClient;
     this.clientProcessors = new ConcurrentHashMap<>();
+  }
+
+  public InstructionRequestHandler getInstructionRequestHandler() {
+    return fnApiControlClient;
   }
 
   /**

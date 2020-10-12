@@ -38,12 +38,25 @@ public interface StageBundleFactory extends AutoCloseable {
   }
 
   /** Get a new {@link RemoteBundle bundle} for processing the data in an executable stage. */
-  RemoteBundle getBundle(
+  default RemoteBundle getBundle(
       OutputReceiverFactory outputReceiverFactory,
       TimerReceiverFactory timerReceiverFactory,
       StateRequestHandler stateRequestHandler,
       BundleProgressHandler progressHandler)
+      throws Exception {
+    return getBundle(
+        outputReceiverFactory, timerReceiverFactory, stateRequestHandler, progressHandler, null);
+  }
+
+  RemoteBundle getBundle(
+      OutputReceiverFactory outputReceiverFactory,
+      TimerReceiverFactory timerReceiverFactory,
+      StateRequestHandler stateRequestHandler,
+      BundleProgressHandler progressHandler,
+      BundleFinalizationHandler finalizationHandler)
       throws Exception;
 
   ProcessBundleDescriptors.ExecutableProcessBundleDescriptor getProcessBundleDescriptor();
+
+  InstructionRequestHandler getInstructionRequestHandler();
 }
