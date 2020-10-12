@@ -88,7 +88,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker import data_plane
   from apache_beam.runners.worker import sdk_worker
-  from apache_beam.transforms import window
   from apache_beam.transforms.core import Windowing
   from apache_beam.utils import windowed_value
 
