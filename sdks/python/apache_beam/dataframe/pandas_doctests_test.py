@@ -302,7 +302,17 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.strings.str_repeat': [
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
-        })
+        },
+        skip={
+            # Bad test strings
+            'pandas.core.strings.str_replace': [
+                "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
+            ],
+            'pandas.core.strings.StringMethods.replace': [
+                "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
+            ],
+        }
+    )
     self.assertEqual(result.failed, 0)
 
   def test_datetime_tests(self):
