@@ -623,7 +623,7 @@ public class BigQueryIO {
       return this.inner.getQuery();
     }
 
-    Read withTestServices(BigQueryServices testServices) {
+    public Read withTestServices(BigQueryServices testServices) {
       return new Read(this.inner.withTestServices(testServices));
     }
 
@@ -1572,7 +1572,7 @@ public class BigQueryIO {
     }
 
     @VisibleForTesting
-    TypedRead<T> withTestServices(BigQueryServices testServices) {
+    public TypedRead<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
