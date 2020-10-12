@@ -47,6 +47,9 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
+  compile "com.fasterxml.jackson.core:jackson-annotations:2.10.2"
+  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile "org.apache.avro:avro:1.8.2"
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.jackson_annotations

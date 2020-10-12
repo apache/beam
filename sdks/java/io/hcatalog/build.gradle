@@ -45,6 +45,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:io:hadoop-common")
   compile library.java.slf4j_api
+  compile "joda-time:joda-time:2.10.5"
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
   // on the compile/test/runtime classpath before Hive.
   provided library.java.jackson_annotations

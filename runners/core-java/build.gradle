@@ -36,11 +36,15 @@ test {
 dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
+  //compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":model:job-management:", configuration: "shadow")
   compile project(":runners:core-construction-java")
-  compile project(":sdks:java:fn-execution")
+  permitUsedUndeclared project(":sdks:java:fn-execution")
   compile library.java.vendored_guava_26_0_jre
   compile library.java.joda_time
+  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+  compile "org.slf4j:slf4j-api:1.7.3"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.mockito_core

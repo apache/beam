@@ -27,11 +27,18 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(":runners:core-construction-java")
   compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":model:job-management", configuration: "shadow")
+  //compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
   compile project(":sdks:java:fn-execution")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
+  compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
+  compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
+  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile "joda-time:joda-time:2.10.5"
+  compile "org.apache.commons:commons-compress:1.20"
   compile library.java.vendored_grpc_1_26_0
   compile library.java.slf4j_api
   compile library.java.args4j

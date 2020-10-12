@@ -31,8 +31,13 @@ applyJavaNature(
 )
 
 dependencies {
-    compile project(path: ":sdks:java:expansion-service")
-    compile project(":sdks:java:io:jdbc")
+    //compile project(path: ":sdks:java:expansion-service")
+    //compile project(":sdks:java:io:jdbc")
+    compile project(path: ":model:pipeline", configuration: "shadow")
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile "com.google.code.findbugs:jsr305:3.0.2"
+    compile "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+    compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
     testCompile library.java.junit
     testCompile library.java.mockito_core
     // TODO(BEAM-10632): remove this dependency

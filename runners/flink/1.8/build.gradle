@@ -32,3 +32,18 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/flink_runner.gradle"
+
+dependencies {
+  permitUnusedDeclared "com.fasterxml.jackson.core:jackson-annotations:2.10.2"
+  permitUnusedDeclared "org.apache.flink:flink-clients_2.11:1.8.3"
+  compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
+  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile "org.apache.flink:flink-annotations:1.10.1"
+  compile "org.apache.flink:flink-optimizer_2.11:1.8.3"
+  compile "org.checkerframework:checker-qual:2.0.0"
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":model:job-management:", configuration: "shadow")
+  compile project(":sdks:java:fn-execution")
+  compile project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
+}

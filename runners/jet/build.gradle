@@ -40,8 +40,13 @@ configurations {
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":runners:core-java")
+    compile project(path: ":model:pipeline", configuration: "shadow")
+    compile project(":runners:core-construction-java")
     compile "com.hazelcast.jet:hazelcast-jet:$jet_version"
-
+    compile "com.google.code.findbugs:jsr305:3.0.2"
+    compile "joda-time:joda-time:2.10.5"
+    compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+    compile "org.slf4j:slf4j-api:1.7.30"
     testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
     testCompile project(path: ":runners:core-java", configuration: "testRuntime")
     testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")

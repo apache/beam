@@ -32,18 +32,26 @@ configurations {
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
-  compile library.java.hamcrest_library
+  //compile library.java.hamcrest_library
   compile project(":runners:java-fn-execution")
   compile project(":runners:java-job-service")
   compile project(path: ":sdks:java:harness", configuration: "shadow")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.slf4j_api
-
+  compile "joda-time:joda-time:2.10.5"
+  compile "org.hamcrest:hamcrest:2.1"
   testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
+
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":model:job-management:", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  permitUsedUndeclared project(":sdks:java:core")
+  compile project(":sdks:java:fn-execution")
 
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")

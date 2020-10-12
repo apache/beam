@@ -49,9 +49,8 @@ class GrpcVendoring_1_26_0 {
     return [
       //"com.google.guava:guava:$guava_version",
       "com.google.protobuf:protobuf-java:$protobuf_version",
-      "com.google.protobuf:protobuf-java-util:$protobuf_version",
+      //"com.google.protobuf:protobuf-java-util:$protobuf_version",
       //"com.google.code.gson:gson:$gson_version",
-      //"com.google.code.findbugs:jsr305:3.0.2",
       //"io.grpc:grpc-auth:$grpc_version",
       //"io.grpc:grpc-core:$grpc_version",
       //"io.grpc:grpc-context:$grpc_version",

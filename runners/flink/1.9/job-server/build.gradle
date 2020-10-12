@@ -29,3 +29,7 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/flink_job_server.gradle"
+
+dependencies {
+  permitUnusedDeclared project(":runners:flink:1.9")
+}

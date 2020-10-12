@@ -420,7 +420,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def spotbugs_version = "4.0.6"
     def testcontainers_kafka_version = "1.14.3"
     def testcontainers_localstack_version = "1.14.3"
-
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
     //   compile library.java.slf4j_api
@@ -466,7 +465,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
-        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.3.1",
+        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.3.3",
         gax                                         : "com.google.api:gax:$gax_version",
         gax_grpc                                    : "com.google.api:gax-grpc:$gax_version",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
@@ -804,7 +803,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.value:auto-value-annotations:1.7",
+        "com.google.auto.value:auto-value-annotations:1.7.4",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
         // This contains many improved annotations beyond javax.annotations for enhanced static checking

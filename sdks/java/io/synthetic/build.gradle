@@ -32,6 +32,8 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
+  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile "org.slf4j:slf4j-api:1.7.30"
   compile project(path: ":sdks:java:core", configuration: "shadow")
 
   testCompile library.java.vendored_guava_26_0_jre

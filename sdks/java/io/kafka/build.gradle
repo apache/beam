@@ -39,7 +39,12 @@ configurations {
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:expansion-service")
+  //compile project(path: ":sdks:java:expansion-service", configuration: "shadow")
+  testCompile project(":sdks:java:expansion-service")
+  compile "org.apache.kafka:kafka-clients:1.0.0"
+  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile "io.confluent:kafka-schema-registry-client:5.3.2"
+  compile "org.apache.avro:avro:1.8.2"
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
   compile library.java.slf4j_api

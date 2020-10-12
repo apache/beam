@@ -33,3 +33,8 @@ configurations {
 artifacts {
     unshaded jar
 }
+
+dependencies {
+    compile "com.google.guava:guava:28.1-android"
+    permitUnusedDeclared "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+}

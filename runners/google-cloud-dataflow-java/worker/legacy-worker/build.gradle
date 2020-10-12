@@ -72,13 +72,13 @@ def excluded_dependencies = [
         "com.google.auto.value:auto-value",          // Provided scope added from applyJavaNature
         "org.codehaus.jackson:jackson-core-asl",     // Exclude an old version of jackson-core-asl introduced by google-http-client-jackson
         "org.objenesis:objenesis",                   // Transitive dependency introduced from Beam
-        "org.tukaani:xz",                            // Transitive dependency introduced from Beam
+        //"org.tukaani:xz",                            // Transitive dependency introduced from Beam
         library.java.commons_compress,               // Transitive dependency introduced from Beam
         library.java.error_prone_annotations,        // Provided scope added in worker
         library.java.hamcrest_core,                  // Test only
         library.java.hamcrest_library,               // Test only
         library.java.junit,                          // Test only
-        library.java.jsonassert                      // Test only
+        library.java.jsonassert,                      // Test only
 ]
 
 applyJavaNature(
@@ -214,9 +214,21 @@ dependencies {
     compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
     compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
     compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
-    provided library.java.error_prone_annotations
     runtime library.java.slf4j_jdk14
 
+    permitUnusedDeclared "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
+    compile project(path: ":model:pipeline", configuration: "shadow")
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile "com.fasterxml.jackson.core:jackson-annotations:2.10.2"
+    compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
+    compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
+    compile "javax.servlet:javax.servlet-api:3.1.0"
+    compile "joda-time:joda-time:2.10.5"
+    compile "org.apache.avro:avro:1.8.2"
+    compile "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+    compile "org.conscrypt:conscrypt-openjdk-uber:1.3.0"
+    compile "org.slf4j:slf4j-api:1.7.30"
+    compile "com.google.code.findbugs:jsr305:3.0.2"
     // Any test dependency which intersects with our relocation rules above needs to be relocated
     // as well and placed within the testCompile configuration. Otherwise we can place it within
     // the shadowTest configuration.

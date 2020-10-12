@@ -317,8 +317,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.5.0",
-    compile "com.google.code.findbugs:jsr305:3.0.2"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.5.0"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

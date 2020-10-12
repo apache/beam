@@ -32,4 +32,6 @@ dependencies {
   // export the shaded variant as the actual runtime dependency.
   compile project(path: ":model:pipeline", configuration: "unshaded")
   runtime project(path: ":model:pipeline", configuration: "shadow")
+  permitUnusedDeclared "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+  compile "com.google.guava:guava:28.1-android"
 }

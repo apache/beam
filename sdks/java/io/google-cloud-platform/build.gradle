@@ -30,7 +30,7 @@ ext.summary = "IO library to read and write Google Cloud Platform systems from B
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:expansion-service")
+  testCompile project(":sdks:java:expansion-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
   compile library.java.avro
@@ -49,9 +49,9 @@ dependencies {
     exclude group: 'io.grpc', module: 'grpc-grpclb'
   }
   compile library.java.google_cloud_core
-  compile(library.java.google_cloud_core_grpc) {
+  /*compile(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
-  }
+  }*/
   compile library.java.google_cloud_datastore_v1_proto_client
   compile library.java.google_cloud_pubsublite
   compile library.java.google_cloud_spanner
@@ -60,7 +60,7 @@ dependencies {
   compile library.java.grpc_auth
   testImplementation 'io.grpc:grpc-core:1.27.2'
   compile library.java.grpc_netty
-  compile library.java.grpc_stub
+  //compile library.java.grpc_stub
   compile library.java.grpc_google_cloud_pubsub_v1
   compile library.java.grpc_google_cloud_pubsublite_v1
   compile library.java.guava
@@ -75,6 +75,23 @@ dependencies {
   compile library.java.proto_google_common_protos
   compile library.java.protobuf_java
   compile library.java.slf4j_api
+  compile "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1:0.90.0"
+  compile "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2:1.14.0"
+  compile "com.google.api.grpc:proto-google-cloud-spanner-v1:1.59.0"
+  compile "com.google.api:api-common:1.8.1"
+  compile "com.google.apis:google-api-services-storage:v1-rev20200611-1.30.10"
+  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile "com.google.code.gson:gson:2.8.6"
+  compile "com.google.errorprone:error_prone_annotations:2.3.3"
+  compile "com.google.protobuf:protobuf-java-util:3.11.1"
+  compile "io.grpc:grpc-api:1.27.2"
+  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile "org.apache.httpcomponents:httpclient:4.5.12"
+  compile "org.apache.httpcomponents:httpcore:4.4.13"
+  compile "org.checkerframework:checker-qual:2.0.0"
+  compile "org.codehaus.jackson:jackson-core-asl:1.9.13"
+  compile "org.hamcrest:hamcrest:2.1"
+  compile "org.threeten:threetenbp:1.4.4"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")

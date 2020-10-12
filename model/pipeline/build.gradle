@@ -32,3 +32,8 @@ configurations {
 artifacts {
     unshaded jar
 }
+
+
+dependencies {
+    permitUnusedDeclared "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+}

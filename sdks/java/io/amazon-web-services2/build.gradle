@@ -47,6 +47,12 @@ dependencies {
   compile library.java.slf4j_api
   compile "software.amazon.kinesis:amazon-kinesis-client:2.2.5"
   compile "commons-lang:commons-lang:2.6"
+  compile "org.apache.commons:commons-lang3:3.9"
+  compile "org.apache.httpcomponents:httpcore:4.4.11"
+  compile "org.checkerframework:checker-qual:2.0.0"
+  compile "software.amazon.awssdk:http-client-spi:2.13.54"
+  compile "software.amazon.awssdk:regions:2.13.54"
+  compile "software.amazon.awssdk:utils:2.13.54"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")

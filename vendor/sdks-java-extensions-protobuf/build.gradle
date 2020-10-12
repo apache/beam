@@ -60,4 +60,6 @@ compileJava {
 dependencies {
     compile "com.google.protobuf:protobuf-java:${GrpcVendoring_1_26_0.protobuf_version}"
     shadow project(path: ":sdks:java:core", configuration: "shadow")
+    compile "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1"
+    compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
 }
