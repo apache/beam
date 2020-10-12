@@ -137,6 +137,7 @@ class ConvertTest(unittest.TestCase):
       # Converting multiple results at a time can be more efficient.
       pc_2a_, pc_ab_ = convert.to_pcollection(df_2a, df_ab,
                                             yield_elements='pandas')
+
       # Converting the same expressions should yeild the same pcolls
       pc_3a, pc_2a, pc_ab = convert.to_pcollection(df_3a, df_2a, df_ab,
                                                    yield_elements='pandas')
@@ -147,6 +148,37 @@ class ConvertTest(unittest.TestCase):
       assert_that(pc_2a, equal_to_unordered_series(2 * a), label='Check2a')
       assert_that(pc_3a, equal_to_unordered_series(3 * a), label='Check3a')
       assert_that(pc_ab, equal_to_unordered_series(a * b), label='Checkab')
+
+  def test_convert_memoization_clears_cache(self):
+    # This test re-runs the other memoization tests, and makes sure that the
+    # cache is cleaned up with the pipeline. Otherwise there would be concerns
+    # of it growing without bound.
+
+    import gc
+
+    # Make sure cache is clear
+    gc.collect()
+    self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 0)
+
+    # Disable GC so it doesn't run pre-emptively, confounding assertions about
+    # cache size
+    gc.disable()
+
+    try:
+      self.test_convert_memoization()
+      self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 3)
+
+      self.test_convert_memoization_yield_pandas()
+      self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 6)
+
+      gc.collect()
+
+      # PCollections should be removed from cache after pipelines go out of
+      # scope and are GC'd
+      self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 0)
+    finally:
+      # Always re-enable GC
+      gc.enable()
 
 
 if __name__ == '__main__':
