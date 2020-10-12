@@ -116,7 +116,8 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
       ErrorT failsafeValue = failsafeValueCoder.decode(inStream, context);
-      return new AutoValue_FailsafeValueInSingleWindow<>(value, timestamp, window, paneInfo, failsafeValue);
+      return new AutoValue_FailsafeValueInSingleWindow<>(
+          value, timestamp, window, paneInfo, failsafeValue);
     }
 
     @Override
