@@ -334,6 +334,7 @@ public final class StreamingTransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
+        int watermarkId = GlobalWatermarkHolder.nextWatermarkId();
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
             SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
                 dStream,
@@ -341,10 +342,12 @@ public final class StreamingTransformTranslator {
                 wvCoder,
                 windowingStrategy,
                 context.getSerializableOptions(),
+                watermarkId,
                 upstreamWatermarkIds,
                 context.getCurrentTransform().getFullName());
 
-        context.putDataset(transform, new UnboundedDataset<>(outStream, upstreamWatermarkIds));
+        context.putDataset(
+            transform, new UnboundedDataset<>(outStream, Collections.singletonList(watermarkId)));
       }
 
       @Override

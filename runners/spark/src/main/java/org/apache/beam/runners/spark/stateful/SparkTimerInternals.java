@@ -54,6 +54,13 @@ public class SparkTimerInternals implements TimerInternals {
   /** Build the {@link TimerInternals} according to the feeding streams. */
   public static SparkTimerInternals forStreamFromUpstreamWatermarkIds(
       List<Integer> upstreamWaterkmarkIds, Map<Integer, SparkWatermarks> watermarks) {
+    return forStreamFromUpstreamWatermarkIdsInternal(upstreamWaterkmarkIds, watermarks, true);
+  }
+
+  private static SparkTimerInternals forStreamFromUpstreamWatermarkIdsInternal(
+      List<Integer> upstreamWaterkmarkIds,
+      Map<Integer, SparkWatermarks> watermarks,
+      boolean validateSynchronizedProcessingTime) {
     // if watermarks are invalid for the specific ids, use defaults.
     if (watermarks == null
         || watermarks.isEmpty()
@@ -81,8 +88,7 @@ public class SparkTimerInternals implements TimerInternals {
         if (synchronizedProcessingTime == null) {
           // firstime set.
           synchronizedProcessingTime = sparkWatermarks.getSynchronizedProcessingTime();
-        } else {
-          // assert on following.
+        } else if (validateSynchronizedProcessingTime) {
           checkArgument(
               sparkWatermarks.getSynchronizedProcessingTime().equals(synchronizedProcessingTime),
               "Synchronized time is expected to keep synchronized across sources.");
@@ -96,8 +102,9 @@ public class SparkTimerInternals implements TimerInternals {
   /** Build a global {@link TimerInternals} for all feeding streams. */
   public static SparkTimerInternals global(Map<Integer, SparkWatermarks> watermarks) {
     return watermarks == null
-        ? forStreamFromUpstreamWatermarkIds(Collections.emptyList(), null)
-        : forStreamFromUpstreamWatermarkIds(Lists.newArrayList(watermarks.keySet()), watermarks);
+        ? forStreamFromUpstreamWatermarkIdsInternal(Collections.emptyList(), null, false)
+        : forStreamFromUpstreamWatermarkIdsInternal(
+            Lists.newArrayList(watermarks.keySet()), watermarks, false);
   }
 
   public Collection<TimerData> getTimers() {

@@ -109,9 +109,9 @@ public class SparkUnboundedSource {
     checkpointStream(mapWithStateDStream, options);
 
     // report the number of input elements for this InputDStream to the InputInfoTracker.
-    int watermarkId = GlobalWatermarkHolder.nextWatermarkId();
     JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(new Tuple2MetadataFunction());
 
+    int watermarkId = GlobalWatermarkHolder.nextWatermarkId();
     // register ReadReportDStream to report information related to this read.
     new ReadReportDStream(
             metadataDStream.dstream(),

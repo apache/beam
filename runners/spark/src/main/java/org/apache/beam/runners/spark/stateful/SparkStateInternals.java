@@ -26,7 +26,6 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -51,16 +50,22 @@ import org.joda.time.Instant;
 class SparkStateInternals<K> implements StateInternals {
 
   private final K key;
+  private final Table<String, String, Instant> watermarkHoldStates;
   // Serializable state for internals (namespace to state tag to coded value).
   private final Table<String, String, byte[]> stateTable;
 
   private SparkStateInternals(K key) {
     this.key = key;
     this.stateTable = HashBasedTable.create();
+    this.watermarkHoldStates = HashBasedTable.create();
   }
 
-  private SparkStateInternals(K key, Table<String, String, byte[]> stateTable) {
+  private SparkStateInternals(
+      K key,
+      Table<String, String, Instant> watermarkHoldStates,
+      Table<String, String, byte[]> stateTable) {
     this.key = key;
+    this.watermarkHoldStates = watermarkHoldStates;
     this.stateTable = stateTable;
   }
 
@@ -69,12 +74,18 @@ class SparkStateInternals<K> implements StateInternals {
   }
 
   static <K> SparkStateInternals<K> forKeyAndState(
-      K key, Table<String, String, byte[]> stateTable) {
-    return new SparkStateInternals<>(key, stateTable);
+      K key,
+      Table<String, String, Instant> watermarkHoldStates,
+      Table<String, String, byte[]> stateTable) {
+    return new SparkStateInternals<>(key, watermarkHoldStates, stateTable);
   }
 
   public Table<String, String, byte[]> getState() {
     return stateTable;
+  }
+
+  public Table<String, String, Instant> getWatermarkHoldStates() {
+    return watermarkHoldStates;
   }
 
   @Override
@@ -227,17 +238,38 @@ class SparkStateInternals<K> implements StateInternals {
     }
   }
 
-  private class SparkWatermarkHoldState extends AbstractState<Instant>
-      implements WatermarkHoldState {
-
+  private class SparkWatermarkHoldState implements WatermarkHoldState {
+    final StateNamespace namespace;
+    final StateTag<? extends State> address;
     private final TimestampCombiner timestampCombiner;
 
     SparkWatermarkHoldState(
         StateNamespace namespace,
         StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
-      super(namespace, address, InstantCoder.of());
+      this.namespace = namespace;
+      this.address = address;
       this.timestampCombiner = timestampCombiner;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      @SuppressWarnings("unchecked")
+      SparkWatermarkHoldState that = (SparkWatermarkHoldState) o;
+      return namespace.equals(that.namespace) && address.equals(that.address);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = namespace.hashCode();
+      result = 31 * result + address.hashCode();
+      return result;
     }
 
     @Override
@@ -247,7 +279,7 @@ class SparkStateInternals<K> implements StateInternals {
 
     @Override
     public Instant read() {
-      return readValue();
+      return watermarkHoldStates.get(namespace.stringKey(), address.getId());
     }
 
     @Override
@@ -255,7 +287,12 @@ class SparkStateInternals<K> implements StateInternals {
       Instant combined = read();
       combined =
           (combined == null) ? outputTime : getTimestampCombiner().combine(combined, outputTime);
-      writeValue(combined);
+      watermarkHoldStates.put(namespace.stringKey(), address.getId(), combined);
+    }
+
+    @Override
+    public void clear() {
+      watermarkHoldStates.remove(namespace.stringKey(), address.getId());
     }
 
     @Override
@@ -268,7 +305,7 @@ class SparkStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), address.getId()) == null;
+          return watermarkHoldStates.get(namespace.stringKey(), address.getId()) == null;
         }
       };
     }

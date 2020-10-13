@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -237,8 +238,8 @@ public class GlobalWatermarkHolder {
               nextLowWatermark, nextHighWatermark));
 
       checkState(
-          nextSynchronizedProcessingTime.isAfter(currentSynchronizedProcessingTime),
-          "Synchronized processing time must advance.");
+          !currentSynchronizedProcessingTime.isAfter(nextSynchronizedProcessingTime),
+          "Synchronized processing time must advance monotonically.");
 
       newValues.put(
           watermarkId,
@@ -320,11 +321,11 @@ public class GlobalWatermarkHolder {
   public static class SparkWatermarks implements Serializable {
     private final Instant lowWatermark;
     private final Instant highWatermark;
-    private final Instant synchronizedProcessingTime;
+    @Nullable private final Instant synchronizedProcessingTime;
 
     @VisibleForTesting
     public SparkWatermarks(
-        Instant lowWatermark, Instant highWatermark, Instant synchronizedProcessingTime) {
+        Instant lowWatermark, Instant highWatermark, @Nullable Instant synchronizedProcessingTime) {
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
       this.synchronizedProcessingTime = synchronizedProcessingTime;
@@ -338,6 +339,7 @@ public class GlobalWatermarkHolder {
       return highWatermark;
     }
 
+    @Nullable
     public Instant getSynchronizedProcessingTime() {
       return synchronizedProcessingTime;
     }

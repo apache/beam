@@ -198,6 +198,7 @@ public class SparkStreamingPortablePipelineTranslator
         WindowedValue.FullWindowedValueCoder.of(
             inputKvCoder.getValueCoder(), windowFn.windowCoder());
 
+    int watermarkId = GlobalWatermarkHolder.nextWatermarkId();
     JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
         SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
             inputDataset.getDStream(),
@@ -205,11 +206,13 @@ public class SparkStreamingPortablePipelineTranslator
             wvCoder,
             windowingStrategy,
             context.getSerializableOptions(),
+            watermarkId,
             upstreamWatermarkIds,
             transformNode.getId());
 
     context.pushDataset(
-        getOutputId(transformNode), new UnboundedDataset<>(outStream, upstreamWatermarkIds));
+        getOutputId(transformNode),
+        new UnboundedDataset<>(outStream, Collections.singletonList(watermarkId)));
   }
 
   private static <InputT, OutputT, SideInputT> void translateExecutableStage(
