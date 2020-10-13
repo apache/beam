@@ -62,10 +62,11 @@ class Options(interactive_options.InteractiveOptions):
   @enable_recording_replay.setter
   def enable_recording_replay(self, value):
     """Sets whether source data recorded should be replayed. True - Enables
-    recording of replayable source data so that following PCollection evaluations
-    and pipeline runs always use the same data recorded; False - Disables
-    recording of replayable source data so that following PCollection evaluation
-    and pipeline runs always use new data from sources."""
+    recording of replayable source data so that following PCollection
+    evaluations and pipeline runs always use the same data recorded;
+    False - Disables recording of replayable source data so that following
+    PCollection evaluation and pipeline runs always use new data from sources.
+    """
     # This makes sure the log handler is configured correctly in case the
     # options are configured in an early stage.
     _ = ie.current_env()

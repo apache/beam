@@ -157,8 +157,8 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
 def is_background_caching_job_needed(user_pipeline):
   """Determines if a background source recording job needs to be started.
 
-  It does several state checks and recording state changes throughout the process.
-  It is not idempotent to simplify the usage.
+  It does several state checks and recording state changes throughout the
+  process. It is not idempotent to simplify the usage.
   """
   job = ie.current_env().get_background_caching_job(user_pipeline)
   # Checks if the pipeline contains any source that needs to be cached.
