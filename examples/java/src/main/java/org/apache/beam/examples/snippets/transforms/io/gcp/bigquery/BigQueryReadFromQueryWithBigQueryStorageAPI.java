@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 class BigQueryReadFromQueryWithBigQueryStorageAPI {
   public static PCollection<MyData> readFromQueryWithBigQueryStorageAPI(
-          String project, String dataset, String table, Pipeline pipeline) {
+          String project, String dataset, String table, String query, Pipeline pipeline) {
 
     // String project = "my-project-id";
     // String dataset = "my_bigquery_dataset_id";
@@ -38,12 +38,31 @@ class BigQueryReadFromQueryWithBigQueryStorageAPI {
 
     // Pipeline pipeline = Pipeline.create();
 
+    /*
+    String query = String.format("SELECT\n" +
+        "  string_field,\n" +
+        "  int64_field,\n" +
+        "  float64_field,\n" +
+        "  numeric_field,\n" +
+        "  bool_field,\n" +
+        "  bytes_field,\n" +
+        "  date_field,\n" +
+        "  datetime_field,\n" +
+        "  time_field,\n" +
+        "  timestamp_field,\n" +
+        "  geography_field,\n" +
+        "  array_field,\n" +
+        "  struct_field\n" +
+        "FROM\n" +
+        "  `%s:%s.%s`", project, dataset, table)
+    */
+
     PCollection<MyData> rows =
         pipeline
             .apply(
                 "Read from BigQuery table",
                 BigQueryIO.readTableRows()
-                    .fromQuery(String.format("SELECT * FROM `%s.%s.%s`", project, dataset, table))
+                    .fromQuery(query)
                     .usingStandardSql()
                     .withMethod(Method.DIRECT_READ))
             .apply(
