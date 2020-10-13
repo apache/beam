@@ -154,6 +154,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
     LOG.info("Executing pipeline using the SparkRunner.");
+    SplittableParDo.validateNoPrimitiveReads(pipeline);
 
     final SparkPipelineResult result;
     final Future<?> startPipeline;

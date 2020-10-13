@@ -103,8 +103,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     private final Table<String, String, byte[]> state;
     private final Collection<byte[]> serTimers;
 
-    private StateAndTimers(
-        final Table<String, String, byte[]> state, final Collection<byte[]> timers) {
+    StateAndTimers(final Table<String, String, byte[]> state, final Collection<byte[]> timers) {
       this.state = state;
       this.serTimers = timers;
     }
@@ -118,20 +117,19 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     }
   }
 
-  private static class OutputWindowedValueHolder<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
-    private final List<WindowedValue<KV<K, Iterable<V>>>> windowedValues = new ArrayList<>();
+  public static class OutputWindowedValueHolder<T> implements OutputWindowedValue<T> {
+    private final List<WindowedValue<T>> windowedValues = new ArrayList<>();
 
     @Override
     public void outputWindowedValue(
-        final KV<K, Iterable<V>> output,
+        final T output,
         final Instant timestamp,
         final Collection<? extends BoundedWindow> windows,
         final PaneInfo pane) {
       windowedValues.add(WindowedValue.of(output, timestamp, windows, pane));
     }
 
-    private List<WindowedValue<KV<K, Iterable<V>>>> getWindowedValues() {
+    List<WindowedValue<T>> getWindowedValues() {
       return windowedValues;
     }
 
@@ -143,7 +141,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         final Collection<? extends BoundedWindow> windows,
         final PaneInfo pane) {
       throw new UnsupportedOperationException(
-          "Tagged outputs are not allowed in GroupAlsoByWindow.");
+          "Tagged outputs are currently unsupported in ProcessKeyedElements.");
     }
   }
 
@@ -254,7 +252,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                   TriggerStateMachines.stateMachineForTrigger(
                       TriggerTranslation.toProto(windowingStrategy.getTrigger())));
 
-          final OutputWindowedValueHolder<K, InputT> outputHolder =
+          final OutputWindowedValueHolder<KV<K, Iterable<InputT>>> outputHolder =
               new OutputWindowedValueHolder<>();
 
           final ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner =
@@ -466,7 +464,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     return TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
-  private static void checkpointIfNeeded(
+  public static void checkpointIfNeeded(
       final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
       final SerializablePipelineOptions options) {
 
@@ -477,14 +475,13 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     }
   }
 
-  private static Long getBatchDuration(final SerializablePipelineOptions options) {
+  public static Long getBatchDuration(final SerializablePipelineOptions options) {
     return options.get().as(SparkPipelineOptions.class).getCheckpointDurationMillis();
   }
 
-  private static <K, InputT> JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> stripStateValues(
+  public static <OutputT> JavaDStream<WindowedValue<OutputT>> stripStateValues(
       final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
-      final Coder<K> keyCoder,
-      final FullWindowedValueCoder<InputT> wvCoder) {
+      final FullWindowedValueCoder<OutputT> wvOutputCoder) {
 
     return JavaPairDStream.fromPairDStream(
             firedStream,
@@ -495,30 +492,24 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             t2 -> !t2._2()._2().isEmpty())
         .flatMap(
             new FlatMapFunction<
-                Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>,
-                WindowedValue<KV<K, Iterable<InputT>>>>() {
-
-              private final FullWindowedValueCoder<KV<K, Iterable<InputT>>>
-                  windowedValueKeyValueCoder =
-                      windowedValueKeyValueCoderOf(
-                          keyCoder, wvCoder.getValueCoder(), wvCoder.getWindowCoder());
+                Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<OutputT>*/ List<byte[]>>>,
+                WindowedValue<OutputT>>() {
 
               @Override
-              public java.util.Iterator<WindowedValue<KV<K, Iterable<InputT>>>> call(
+              public java.util.Iterator<WindowedValue<OutputT>> call(
                   final Tuple2<
-                          /*K*/ ByteArray,
-                          Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>
+                          /*byte[]*/ ByteArray,
+                          Tuple2<StateAndTimers, /*WV<OutputT>*/ List<byte[]>>>
                       t2)
                   throws Exception {
                 // drop the state since it is already persisted at this point.
                 // return in serialized form.
-                return CoderHelpers.fromByteArrays(t2._2()._2(), windowedValueKeyValueCoder)
-                    .iterator();
+                return CoderHelpers.fromByteArrays(t2._2()._2(), wvOutputCoder).iterator();
               }
             });
   }
 
-  private static <K, InputT> PairDStreamFunctions<ByteArray, byte[]> buildPairDStream(
+  public static <K, InputT> PairDStreamFunctions<ByteArray, byte[]> buildPairDStream(
       final JavaDStream<WindowedValue<KV<K, InputT>>> inputDStream,
       final Coder<K> keyCoder,
       final Coder<WindowedValue<InputT>> wvCoder) {
@@ -530,7 +521,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     // for checkpointing.
     // for readability, we add comments with actual type next to byte[].
     // to shorten line length, we use:
-    // ---- WV: WindowedValue
+    // ---- WindowedValue: WV
     // ---- Iterable: Itr
     // ---- AccumT: A
     // ---- InputT: I
@@ -583,6 +574,11 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     checkpointIfNeeded(firedStream, options);
 
     // filter state-only output (nothing to fire) and remove the state from the output.
-    return stripStateValues(firedStream, keyCoder, (FullWindowedValueCoder<InputT>) wvCoder);
+    return stripStateValues(
+        firedStream,
+        windowedValueKeyValueCoderOf(
+            keyCoder,
+            ((FullWindowedValueCoder<InputT>) wvCoder).getValueCoder(),
+            ((FullWindowedValueCoder<InputT>) wvCoder).getWindowCoder()));
   }
 }

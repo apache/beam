@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +36,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDo.ProcessKeyedElements;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.ConsoleIO;
@@ -43,6 +45,7 @@ import org.apache.beam.runners.spark.io.SparkUnboundedSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
+import org.apache.beam.runners.spark.stateful.SparkProcessKeyedElements;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -77,6 +80,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -312,6 +316,66 @@ public final class StreamingTransformTranslator {
     };
   }
 
+  private static <InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
+      TransformEvaluator<
+              SplittableParDo.ProcessKeyedElements<
+                  InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>>
+          processKeyedElements() {
+    return new TransformEvaluator<
+        ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>>() {
+      @Override
+      public void evaluate(
+          ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT> transform,
+          EvaluationContext context) {
+        final DoFn<InputT, OutputT> doFn = transform.getFn();
+        rejectStateAndTimers(doFn);
+        final SerializablePipelineOptions options = context.getSerializableOptions();
+        final WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
+        final WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
+        Coder<KV<byte[], KV<InputT, RestrictionT>>> inputCoder =
+            context.getInput(transform).getCoder();
+        Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
+
+        @SuppressWarnings("unchecked")
+        UnboundedDataset<KV<byte[], KV<InputT, RestrictionT>>> inputDataset =
+            (UnboundedDataset<KV<byte[], KV<InputT, RestrictionT>>>)
+                context.borrowDataset(transform);
+        List<Integer> streamSources = inputDataset.getStreamSources();
+
+        JavaDStream<WindowedValue<KV<byte[], KV<InputT, RestrictionT>>>> dStream =
+            inputDataset.getDStream();
+
+        // --- coders.
+        final WindowedValue.WindowedValueCoder<KV<InputT, RestrictionT>> wvInputCoder =
+            WindowedValue.FullWindowedValueCoder.of(
+                ((KvCoder<byte[], KV<InputT, RestrictionT>>) inputCoder).getValueCoder(),
+                windowFn.windowCoder());
+        final WindowedValue.WindowedValueCoder<OutputT> wvOutputCoder =
+            (WindowedValueCoder<OutputT>)
+                WindowedValue.FullWindowedValueCoder.of(
+                    Iterables.getOnlyElement(outputCoders.values()), windowFn.windowCoder());
+
+        JavaDStream<WindowedValue<OutputT>> all =
+            SparkProcessKeyedElements.processKeyedElements(
+                transform,
+                dStream,
+                wvInputCoder,
+                wvOutputCoder,
+                windowingStrategy,
+                options,
+                streamSources,
+                context.getCurrentTransform().getFullName());
+        context.putDataset((PTransform) transform, new UnboundedDataset<>(all, streamSources));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "processKeyedElements()";
+      }
+    };
+  }
+
   private static <K, V, W extends BoundedWindow> TransformEvaluator<GroupByKey<K, V>> groupByKey() {
     return new TransformEvaluator<GroupByKey<K, V>>() {
       @Override
@@ -532,6 +596,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, impulse());
     EVALUATORS.put(PTransformTranslation.READ_TRANSFORM_URN, readUnbounded());
     EVALUATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, groupByKey());
+    EVALUATORS.put(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, processKeyedElements());
     EVALUATORS.put(PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN, combineGrouped());
     EVALUATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, parDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.TRANSFORM_URN, print());

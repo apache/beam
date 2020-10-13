@@ -37,15 +37,14 @@ class SparkTransformOverrides {
             PTransformMatchers.requiresStableInputParDoMulti(),
             UnsupportedOverrideFactory.withMessage(
                 "Spark runner currently doesn't support @RequiresStableInput annotation.")));
+    builder.add(
+        PTransformOverride.of(
+            PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()));
     if (!streaming) {
-      builder
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
-                  new SplittableParDoNaiveBounded.OverrideFactory()));
+      builder.add(
+          PTransformOverride.of(
+              PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
+              new SplittableParDoNaiveBounded.OverrideFactory()));
     }
     return builder.build();
   }

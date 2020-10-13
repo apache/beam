@@ -145,14 +145,14 @@ task validatesRunnerBatch(type: Test) {
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
-    // SDF
-    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    // Bundle finalization
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   jvmArgs '-Xmx3g'
 }
@@ -167,6 +167,10 @@ task validatesRunnerStreaming(type: Test) {
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
   classpath = configurations.validatesRunner
+  testClassesDirs = files(
+          project(":sdks:java:core").sourceSets.test.output.classesDirs,
+          project(":runners:core-java").sourceSets.test.output.classesDirs,
+  )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
   // Only one SparkContext may be running in a JVM (SPARK-2243)
@@ -204,6 +208,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // State and Timers
     excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
@@ -222,6 +227,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    // Bundle finalization
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   filter {
