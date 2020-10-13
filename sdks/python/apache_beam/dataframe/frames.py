@@ -27,12 +27,14 @@ from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
 
 
-@frame_base.DeferredFrame._register_for(pd.Series)
-class DeferredSeries(frame_base.DeferredFrame):
+class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def __array__(self, dtype=None):
     raise frame_base.WontImplementError(
         'Conversion to a non-deferred a numpy array.')
 
+
+@frame_base.DeferredFrame._register_for(pd.Series)
+class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def align(self, other, join, axis, level, method, **kwargs):
@@ -421,7 +423,7 @@ for name in ['apply', 'map', 'transform']:
 
 
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
-class DeferredDataFrame(frame_base.DeferredFrame):
+class DeferredDataFrame(DeferredDataFrameOrSeries):
   @property
   def T(self):
     return self.transpose()
