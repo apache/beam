@@ -201,11 +201,11 @@ public class KafkaTestTable extends BeamKafkaTable {
 
   @Override
   public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
-    return null;
+    throw new RuntimeException("KafkaTestTable does not implement getPTransformForInput method.");
   }
 
   @Override
   public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
-    return null;
+    throw new RuntimeException("KafkaTestTable does not implement getPTransformForOutput method.");
   }
 }
