@@ -272,6 +272,27 @@ class TransformTest(unittest.TestCase):
           lambda x: {'res': 3 * x}, proxy, yield_elements='pandas')
       assert_that(res['res'], equal_to_series(three_series), 'CheckDictOut')
 
+  def test_cat(self):
+    # verify that cat works with a List[Series] since this is
+    # missing from doctests
+    df = pd.DataFrame({
+        'one': ['A', 'B', 'C'],
+        'two': ['BB', 'CC', 'A'],
+        'three': ['CCC', 'AA', 'B'],
+    })
+    self.run_scenario(df, lambda df: df.two.str.cat([df.three], join='outer'))
+    self.run_scenario(
+        df, lambda df: df.one.str.cat([df.two, df.three], join='outer'))
+
+  def test_repeat(self):
+    # verify that repeat works with a Series since this is
+    # missing from doctests
+    df = pd.DataFrame({
+        'strings': ['A', 'B', 'C', 'D', 'E'],
+        'repeats': [3, 1, 4, 5, 2],
+    })
+    self.run_scenario(df, lambda df: df.strings.str.repeat(df.repeats))
+
 
 if __name__ == '__main__':
   unittest.main()

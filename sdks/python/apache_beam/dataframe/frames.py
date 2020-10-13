@@ -410,12 +410,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @property
   def str(self):
-    expr = expressions.ComputedExpression(
-        'str',
-        lambda df: df.str, [self._expr],
-        requires_partition_by=partitionings.Nothing(),
-        preserves_partition_by=partitionings.Singleton())
-    return _DeferredStringMethods(expr)
+    return _DeferredStringMethods(self._expr)
 
 
 for name in ['apply', 'map', 'transform']:
@@ -1249,7 +1244,66 @@ class _DeferredILoc(object):
 
 
 class _DeferredStringMethods(frame_base.DeferredBase):
-  pass
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def cat(self, others, join, **kwargs):
+    if others is None:
+      # Concatenate series into a single String
+      requires = partitionings.Singleton()
+      func = lambda df: df.str.cat(join=join, **kwargs)
+      args = [self._expr]
+
+    elif (isinstance(others, frame_base.DeferredBase) or
+         (isinstance(others, list) and
+          all(isinstance(other, frame_base.DeferredBase) for other in others))):
+      if join is None:
+        raise frame_base.WontImplementError("cat with others=Series or "
+                                            "others=List[Series] requires "
+                                            "join to be specified.")
+
+      if isinstance(others, frame_base.DeferredBase):
+        others = [others]
+
+      requires = partitionings.Index()
+      def func(*args):
+        return args[0].str.cat(others=args[1:], join=join, **kwargs)
+      args = [self._expr] + [other._expr for other in others]
+
+    else:
+      raise frame_base.WontImplementError("others must be None, Series, or "
+                                          "List[Series]. List[str] is not "
+                                          "supported.")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'cat',
+            func,
+            args,
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  def repeat(self, repeats):
+    if isinstance(repeats, int):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'repeat',
+              lambda series: series.str.repeat(repeats),
+              [self._expr],
+              requires_partition_by=partitionings.Nothing(),
+              preserves_partition_by=partitionings.Singleton()))
+    elif isinstance(repeats, frame_base.DeferredBase):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'repeat',
+              lambda series, repeats_series: series.str.repeat(repeats_series),
+              [self._expr, repeats._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Singleton()))
+    elif isinstance(repeats, list):
+      raise frame_base.WontImplementError("repeats must be an integer or a "
+                                          "Series.")
+
 
 ELEMENTWISE_STRING_METHODS = [
             'capitalize',
@@ -1294,10 +1348,15 @@ ELEMENTWISE_STRING_METHODS = [
             '__getitem__',
 ]
 
+def make_str_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.str, method)(*args, **kwargs)
+  return func
+
 for method in ELEMENTWISE_STRING_METHODS:
   setattr(_DeferredStringMethods,
           method,
-          frame_base._elementwise_method(method))
+          frame_base._elementwise_method(make_str_func(method)))
 
 for base in ['add',
              'sub',
