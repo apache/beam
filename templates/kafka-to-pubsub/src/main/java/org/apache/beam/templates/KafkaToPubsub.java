@@ -41,11 +41,10 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
-import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.scram.ScramMechanism;
@@ -58,7 +57,10 @@ public class KafkaToPubsub {
   /**
    * The {@link KafkaToPubsub} pipeline is a streaming pipeline which ingests data in JSON format
    * from Kafka, and outputs the resulting records to PubSub. Input topics, output topic, Bootstrap
-   * servers are specified by the user as template parameters.
+   * servers are specified by the user as template parameters. <br>
+   * Kafka may be configured with SASL/SCRAM security mechanism,
+   * in this case a Vault secret storage with credentials should be provided. URL to credentials and Vault token
+   * are specified by the user as template parameters.
    *
    * <p><b>Pipeline Requirements</b>
    *
@@ -66,6 +68,7 @@ public class KafkaToPubsub {
    *   <li>Kafka Bootstrap Server(s).
    *   <li>Kafka Topic(s) exists.
    *   <li>The PubSub output topic exists.
+   *   <li>(Optional) An existing HashiCorp Vault secret storage
    * </ul>
    *
    * <p><b>Example Usage</b>
@@ -120,7 +123,9 @@ public class KafkaToPubsub {
    *       "parameters": {
    *           "bootstrapServers":"broker_1:9092,broker_2:9092",
    *           "inputTopics":"topic1,topic2",
-   *           "outputTopic":"projects/${PROJECT}/topics/your-topic-name"
+   *           "outputTopic":"projects/${PROJECT}/topics/your-topic-name",
+   *           "secretStoreUrl":"http(s)://host:port/path/to/credentials",
+   *           "vaultToken":"your-token"
    *        }
    *       }
    *      '
@@ -155,37 +160,45 @@ public class KafkaToPubsub {
         .withoutMetadata();
   }
 
+  /**
+   * Retrieves username and password from HashiCorp Vault secret storage and configures Kafka
+   * consumer for authorized connection.
+   *
+   * @param secretStoreUrl url to the secret storage that contains a credentials for Kafka
+   * @param token Vault token to access the secret storage
+   * @return configuration set of parameters for Kafka
+   * @throws IOException throws in case of the failure to execute the request to the secret storage
+   */
   public static Map<String, Object> configureKafka(String secretStoreUrl, String token)
-      throws KafkaException {
-    try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
-      HttpGet request = new HttpGet(secretStoreUrl);
-      request.addHeader("X-Vault-Token", token);
-      HttpResponse response = client.execute(request);
-      String json = EntityUtils.toString(response.getEntity(), "UTF-8");
+      throws IOException {
+    // Execute a request to get the credentials
+    HttpClient client = HttpClientBuilder.create().build();
+    HttpGet request = new HttpGet(secretStoreUrl);
+    request.addHeader("X-Vault-Token", token);
+    HttpResponse response = client.execute(request);
+    String json = EntityUtils.toString(response.getEntity(), "UTF-8");
 
-      JsonObject credentials =
-          JsonParser.parseString(json)
-              .getAsJsonObject()
-              .get("data")
-              .getAsJsonObject()
-              .getAsJsonObject("data");
-      String username = credentials.get("username").getAsString();
-      String password = credentials.get("password").getAsString();
+    // Parse username and password from the response JSON
+    JsonObject credentials =
+        JsonParser.parseString(json)
+            .getAsJsonObject()
+            .get("data")
+            .getAsJsonObject()
+            .getAsJsonObject("data");
+    String username = credentials.get("username").getAsString();
+    String password = credentials.get("password").getAsString();
 
-      Map<String, Object> config = new HashMap<>();
-      config.put(SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_256.mechanismName());
-      config.put("security.protocol", SecurityProtocol.SASL_PLAINTEXT.name());
-      config.put(
-          SaslConfigs.SASL_JAAS_CONFIG,
-          String.format(
-              "org.apache.kafka.common.security.scram.ScramLoginModule required "
-                  + "username=\"%s\" password=\"%s\";",
-              username, password));
-      return config;
-
-    } catch (IOException exception) {
-      throw new KafkaException("Failed to retrieve credentials for Kafka client:", exception);
-    }
+    // Create the configuration for Kafka
+    Map<String, Object> config = new HashMap<>();
+    config.put(SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_256.mechanismName());
+    config.put("security.protocol", SecurityProtocol.SASL_PLAINTEXT.name());
+    config.put(
+        SaslConfigs.SASL_JAAS_CONFIG,
+        String.format(
+            "org.apache.kafka.common.security.scram.ScramLoginModule required "
+                + "username=\"%s\" password=\"%s\";",
+            username, password));
+    return config;
   }
 
   /**
@@ -194,6 +207,7 @@ public class KafkaToPubsub {
    * @param options arguments to the pipeline
    */
   public static PipelineResult run(KafkaToPubsubOptions options) {
+    // Configure Kafka consumer properties
     Map<String, Object> kafkaConfig = new HashMap<>();
     try {
       String secretStoreUrl = options.getSecretStoreUrl();
@@ -202,7 +216,13 @@ public class KafkaToPubsub {
     } catch (NullPointerException exception) {
       LOG.info(
           "No information to retrieve Kafka credentials was provided. "
-              + "Trying to initiate unauthorized connection.");
+              + "Trying to initiate an unauthorized connection.");
+    } catch (IOException exception) {
+      LOG.error(
+          String.format(
+              "Failed to retrieve credentials for Kafka client. "
+                  + "Trying to initiate an unauthorized connection. Details: %s",
+              exception));
     }
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.getInputTopics().split(",")));

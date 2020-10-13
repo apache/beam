@@ -22,6 +22,22 @@
       "helpText": "Pub/Sub topic to write the output, in the format of 'projects/yourproject/topics/yourtopic'",
       "regexes": [],
       "paramType": "TEXT"
+    },
+    {
+      "name": "secretStoreUrl",
+      "label": "URL to credentials in Vault",
+      "helpText": "URL to Kafka credentials in HashiCorp Vault secret storage in format 'http(s)://vaultip:vaultport/path/to/credentials'",
+      "regexes": [],
+      "paramType": "TEXT",
+      "isOptional": true
+    },
+    {
+      "name": "vaultToken",
+      "label": "Vault token",
+      "helpText": "Token to access HashiCorp Vault secret storage",
+      "regexes": [],
+      "paramType": "TEXT",
+      "isOptional": true
     }
   ]
 }

@@ -22,7 +22,9 @@
 This directory contains an [Apache Beam](https://beam.apache.org/) Template that creates a pipeline 
 to read data from a single or multiple topics from 
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic 
-in [Google Pub/Sub](https://cloud.google.com/pubsub).
+in [Google Pub/Sub](https://cloud.google.com/pubsub). This template provides 
+availability to retrieve credentials for Apache Kafka from [HashiCorp Vault](https://www.vaultproject.io/) 
+in case of configured SASL/SCRAM security mechanism.
 
 This template supports serializable string formats, such as JSON.
 
@@ -32,6 +34,7 @@ This template supports serializable string formats, such as JSON.
 - Kafka Bootstrap Server(s) up and running
 - Existing source Kafka topic(s)
 - An existing Pub/Sub destination output topic
+- (Optional) An existing HashiCorp Vault secret storage
 
 ## Getting Started
 
@@ -73,6 +76,11 @@ To execute this pipeline locally, specify the parameters: Kafka Bootstrap server
 --bootstrapServers=host:port \
 --inputTopic=your-input-topic \
 --outputTopic=projects/your-project-id/topics/your-topic-pame
+```
+Optionally, specify a URL to credentials in Vault and token to access them:
+```bash
+--secretStoreUrl=http(s)://host:port/path/to/credentials
+--vaultToken=your-token
 ```
 To change the runner, specify:
 
@@ -154,6 +162,8 @@ You can do this in 3 different ways:
         --parameters bootstrapServers="broker_1:9092,broker_2:9092" \
         --parameters inputTopics="topic1,topic2" \
         --parameters outputTopic="projects/${PROJECT}/topics/your-topic-name" \
+        --parameters secretStoreUrl="http(s)://host:port/path/to/credentials"
+        --parameters vaultToken="your-token"
         --region "${REGION}"
     ```
 3. With a REST API request
@@ -174,7 +184,9 @@ You can do this in 3 different ways:
           "parameters": {
               "bootstrapServers":"broker_1:9092,broker_2:9092",
               "inputTopics":"topic1,topic2",
-              "outputTopic":"projects/${PROJECT}/topics/your-topic-name"
+              "outputTopic":"projects/${PROJECT}/topics/your-topic-name",
+              "secretStoreUrl":"http(s)://host:port/path/to/credentials",
+              "vaultToken":"your-token"
           }
          }
         '
