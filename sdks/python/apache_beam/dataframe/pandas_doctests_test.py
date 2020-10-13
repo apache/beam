@@ -295,36 +295,28 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.strings,
         use_beam=False,
-        skip={
-            'pandas.core.strings.StringMethods.cat': ['*'],
-            'pandas.core.strings.StringMethods.repeat': ['*'],
-            'pandas.core.strings.str_repeat': ['*'],
-
-            # The rest of the skipped tests represent bad test strings,
-            # fixed upstream in
-            # https://github.com/pandas-dev/pandas/commit/d095ac899da953d759992824592a72a1e6ff5e09
-            'pandas.core.strings.StringMethods': [
-                "s.str.split('_')", "s.str.replace('_', '')"
+        wont_implement_ok={
+            # These methods can accept deferred series objects, but not lists
+            'pandas.core.strings.StringMethods.cat': [
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',')",
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',', na_rep='-')",
+                "s.str.cat(['A', 'B', 'C', 'D'], na_rep='-')"
             ],
-            'pandas.core.strings.str_split': ["s.str.split(expand=True)"],
+            'pandas.core.strings.StringMethods.repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
+            'pandas.core.strings.str_repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
+        },
+        skip={
+            # Bad test strings
             'pandas.core.strings.str_replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
             'pandas.core.strings.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
-            'pandas.core.strings.StringMethods.partition': [
-                'idx.str.partition()'
-            ],
-            'pandas.core.strings.StringMethods.rpartition': [
-                'idx.str.partition()'
-            ],
-            # rsplit/split are particularly troublesome because the first test,
-            # defining a test series, is bad and must be skipped. But skipping
-            # it breaks every other test. To run the rest we would need to
-            # execute the first test but ignore the output.
-            'pandas.core.strings.StringMethods.rsplit': ["*"],
-            'pandas.core.strings.StringMethods.split': ["*"],
         })
     self.assertEqual(result.failed, 0)
 
