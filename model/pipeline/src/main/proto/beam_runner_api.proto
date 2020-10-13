@@ -932,7 +932,7 @@ message StandardCoders {
     // Well known logical types:
     //   beam:logical_type:micros_instant:v1
     //   - Representation type: ROW<seconds: INT64, micros: INT64>
-    //   - A timezone naive timestamp where seconds + micros represents the
+    //   - A timestamp without a timezone where seconds + micros represents the
     //     amount of time since the epoch.
     // 
     // The payload for RowCoder is an instance of Schema.
