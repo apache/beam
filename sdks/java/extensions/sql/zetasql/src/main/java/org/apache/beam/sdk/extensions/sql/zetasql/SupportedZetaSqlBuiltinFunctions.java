@@ -102,16 +102,16 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_CONCAT_BYTES, // concat(repeated bytes) -> bytes
           // FunctionSignatureId.FN_CONCAT_OP_STRING, // concat(string, string) -> string
           // FunctionSignatureId.FN_CONCAT_OP_BYTES, // concat(bytes, bytes) -> bytes
-          // FunctionSignatureId.FN_STRPOS_STRING, // strpos(string, string) -> int64
+          FunctionSignatureId.FN_STRPOS_STRING, // strpos(string, string) -> int64
           // FunctionSignatureId.FN_STRPOS_BYTES, // strpos(bytes, bytes) -> int64
 
           // FunctionSignatureId.FN_INSTR_STRING,// instr(string, string[, int64[, int64]]) -> int64
           // FunctionSignatureId.FN_INSTR_BYTES, // instr(bytes, bytes[, int64[, int64]]) -> int64
-          // FunctionSignatureId.FN_LOWER_STRING, // lower(string) -> string
+          FunctionSignatureId.FN_LOWER_STRING, // lower(string) -> string
           // FunctionSignatureId.FN_LOWER_BYTES, // lower(bytes) -> bytes
-          // FunctionSignatureId.FN_UPPER_STRING, // upper(string) -> string
+          FunctionSignatureId.FN_UPPER_STRING, // upper(string) -> string
           // FunctionSignatureId.FN_UPPER_BYTES, // upper(bytes) -> bytes
-          // FunctionSignatureId.FN_LENGTH_STRING, // length(string) -> int64
+          FunctionSignatureId.FN_LENGTH_STRING, // length(string) -> int64
           // FunctionSignatureId.FN_LENGTH_BYTES, // length(bytes) -> int64
           FunctionSignatureId.FN_STARTS_WITH_STRING, // starts_with(string, string) -> string
           // FunctionSignatureId.FN_STARTS_WITH_BYTES, // starts_with(bytes, bytes) -> bytes
@@ -173,9 +173,9 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_LPAD_STRING, // lpad(string, int64[, string]) -> string
           // FunctionSignatureId.FN_RPAD_BYTES, // rpad(bytes, int64[, bytes]) -> bytes
           // FunctionSignatureId.FN_RPAD_STRING, // rpad(string, int64[, string]) -> string
-          // FunctionSignatureId.FN_LEFT_STRING, // left(string, int64) -> string
+          FunctionSignatureId.FN_LEFT_STRING, // left(string, int64) -> string
           // FunctionSignatureId.FN_LEFT_BYTES, // left(bytes, int64) -> bytes
-          // FunctionSignatureId.FN_RIGHT_STRING, // right(string, int64) -> string
+          FunctionSignatureId.FN_RIGHT_STRING, // right(string, int64) -> string
           // FunctionSignatureId.FN_RIGHT_BYTES, // right(bytes, int64) -> bytes
           // FunctionSignatureId.FN_REPEAT_BYTES, // repeat(bytes, int64) -> bytes
           // FunctionSignatureId.FN_REPEAT_STRING, // repeat(string, int64) -> string
@@ -279,9 +279,9 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_PARSE_TIMESTAMP, // parse_timestamp
 
           // Math functions
-          // FunctionSignatureId.FN_ABS_INT64, // abs
+          FunctionSignatureId.FN_ABS_INT64, // abs
           // FunctionSignatureId.FN_ABS_DOUBLE, // abs
-          // FunctionSignatureId.FN_ABS_NUMERIC, // abs
+          FunctionSignatureId.FN_ABS_NUMERIC, // abs
           // FunctionSignatureId.FN_ABS_BIGNUMERIC, // abs
           // FunctionSignatureId.FN_SIGN_INT64, // sign
           // FunctionSignatureId.FN_SIGN_DOUBLE, // sign
@@ -296,7 +296,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // round(bignumeric, int64) -> bignumeric
           // FunctionSignatureId.FN_ROUND_WITH_DIGITS_BIGNUMERIC,
           // FunctionSignatureId.FN_TRUNC_DOUBLE, // trunc(double) -> double
-          // FunctionSignatureId.FN_TRUNC_NUMERIC, // trunc(numeric) -> numeric
+          FunctionSignatureId.FN_TRUNC_NUMERIC, // trunc(numeric) -> numeric
           // FunctionSignatureId.FN_TRUNC_BIGNUMERIC, // trunc(bignumeric) -> bignumeric
           // FunctionSignatureId.FN_TRUNC_WITH_DIGITS_DOUBLE, // trunc(double, int64) -> double
           // FunctionSignatureId.FN_TRUNC_WITH_DIGITS_NUMERIC, // trunc(numeric, int64) -> numeric
@@ -319,8 +319,8 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_IS_INF, // is_inf
           FunctionSignatureId.FN_IS_NAN, // is_nan
           // FunctionSignatureId.FN_IEEE_DIVIDE_DOUBLE, // ieee_divide
-          // FunctionSignatureId.FN_SAFE_DIVIDE_DOUBLE, // safe_divide
-          // FunctionSignatureId.FN_SAFE_DIVIDE_NUMERIC, // safe_divide
+          FunctionSignatureId.FN_SAFE_DIVIDE_DOUBLE, // safe_divide
+          FunctionSignatureId.FN_SAFE_DIVIDE_NUMERIC, // safe_divide
           // FunctionSignatureId.FN_SAFE_DIVIDE_BIGNUMERIC, // safe_divide
           // FunctionSignatureId.FN_SAFE_ADD_INT64, // safe_add
           // FunctionSignatureId.FN_SAFE_ADD_DOUBLE, // safe_add
@@ -343,27 +343,26 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_LEAST, // least
 
           // FunctionSignatureId.FN_SQRT_DOUBLE, // sqrt
-          // FunctionSignatureId.FN_POW_DOUBLE, // pow
-          // FunctionSignatureId.FN_POW_NUMERIC, // pow(numeric, numeric) -> numeric
+          FunctionSignatureId.FN_POW_DOUBLE, // pow
+          FunctionSignatureId.FN_POW_NUMERIC, // pow(numeric, numeric) -> numeric
           // FunctionSignatureId.FN_POW_BIGNUMERIC, // pow(bignumeric, bignumeric) -> bignumeric
-          // FunctionSignatureId.FN_EXP_DOUBLE, // exp
+          FunctionSignatureId.FN_EXP_DOUBLE, // exp
           // FunctionSignatureId.FN_NATURAL_LOGARITHM_DOUBLE, // ln and log
           // FunctionSignatureId.FN_DECIMAL_LOGARITHM_DOUBLE, // log10
-          // FunctionSignatureId.FN_LOGARITHM_DOUBLE, // log
-
-          // FunctionSignatureId.FN_COS_DOUBLE, // cos
-          // FunctionSignatureId.FN_COSH_DOUBLE, // cosh
-          // FunctionSignatureId.FN_ACOS_DOUBLE, // acos
+          FunctionSignatureId.FN_LOGARITHM_DOUBLE, // log
+          FunctionSignatureId.FN_COS_DOUBLE, // cos
+          FunctionSignatureId.FN_COSH_DOUBLE, // cosh
+          FunctionSignatureId.FN_ACOS_DOUBLE, // acos
           // FunctionSignatureId.FN_ACOSH_DOUBLE, // acosh
-          // FunctionSignatureId.FN_SIN_DOUBLE, // sin
+          FunctionSignatureId.FN_SIN_DOUBLE, // sin
           // FunctionSignatureId.FN_SINH_DOUBLE, // sinh
-          // FunctionSignatureId.FN_ASIN_DOUBLE, // asin
+          FunctionSignatureId.FN_ASIN_DOUBLE, // asin
           // FunctionSignatureId.FN_ASINH_DOUBLE, // asinh
-          // FunctionSignatureId.FN_TAN_DOUBLE, // tan
-          // FunctionSignatureId.FN_TANH_DOUBLE, // tanh
-          // FunctionSignatureId.FN_ATAN_DOUBLE, // atan
-          // FunctionSignatureId.FN_ATANH_DOUBLE, // atanh
-          // FunctionSignatureId.FN_ATAN2_DOUBLE, // atan2
+          FunctionSignatureId.FN_TAN_DOUBLE, // tan
+          FunctionSignatureId.FN_TANH_DOUBLE, // tanh
+          FunctionSignatureId.FN_ATAN_DOUBLE, // atan
+          FunctionSignatureId.FN_ATANH_DOUBLE, // atanh
+          FunctionSignatureId.FN_ATAN2_DOUBLE, // atan2
 
           // Aggregate functions.
           FunctionSignatureId.FN_ANY_VALUE, // any_value
