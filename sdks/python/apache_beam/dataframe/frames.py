@@ -1240,13 +1240,15 @@ def _liftable_agg(meth):
     ungrouped = self._expr.args()[0]
     pre_agg = expressions.ComputedExpression(
         'pre_combine_' + name,
-        lambda df: func(df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
+        lambda df: func(
+            df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
         [ungrouped],
         requires_partition_by=partitionings.Nothing(),
         preserves_partition_by=partitionings.Singleton())
     post_agg = expressions.ComputedExpression(
         'post_combine_' + name,
-        lambda df: func(df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
+        lambda df: func(
+            df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
         [pre_agg],
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
@@ -1263,7 +1265,8 @@ def _unliftable_agg(meth):
     ungrouped = self._expr.args()[0]
     post_agg = expressions.ComputedExpression(
         name,
-        lambda df: func(df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
+        lambda df: func(
+            df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
         [ungrouped],
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
