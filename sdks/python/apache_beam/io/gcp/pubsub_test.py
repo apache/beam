@@ -600,9 +600,9 @@ class TestReadFromPubSub(unittest.TestCase):
         common_urns.composites.PUBSUB_READ.urn, proto_transform_spec.urn)
 
     pubsub_read_payload = (
-      proto_utils.parse_Bytes(
-          proto_transform_spec.payload,
-          beam_runner_api_pb2.PubSubReadPayload))
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubReadPayload))
     self.assertEqual(
         'projects/fakeprj/topics/a_topic', pubsub_read_payload.topic)
     self.assertEqual('a_label', pubsub_read_payload.id_attribute)
@@ -638,9 +638,9 @@ class TestReadFromPubSub(unittest.TestCase):
         common_urns.composites.PUBSUB_READ.urn, proto_transform_spec.urn)
 
     pubsub_read_payload = (
-      proto_utils.parse_Bytes(
-          proto_transform_spec.payload,
-          beam_runner_api_pb2.PubSubReadPayload))
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubReadPayload))
     self.assertEqual(
         'projects/fakeprj/subscriptions/a_subscription',
         pubsub_read_payload.subscription)
@@ -660,6 +660,7 @@ class TestReadFromPubSub(unittest.TestCase):
     self.assertEqual(
         'projects/fakeprj/subscriptions/a_subscription',
         transform_from_proto.source.full_subscription)
+
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 @mock.patch('google.cloud.pubsub.PublisherClient')

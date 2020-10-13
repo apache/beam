@@ -927,20 +927,20 @@ class Read(ptransform.PTransform):
       from apache_beam.io.gcp.pubsub import _PubSubSource
       if isinstance(self.source, _PubSubSource):
         return (
-          common_urns.composites.PUBSUB_READ.urn,
-          beam_runner_api_pb2.PubSubReadPayload(
-              topic=self.source.full_topic,
-              subscription=self.source.full_subscription,
-              timestamp_attribute=self.source.timestamp_attribute,
-              with_attributes=self.source.with_attributes,
-              id_attribute=self.source.id_label))
+            common_urns.composites.PUBSUB_READ.urn,
+            beam_runner_api_pb2.PubSubReadPayload(
+                topic=self.source.full_topic,
+                subscription=self.source.full_subscription,
+                timestamp_attribute=self.source.timestamp_attribute,
+                with_attributes=self.source.with_attributes,
+                id_attribute=self.source.id_label))
       return (
-        common_urns.deprecated_primitives.READ.urn,
-        beam_runner_api_pb2.ReadPayload(
-            source=self.source.to_runner_api(context),
-            is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
-            if self.source.is_bounded() else
-            beam_runner_api_pb2.IsBounded.UNBOUNDED))
+          common_urns.deprecated_primitives.READ.urn,
+          beam_runner_api_pb2.ReadPayload(
+              source=self.source.to_runner_api(context),
+              is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+              if self.source.is_bounded() else
+              beam_runner_api_pb2.IsBounded.UNBOUNDED))
     elif isinstance(self.source, ptransform.PTransform):
       return self.source.to_runner_api_parameter(context)
 
