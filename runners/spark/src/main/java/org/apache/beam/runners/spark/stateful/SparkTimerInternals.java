@@ -52,12 +52,12 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   /** Build the {@link TimerInternals} according to the feeding streams. */
-  public static SparkTimerInternals forStreamFromSources(
-      List<Integer> sourceIds, Map<Integer, SparkWatermarks> watermarks) {
+  public static SparkTimerInternals forStreamFromUpstreamWatermarkIds(
+      List<Integer> upstreamWaterkmarkIds, Map<Integer, SparkWatermarks> watermarks) {
     // if watermarks are invalid for the specific ids, use defaults.
     if (watermarks == null
         || watermarks.isEmpty()
-        || Collections.disjoint(sourceIds, watermarks.keySet())) {
+        || Collections.disjoint(upstreamWaterkmarkIds, watermarks.keySet())) {
       return new SparkTimerInternals(
           BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(0));
     }
@@ -66,8 +66,8 @@ public class SparkTimerInternals implements TimerInternals {
     Instant slowestHighWatermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
     // synchronized processing time should clearly be synchronized.
     Instant synchronizedProcessingTime = null;
-    for (Integer sourceId : sourceIds) {
-      SparkWatermarks sparkWatermarks = watermarks.get(sourceId);
+    for (Integer upstreamWatermarkId : upstreamWaterkmarkIds) {
+      SparkWatermarks sparkWatermarks = watermarks.get(upstreamWatermarkId);
       if (sparkWatermarks != null) {
         // keep slowest WMs.
         slowestLowWatermark =
@@ -96,8 +96,8 @@ public class SparkTimerInternals implements TimerInternals {
   /** Build a global {@link TimerInternals} for all feeding streams. */
   public static SparkTimerInternals global(Map<Integer, SparkWatermarks> watermarks) {
     return watermarks == null
-        ? forStreamFromSources(Collections.emptyList(), null)
-        : forStreamFromSources(Lists.newArrayList(watermarks.keySet()), watermarks);
+        ? forStreamFromUpstreamWatermarkIds(Collections.emptyList(), null)
+        : forStreamFromUpstreamWatermarkIds(Lists.newArrayList(watermarks.keySet()), watermarks);
   }
 
   public Collection<TimerData> getTimers() {

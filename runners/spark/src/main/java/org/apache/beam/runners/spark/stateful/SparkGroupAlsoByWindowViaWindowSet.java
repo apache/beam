@@ -244,7 +244,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
               GlobalWatermarkHolder.get(getBatchDuration(options));
 
           final SparkTimerInternals timerInternals =
-              SparkTimerInternals.forStreamFromSources(sourceIds, watermarks);
+              SparkTimerInternals.forStreamFromUpstreamWatermarkIds(
+                  upstreamWatermarkIds, watermarks);
 
           final SparkStateInternals<K> stateInternals =
               processPreviousState(prevStateAndTimersOpt, key, timerInternals);
@@ -367,7 +368,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
     private final FullWindowedValueCoder<InputT> wvCoder;
     private final Coder<K> keyCoder;
-    private final List<Integer> sourceIds;
+    private final List<Integer> upstreamWatermarkIds;
     private final TimerInternals.TimerDataCoderV2 timerDataCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
     private final SerializablePipelineOptions options;
@@ -376,7 +377,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     private final Coder<WindowedValue<KV<K, Iterable<InputT>>>> wvKvIterCoder;
 
     UpdateStateByKeyFunction(
-        final List<Integer> sourceIds,
+        final List<Integer> upstreamWatermarkIds,
         final WindowingStrategy<?, W> windowingStrategy,
         final FullWindowedValueCoder<InputT> wvCoder,
         final Coder<K> keyCoder,
@@ -384,7 +385,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         final String logPrefix) {
       this.wvCoder = wvCoder;
       this.keyCoder = keyCoder;
-      this.sourceIds = sourceIds;
+      this.upstreamWatermarkIds = upstreamWatermarkIds;
       this.timerDataCoder = timerDataCoderOf(windowingStrategy);
       this.windowingStrategy = windowingStrategy;
       this.options = options;
@@ -555,7 +556,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
           final Coder<WindowedValue<InputT>> wvCoder,
           final WindowingStrategy<?, W> windowingStrategy,
           final SerializablePipelineOptions options,
-          final List<Integer> sourceIds,
+          final List<Integer> upstreamWatermarkIds,
           final String transformFullName) {
 
     final PairDStreamFunctions<ByteArray, byte[]> pairDStream =
@@ -564,7 +565,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     // use updateStateByKey to scan through the state and update elements and timers.
     final UpdateStateByKeyFunction<K, InputT, W> updateFunc =
         new UpdateStateByKeyFunction<>(
-            sourceIds,
+            upstreamWatermarkIds,
             windowingStrategy,
             (FullWindowedValueCoder<InputT>) wvCoder,
             keyCoder,

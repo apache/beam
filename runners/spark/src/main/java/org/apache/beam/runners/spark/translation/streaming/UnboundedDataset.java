@@ -37,23 +37,24 @@ public class UnboundedDataset<T> implements Dataset {
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedDataset.class);
 
   private JavaDStream<WindowedValue<T>> dStream;
-  // points to the input streams that created this UnboundedDataset,
-  // should be greater > 1 in case of Flatten for example.
-  // when using GlobalWatermarkHolder this information helps to take only the relevant watermarks
+  // Contains the watermark ids for upstream DStreams output watermarks.
+  // Should be greater > 1 in case of Flatten for example.
+  // When using GlobalWatermarkHolder this information helps to take only the relevant watermarks
   // and reason about them accordingly.
-  private final List<Integer> streamSources = new ArrayList<>();
+  private final List<Integer> upstreamWatermarkIds;
 
-  public UnboundedDataset(JavaDStream<WindowedValue<T>> dStream, List<Integer> streamSources) {
+  public UnboundedDataset(
+      JavaDStream<WindowedValue<T>> dStream, List<Integer> upstreamWatermarkIds) {
     this.dStream = dStream;
-    this.streamSources.addAll(streamSources);
+    this.upstreamWatermarkIds = new ArrayList<>(upstreamWatermarkIds);
   }
 
   public JavaDStream<WindowedValue<T>> getDStream() {
     return dStream;
   }
 
-  public List<Integer> getStreamSources() {
-    return streamSources;
+  public List<Integer> getUpstreamWatermarkIds() {
+    return upstreamWatermarkIds;
   }
 
   @Override

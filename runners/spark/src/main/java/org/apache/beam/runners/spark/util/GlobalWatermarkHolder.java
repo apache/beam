@@ -59,10 +59,12 @@ public class GlobalWatermarkHolder {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlobalWatermarkHolder.class);
 
-  private static final Map<Integer, Queue<SparkWatermarks>> sourceTimes = new HashMap<>();
+  private static final Map<Integer, Queue<SparkWatermarks>> idToWatermarks = new HashMap<>();
   private static final BlockId WATERMARKS_BLOCK_ID = BlockId.apply("broadcast_0WATERMARKS");
   private static final ClassTag<Map> WATERMARKS_TAG =
       scala.reflect.ClassManifestFactory.fromClass(Map.class);
+
+  private static int nextWatermarkId = 0;
 
   // a local copy of the watermarks is stored on the driver node so that it can be
   // accessed in test mode instead of fetching blocks remotely
@@ -71,22 +73,27 @@ public class GlobalWatermarkHolder {
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
   private static volatile long lastWatermarkedBatchTime = 0;
 
-  public static void add(int sourceId, SparkWatermarks sparkWatermarks) {
-    Queue<SparkWatermarks> timesQueue = sourceTimes.get(sourceId);
+  public static synchronized int nextWatermarkId() {
+    nextWatermarkId += 1;
+    return nextWatermarkId;
+  }
+
+  public static void add(int watermarkId, SparkWatermarks sparkWatermarks) {
+    Queue<SparkWatermarks> timesQueue = idToWatermarks.get(watermarkId);
     if (timesQueue == null) {
       timesQueue = new ConcurrentLinkedQueue<>();
     }
     timesQueue.offer(sparkWatermarks);
-    sourceTimes.put(sourceId, timesQueue);
+    idToWatermarks.put(watermarkId, timesQueue);
   }
 
   @VisibleForTesting
-  public static void addAll(Map<Integer, Queue<SparkWatermarks>> sourceTimes) {
-    for (Map.Entry<Integer, Queue<SparkWatermarks>> en : sourceTimes.entrySet()) {
-      int sourceId = en.getKey();
+  public static void addAll(Map<Integer, Queue<SparkWatermarks>> idToWatermarks) {
+    for (Map.Entry<Integer, Queue<SparkWatermarks>> en : idToWatermarks.entrySet()) {
+      int watermarkId = en.getKey();
       Queue<SparkWatermarks> timesQueue = en.getValue();
       while (!timesQueue.isEmpty()) {
-        add(sourceId, timesQueue.poll());
+        add(watermarkId, timesQueue.poll());
       }
     }
   }
@@ -96,7 +103,8 @@ public class GlobalWatermarkHolder {
   }
 
   /**
-   * Returns the {@link Broadcast} containing the {@link SparkWatermarks} mapped to their sources.
+   * Returns the {@link Broadcast} containing the {@link SparkWatermarks} mapped to their watermark
+   * ids.
    */
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
     if (canBypassRemoteWatermarkFetching()) {
@@ -169,26 +177,27 @@ public class GlobalWatermarkHolder {
   }
 
   /**
-   * Computes the next watermark values per source id.
+   * Computes the next watermark values per watermark id.
    *
    * @return The new watermarks values or null if no source has reported its progress.
    */
   private static Map<Integer, SparkWatermarks> computeNewWatermarks(BlockManager blockManager) {
 
-    if (sourceTimes.isEmpty()) {
+    if (idToWatermarks.isEmpty()) {
       return new HashMap<>();
     }
 
     // update all sources' watermarks into the new broadcast.
     final Map<Integer, SparkWatermarks> newValues = new HashMap<>();
 
-    for (final Map.Entry<Integer, Queue<SparkWatermarks>> watermarkInfo : sourceTimes.entrySet()) {
+    for (final Map.Entry<Integer, Queue<SparkWatermarks>> watermarkInfo :
+        idToWatermarks.entrySet()) {
 
       if (watermarkInfo.getValue().isEmpty()) {
         continue;
       }
 
-      final Integer sourceId = watermarkInfo.getKey();
+      final Integer watermarkId = watermarkInfo.getKey();
 
       // current state, if exists.
       Instant currentLowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -197,8 +206,8 @@ public class GlobalWatermarkHolder {
 
       final Map<Integer, SparkWatermarks> currentWatermarks = initWatermarks(blockManager);
 
-      if (currentWatermarks.containsKey(sourceId)) {
-        final SparkWatermarks currentTimes = currentWatermarks.get(sourceId);
+      if (currentWatermarks.containsKey(watermarkId)) {
+        final SparkWatermarks currentTimes = currentWatermarks.get(watermarkId);
         currentLowWatermark = currentTimes.getLowWatermark();
         currentHighWatermark = currentTimes.getHighWatermark();
         currentSynchronizedProcessingTime = currentTimes.getSynchronizedProcessingTime();
@@ -232,7 +241,7 @@ public class GlobalWatermarkHolder {
           "Synchronized processing time must advance.");
 
       newValues.put(
-          sourceId,
+          watermarkId,
           new SparkWatermarks(nextLowWatermark, nextHighWatermark, nextSynchronizedProcessingTime));
     }
 
@@ -294,7 +303,7 @@ public class GlobalWatermarkHolder {
 
   @VisibleForTesting
   public static synchronized void clear() {
-    sourceTimes.clear();
+    idToWatermarks.clear();
     lastWatermarkedBatchTime = 0;
     writeLocalWatermarkCopy(null);
     final SparkEnv sparkEnv = SparkEnv.get();
@@ -306,7 +315,7 @@ public class GlobalWatermarkHolder {
 
   /**
    * A {@link SparkWatermarks} holds the watermarks and batch time relevant to a micro-batch input
-   * from a specific source.
+   * from a specific watermark holding transform.
    */
   public static class SparkWatermarks implements Serializable {
     private final Instant lowWatermark;

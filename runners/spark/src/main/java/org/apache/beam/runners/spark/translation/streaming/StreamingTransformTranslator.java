@@ -186,7 +186,8 @@ public final class StreamingTransformTranslator {
 
         // add pre-baked Watermarks for the pre-baked batches.
         GlobalWatermarkHolder.addAll(
-            ImmutableMap.of(unboundedDataset.getStreamSources().get(0), transform.getTimes()));
+            ImmutableMap.of(
+                unboundedDataset.getUpstreamWatermarkIds().get(0), transform.getTimes()));
 
         context.putDataset(transform, unboundedDataset);
       }
@@ -250,7 +251,7 @@ public final class StreamingTransformTranslator {
         // unbounded, meaning it represents a DStream.
         // So we could end up with an unbounded unified DStream.
         final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
-        final List<Integer> streamingSources = new ArrayList<>();
+        final List<Integer> upstreamWatermarkIds = new ArrayList<>();
         for (PValue pv : pcs.values()) {
           checkArgument(
               pv instanceof PCollection,
@@ -261,7 +262,7 @@ public final class StreamingTransformTranslator {
           Dataset dataset = context.borrowDataset(pcol);
           if (dataset instanceof UnboundedDataset) {
             UnboundedDataset<T> unboundedDataset = (UnboundedDataset<T>) dataset;
-            streamingSources.addAll(unboundedDataset.getStreamSources());
+            upstreamWatermarkIds.addAll(unboundedDataset.getUpstreamWatermarkIds());
             dStreams.add(unboundedDataset.getDStream());
           } else {
             // create a single RDD stream.
@@ -275,7 +276,7 @@ public final class StreamingTransformTranslator {
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
             SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
-        context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
+        context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, upstreamWatermarkIds));
       }
 
       @Override
@@ -302,7 +303,8 @@ public final class StreamingTransformTranslator {
               dStream.transform(rdd -> rdd.map(new SparkAssignWindowFn<>(transform.getWindowFn())));
         }
         context.putDataset(
-            transform, new UnboundedDataset<>(outputStream, unboundedDataset.getStreamSources()));
+            transform,
+            new UnboundedDataset<>(outputStream, unboundedDataset.getUpstreamWatermarkIds()));
       }
 
       @Override
@@ -319,7 +321,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         UnboundedDataset<KV<K, V>> inputDataset =
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
-        List<Integer> streamSources = inputDataset.getStreamSources();
+        List<Integer> upstreamWatermarkIds = inputDataset.getUpstreamWatermarkIds();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
@@ -339,10 +341,10 @@ public final class StreamingTransformTranslator {
                 wvCoder,
                 windowingStrategy,
                 context.getSerializableOptions(),
-                streamSources,
+                upstreamWatermarkIds,
                 context.getCurrentTransform().getFullName());
 
-        context.putDataset(transform, new UnboundedDataset<>(outStream, streamSources));
+        context.putDataset(transform, new UnboundedDataset<>(outStream, upstreamWatermarkIds));
       }
 
       @Override
@@ -391,7 +393,8 @@ public final class StreamingTransformTranslator {
                 });
 
         context.putDataset(
-            transform, new UnboundedDataset<>(outStream, unboundedDataset.getStreamSources()));
+            transform,
+            new UnboundedDataset<>(outStream, unboundedDataset.getUpstreamWatermarkIds()));
       }
 
       @Override
@@ -483,7 +486,7 @@ public final class StreamingTransformTranslator {
                   (JavaDStream<?>) TranslationUtils.dStreamValues(filtered);
           context.putDataset(
               output.getValue(),
-              new UnboundedDataset<>(values, unboundedDataset.getStreamSources()));
+              new UnboundedDataset<>(values, unboundedDataset.getUpstreamWatermarkIds()));
         }
       }
 
@@ -501,7 +504,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         UnboundedDataset<KV<K, V>> inputDataset =
             (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
-        List<Integer> streamSources = inputDataset.getStreamSources();
+        List<Integer> upstreamWatermarkIds = inputDataset.getUpstreamWatermarkIds();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
@@ -516,7 +519,8 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
             dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
 
-        context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
+        context.putDataset(
+            transform, new UnboundedDataset<>(reshuffledStream, upstreamWatermarkIds));
       }
 
       @Override
