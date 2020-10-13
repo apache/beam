@@ -53,18 +53,18 @@ _LOGGER = logging.getLogger(__name__)
 class Options(interactive_options.InteractiveOptions):
   """Options that guide how Interactive Beam works."""
   @property
-  def enable_record_replay(self):
+  def enable_recording_replay(self):
     """Whether replayable source data recorded should be replayed for multiple
     PCollection evaluations and pipeline runs as long as the data recorded is
     still valid."""
     return self.capture_control._enable_capture_replay
 
-  @enable_record_replay.setter
-  def enable_record_replay(self, value):
+  @enable_recording_replay.setter
+  def enable_recording_replay(self, value):
     """Sets whether source data recorded should be replayed. True - Enables
-    record of replayable source data so that following PCollection evaluations
+    recording of replayable source data so that following PCollection evaluations
     and pipeline runs always use the same data recorded; False - Disables
-    record of replayable source data so that following PCollection evaluation
+    recording of replayable source data so that following PCollection evaluation
     and pipeline runs always use new data from sources."""
     # This makes sure the log handler is configured correctly in case the
     # options are configured in an early stage.
@@ -91,23 +91,23 @@ class Options(interactive_options.InteractiveOptions):
     return self.capture_control._capturable_sources
 
   @property
-  def record_duration(self):
-    """The data record of sources ends as soon as the background caching job
+  def recording_duration(self):
+    """The data recording of sources ends as soon as the background caching job
     has run for this long."""
     return self.capture_control._capture_duration
 
-  @record_duration.setter
-  def record_duration(self, value):
-    """Sets the record duration as a timedelta. The input can be a
+  @recording_duration.setter
+  def recording_duration(self, value):
+    """Sets the recording duration as a timedelta. The input can be a
     datetime.timedelta, a possitive integer as seconds or a string
     representation that is parsable by pandas.to_timedelta.
 
     Example::
 
-      # Sets the record duration limit to 10 seconds.
-      ib.options.record_duration = timedelta(seconds=10)
-      ib.options.record_duration = 10
-      ib.options.record_duration = '10s'
+      # Sets the recording duration limit to 10 seconds.
+      ib.options.recording_duration = timedelta(seconds=10)
+      ib.options.recording_duration = 10
+      ib.options.recording_duration = '10s'
       # Explicitly control the recordings.
       ib.recordings.stop(p)
       ib.recordings.clear(p)
@@ -131,7 +131,7 @@ class Options(interactive_options.InteractiveOptions):
     ) != duration.total_seconds():
       _ = ie.current_env()
       _LOGGER.info(
-          'You have changed record duration from %s seconds to %s seconds. '
+          'You have changed recording duration from %s seconds to %s seconds. '
           'To allow new data to be recorded for the updated duration the '
           'next time a PCollection is evaluated or the pipeline is executed, '
           'please invoke ib.recordings.stop, ib.recordings.clear and '
@@ -141,24 +141,24 @@ class Options(interactive_options.InteractiveOptions):
       self.capture_control._capture_duration = duration
 
   @property
-  def record_size_limit(self):
-    """The data record of sources ends as soon as the size (in bytes) of data
+  def recording_size_limit(self):
+    """The data recording of sources ends as soon as the size (in bytes) of data
     recorded from recordable sources reaches the limit."""
     return self.capture_control._capture_size_limit
 
-  @record_size_limit.setter
-  def record_size_limit(self, value):
-    """Sets the record size in bytes.
+  @recording_size_limit.setter
+  def recording_size_limit(self, value):
+    """Sets the recording size in bytes.
 
     Example::
 
-      # Sets the record size limit to 1GB.
-      interactive_beam.options.record_size_limit = 1e9
+      # Sets the recording size limit to 1GB.
+      interactive_beam.options.recording_size_limit = 1e9
     """
     if self.capture_control._capture_size_limit != value:
       _ = ie.current_env()
       _LOGGER.info(
-          'You have changed record size limit from %s bytes to %s bytes. To '
+          'You have changed recording size limit from %s bytes to %s bytes. To '
           'allow new data to be recorded under the updated size limit the '
           'next time a PCollection is recorded or the pipeline is executed, '
           'please invoke ib.recordings.stop, ib.recordings.clear and '
@@ -222,9 +222,9 @@ class Recordings():
   """An introspection interface for recordings for pipelines.
 
   When a user materializes a PCollection onto disk (eg. ib.show) for a streaming
-  pipeline, a background recording job is started. This job pulls data from all
-  defined unbounded sources for that PCollection's pipeline. The following
-  methods allow for introspection into that background recording job.
+  pipeline, a background source recording job is started. This job pulls data
+  from all defined unbounded sources for that PCollection's pipeline. The
+  following methods allow for introspection into that background recording job.
   """
   def describe(self, pipeline=None):
     # type: (Optional[beam.Pipeline]) -> dict[str, Any]
@@ -264,7 +264,7 @@ class Recordings():
   def stop(self, pipeline):
     # type: (beam.Pipeline) -> None
 
-    """Stops the background recording of the given pipeline."""
+    """Stops the background source recording of the given pipeline."""
 
     recording_manager = ie.current_env().get_recording_manager(
         pipeline, create_if_absent=True)
@@ -273,8 +273,8 @@ class Recordings():
   def record(self, pipeline):
     # type: (beam.Pipeline) -> bool
 
-    """Starts a background recording job for the given pipeline. Returns True if
-    the recording job was started.
+    """Starts a background source recording job for the given pipeline. Returns
+    True if the recording job was started.
     """
 
     description = self.describe(pipeline)
