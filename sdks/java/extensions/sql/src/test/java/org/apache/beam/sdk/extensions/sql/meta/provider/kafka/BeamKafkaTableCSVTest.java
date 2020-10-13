@@ -48,11 +48,6 @@ public class BeamKafkaTableCSVTest extends BeamKafkaTableTest {
   }
 
   @Override
-  protected KafkaTestTable getTestTable(int numberOfPartitions) {
-    return new KafkaTestTable(TEST_SCHEMA, TOPICS, numberOfPartitions);
-  }
-
-  @Override
   protected BeamKafkaTable getBeamKafkaTable() {
     return new BeamKafkaCSVTable(TEST_SCHEMA, "", ImmutableList.of());
   }
