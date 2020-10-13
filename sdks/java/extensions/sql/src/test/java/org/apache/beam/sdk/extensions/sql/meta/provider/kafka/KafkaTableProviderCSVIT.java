@@ -17,17 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class KafkaTableProviderCSVIT extends KafkaTableProviderIT {
-  @SuppressWarnings("unchecked")
   @Override
-  protected ProducerRecord<String, ?> generateProducerRecord(int i) {
+  protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
     return new ProducerRecord<>(
-        kafkaOptions.getKafkaTopic(), "k" + i, beamRow2CsvLine(generateRow(i), CSVFormat.DEFAULT));
+        kafkaOptions.getKafkaTopic(),
+        "k" + i,
+        beamRow2CsvLine(generateRow(i), CSVFormat.DEFAULT).getBytes(UTF_8));
   }
 
   @Override
