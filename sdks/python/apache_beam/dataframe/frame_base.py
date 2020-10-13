@@ -19,8 +19,10 @@ from __future__ import absolute_import
 import functools
 import inspect
 import sys
+from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Union
 
@@ -155,7 +157,7 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
 def _proxy_function(
       func,  # type: Union[Callable, str]
       name=None,  # type: Optional[str]
-      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], Bool]]
+      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
       inplace=False,  # type: bool
       requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
       preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning

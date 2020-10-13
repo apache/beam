@@ -1063,7 +1063,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Singleton()))
     elif isinstance(repeats, list):
-      raise frame_base.WontImplementError("repeats must be an integer or a Series.")
+      raise frame_base.WontImplementError("repeats must be an integer or a "
+                                          "Series.")
 
 
 ELEMENTWISE_STRING_METHODS = [
