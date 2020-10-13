@@ -36,9 +36,4 @@ public class KafkaTableProviderAvroIT extends KafkaTableProviderIT {
   protected String getPayloadFormat() {
     return "avro";
   }
-
-  @Override
-  protected String getValueSerializer() {
-    return "org.apache.kafka.common.serialization.ByteArraySerializer";
-  }
 }

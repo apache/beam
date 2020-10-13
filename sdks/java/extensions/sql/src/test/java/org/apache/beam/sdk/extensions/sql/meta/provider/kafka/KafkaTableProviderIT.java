@@ -88,8 +88,6 @@ public abstract class KafkaTableProviderIT {
 
   protected abstract String getPayloadFormat();
 
-  protected abstract String getValueSerializer();
-
   @Before
   public void setUp() {
     kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
@@ -272,7 +270,7 @@ public abstract class KafkaTableProviderIT {
     Properties props = new Properties();
     props.put("bootstrap.servers", kafkaOptions.getKafkaBootstrapServerAddress());
     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    props.put("value.serializer", getValueSerializer());
+    props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     props.put("buffer.memory", 33554432);
     props.put("acks", "all");
     props.put("request.required.acks", "1");
