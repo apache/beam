@@ -44,7 +44,7 @@ public abstract class BeamKafkaTableTest {
   /** Returns proper implementation of BeamKafkaTable for the tested format */
   protected abstract BeamKafkaTable getBeamKafkaTable();
 
-  /** Returns encoded payload for the tested format. */
+  /** Returns encoded payload in the tested format corresponding to the row in `generateRow(i)` */
   protected abstract byte[] generateEncodedPayload(int i);
 
   /** Provides a deterministic row from the given integer. */
