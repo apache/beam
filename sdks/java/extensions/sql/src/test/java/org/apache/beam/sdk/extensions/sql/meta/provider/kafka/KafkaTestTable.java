@@ -77,10 +77,6 @@ public class KafkaTestTable extends BeamKafkaTable {
     this.numberOfRecordsForRate = numberOfRecordsForRate;
   }
 
-  private byte[] getRecordValueBytes(KafkaTestRecord record) {
-    return record.getValue().toByteArray();
-  }
-
   private MockConsumer<byte[], byte[]> mkMockConsumer(Map<String, Object> config) {
     OffsetResetStrategy offsetResetStrategy = OffsetResetStrategy.EARLIEST;
     final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> kafkaRecords = new HashMap<>();
@@ -111,7 +107,7 @@ public class KafkaTestTable extends BeamKafkaTable {
       int partitionIndex = record.getKey().hashCode() % partitionsPerTopic;
       TopicPartition tp = partitionMap.get(record.getTopic()).get(partitionIndex);
       byte[] key = record.getKey().getBytes(UTF_8);
-      byte[] value = getRecordValueBytes(record);
+      byte[] value = record.getValue().toByteArray();
       kafkaRecords
           .get(tp)
           .add(
