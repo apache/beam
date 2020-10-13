@@ -921,29 +921,50 @@ class Read(ptransform.PTransform):
     }
 
   def to_runner_api_parameter(self, context):
-    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
+    # type: (PipelineContext) -> Tuple[str, Any]
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.source, (BoundedSource, dataflow_io.NativeSource)):
+      from apache_beam.io.gcp.pubsub import _PubSubSource
+      if isinstance(self.source, _PubSubSource):
+        return (
+          common_urns.composites.PUBSUB_READ.urn,
+          beam_runner_api_pb2.PubSubReadPayload(
+              topic=self.source.full_topic,
+              subscription=self.source.full_subscription,
+              timestamp_attribute=self.source.timestamp_attribute,
+              with_attributes=self.source.with_attributes,
+              id_attribute=self.source.id_label))
       return (
-          common_urns.deprecated_primitives.READ.urn,
-          beam_runner_api_pb2.ReadPayload(
-              source=self.source.to_runner_api(context),
-              is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
-              if self.source.is_bounded() else
-              beam_runner_api_pb2.IsBounded.UNBOUNDED))
+        common_urns.deprecated_primitives.READ.urn,
+        beam_runner_api_pb2.ReadPayload(
+            source=self.source.to_runner_api(context),
+            is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+            if self.source.is_bounded() else
+            beam_runner_api_pb2.IsBounded.UNBOUNDED))
     elif isinstance(self.source, ptransform.PTransform):
       return self.source.to_runner_api_parameter(context)
 
   @staticmethod
-  def from_runner_api_parameter(unused_ptransform, parameter, context):
-    # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
-    return Read(SourceBase.from_runner_api(parameter.source, context))
-
-
-ptransform.PTransform.register_urn(
-    common_urns.deprecated_primitives.READ.urn,
-    beam_runner_api_pb2.ReadPayload,
-    Read.from_runner_api_parameter)
+  @ptransform.PTransform.register_urn(
+      common_urns.deprecated_primitives.READ.urn,
+      beam_runner_api_pb2.ReadPayload)
+  @ptransform.PTransform.register_urn(
+      common_urns.composites.PUBSUB_READ.urn,
+      beam_runner_api_pb2.PubSubReadPayload)
+  def from_runner_api_parameter(transform, payload, context):
+    # type: (Any, Any, PipelineContext) -> Read
+    if transform.spec.urn == common_urns.composites.PUBSUB_READ.urn:
+      # Importing locally to prevent circular dependencies.
+      from apache_beam.io.gcp.pubsub import _PubSubSource
+      source = _PubSubSource(
+          topic=payload.topic,
+          subscription=payload.subscription,
+          id_label=payload.id_attribute,
+          with_attributes=payload.with_attributes,
+          timestamp_attribute=payload.timestamp_attribute)
+      return Read(source)
+    else:
+      return Read(SourceBase.from_runner_api(payload.source, context))
 
 
 class Write(ptransform.PTransform):
@@ -1000,6 +1021,40 @@ class Write(ptransform.PTransform):
       raise ValueError(
           'A sink must inherit iobase.Sink, iobase.NativeSink, '
           'or be a PTransform. Received : %r' % self.sink)
+
+  def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, Any]
+    # Importing locally to prevent circular dependencies.
+    from apache_beam.io.gcp.pubsub import _PubSubSink
+    if isinstance(self.sink, _PubSubSink):
+      payload = beam_runner_api_pb2.PubSubWritePayload(
+          topic=self.sink.full_topic,
+          id_attribute=self.sink.id_label,
+          timestamp_attribute=self.sink.timestamp_attribute,
+          with_attributes=self.sink.with_attributes)
+      return (common_urns.composites.PUBSUB_WRITE.urn, payload)
+    else:
+      return super(Write, self).to_runner_api_parameter(context)
+
+  @staticmethod
+  @ptransform.PTransform.register_urn(
+      common_urns.composites.PUBSUB_WRITE.urn,
+      beam_runner_api_pb2.PubSubWritePayload)
+  def from_runner_api_parameter(ptransform, payload, unused_context):
+    # type: (Any, Any, PipelineContext) -> Write
+    if ptransform.spec.urn != common_urns.composites.PUBSUB_WRITE.urn:
+      raise ValueError(
+          'Write transform cannot be constructed for the given proto %r',
+          ptransform)
+
+    # Importing locally to prevent circular dependencies.
+    from apache_beam.io.gcp.pubsub import _PubSubSink
+    sink = _PubSubSink(
+        topic=payload.topic,
+        id_label=payload.id_attribute,
+        with_attributes=payload.with_attributes,
+        timestamp_attribute=payload.timestamp_attribute)
+    return Write(sink)
 
 
 class WriteImpl(ptransform.PTransform):
