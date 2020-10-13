@@ -68,9 +68,9 @@ def evict_captured_data(pipeline=None):
 
   In future PCollection evaluation/visualization and pipeline
   runs, Interactive Beam will capture fresh data."""
-  if ie.current_env().options.enable_capture_replay:
+  if ie.current_env().options.enable_recording_replay:
     _LOGGER.info(
-        'You have requested Interactive Beam to evict all recorded'
+        'You have requested Interactive Beam to evict all recorded '
         'data that could be deterministically replayed among multiple '
         'pipeline runs.')
   ie.current_env().cleanup(pipeline)
