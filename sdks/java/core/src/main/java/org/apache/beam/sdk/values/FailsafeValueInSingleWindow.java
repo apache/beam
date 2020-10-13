@@ -99,8 +99,8 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
       PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
-      valueCoder.encode(windowedElem.getValue(), outStream, context);
-      failsafeValueCoder.encode(windowedElem.getFailsafeValue(), outStream, context);
+      valueCoder.encode(windowedElem.getValue(), outStream);
+      failsafeValueCoder.encode(windowedElem.getFailsafeValue(), outStream);
     }
 
     @Override
@@ -114,8 +114,8 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
-      T value = valueCoder.decode(inStream, context);
-      ErrorT failsafeValue = failsafeValueCoder.decode(inStream, context);
+      T value = valueCoder.decode(inStream);
+      ErrorT failsafeValue = failsafeValueCoder.decode(inStream);
       return new AutoValue_FailsafeValueInSingleWindow<>(
           value, timestamp, window, paneInfo, failsafeValue);
     }

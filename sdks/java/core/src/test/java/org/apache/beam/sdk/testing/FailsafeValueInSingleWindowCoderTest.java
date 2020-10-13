@@ -34,7 +34,7 @@ public class FailsafeValueInSingleWindowCoderTest {
   @Test
   public void testDecodeEncodeEqual() throws Exception {
     Instant now = Instant.now();
-    FailsafeValueInSingleWindow<String> value =
+    FailsafeValueInSingleWindow<String, String> value =
         FailsafeValueInSingleWindow.of(
             "foo",
             now,
@@ -43,18 +43,22 @@ public class FailsafeValueInSingleWindowCoderTest {
             "bar");
 
     CoderProperties.coderDecodeEncodeEqual(
-        FailsafeValueInSingleWindow.Coder.of(StringUtf8Coder.of(), StringUtf8Coder.of(), IntervalWindow.getCoder()), value);
+        FailsafeValueInSingleWindow.Coder.of(
+            StringUtf8Coder.of(), StringUtf8Coder.of(), IntervalWindow.getCoder()),
+        value);
   }
 
   @Test
   public void testCoderSerializable() throws Exception {
     CoderProperties.coderSerializable(
-        FailsafeValueInSingleWindow.Coder.of(StringUtf8Coder.of(), StringUtf8Coder.of(), IntervalWindow.getCoder()));
+        FailsafeValueInSingleWindow.Coder.of(
+            StringUtf8Coder.of(), StringUtf8Coder.of(), IntervalWindow.getCoder()));
   }
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
-        FailsafeValueInSingleWindow.Coder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+        FailsafeValueInSingleWindow.Coder.of(
+            GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 }
