@@ -22,6 +22,8 @@ applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io
 description = "Apache Beam :: SDKs :: Java :: IO :: RabbitMQ"
 ext.summary = "IO to read and write to a RabbitMQ broker."
 
+def qpid_version = "8.0.1"
+
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -29,9 +31,9 @@ dependencies {
   compile "com.rabbitmq:amqp-client:5.7.3"
   provided library.java.jackson_dataformat_xml
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile "org.apache.qpid:qpid-broker-core:7.1.5"
-  testCompile "org.apache.qpid:qpid-broker-plugins-memory-store:7.1.5"
-  testCompile "org.apache.qpid:qpid-broker-plugins-amqp-0-8-protocol:7.1.5"
+  testCompile "org.apache.qpid:qpid-broker-core:$qpid_version"
+  testCompile "org.apache.qpid:qpid-broker-plugins-memory-store:$qpid_version"
+  testCompile "org.apache.qpid:qpid-broker-plugins-amqp-0-8-protocol:$qpid_version"
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
