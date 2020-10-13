@@ -92,8 +92,8 @@ class Options(interactive_options.InteractiveOptions):
 
   @property
   def recording_duration(self):
-    """The data recording of sources ends as soon as the background caching job
-    has run for this long."""
+    """The data recording of sources ends as soon as the background source
+    recording job has run for this long."""
     return self.capture_control._capture_duration
 
   @recording_duration.setter
@@ -213,7 +213,7 @@ class Options(interactive_options.InteractiveOptions):
       # You can also use dateutil.tz to get a timezone.
       tz = dateutil.tz.gettz('US/Eastern')
 
-      interactive_beam.options.capture_size = tz
+      interactive_beam.options.display_timezone = tz
     """
     self._display_timezone = value
 
@@ -298,11 +298,10 @@ class Recordings():
 
 # Users can set options to guide how Interactive Beam works.
 # Examples:
-# from datetime import timedelta
 # from apache_beam.runners.interactive import interactive_beam as ib
-# ib.options.enable_capture_replay = False/True
-# ib.options.capture_duration = timedelta(seconds=60)
-# ib.options.capturable_sources.add(SourceClass)
+# ib.options.enable_recording_replay = False/True
+# ib.options.recording_duration = '1m'
+# ib.options.recordable_sources.add(SourceClass)
 # Check the docstrings for detailed usages.
 options = Options()
 
