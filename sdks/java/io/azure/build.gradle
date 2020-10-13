@@ -34,7 +34,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile "com.azure:azure-storage-blob:12.1.0"
   compile "com.azure:azure-identity:1.0.8"
-  compile "com.microsoft.azure:azure-storage:8.0.0"
+  compile "com.microsoft.azure:azure-storage:8.6.5"
   compile "commons-io:commons-io:2.6"
   compile library.java.slf4j_api
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
