@@ -208,6 +208,29 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().setExecutionRetryDelay(retryDelay);
     }
 
+    configureCheckpointing(options, flinkStreamEnv);
+
+    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+
+    if (options.getAutoWatermarkInterval() != null) {
+      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
+    }
+
+    // State backend
+    if (options.getStateBackendFactory() != null) {
+      final StateBackend stateBackend =
+          InstanceBuilder.ofType(FlinkStateBackendFactory.class)
+              .fromClass(options.getStateBackendFactory())
+              .build()
+              .createStateBackend(options);
+      flinkStreamEnv.setStateBackend(stateBackend);
+    }
+
+    return flinkStreamEnv;
+  }
+
+  private static void configureCheckpointing(
+      FlinkPipelineOptions options, StreamExecutionEnvironment flinkStreamEnv) {
     // A value of -1 corresponds to disabled checkpointing (see CheckpointConfig in Flink).
     // If the value is not -1, then the validity checks are applied.
     // By default, checkpointing is disabled.
@@ -260,26 +283,7 @@ public class FlinkExecutionEnvironments {
       }
     }
 
-    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
-
-    if (options.getAutoWatermarkInterval() != null) {
-      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
-    }
-
-    // State backend
-    if (options.getStateBackendFactory() != null) {
-      final StateBackend stateBackend =
-          InstanceBuilder.ofType(FlinkStateBackendFactory.class)
-              .fromClass(options.getStateBackendFactory())
-              .build()
-              .createStateBackend(options);
-      flinkStreamEnv.setStateBackend(stateBackend);
-    }
-
-    return flinkStreamEnv;
   }
-
-  private void configureCheckpointingOptions() {}
 
   /**
    * Removes the http:// or https:// schema from a url string. This is commonly used with the
