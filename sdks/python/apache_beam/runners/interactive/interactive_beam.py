@@ -34,6 +34,7 @@ this module in your notebook or application code.
 from __future__ import absolute_import
 
 import logging
+from datetime import timedelta
 
 import pandas as pd
 
@@ -52,98 +53,117 @@ _LOGGER = logging.getLogger(__name__)
 class Options(interactive_options.InteractiveOptions):
   """Options that guide how Interactive Beam works."""
   @property
-  def enable_capture_replay(self):
-    """Whether replayable source data capture should be replayed for multiple
-    PCollection evaluations and pipeline runs as long as the data captured is
+  def enable_recording_replay(self):
+    """Whether replayable source data recorded should be replayed for multiple
+    PCollection evaluations and pipeline runs as long as the data recorded is
     still valid."""
     return self.capture_control._enable_capture_replay
 
-  @enable_capture_replay.setter
-  def enable_capture_replay(self, value):
-    """Sets whether source data capture should be replayed. True - Enables
-    capture of replayable source data so that following PCollection evaluations
-    and pipeline runs always use the same data captured; False - Disables
-    capture of replayable source data so that following PCollection evaluation
-    and pipeline runs always use new data from sources."""
+  @enable_recording_replay.setter
+  def enable_recording_replay(self, value):
+    """Sets whether source data recorded should be replayed. True - Enables
+    recording of replayable source data so that following PCollection
+    evaluations and pipeline runs always use the same data recorded;
+    False - Disables recording of replayable source data so that following
+    PCollection evaluation and pipeline runs always use new data from sources.
+    """
     # This makes sure the log handler is configured correctly in case the
     # options are configured in an early stage.
     _ = ie.current_env()
     if value:
       _LOGGER.info(
-          'Capture replay is enabled. When a PCollection is evaluated or the '
-          'pipeline is executed, existing data captured from previous '
+          'Record replay is enabled. When a PCollection is evaluated or the '
+          'pipeline is executed, existing data recorded from previous '
           'computations will be replayed for consistent results. If no '
-          'captured data is available, new data from capturable sources will '
-          'be captured.')
+          'recorded data is available, new data from recordable sources will '
+          'be recorded.')
     else:
       _LOGGER.info(
-          'Capture replay is disabled. The next time a PCollection is '
+          'Record replay is disabled. The next time a PCollection is '
           'evaluated or the pipeline is executed, new data will always be '
           'consumed from sources in the pipeline. You will not have '
           'replayability until re-enabling this option.')
     self.capture_control._enable_capture_replay = value
 
   @property
-  def capturable_sources(self):
-    """Interactive Beam automatically captures data from sources in this set.
+  def recordable_sources(self):
+    """Interactive Beam automatically records data from sources in this set.
     """
     return self.capture_control._capturable_sources
 
   @property
-  def capture_duration(self):
-    """The data capture of sources ends as soon as the background caching job
-    has run for this long."""
+  def recording_duration(self):
+    """The data recording of sources ends as soon as the background source
+    recording job has run for this long."""
     return self.capture_control._capture_duration
 
-  @capture_duration.setter
-  def capture_duration(self, value):
-    """Sets the capture duration as a timedelta.
+  @recording_duration.setter
+  def recording_duration(self, value):
+    """Sets the recording duration as a timedelta. The input can be a
+    datetime.timedelta, a possitive integer as seconds or a string
+    representation that is parsable by pandas.to_timedelta.
 
     Example::
 
-      # Sets the capture duration limit to 10 seconds.
-      interactive_beam.options.capture_duration = timedelta(seconds=10)
-      # Evicts all captured data if there is any.
-      interactive_beam.evict_captured_data()
-      # The next PCollection evaluation will capture fresh data from sources,
-      # and the data captured will be replayed until another eviction.
-      interactive_beam.collect(some_pcoll)
+      # Sets the recording duration limit to 10 seconds.
+      ib.options.recording_duration = timedelta(seconds=10)
+      ib.options.recording_duration = 10
+      ib.options.recording_duration = '10s'
+      # Explicitly control the recordings.
+      ib.recordings.stop(p)
+      ib.recordings.clear(p)
+      ib.recordings.record(p)
+      # The next PCollection evaluation uses fresh data from sources,
+      # and the data recorded will be replayed until another clear.
+      ib.collect(some_pcoll)
     """
-    assert value.total_seconds() > 0, 'Duration must be a positive value.'
+    duration = None
+    if isinstance(value, int):
+      assert value > 0, 'Duration must be a positive value.'
+      duration = timedelta(seconds=value)
+    elif isinstance(value, str):
+      duration = pd.to_timedelta(value)
+    else:
+      assert isinstance(value, timedelta), ('The input can only abe a '
+        'datetime.timedelta, a possitive integer as seconds, or a string '
+        'representation that is parsable by pandas.to_timedelta.')
+      duration = value
     if self.capture_control._capture_duration.total_seconds(
-    ) != value.total_seconds():
+    ) != duration.total_seconds():
       _ = ie.current_env()
       _LOGGER.info(
-          'You have changed capture duration from %s seconds to %s seconds. '
-          'To allow new data to be captured for the updated duration, the '
+          'You have changed recording duration from %s seconds to %s seconds. '
+          'To allow new data to be recorded for the updated duration the '
           'next time a PCollection is evaluated or the pipeline is executed, '
-          'please invoke evict_captured_data().',
+          'please invoke ib.recordings.stop, ib.recordings.clear and '
+          'ib.recordings.record.',
           self.capture_control._capture_duration.total_seconds(),
-          value.total_seconds())
-      self.capture_control._capture_duration = value
+          duration.total_seconds())
+      self.capture_control._capture_duration = duration
 
   @property
-  def capture_size_limit(self):
-    """The data capture of sources ends as soon as the size (in bytes) of data
-    captured from capturable sources reaches the limit."""
+  def recording_size_limit(self):
+    """The data recording of sources ends as soon as the size (in bytes) of data
+    recorded from recordable sources reaches the limit."""
     return self.capture_control._capture_size_limit
 
-  @capture_size_limit.setter
-  def capture_size_limit(self, value):
-    """Sets the capture size in bytes.
+  @recording_size_limit.setter
+  def recording_size_limit(self, value):
+    """Sets the recording size in bytes.
 
     Example::
 
-      # Sets the capture size limit to 1GB.
-      interactive_beam.options.capture_size_limit = 1e9
+      # Sets the recording size limit to 1GB.
+      interactive_beam.options.recording_size_limit = 1e9
     """
     if self.capture_control._capture_size_limit != value:
       _ = ie.current_env()
       _LOGGER.info(
-          'You have changed capture size limit from %s bytes to %s bytes. To '
-          'allow new data to be captured under the updated size limit, the '
-          'next time a PCollection is evaluated or the pipeline is executed, '
-          'please invoke evict_captured_data().',
+          'You have changed recording size limit from %s bytes to %s bytes. To '
+          'allow new data to be recorded under the updated size limit the '
+          'next time a PCollection is recorded or the pipeline is executed, '
+          'please invoke ib.recordings.stop, ib.recordings.clear and '
+          'ib.recordings.record.',
           self.capture_control._capture_size_limit,
           value)
       self.capture_control._capture_size_limit = value
@@ -194,7 +214,7 @@ class Options(interactive_options.InteractiveOptions):
       # You can also use dateutil.tz to get a timezone.
       tz = dateutil.tz.gettz('US/Eastern')
 
-      interactive_beam.options.capture_size = tz
+      interactive_beam.options.display_timezone = tz
     """
     self._display_timezone = value
 
@@ -203,9 +223,9 @@ class Recordings():
   """An introspection interface for recordings for pipelines.
 
   When a user materializes a PCollection onto disk (eg. ib.show) for a streaming
-  pipeline, a background recording job is started. This job pulls data from all
-  defined unbounded sources for that PCollection's pipeline. The following
-  methods allow for introspection into that background recording job.
+  pipeline, a background source recording job is started. This job pulls data
+  from all defined unbounded sources for that PCollection's pipeline. The
+  following methods allow for introspection into that background recording job.
   """
   def describe(self, pipeline=None):
     # type: (Optional[beam.Pipeline]) -> dict[str, Any]
@@ -245,7 +265,7 @@ class Recordings():
   def stop(self, pipeline):
     # type: (beam.Pipeline) -> None
 
-    """Stops the background recording of the given pipeline."""
+    """Stops the background source recording of the given pipeline."""
 
     recording_manager = ie.current_env().get_recording_manager(
         pipeline, create_if_absent=True)
@@ -254,8 +274,8 @@ class Recordings():
   def record(self, pipeline):
     # type: (beam.Pipeline) -> bool
 
-    """Starts a background recording job for the given pipeline. Returns True if
-    the recording job was started.
+    """Starts a background source recording job for the given pipeline. Returns
+    True if the recording job was started.
     """
 
     description = self.describe(pipeline)
@@ -279,11 +299,10 @@ class Recordings():
 
 # Users can set options to guide how Interactive Beam works.
 # Examples:
-# from datetime import timedelta
 # from apache_beam.runners.interactive import interactive_beam as ib
-# ib.options.enable_capture_replay = False/True
-# ib.options.capture_duration = timedelta(seconds=60)
-# ib.options.capturable_sources.add(SourceClass)
+# ib.options.enable_recording_replay = False/True
+# ib.options.recording_duration = '1m'
+# ib.options.recordable_sources.add(SourceClass)
 # Check the docstrings for detailed usages.
 options = Options()
 
@@ -578,11 +597,11 @@ def show_graph(pipeline):
   pipeline_graph.PipelineGraph(pipeline).display_graph()
 
 
-def evict_captured_data(pipeline=None):
-  """Forcefully evicts all captured replayable data for the given pipeline. If
+def evict_recorded_data(pipeline=None):
+  """Forcefully evicts all recorded replayable data for the given pipeline. If
   no pipeline is specified, evicts for all user defined pipelines.
 
-  Once invoked, Interactive Beam will capture new data based on the guidance of
+  Once invoked, Interactive Beam will record new data based on the guidance of
   options the next time it evaluates/visualizes PCollections or runs pipelines.
   """
   from apache_beam.runners.interactive.options import capture_control

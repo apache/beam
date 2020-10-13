@@ -367,7 +367,7 @@ class RecordingManagerTest(unittest.TestCase):
       'This test requires at least Python 3.6 to work.')
   def test_cancel_stops_recording(self):
     # Add the TestStream so that it can be cached.
-    ib.options.capturable_sources.add(TestStream)
+    ib.options.recordable_sources.add(TestStream)
 
     p = beam.Pipeline(
         InteractiveRunner(), options=PipelineOptions(streaming=True))
@@ -410,7 +410,7 @@ class RecordingManagerTest(unittest.TestCase):
     cache ensures that correct results are computed every run.
     """
     # Add the TestStream so that it can be cached.
-    ib.options.capturable_sources.add(TestStream)
+    ib.options.recordable_sources.add(TestStream)
     p = beam.Pipeline(
         InteractiveRunner(), options=PipelineOptions(streaming=True))
     elems = (
@@ -500,7 +500,7 @@ class RecordingManagerTest(unittest.TestCase):
       'This test requires at least Python 3.6 to work.')
   def test_record_pipeline(self):
     # Add the TestStream so that it can be cached.
-    ib.options.capturable_sources.add(TestStream)
+    ib.options.recordable_sources.add(TestStream)
     p = beam.Pipeline(
         InteractiveRunner(), options=PipelineOptions(streaming=True))
     # pylint: disable=unused-variable
