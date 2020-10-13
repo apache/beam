@@ -85,7 +85,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 
 	// (3) Translate to v1b3 and submit
 
-	job, err := Translate(p, opts, workerURL, jarURL, modelURL)
+	job, err := Translate(ctx, p, opts, workerURL, jarURL, modelURL)
 	if err != nil {
 		return "", err
 	}
