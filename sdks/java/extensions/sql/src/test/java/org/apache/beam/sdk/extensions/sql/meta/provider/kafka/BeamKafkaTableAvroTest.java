@@ -88,7 +88,7 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
 
   @Override
   protected KafkaTestTable getTestTable(int numberOfPartitions) {
-    return new KafkaTestTableAvro(TEST_SCHEMA, TOPICS, numberOfPartitions);
+    return new KafkaTestTable(TEST_SCHEMA, TOPICS, numberOfPartitions);
   }
 
   @Override

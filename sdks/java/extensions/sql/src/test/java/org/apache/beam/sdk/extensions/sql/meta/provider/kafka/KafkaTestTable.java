@@ -48,7 +48,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 
 /** This is a mock BeamKafkaTable. It will use a Mock Consumer. */
-public abstract class KafkaTestTable extends BeamKafkaTable {
+public class KafkaTestTable extends BeamKafkaTable {
   private final int partitionsPerTopic;
   private final List<KafkaTestRecord> records;
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
