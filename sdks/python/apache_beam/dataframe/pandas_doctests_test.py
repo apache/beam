@@ -118,9 +118,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.rename': ['*'],
             'pandas.core.frame.DataFrame.apply': ['*'],
 
-            # Zipping operation if input is a DeferredSeries
-            'pandas.core.frame.DataFrame.assign': ['*'],
-
             # In theory this is possible for bounded inputs?
             'pandas.core.frame.DataFrame.append': ['*'],
         },

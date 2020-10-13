@@ -510,10 +510,19 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def axes(self):
     return (self.index, self.columns)
 
+  def assign(self, **kwargs):
+    for name, value in kwargs.items():
+      if not callable(value) and not isinstance(value, DeferredSeries):
+        raise frame_base.WontImplementError("Unsupported value for new "
+                                            f"column '{name}': '{value}'. "
+                                            "Only callables and Series "
+                                            "instances are supported.")
+    return frame_base._elementwise_method('assign')(self, **kwargs)
+
+
   apply = frame_base.not_implemented_method('apply')
   explode = frame_base.not_implemented_method('explode')
   isin = frame_base.not_implemented_method('isin')
-  assign = frame_base.not_implemented_method('assign')
   append = frame_base.not_implemented_method('append')
   combine = frame_base.not_implemented_method('combine')
   combine_first = frame_base.not_implemented_method('combine_first')
