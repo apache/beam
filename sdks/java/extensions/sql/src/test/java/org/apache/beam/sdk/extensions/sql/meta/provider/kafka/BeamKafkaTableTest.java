@@ -38,13 +38,13 @@ public abstract class BeamKafkaTableTest {
 
   protected static final List<String> TOPICS = ImmutableList.of("topic1", "topic2");
 
-  /** Returns proper implementation of KafkaTestTable for the tested format */
+  /** Returns proper implementation of KafkaTestTable for the tested format. */
   protected abstract KafkaTestTable getTestTable(int numberOfPartitions);
 
-  /** Returns proper implementation of BeamKafkaTable for the tested format */
+  /** Returns proper implementation of BeamKafkaTable for the tested format. */
   protected abstract BeamKafkaTable getBeamKafkaTable();
 
-  /** Returns encoded payload in the tested format corresponding to the row in `generateRow(i)` */
+  /** Returns encoded payload in the tested format corresponding to the row in `generateRow(i)`. */
   protected abstract byte[] generateEncodedPayload(int i);
 
   /** Provides a deterministic row from the given integer. */
