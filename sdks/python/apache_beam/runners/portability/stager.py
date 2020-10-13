@@ -274,6 +274,8 @@ class Stager(object):
     # staging location because the staging location is a remote path and the
     # file cannot be created directly there.
     if setup_options.save_main_session:
+      import gc
+      gc.collect()
       pickled_session_file = os.path.join(
           temp_dir, names.PICKLED_MAIN_SESSION_FILE)
       pickler.dump_session(pickled_session_file)
