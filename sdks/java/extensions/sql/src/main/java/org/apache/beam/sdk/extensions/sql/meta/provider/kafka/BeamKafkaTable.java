@@ -97,8 +97,6 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   protected abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
 
-  protected abstract BeamKafkaTable getTable();
-
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin

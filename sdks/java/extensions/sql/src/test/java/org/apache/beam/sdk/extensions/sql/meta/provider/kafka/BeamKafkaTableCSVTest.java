@@ -49,7 +49,7 @@ public class BeamKafkaTableCSVTest extends BeamKafkaTableTest {
 
   @Override
   protected KafkaTestTable getTestTable(int numberOfPartitions) {
-    return new KafkaTestTableCSV(TEST_SCHEMA, TOPICS, numberOfPartitions);
+    return new KafkaTestTable(TEST_SCHEMA, TOPICS, numberOfPartitions);
   }
 
   @Override

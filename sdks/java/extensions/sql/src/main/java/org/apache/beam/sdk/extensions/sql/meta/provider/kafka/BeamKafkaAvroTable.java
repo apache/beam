@@ -44,11 +44,6 @@ public class BeamKafkaAvroTable extends BeamKafkaTable {
     return new AvroRecorderEncoder(schema);
   }
 
-  @Override
-  protected BeamKafkaTable getTable() {
-    return this;
-  }
-
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
   private static class AvroRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {

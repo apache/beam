@@ -33,7 +33,7 @@ import org.apache.commons.csv.CSVFormat;
 
 /** A Kafka topic that saves records as CSV format. */
 public class BeamKafkaCSVTable extends BeamKafkaTable {
-  private CSVFormat csvFormat;
+  private final CSVFormat csvFormat;
 
   public BeamKafkaCSVTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
     this(beamSchema, bootstrapServers, topics, CSVFormat.DEFAULT);
@@ -43,11 +43,6 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
       Schema beamSchema, String bootstrapServers, List<String> topics, CSVFormat format) {
     super(beamSchema, bootstrapServers, topics);
     this.csvFormat = format;
-  }
-
-  @Override
-  protected BeamKafkaTable getTable() {
-    return this;
   }
 
   @Override
