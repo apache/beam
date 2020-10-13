@@ -40,6 +40,8 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -412,7 +414,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
-    def spark_version = "2.4.6"
+    def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.0-rc2"
 
@@ -871,7 +873,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'checkstyle'
       project.tasks.withType(Checkstyle) {
         configFile = project.project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-        configProperties = ["checkstyle.suppressions.file": project.project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
+        configProperties = ["checkstyle.suppressions.file": project.project(":").relativePath("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
         showViolations = true
         maxErrors = 0
       }
@@ -1056,7 +1058,9 @@ class BeamModulePlugin implements Plugin<Project> {
         if (configuration.validateShadowJar) {
           project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
             ext.outFile = project.file("${project.reportsDir}/${name}.out")
-            inputs.files project.configurations.shadow.artifacts.files
+            inputs.files(project.configurations.shadow.artifacts.files)
+                .withPropertyName("shadowArtifactsFiles")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
             outputs.files outFile
             doLast {
               project.configurations.shadow.artifacts.files.each {
@@ -2016,6 +2020,8 @@ class BeamModulePlugin implements Plugin<Project> {
             '**/*.pyc',
             'sdks/python/*.egg*/**',
             'sdks/python/test-suites/**',
+            'sdks/python/__pycache__',
+            '**/reports/test/index.html',
           ])
           )
       def copiedSrcRoot = "${project.buildDir}/srcs"
