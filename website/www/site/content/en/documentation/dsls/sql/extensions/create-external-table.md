@@ -303,7 +303,7 @@ TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topi
         server.
     *   `topics`: Optional. Allows you to specify specific topics.
     *   `format`: Optional. Allows you to specify the Kafka values format. Possible values are
-    {`csv`, `avro`}, capitalization does not matter. Defaults to `csv`.
+    {`csv`, `avro`}. Defaults to `csv`.
 
 ### Read Mode
 
