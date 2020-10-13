@@ -753,7 +753,6 @@ class BigQueryServicesImpl implements BigQueryServices {
     @VisibleForTesting
     <T> long insertAll(
         TableReference ref,
-        // TODO(dhercher): should second TableRow be T?
         List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
         @Nullable List<String> insertIdList,
         BackOff backoff,
