@@ -36,9 +36,4 @@ public class KafkaTableProviderCSVIT extends KafkaTableProviderIT {
   protected String getPayloadFormat() {
     return null;
   }
-
-  @Override
-  protected String getValueSerializer() {
-    return "org.apache.kafka.common.serialization.StringSerializer";
-  }
 }
