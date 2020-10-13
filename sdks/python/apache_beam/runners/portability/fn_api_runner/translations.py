@@ -261,12 +261,11 @@ class Stage(object):
       stage_components = beam_runner_api_pb2.Components()
       stage_components.CopyFrom(components)
 
-      # Only keep the referenced PCollections.
-      # Make pcollectionKey snapshot to avoid "Map modified during iteration"
-      # in py3
-      for pcoll_id in list(stage_components.pcollections.keys()):
-        if pcoll_id not in all_inputs and pcoll_id not in all_outputs:
-          del stage_components.pcollections[pcoll_id]
+      # Only keep the PCollections referenced in this stage.
+      stage_components.pcollections.clear()
+      for pcoll_id in all_inputs.union(all_outputs):
+        stage_components.pcollections[pcoll_id].CopyFrom(
+            components.pcollections[pcoll_id])
 
       # Only keep the transforms in this stage.
       # Also gather up payload data as we iterate over the transforms.
@@ -570,7 +569,7 @@ def pipeline_from_stages(
       copy_subtransforms(transform)
     else:
       transform = stage.executable_stage_transform(
-          known_runner_urns, all_consumers, components)
+          known_runner_urns, all_consumers, pipeline_proto.components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
     copy_output_pcollections(transform)
@@ -846,8 +845,8 @@ def pack_combiners(stages, context):
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
     if (len(stage.transforms) == 1 and stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN in context.components.environments[
-            stage.environment].capabilities):
+        python_urns.PACKED_COMBINE_FN
+        in context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
