@@ -311,8 +311,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.strings.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
-        }
-    )
+        })
     self.assertEqual(result.failed, 0)
 
   def test_datetime_tests(self):
