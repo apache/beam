@@ -84,7 +84,7 @@ public abstract class KafkaTableProviderIT {
           .addNullableField("f_string", Schema.FieldType.STRING)
           .build();
 
-  protected abstract <ValueT> ProducerRecord<String, ValueT> generateProducerRecord(int i);
+  protected abstract ProducerRecord<String, byte[]> generateProducerRecord(int i);
 
   protected abstract String getPayloadFormat();
 
@@ -236,13 +236,13 @@ public abstract class KafkaTableProviderIT {
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private <ValueT> void produceSomeRecords(int num) {
-    Producer<String, ValueT> producer = new KafkaProducer<>(producerProps());
+  private void produceSomeRecords(int num) {
+    Producer<String, byte[]> producer = new KafkaProducer<>(producerProps());
     Stream.iterate(0, i -> ++i)
         .limit(num)
         .forEach(
             i -> {
-              ProducerRecord<String, ValueT> record = generateProducerRecord(i);
+              ProducerRecord<String, byte[]> record = generateProducerRecord(i);
               producer.send(record);
             });
     producer.flush();
@@ -250,13 +250,13 @@ public abstract class KafkaTableProviderIT {
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private <ValueT> void produceSomeRecordsWithDelay(int num, int delayMilis) {
-    Producer<String, ValueT> producer = new KafkaProducer<>(producerProps());
+  private void produceSomeRecordsWithDelay(int num, int delayMilis) {
+    Producer<String, byte[]> producer = new KafkaProducer<>(producerProps());
     Stream.iterate(0, i -> ++i)
         .limit(num)
         .forEach(
             i -> {
-              ProducerRecord<String, ValueT> record = generateProducerRecord(i);
+              ProducerRecord<String, byte[]> record = generateProducerRecord(i);
               producer.send(record);
               try {
                 TimeUnit.MILLISECONDS.sleep(delayMilis);

@@ -26,9 +26,8 @@ public class KafkaTableProviderAvroIT extends KafkaTableProviderIT {
   private final SimpleFunction<Row, byte[]> toBytesFn =
       AvroUtils.getRowToAvroBytesFunction(TEST_TABLE_SCHEMA);
 
-  @SuppressWarnings("unchecked")
   @Override
-  protected ProducerRecord<String, ?> generateProducerRecord(int i) {
+  protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
     return new ProducerRecord<>(
         kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
   }
