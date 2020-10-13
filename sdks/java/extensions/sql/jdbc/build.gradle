@@ -35,7 +35,6 @@ dependencies {
   compile project(":sdks:java:extensions:sql")
   compile "sqlline:sqlline:1.4.0"
   compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
-  //compile project(":sdks:java:core")
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile library.java.junit
   // Depending on outputs so integrationTest can run with only test dependencies.

@@ -31,7 +31,6 @@ ext.summary = "ZetaSQL to Calcite translator"
 def zetasql_version = "2020.08.1"
 
 dependencies {
-  //compile project(":sdks:java:core")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:sql")
   compile library.java.vendored_calcite_1_20_0

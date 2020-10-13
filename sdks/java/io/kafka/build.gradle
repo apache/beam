@@ -39,7 +39,7 @@ configurations {
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  //compile project(path: ":sdks:java:expansion-service", configuration: "shadow")
+  //compile project(":sdks:java:expansion-service")
   testCompile project(":sdks:java:expansion-service")
   compile "org.apache.kafka:kafka-clients:1.0.0"
   compile "com.google.code.findbugs:jsr305:3.0.2"

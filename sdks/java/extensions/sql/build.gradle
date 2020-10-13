@@ -45,10 +45,7 @@ dependencies {
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates library.java.vendored_calcite_1_20_0
-  //compile project(":sdks:java:core")
-  //compile project(":sdks:java:core")
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  //compile project(":sdks:java:extensions:join-library")
   compile project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_codec
   compile library.java.commons_csv
