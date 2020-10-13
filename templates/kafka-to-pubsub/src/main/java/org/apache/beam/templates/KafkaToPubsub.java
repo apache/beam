@@ -58,9 +58,9 @@ public class KafkaToPubsub {
    * The {@link KafkaToPubsub} pipeline is a streaming pipeline which ingests data in JSON format
    * from Kafka, and outputs the resulting records to PubSub. Input topics, output topic, Bootstrap
    * servers are specified by the user as template parameters. <br>
-   * Kafka may be configured with SASL/SCRAM security mechanism,
-   * in this case a Vault secret storage with credentials should be provided. URL to credentials and Vault token
-   * are specified by the user as template parameters.
+   * Kafka may be configured with SASL/SCRAM security mechanism, in this case a Vault secret storage
+   * with credentials should be provided. URL to credentials and Vault token are specified by the
+   * user as template parameters.
    *
    * <p><b>Pipeline Requirements</b>
    *
