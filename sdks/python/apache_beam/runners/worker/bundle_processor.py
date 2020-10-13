@@ -1854,7 +1854,7 @@ def create_map_windows(
 
 @BeamTransformFactory.register_urn(
     common_urns.primitives.MERGE_WINDOWS.urn, beam_runner_api_pb2.FunctionSpec)
-def create_map_windows(
+def create_merge_windows(
     factory,  # type: BeamTransformFactory
     transform_id,  # type: str
     transform_proto,  # type: beam_runner_api_pb2.PTransform
@@ -1876,7 +1876,7 @@ def create_map_windows(
       class RecordingMergeContext(window.WindowFn.MergeContext):
         def merge(
             self,
-            to_be_merged,  # type: Collection[window.BoundedWindow]
+            to_be_merged,  # type: Iterable[window.BoundedWindow]
             merge_result,  # type: window.BoundedWindow
           ):
           originals = merged_windows[merge_result]
