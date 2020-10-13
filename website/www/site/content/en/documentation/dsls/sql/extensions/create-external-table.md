@@ -319,8 +319,9 @@ Write Mode supports writing to a topic.
     *   Beam parses the messages, attempting to parse fields according to the
         types specified in the schema.
 *   Avro
-    *   Beam parses the messages, attempting to parse fields according to the
-        types specified in the schema. Avro schema is automatically deduced.
+    *   An Avro schema is automatically generated from the specified field
+        types. It is used to parse incoming messages and to format outgoing
+        messages.
 
 ### Schema
 
