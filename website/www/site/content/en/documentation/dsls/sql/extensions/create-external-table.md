@@ -313,7 +313,7 @@ Read Mode supports reading from a topic.
 
 Write Mode supports writing to a topic.
 
-### Supported Payload
+### Supported Payload Formats
 
 *   CSV (default)
     *   Beam parses the messages, attempting to parse fields according to the
