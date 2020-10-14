@@ -363,19 +363,25 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		var pRoots []*fnpb.BundleApplication
 		var rRoots []*fnpb.DelayedBundleApplication
-		if sr.PS != nil && sr.RS != nil {
-			pRoots = []*fnpb.BundleApplication{{
-				TransformId: sr.TId,
-				InputId:     sr.InId,
-				Element:     sr.PS,
-			}}
-			rRoots = []*fnpb.DelayedBundleApplication{{
-				Application: &fnpb.BundleApplication{
+		if sr.PS != nil && len(sr.PS) > 0 && sr.RS != nil && len(sr.RS) > 0 {
+			pRoots = make([]*fnpb.BundleApplication, len(sr.PS))
+			for i, p := range sr.PS {
+				pRoots[i] = &fnpb.BundleApplication{
 					TransformId: sr.TId,
 					InputId:     sr.InId,
-					Element:     sr.RS,
-				},
-			}}
+					Element:     p,
+				}
+			}
+			rRoots = make([]*fnpb.DelayedBundleApplication, len(sr.RS))
+			for i, r := range sr.RS {
+				rRoots[i] = &fnpb.DelayedBundleApplication{
+					Application: &fnpb.BundleApplication{
+						TransformId: sr.TId,
+						InputId:     sr.InId,
+						Element:     r,
+					},
+				}
+			}
 		}
 
 		return &fnpb.InstructionResponse{

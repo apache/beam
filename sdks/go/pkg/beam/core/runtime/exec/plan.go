@@ -215,10 +215,10 @@ type SplitResult struct {
 
 	// Extra information included for sub-element splits. If PS and RS are
 	// present then a sub-element split occurred.
-	PS   []byte // Primary split. If an element is split, this is the encoded primary.
-	RS   []byte // Residual split. If an element is split, this is the encoded residual.
-	TId  string // Transform ID of the transform receiving the split elements.
-	InId string // Input ID of the input the split elements are received from.
+	PS   [][]byte // Primary splits. If an element is split, these are the encoded primaries.
+	RS   [][]byte // Residual splits. If an element is split, these are the encoded residuals.
+	TId  string   // Transform ID of the transform receiving the split elements.
+	InId string   // Input ID of the input the split elements are received from.
 }
 
 // Split takes a set of potential split indexes, and if successful returns
