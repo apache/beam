@@ -67,6 +67,7 @@ import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.streaming.FlinkStateInternalsTest;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
 import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
@@ -213,7 +214,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -240,7 +241,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -323,7 +324,8 @@ public class ExecutableStageDoFnOperatorTest {
               TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
               BundleProgressHandler progressHandler,
-              BundleFinalizationHandler finalizationHandler) {
+              BundleFinalizationHandler finalizationHandler,
+              BundleCheckpointHandler checkpointHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -458,7 +460,7 @@ public class ExecutableStageDoFnOperatorTest {
                 .put(KV.of("transform", "timer2"), Mockito.mock(FnDataReceiver.class))
                 .put(KV.of("transform", "timer3"), Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
     assertThat(
@@ -576,7 +578,7 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
     testHarness.close();
@@ -624,7 +626,7 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
 
@@ -736,7 +738,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     KV<String, String> timerInputKey = KV.of("transformId", "timerId");
     AtomicBoolean timerInputReceived = new AtomicBoolean();
@@ -921,7 +923,7 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
 
