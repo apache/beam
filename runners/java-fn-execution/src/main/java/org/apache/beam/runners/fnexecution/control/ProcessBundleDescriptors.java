@@ -37,7 +37,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -59,7 +58,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
@@ -141,9 +139,7 @@ public class ProcessBundleDescriptors {
 
     Map<String, Map<String, TimerSpec>> timerSpecs = forTimerSpecs(stage, components);
 
-    if (bagUserStateSpecs.size() > 0 || timerSpecs.size() > 0) {
-      lengthPrefixKeyCoder(stage.getInputPCollection().getId(), components);
-    }
+    lengthPrefixAnyInputCoder(stage.getInputPCollection().getId(), components);
 
     // Copy data from components to ProcessBundleDescriptor.
     ProcessBundleDescriptor.Builder bundleDescriptorBuilder =
@@ -174,26 +170,18 @@ public class ProcessBundleDescriptors {
   }
 
   /**
-   * Patches the input coder of a stateful transform to ensure that the byte representation of a key
-   * used to partition the input element at the Runner, matches the key byte representation received
-   * for state requests and timers from the SDK Harness. Stateful transforms always have a KvCoder
-   * as input.
+   * Patches the input coder of the transform to ensure that the byte representation of input used
+   * at the Runner, matches the byte representation received from the SDK Harness.
    */
-  private static void lengthPrefixKeyCoder(
-      String inputColId, Components.Builder componentsBuilder) {
-    RunnerApi.PCollection pcollection = componentsBuilder.getPcollectionsOrThrow(inputColId);
-    RunnerApi.Coder kvCoder = componentsBuilder.getCodersOrThrow(pcollection.getCoderId());
-    Preconditions.checkState(
-        ModelCoders.KV_CODER_URN.equals(kvCoder.getSpec().getUrn()),
-        "Stateful executable stages must use a KV coder, but is: %s",
-        kvCoder.getSpec().getUrn());
-    String keyCoderId = ModelCoders.getKvCoderComponents(kvCoder).keyCoderId();
-    // Retain the original coder, but wrap in LengthPrefixCoder
-    String newKeyCoderId =
-        LengthPrefixUnknownCoders.addLengthPrefixedCoder(keyCoderId, componentsBuilder, false);
-    // Replace old key coder with LengthPrefixCoder<old_key_coder>
-    kvCoder = kvCoder.toBuilder().setComponentCoderIds(0, newKeyCoderId).build();
-    componentsBuilder.putCoders(pcollection.getCoderId(), kvCoder);
+  private static void lengthPrefixAnyInputCoder(
+      String inputPCollectionId, Components.Builder componentsBuilder) {
+    RunnerApi.PCollection pcollection =
+        componentsBuilder.getPcollectionsOrThrow(inputPCollectionId);
+    String newInputCoderId =
+        LengthPrefixUnknownCoders.addLengthPrefixedCoder(
+            pcollection.getCoderId(), componentsBuilder, false);
+    componentsBuilder.putPcollections(
+        inputPCollectionId, pcollection.toBuilder().setCoderId(newInputCoderId).build());
   }
 
   private static Map<String, Coder<WindowedValue<?>>> addStageOutputs(
