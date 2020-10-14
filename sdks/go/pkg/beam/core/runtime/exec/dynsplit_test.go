@@ -99,6 +99,15 @@ func TestDynamicSplit(t *testing.T) {
 				t.Errorf("Incorrect split result (ignoring split elements): %v", diff)
 			}
 
+			// Validate that we get one primary and restriction, as expected for
+			// a DoFn that doesn't observe windows.
+			if got, want := len(splitRes.split.PS), 1; got != want {
+				t.Errorf("Incorrect number of primaries returned: got %v, want %v", got, want)
+			}
+			if got, want := len(splitRes.split.RS), 1; got != want {
+				t.Errorf("Incorrect number of residuals returned: got %v, want %v", got, want)
+			}
+
 			// Validate split elements are encoded correctly by decoding them
 			// with the input coder to the path.
 			// TODO(BEAM-10579) Switch to using splittable unit's input coder
