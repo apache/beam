@@ -158,8 +158,18 @@ Should be called before running the tests.
   <td>Default: <code>-1</code></td>
 </tr>
 <tr>
+  <td><code>stateBackend</code></td>
+  <td>State backend to store Beam's state. Use 'rocksdb' or 'filesystem'.</td>
+  <td></td>
+</tr>
+<tr>
   <td><code>stateBackendFactory</code></td>
   <td>Sets the state backend factory to use in streaming mode. Defaults to the flink cluster's state.backend configuration.</td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>stateBackendStoragePath</code></td>
+  <td>State backend path to persist state backend data. Used to initialize state backend.</td>
   <td></td>
 </tr>
 </table>

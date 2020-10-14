@@ -88,6 +88,8 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getExecutionRetryDelay(), is(-1L));
     assertThat(options.getRetainExternalizedCheckpointsOnCancellation(), is(false));
     assertThat(options.getStateBackendFactory(), is(nullValue()));
+    assertThat(options.getStateBackend(), is(nullValue()));
+    assertThat(options.getStateBackendStoragePath(), is(nullValue()));
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED.name()));
