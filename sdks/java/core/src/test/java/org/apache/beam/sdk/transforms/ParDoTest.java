@@ -91,7 +91,6 @@ import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -1549,12 +1548,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTestStream.class,
-      UsesBundleFinalizer.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesTestStream.class, UsesBundleFinalizer.class})
     public void testBundleFinalization() {
       TestStream.Builder<KV<String, Long>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
@@ -1590,8 +1584,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTestStream.class,
       UsesBundleFinalizer.class,
-      UsesStatefulParDo.class,
-      DataflowRunnerV2Incompatible.class
+      UsesStatefulParDo.class
     })
     public void testBundleFinalizationWithState() {
       TestStream.Builder<KV<String, Long>> stream =
@@ -1632,8 +1625,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTestStream.class,
       UsesBundleFinalizer.class,
-      UsesSideInputs.class,
-      DataflowRunnerV2Incompatible.class
+      UsesSideInputs.class
     })
     public void testBundleFinalizationWithSideInputs() {
       TestStream.Builder<KV<String, Long>> stream =
@@ -2173,7 +2165,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, DataflowRunnerV2Incompatible.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateTaggedOutput() {
       final String stateId = "foo";
 
@@ -2272,12 +2264,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesSetState.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
     public void testSetState() {
       final String stateId = "foo";
       final String countStateId = "count";
@@ -2330,12 +2317,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesMapState.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
     public void testMapState() {
       final String stateId = "foo";
       final String countStateId = "count";
@@ -2391,12 +2373,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesOrderedListState.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
     public void testOrderedListState() {
       final String stateId = "foo";
 
@@ -2445,12 +2422,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesOrderedListState.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
     public void testOrderedListStateRangeFetch() {
       final String stateId = "foo";
 
@@ -2509,12 +2481,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesOrderedListState.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
     public void testOrderedListStateRangeDelete() {
       final String stateId = "foo";
       DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
@@ -2774,8 +2741,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesRequiresTimeSortedInput.class,
       UsesStrictTimerOrdering.class,
-      UsesTestStream.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTestStream.class
     })
     public void testRequiresTimeSortedInputWithTestStream() {
       // generate list long enough to rule out random shuffle in sorted order
@@ -2797,8 +2763,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesRequiresTimeSortedInput.class,
       UsesStrictTimerOrdering.class,
-      UsesTestStream.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTestStream.class
     })
     public void testRequiresTimeSortedInputWithLateDataAndAllowedLateness() {
       // generate list long enough to rule out random shuffle in sorted order
@@ -2831,8 +2796,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesRequiresTimeSortedInput.class,
       UsesStrictTimerOrdering.class,
-      UsesTestStream.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTestStream.class
     })
     public void testRequiresTimeSortedInputWithLateData() {
       // generate list long enough to rule out random shuffle in sorted order
@@ -2864,8 +2828,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesRequiresTimeSortedInput.class,
       UsesStrictTimerOrdering.class,
-      UsesTestStream.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTestStream.class
     })
     public void testTwoRequiresTimeSortedInputWithLateData() {
       // generate list long enough to rule out random shuffle in sorted order
@@ -3068,12 +3031,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesSetState.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
     public void testSetStateCoderInference() {
       final String stateId = "foo";
       final String countStateId = "count";
@@ -3168,12 +3126,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      UsesMapState.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
     public void testMapStateCoderInference() {
       final String stateId = "foo";
       final String countStateId = "count";
@@ -4143,8 +4096,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      UsesTestStreamWithProcessingTime.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTestStreamWithProcessingTime.class
     })
     public void testProcessingTimeTimerCanBeReset() throws Exception {
       final String timerId = "foo";
@@ -4189,12 +4141,7 @@ public class ParDoTest implements Serializable {
      * when a "set" method is called on it before it goes off.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      UsesTestStream.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testEventTimeTimerCanBeReset() throws Exception {
       final String timerId = "foo";
 
@@ -4237,8 +4184,7 @@ public class ParDoTest implements Serializable {
       UsesTimersInParDo.class,
       UsesTestStream.class,
       UsesStatefulParDo.class,
-      UsesStrictTimerOrdering.class,
-      DataflowRunnerV2Incompatible.class
+      UsesStrictTimerOrdering.class
     })
     public void testEventTimeTimerOrdering() throws Exception {
       final int numTestElements = 100;
@@ -4265,8 +4211,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesStatefulParDo.class,
-      UsesStrictTimerOrdering.class,
-      DataflowRunnerV2Incompatible.class
+      UsesStrictTimerOrdering.class
     })
     public void testEventTimeTimerOrderingWithCreate() throws Exception {
       final int numTestElements = 100;
@@ -4421,12 +4366,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      UsesTestStream.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void duplicateTimerSetting() {
       TestStream<KV<String, String>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
@@ -4444,8 +4384,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesTestStream.class,
-      UsesStrictTimerOrdering.class,
-      DataflowRunnerV2Incompatible.class
+      UsesStrictTimerOrdering.class
     })
     public void testTwoTimersSettingEachOther() {
       Instant now = new Instant(1500000000000L);
@@ -4459,12 +4398,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      UsesStrictTimerOrdering.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
     public void testTwoTimersSettingEachOtherWithCreateAsInput() {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
@@ -4477,8 +4411,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesTestStream.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTestStream.class
     })
     public void testOutputTimestamp() {
       final String timerId = "bar";
@@ -4561,8 +4494,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
       UsesTestStreamWithProcessingTime.class,
-      UsesTestStreamWithOutputTimestamp.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTestStreamWithOutputTimestamp.class
     })
     public void testOutputTimestampWithProcessingTime() {
       final String timerId = "foo";
@@ -5301,8 +5233,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesTestStreamWithProcessingTime.class,
-      UsesTimerMap.class,
-      DataflowRunnerV2Incompatible.class
+      UsesTimerMap.class
     })
     public void testTimerFamilyProcessingTime() throws Exception {
       final String timerId = "foo";
@@ -5484,8 +5415,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesOnWindowExpiration.class,
-      DataflowRunnerV2Incompatible.class
+      UsesOnWindowExpiration.class
     })
     public void testOnWindowExpirationSimpleBounded() {
       runOnWindowExpirationSimple(false);
@@ -5497,8 +5427,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
       UsesOnWindowExpiration.class,
-      UsesUnboundedPCollections.class,
-      DataflowRunnerV2Incompatible.class
+      UsesUnboundedPCollections.class
     })
     public void testOnWindowExpirationSimpleUnbounded() {
       runOnWindowExpirationSimple(true);

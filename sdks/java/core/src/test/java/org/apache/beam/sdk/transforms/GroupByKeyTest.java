@@ -47,7 +47,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -155,11 +154,7 @@ public class GroupByKeyTest implements Serializable {
      * a spurious output.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTestStreamWithProcessingTime.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, UsesTestStreamWithProcessingTime.class})
     public void testCombiningAccumulatingProcessingTime() throws Exception {
       PCollection<Integer> triggeredSums =
           p.apply(
@@ -473,21 +468,13 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      LargeKeys.Above10MB.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, LargeKeys.Above10MB.class})
     public void testLargeKeys10MB() throws Exception {
       runLargeKeysTest(p, 10 << 20);
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      LargeKeys.Above100MB.class,
-      DataflowRunnerV2Incompatible.class
-    })
+    @Category({ValidatesRunner.class, LargeKeys.Above100MB.class})
     public void testLargeKeys100MB() throws Exception {
       runLargeKeysTest(p, 100 << 20);
     }

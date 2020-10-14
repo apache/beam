@@ -29,7 +29,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -253,7 +252,7 @@ public class ReshuffleTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class, DataflowRunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testReshuffleWithTimestampsStreaming() {
     TestStream<Long> stream =
         TestStream.create(VarLongCoder.of())

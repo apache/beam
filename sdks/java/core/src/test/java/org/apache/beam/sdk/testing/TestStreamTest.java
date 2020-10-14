@@ -401,12 +401,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesTestStream.class,
-    UsesTestStreamWithMultipleStages.class,
-    DataflowRunnerV2Incompatible.class
-  })
+  @Category({ValidatesRunner.class, UsesTestStream.class, UsesTestStreamWithMultipleStages.class})
   public void testMultiStage() throws Exception {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())

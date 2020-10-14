@@ -24,7 +24,6 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -128,7 +127,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowRunnerV2Incompatible.class})
+  @Category(ValidatesRunner.class)
   public void testNonPartitioningWindowing() {
     PCollection<String> input =
         p.apply(

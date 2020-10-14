@@ -44,7 +44,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.DataflowRunnerV2Incompatible;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -92,12 +91,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesStatefulParDo.class,
-    UsesParDoLifecycle.class,
-    DataflowRunnerV2Incompatible.class
-  })
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testFnCallSequenceStateful() {
     PCollectionList.of(p.apply("Impolite", Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 4))))
         .and(
@@ -176,7 +170,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, DataflowRunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInSetup() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.SETUP);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -189,7 +183,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, DataflowRunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInStartBundle() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.START_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -202,7 +196,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, DataflowRunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInProcessElement() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.PROCESS_ELEMENT);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -216,7 +210,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesParDoLifecycle.class, DataflowRunnerV2Incompatible.class})
+  @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInFinishBundle() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.FINISH_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
@@ -234,12 +228,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesStatefulParDo.class,
-    UsesParDoLifecycle.class,
-    DataflowRunnerV2Incompatible.class
-  })
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInSetupStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.SETUP);
     p.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3))).apply(ParDo.of(fn));
@@ -252,12 +241,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesStatefulParDo.class,
-    UsesParDoLifecycle.class,
-    DataflowRunnerV2Incompatible.class
-  })
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInStartBundleStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.START_BUNDLE);
     p.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3))).apply(ParDo.of(fn));
@@ -270,12 +254,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesStatefulParDo.class,
-    UsesParDoLifecycle.class,
-    DataflowRunnerV2Incompatible.class
-  })
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInProcessElementStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.PROCESS_ELEMENT);
     p.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3))).apply(ParDo.of(fn));
@@ -289,12 +268,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesStatefulParDo.class,
-    UsesParDoLifecycle.class,
-    DataflowRunnerV2Incompatible.class
-  })
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInFinishBundleStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.FINISH_BUNDLE);
     p.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3))).apply(ParDo.of(fn));
