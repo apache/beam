@@ -74,6 +74,9 @@ public class BigQueryUtilsTest {
           .addNullableField("numeric", Schema.FieldType.DECIMAL)
           .build();
 
+  private static final Schema MAP_TYPE =
+      Schema.builder().addStringField("key").addDoubleField("value").build();
+
   private static final Schema ARRAY_TYPE =
       Schema.builder().addArrayField("ids", Schema.FieldType.INT64).build();
 
@@ -83,7 +86,10 @@ public class BigQueryUtilsTest {
   private static final Schema ARRAY_ROW_TYPE =
       Schema.builder().addArrayField("rows", Schema.FieldType.row(FLAT_TYPE)).build();
 
-  private static final Schema MAP_TYPE =
+  private static final Schema MAP_ARRAY_TYPE =
+      Schema.builder().addArrayField("map", Schema.FieldType.row(MAP_TYPE)).build();
+
+  private static final Schema MAP_MAP_TYPE =
       Schema.builder().addMapField("map", Schema.FieldType.STRING, Schema.FieldType.DOUBLE).build();
 
   private static final TableFieldSchema ID =
@@ -243,7 +249,7 @@ public class BigQueryUtilsTest {
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
   private static final Row MAP_ROW =
-      Row.withSchema(MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
+      Row.withSchema(MAP_MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
 
   private static final TableRow BQ_ARRAY_ROW =
       new TableRow()
@@ -377,7 +383,7 @@ public class BigQueryUtilsTest {
 
   @Test
   public void testToTableSchema_map() {
-    TableSchema schema = toTableSchema(MAP_TYPE);
+    TableSchema schema = toTableSchema(MAP_MAP_TYPE);
 
     assertThat(schema.getFields().size(), equalTo(1));
     TableFieldSchema field = schema.getFields().get(0);
@@ -478,6 +484,9 @@ public class BigQueryUtilsTest {
           .setTruncateTimestamps(TruncateTimestamps.REJECT)
           .build();
 
+  private static final BigQueryUtils.SchemaConversionOptions INFER_MAPS_OPTIONS =
+      BigQueryUtils.SchemaConversionOptions.builder().setInferMaps(true).build();
+
   @Test
   public void testSubMilliPrecisionRejected() {
     assertThrows(
@@ -553,9 +562,15 @@ public class BigQueryUtilsTest {
   }
 
   @Test
-  public void testFromTableSchema_map() {
+  public void testFromTableSchema_map_array() {
     Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_MAP_TYPE);
-    assertEquals(MAP_TYPE, beamSchema);
+    assertEquals(MAP_ARRAY_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testFromTableSchema_map_map() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_MAP_TYPE, INFER_MAPS_OPTIONS);
+    assertEquals(MAP_MAP_TYPE, beamSchema);
   }
 
   @Test
