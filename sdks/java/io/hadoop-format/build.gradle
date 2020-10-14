@@ -81,7 +81,7 @@ dependencies {
   testCompile library.java.commons_io
   testCompile library.java.cassandra_driver_core
   testCompile library.java.cassandra_driver_mapping
-  testCompile "org.apache.cassandra:cassandra-all:3.11.5"
+  testCompile "org.apache.cassandra:cassandra-all:3.11.8"
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
