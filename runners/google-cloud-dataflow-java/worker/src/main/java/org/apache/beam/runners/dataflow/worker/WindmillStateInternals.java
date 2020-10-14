@@ -59,6 +59,7 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -86,6 +87,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BoundTyp
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet;
@@ -542,11 +544,22 @@ class WindmillStateInternals<K> implements StateInternals {
   }
 
   // Coder for closed-open ranges.
-  private static class RangeCoder<T extends Comparable> extends CustomCoder<Range<T>> {
+  private static class RangeCoder<T extends Comparable> extends StructuredCoder<Range<T>> {
     private Coder<T> boundCoder;
 
     RangeCoder(Coder<T> boundCoder) {
       this.boundCoder = NullableCoder.of(boundCoder);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Lists.newArrayList(boundCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      boundCoder.verifyDeterministic();
+      ;
     }
 
     @Override
@@ -759,7 +772,7 @@ class WindmillStateInternals<K> implements StateInternals {
       for (Range<Instant> current = getTrackedRange(tsRange.lowerEndpoint());
           current.lowerEndpoint().isBefore(tsRange.upperEndpoint());
           current = getTrackedRange(current.lowerEndpoint().plus(RESOLUTION))) {
-        // TODO: shouldn't need to iterate over all ranges.
+        // TODO(reuvenlax): shouldn't need to iterate over all ranges.
         boolean rangeCleared;
         if (!tsRange.encloses(current)) {
           // This can happen if the beginning or the end of tsRange doesn't fall on a RESOLUTION
@@ -907,7 +920,7 @@ class WindmillStateInternals<K> implements StateInternals {
             Iterables.filter(
                 Iterables.transform(includingAdds, TimestampedValueWithId::getValue),
                 tv -> !pendingDeletes.contains(tv.getTimestamp()));
-        // TODO: If we have a known bounded amount of data, cache known ranges.
+        // TODO(reuvenlax): If we have a known bounded amount of data, cache known ranges.
         return fullIterable;
       } catch (InterruptedException | ExecutionException | IOException e) {
         if (e instanceof InterruptedException) {
@@ -992,7 +1005,8 @@ class WindmillStateInternals<K> implements StateInternals {
         }
 
         if (!pendingAdds.isEmpty()) {
-          // TODO: Once we start caching data, we should remove this line. We have it here now
+          // TODO(reuvenlax): Once we start caching data, we should remove this line. We have it
+          // here now
           // because once we persist
           // added data we forget about it from the cache, so the object is no longer complete.
           complete = false;
@@ -1007,7 +1021,8 @@ class WindmillStateInternals<K> implements StateInternals {
                   insertBuilder.addEntries(
                       SortedListEntry.newBuilder()
                           .setValue(elementStream.toByteString())
-                          .setSortKey(elem.getTimestamp().getMillis() * 1000)
+                          .setSortKey(
+                              WindmillTimeUtils.harnessToWindmillTimestamp(elem.getTimestamp()))
                           .setId(id));
                 } catch (IOException e) {
                   throw new RuntimeException(e);
@@ -1022,8 +1037,8 @@ class WindmillStateInternals<K> implements StateInternals {
             TagSortedListDeleteRequest.Builder deletesBuilder = updatesBuilder.addDeletesBuilder();
             deletesBuilder.setRange(
                 SortedListRange.newBuilder()
-                    .setStart(range.lowerEndpoint().getMillis() * 1000)
-                    .setLimit(range.upperEndpoint().getMillis() * 1000));
+                    .setStart(WindmillTimeUtils.harnessToWindmillTimestamp(range.lowerEndpoint()))
+                    .setLimit(WindmillTimeUtils.harnessToWindmillTimestamp(range.upperEndpoint())));
             deletesBuilder.build();
             idTracker.remove(range);
           }
@@ -1037,13 +1052,18 @@ class WindmillStateInternals<K> implements StateInternals {
 
     private Future<Iterable<TimestampedValue<T>>> getFuture(
         @Nullable Instant minTimestamp, @Nullable Instant limitTimestamp) {
-      long startSortKey = minTimestamp != null ? minTimestamp.getMillis() * 1000 : MIN_TS_MICROS;
+      long startSortKey =
+          minTimestamp != null
+              ? WindmillTimeUtils.harnessToWindmillTimestamp(minTimestamp)
+              : MIN_TS_MICROS;
       long limitSortKey =
-          limitTimestamp != null ? limitTimestamp.getMillis() * 1000 : MAX_TS_MICROS;
+          limitTimestamp != null
+              ? WindmillTimeUtils.harnessToWindmillTimestamp(limitTimestamp)
+              : MAX_TS_MICROS;
 
       if (complete) {
         // Right now we don't cache any data, so complete means an empty list.
-        // TODO: change this once we start caching data.
+        // TODO(reuvenlax): change this once we start caching data.
         return Futures.immediateFuture(Collections.emptyList());
       }
       return reader.orderedListFuture(

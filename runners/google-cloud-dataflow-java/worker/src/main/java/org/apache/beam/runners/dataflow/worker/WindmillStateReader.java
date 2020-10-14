@@ -667,7 +667,8 @@ class WindmillStateReader {
       try {
         T value = elemCoder.decode(entry.getValue().newInput(), Coder.Context.OUTER);
         entryList.addWeighted(
-            TimestampedValue.of(value, Instant.ofEpochMilli(entry.getSortKey() / 1000)),
+            TimestampedValue.of(
+                value, WindmillTimeUtils.windmillToHarnessTimestamp(entry.getSortKey())),
             entry.getValue().size() + 8);
       } catch (IOException e) {
         throw new IllegalStateException("Unable to decode tag sorted list using " + elemCoder, e);
