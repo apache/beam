@@ -16,7 +16,6 @@ import { ISessionContext, ReactWidget } from '@jupyterlab/apputils';
 
 import { InspectableViewModel } from './InspectableViewModel';
 import { InteractiveInspector } from './InteractiveInspector';
-import { importHtml } from '../common/HtmlView';
 
 /**
  * Converts the React component InteractiveInspector into a lumino widget used
@@ -25,10 +24,6 @@ import { importHtml } from '../common/HtmlView';
 export class InteractiveInspectorWidget extends ReactWidget {
   constructor(sessionContext: ISessionContext) {
     super();
-    importHtml([
-      // Used by facets visualization.
-      'https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html'
-    ]);
     this._sessionContext = sessionContext;
     // The model is shared by Inspectables and InspectableView so that
     // sub-components of Inspectables can trigger events that alters the

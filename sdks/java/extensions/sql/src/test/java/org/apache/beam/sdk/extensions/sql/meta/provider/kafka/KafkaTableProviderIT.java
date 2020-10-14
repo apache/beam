@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
 import com.alibaba.fastjson.JSON;
 import java.util.Map;
 import java.util.Properties;
@@ -65,20 +62,31 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 
-/** This is an integration test for KafkaCSVTable. */
-public class KafkaCSVTableIT {
+/** Integration Test utility for KafkaTableProvider implementations. */
+public abstract class KafkaTableProviderIT {
+  private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
+
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
-  @Rule public transient KafkaContainer kafka = new KafkaContainer();
 
-  private KafkaOptions kafkaOptions;
+  @Rule
+  public transient KafkaContainer kafka =
+      new KafkaContainer(
+          DockerImageName.parse("confluentinc/cp-kafka").withTag(KAFKA_CONTAINER_VERSION));
 
-  private static final Schema TEST_TABLE_SCHEMA =
+  protected KafkaOptions kafkaOptions;
+
+  protected static final Schema TEST_TABLE_SCHEMA =
       Schema.builder()
-          .addNullableField("order_id", Schema.FieldType.INT32)
-          .addNullableField("member_id", Schema.FieldType.INT32)
-          .addNullableField("item_name", Schema.FieldType.INT32)
+          .addNullableField("f_long", Schema.FieldType.INT64)
+          .addNullableField("f_int", Schema.FieldType.INT32)
+          .addNullableField("f_string", Schema.FieldType.STRING)
           .build();
+
+  protected abstract ProducerRecord<String, byte[]> generateProducerRecord(int i);
+
+  protected abstract String getPayloadFormat();
 
   @Before
   public void setUp() {
@@ -95,12 +103,7 @@ public class KafkaCSVTableIT {
             .name("kafka_table")
             .comment("kafka" + " table")
             .location("")
-            .schema(
-                Stream.of(
-                        Schema.Field.nullable("order_id", INT32),
-                        Schema.Field.nullable("member_id", INT32),
-                        Schema.Field.nullable("item_name", INT32))
-                    .collect(toSchema()))
+            .schema(TEST_TABLE_SCHEMA)
             .type("kafka")
             .properties(JSON.parseObject(getKafkaPropertiesString()))
             .build();
@@ -113,7 +116,9 @@ public class KafkaCSVTableIT {
   }
 
   private String getKafkaPropertiesString() {
-    return "{ \"bootstrap.servers\" : \""
+    return "{ "
+        + (getPayloadFormat() == null ? "" : "\"format\" : \"" + getPayloadFormat() + "\",")
+        + "\"bootstrap.servers\" : \""
         + kafkaOptions.getKafkaBootstrapServerAddress()
         + "\",\"topics\":[\""
         + kafkaOptions.getKafkaTopic()
@@ -127,9 +132,9 @@ public class KafkaCSVTableIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     String createTableString =
         "CREATE EXTERNAL TABLE kafka_table(\n"
-            + "order_id INTEGER, \n"
-            + "member_id INTEGER, \n"
-            + "item_name INTEGER \n"
+            + "f_long BIGINT, \n"
+            + "f_int INTEGER, \n"
+            + "f_string VARCHAR \n"
             + ") \n"
             + "TYPE 'kafka' \n"
             + "LOCATION '"
@@ -152,10 +157,7 @@ public class KafkaCSVTableIT {
             "waitForSuccess",
             ParDo.of(
                 new StreamAssertEqual(
-                    ImmutableSet.of(
-                        row(TEST_TABLE_SCHEMA, 0, 1, 0),
-                        row(TEST_TABLE_SCHEMA, 1, 2, 1),
-                        row(TEST_TABLE_SCHEMA, 2, 3, 2)))));
+                    ImmutableSet.of(generateRow(0), generateRow(1), generateRow(2)))));
     queryOutput.apply(logRecords(""));
     pipeline.run();
     TimeUnit.MILLISECONDS.sleep(3000);
@@ -227,47 +229,48 @@ public class KafkaCSVTableIT {
     }
   }
 
-  private Row row(Schema schema, Object... values) {
-    return Row.withSchema(schema).addValues(values).build();
+  protected Row generateRow(int i) {
+    return Row.withSchema(TEST_TABLE_SCHEMA).addValues((long) i, i % 3 + 1, "value" + i).build();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
   private void produceSomeRecords(int num) {
-    Producer<String, String> producer = new KafkaProducer<String, String>(producerProps());
-    String topicName = kafkaOptions.getKafkaTopic();
-    for (int i = 0; i < num; i++) {
-      producer.send(
-          new ProducerRecord<String, String>(
-              topicName, "k" + i, i + "," + ((i % 3) + 1) + "," + i));
-    }
+    Producer<String, byte[]> producer = new KafkaProducer<>(producerProps());
+    Stream.iterate(0, i -> ++i)
+        .limit(num)
+        .forEach(
+            i -> {
+              ProducerRecord<String, byte[]> record = generateProducerRecord(i);
+              producer.send(record);
+            });
     producer.flush();
     producer.close();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
   private void produceSomeRecordsWithDelay(int num, int delayMilis) {
-    Producer<String, String> producer = new KafkaProducer<String, String>(producerProps());
-    String topicName = pipeline.getOptions().as(KafkaOptions.class).getKafkaTopic();
-    for (int i = 0; i < num; i++) {
-      producer.send(
-          new ProducerRecord<String, String>(
-              topicName, "k" + i, i + "," + ((i % 3) + 1) + "," + i));
-      try {
-        TimeUnit.MILLISECONDS.sleep(delayMilis);
-      } catch (InterruptedException e) {
-        throw new RuntimeException("Could not wait for producing", e);
-      }
-    }
+    Producer<String, byte[]> producer = new KafkaProducer<>(producerProps());
+    Stream.iterate(0, i -> ++i)
+        .limit(num)
+        .forEach(
+            i -> {
+              ProducerRecord<String, byte[]> record = generateProducerRecord(i);
+              producer.send(record);
+              try {
+                TimeUnit.MILLISECONDS.sleep(delayMilis);
+              } catch (InterruptedException e) {
+                throw new RuntimeException("Could not wait for producing", e);
+              }
+            });
     producer.flush();
     producer.close();
   }
 
   private Properties producerProps() {
-    KafkaOptions options = pipeline.getOptions().as(KafkaOptions.class);
     Properties props = new Properties();
-    props.put("bootstrap.servers", options.getKafkaBootstrapServerAddress());
+    props.put("bootstrap.servers", kafkaOptions.getKafkaBootstrapServerAddress());
     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     props.put("buffer.memory", 33554432);
     props.put("acks", "all");
     props.put("request.required.acks", "1");

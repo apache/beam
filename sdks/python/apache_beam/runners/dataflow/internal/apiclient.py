@@ -1048,6 +1048,14 @@ def _use_unified_worker(pipeline_options):
   return debug_options.lookup_experiment(use_unified_worker_flag)
 
 
+def _use_unified_worker_portable_job(pipeline_options):
+  portable_job_flag = 'use_portable_job_submission'
+  debug_options = pipeline_options.view_as(DebugOptions)
+  return (
+      _use_unified_worker(pipeline_options) and
+      debug_options.lookup_experiment(portable_job_flag))
+
+
 def _get_container_image_tag():
   base_version = pkg_resources.parse_version(
       beam_version.__version__).base_version

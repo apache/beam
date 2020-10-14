@@ -58,6 +58,11 @@ type Extractor struct {
 	// Debug enables printing out the analysis information to the output.
 	Debug bool
 
+	// LegacyIdentifiers disables parts of the code generator analysis
+	// requiring a list of identifiers to be passed in. Notably this
+	// disables RegisterDoFn support.
+	LegacyIdentifiers bool
+
 	// Ids is an optional slice of package local identifiers
 	Ids []string
 
@@ -124,6 +129,24 @@ func (e *Extractor) FromAsts(imp types.Importer, fset *token.FileSet, files []*a
 	info := &types.Info{
 		Uses: make(map[*ast.Ident]types.Object),
 		Defs: make(map[*ast.Ident]types.Object),
+	}
+	if e.LegacyIdentifiers {
+		info.Uses = nil
+		conf.IgnoreFuncBodies = true
+		if len(e.Ids) != 0 {
+			// TODO(lostluck): This becomes unnnecessary iff we can figure out
+			// which ParDos are being passed to beam.ParDo or beam.Combine.
+			// If there are ids, we need to also look at function bodies, and uses.
+			var checkFuncBodies bool
+			for _, v := range e.Ids {
+				if strings.Contains(v, ".") {
+					checkFuncBodies = true
+					break
+				}
+			}
+			conf.IgnoreFuncBodies = !checkFuncBodies
+			info.Uses = make(map[*ast.Ident]types.Object)
+		}
 	}
 
 	if _, err := conf.Check(e.Package, fset, files, info); err != nil {

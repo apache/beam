@@ -127,6 +127,16 @@ def dockerTag = new Date().format('yyyyMMddHHmmss')
 def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
 ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
+def legacyPipelineOptions = [
+  "--runner=TestDataflowRunner",
+  "--project=${dataflowProject}",
+  "--region=${dataflowRegion}",
+  "--tempRoot=${dataflowValidatesTempRoot}",
+  "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--workerHarnessContainerImage=",
+]
+
+
 def fnApiPipelineOptions = [
   "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
   "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
@@ -151,32 +161,33 @@ def commonExcludeCategories = [
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
 // make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
-task validatesRunnerLegacyWorkerTest(type: Test) {
-  group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+def createLegacyWorkerValidatesRunnerTest = { name, pipelineOptions=legacyPipelineOptions, disabledTests=[] ->
+  return tasks.create(name: name, type: Test, group: "Verification") {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
 
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
-          "--tempRoot=${dataflowValidatesTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-  ])
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
-  // Increase test parallelism up to the number of Gradle workers. By default this is equal
-  // to the number of CPU cores, but can be increased by setting --max-workers=N.
-  maxParallelForks Integer.MAX_VALUE
-  classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-          files(project(project.path).sourceSets.test.output.classesDirs)
-  useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    commonExcludeCategories.each {
-      excludeCategories it
+    // Increase test parallelism up to the number of Gradle workers. By default this is equal
+    // to the number of CPU cores, but can be increased by setting --max-workers=N.
+    maxParallelForks Integer.MAX_VALUE
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
+            files(project(project.path).sourceSets.test.output.classesDirs)
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      commonExcludeCategories.each {
+        excludeCategories it
+      }
+      filter {
+        disabledTests.each {
+          excludeTestsMatching it
+        }
+      }
     }
   }
 }
+
+
 
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
@@ -224,7 +235,13 @@ task printFnApiPipelineOptions {
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
-  dependsOn validatesRunnerLegacyWorkerTest
+  dependsOn createLegacyWorkerValidatesRunnerTest('validatesRunnerLegacyWorkerTest', legacyPipelineOptions, [])
+}
+
+task validatesRunnerStreaming {
+  group = "Verification"
+  description "Validates Dataflow runner forcing streaming mode"
+  dependsOn createLegacyWorkerValidatesRunnerTest('validatesRunnerLegacyWorkerTestStreaming', legacyPipelineOptions + ['--streaming=true'], ['org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests'])
 }
 
 task copyGoogleCloudPlatformTestResources(type: Copy){

@@ -38,6 +38,8 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -383,9 +385,10 @@ class BeamModulePlugin implements Plugin<Project> {
     // These versions are defined here because they represent
     // a dependency version which should match across multiple
     // Maven artifacts.
+    def activemq_version = "5.14.5"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
-    def cassandra_driver_version = "3.8.0"
+    def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
     def gax_version = "1.57.1"
@@ -416,10 +419,9 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
-    def spark_version = "2.4.6"
+    def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
-    def testcontainers_kafka_version = "1.14.3"
-    def testcontainers_localstack_version = "1.14.3"
+    def testcontainers_version = "1.15.0-rc2"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -427,13 +429,13 @@ class BeamModulePlugin implements Plugin<Project> {
     // }
     project.ext.library = [
       java : [
-        activemq_amqp                               : "org.apache.activemq:activemq-amqp:5.13.1",
-        activemq_broker                             : "org.apache.activemq:activemq-broker:5.13.1",
-        activemq_client                             : "org.apache.activemq:activemq-client:5.13.1",
-        activemq_jaas                               : "org.apache.activemq:activemq-jaas:5.13.1",
-        activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:5.13.1",
-        activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:5.13.1",
-        activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:5.13.1",
+        activemq_amqp                               : "org.apache.activemq:activemq-amqp:$activemq_version",
+        activemq_broker                             : "org.apache.activemq:activemq-broker:$activemq_version",
+        activemq_client                             : "org.apache.activemq:activemq-client:$activemq_version",
+        activemq_jaas                               : "org.apache.activemq:activemq-jaas:$activemq_version",
+        activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
+        activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
+        activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
         antlr                                       : "org.antlr:antlr4:4.7",
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
@@ -569,9 +571,10 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
-        stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
-        testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_localstack_version",
-        testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_kafka_version",
+        stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
+        testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
+        testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
+        testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
@@ -870,7 +873,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'checkstyle'
       project.tasks.withType(Checkstyle) {
         configFile = project.project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-        configProperties = ["checkstyle.suppressions.file": project.project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
+        configProperties = ["checkstyle.suppressions.file": project.project(":").relativePath("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
         showViolations = true
         maxErrors = 0
       }
@@ -1055,7 +1058,9 @@ class BeamModulePlugin implements Plugin<Project> {
         if (configuration.validateShadowJar) {
           project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
             ext.outFile = project.file("${project.reportsDir}/${name}.out")
-            inputs.files project.configurations.shadow.artifacts.files
+            inputs.files(project.configurations.shadow.artifacts.files)
+                .withPropertyName("shadowArtifactsFiles")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
             outputs.files outFile
             doLast {
               project.configurations.shadow.artifacts.files.each {
@@ -1988,6 +1993,8 @@ class BeamModulePlugin implements Plugin<Project> {
             '**/*.pyc',
             'sdks/python/*.egg*/**',
             'sdks/python/test-suites/**',
+            'sdks/python/__pycache__',
+            '**/reports/test/index.html',
           ])
           )
       def copiedSrcRoot = "${project.buildDir}/srcs"

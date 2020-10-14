@@ -100,7 +100,16 @@ class DeferredFrame(DeferredBase):
 
 
 class _DeferredScalar(DeferredBase):
-  pass
+  def apply(self, func, name=None, args=()):
+    if name is None:
+      name = func.__name__
+    with expressions.allow_non_parallel_operations(
+        all(isinstance(arg, _DeferredScalar) for arg in args) or None):
+      return DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              name,
+              func, [self._expr] + [arg._expr for arg in args],
+              requires_partition_by=partitionings.Singleton()))
 
 
 DeferredBase._pandas_type_map[None] = _DeferredScalar
@@ -157,7 +166,7 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
 def _proxy_function(
       func,  # type: Union[Callable, str]
       name=None,  # type: Optional[str]
-      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
+      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
       inplace=False,  # type: bool
       requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
       preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
@@ -172,7 +181,7 @@ def _proxy_function(
     restrictions = {}
 
   def wrapper(*args, **kwargs):
-    for key, values in ():  #restrictions.items():
+    for key, values in restrictions.items():
       if key in kwargs:
         value = kwargs[key]
       else:
@@ -184,9 +193,14 @@ def _proxy_function(
         if len(args) <= ix:
           continue
         value = args[ix]
-      if not isinstance(values, list):
-        values = [values]
-      if value not in values:
+      if callable(values):
+        check = values
+      elif isinstance(values, list):
+        check = lambda x, values=values: x in values
+      else:
+        check = lambda x, value=value: x == value
+
+      if not check(value):
         raise NotImplementedError(
             '%s=%s not supported for %s' % (key, value, name))
     deferred_arg_indices = []

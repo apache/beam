@@ -56,10 +56,8 @@ from apache_beam.transforms.sql import SqlTransform
 
 # Run as
 #
-# pytest flink_runner_test.py \
-#     [--test_pipeline_options "--flink_job_server_jar=/path/to/job_server.jar \
-#                               --environment_type=DOCKER"] \
-#     [FlinkRunnerTest.test_method, ...]
+# pytest flink_runner_test.py[::TestClass::test_case] \
+#     --test-pipeline-options "--environment_type=LOOPBACK"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -395,10 +393,10 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     raise unittest.SkipTest("BEAM-2939")
 
   def test_callbacks_with_exception(self):
-    raise unittest.SkipTest("BEAM-6868")
+    raise unittest.SkipTest("BEAM-11021")
 
   def test_register_finalizations(self):
-    raise unittest.SkipTest("BEAM-6868")
+    raise unittest.SkipTest("BEAM-11021")
 
   # Inherits all other tests.
 
@@ -427,10 +425,28 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):
+  def __init__(self, *args, **kwargs):
+    super(FlinkRunnerTestStreaming, self).__init__(*args, **kwargs)
+    self.enable_commit = False
+
+  def setUp(self):
+    self.enable_commit = False
+
   def create_options(self):
     options = super(FlinkRunnerTestStreaming, self).create_options()
     options.view_as(StandardOptions).streaming = True
+    if self.enable_commit:
+      options._all_options['checkpointing_interval'] = 3000
+      options._all_options['shutdown_sources_after_idle_ms'] = 60000
     return options
+
+  def test_callbacks_with_exception(self):
+    self.enable_commit = True
+    super(FlinkRunnerTest, self).test_callbacks_with_exception()
+
+  def test_register_finalizations(self):
+    self.enable_commit = True
+    super(FlinkRunnerTest, self).test_register_finalizations()
 
 
 if __name__ == '__main__':
