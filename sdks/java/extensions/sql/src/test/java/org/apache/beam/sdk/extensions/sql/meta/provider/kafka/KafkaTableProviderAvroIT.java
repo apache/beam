@@ -17,25 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import com.google.auto.value.AutoValue;
-import com.google.cloud.ByteArray;
-import java.io.Serializable;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.Row;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
-/** This class is created because Kafka Consumer Records are not serializable. */
-@AutoValue
-public abstract class KafkaTestRecord implements Serializable {
+public class KafkaTableProviderAvroIT extends KafkaTableProviderIT {
+  private final SimpleFunction<Row, byte[]> toBytesFn =
+      AvroUtils.getRowToAvroBytesFunction(TEST_TABLE_SCHEMA);
 
-  public abstract String getKey();
+  @Override
+  protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+    return new ProducerRecord<>(
+        kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
+  }
 
-  public abstract ByteArray getValue();
-
-  public abstract String getTopic();
-
-  public abstract long getTimeStamp();
-
-  public static KafkaTestRecord create(
-      String newKey, byte[] newValue, String newTopic, long newTimeStamp) {
-    return new AutoValue_KafkaTestRecord(
-        newKey, ByteArray.copyFrom(newValue), newTopic, newTimeStamp);
+  @Override
+  protected String getPayloadFormat() {
+    return "avro";
   }
 }
