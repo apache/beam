@@ -60,9 +60,18 @@ class DeferredBase(object):
     return wrapper
 
   @classmethod
-  def wrap(cls, expr):
+  def wrap(cls, expr, split_tuples=True):
     proxy_type = type(expr.proxy())
-    if proxy_type in cls._pandas_type_map:
+    if proxy_type is tuple and split_tuples:
+      def get(ix):
+        return expressions.ComputedExpression(
+            'get_%d' % ix,
+            lambda t: t[ix],
+            [expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Singleton())
+      return tuple([cls.wrap(get(ix)) for ix in range(len(expr.proxy()))])
+    elif proxy_type in cls._pandas_type_map:
       wrapper_type = cls._pandas_type_map[proxy_type]
     else:
       if expr.requires_partition_by() != partitionings.Singleton():
