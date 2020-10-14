@@ -165,7 +165,7 @@ public class DataflowWorkProgressUpdaterTest {
     progressUpdater.startReportingProgress();
     executor.runNextRunnable();
 
-    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE, null);
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE);
 
     progressUpdater.stopReportingProgress();
   }

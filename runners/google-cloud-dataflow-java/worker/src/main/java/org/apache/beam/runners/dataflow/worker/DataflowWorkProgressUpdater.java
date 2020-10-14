@@ -129,14 +129,16 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
         // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
         // which is the correct key. The key is also translated into a Java object in the reader.
-        Object hotkey =
-            options.isHotKeyLoggingEnabled()
-                ? workItemStatusClient.getExecutionContext().getKey()
-                : null;
-        hotKeyLogger.logHotKeyDetection(
-            hotKeyDetection.getUserStepName(),
-            TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),
-            hotkey);
+        if (options.isHotKeyLoggingEnabled()) {
+          hotKeyLogger.logHotKeyDetection(
+              hotKeyDetection.getUserStepName(),
+              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),
+              workItemStatusClient.getExecutionContext().getKey());
+        } else {
+          hotKeyLogger.logHotKeyDetection(
+              hotKeyDetection.getUserStepName(),
+              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
+        }
       }
 
       // Resets state after a successful progress report.
