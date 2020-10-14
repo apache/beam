@@ -41,7 +41,7 @@ configurations {
 }
 
 dependencies {
-  javacc "net.java.dev.javacc:javacc:4.0"
+  javacc "net.java.dev.javacc:javacc:7.0.9"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates library.java.vendored_calcite_1_20_0
