@@ -43,12 +43,12 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   void setOutputTopic(String outputTopic);
 
-  @Description("")
+  @Description("URL to credentials in Vault")
   String getSecretStoreUrl();
 
   void setSecretStoreUrl(String secretStoreUrl);
 
-  @Description("")
+  @Description("Vault token")
   String getVaultToken();
 
   void setVaultToken(String vaultToken);
