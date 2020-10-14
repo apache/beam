@@ -50,11 +50,11 @@ from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.internal.metrics.metric import MetricLogger
+from apache_beam.internal.metrics.metric import Metrics
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.metrics import Metrics
-from apache_beam.metrics.metric import MetricLogger
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io

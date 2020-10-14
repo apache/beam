@@ -266,7 +266,6 @@ from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.metrics import Metrics
 from apache_beam.options import value_provider as vp
-from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -1083,6 +1082,7 @@ class BigQueryWriteFn(DoFn):
   DEFAULT_MAX_BATCH_SIZE = 500
 
   FAILED_ROWS = 'FailedRows'
+  STREAMING_API_LOGGING_FREQUENCY_SEC = 300
 
   def __init__(
       self,
@@ -1095,8 +1095,7 @@ class BigQueryWriteFn(DoFn):
       max_buffered_rows=None,
       retry_strategy=None,
       additional_bq_parameters=None,
-      ignore_insert_ids=False,
-      streaming_api_logging_frequency_sec=None):
+      ignore_insert_ids=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1137,9 +1136,6 @@ class BigQueryWriteFn(DoFn):
         duplication of data inserted to BigQuery, set `ignore_insert_ids`
         to True to increase the throughput for BQ writing. See:
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
-      streaming_api_logging_frequency_sec: The frequency in seconds that the
-        logger prints out streaming insert API latency percentile information
-        and error counts.
     """
     self.schema = schema
     self.test_client = test_client
@@ -1168,7 +1164,7 @@ class BigQueryWriteFn(DoFn):
         self.__class__, "rows_failed_per_batch")
     self.bigquery_wrapper = None
     self.streaming_api_logging_frequency_sec = (
-        streaming_api_logging_frequency_sec)
+        BigQueryWriteFn.STREAMING_API_LOGGING_FREQUENCY_SEC)
 
   def display_data(self):
     return {
@@ -1215,7 +1211,7 @@ class BigQueryWriteFn(DoFn):
     (
         bigquery_tools.BigQueryWrapper.HISTOGRAM_METRIC_LOGGER.
         minimum_logging_frequency_msec
-    ) = (self.streaming_api_logging_frequency_sec or 180) * 1000
+    ) = self.streaming_api_logging_frequency_sec * 1000
 
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
@@ -1375,7 +1371,6 @@ class _StreamToBigQuery(PTransform):
       retry_strategy,
       additional_bq_parameters,
       ignore_insert_ids,
-      streaming_api_logging_frequency_sec,
       test_client=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1389,8 +1384,6 @@ class _StreamToBigQuery(PTransform):
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
     self.ignore_insert_ids = ignore_insert_ids
-    self.streaming_api_logging_frequency_sec = (
-        streaming_api_logging_frequency_sec)
 
   class InsertIdPrefixFn(DoFn):
     def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
@@ -1419,9 +1412,7 @@ class _StreamToBigQuery(PTransform):
         retry_strategy=self.retry_strategy,
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
-        ignore_insert_ids=self.ignore_insert_ids,
-        streaming_api_logging_frequency_sec=(
-            self.streaming_api_logging_frequency_sec))
+        ignore_insert_ids=self.ignore_insert_ids)
 
     def drop_shard(elms):
       key_and_shard = elms[0]
@@ -1671,8 +1662,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     experiments = p.options.view_as(DebugOptions).experiments or []
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
-    streaming_api_logging_frequency_sec = p.options.view_as(
-        BigQueryOptions).bq_streaming_api_logging_frequency_sec
 
     method_to_use = self._compute_method(experiments, is_streaming_pipeline)
 
@@ -1699,7 +1688,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           self.insert_retry_strategy,
           self.additional_bq_parameters,
           self._ignore_insert_ids,
-          streaming_api_logging_frequency_sec,
           test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
