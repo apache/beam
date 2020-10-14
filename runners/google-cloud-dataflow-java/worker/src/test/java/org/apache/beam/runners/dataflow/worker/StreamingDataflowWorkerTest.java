@@ -722,7 +722,7 @@ public class StreamingDataflowWorkerTest {
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
 
-    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any(), eq(null));
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
   @Test
@@ -761,7 +761,7 @@ public class StreamingDataflowWorkerTest {
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
 
-    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any(), eq(null));
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
   @Test
@@ -831,7 +831,7 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
     worker.stop();
 
-    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any(), eq(null));
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
   static class BlockingFn extends DoFn<String, String> implements TestRule {
