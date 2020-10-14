@@ -93,7 +93,8 @@ public class SparkExecutableStageFunctionTest {
     MockitoAnnotations.initMocks(this);
     when(contextFactory.get(any())).thenReturn(stageContext);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+        .thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver> inputReceiver =
         ImmutableMap.of("input", Mockito.mock(FnDataReceiver.class));
@@ -116,7 +117,8 @@ public class SparkExecutableStageFunctionTest {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -235,7 +237,7 @@ public class SparkExecutableStageFunctionTest {
     List<WindowedValue<Integer>> inputs = new ArrayList<>();
     inputs.add(WindowedValue.valueInGlobalWindow(0));
     function.call(inputs.iterator());
-    verify(stageBundleFactory).getBundle(any(), any(), any(), any());
+    verify(stageBundleFactory).getBundle(any(), any(), any(), any(BundleProgressHandler.class));
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);

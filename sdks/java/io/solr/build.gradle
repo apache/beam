@@ -25,11 +25,13 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
 ext.summary = "IO to read and write from/to Solr."
 
+String solrVersion = "8.5.2"
+
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.commons_compress
-  compile "org.apache.solr:solr-solrj:5.5.4"
+  compile "org.apache.solr:solr-solrj:$solrVersion"
   compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:io:common")
@@ -37,9 +39,14 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.slf4j_api
-  testCompile "org.apache.solr:solr-test-framework:5.5.4"
-  testCompile "org.apache.solr:solr-core:5.5.4"
-  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.3.2"
+  testCompile "org.apache.solr:solr-test-framework:$solrVersion"
+  testCompile "org.apache.solr:solr-core:$solrVersion"
+  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.8"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+// Solr requires that to ensure the SecureRandom algorithm is not blocking
+test {
+  systemProperty "java.security.egd", "file:/dev/./urandom"
 }

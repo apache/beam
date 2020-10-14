@@ -222,7 +222,7 @@ class InteractiveBeamTest(unittest.TestCase):
     """Tests that recording pipeline succeeds."""
 
     # Add the TestStream so that it can be cached.
-    ib.options.capturable_sources.add(TestStream)
+    ib.options.recordable_sources.add(TestStream)
 
     # Create a pipeline with an arbitrary amonunt of elements.
     p = beam.Pipeline(
