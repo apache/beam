@@ -29,15 +29,16 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
 /** UnitTest for {@link KafkaTableProvider}. */
 public class KafkaTableProviderTest {
-  private KafkaTableProvider provider = new KafkaTableProvider();
+  private final KafkaTableProvider provider = new KafkaTableProvider();
 
   @Test
-  public void testBuildBeamSqlTable() throws Exception {
-    Table table = mockTable("hello");
+  public void testBuildBeamSqlCSVTable() {
+    Table table = mockTable("hello", null);
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -49,17 +50,33 @@ public class KafkaTableProviderTest {
   }
 
   @Test
-  public void testGetTableType() throws Exception {
+  public void testBuildBeamSqlAvroTable() {
+    Table table = mockTable("hello", "avro");
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof BeamKafkaAvroTable);
+
+    BeamKafkaAvroTable csvTable = (BeamKafkaAvroTable) sqlTable;
+    assertEquals("localhost:9092", csvTable.getBootstrapServers());
+    assertEquals(ImmutableList.of("topic1", "topic2"), csvTable.getTopics());
+  }
+
+  @Test
+  public void testGetTableType() {
     assertEquals("kafka", provider.getTableType());
   }
 
-  private static Table mockTable(String name) {
+  private static Table mockTable(String name, @Nullable String payloadFormat) {
     JSONObject properties = new JSONObject();
     properties.put("bootstrap.servers", "localhost:9092");
     JSONArray topics = new JSONArray();
     topics.add("topic1");
     topics.add("topic2");
     properties.put("topics", topics);
+    if (payloadFormat != null) {
+      properties.put("format", payloadFormat);
+    }
 
     return Table.builder()
         .name(name)

@@ -17,25 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import com.google.auto.value.AutoValue;
-import com.google.cloud.ByteArray;
-import java.io.Serializable;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 
-/** This class is created because Kafka Consumer Records are not serializable. */
-@AutoValue
-public abstract class KafkaTestRecord implements Serializable {
+import org.apache.commons.csv.CSVFormat;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
-  public abstract String getKey();
+public class KafkaTableProviderCSVIT extends KafkaTableProviderIT {
+  @Override
+  protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+    return new ProducerRecord<>(
+        kafkaOptions.getKafkaTopic(),
+        "k" + i,
+        beamRow2CsvLine(generateRow(i), CSVFormat.DEFAULT).getBytes(UTF_8));
+  }
 
-  public abstract ByteArray getValue();
-
-  public abstract String getTopic();
-
-  public abstract long getTimeStamp();
-
-  public static KafkaTestRecord create(
-      String newKey, byte[] newValue, String newTopic, long newTimeStamp) {
-    return new AutoValue_KafkaTestRecord(
-        newKey, ByteArray.copyFrom(newValue), newTopic, newTimeStamp);
+  @Override
+  protected String getPayloadFormat() {
+    return null;
   }
 }
