@@ -41,7 +41,9 @@ import java.util.PriorityQueue;
 import java.util.RandomAccess;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -50,6 +52,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.IterableView;
@@ -190,6 +194,26 @@ public class PCollectionViews {
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
+        new ListViewFn<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   *
+   * @deprecated See {@link #listView}.
+   */
+  @Deprecated
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewUsingVoidKey(
+      PCollection<KV<Void, T>> pCollection,
+      TupleTag<MultimapView<Void, T>> tag,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        tag,
         new ListViewFn<>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
@@ -1402,5 +1426,56 @@ public class PCollectionViews {
         }
       };
     }
+  }
+
+  public static <InputT, ViewT> PCollectionView<ViewT> findPCollectionView(
+      final AppliedPTransform<
+              PCollection<InputT>,
+              PCollectionView<ViewT>,
+              ? extends PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
+          transform) {
+    final AtomicReference<PCollectionView<ViewT>> viewRef = new AtomicReference<>();
+    transform
+        .getPipeline()
+        .traverseTopologically(
+            new Pipeline.PipelineVisitor.Defaults() {
+              // Stores whether we have entered the expected composite view transform.
+              private boolean tracking = false;
+
+              @Override
+              public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+                if (transform.getTransform() == node.getTransform()) {
+                  tracking = true;
+                }
+                return super.enterCompositeTransform(node);
+              }
+
+              @Override
+              public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+                if (tracking && node.getTransform() instanceof View.CreatePCollectionView) {
+                  View.CreatePCollectionView createViewTransform =
+                      (View.CreatePCollectionView) node.getTransform();
+                  checkState(
+                      viewRef.compareAndSet(null, createViewTransform.getView()),
+                      "Found more than one instance of a CreatePCollectionView when"
+                          + "attempting to replace %s, found [%s, %s]",
+                      transform.getTransform(),
+                      viewRef.get(),
+                      createViewTransform.getView());
+                }
+              }
+
+              @Override
+              public void leaveCompositeTransform(TransformHierarchy.Node node) {
+                if (transform.getTransform() == node.getTransform()) {
+                  tracking = false;
+                }
+              }
+            });
+    checkState(
+        viewRef.get() != null,
+        "Expected to find CreatePCollectionView contained within %s",
+        transform.getTransform());
+    return viewRef.get();
   }
 }

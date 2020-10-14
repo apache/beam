@@ -112,7 +112,7 @@ public class EvaluationContext {
     return input;
   }
 
-  public <T> Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
+  public <T> Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
     checkArgument(
         currentTransform.getTransform() == transform, "can only be called with current transform");
@@ -125,7 +125,7 @@ public class EvaluationContext {
     return output;
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
     checkArgument(
         currentTransform.getTransform() == transform, "can only be called with current transform");

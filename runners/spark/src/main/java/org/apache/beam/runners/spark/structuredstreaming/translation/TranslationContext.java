@@ -173,7 +173,7 @@ public class TranslationContext {
     return Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
   }
 
-  public Map<TupleTag<?>, PValue> getInputs() {
+  public Map<TupleTag<?>, PCollection<?>> getInputs() {
     return currentTransform.getInputs();
   }
 
@@ -181,7 +181,7 @@ public class TranslationContext {
     return Iterables.getOnlyElement(currentTransform.getOutputs().values());
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs() {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs() {
     return currentTransform.getOutputs();
   }
 

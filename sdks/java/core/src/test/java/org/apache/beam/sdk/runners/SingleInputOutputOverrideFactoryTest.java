@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.runners;
 
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Map;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -29,7 +28,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -81,8 +81,8 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
     PCollection<Integer> output = input.apply("Map", MapElements.via(fn));
     PCollection<Integer> reappliedOutput = input.apply("ReMap", MapElements.via(fn));
-    Map<PValue, ReplacementOutput> replacementMap =
-        factory.mapOutputs(output.expand(), reappliedOutput);
+    Map<PCollection<?>, ReplacementOutput> replacementMap =
+        factory.mapOutputs(PValues.expandValue(output), reappliedOutput);
     assertThat(
         replacementMap,
         Matchers.hasEntry(
@@ -99,6 +99,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
     PCollection<Integer> reappliedOutput = input.apply("ReMap", MapElements.via(fn));
     thrown.expect(IllegalArgumentException.class);
     factory.mapOutputs(
-        PCollectionList.of(output).and(input).and(reappliedOutput).expand(), reappliedOutput);
+        PValues.expandOutput((POutput) PCollectionList.of(output).and(input).and(reappliedOutput)),
+        reappliedOutput);
   }
 }

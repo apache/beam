@@ -638,7 +638,7 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+      Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
 
       final TupleTag<OutputT> mainOutputTag;
       DoFnSchemaInformation doFnSchemaInformation;
@@ -778,7 +778,7 @@ class FlinkBatchTransformTranslators {
 
       transformSideInputs(sideInputs, outputDataSet, context);
 
-      for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      for (Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         pruneOutput(
             outputDataSet,
             context,
@@ -823,7 +823,7 @@ class FlinkBatchTransformTranslators {
         PTransform<PCollectionList<T>, PCollection<T>> transform,
         FlinkBatchTranslationContext context) {
 
-      Map<TupleTag<?>, PValue> allInputs = context.getInputs(transform);
+      Map<TupleTag<?>, PCollection<?>> allInputs = context.getInputs(transform);
       DataSet<WindowedValue<T>> result = null;
 
       if (allInputs.isEmpty()) {

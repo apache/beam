@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.runners;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -30,7 +29,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
@@ -39,7 +38,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link PTransformReplacements}. */
+/** Tests for {@link org.apache.beam.sdk.runners.PTransformReplacements}. */
 @RunWith(JUnit4.class)
 public class PTransformReplacementsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -68,7 +67,7 @@ public class PTransformReplacementsTest {
     AppliedPTransform<PCollection<Long>, ?, ?> application =
         AppliedPTransform.of(
             "application",
-            ImmutableMap.<TupleTag<?>, PValue>builder()
+            ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
                 .put(new TupleTag<Long>(), mainInput)
                 .put(sideInput.getTagInternal(), sideInput.getPCollection())
                 .build(),
@@ -82,9 +81,9 @@ public class PTransformReplacementsTest {
   @Test
   public void getMainInputExtraMainInputsThrows() {
     PCollection<Long> notInParDo = pipeline.apply("otherPCollection", Create.of(1L, 2L, 3L));
-    ImmutableMap<TupleTag<?>, PValue> inputs =
-        ImmutableMap.<TupleTag<?>, PValue>builder()
-            .putAll(mainInput.expand())
+    ImmutableMap<TupleTag<?>, PCollection<?>> inputs =
+        ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
+            .putAll(PValues.expandInput(mainInput))
             // Not represnted as an input
             .put(new TupleTag<Long>(), notInParDo)
             .put(sideInput.getTagInternal(), sideInput.getPCollection())
@@ -106,8 +105,8 @@ public class PTransformReplacementsTest {
 
   @Test
   public void getMainInputNoMainInputsThrows() {
-    ImmutableMap<TupleTag<?>, PValue> inputs =
-        ImmutableMap.<TupleTag<?>, PValue>builder()
+    ImmutableMap<TupleTag<?>, PCollection<?>> inputs =
+        ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
             .put(sideInput.getTagInternal(), sideInput.getPCollection())
             .build();
     AppliedPTransform<PCollection<Long>, ?, ?> application =

@@ -608,7 +608,7 @@ public class View {
    * various SDK requested views.
    */
   @Internal
-  static class VoidKeyToMultimapMaterialization<T>
+  public static class VoidKeyToMultimapMaterialization<T>
       extends PTransform<PCollection<T>, PCollection<KV<Void, T>>> {
 
     private static class VoidKeyToMultimapMaterializationDoFn<T> extends DoFn<T, KV<Void, T>> {
