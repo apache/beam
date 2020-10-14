@@ -81,7 +81,7 @@ public class BundleManager<OutT> {
   private transient Instant bundleWatermarkHold;
   // A future that is completed once all futures belonging to the current active bundle are
   // completed.  The value is null if there are no futures in the current active bundle.
-  private transient AtomicReference<CompletionStage<Void>> currentActiveBundleDoneFutureReference;
+  private transient AtomicReference<CompletableFuture<Void>> currentActiveBundleDoneFutureReference;
   private transient CompletionStage<Void> watermarkFuture;
 
   public BundleManager(
@@ -261,13 +261,15 @@ public class BundleManager<OutT> {
       watermarkFuture = outputFuture.thenAcceptBoth(watermarkFuture, watermarkPropagationFn);
       currentActiveBundleDoneFutureReference.set(null);
     } else if (isBundleStarted.get()) {
-      CompletableFuture<Void> newFuture = new CompletableFuture<>();
-      CompletionStage<Void> oldFuture = currentActiveBundleDoneFutureReference.getAndSet(newFuture);
-      outputFuture
-          .thenCombine(
-              oldFuture != null ? oldFuture : CompletableFuture.completedFuture(null),
-              (ignored1, ignored2) -> newFuture.complete(null))
-          .exceptionally(newFuture::completeExceptionally);
+      final CompletableFuture<Collection<WindowedValue<OutT>>> finalOutputFuture =
+          outputFuture.toCompletableFuture();
+      currentActiveBundleDoneFutureReference.updateAndGet(
+          maybePrevFuture -> {
+            CompletableFuture<Void> prevFuture =
+                maybePrevFuture != null ? maybePrevFuture : CompletableFuture.completedFuture(null);
+
+            return CompletableFuture.allOf(prevFuture, finalOutputFuture);
+          });
     }
 
     // emit the future to the propagate it to rest of the DAG
@@ -286,7 +288,7 @@ public class BundleManager<OutT> {
   }
 
   @VisibleForTesting
-  void setCurrentBundleDoneFuture(CompletionStage<Void> currentBundleResultFuture) {
+  void setCurrentBundleDoneFuture(CompletableFuture<Void> currentBundleResultFuture) {
     this.currentActiveBundleDoneFutureReference.set(currentBundleResultFuture);
   }
 
