@@ -1365,6 +1365,7 @@ for base in ['add',
              'truediv',
              'floordiv',
              'mod',
+             'divmod',
              'pow',
              'and',
              'or']:
