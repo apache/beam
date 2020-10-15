@@ -100,7 +100,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
       else:
 
-        def set_index(df, by):
+        def set_index(df, by):  # type: ignore
           df, by = df.align(by, axis=0)
           return df.set_index(by)
 
@@ -1240,20 +1240,23 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 def _liftable_agg(meth):
   name, func = frame_base.name_and_func(meth)
 
-  def wrapper(self, *args, **kargs):
+  def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
     ungrouped = self._expr.args()[0]
+    groupby_kwargs = self._kwargs
     pre_agg = expressions.ComputedExpression(
         'pre_combine_' + name,
         lambda df: func(
-            df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
+            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
+            **kwargs),
         [ungrouped],
         requires_partition_by=partitionings.Nothing(),
         preserves_partition_by=partitionings.Singleton())
     post_agg = expressions.ComputedExpression(
         'post_combine_' + name,
         lambda df: func(
-            df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
+            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
+            **kwargs),
         [pre_agg],
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
@@ -1265,13 +1268,15 @@ def _liftable_agg(meth):
 def _unliftable_agg(meth):
   name, func = frame_base.name_and_func(meth)
 
-  def wrapper(self, *args, **kargs):
+  def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
     ungrouped = self._expr.args()[0]
+    groupby_kwargs = self._kwargs
     post_agg = expressions.ComputedExpression(
         name,
         lambda df: func(
-            df.groupby(level=list(range(df.index.nlevels)), **self._kwargs)),
+            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
+            **kwargs),
         [ungrouped],
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
