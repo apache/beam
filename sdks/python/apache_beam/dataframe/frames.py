@@ -32,9 +32,74 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     raise frame_base.WontImplementError(
         'Conversion to a non-deferred a numpy array.')
 
+  get = frame_base.not_implemented_method('get')
+
 
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(DeferredDataFrameOrSeries):
+  def __getitem__(self, key):
+    if _is_null_slice(key) or key is Ellipsis:
+      return self
+
+    elif (isinstance(key, int) or _is_integer_slice(key)
+          ) and self._expr.proxy().index._should_fallback_to_positional():
+      raise frame_base.WontImplementError('order sensitive')
+
+    elif isinstance(key, slice) or callable(key):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              # yapf: disable
+              'getitem',
+              lambda df: df[key],
+              [self._expr],
+              requires_partition_by=partitionings.Nothing(),
+              preserves_partition_by=partitionings.Singleton()))
+
+    elif isinstance(key, DeferredSeries):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              # yapf: disable
+              'getitem',
+              lambda df, indexer: df[indexer],
+              [self._expr, key._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Singleton()))
+
+    elif pd.core.series.is_iterator(key) or pd.core.common.is_bool_indexer(key):
+      raise frame_base.WontImplementError('order sensitive')
+
+    else:
+      # We could consider returning a deferred scalar, but that might
+      # be more surprising than a clear error.
+      raise frame_base.WontImplementError('non-deferred')
+
+    if isinstance(key, frame_base.DeferredBase):
+      # Fail early if key is a DeferredBase as it interacts surprisingly with
+      # key in self._expr.proxy().columns
+      raise NotImplementedError(
+          "Indexing with a deferred frame is not yet supported. Consider "
+          "using df.loc[...]")
+
+    if isinstance(key, slice):
+      types = set([type(key.start), type(key.stop), type(key.step)])
+      if types == {type(None)}:
+        # Empty slice is just a copy.
+        return frame_base.DeferredFrame.wrap(self._expr)
+      elif types in [{int}, {type(None), int}]:
+        # This depends on the contents of the index.
+        raise frame_base.WontImplementError(
+            'Use iloc or loc with integer slices.')
+      else:
+        return self.loc[key]
+
+    elif (isinstance(key, list) and
+          all(key_column in self._expr.proxy().columns
+              for key_column in key)) or key in self._expr.proxy().columns:
+      return self._elementwise(lambda df: df[key], 'get_column')
+    else:
+      raise NotImplementedError(key)
+
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def align(self, other, join, axis, level, method, **kwargs):
@@ -453,17 +518,31 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   def __getitem__(self, key):
     # TODO: Replicate pd.DataFrame.__getitem__ logic
-    if isinstance(key, frame_base.DeferredBase):
+    if isinstance(key, DeferredSeries) and key._expr.proxy().dtype == bool:
+      return self.loc[key]
+
+    elif isinstance(key, frame_base.DeferredBase):
       # Fail early if key is a DeferredBase as it interacts surprisingly with
       # key in self._expr.proxy().columns
       raise NotImplementedError(
-          "Indexing with a deferred frame is not yet supported. Consider "
-          "using df.loc[...]")
+          "Indexing with a non-bool deferred frame is not yet supported. "
+          "Consider using df.loc[...]")
 
-    if (isinstance(key, list) and
-        all(key_column in self._expr.proxy().columns
-            for key_column in key)) or key in self._expr.proxy().columns:
+    elif isinstance(key, slice):
+      if _is_null_slice(key):
+        return self
+      elif _is_integer_slice(key):
+        # This depends on the contents of the index.
+        raise frame_base.WontImplementError(
+            'Use iloc or loc with integer slices.')
+      else:
+        return self.loc[key]
+
+    elif (isinstance(key, list) and
+          all(key_column in self._expr.proxy().columns
+              for key_column in key)) or key in self._expr.proxy().columns:
       return self._elementwise(lambda df: df[key], 'get_column')
+
     else:
       raise NotImplementedError(key)
 
@@ -472,7 +551,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     return self._expr.proxy().__contains__(key)
 
   def __setitem__(self, key, value):
-    if isinstance(key, str):
+    if isinstance(key, str) or (
+        isinstance(key, list) and all(isinstance(c, str) for c in key)) or (
+        isnstance(key, DeferredSeries) and key._expr.proxy().dtype == bool):
       # yapf: disable
       return self._elementwise(
           lambda df, key, value: df.__setitem__(key, value),
@@ -1228,6 +1309,8 @@ class _DeferredLoc(object):
                 else partitionings.Nothing()),
             preserves_partition_by=partitionings.Singleton()))
 
+  __setitem__ = frame_base.not_implemented_method('loc.setitem')
+
 class _DeferredILoc(object):
   def __init__(self, frame):
     self._frame = frame
@@ -1246,6 +1329,8 @@ class _DeferredILoc(object):
               preserves_partition_by=partitionings.Singleton()))
     else:
       raise frame_base.WontImplementError('order-sensitive')
+
+  __setitem__ = frame_base.wont_implement_method('iloc.setitem')
 
 
 class _DeferredStringMethods(frame_base.DeferredBase):
@@ -1332,3 +1417,21 @@ for base in ['add',
 for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
   setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+
+for name in ['__neg__', '__pos__', '__invert__']:
+  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
+  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+
+
+def _slice_parts(s):
+  yield s.start
+  yield s.stop
+  yield s.step
+
+def _is_null_slice(s):
+  return isinstance(s, slice) and all(x is None for x in _slice_parts(s))
+
+def _is_integer_slice(s):
+  return isinstance(s, slice) and all(
+      x is None or isinstance(x, int)
+      for x in _slice_parts(s)) and not _is_null_slice(s)
