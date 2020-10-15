@@ -135,10 +135,16 @@ def to_pcollection(
                      dataframes)))  # type: Dict[Any, pvalue.PCollection]
 
   if yield_elements == "schemas":
+
+    def maybe_unbatch(pc, value):
+      if isinstance(value, frame_base._DeferredScalar):
+        return pc
+      else:
+        return pc | "Unbatch '%s'" % value._expr._id >> schemas.UnbatchPandas(
+            value._expr.proxy(), include_indexes=include_indexes)
+
     results = {
-        key: pc
-        | "Unbatch '%s'" % dataframes[key]._expr._id >> schemas.UnbatchPandas(
-            dataframes[key]._expr.proxy(), include_indexes=include_indexes)
+        key: maybe_unbatch(pc, dataframes[key])
         for (key, pc) in results.items()
     }
 
