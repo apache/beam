@@ -79,7 +79,6 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
-            'pandas.core.frame.DataFrame.axes': ['*'],
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
@@ -125,6 +124,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.append': ['*'],
         },
         skip={
+            'pandas.core.frame.DataFrame.axes': [
+                # Returns deferred index.
+                'df.axes',
+            ],
             'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.cov': [
                 # Relies on setting entries ahead of time.
@@ -134,15 +137,14 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
             'pandas.core.frame.DataFrame.duplicated': ['*'],
-            'pandas.core.frame.DataFrame.groupby': [
-                'df.groupby(level=0).mean()',
-                'df.groupby(level="Type").mean()',
-                'df.groupby(by=["b"], dropna=False).sum()',
-                'df.groupby(by="a", dropna=False).sum()'
-            ],
             'pandas.core.frame.DataFrame.idxmax': ['*'],
             'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.pop': ['*'],
+            'pandas.core.frame.DataFrame.rename': [
+                # Returns deferred index.
+                'df.index',
+                'df.rename(index=str).index',
+            ],
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
@@ -243,6 +245,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.view': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.series.Series.groupby': [
+                'ser.groupby(["a", "b", "a", "b"]).mean()',
+                'ser.groupby(["a", "b", "a", np.nan]).mean()',
+                'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
+            ],
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
@@ -263,7 +270,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
-            'pandas.core.series.Series.groupby': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.name': ['*'],

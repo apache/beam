@@ -97,6 +97,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           df = pd.DataFrame(s)
           df, by = df.align(by, axis=0)
           return df.set_index(by).iloc[:, 0]
+
       else:
 
         def set_index(df, by):
@@ -113,7 +114,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError('order sensitive')
 
-    else:
+    elif isinstance(self, DeferredDataFrame):
       if not isinstance(by, list):
         by = [by]
       index_names = self._expr.proxy().index.names
@@ -127,6 +128,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           to_group = self.reset_index(index_names_in_by).set_index(by)._expr
       else:
         to_group = self.set_index(by)._expr
+
+    else:
+      raise NotImplementedError(by)
 
     return DeferredGroupBy(
         expressions.ComputedExpression(
@@ -1227,6 +1231,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   first = last = head = tail = frame_base.not_implemented_method(
       'order sensitive')
 
+  # TODO(robertwb): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method('non-deferred')
   get_group = __getitem__ = frame_base.not_implemented_method('get_group')
   groups = property(frame_base.wont_implement_method('non-deferred'))
