@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.io.hadoop.format;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -33,23 +31,17 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.common.settings.Settings;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
 import org.elasticsearch.hadoop.mr.EsInputFormat;
 import org.elasticsearch.hadoop.mr.LinkedMapWritable;
-import org.elasticsearch.node.Node;
-import org.elasticsearch.node.NodeValidationException;
-import org.elasticsearch.node.internal.InternalSettingsPreparer;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.Netty4Plugin;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -57,11 +49,11 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
- * Tests to validate HadoopFormatIO for embedded Elasticsearch instance.
+ * Tests to validate HadoopFormatIO for Elasticsearch container.
  *
  * <p>{@link EsInputFormat} can be used to read data from Elasticsearch. EsInputFormat by default
  * returns key class as Text and value class as LinkedMapWritable. You can also set MapWritable as
@@ -73,25 +65,25 @@ import org.slf4j.LoggerFactory;
 public class HadoopFormatIOElasticTest implements Serializable {
 
   private static final long serialVersionUID = 1L;
-  private static final Logger LOG = LoggerFactory.getLogger(HadoopFormatIOElasticTest.class);
-  private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
-  private static int port;
-  private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
   private static final String ELASTIC_INDEX_NAME = "beamdb";
-  private static final String ELASTIC_TYPE_NAME = "scientists";
-  private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static final int TEST_DATA_ROW_COUNT = 10;
   private static final String ELASTIC_TYPE_ID_PREFIX = "s";
+  private static final String ES_VERSION = "7.9.2";
 
   @ClassRule public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
+
+  @ClassRule
+  public static ElasticsearchContainer elasticsearch =
+      new ElasticsearchContainer(
+          DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch")
+              .withTag(ES_VERSION));
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void startServer() throws NodeValidationException, IOException {
-    port = NetworkTestHelper.getAvailableLocalPort();
-    ElasticEmbeddedServer.startElasticEmbeddedServer();
+  public static void startServer() throws IOException {
+    prepareElasticIndex();
   }
 
   /**
@@ -136,18 +128,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
     Configuration conf = getConfiguration();
     String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
     String query =
-        "{"
-            + "  \"query\": {"
-            + "  \"match\" : {"
-            + "    \"id\" : {"
-            + "      \"query\" : \""
-            + fieldValue
-            + "\","
-            + "      \"type\" : \"boolean\""
-            + "    }"
-            + "  }"
-            + "  }"
-            + "}";
+        String.format("{\"query\": { \"match\": { \"id\": { \"query\": \"%s\" }}}}", fieldValue);
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -166,18 +147,16 @@ public class HadoopFormatIOElasticTest implements Serializable {
   /**
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
    * Configuration object should have InputFormat class, key class and value class set. Mandatory
-   * fields for ESInputFormat to be set are es.resource, es.nodes, es.port, es.internal.es.version.
+   * fields for ESInputFormat to be set are es.resource, es.nodes, es.port, es.nodes.wan.only.
    * Please refer to <a
    * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
   private Configuration getConfiguration() {
     Configuration conf = new Configuration();
-    conf.set(ConfigurationOptions.ES_NODES, ELASTIC_IN_MEM_HOSTNAME);
-    conf.set(ConfigurationOptions.ES_PORT, String.format("%s", port));
-    conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
-    conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
-    conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
+    conf.set(ConfigurationOptions.ES_PORT, elasticsearch.getMappedPort(9200).toString());
+    conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_INDEX_NAME);
+    conf.set(ConfigurationOptions.ES_NODES_WAN_ONLY, TRUE);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
     conf.setClass("mapreduce.job.inputformat.class", EsInputFormat.class, InputFormat.class);
     conf.setClass("key.class", Text.class, Object.class);
@@ -192,79 +171,20 @@ public class HadoopFormatIOElasticTest implements Serializable {
     return data;
   }
 
-  @AfterClass
-  public static void shutdownServer() throws IOException {
-    ElasticEmbeddedServer.shutdown();
-  }
+  private static void prepareElasticIndex() throws IOException {
+    RestHighLevelClient client =
+        new RestHighLevelClient(
+            RestClient.builder(
+                new HttpHost(
+                    elasticsearch.getContainerIpAddress(),
+                    elasticsearch.getMappedPort(9200),
+                    "http")));
 
-  /** Class for in memory Elasticsearch server. */
-  static class ElasticEmbeddedServer implements Serializable {
-    private static final long serialVersionUID = 1L;
-    private static Node node;
-
-    static void startElasticEmbeddedServer() throws NodeValidationException {
-      Settings settings =
-          Settings.builder()
-              .put("node.data", TRUE)
-              .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-              .put("http.port", port)
-              .put("path.data", elasticTempFolder.getRoot().getPath())
-              .put("path.home", elasticTempFolder.getRoot().getPath())
-              .put("transport.type", "local")
-              .put("http.enabled", TRUE)
-              .put("node.ingest", TRUE)
-              .build();
-      node = new PluginNode(settings);
-      node.start();
-      LOG.info("Elastic in memory server started.");
-      prepareElasticIndex();
-      LOG.info(
-          "Prepared index "
-              + ELASTIC_INDEX_NAME
-              + "and populated data on elastic in memory server.");
-    }
-
-    /** Prepares Elastic index, by adding rows. */
-    private static void prepareElasticIndex() {
-      CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
-      node.client().admin().indices().create(indexRequest).actionGet();
-      for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
-        node.client()
-            .prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
-            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i))
-            .execute()
-            .actionGet();
-      }
-      node.client().admin().indices().prepareRefresh(ELASTIC_INDEX_NAME).get();
-    }
-    /** Shutdown the embedded instance. */
-    static void shutdown() throws IOException {
-      DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
-      node.client().admin().indices().delete(indexRequest).actionGet();
-      LOG.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
-      node.close();
-      LOG.info("Closed elastic in memory server node.");
-      deleteElasticDataDirectory();
-    }
-
-    private static void deleteElasticDataDirectory() {
-      try {
-        FileUtils.deleteDirectory(new File(elasticTempFolder.getRoot().getPath()));
-      } catch (IOException e) {
-        throw new RuntimeException("Could not delete elastic data directory: " + e.getMessage(), e);
-      }
-    }
-  }
-
-  /** Class created for handling "http.enabled" property as "true" for Elasticsearch node. */
-  static class PluginNode extends Node implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-    private static final ImmutableList<Class<? extends Plugin>> PLUGINS =
-        ImmutableList.of(Netty4Plugin.class);
-
-    PluginNode(final Settings settings) {
-      super(InternalSettingsPreparer.prepareEnvironment(settings, null), PLUGINS);
+    for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
+      IndexRequest request =
+          new IndexRequest(ELASTIC_INDEX_NAME)
+              .source(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i));
+      client.index(request, RequestOptions.DEFAULT);
     }
   }
 }
