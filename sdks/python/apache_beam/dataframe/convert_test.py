@@ -66,11 +66,11 @@ class ConverTest(unittest.TestCase):
       a = pd.Series([1, 2, 3])
       b = pd.Series([100, 200, 300])
 
-      pc_a = p | 'A' >> beam.Create([a])
-      pc_b = p | 'B' >> beam.Create([b])
+      pc_a = p | 'A' >> beam.Create(a)
+      pc_b = p | 'B' >> beam.Create(b)
 
-      df_a = convert.to_dataframe(pc_a, proxy=a[:0])
-      df_b = convert.to_dataframe(pc_b, proxy=b[:0])
+      df_a = convert.to_dataframe(pc_a)
+      df_b = convert.to_dataframe(pc_b)
 
       df_2a = 2 * df_a
       df_3a = 3 * df_a
