@@ -70,8 +70,11 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  // size of each event timer is around 200B, so keep the memory boundary for timers as 1M
-  private Integer eventTimerBufferSize;
+  // Size of each event timer is around 200B, by default with buffer size 50k, the default size is
+  // 10M
+  private Integer maxEventTimerBufferSize;
+  // Max event time stored in eventTimerBuffer
+  // If it is set to long.MAX_VALUE, it indicates the State does not contain any KeyedTimerData
   private Long maxEventTimeInBuffer;
 
   private SamzaTimerInternalsFactory(
@@ -85,7 +88,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     this.keyCoder = keyCoder;
     this.timerRegistry = timerRegistry;
     this.eventTimeBuffer = new TreeSet<>();
-    this.eventTimerBufferSize =
+    this.maxEventTimerBufferSize =
         pipelineOptions.getEventTimerBufferSize(); // must be placed before state initialization
     this.maxEventTimeInBuffer = Long.MAX_VALUE;
     this.state = new SamzaTimerState(timerStateId, nonKeyedStateInternalsFactory, windowCoder);
@@ -177,6 +180,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         state.reloadEventTimeTimers();
       }
     }
+    LOG.debug("Removed {} ready timers", readyTimers.size());
 
     return readyTimers;
   }
@@ -259,17 +263,23 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         switch (timerData.getDomain()) {
           case EVENT_TIME:
             /**
-             * 4 conditions (combination of two if-else conditions): 1) incoming timer is before or
-             * after maxEventTimeInBuffer; 2) eventTimerBufferSize is full or not. If incoming timer
-             * is after maxEventTimeInBuffer, we do not add it into memory. Otherwise, its timestamp
-             * may be larger than the one's in store, so the timer order cannot be guaranteed. In
-             * contrast, incoming timer is before maxEventTimeInBuffer, then we add it into memory.
-             * In case that memory buffer is full, we remove the last one in memory and update the
-             * timestamp accordingly
+             * To determine if the upcoming KeyedTimerData could be added to the Buffer while
+             * guaranteeing the Buffer's timestamps are all <= than those in State Store to preserve
+             * timestamp eviction priority:
+             *
+             * <p>1) If maxEventTimeInBuffer == long.MAX_VALUE, it indicates that the State is
+             * empty, therefore all the Event times greater or lesser than newTimestamp are in the
+             * buffer;
+             *
+             * <p>2) If newTimestamp < maxEventTimeInBuffer, it indicates that there are entries
+             * greater than newTimestamp, so it is safe to add it to the buffer
+             *
+             * <p>In case that the Buffer is full, we remove the largest timer from memory according
+             * to {@link KeyedTimerData.compareTo()}
              */
             if (newTimestamp < maxEventTimeInBuffer) {
               eventTimeBuffer.add(keyedTimerData);
-              if (eventTimeBuffer.size() > eventTimerBufferSize) {
+              if (eventTimeBuffer.size() > maxEventTimerBufferSize) {
                 eventTimeBuffer.pollLast();
                 maxEventTimeInBuffer =
                     eventTimeBuffer.last().getTimerData().getTimestamp().getMillis();
@@ -462,13 +472,13 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     /**
      * Reload event time timers from state to memory buffer. Buffer size is bound by
-     * eventTimerBufferSize
+     * maxEventTimerBufferSize
      */
     private void reloadEventTimeTimers() {
       final Iterator<KeyedTimerData<K>> iter =
           timestampSortedEventTimeTimerState.readIterator().read();
 
-      while (iter.hasNext() && eventTimeBuffer.size() < eventTimerBufferSize) {
+      while (iter.hasNext() && eventTimeBuffer.size() < maxEventTimerBufferSize) {
         final KeyedTimerData<K> keyedTimerData = iter.next();
         eventTimeBuffer.add(keyedTimerData);
         maxEventTimeInBuffer = keyedTimerData.getTimerData().getTimestamp().getMillis();
@@ -477,6 +487,15 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       ((SamzaStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
           .closeIterators();
       LOG.info("Loaded {} event time timers in memory", eventTimeBuffer.size());
+
+      if (eventTimeBuffer.size() < maxEventTimerBufferSize) {
+        LOG.debug(
+            "Event time timers in State is empty, filled {} timers out of {} buffer capacity",
+            eventTimeBuffer.size(),
+            maxEventTimeInBuffer);
+        // Reset the flag variable to indicate there are no more KeyedTimerData in State
+        maxEventTimeInBuffer = Long.MAX_VALUE;
+      }
     }
 
     private void loadProcessingTimeTimers() {
