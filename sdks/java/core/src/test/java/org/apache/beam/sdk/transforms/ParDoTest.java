@@ -1584,7 +1584,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTestStream.class,
       UsesBundleFinalizer.class,
-      UsesStatefulParDo.class,
+      UsesStatefulParDo.class
     })
     public void testBundleFinalizationWithState() {
       TestStream.Builder<KV<String, Long>> stream =
@@ -1625,7 +1625,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTestStream.class,
       UsesBundleFinalizer.class,
-      UsesSideInputs.class,
+      UsesSideInputs.class
     })
     public void testBundleFinalizationWithSideInputs() {
       TestStream.Builder<KV<String, Long>> stream =
@@ -4411,7 +4411,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesTestStream.class,
+      UsesTestStream.class
     })
     public void testOutputTimestamp() {
       final String timerId = "bar";
@@ -5415,7 +5415,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesOnWindowExpiration.class,
+      UsesOnWindowExpiration.class
     })
     public void testOnWindowExpirationSimpleBounded() {
       runOnWindowExpirationSimple(false);
@@ -5427,7 +5427,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
       UsesOnWindowExpiration.class,
-      UsesUnboundedPCollections.class,
+      UsesUnboundedPCollections.class
     })
     public void testOnWindowExpirationSimpleUnbounded() {
       runOnWindowExpirationSimple(true);

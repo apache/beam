@@ -244,6 +244,98 @@ task validatesRunnerStreaming {
   dependsOn createLegacyWorkerValidatesRunnerTest('validatesRunnerLegacyWorkerTestStreaming', legacyPipelineOptions + ['--streaming=true'], ['org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests'])
 }
 
+task validatesRunnerV2Test(type: Test) {
+  group = "Verification"
+  dependsOn buildAndPushDockerContainer
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
+          "--tempRoot=${dataflowValidatesTempRoot}",
+          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+          "--experiments=beam_fn_api,use_unified_worker",
+  ])
+
+  // Increase test parallelism up to the number of Gradle workers. By default this is equal
+  // to the number of CPU cores, but can be increased by setting --max-workers=N.
+  maxParallelForks Integer.MAX_VALUE
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
+          files(project(project.path).sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
+  filter {
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows'
+
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointBounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicBounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedBounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsBounded'
+
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming'
+
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalization'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithSideInputs'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithState'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests.testMapStateCoderInference'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests.testSetStateCoderInference'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testMapState'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListState'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListStateRangeDelete'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListStateRangeFetch'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testSetState'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testValueStateTaggedOutput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerFamilyTests.testTimerFamilyProcessingTime'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.duplicateTimerSetting'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerCanBeReset'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrdering'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampWithProcessingTime'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testProcessingTimeTimerCanBeReset'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput'
+
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoSchemaTest.testMapStateSchemaInference'
+
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
+
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys100MB'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys10MB'
+
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+
+    excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage'
+
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAllAttemptedMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedGaugeMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testAllCommittedMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics'
+  }
+}
+
 task copyGoogleCloudPlatformTestResources(type: Copy){
   from project(':sdks:java:io:google-cloud-platform').fileTree("src/test/resources")
   into "$buildDir/resources/test/"
