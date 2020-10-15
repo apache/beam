@@ -278,7 +278,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.inactive[instID] = struct{}{}
 		// increment and wrap around.
 		c.nextRemove++
-		if c.nextRemove > len(c.removeQueue) {
+		if c.nextRemove >= len(c.removeQueue) {
 			c.nextRemove = 0
 		}
 		c.mu.Unlock()
