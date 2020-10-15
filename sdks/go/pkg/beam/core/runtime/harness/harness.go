@@ -162,13 +162,11 @@ const circleBufferCap = 1000
 
 // circleBuffer is an ordered eviction buffer
 type circleBuffer struct {
-	// a plan that's either about to start or has finished recently
-	// instructions in this queue should return empty responses to control messages.
-	buf map[instructionID]struct{} // protected by mu
-	// order that instructions should be removed from the inactive map.
+	buf map[instructionID]struct{}
+	// order that instructions should be removed from the buf map.
 	// treated like a circular buffer with nextRemove as the pointer.
-	removeQueue [circleBufferCap]instructionID // protected by mu
-	nextRemove  int                            // protected by mu
+	removeQueue [circleBufferCap]instructionID
+	nextRemove  int
 }
 
 func newCircleBuffer() circleBuffer {
