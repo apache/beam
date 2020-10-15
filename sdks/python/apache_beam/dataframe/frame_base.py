@@ -228,20 +228,43 @@ def _proxy_function(
       else:
         constant_args[ix] = arg
 
+    deferred_kwarg_keys = []
+    deferred_kwarg_exprs = []
+    constant_kwargs = {key: None for key in kwargs}
+    for key, arg in kwargs.items():
+      if isinstance(arg, DeferredBase):
+        deferred_kwarg_keys.append(key)
+        deferred_kwarg_exprs.append(arg._expr)
+      elif isinstance(arg, pd.core.generic.NDFrame):
+        deferred_kwarg_keys.append(key)
+        deferred_kwarg_exprs.append(
+            expressions.ConstantExpression(arg, arg[0:0]))
+      else:
+        constant_kwargs[key] = arg
+
+    deferred_exprs = deferred_arg_exprs + deferred_kwarg_exprs
+
     if inplace:
       actual_func = copy_and_mutate(func)
     else:
       actual_func = func
 
     def apply(*actual_args):
+      actual_args, actual_kwargs = (actual_args[:len(deferred_arg_exprs)],
+                                    actual_args[len(deferred_arg_exprs):])
+
       full_args = list(constant_args)
       for ix, arg in zip(deferred_arg_indices, actual_args):
         full_args[ix] = arg
-      return actual_func(*full_args, **kwargs)
 
-    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame)
-           for arg in deferred_arg_exprs
-           ) and not requires_partition_by.is_subpartitioning_of(
+      full_kwargs = dict(constant_kwargs)
+      for key, arg in zip(deferred_kwarg_keys, actual_kwargs):
+        full_kwargs[key] = arg
+
+      return actual_func(*full_args, **full_kwargs)
+
+    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame) for arg in
+           deferred_exprs) and not requires_partition_by.is_subpartitioning_of(
                partitionings.Index()):
       # Implicit join on index.
       actual_requires_partition_by = partitionings.Index()
@@ -251,7 +274,7 @@ def _proxy_function(
     result_expr = expressions.ComputedExpression(
         name,
         apply,
-        deferred_arg_exprs,
+        deferred_exprs,
         requires_partition_by=actual_requires_partition_by,
         preserves_partition_by=preserves_partition_by)
     if inplace:
