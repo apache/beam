@@ -163,3 +163,69 @@ func TestControl_getOrCreatePlan(t *testing.T) {
 	}
 
 }
+
+func TestCircleBuffer(t *testing.T) {
+	expected1 := instructionID("expected1")
+	expected2 := instructionID("expected2")
+
+	t.Run("Contains", func(t *testing.T) {
+		c := newCircleBuffer()
+		c.Add(expected1)
+		if !c.Contains(expected1) {
+			t.Fatal("expected added key to be present")
+		}
+		rm, ok := c.Insert(expected2)
+		if ok {
+			t.Fatalf("unexpected eviction of %v on Insert", rm)
+		}
+		if !c.Contains(expected2) {
+			t.Fatal("expected added key to be present")
+		}
+	})
+
+	t.Run("Remove", func(t *testing.T) {
+		c := newCircleBuffer()
+		c.Add(expected1)
+		c.Remove(expected1)
+		if c.Contains(expected1) {
+			t.Fatal("unexpected removed key present")
+		}
+		rm, ok := c.Insert(expected2)
+		if ok {
+			t.Fatalf("unexpected eviction of %v on Insert", rm)
+		}
+		c.Remove(expected2)
+		if c.Contains(expected2) {
+			t.Fatal("unexpected removed key present")
+		}
+	})
+
+	t.Run("Insert", func(t *testing.T) {
+		c := newCircleBuffer()
+		rm, ok := c.Insert(expected1)
+		if ok {
+			t.Fatalf("unexpected eviction of %v on Insert", rm)
+		}
+		for i := 1; i < circleBufferCap; i++ {
+			rm, ok := c.Insert(instructionID(fmt.Sprintf("i%v", i)))
+			if ok {
+				t.Fatalf("unexpected eviction of %v on Insert", rm)
+			}
+		}
+		got, ok := c.Insert(expected2)
+		if !ok {
+			t.Fatalf("expected eviction of %v on Insert", expected1)
+		}
+		if got != expected1 {
+			t.Fatalf("c.Insert(%v) = %v,%v; want %v", expected2, got, ok, expected1)
+		}
+		for i := 1; i < circleBufferCap; i++ {
+			insrt := instructionID(fmt.Sprintf("ii%v", i))
+			got, ok := c.Insert(insrt)
+			want := instructionID(fmt.Sprintf("i%v", i))
+			if got != want {
+				t.Fatalf("c.Insert(%v) = %v,%v; want %v", insrt, got, ok, want)
+			}
+		}
+	})
+}
