@@ -661,8 +661,7 @@ class Repeatedly(TriggerFn):
     return self.underlying.has_ontime_pane()
 
 
-class _ParallelTriggerFn(with_metaclass(ABCMeta,
-                                        TriggerFn)):  # type: ignore[misc]
+class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # type: ignore[misc]
   def __init__(self, *triggers):
     self.triggers = triggers
 

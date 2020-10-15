@@ -633,7 +633,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
       to_await.get()
 
 
-class OutputTimer(object):
+class OutputTimer(userstate.BaseTimer):
   def __init__(self,
                key,
                window,  # type: windowed_value.BoundedWindow
