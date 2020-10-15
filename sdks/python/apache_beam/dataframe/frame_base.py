@@ -218,7 +218,7 @@ def _proxy_function(
 
     deferred_kwarg_keys = []
     deferred_kwarg_exprs = []
-    constant_kwargs = {key: None for key in kwargs.keys()}
+    constant_kwargs = {key: None for key in kwargs}
     for key, arg in kwargs.items():
       if isinstance(arg, DeferredBase):
         deferred_kwarg_keys.append(key)
@@ -238,7 +238,8 @@ def _proxy_function(
       actual_func = func
 
     def apply(*actual_args):
-      actual_args, actual_kwargs = actual_args[:len(deferred_arg_exprs)], actual_args[len(deferred_arg_exprs):]
+      actual_args, actual_kwargs = (actual_args[:len(deferred_arg_exprs)],
+                                    actual_args[len(deferred_arg_exprs):])
 
       full_args = list(constant_args)
       for ix, arg in zip(deferred_arg_indices, actual_args):
