@@ -85,6 +85,13 @@ class ConverTest(unittest.TestCase):
       assert_that(pc_3a, equal_to(list(3 * a)), label='Check3a')
       assert_that(pc_ab, equal_to(list(a * b)), label='Checkab')
 
+  def test_convert_scalar(self):
+    with beam.Pipeline() as p:
+      pc = p | 'A' >> beam.Create([1, 2, 3])
+      s = convert.to_dataframe(pc)
+      pc_sum = convert.to_pcollection(s.sum())
+      assert_that(pc_sum, equal_to([6]))
+
 
 if __name__ == '__main__':
   unittest.main()
