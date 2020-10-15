@@ -38,7 +38,7 @@ from typing import Optional
 from typing import Type
 from typing import Union
 
-from apache_beam.metrics import cells
+from apache_beam.internal.metrics.cells import HistogramCellFactory
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metric import Metrics as UserMetrics
 from apache_beam.metrics.metricbase import Histogram
@@ -81,7 +81,7 @@ class Metrics(object):
       # type: (MetricName, BucketType, Optional[MetricLogger]) -> None
       super(Metrics.DelegatingHistogram, self).__init__(metric_name)
       self.metric_name = metric_name
-      self.cell_type = cells.HistogramCellFactory(bucket_type)
+      self.cell_type = HistogramCellFactory(bucket_type)
       self.logger = logger
       self.updater = MetricUpdater(self.cell_type, self.metric_name)
 
