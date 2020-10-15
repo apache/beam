@@ -132,7 +132,7 @@ Snowflake IO library supports following options that can be passed via the [comm
 
 `--privateKeyPassphrase` Private Key's passphrase. Required for Private Key authentication only.
 
-`--stagingBucketName` External bucket path ending with `/`. I.e. `<gs or s3>://bucket/`. Sub-directories are allowed.
+`--stagingBucketName` External bucket path ending with `/`. I.e. `{gs,s3}://bucket/`. Sub-directories are allowed.
 
 `--storageIntegrationName` Storage integration name
 
@@ -178,15 +178,15 @@ To pass Pipeline options via the command line, use `--args` in a gradle command 
            Example: --query=‘SELECT column FROM TABLE’
         --storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>
            Example: --storageIntegrationName=my_integration
-        --stagingBucketName=<GCS OR S3 BUCKET NAME>
-           Example: --stagingBucketName=<gs or s3>://my_gcp_bucket/
+        --stagingBucketName=<GCS OR S3 BUCKET>
+           Example: --stagingBucketName={gs,s3}://bucket/
         --runner=<DirectRunner/DataflowRunner>
            Example: --runner=DataflowRunner
         --project=<FOR DATAFLOW RUNNER: GCP PROJECT NAME>
            Example: --project=my_project
         --tempLocation=<FOR DATAFLOW RUNNER: GCS TEMP LOCATION STARTING
                         WITH gs://…>
-           Example: --tempLocation=gs://my_bucket/temp/
+           Example: --tempLocation=gs://bucket/temp/
         --region=<FOR DATAFLOW RUNNER: GCP REGION>
            Example: --region=us-east-1
         --appName=<OPTIONAL: DATAFLOW JOB NAME PREFIX>
@@ -213,10 +213,10 @@ To pass Pipeline options via the command line, use `-DintegrationTestPipelineOpt
       Example: --database=TEST_DATABASE
   "--storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>",
       Example: --storageIntegrationName=my_integration
-  "--stagingBucketName=<GCS OR S3 BUCKET NAME>",
-      Example: --stagingBucketName=<gs or s3>://my_gcp_bucket
+  "--stagingBucketName=<GCS OR S3 BUCKET>",
+      Example: --stagingBucketName={gs,s3}://bucket
   "--externalLocation=<GCS BUCKET URL STARTING WITH GS://>",
-      Example: --tempLocation=gs://my_bucket/temp/
+      Example: --tempLocation=gs://bucket/temp/
 ]' --no-build-cache
 {{< /highlight >}}
 
@@ -258,7 +258,7 @@ By default, pipelines are run on [Direct Runner](https://beam.apache.org/documen
 - `--project=<GCS PROJECT>`
   - Name of the Google Cloud Platform project.
 
-- `--stagingBucketName=<GCS OR S3 BUCKET NAME>`
+- `--stagingBucketName=<GCS OR S3 BUCKET>`
   - Google Cloud Services bucket or AWS S3 bucket where the Beam files will be staged.
 
 - `--maxNumWorkers=5`
@@ -293,7 +293,7 @@ Currently, SnowflakeIO supports following options at runtime:
 
 - `--privateKeyPassphrase` Private Key's passphrase. Required for Private Key authentication only.
 
-- `--stagingBucketName` external bucket path ending with `/`. I.e. `<gs or s3>://bucket/`. Sub-directories are allowed.
+- `--stagingBucketName` external bucket path ending with `/`. I.e. `{gs,s3}://bucket/`. Sub-directories are allowed.
 
 - `--storageIntegrationName` Storage integration name.
 
@@ -334,7 +334,7 @@ data.apply(
    SnowflakeIO.<type>write()
        .withDataSourceConfiguration(dc)
        .toTable("MY_TABLE")
-       .withStagingBucketName("BUCKET NAME")
+       .withStagingBucketName("BUCKET")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
 )
@@ -348,7 +348,7 @@ All the below parameters are required:
 - `.toTable()` Accepts the target Snowflake table name.
 
 - `.withStagingBucketName()` Accepts a cloud bucket path ended with slash.
- -Example: `.withStagingBucketName("<gs or s3>://mybucket/my/dir/")`
+ -Example: `.withStagingBucketName("{gs,s3}://bucket/my/dir/")`
 
 - `.withStorageIntegrationName()` Accepts a name of a Snowflake storage integration object created according to Snowflake documentation. Examples:
 {{< highlight >}}
@@ -386,7 +386,7 @@ It is required to create a [SnowPipe](https://docs.snowflake.com/en/user-guide/d
 {{< highlight java >}}
 data.apply(
    SnowflakeIO.<type>write()
-      .withStagingBucketName("BUCKET NAME")
+      .withStagingBucketName("BUCKET")
       .withStorageIntegrationName("STORAGE INTEGRATION NAME")
       .withDataSourceConfiguration(dc)
       .withUserDataMapper(mapper)
@@ -408,7 +408,7 @@ data.apply(
 
 - `.withStagingBucketName()`
   - Accepts a cloud bucket path ended with slash.
-  - Example: `.withStagingBucketName("<gs or s3>://mybucket/my/dir/")`
+  - Example: `.withStagingBucketName("{gs,s3}://bucket/my/dir/")`
 
 - `.withStorageIntegrationName()`
   - Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt.
@@ -510,7 +510,7 @@ data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
        .toTable("MY_TABLE")
-       .withStagingBucketName("BUCKET NAME")
+       .withStagingBucketName("BUCKET")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
        .withQueryTransformation(query)
@@ -532,7 +532,7 @@ data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
        .toTable("MY_TABLE")
-       .withStagingBucketName("BUCKET NAME")
+       .withStagingBucketName("BUCKET")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
        .withWriteDisposition(TRUNCATE)
@@ -552,7 +552,7 @@ data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
        .toTable("MY_TABLE")
-       .withStagingBucketName("BUCKET NAME")
+       .withStagingBucketName("BUCKET")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
        .withCreateDisposition(CREATE_NEVER)
@@ -575,7 +575,7 @@ data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
        .toTable("MY_TABLE")
-       .withStagingBucketName("BUCKET NAME")
+       .withStagingBucketName("BUCKET")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
        .withTableSchema(tableSchema)
@@ -592,7 +592,7 @@ PCollection<USER_DATA_TYPE> items = pipeline.apply(
    SnowflakeIO.<USER_DATA_TYPE>read()
        .withDataSourceConfiguration(dc)
        .fromTable("MY_TABLE") // or .fromQuery("QUERY")
-       .withStagingBucketName("BUCKET NAME")
+       .withStagingBucketName("BUCKET")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withCsvMapper(mapper)
        .withCoder(coder));
@@ -772,7 +772,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
            private_key_passphrase=<PASSWORD FOR KEY>,
            schema=<SNOWFLAKE SCHEMA>,
            database=<SNOWFLAKE DATABASE>,
-           staging_bucket_name=<GCS OR S3 BUCKET NAME>,
+           staging_bucket_name=<GCS OR S3 BUCKET>,
            storage_integration_name=<SNOWFLAKE STORAGE INTEGRATION NAME>,
            create_disposition=<CREATE DISPOSITION>,
            write_disposition=<WRITE DISPOSITION>,
