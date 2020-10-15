@@ -147,8 +147,6 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
   'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms',
-  'org.apache.beam.sdk.testing.UsesDistributionMetrics',
-  'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesSetState',
   'org.apache.beam.sdk.testing.UsesMapState',
   'org.apache.beam.sdk.testing.UsesOrderedListState',
@@ -156,12 +154,17 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
-  'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+  'org.apache.beam.sdk.testing.UsesBundleFinalizer',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
 // make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
-def createLegacyWorkerValidatesRunnerTest = { name, pipelineOptions=legacyPipelineOptions, disabledTests=[] ->
+def createLegacyWorkerValidatesRunnerTest = { Map args ->
+  def name = args.name
+  def pipelineOptions = args.pipelineOptions ?: legacyPipelineOptions
+  def excludedTests = args.excludedTests ?: []
+  def excludedCategories = args.excludedCategories ?: []
+
   return tasks.create(name: name, type: Test, group: "Verification") {
     dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
 
@@ -178,8 +181,11 @@ def createLegacyWorkerValidatesRunnerTest = { name, pipelineOptions=legacyPipeli
       commonExcludeCategories.each {
         excludeCategories it
       }
+      excludedCategories.each {
+        excludeCategories it
+      }
       filter {
-        disabledTests.each {
+        excludedTests.each {
           excludeTestsMatching it
         }
       }
@@ -210,6 +216,18 @@ task buildAndPushDockerContainer() {
   }
 }
 
+// Clean up built images
+task cleanUpDockerImages() {
+  doLast {
+    exec {
+      commandLine "docker", "rmi", "${dockerImageName}"
+    }
+    exec {
+      commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
+    }
+  }
+}
+
 afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
@@ -235,13 +253,23 @@ task printFnApiPipelineOptions {
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
-  dependsOn createLegacyWorkerValidatesRunnerTest('validatesRunnerLegacyWorkerTest', legacyPipelineOptions, [])
+  dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTest'))
 }
 
 task validatesRunnerStreaming {
   group = "Verification"
   description "Validates Dataflow runner forcing streaming mode"
-  dependsOn createLegacyWorkerValidatesRunnerTest('validatesRunnerLegacyWorkerTestStreaming', legacyPipelineOptions + ['--streaming=true'], ['org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests'])
+  dependsOn(createLegacyWorkerValidatesRunnerTest(
+    name: 'validatesRunnerLegacyWorkerTestStreaming',
+    pipelineOptions: legacyPipelineOptions + ['--streaming=true'],
+    excludedCategories: [
+      'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+    ],
+    excludedTests: [
+      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests'
+    ]
+  ))
 }
 
 task validatesRunnerV2Test(type: Test) {
@@ -535,18 +563,6 @@ task postCommitPortabilityApi {
   dependsOn googleCloudPlatformFnApiWorkerIntegrationTest
   dependsOn examplesJavaFnApiWorkerIntegrationTest
   dependsOn coreSDKJavaFnApiWorkerIntegrationTest
-}
-
-// Clean up built images
-task cleanUpDockerImages() {
-  doLast {
-    exec {
-      commandLine "docker", "rmi", "${dockerImageName}"
-    }
-    exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
-    }
-  }
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
