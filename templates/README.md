@@ -171,7 +171,7 @@ You can do this in 3 different ways:
     API_ROOT_URL="https://dataflow.googleapis.com"
     TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT}/templates:launch"
     JOB_NAME="kafka-to-pubsub-`date +%Y%m%d-%H%M%S-%N`"
-   
+
     time curl -X POST -H "Content-Type: application/json" \
         -H "Authorization: Bearer $(gcloud auth print-access-token)" \
         "${TEMPLATES_LAUNCH_API}"`
