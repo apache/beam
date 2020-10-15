@@ -30,7 +30,6 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.commons_compress
   compile "org.apache.solr:solr-solrj:5.5.4"
-  //compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
   compile "joda-time:joda-time:2.10.5"
   compile "org.apache.httpcomponents:httpclient:4.4.1"
   compile "org.slf4j:slf4j-api:1.7.30"

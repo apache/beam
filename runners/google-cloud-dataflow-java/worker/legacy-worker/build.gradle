@@ -72,7 +72,6 @@ def excluded_dependencies = [
         "com.google.auto.value:auto-value",          // Provided scope added from applyJavaNature
         "org.codehaus.jackson:jackson-core-asl",     // Exclude an old version of jackson-core-asl introduced by google-http-client-jackson
         "org.objenesis:objenesis",                   // Transitive dependency introduced from Beam
-        //"org.tukaani:xz",                            // Transitive dependency introduced from Beam
         library.java.commons_compress,               // Transitive dependency introduced from Beam
         library.java.error_prone_annotations,        // Provided scope added in worker
         library.java.hamcrest_core,                  // Test only

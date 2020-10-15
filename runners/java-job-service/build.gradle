@@ -29,7 +29,6 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
-  //compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
   compile project(":sdks:java:fn-execution")
   compile project(":runners:core-construction-java")

@@ -32,7 +32,6 @@ configurations {
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
-  //compile library.java.hamcrest_library
   compile project(":runners:java-fn-execution")
   compile project(":runners:java-job-service")
   compile project(path: ":sdks:java:harness", configuration: "shadow")

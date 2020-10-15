@@ -64,7 +64,6 @@ dependencies {
   compile library.java.kafka_clients
 
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  //compile project(path: ":runners:direct-java", configuration: "shadow")
   compile project(":sdks:java:io:synthetic")
   compile project(":sdks:java:testing:test-utils")
   compile project(":sdks:java:io:google-cloud-platform")

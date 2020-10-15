@@ -31,8 +31,6 @@ applyJavaNature(
 )
 
 dependencies {
-    //compile project(path: ":sdks:java:expansion-service")
-    //compile project(":sdks:java:io:jdbc")
     compile project(path: ":model:pipeline", configuration: "shadow")
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile "com.google.code.findbugs:jsr305:3.0.2"

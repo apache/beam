@@ -27,7 +27,6 @@ description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
-    //compile project(":sdks:java:expansion-service")
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     compile 'com.google.cloud:google-cloud-dlp:1.1.4'
     compile 'com.google.cloud:google-cloud-language:1.99.4'
