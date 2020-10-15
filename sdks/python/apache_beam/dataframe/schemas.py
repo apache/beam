@@ -146,15 +146,21 @@ class BatchRowsAsDataFrame(beam.PTransform):
   Batching parameters are inherited from
   :class:`~apache_beam.transforms.util.BatchElements`.
   """
-  def __init__(self, *args, **kwargs):
+  def __init__(self, *args, proxy, **kwargs):
     self._batch_elements_transform = BatchElements(*args, **kwargs)
+    self._proxy = proxy
 
   def expand(self, pcoll):
-    columns = [
-        name for name, _ in named_fields_from_element_type(pcoll.element_type)
-    ]
-    return pcoll | self._batch_elements_transform | beam.Map(
-        lambda batch: pd.DataFrame.from_records(batch, columns=columns))
+    if isinstance(self._proxy, pd.DataFrame):
+      columns = self._proxy.columns
+      construct = lambda batch: pd.DataFrame.from_records(
+          batch, columns=columns)
+    elif isinstance(self._proxy, pd.Series):
+      dtype = self._proxy.dtype
+      construct = lambda batch: pd.Series(batch, dtype=dtype)
+    else:
+      raise NotImplementedError("Unknown proxy type: %s" % self._proxy)
+    return pcoll | self._batch_elements_transform | beam.Map(construct)
 
 
 def generate_proxy(element_type):
@@ -163,18 +169,21 @@ def generate_proxy(element_type):
   """Generate a proxy pandas object for the given PCollection element_type.
 
   Currently only supports generating a DataFrame proxy from a schema-aware
-  PCollection.
+  PCollection or a Series proxy from a primitively typed PCollection.
   """
-  fields = named_fields_from_element_type(element_type)
-  proxy = pd.DataFrame(columns=[name for name, _ in fields])
+  if element_type != Any and element_type in BEAM_TO_PANDAS:
+    return pd.Series(dtype=BEAM_TO_PANDAS[element_type])
 
-  for name, typehint in fields:
-    # Default to np.object. This is lossy, we won't be able to recover the type
-    # at the output.
-    dtype = BEAM_TO_PANDAS.get(typehint, np.object)
-    proxy[name] = proxy[name].astype(dtype)
+  else:
+    fields = named_fields_from_element_type(element_type)
+    proxy = pd.DataFrame(columns=[name for name, _ in fields])
+    for name, typehint in fields:
+      # Default to np.object. This is lossy, we won't be able to recover
+      # the type at the output.
+      dtype = BEAM_TO_PANDAS.get(typehint, np.object)
+      proxy[name] = proxy[name].astype(dtype)
 
-  return proxy
+    return proxy
 
 
 def element_type_from_dataframe(proxy, include_indexes=False):

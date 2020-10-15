@@ -124,7 +124,10 @@ class SchemasTest(unittest.TestCase):
           | beam.Create([
               Simple(name=unicode(i), id=i, height=float(i)) for i in range(5)
           ])
-          | schemas.BatchRowsAsDataFrame(min_batch_size=10, max_batch_size=10))
+          | schemas.BatchRowsAsDataFrame(
+              min_batch_size=10,
+              max_batch_size=10,
+              proxy=schemas.generate_proxy(Simple)))
       assert_that(res, matches_df(expected))
 
   def test_generate_proxy(self):
@@ -161,7 +164,7 @@ class SchemasTest(unittest.TestCase):
               Animal('Parrot', 24.0),
               Animal('Parrot', 26.0)
           ])
-          | schemas.BatchRowsAsDataFrame()
+          | schemas.BatchRowsAsDataFrame(proxy=schemas.generate_proxy(Animal))
           | transforms.DataframeTransform(
               lambda df: df.groupby('animal').mean(),
               # TODO: Generate proxy in this case as well
@@ -180,7 +183,8 @@ class SchemasTest(unittest.TestCase):
                 Animal('Parrot', 24.0),
                 Animal('Parrot', 26.0)
             ])
-            | schemas.BatchRowsAsDataFrame()
+            |
+            schemas.BatchRowsAsDataFrame(proxy=schemas.generate_proxy(Animal))
             | transforms.DataframeTransform(
                 lambda df: df.groupby('animal').mean().reset_index(),
                 # TODO: Generate proxy in this case as well
