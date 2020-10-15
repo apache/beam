@@ -22,11 +22,10 @@
 This directory contains an [Apache Beam](https://beam.apache.org/) Template that creates a pipeline
 to read data from a single or multiple topics from
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic
-in [Google Pub/Sub](https://cloud.google.com/pubsub). This template provides
-availability to retrieve credentials for Apache Kafka from [HashiCorp Vault](https://www.vaultproject.io/)
-in case of configured SASL/SCRAM security mechanism.
+in [Google Pub/Sub](https://cloud.google.com/pubsub).
 
-This template supports serializable string formats, such as JSON.
+This template supports serializable string formats, such as JSON. The template supports Apache Kafka SASL/SCRAM security mechanisms
+and retrieving credentials from [HashiCorp Vault](https://www.vaultproject.io/).
 
 ## Requirements
 
@@ -34,7 +33,7 @@ This template supports serializable string formats, such as JSON.
 - Kafka Bootstrap Server(s) up and running
 - Existing source Kafka topic(s)
 - An existing Pub/Sub destination output topic
-- (Optional) An existing HashiCorp Vault secret storage
+- (Optional) An existing HashiCorp Vault
 
 ## Getting Started
 
@@ -77,7 +76,7 @@ To execute this pipeline locally, specify the parameters: Kafka Bootstrap server
 --inputTopic=your-input-topic \
 --outputTopic=projects/your-project-id/topics/your-topic-pame
 ```
-Optionally, specify a URL to credentials in Vault and token to access them:
+Optionally, specify a URL to credentials in HashiCorp Vault and token to access them:
 ```bash
 --secretStoreUrl=http(s)://host:port/path/to/credentials
 --vaultToken=your-token
