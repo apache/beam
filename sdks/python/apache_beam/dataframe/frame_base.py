@@ -238,7 +238,7 @@ def _proxy_function(
       actual_func = func
 
     def apply(*actual_args):
-      actual_args, actual_kwargs = actual_args[:len(constant_args)], actual_args[len(constant_args):]
+      actual_args, actual_kwargs = actual_args[:len(deferred_arg_exprs)], actual_args[len(deferred_arg_exprs):]
 
       full_args = list(constant_args)
       for ix, arg in zip(deferred_arg_indices, actual_args):
