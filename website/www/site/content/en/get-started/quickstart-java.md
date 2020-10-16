@@ -266,7 +266,7 @@ For Unix shells (Instructions currently only available for Direct, Spark, and Da
 
 {{< highlight class="runner-direct">}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+    -Dexec.args="--inputFile=gs://apache-beam-samples/shakespeare/* --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-apex">}}
