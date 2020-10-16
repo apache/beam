@@ -91,8 +91,20 @@ class TransformTest(unittest.TestCase):
 
     with beam.Pipeline() as p:
       input_pcoll = p | beam.Create([input[::2], input[1::2]])
-      output_pcoll = input_pcoll | transforms.DataframeTransform(
-          func, proxy=empty, yield_elements='pandas')
+      input_df = convert.to_dataframe(input_pcoll, proxy=empty)
+      output_df = func(input_df)
+
+      output_proxy = output_df._expr.proxy()
+      if isinstance(output_proxy, pd.core.generic.NDFrame):
+        self.assertTrue(
+            output_proxy[:0].equals(expected[:0]),
+            f'Output proxy is incorrect:\nExpected:\n{expected[:0]}\n\nActual:\n{output_proxy[:0]}'
+        )
+      else:
+        self.assertEquals(type(output_proxy), type(expected))
+
+      output_pcoll = convert.to_pcollection(output_df, yield_elements='pandas')
+
       assert_that(
           output_pcoll, lambda actual: check_correct(expected, concat(actual)))
 
@@ -292,6 +304,21 @@ class TransformTest(unittest.TestCase):
         'repeats': [3, 1, 4, 5, 2],
     })
     self.run_scenario(df, lambda df: df.strings.str.repeat(df.repeats))
+
+  def test_rename(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    self.run_scenario(
+        df, lambda df: df.rename(columns={'B': 'C'}, index={
+            0: 2, 2: 0
+        }))
+
+    with expressions.allow_non_parallel_operations():
+      self.run_scenario(
+          df,
+          lambda df: df.rename(
+              columns={'B': 'C'}, index={
+                  0: 2, 2: 0
+              }, errors='raise'))
 
 
 if __name__ == '__main__':

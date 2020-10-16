@@ -1110,19 +1110,35 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         'index' in kwargs
         or kwargs.get('axis', None) in (0, 'index')
         or ('columns' not in kwargs and 'axis' not in kwargs))
+    rename_columns = (
+        'columns' in kwargs
+        or kwargs.get('axis', None) in (1, 'columns'))
+
     if rename_index:
       # Technically, it's still partitioned by index, but it's no longer
       # partitioned by the hash of the index.
       preserves_partition_by = partitionings.Nothing()
     else:
       preserves_partition_by = partitionings.Singleton()
+
     if kwargs.get('errors', None) == 'raise' and rename_index:
-      # Renaming index with checking.
+      # Renaming index with checking requires global index.
       requires_partition_by = partitionings.Singleton()
-      proxy = self._expr.proxy()
     else:
       requires_partition_by = partitionings.Nothing()
-      proxy = None
+
+    proxy = None
+    if rename_index:
+      # The proxy can't be computed by executing rename, it will error
+      # renaming the index.
+      if rename_columns:
+        # Note if both are being renamed, index and columns must be specified
+        # (not axis)
+        proxy = self._expr.proxy().rename(**{k: v for (k, v) in kwargs.items() if k is not 'index'})
+      else:
+        # No change in columns, reuse proxy
+        proxy = self._expr.proxy()
+
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'rename',
@@ -1553,6 +1569,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series: series.str.repeat(repeats),
               [self._expr],
+              # Output will also be a str Series
+              proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Nothing(),
               preserves_partition_by=partitionings.Singleton()))
     elif isinstance(repeats, frame_base.DeferredBase):
@@ -1561,6 +1579,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series, repeats_series: series.str.repeat(repeats_series),
               [self._expr, repeats._expr],
+              # Output will also be a str Series
+              proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Singleton()))
     elif isinstance(repeats, list):
