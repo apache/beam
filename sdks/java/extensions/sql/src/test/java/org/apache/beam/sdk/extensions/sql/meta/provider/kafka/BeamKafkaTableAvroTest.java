@@ -47,9 +47,6 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
   private static final org.apache.avro.Schema AVRO_SCHEMA = AvroUtils.toAvroSchema(TEST_SCHEMA);
   private static final AvroCoder<GenericRecord> AVRO_CODER = AvroCoder.of(AVRO_SCHEMA);
 
-  private static final SerializableFunction<Row, byte[]> toBytesFn =
-      AvroUtils.getRowToAvroBytesFunction(TEST_SCHEMA);
-
   @Override
   protected Row generateRow(int i) {
     List<Object> values =
