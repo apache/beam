@@ -125,7 +125,7 @@ on your project's [Container Registry](https://cloud.google.com/container-regist
 
 To execute the template you need to create the template spec file containing all
 the necessary information to run the job. This template already has the following [metadata
-file](examples/templates/java/kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
+file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
 
 Navigate to the template folder:
 
@@ -170,7 +170,7 @@ You can do this in 3 different ways:
     API_ROOT_URL="https://dataflow.googleapis.com"
     TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT}/locations/${REGION}/flexTemplates:launch"
     JOB_NAME="kafka-to-pubsub-`date +%Y%m%d-%H%M%S-%N`"
-    
+
     time curl -X POST -H "Content-Type: application/json" \
         -H "Authorization: Bearer $(gcloud auth print-access-token)" \
         -d '
