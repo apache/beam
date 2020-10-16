@@ -619,7 +619,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                                             "instances are supported.")
     return frame_base._elementwise_method('assign')(self, **kwargs)
 
-
   apply = frame_base.not_implemented_method('apply')
   explode = frame_base.not_implemented_method('explode')
   isin = frame_base.not_implemented_method('isin')
@@ -627,12 +626,53 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   combine = frame_base.not_implemented_method('combine')
   combine_first = frame_base.not_implemented_method('combine_first')
   count = frame_base.not_implemented_method('count')
-  drop = frame_base.not_implemented_method('drop')
   eval = frame_base.not_implemented_method('eval')
   reindex = frame_base.not_implemented_method('reindex')
   melt = frame_base.not_implemented_method('melt')
   pivot = frame_base.not_implemented_method('pivot')
   pivot_table = frame_base.not_implemented_method('pivot_table')
+
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def drop(self, **kwargs):
+    labels = kwargs.get('labels', None)
+    if labels is not None:
+      axis = kwargs.get('axis', 0)
+      if axis in (0, 'index'):
+        index = labels
+        columns = None
+      elif axis in (1, 'columns'):
+        index = None
+        columns = labels
+      else:
+        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), got '%s'" % axis)
+    else:
+      index = kwargs.get('index', None)
+      columns = kwargs.get('columns', None)
+
+    errors = kwargs.get('errors', 'raise')
+
+    if columns is not None:
+      # Compute the proxy based on just the columns that are dropped.
+      proxy = self._expr.proxy().drop(columns=columns, errors=errors)
+    else:
+      proxy = self._expr.proxy()
+
+    if index is not None and errors == 'raise':
+      # In order to raise an error about missing index values, we'll
+      # need to collect the entire dataframe.
+      requires = partitionings.Singleton()
+    else:
+      requires = partitionings.Nothing()
+
+    return frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
+        'drop',
+        lambda df: df.drop(**kwargs),
+        [self._expr],
+        proxy=proxy,
+        requires_partition_by=requires))
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
