@@ -24,6 +24,14 @@
       "paramType": "TEXT"
     },
     {
+      "name": "outputFormat",
+      "label": "Message format that is written into Pub/Sub",
+      "helpText": "One of two message formats that is written to Pub/Sub. JSON or AVRO",
+      "regexes": [
+        "^(JSON|AVRO)$"
+      ]
+    },
+    {
       "name": "secretStoreUrl",
       "label": "URL to credentials in Vault",
       "helpText": "URL to Kafka credentials in HashiCorp Vault secret storage in format 'http(s)://vaultip:vaultport/path/to/credentials'",

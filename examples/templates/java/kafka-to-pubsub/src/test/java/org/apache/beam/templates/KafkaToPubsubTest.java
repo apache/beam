@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.templates.transforms.FormatTransform;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,7 +44,7 @@ public class KafkaToPubsubTest {
     final List<String> topicsList = new ArrayList<>(Collections.singletonList("TEST-TOPIC"));
     final HashMap<String, Object> config = new HashMap<>();
 
-    pipeline.apply(KafkaToPubsub.readFromKafka(bootstrapServers, topicsList, config));
+    pipeline.apply(FormatTransform.readFromKafka(bootstrapServers, topicsList, config));
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage("Failed to construct kafka consumer");
     pipeline.run();

@@ -141,7 +141,7 @@ gcloud dataflow flex-template build ${TEMPLATE_PATH} \
        --sdk-language "JAVA" \
        --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
        --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
-       --jar "build/libs/beam-templates-kafka-to-pubsub-2.25.0-SNAPSHOT-all.jar" \
+       --jar "build/libs/beam-examples-templates-java-kafka-to-pubsub-2.25.0-SNAPSHOT-all.jar" \
        --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
 ```
 
@@ -168,27 +168,27 @@ You can do this in 3 different ways:
 3. With a REST API request
     ```
     API_ROOT_URL="https://dataflow.googleapis.com"
-    TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT}/templates:launch"
+    TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT}/locations/${REGION}/flexTemplates:launch"
     JOB_NAME="kafka-to-pubsub-`date +%Y%m%d-%H%M%S-%N`"
-
+    
     time curl -X POST -H "Content-Type: application/json" \
         -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-        "${TEMPLATES_LAUNCH_API}"`
-        `"?validateOnly=false"`
-        `"&dynamicTemplate.gcsPath=${BUCKET_NAME}/path/to/image-spec"`
-        `"&dynamicTemplate.stagingLocation=${BUCKET_NAME}/staging" \
         -d '
          {
-          "jobName":"${JOB_NAME}",
-          "parameters": {
-              "bootstrapServers":"broker_1:9092,broker_2:9092",
-              "inputTopics":"topic1,topic2",
-              "outputTopic":"projects/${PROJECT}/topics/your-topic-name",
-              "secretStoreUrl":"http(s)://host:port/path/to/credentials",
-              "vaultToken":"your-token"
-          }
+             "launch_parameter": {
+                 "jobName": "'$JOB_NAME'",
+                 "containerSpecGcsPath": "'$TEMPLATE_PATH'",
+                 "parameters": {
+                     "bootstrapServers": "broker_1:9091, broker_2:9092",
+                     "inputTopics": "topic1, topic2",
+                     "outputTopic": "projects/'$PROJECT'/topics/your-topic-name",
+                     "secretStoreUrl": "http(s)://host:port/path/to/credentials",
+                     "vaultToken": "your-token"
+                 }
+             }
          }
         '
+        "${TEMPLATES_LAUNCH_API}"
     ```
 
 

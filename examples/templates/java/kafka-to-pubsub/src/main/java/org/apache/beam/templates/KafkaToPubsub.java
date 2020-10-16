@@ -29,17 +29,10 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
+import org.apache.beam.templates.transforms.FormatTransform;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -48,89 +41,87 @@ import org.apache.http.util.EntityUtils;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.scram.ScramMechanism;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The {@link KafkaToPubsub} pipeline is a streaming pipeline which ingests data in JSON format from
+ * Kafka, and outputs the resulting records to PubSub. Input topics, output topic, Bootstrap servers
+ * are specified by the user as template parameters. <br>
+ * Kafka may be configured with SASL/SCRAM security mechanism, in this case a Vault secret storage
+ * with credentials should be provided. URL to credentials and Vault token are specified by the user
+ * as template parameters.
+ *
+ * <p><b>Pipeline Requirements</b>
+ *
+ * <ul>
+ *   <li>Kafka Bootstrap Server(s).
+ *   <li>Kafka Topic(s) exists.
+ *   <li>The PubSub output topic exists.
+ *   <li>(Optional) An existing HashiCorp Vault secret storage
+ * </ul>
+ *
+ * <p><b>Example Usage</b>
+ *
+ * <pre>
+ * # Set the pipeline vars
+ * PROJECT=id-of-my-project
+ * BUCKET_NAME=my-bucket
+ *
+ * # Set containerization vars
+ * IMAGE_NAME=my-image-name
+ * TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
+ * BASE_CONTAINER_IMAGE=my-base-container-image
+ * TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
+ *
+ * # Create bucket in the cloud storage
+ * gsutil mb gs://${BUCKET_NAME}
+ *
+ * # Go to the beam folder
+ * cd /path/to/beam
+ *
+ * <b>FLEX TEMPLATE</b>
+ * # Assemble uber-jar
+ * ./gradlew -p templates/kafka-to-pubsub clean shadowJar
+ *
+ * # Go to the template folder
+ * cd /path/to/beam/templates/kafka-to-pubsub
+ *
+ * # Build the flex template
+ * gcloud dataflow flex-template build ${TEMPLATE_PATH} \
+ *       --image-gcr-path "${TARGET_GCR_IMAGE}" \
+ *       --sdk-language "JAVA" \
+ *       --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
+ *       --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
+ *       --jar "build/libs/beam-templates-kafka-to-pubsub-2.25.0-SNAPSHOT-all.jar" \
+ *       --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
+ *
+ * # Execute template:
+ *    API_ROOT_URL="https://dataflow.googleapis.com"
+ *    TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT}/locations/${REGION}/flexTemplates:launch"
+ *    JOB_NAME="kafka-to-pubsub-`date +%Y%m%d-%H%M%S-%N`"
+ *
+ *    time curl -X POST -H "Content-Type: application/json" \
+ *            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+ *            -d '
+ *             {
+ *                 "launch_parameter": {
+ *                     "jobName": "'$JOB_NAME'",
+ *                     "containerSpecGcsPath": "'$TEMPLATE_PATH'",
+ *                     "parameters": {
+ *                         "bootstrapServers": "broker_1:9091, broker_2:9092",
+ *                         "inputTopics": "topic1, topic2",
+ *                         "outputTopic": "projects/'$PROJECT'/topics/your-topic-name",
+ *                         "secretStoreUrl": "http(s)://host:port/path/to/credentials",
+ *                         "vaultToken": "your-token"
+ *                     }
+ *                 }
+ *             }
+ *            '
+ *            "${TEMPLATES_LAUNCH_API}"
+ * </pre>
+ */
 public class KafkaToPubsub {
-
-  /**
-   * The {@link KafkaToPubsub} pipeline is a streaming pipeline which ingests data in JSON format
-   * from Kafka, and outputs the resulting records to PubSub. Input topics, output topic, Bootstrap
-   * servers are specified by the user as template parameters. <br>
-   * Kafka may be configured with SASL/SCRAM security mechanism, in this case a Vault secret storage
-   * with credentials should be provided. URL to credentials and Vault token are specified by the
-   * user as template parameters.
-   *
-   * <p><b>Pipeline Requirements</b>
-   *
-   * <ul>
-   *   <li>Kafka Bootstrap Server(s).
-   *   <li>Kafka Topic(s) exists.
-   *   <li>The PubSub output topic exists.
-   *   <li>(Optional) An existing HashiCorp Vault secret storage
-   * </ul>
-   *
-   * <p><b>Example Usage</b>
-   *
-   * <pre>
-   * # Set the pipeline vars
-   * PROJECT=id-of-my-project
-   * BUCKET_NAME=my-bucket
-   *
-   * # Set containerization vars
-   * IMAGE_NAME=my-image-name
-   * TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
-   * BASE_CONTAINER_IMAGE=my-base-container-image
-   * TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
-   *
-   * # Create bucket in the cloud storage
-   * gsutil mb gs://${BUCKET_NAME}
-   *
-   * # Go to the beam folder
-   * cd /path/to/beam
-   *
-   * <b>FLEX TEMPLATE</b>
-   * # Assemble uber-jar
-   * ./gradlew -p templates/kafka-to-pubsub clean shadowJar
-   *
-   * # Go to the template folder
-   * cd /path/to/beam/templates/kafka-to-pubsub
-   *
-   * # Build the flex template
-   * gcloud dataflow flex-template build ${TEMPLATE_PATH} \
-   *       --image-gcr-path "${TARGET_GCR_IMAGE}" \
-   *       --sdk-language "JAVA" \
-   *       --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
-   *       --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
-   *       --jar "build/libs/beam-templates-kafka-to-pubsub-2.25.0-SNAPSHOT-all.jar" \
-   *       --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
-   *
-   * # Execute template:
-   * API_ROOT_URL="https://dataflow.googleapis.com"
-   * TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT}/templates:launch"
-   * JOB_NAME="kafka-to-pubsub-`date +%Y%m%d-%H%M%S-%N`"
-   *
-   * time curl -X POST -H "Content-Type: application/json"     \
-   *     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-   *     "${TEMPLATES_LAUNCH_API}"`
-   *     `"?validateOnly=false"`
-   *     `"&dynamicTemplate.gcsPath=${BUCKET_NAME}/path/to/image-spec"`
-   *     `"&dynamicTemplate.stagingLocation=${BUCKET_NAME}/staging" \
-   *     -d '
-   *      {
-   *       "jobName":"${JOB_NAME}",
-   *       "parameters": {
-   *           "bootstrapServers":"broker_1:9092,broker_2:9092",
-   *           "inputTopics":"topic1,topic2",
-   *           "outputTopic":"projects/${PROJECT}/topics/your-topic-name",
-   *           "secretStoreUrl":"http(s)://host:port/path/to/credentials",
-   *           "vaultToken":"your-token"
-   *        }
-   *       }
-   *      '
-   * </pre>
-   */
 
   /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(KafkaToPubsub.class);
@@ -145,19 +136,6 @@ public class KafkaToPubsub {
         PipelineOptionsFactory.fromArgs(args).withValidation().as(KafkaToPubsubOptions.class);
 
     run(options);
-  }
-
-  public static PTransform<PBegin, PCollection<KV<String, String>>> readFromKafka(
-      String bootstrapServers, List<String> topicsList, Map<String, Object> config) {
-    return KafkaIO.<String, String>read()
-        .withBootstrapServers(bootstrapServers)
-        .withTopics(topicsList)
-        .withKeyDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
-        .withValueDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
-        .withConsumerConfigUpdates(config)
-        .withoutMetadata();
   }
 
   /**
@@ -256,9 +234,10 @@ public class KafkaToPubsub {
      */
     pipeline
         .apply(
-            "ReadFromKafka", readFromKafka(options.getBootstrapServers(), topicsList, kafkaConfig))
-        .apply(Values.create())
-        .apply("Write PubSub Events", PubsubIO.writeStrings().to(options.getOutputTopic()));
+            "readFromKafka",
+            FormatTransform.readFromKafka(options.getBootstrapServers(), topicsList, kafkaConfig))
+        .apply("createValues", Values.create())
+        .apply("writeToPubSub", new FormatTransform.FormatOutput(options));
 
     return pipeline.run();
   }
