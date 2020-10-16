@@ -889,14 +889,15 @@ class WindmillStateInternals<K> implements StateInternals {
             getPendingAddRange(minTimestamp, limitTimestamp);
 
         // Transform the return iterator so it has the same type as pendingAdds. We need to ensure
-        // that the ids don't overlap with any in pendingAdds, so begin with pendingAdfds.size().
+        // that the ids don't overlap with any in pendingAdds, so begin with pendingAdds.size().
         Iterable<TimestampedValueWithId<T>> data =
             new Iterable<TimestampedValueWithId<T>>() {
-              private Iterator<TimestampedValue<T>> iter = future.get().iterator();
+              private Iterable<TimestampedValue<T>> iterable = future.get();
 
               @Override
               public Iterator<TimestampedValueWithId<T>> iterator() {
                 return new Iterator<TimestampedValueWithId<T>>() {
+                  private Iterator<TimestampedValue<T>> iter = iterable.iterator();
                   private long currentId = pendingAdds.size();
 
                   @Override
@@ -915,7 +916,6 @@ class WindmillStateInternals<K> implements StateInternals {
         Iterable<TimestampedValueWithId<T>> includingAdds =
             Iterables.mergeSorted(
                 ImmutableList.of(data, pendingInRange), TimestampedValueWithId.COMPARATOR);
-
         Iterable<TimestampedValue<T>> fullIterable =
             Iterables.filter(
                 Iterables.transform(includingAdds, TimestampedValueWithId::getValue),

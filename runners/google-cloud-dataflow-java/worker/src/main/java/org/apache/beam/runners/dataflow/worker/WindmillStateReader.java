@@ -444,7 +444,6 @@ class WindmillStateReader {
 
     Windmill.KeyedGetDataRequest request = createRequest(toFetch);
     Windmill.KeyedGetDataResponse response = server.getStateData(computation, request);
-
     if (response == null) {
       throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
     }

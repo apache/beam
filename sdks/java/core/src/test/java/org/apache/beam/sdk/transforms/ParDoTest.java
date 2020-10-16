@@ -2380,7 +2380,7 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
-    public void testOrderedListStateUnBounded() {
+    public void testOrderedListStateUnbounded() {
       testOrderedListStateImpl(true);
     }
 
