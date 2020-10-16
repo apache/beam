@@ -60,7 +60,7 @@ In order to create Uber JAR with Gradle, [Shadow plugin](https://github.com/john
 is used. It creates the `shadowJar` task that builds the Uber JAR:
 
 ```
-./gradlew -p templates/kafka-to-pubsub clean shadowJar
+./gradlew -p examples/templates/java/kafka-to-pubsub clean shadowJar
 ```
 
 ℹ️ An **Uber JAR** - also known as **fat JAR** - is a single JAR file that contains
@@ -125,12 +125,12 @@ on your project's [Container Registry](https://cloud.google.com/container-regist
 
 To execute the template you need to create the template spec file containing all
 the necessary information to run the job. This template already has the following [metadata
-file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
+file](examples/templates/java/kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
 
 Navigate to the template folder:
 
 ```
-cd /path/to/beam/templates/kafka-to-pubsub
+cd /path/to/beam/examples/templates/java/kafka-to-pubsub
 ```
 
 Build the Dataflow Flex Template:

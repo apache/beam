@@ -25,7 +25,7 @@ applyJavaNature(
         exportJavadoc: false,
         enableChecker: false,
         ignoreRawtypeErrors: true,
-        automaticModuleName: 'org.apache.beam.templates.kafka-to-pubsub')
+        automaticModuleName: 'org.apache.beam.examples.templates.kafka-to-pubsub')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
