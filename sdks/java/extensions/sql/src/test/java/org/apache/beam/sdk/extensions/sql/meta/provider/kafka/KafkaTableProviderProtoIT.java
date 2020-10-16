@@ -17,14 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class KafkaTableProviderProtoIT extends KafkaTableProviderIT {
@@ -33,7 +28,8 @@ public class KafkaTableProviderProtoIT extends KafkaTableProviderIT {
 
   @Override
   protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
-    return new ProducerRecord<>(kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
+    return new ProducerRecord<>(
+        kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
   }
 
   @Override

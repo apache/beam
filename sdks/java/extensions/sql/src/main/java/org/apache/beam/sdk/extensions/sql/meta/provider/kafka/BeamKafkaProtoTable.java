@@ -32,7 +32,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class BeamKafkaProtoTable<ProtoT extends Message> extends BeamKafkaTable {
   private final transient Class<ProtoT> protoClass;
 
-  public BeamKafkaProtoTable(String bootstrapServers, List<String> topics, Class<ProtoT> protoClass) {
+  public BeamKafkaProtoTable(
+      String bootstrapServers, List<String> topics, Class<ProtoT> protoClass) {
     super(inferSchemaFromProtoClass(protoClass), bootstrapServers, topics);
     this.protoClass = protoClass;
   }
