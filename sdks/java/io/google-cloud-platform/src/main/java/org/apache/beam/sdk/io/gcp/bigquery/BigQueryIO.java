@@ -2007,11 +2007,13 @@ public class BigQueryIO {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
-    /** 
-     * If an insert failure occurs, this function is applied to the originally supplied row T.
-     * The resulting {@link TableRow} will be accessed via {@link WriteResult#getFailedInsertsWithErr()}.
+    /**
+     * If an insert failure occurs, this function is applied to the originally supplied row T. The
+     * resulting {@link TableRow} will be accessed
+     * via {@link WriteResult#getFailedInsertsWithErr()}.
      */
-    public Write<T> withFormatRecordOnFailureFunction(SerializableFunction<T, TableRow> formatFunction) {
+    public Write<T> withFormatRecordOnFailureFunction(
+        SerializableFunction<T, TableRow> formatFunction) {
       return toBuilder().setFormatRecordOnFailureFunction(formatFunction).build();
     }
 
@@ -2534,7 +2536,8 @@ public class BigQueryIO {
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
       boolean optimizeWrites = getOptimizeWrites();
       SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
-      SerializableFunction<T, TableRow> formatRecordOnFailureFunction = getFormatRecordOnFailureFunction();
+      SerializableFunction<T, TableRow> formatRecordOnFailureFunction =
+          getFormatRecordOnFailureFunction();
       RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT> avroRowWriterFactory =
           (RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT>) getAvroRowWriterFactory();
 
@@ -2598,7 +2601,8 @@ public class BigQueryIO {
           }
           rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
-          rowWriterFactory = RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
+          rowWriterFactory =
+              RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
         } else {
           throw new IllegalArgumentException(
               "A function must be provided to convert the input type into a TableRow or "
@@ -2615,7 +2619,8 @@ public class BigQueryIO {
                 + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                 + "A format function is not required if Beam schemas are used.");
 
-        rowWriterFactory = RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
+        rowWriterFactory =
+            RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
       }
       PCollection<KV<DestinationT, T>> rowsWithDestination =
           input
