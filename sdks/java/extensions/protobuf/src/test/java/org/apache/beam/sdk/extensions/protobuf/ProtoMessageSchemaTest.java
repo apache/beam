@@ -72,6 +72,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -328,5 +329,16 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, WktMessage> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(WktMessage.class));
     assertEquals(WKT_MESSAGE_PROTO, fromRow.apply(WKT_MESSAGE_ROW));
+  }
+
+  @Test
+  public void testRowToBytesAndBytesToRowFn() {
+    SimpleFunction<Row, byte[]> rowToBytes =
+        ProtoMessageSchema.getRowToProtoBytesFn(WktMessage.class);
+    SimpleFunction<byte[], Row> bytesToRow =
+        ProtoMessageSchema.getProtoBytesToRowFn(WktMessage.class);
+    byte[] rowInProtoBytes = rowToBytes.apply(WKT_MESSAGE_ROW);
+    Row rowFromBytes = bytesToRow.apply(rowInProtoBytes);
+    assertEquals(WKT_MESSAGE_ROW, rowFromBytes);
   }
 }

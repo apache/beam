@@ -82,7 +82,7 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
         String protoClassName = properties.getString("protoClass");
         try {
           Class<?> protoClass = Class.forName(protoClassName);
-          return new BeamKafkaProtoTable(schema, bootstrapServers, topics, protoClass);
+          return new BeamKafkaProtoTable(bootstrapServers, topics, protoClass);
         } catch (ClassNotFoundException e) {
           throw new IllegalArgumentException("Incorrect proto class provided: " + protoClassName);
         }

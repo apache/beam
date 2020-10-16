@@ -18,18 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import com.google.protobuf.Message;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -38,15 +32,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class BeamKafkaProtoTable<ProtoT extends Message> extends BeamKafkaTable {
   private final transient Class<ProtoT> protoClass;
 
-  public BeamKafkaProtoTable(
-      Schema beamSchema, String bootstrapServers, List<String> topics, Class<ProtoT> protoClass) {
-    super(beamSchema, bootstrapServers, topics);
+  public BeamKafkaProtoTable(String bootstrapServers, List<String> topics, Class<ProtoT> protoClass) {
+    super(inferSchemaFromProtoClass(protoClass), bootstrapServers, topics);
     this.protoClass = protoClass;
-  }
-
-  @Override
-  protected BeamKafkaTable getTable() {
-    return this;
   }
 
   @Override
@@ -59,42 +47,34 @@ public class BeamKafkaProtoTable<ProtoT extends Message> extends BeamKafkaTable 
     return new ProtoRecorderEncoder<>(protoClass);
   }
 
+  private static <T extends Message> Schema inferSchemaFromProtoClass(Class<T> protoClass) {
+    return new ProtoMessageSchema().schemaFor(TypeDescriptor.of(protoClass));
+  }
+
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
   private static class ProtoRecorderDecoder<ProtoT extends Message>
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {
     private final Schema schema;
-    private final ProtoCoder<ProtoT> protoCoder;
-    private final SerializableFunction<ProtoT, Row> toRowFunction;
+    private final Class<ProtoT> clazz;
 
     ProtoRecorderDecoder(Schema schema, Class<ProtoT> clazz) {
       this.schema = schema;
-      this.protoCoder = ProtoCoder.of(clazz);
-      this.toRowFunction = new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(clazz));
+      this.clazz = clazz;
     }
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
       return input
+          .apply("decodeProtoRecord", MapElements.via(new KvToBytes()))
           .apply(
-              "decodeProtoRecord",
-              ParDo.of(
-                  new DoFn<KV<byte[], byte[]>, Row>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      Row decodedRow = decodeBytesToRow(c.element().getValue());
-                      c.output(decodedRow);
-                    }
-                  }))
+              "Map bytes to rows", MapElements.via(ProtoMessageSchema.getProtoBytesToRowFn(clazz)))
           .setRowSchema(schema);
     }
 
-    private Row decodeBytesToRow(byte[] bytes) {
-      try {
-        InputStream inputStream = new ByteArrayInputStream(bytes);
-        ProtoT message = protoCoder.decode(inputStream);
-        return toRowFunction.apply(message);
-      } catch (IOException e) {
-        throw new IllegalArgumentException("Could not decode row from proto payload.", e);
+    private static class KvToBytes extends SimpleFunction<KV<byte[], byte[]>, byte[]> {
+      @Override
+      public byte[] apply(KV<byte[], byte[]> kv) {
+        return kv.getValue();
       }
     }
   }
@@ -102,38 +82,25 @@ public class BeamKafkaProtoTable<ProtoT extends Message> extends BeamKafkaTable 
   /** A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}. */
   private static class ProtoRecorderEncoder<ProtoT extends Message>
       extends PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> {
-    private final SerializableFunction<Row, ProtoT> toProtoFunction;
-    private final ProtoCoder<ProtoT> protoCoder;
     private final Class<ProtoT> clazz;
 
     public ProtoRecorderEncoder(Class<ProtoT> clazz) {
-      this.protoCoder = ProtoCoder.of(clazz);
-      this.toProtoFunction = new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(clazz));
       this.clazz = clazz;
     }
 
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
-      return input.apply(
-          "encodeProtoRecord",
-          ParDo.of(
-              new DoFn<Row, KV<byte[], byte[]>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  Row row = c.element();
-                  c.output(KV.of(new byte[] {}, encodeRowToProtoBytes(row)));
-                }
-              }));
+      return input
+          .apply(
+              "Encode proto bytes to row",
+              MapElements.via(ProtoMessageSchema.getRowToProtoBytesFn(clazz)))
+          .apply("Bytes to KV", MapElements.via(new BytesToKV()));
     }
 
-    byte[] encodeRowToProtoBytes(Row row) {
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      try {
-        Message message = toProtoFunction.apply(row);
-        protoCoder.encode(clazz.cast(message), outputStream);
-        return outputStream.toByteArray();
-      } catch (IOException e) {
-        throw new RuntimeException(String.format("Could not encode row %s to proto.", row), e);
+    private static class BytesToKV extends SimpleFunction<byte[], KV<byte[], byte[]>> {
+      @Override
+      public KV<byte[], byte[]> apply(byte[] bytes) {
+        return KV.of(new byte[] {}, bytes);
       }
     }
   }

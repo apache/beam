@@ -21,6 +21,10 @@ import static org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.getPro
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +41,9 @@ import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -113,6 +120,61 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
       throw new RuntimeException("Cannot create creator for " + targetClass);
     }
     return creator;
+  }
+
+  public static <T extends Message> SimpleFunction<byte[], Row> getProtoBytesToRowFn(
+      Class<T> clazz) {
+    return new ProtoBytesToRowFn<>(clazz);
+  }
+
+  public static class ProtoBytesToRowFn<T extends Message> extends SimpleFunction<byte[], Row> {
+    private final ProtoCoder<T> protoCoder;
+    private final SerializableFunction<T, Row> toRowFunction;
+
+    public ProtoBytesToRowFn(Class<T> clazz) {
+      this.protoCoder = ProtoCoder.of(clazz);
+      this.toRowFunction = new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(clazz));
+    }
+
+    @Override
+    public Row apply(byte[] bytes) {
+      try {
+        InputStream inputStream = new ByteArrayInputStream(bytes);
+        T message = protoCoder.decode(inputStream);
+        return toRowFunction.apply(message);
+      } catch (IOException e) {
+        throw new IllegalArgumentException("Could not decode row from proto payload.", e);
+      }
+    }
+  }
+
+  public static <T extends Message> SimpleFunction<Row, byte[]> getRowToProtoBytesFn(
+      Class<T> clazz) {
+    return new RowToProtoBytesFn<>(clazz);
+  }
+
+  public static class RowToProtoBytesFn<T extends Message> extends SimpleFunction<Row, byte[]> {
+    private final ProtoCoder<T> protoCoder;
+    private final SerializableFunction<Row, T> toProtoFunction;
+    private final Class<T> clazz;
+
+    public RowToProtoBytesFn(Class<T> clazz) {
+      this.protoCoder = ProtoCoder.of(clazz);
+      this.toProtoFunction = new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(clazz));
+      this.clazz = clazz;
+    }
+
+    @Override
+    public byte[] apply(Row row) {
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      try {
+        Message message = toProtoFunction.apply(row);
+        protoCoder.encode(clazz.cast(message), outputStream);
+        return outputStream.toByteArray();
+      } catch (IOException e) {
+        throw new RuntimeException(String.format("Could not encode row %s to proto.", row), e);
+      }
+    }
   }
 
   private <T> void checkForDynamicType(TypeDescriptor<T> typeDescriptor) {
