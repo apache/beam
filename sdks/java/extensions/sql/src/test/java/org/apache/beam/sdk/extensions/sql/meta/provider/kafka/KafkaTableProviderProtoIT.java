@@ -22,27 +22,18 @@ import java.io.IOException;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class KafkaTableProviderProtoIT extends KafkaTableProviderIT {
-  private final SerializableFunction<Row, KafkaMessages.ItMessage> toMessageFn =
-      new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(KafkaMessages.ItMessage.class));
-  private final ProtoCoder<KafkaMessages.ItMessage> coder =
-      ProtoCoder.of(TypeDescriptor.of(KafkaMessages.ItMessage.class));
+  private final SimpleFunction<Row, byte[]> toBytesFn =
+      ProtoMessageSchema.getRowToProtoBytesFn(KafkaMessages.ItMessage.class);
 
-  @SuppressWarnings("unchecked")
   @Override
-  protected ProducerRecord<String, ?> generateProducerRecord(int i) {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    KafkaMessages.ItMessage kafkaMessage = toMessageFn.apply(generateRow(i));
-    try {
-      coder.encode(kafkaMessage, out);
-    } catch (IOException e) {
-      throw new RuntimeException("Couldn't encode proto from generated row", e);
-    }
-    return new ProducerRecord<>(kafkaOptions.getKafkaTopic(), "k" + i, out.toByteArray());
+  protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+    return new ProducerRecord<>(kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
   }
 
   @Override
@@ -51,14 +42,9 @@ public class KafkaTableProviderProtoIT extends KafkaTableProviderIT {
   }
 
   @Override
-  protected String getValueSerializer() {
-    return "org.apache.kafka.common.serialization.ByteArraySerializer";
-  }
-
-  @Override
   protected String getKafkaPropertiesString() {
     return "{ "
-        + (getPayloadFormat() == null ? "" : "\"payloadFormat\" : \"" + getPayloadFormat() + "\",")
+        + "\"format\" : \"proto\","
         + "\"bootstrap.servers\" : \""
         + kafkaOptions.getKafkaBootstrapServerAddress()
         + "\",\"topics\":[\""
