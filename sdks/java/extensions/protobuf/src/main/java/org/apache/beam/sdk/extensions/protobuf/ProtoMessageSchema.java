@@ -155,25 +155,40 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   public static class RowToProtoBytesFn<T extends Message> extends SimpleFunction<Row, byte[]> {
     private final ProtoCoder<T> protoCoder;
-    private final SerializableFunction<Row, T> toProtoFunction;
+    private final SerializableFunction<Row, T> toMessageFunction;
     private final Class<T> clazz;
+    private final Schema protoSchema;
 
     public RowToProtoBytesFn(Class<T> clazz) {
-      this.protoCoder = ProtoCoder.of(clazz);
-      this.toProtoFunction = new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(clazz));
+      ProtoMessageSchema messageSchema = new ProtoMessageSchema();
+      TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(clazz);
       this.clazz = clazz;
+      this.protoCoder = ProtoCoder.of(typeDescriptor);
+      this.toMessageFunction = messageSchema.fromRowFunction(typeDescriptor);
+      this.protoSchema = messageSchema.schemaFor(typeDescriptor);
     }
 
     @Override
     public byte[] apply(Row row) {
+      if (!protoSchema.assignableTo(row.getSchema())) {
+        row = switchFieldsOrder(row);
+      }
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
       try {
-        Message message = toProtoFunction.apply(row);
+        Message message = toMessageFunction.apply(row);
         protoCoder.encode(clazz.cast(message), outputStream);
         return outputStream.toByteArray();
       } catch (IOException e) {
         throw new RuntimeException(String.format("Could not encode row %s to proto.", row), e);
       }
+    }
+
+    private Row switchFieldsOrder(Row row) {
+      Row.Builder convertedRow = Row.withSchema(protoSchema);
+      protoSchema
+          .getFields()
+          .forEach(field -> convertedRow.addValue(row.getValue(field.getName())));
+      return convertedRow.build();
     }
   }
 

@@ -22,8 +22,12 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.Test;
 
 public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
   private final ProtoCoder<KafkaMessages.TestMessage> PROTO_CODER =
@@ -37,6 +41,27 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
           .addNullableField("f_string", Schema.FieldType.STRING)
           .addNullableField("f_float_array", Schema.FieldType.array(Schema.FieldType.FLOAT))
           .build();
+
+  private static final Schema SHUFFLED_SCHEMA =
+      Schema.builder()
+          .addNullableField("f_string", Schema.FieldType.STRING)
+          .addNullableField("f_int", Schema.FieldType.INT32)
+          .addNullableField("f_float_array", Schema.FieldType.array(Schema.FieldType.FLOAT))
+          .addNullableField("f_double", Schema.FieldType.DOUBLE)
+          .addNullableField("f_long", Schema.FieldType.INT64)
+          .build();
+
+  @Test
+  public void testWithShuffledSchema() {
+    BeamKafkaTable kafkaTable = getBeamKafkaTable();
+    PCollection<Row> result =
+        pipeline
+            .apply(Create.of(shuffledRow(1), shuffledRow(2)))
+            .apply(kafkaTable.getPTransformForOutput())
+            .apply(kafkaTable.getPTransformForInput());
+    PAssert.that(result).containsInAnyOrder(generateRow(1), generateRow(2));
+    pipeline.run();
+  }
 
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
@@ -68,5 +93,11 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
       throw new RuntimeException(e);
     }
     return out.toByteArray();
+  }
+
+  private Row shuffledRow(int i) {
+    List<Object> values =
+        ImmutableList.of("proto_value" + i, i, ImmutableList.of((float) i), (double) i, (long) i);
+    return Row.withSchema(SHUFFLED_SCHEMA).addValues(values).build();
   }
 }
