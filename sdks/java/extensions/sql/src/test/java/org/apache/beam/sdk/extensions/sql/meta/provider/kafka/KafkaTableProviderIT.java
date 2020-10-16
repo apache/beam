@@ -116,7 +116,7 @@ public abstract class KafkaTableProviderIT {
     Assert.assertTrue(rate2 > rate1);
   }
 
-  private String getKafkaPropertiesString() {
+  protected String getKafkaPropertiesString() {
     return "{ "
         + (getPayloadFormat() == null ? "" : "\"format\" : \"" + getPayloadFormat() + "\",")
         + "\"bootstrap.servers\" : \""

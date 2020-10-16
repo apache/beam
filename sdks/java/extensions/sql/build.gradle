@@ -28,6 +28,7 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'])
+applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"

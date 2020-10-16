@@ -38,7 +38,7 @@ public class KafkaTableProviderTest {
 
   @Test
   public void testBuildBeamSqlCSVTable() {
-    Table table = mockTable("hello", null);
+    Table table = mockTable("hello", null, null);
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -51,7 +51,7 @@ public class KafkaTableProviderTest {
 
   @Test
   public void testBuildBeamSqlAvroTable() {
-    Table table = mockTable("hello", "avro");
+    Table table = mockTable("hello", "avro", null);
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -63,11 +63,27 @@ public class KafkaTableProviderTest {
   }
 
   @Test
+  public void testBuildBeamSqlProtoTable() {
+    Table table = mockTable("hello", "proto", KafkaMessages.TestMessage.class.getName());
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof BeamKafkaProtoTable);
+
+    @SuppressWarnings("unchecked")
+    BeamKafkaProtoTable<KafkaMessages.TestMessage> csvTable =
+        (BeamKafkaProtoTable<KafkaMessages.TestMessage>) sqlTable;
+    assertEquals("localhost:9092", csvTable.getBootstrapServers());
+    assertEquals(ImmutableList.of("topic1", "topic2"), csvTable.getTopics());
+  }
+
+  @Test
   public void testGetTableType() {
     assertEquals("kafka", provider.getTableType());
   }
 
-  private static Table mockTable(String name, @Nullable String payloadFormat) {
+  private static Table mockTable(
+      String name, @Nullable String payloadFormat, @Nullable String protoClass) {
     JSONObject properties = new JSONObject();
     properties.put("bootstrap.servers", "localhost:9092");
     JSONArray topics = new JSONArray();
@@ -76,6 +92,9 @@ public class KafkaTableProviderTest {
     properties.put("topics", topics);
     if (payloadFormat != null) {
       properties.put("format", payloadFormat);
+    }
+    if (protoClass != null) {
+      properties.put("protoClass", protoClass);
     }
 
     return Table.builder()
