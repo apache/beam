@@ -1938,6 +1938,7 @@ class ReadFromBigQuery(PTransform):
       gcs_location_vp,  # type: Optional[ValueProvider]
       temp_location,  # type: Optional[str]
       unique_id,  # type: str
+      directory_only=False,  # type: bool
   ):
     """Returns the fully qualified Google Cloud Storage URI where the
     extracted table should be written.
@@ -1959,7 +1960,10 @@ class ReadFromBigQuery(PTransform):
           'gcs_location in the constructor nor the fallback option '
           '--temp_location is set.')
 
-    return FileSystems.join(gcs_base, unique_id, file_pattern)
+    if directory_only:
+      return FileSystems.join(gcs_base, unique_id)
+    else:
+      return FileSystems.join(gcs_base, unique_id, file_pattern)
 
   def expand(self, pcoll):
     class RemoveExportedFiles(beam.DoFn):
@@ -1970,12 +1974,8 @@ class ReadFromBigQuery(PTransform):
 
       def process(self, unused_element, signal):
         gcs_location = ReadFromBigQuery.get_destination_uri(
-            self._gcs_location_vp, self._temp_location, self._unique_id)
-        match_result = FileSystems.match([gcs_location])[0].metadata_list
-        _LOGGER.debug(
-            "%s: matched %s files", self.__class__.__name__, len(match_result))
-        paths = [x.path for x in match_result]
-        FileSystems.delete(paths)
+            self._gcs_location_vp, self._temp_location, self._unique_id, True)
+        FileSystems.delete([gcs_location + '/'])
 
     unique_id = str(uuid.uuid4())[0:10]
     temp_location = pcoll.pipeline.options.view_as(
