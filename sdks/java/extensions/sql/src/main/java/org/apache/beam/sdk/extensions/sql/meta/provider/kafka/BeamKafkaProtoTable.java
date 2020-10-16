@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import com.google.protobuf.Message;
 import java.util.List;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -29,46 +28,46 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-public class BeamKafkaProtoTable<ProtoT extends Message> extends BeamKafkaTable {
-  private final transient Class<ProtoT> protoClass;
+public class BeamKafkaProtoTable extends BeamKafkaTable {
+  private final transient Class<?> protoClass;
 
-  public BeamKafkaProtoTable(
-      String bootstrapServers, List<String> topics, Class<ProtoT> protoClass) {
+  public BeamKafkaProtoTable(String bootstrapServers, List<String> topics, Class<?> protoClass) {
     super(inferSchemaFromProtoClass(protoClass), bootstrapServers, topics);
     this.protoClass = protoClass;
   }
 
   @Override
   public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
-    return new ProtoRecorderDecoder<>(schema, protoClass);
+    return new ProtoRecorderDecoder(schema, protoClass);
   }
 
   @Override
   public PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> getPTransformForOutput() {
-    return new ProtoRecorderEncoder<>(protoClass);
+    return new ProtoRecorderEncoder(protoClass);
   }
 
-  private static <T extends Message> Schema inferSchemaFromProtoClass(Class<T> protoClass) {
+  private static Schema inferSchemaFromProtoClass(Class<?> protoClass) {
     return new ProtoMessageSchema().schemaFor(TypeDescriptor.of(protoClass));
   }
 
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
-  private static class ProtoRecorderDecoder<ProtoT extends Message>
+  private static class ProtoRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {
     private final Schema schema;
-    private final Class<ProtoT> clazz;
+    private final Class<?> clazz;
 
-    ProtoRecorderDecoder(Schema schema, Class<ProtoT> clazz) {
+    ProtoRecorderDecoder(Schema schema, Class<?> clazz) {
       this.schema = schema;
       this.clazz = clazz;
     }
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      SimpleFunction<byte[], Row> toRowFn = new ProtoMessageSchema.ProtoBytesToRowFn(clazz);
       return input
           .apply("decodeProtoRecord", MapElements.via(new KvToBytes()))
-          .apply(
-              "Map bytes to rows", MapElements.via(ProtoMessageSchema.getProtoBytesToRowFn(clazz)))
+          .apply("Map bytes to rows", MapElements.via(toRowFn))
           .setRowSchema(schema);
     }
 
@@ -81,20 +80,20 @@ public class BeamKafkaProtoTable<ProtoT extends Message> extends BeamKafkaTable 
   }
 
   /** A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}. */
-  private static class ProtoRecorderEncoder<ProtoT extends Message>
+  private static class ProtoRecorderEncoder
       extends PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> {
-    private final Class<ProtoT> clazz;
+    private final Class<?> clazz;
 
-    public ProtoRecorderEncoder(Class<ProtoT> clazz) {
+    public ProtoRecorderEncoder(Class<?> clazz) {
       this.clazz = clazz;
     }
 
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      SimpleFunction<Row, byte[]> toBytesFn = new ProtoMessageSchema.RowToProtoBytesFn(clazz);
       return input
-          .apply(
-              "Encode proto bytes to row",
-              MapElements.via(ProtoMessageSchema.getRowToProtoBytesFn(clazz)))
+          .apply("Encode proto bytes to row", MapElements.via(toBytesFn))
           .apply("Bytes to KV", MapElements.via(new BytesToKV()));
     }
 

@@ -30,7 +30,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 
 public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
-  private final ProtoCoder<KafkaMessages.TestMessage> PROTO_CODER =
+  private static final ProtoCoder<KafkaMessages.TestMessage> PROTO_CODER =
       ProtoCoder.of(KafkaMessages.TestMessage.class);
 
   private static final Schema TEST_SCHEMA =
@@ -65,7 +65,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
 
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaProtoTable<>("", ImmutableList.of(), KafkaMessages.TestMessage.class);
+    return new BeamKafkaProtoTable("", ImmutableList.of(), KafkaMessages.TestMessage.class);
   }
 
   @Override

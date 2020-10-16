@@ -54,7 +54,6 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
   }
 
   @Override
-  @SuppressWarnings("rawtypes")
   public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
 

@@ -70,9 +70,7 @@ public class KafkaTableProviderTest {
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof BeamKafkaProtoTable);
 
-    @SuppressWarnings("unchecked")
-    BeamKafkaProtoTable<KafkaMessages.TestMessage> csvTable =
-        (BeamKafkaProtoTable<KafkaMessages.TestMessage>) sqlTable;
+    BeamKafkaProtoTable csvTable = (BeamKafkaProtoTable) sqlTable;
     assertEquals("localhost:9092", csvTable.getBootstrapServers());
     assertEquals(ImmutableList.of("topic1", "topic2"), csvTable.getTopics());
   }
