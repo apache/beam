@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * A PullSubscriber translating from {@link com.google.cloud.pubsublite.SequencedMessage}
- * to {@link com.google.cloud.pubsublite.proto.SequencedMessage}.
+ * A PullSubscriber translating from {@link com.google.cloud.pubsublite.SequencedMessage}to {@link
+ * com.google.cloud.pubsublite.proto.SequencedMessage}.
  */
 class TranslatingPullSubscriber implements PullSubscriber<SequencedMessage> {
   private final PullSubscriber<com.google.cloud.pubsublite.SequencedMessage> underlying;
