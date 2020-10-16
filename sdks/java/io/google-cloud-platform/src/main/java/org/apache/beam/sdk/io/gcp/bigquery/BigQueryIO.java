@@ -2009,8 +2009,8 @@ public class BigQueryIO {
 
     /**
      * If an insert failure occurs, this function is applied to the originally supplied row T. The
-     * resulting {@link TableRow} will be accessed
-     * via {@link WriteResult#getFailedInsertsWithErr()}.
+     * resulting {@link TableRow} will be accessed via {@link
+     * WriteResult#getFailedInsertsWithErr()}.
      */
     public Write<T> withFormatRecordOnFailureFunction(
         SerializableFunction<T, TableRow> formatFunction) {
