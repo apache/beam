@@ -54,6 +54,7 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SHUFFLED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withFieldNumber;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withTypeName;
 import static org.junit.Assert.assertEquals;
@@ -333,12 +334,20 @@ public class ProtoMessageSchemaTest {
 
   @Test
   public void testRowToBytesAndBytesToRowFn() {
+    assertEquals(WKT_MESSAGE_ROW, convertRow(WKT_MESSAGE_ROW));
+  }
+
+  @Test
+  public void testRowToBytesAndBytesToRowFnWithShuffledFields() {
+    assertEquals(WKT_MESSAGE_ROW, convertRow(WKT_MESSAGE_SHUFFLED_ROW));
+  }
+
+  private Row convertRow(Row row) {
     SimpleFunction<Row, byte[]> rowToBytes =
         ProtoMessageSchema.getRowToProtoBytesFn(WktMessage.class);
     SimpleFunction<byte[], Row> bytesToRow =
         ProtoMessageSchema.getProtoBytesToRowFn(WktMessage.class);
-    byte[] rowInProtoBytes = rowToBytes.apply(WKT_MESSAGE_ROW);
-    Row rowFromBytes = bytesToRow.apply(rowInProtoBytes);
-    assertEquals(WKT_MESSAGE_ROW, rowFromBytes);
+    byte[] rowInProtoBytes = rowToBytes.apply(row);
+    return bytesToRow.apply(rowInProtoBytes);
   }
 }
