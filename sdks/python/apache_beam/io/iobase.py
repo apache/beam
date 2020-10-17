@@ -957,11 +957,11 @@ class Read(ptransform.PTransform):
       # Importing locally to prevent circular dependencies.
       from apache_beam.io.gcp.pubsub import _PubSubSource
       source = _PubSubSource(
-          topic=payload.topic,
-          subscription=payload.subscription,
-          id_label=payload.id_attribute,
+          topic=payload.topic or None,
+          subscription=payload.subscription or None,
+          id_label=payload.id_attribute or None,
           with_attributes=payload.with_attributes,
-          timestamp_attribute=payload.timestamp_attribute)
+          timestamp_attribute=payload.timestamp_attribute or None)
       return Read(source)
     else:
       return Read(SourceBase.from_runner_api(payload.source, context))
@@ -1050,10 +1050,10 @@ class Write(ptransform.PTransform):
     # Importing locally to prevent circular dependencies.
     from apache_beam.io.gcp.pubsub import _PubSubSink
     sink = _PubSubSink(
-        topic=payload.topic,
-        id_label=payload.id_attribute,
+        topic=payload.topic or None,
+        id_label=payload.id_attribute or None,
         with_attributes=payload.with_attributes,
-        timestamp_attribute=payload.timestamp_attribute)
+        timestamp_attribute=payload.timestamp_attribute or None)
     return Write(sink)
 
 
