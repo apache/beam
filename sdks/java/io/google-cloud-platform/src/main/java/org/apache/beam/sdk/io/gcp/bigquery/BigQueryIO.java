@@ -1723,6 +1723,8 @@ public class BigQueryIO {
 
     abstract @Nullable SerializableFunction<T, TableRow> getFormatFunction();
 
+    abstract @Nullable SerializableFunction<T, TableRow> getFormatRecordOnFailureFunction();
+
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
     abstract @Nullable SerializableFunction<TableSchema, org.apache.avro.Schema>
@@ -1797,6 +1799,9 @@ public class BigQueryIO {
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
 
       abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
+
+      abstract Builder<T> setFormatRecordOnFailureFunction(
+          SerializableFunction<T, TableRow> formatFunction);
 
       abstract Builder<T> setAvroRowWriterFactory(
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
@@ -2000,6 +2005,16 @@ public class BigQueryIO {
     /** Formats the user's type into a {@link TableRow} to be written to BigQuery. */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
+    }
+
+    /**
+     * If an insert failure occurs, this function is applied to the originally supplied row T. The
+     * resulting {@link TableRow} will be accessed via {@link
+     * WriteResult#getFailedInsertsWithErr()}.
+     */
+    public Write<T> withFormatRecordOnFailureFunction(
+        SerializableFunction<T, TableRow> formatFunction) {
+      return toBuilder().setFormatRecordOnFailureFunction(formatFunction).build();
     }
 
     /**
@@ -2521,6 +2536,8 @@ public class BigQueryIO {
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
       boolean optimizeWrites = getOptimizeWrites();
       SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
+      SerializableFunction<T, TableRow> formatRecordOnFailureFunction =
+          getFormatRecordOnFailureFunction();
       RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT> avroRowWriterFactory =
           (RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT>) getAvroRowWriterFactory();
 
@@ -2566,8 +2583,8 @@ public class BigQueryIO {
       }
 
       Method method = resolveMethod(input);
+      RowWriterFactory<T, DestinationT> rowWriterFactory;
       if (optimizeWrites) {
-        RowWriterFactory<T, DestinationT> rowWriterFactory;
         if (avroRowWriterFactory != null) {
           checkArgument(
               formatFunction == null,
@@ -2584,7 +2601,8 @@ public class BigQueryIO {
           }
           rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
-          rowWriterFactory = RowWriterFactory.tableRows(formatFunction);
+          rowWriterFactory =
+              RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
         } else {
           throw new IllegalArgumentException(
               "A function must be provided to convert the input type into a TableRow or "
@@ -2592,20 +2610,6 @@ public class BigQueryIO {
                   + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                   + "A format function is not required if Beam schemas are used.");
         }
-
-        PCollection<KV<DestinationT, T>> rowsWithDestination =
-            input
-                .apply(
-                    "PrepareWrite",
-                    new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
-                .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
-        return continueExpandTyped(
-            rowsWithDestination,
-            input.getCoder(),
-            destinationCoder,
-            dynamicDestinations,
-            rowWriterFactory,
-            method);
       } else {
         checkArgument(avroRowWriterFactory == null);
         checkArgument(
@@ -2615,22 +2619,22 @@ public class BigQueryIO {
                 + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                 + "A format function is not required if Beam schemas are used.");
 
-        PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
-            input
-                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, formatFunction))
-                .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
-
-        RowWriterFactory<TableRow, DestinationT> rowWriterFactory =
-            RowWriterFactory.tableRows(SerializableFunctions.identity());
-
-        return continueExpandTyped(
-            rowsWithDestination,
-            TableRowJsonCoder.of(),
-            destinationCoder,
-            dynamicDestinations,
-            rowWriterFactory,
-            method);
+        rowWriterFactory =
+            RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
       }
+      PCollection<KV<DestinationT, T>> rowsWithDestination =
+          input
+              .apply(
+                  "PrepareWrite",
+                  new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
+              .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
+      return continueExpandTyped(
+          rowsWithDestination,
+          input.getCoder(),
+          destinationCoder,
+          dynamicDestinations,
+          rowWriterFactory,
+          method);
     }
 
     private <DestinationT, ElementT> WriteResult continueExpandTyped(
@@ -2659,7 +2663,8 @@ public class BigQueryIO {
                     getCreateDisposition(),
                     dynamicDestinations,
                     elementCoder,
-                    tableRowWriterFactory.getToRowFn())
+                    tableRowWriterFactory.getToRowFn(),
+                    tableRowWriterFactory.getToFailsafeRowFn())
                 .withInsertRetryPolicy(retryPolicy)
                 .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())
