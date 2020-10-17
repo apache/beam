@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.util.Histogram;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -154,7 +155,7 @@ public interface BigQueryServices extends Serializable {
      */
     <T> long insertAll(
         TableReference ref,
-        List<ValueInSingleWindow<TableRow>> rowList,
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
