@@ -60,7 +60,6 @@ public class AggregatorsAccumulator {
           NamedAggregators namedAggregators = new NamedAggregators();
           NamedAggregatorsAccumulator accumulator =
               new NamedAggregatorsAccumulator(namedAggregators);
-          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
 
           if (maybeCheckpointDir.isPresent()) {
             Optional<NamedAggregators> maybeRecoveredValue =
@@ -69,6 +68,7 @@ public class AggregatorsAccumulator {
               accumulator = new NamedAggregatorsAccumulator(maybeRecoveredValue.get());
             }
           }
+          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
           instance = accumulator;
         }
       }

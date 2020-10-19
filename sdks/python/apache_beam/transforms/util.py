@@ -659,7 +659,8 @@ class ReshufflePerKey(PTransform):
         ]
     else:
 
-      def reify_timestamps(
+      # typing: All conditional function variants must have identical signatures
+      def reify_timestamps(  # type: ignore[misc]
           element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
         key, value = element
         # Transport the window as part of the value and restore it later.
@@ -708,12 +709,11 @@ class Reshuffle(PTransform):
       KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(KeyedT)  # type: ignore[misc]
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
+            32), t)).with_input_types(T).with_output_types(KeyedT)
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-            KeyedT).with_output_types(T)  # type: ignore[misc]
-    )
+        | 'RemoveRandomKeys' >>
+        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]

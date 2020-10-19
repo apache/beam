@@ -79,7 +79,6 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
-            'pandas.core.frame.DataFrame.axes': ['*'],
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
@@ -102,9 +101,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.combine_first': ['*'],
 
             # Difficult to parallelize but should be possible?
-            'pandas.core.frame.DataFrame.corr': ['*'],
-            'pandas.core.frame.DataFrame.cov': ['*'],
-            'pandas.core.frame.DataFrame.dot': ['*'],
+            'pandas.core.frame.DataFrame.dot': [
+                # reindex not supported
+                's2 = s.reindex([1, 0, 2, 3])',
+                'df.dot(s2)',
+            ],
 
             # element-wise
             'pandas.core.frame.DataFrame.eval': ['*'],
@@ -116,25 +117,31 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.rename': ['*'],
             'pandas.core.frame.DataFrame.apply': ['*'],
 
-            # Zipping operation if input is a DeferredSeries
-            'pandas.core.frame.DataFrame.assign': ['*'],
-
             # In theory this is possible for bounded inputs?
             'pandas.core.frame.DataFrame.append': ['*'],
         },
         skip={
+            'pandas.core.frame.DataFrame.axes': [
+                # Returns deferred index.
+                'df.axes',
+            ],
             'pandas.core.frame.DataFrame.compare': ['*'],
+            'pandas.core.frame.DataFrame.cov': [
+                # Relies on setting entries ahead of time.
+                "df.loc[df.index[:5], 'a'] = np.nan",
+                "df.loc[df.index[5:10], 'b'] = np.nan",
+                'df.cov(min_periods=12)',
+            ],
             'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
             'pandas.core.frame.DataFrame.duplicated': ['*'],
-            'pandas.core.frame.DataFrame.groupby': [
-                'df.groupby(level=0).mean()',
-                'df.groupby(level="Type").mean()',
-                'df.groupby(by=["b"], dropna=False).sum()',
-                'df.groupby(by="a", dropna=False).sum()'
-            ],
             'pandas.core.frame.DataFrame.idxmax': ['*'],
             'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.pop': ['*'],
+            'pandas.core.frame.DataFrame.rename': [
+                # Returns deferred index.
+                'df.index',
+                'df.rename(index=str).index',
+            ],
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
@@ -161,8 +168,6 @@ class DoctestTest(unittest.TestCase):
                 "          ignore_index=True)"
             ],
             'pandas.core.frame.DataFrame.eval': ['df'],
-            # No override for __matmul__ and friends
-            'pandas.core.frame.DataFrame.dot': ['df @ other'],
             'pandas.core.frame.DataFrame.melt': [
                 "df.columns = [list('ABC'), list('DEF')]", "df"
             ],
@@ -210,6 +215,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.cumsum': ['*'],
             'pandas.core.series.Series.cumprod': ['*'],
             'pandas.core.series.Series.diff': ['*'],
+            'pandas.core.series.Series.dot': [
+                's.dot(arr)',  # non-deferred result
+            ],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -234,6 +242,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.view': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.series.Series.groupby': [
+                'ser.groupby(["a", "b", "a", "b"]).mean()',
+                'ser.groupby(["a", "b", "a", np.nan]).mean()',
+                'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
+            ],
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
@@ -245,15 +258,15 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
-            'pandas.core.series.Series.corr': ['*'],
             'pandas.core.series.Series.count': ['*'],
-            'pandas.core.series.Series.cov': ['*'],
-            'pandas.core.series.Series.dot': ['*'],
+            'pandas.core.series.Series.cov': [
+                # Differs in LSB on jenkins.
+                "s1.cov(s2)",
+            ],
             'pandas.core.series.Series.drop': ['*'],
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
-            'pandas.core.series.Series.groupby': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.name': ['*'],
@@ -285,36 +298,28 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.strings,
         use_beam=False,
-        skip={
-            'pandas.core.strings.StringMethods.cat': ['*'],
-            'pandas.core.strings.StringMethods.repeat': ['*'],
-            'pandas.core.strings.str_repeat': ['*'],
-
-            # The rest of the skipped tests represent bad test strings,
-            # fixed upstream in
-            # https://github.com/pandas-dev/pandas/commit/d095ac899da953d759992824592a72a1e6ff5e09
-            'pandas.core.strings.StringMethods': [
-                "s.str.split('_')", "s.str.replace('_', '')"
+        wont_implement_ok={
+            # These methods can accept deferred series objects, but not lists
+            'pandas.core.strings.StringMethods.cat': [
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',')",
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',', na_rep='-')",
+                "s.str.cat(['A', 'B', 'C', 'D'], na_rep='-')"
             ],
-            'pandas.core.strings.str_split': ["s.str.split(expand=True)"],
+            'pandas.core.strings.StringMethods.repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
+            'pandas.core.strings.str_repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
+        },
+        skip={
+            # Bad test strings
             'pandas.core.strings.str_replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
             'pandas.core.strings.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
-            'pandas.core.strings.StringMethods.partition': [
-                'idx.str.partition()'
-            ],
-            'pandas.core.strings.StringMethods.rpartition': [
-                'idx.str.partition()'
-            ],
-            # rsplit/split are particularly troublesome because the first test,
-            # defining a test series, is bad and must be skipped. But skipping
-            # it breaks every other test. To run the rest we would need to
-            # execute the first test but ignore the output.
-            'pandas.core.strings.StringMethods.rsplit': ["*"],
-            'pandas.core.strings.StringMethods.split': ["*"],
         })
     self.assertEqual(result.failed, 0)
 

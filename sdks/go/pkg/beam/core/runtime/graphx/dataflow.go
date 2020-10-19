@@ -64,12 +64,12 @@ func WrapIterable(c *CoderRef) *CoderRef {
 }
 
 // WrapWindowed adds a windowed coder for Dataflow collections.
-func WrapWindowed(c *CoderRef, wc *coder.WindowCoder) *CoderRef {
+func WrapWindowed(c *CoderRef, wc *coder.WindowCoder) (*CoderRef, error) {
 	w, err := encodeWindowCoder(wc)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &CoderRef{Type: windowedValueType, Components: []*CoderRef{c, w}, IsWrapper: true}
+	return &CoderRef{Type: windowedValueType, Components: []*CoderRef{c, w}, IsWrapper: true}, nil
 }
 
 // EncodeCoderRefs returns the encoded forms understood by the runner.

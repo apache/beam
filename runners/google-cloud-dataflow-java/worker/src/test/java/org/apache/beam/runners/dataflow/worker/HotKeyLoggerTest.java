@@ -17,31 +17,26 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.client.util.Clock;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({HotKeyLoggerTest.class, LoggerFactory.class})
 public class HotKeyLoggerTest {
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(HotKeyLogger.class);
+
   private FixedClock clock;
 
   @Before
@@ -50,18 +45,42 @@ public class HotKeyLoggerTest {
   }
 
   @Test
-  public void correctHotKeyMessage() {
+  public void correctHotKeyMessageWithoutKey() {
     HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
 
-    assertFalse(hotKeyLogger.isThrottled());
-    String m = hotKeyLogger.getHotKeyMessage("TEST_STEP_ID", "1s");
+    hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardSeconds(1));
     assertTrue(hotKeyLogger.isThrottled());
 
-    assertEquals(
+    expectedLogs.verifyWarn(
         "A hot key was detected in step 'TEST_STEP_ID' with age of '1s'. This is a "
             + "symptom of key distribution being skewed. To fix, please inspect your data and "
-            + "pipeline to ensure that elements are evenly distributed across your key space.",
-        m);
+            + "pipeline to ensure that elements are evenly distributed across your key space.");
+  }
+
+  @Test
+  public void correctHotKeyMessageWithKey() {
+    HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
+
+    hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardSeconds(1), "my key");
+    assertTrue(hotKeyLogger.isThrottled());
+
+    expectedLogs.verifyWarn(
+        "A hot key 'my key' was detected in step 'TEST_STEP_ID' with age of '1s'. This is a "
+            + "symptom of key distribution being skewed. To fix, please inspect your data and "
+            + "pipeline to ensure that elements are evenly distributed across your key space.");
+  }
+
+  @Test
+  public void correctHotKeyMessageWithNullKey() {
+    HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
+
+    hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardSeconds(1), null);
+    assertTrue(hotKeyLogger.isThrottled());
+
+    expectedLogs.verifyWarn(
+        "A hot key 'null' was detected in step 'TEST_STEP_ID' with age of '1s'. This is a "
+            + "symptom of key distribution being skewed. To fix, please inspect your data and "
+            + "pipeline to ensure that elements are evenly distributed across your key space.");
   }
 
   @Test
@@ -82,23 +101,5 @@ public class HotKeyLoggerTest {
     clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
     assertFalse(hotKeyLogger.isThrottled());
     assertTrue(hotKeyLogger.isThrottled());
-  }
-
-  @Test
-  public void logsHotKeyMessage() {
-    mockStatic(LoggerFactory.class);
-    Logger logger = mock(Logger.class);
-    when(LoggerFactory.getLogger(any(Class.class))).thenReturn(logger);
-
-    HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
-
-    // Logs because not throttled.
-    hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardHours(1));
-
-    // Does not log because throttled.
-    hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardHours(1));
-
-    // Only logs once because of throttling.
-    verify(logger, Mockito.times(1)).warn(anyString());
   }
 }

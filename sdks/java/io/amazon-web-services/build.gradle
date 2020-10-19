@@ -48,10 +48,12 @@ dependencies {
   compile "joda-time:joda-time:2.10.5"
   compile "org.apache.httpcomponents:httpcore:4.4.11"
   runtime library.java.commons_codec
-  runtime "org.apache.httpcomponents:httpclient:4.5.6"
+  runtime "org.apache.httpcomponents:httpclient:4.5.12"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile "io.findify:s3mock_2.12:0.2.4"
+  testCompile "io.findify:s3mock_2.12:0.2.6"
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.testcontainers_localstack

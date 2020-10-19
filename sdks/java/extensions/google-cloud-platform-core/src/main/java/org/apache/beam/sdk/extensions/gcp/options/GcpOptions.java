@@ -295,7 +295,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     private static final FluentBackoff BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
     static final String DEFAULT_REGION = "us-central1";
-    static final Logger LOG = LoggerFactory.getLogger(GcpTempLocationFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GcpTempLocationFactory.class);
 
     @Override
     public @Nullable String create(PipelineOptions options) {

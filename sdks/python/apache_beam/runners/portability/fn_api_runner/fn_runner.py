@@ -793,12 +793,15 @@ class BundleManager(object):
         split_response = self._worker_handler.control_conn.push(
             split_request).get()  # type: beam_fn_api_pb2.InstructionResponse
         for t in (0.05, 0.1, 0.2):
-          waiting = ('Instruction not running', 'not yet scheduled')
-          if any(msg in split_response.error for msg in waiting):
+          if ('Unknown process bundle' in split_response.error or
+              split_response.process_bundle_split ==
+              beam_fn_api_pb2.ProcessBundleSplitResponse()):
             time.sleep(t)
             split_response = self._worker_handler.control_conn.push(
                 split_request).get()
-        if 'Unknown process bundle' in split_response.error:
+        if ('Unknown process bundle' in split_response.error or
+            split_response.process_bundle_split ==
+            beam_fn_api_pb2.ProcessBundleSplitResponse()):
           # It may have finished too fast.
           split_result = None
         elif split_response.error:
@@ -894,7 +897,10 @@ class BundleManager(object):
       finalize_request = beam_fn_api_pb2.InstructionRequest(
           finalize_bundle=beam_fn_api_pb2.FinalizeBundleRequest(
               instruction_id=process_bundle_id))
-      self._worker_handler.control_conn.push(finalize_request)
+      finalize_response = self._worker_handler.control_conn.push(
+          finalize_request).get()
+      if finalize_response.error:
+        raise RuntimeError(finalize_response.error)
 
     return result, split_results
 

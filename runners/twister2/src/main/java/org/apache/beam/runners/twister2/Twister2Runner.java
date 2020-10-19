@@ -99,7 +99,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     Twister2PipelineExecutionEnvironment env = new Twister2PipelineExecutionEnvironment(options);
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
-    SplittableParDo.validateNoPrimitiveReads(pipeline);
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     env.translate(pipeline);
     setupSystem(options);
 
@@ -155,7 +155,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     Twister2PipelineExecutionEnvironment env = new Twister2PipelineExecutionEnvironment(options);
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
-    SplittableParDo.validateNoPrimitiveReads(pipeline);
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     env.translate(pipeline);
     setupSystemTest(options);
     Map configMap = new HashMap();

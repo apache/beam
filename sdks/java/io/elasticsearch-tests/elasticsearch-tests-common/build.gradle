@@ -27,7 +27,7 @@ ext.summary = "Common test classes for ElasticsearchIO"
 
 def jna_version = "4.1.0"
 def log4j_version = "2.11.1"
-def elastic_search_version = "7.5.0"
+def elastic_search_version = "7.9.2"
 
 configurations.all {
   resolutionStrategy {

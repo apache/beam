@@ -379,7 +379,7 @@ public final class SnsIO {
             if (spec.getRetryConfiguration() == null
                 || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
               SNS_WRITE_FAILURES.inc();
-              LOG.info("Unable to publish message {} due to {} ", request.message(), ex);
+              LOG.info("Unable to publish message {}.", request.message(), ex);
               throw new IOException("Error writing to SNS (no attempt made to retry)", ex);
             }
 

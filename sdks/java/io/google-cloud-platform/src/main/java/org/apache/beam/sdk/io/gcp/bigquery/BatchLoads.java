@@ -80,7 +80,7 @@ import org.slf4j.LoggerFactory;
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
 
   // The maximum number of file writers to keep open in a single bundle at a time, since file
   // writers default to 64mb buffers. This comes into play when writing dynamic table destinations.

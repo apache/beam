@@ -22,10 +22,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -141,10 +141,18 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           transformString = replaceFnString(transformClass, transformString, "windowFn");
         } else if (transformString.contains("<source>")) {
           String sourceName = "...";
-          if (transform instanceof Read.Bounded) {
-            sourceName = ((Read.Bounded<?>) transform).getSource().getClass().getName();
-          } else if (transform instanceof Read.Unbounded) {
-            sourceName = ((Read.Unbounded<?>) transform).getSource().getClass().getName();
+          if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
+            sourceName =
+                ((SplittableParDo.PrimitiveBoundedRead<?>) transform)
+                    .getSource()
+                    .getClass()
+                    .getName();
+          } else if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
+            sourceName =
+                ((SplittableParDo.PrimitiveUnboundedRead<?>) transform)
+                    .getSource()
+                    .getClass()
+                    .getName();
           }
           transformString = transformString.replace("<source>", sourceName);
         }

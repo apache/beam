@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.elasticsearch')
+applyJavaNature(enableChecker:false, automaticModuleName: 'org.apache.beam.sdk.io.elasticsearch')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
 ext.summary = "IO to read and write on Elasticsearch"
@@ -26,7 +26,6 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.jackson_databind
-  compile "org.elasticsearch.client:elasticsearch-rest-client:7.5.0"
   compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
   compile "com.google.code.findbugs:jsr305:3.0.2"
   compile "joda-time:joda-time:2.10.5"
@@ -35,5 +34,6 @@ dependencies {
   compile "org.apache.httpcomponents:httpcore-nio:4.4.12"
   compile "org.apache.httpcomponents:httpcore:4.4.12"
   compile "org.slf4j:slf4j-api:1.7.30"
+  compile "org.elasticsearch.client:elasticsearch-rest-client:7.9.2"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
 }
