@@ -2002,7 +2002,10 @@ class CombineGlobally(PTransform):
           return transform.with_output_types(combined.element_type)
         return transform
 
-      def inject_default(_, combined, args=self.args, kwargs=self.kwargs):
+      # Capture in closure (avoiding capturing self).
+      args, kwargs = self.args, self.kwargs
+
+      def inject_default(_, combined):
         if combined:
           assert len(combined) == 1
           return combined[0]
