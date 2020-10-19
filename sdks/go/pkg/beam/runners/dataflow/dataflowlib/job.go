@@ -51,6 +51,8 @@ type JobOptions struct {
 	MachineType         string
 	Labels              map[string]string
 	ServiceAccountEmail string
+	WorkerRegion        string
+	WorkerZone          string
 
 	// Autoscaling settings
 	Algorithm     string
@@ -69,7 +71,7 @@ type JobOptions struct {
 }
 
 // Translate translates a pipeline to a Dataflow job.
-func Translate(p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
+func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
 	steps, err := translate(p)
@@ -111,6 +113,10 @@ func Translate(p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL
 		ipConfiguration = "WORKER_IP_PRIVATE"
 	}
 
+	if err := validateWorkerSettings(ctx, opts); err != nil {
+		return nil, err
+	}
+
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -148,6 +154,8 @@ func Translate(p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL
 				Subnetwork:                  opts.Subnetwork,
 				Zone:                        opts.Zone,
 			}},
+			WorkerRegion:      opts.WorkerRegion,
+			WorkerZone:        opts.WorkerZone,
 			TempStoragePrefix: opts.TempLocation,
 			Experiments:       experiments,
 		},
@@ -251,6 +259,8 @@ func printOptions(opts *JobOptions, images []string) []*displayData {
 	addIfNonEmpty("project", opts.Project)
 	addIfNonEmpty("region", opts.Region)
 	addIfNonEmpty("zone", opts.Zone)
+	addIfNonEmpty("worker_region", opts.WorkerRegion)
+	addIfNonEmpty("worker_zone", opts.WorkerZone)
 	addIfNonEmpty("network", opts.Network)
 	addIfNonEmpty("subnetwork", opts.Subnetwork)
 	addIfNonEmpty("machine_type", opts.MachineType)
@@ -261,4 +271,41 @@ func printOptions(opts *JobOptions, images []string) []*displayData {
 		ret = append(ret, newDisplayData(k, "", "go_options", v))
 	}
 	return ret
+}
+
+func validateWorkerSettings(ctx context.Context, opts *JobOptions) error {
+	if opts.Zone != "" && opts.WorkerRegion != "" {
+		return errors.New("cannot use option zone with workerRegion; prefer either workerZone or workerRegion")
+	}
+	if opts.Zone != "" && opts.WorkerZone != "" {
+		return errors.New("cannot use option zone with workerZone; prefer workerZone")
+	}
+	if opts.WorkerZone != "" && opts.WorkerRegion != "" {
+		return errors.New("workerRegion and workerZone options are mutually exclusive")
+	}
+
+	hasExperimentWorkerRegion := false
+	for _, experiment := range opts.Experiments {
+		if strings.HasPrefix(experiment, "worker_region") {
+			hasExperimentWorkerRegion = true
+			break
+		}
+	}
+
+	if hasExperimentWorkerRegion && opts.WorkerRegion != "" {
+		return errors.New("experiment worker_region and option workerRegion are mutually exclusive")
+	}
+	if hasExperimentWorkerRegion && opts.WorkerZone != "" {
+		return errors.New("experiment worker_region and option workerZone are mutually exclusive")
+	}
+	if hasExperimentWorkerRegion && opts.Zone != "" {
+		return errors.New("experiment worker_region and option Zone are mutually exclusive")
+	}
+
+	if opts.Zone != "" {
+		log.Warn(ctx, "Option --zone is deprecated. Please use --workerZone instead.")
+		opts.WorkerZone = opts.Zone
+		opts.Zone = ""
+	}
+	return nil
 }

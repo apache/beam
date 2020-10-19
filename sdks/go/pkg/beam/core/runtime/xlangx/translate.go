@@ -36,7 +36,10 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 			p.Requirements = append(p.Requirements, exp.Requirements...)
 
 			// Adding components of the Expanded Transforms to the current Pipeline
-			components := graphx.ExpandedComponents(exp)
+			components, err := graphx.ExpandedComponents(exp)
+			if err != nil {
+				panic(err)
+			}
 			for k, v := range components.GetTransforms() {
 				p.Components.Transforms[k] = v
 			}
@@ -60,8 +63,11 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 				p.Components.Environments[k] = v
 			}
 
-			p.Components.Transforms[id] = graphx.ExpandedTransform(exp)
-
+			transform, err := graphx.ExpandedTransform(exp)
+			if err != nil {
+				panic(err)
+			}
+			p.Components.Transforms[id] = transform
 		}
 	}
 }
@@ -79,7 +85,11 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 			for tag, n := range graphx.ExternalOutputs(e) {
 				nodeID := fmt.Sprintf("n%v", n.ID())
 
-				expandedOutputs := graphx.ExpandedTransform(e.External.Expanded).GetOutputs()
+				transform, err := graphx.ExpandedTransform(e.External.Expanded)
+				if err != nil {
+					panic(err)
+				}
+				expandedOutputs := transform.GetOutputs()
 				var pcolID string
 				if tag == graph.SinkOutputTag {
 					for _, pcolID = range expandedOutputs {
@@ -109,7 +119,11 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 
 // VerifyNamedOutputs ensures the expanded outputs correspond to the correct and expected named outputs
 func VerifyNamedOutputs(ext *graph.ExternalTransform) {
-	expandedOutputs := graphx.ExpandedTransform(ext.Expanded).GetOutputs()
+	transform, err := graphx.ExpandedTransform(ext.Expanded)
+	if err != nil {
+		panic(err)
+	}
+	expandedOutputs := transform.GetOutputs()
 
 	if len(expandedOutputs) != len(ext.OutputsMap) {
 		panic(errors.Errorf("mismatched number of named outputs:\nreceived - %v\nexpected - %v", len(expandedOutputs), len(ext.OutputsMap)))
@@ -131,8 +145,16 @@ func VerifyNamedOutputs(ext *graph.ExternalTransform) {
 func ResolveOutputIsBounded(e *graph.MultiEdge, isBoundedUpdater func(*graph.Node, bool)) {
 	ext := e.External
 	exp := ext.Expanded
-	expandedPCollections := graphx.ExpandedComponents(exp).GetPcollections()
-	expandedOutputs := graphx.ExpandedTransform(exp).GetOutputs()
+	components, err := graphx.ExpandedComponents(exp)
+	if err != nil {
+		panic(err)
+	}
+	expandedPCollections := components.GetPcollections()
+	transform, err := graphx.ExpandedTransform(exp)
+	if err != nil {
+		panic(err)
+	}
+	expandedOutputs := transform.GetOutputs()
 
 	for tag, node := range graphx.ExternalOutputs(e) {
 		var id string

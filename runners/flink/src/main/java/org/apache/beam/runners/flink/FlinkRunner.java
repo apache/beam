@@ -71,7 +71,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    SplittableParDo.validateNoPrimitiveReads(pipeline);
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
 
     MetricsEnvironment.setMetricsSupported(true);

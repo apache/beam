@@ -46,7 +46,7 @@ builder.build {
     gradle {
       rootBuildScriptDir(properties.checkoutDir)
       tasks 'javaExamplesDataflowPreCommit'
-      switches '-Pdockerfile=Dockerfile-java11'
+      switches '-PimageJavaVersion=11'
       switches '-PdisableSpotlessCheck=true'
       switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
       switches '-PcompileAndRunTestsWithJava11'

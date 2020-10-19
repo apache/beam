@@ -49,6 +49,8 @@ class MetricName(object):
   between multiple metrics of the same name.
   """
   def __init__(self, namespace, name):
+    # type: (str, str) -> None
+
     """Initializes ``MetricName``.
 
     Args:
@@ -78,7 +80,9 @@ class MetricName(object):
 
 class Metric(object):
   """Base interface of a metric object."""
-  pass
+  def __init__(self, metric_name):
+    # type: (MetricName) -> None
+    self.metric_name = metric_name
 
 
 class Counter(Metric):

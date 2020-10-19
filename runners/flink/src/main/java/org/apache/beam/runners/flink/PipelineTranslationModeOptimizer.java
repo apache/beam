@@ -63,7 +63,7 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
     AppliedPTransform<?, ?, ?> appliedPTransform = node.toAppliedPTransform(getPipeline());
     if (hasUnboundedOutput(appliedPTransform)) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
-      LOG.debug("Found unbounded PCollection for transform %s", transformClass);
+      LOG.debug("Found unbounded PCollection for transform {}", transformClass);
       hasUnboundedCollections = true;
     }
   }

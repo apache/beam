@@ -47,7 +47,8 @@ import org.slf4j.LoggerFactory;
 class UserDistributionMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(UserDistributionMonitoringInfoToCounterUpdateTransformer.class);
 
   private final Map<String, DataflowStepContext> transformIdMapping;
 

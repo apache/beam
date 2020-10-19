@@ -63,6 +63,7 @@ import com.google.api.services.dataflow.model.Step;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -71,6 +72,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -414,6 +416,11 @@ public class WorkerCustomSourcesTest {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline p = Pipeline.create(options);
     p.begin().apply(Read.from(io));
+
+    // Note that we specifically perform this replacement since this is what the DataflowRunner
+    // does and the DataflowRunner class does not expose a way to perform these replacements
+    // without running the pipeline.
+    p.replaceAll(Collections.singletonList(SplittableParDo.PRIMITIVE_BOUNDED_READ_OVERRIDE));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     SdkComponents sdkComponents = SdkComponents.create();

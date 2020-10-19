@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -486,14 +487,23 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     for (W window : windowsToCleanup) {
       // The stepContext is the thing that know if it is batch or streaming, hence
       // whether state needs to be cleaned up or will simply be discarded so the
-      // timer can be ignored
-
+      // timer can be ignored.
       Instant cleanupTime = earliestAllowableCleanupTime(window, windowingStrategy);
-      // if DoFn has OnWindowExpiration then set holds for system timer.
-      Instant cleanupOutputTimestamp =
-          fnSignature.onWindowExpiration() == null ? cleanupTime : cleanupTime.minus(1L);
-      stepContext.setStateCleanupTimer(
-          CLEANUP_TIMER_ID, window, windowCoder, cleanupTime, cleanupOutputTimestamp);
+      // Set a cleanup timer for state at the end of the window to trigger onWindowExpiration and
+      // garbage collect state. We avoid doing this for the global window if there is no window
+      // expiration set as the state will be up when the pipeline terminates. Setting the timer
+      // leads to a unbounded growth of timers for pipelines with many unique keys in the global
+      // window.
+      if (cleanupTime.isBefore(GlobalWindow.INSTANCE.maxTimestamp())
+          || fnSignature.onWindowExpiration() != null) {
+        // If the DoFn has OnWindowExpiration, then set the watermark hold so that the watermark
+        // does
+        // not advance until OnWindowExpiration completes.
+        Instant cleanupOutputTimestamp =
+            fnSignature.onWindowExpiration() == null ? cleanupTime : cleanupTime.minus(1L);
+        stepContext.setStateCleanupTimer(
+            CLEANUP_TIMER_ID, window, windowCoder, cleanupTime, cleanupOutputTimestamp);
+      }
     }
   }
 

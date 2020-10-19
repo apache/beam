@@ -34,11 +34,12 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
-import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -95,7 +96,7 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean enableStrictDependencies = false
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
-    String archivesBaseName = null;
+    String archivesBaseName = null
 
     /**
      * List of additional lint warnings to disable.
@@ -130,7 +131,7 @@ class BeamModulePlugin implements Plugin<Project> {
      *
      * The shadowJar / shadowTestJar tasks execute the specified closure to configure themselves.
      */
-    Closure shadowClosure;
+    Closure shadowClosure
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
@@ -149,7 +150,7 @@ class BeamModulePlugin implements Plugin<Project> {
     /**
      * The set of additional maven repositories that should be added into published POM file.
      */
-    List<Map> mavenRepositories = [];
+    List<Map> mavenRepositories = []
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -163,7 +164,7 @@ class BeamModulePlugin implements Plugin<Project> {
     List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
-    String archivesBaseName = null;
+    String archivesBaseName = null
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
@@ -384,9 +385,10 @@ class BeamModulePlugin implements Plugin<Project> {
     // These versions are defined here because they represent
     // a dependency version which should match across multiple
     // Maven artifacts.
+    def activemq_version = "5.14.5"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
-    def cassandra_driver_version = "3.8.0"
+    def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
     def gax_version = "1.57.1"
@@ -395,7 +397,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.5"
     def google_cloud_core_version = "1.93.7"
-    def google_cloud_pubsublite_version = "0.1.6"
+    def google_cloud_pubsublite_version = "0.4.1"
     def google_cloud_spanner_version = "1.59.0"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_code_gson_version = "2.8.6"
@@ -411,16 +413,15 @@ class BeamModulePlugin implements Plugin<Project> {
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
-    def postgres_version = "42.2.2"
+    def postgres_version = "42.2.16"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
-    def spark_version = "2.4.6"
+    def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
-    def testcontainers_kafka_version = "1.14.3"
-    def testcontainers_localstack_version = "1.14.3"
+    def testcontainers_version = "1.15.0-rc2"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -428,13 +429,13 @@ class BeamModulePlugin implements Plugin<Project> {
     // }
     project.ext.library = [
       java : [
-        activemq_amqp                               : "org.apache.activemq:activemq-amqp:5.13.1",
-        activemq_broker                             : "org.apache.activemq:activemq-broker:5.13.1",
-        activemq_client                             : "org.apache.activemq:activemq-client:5.13.1",
-        activemq_jaas                               : "org.apache.activemq:activemq-jaas:5.13.1",
-        activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:5.13.1",
-        activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:5.13.1",
-        activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:5.13.1",
+        activemq_amqp                               : "org.apache.activemq:activemq-amqp:$activemq_version",
+        activemq_broker                             : "org.apache.activemq:activemq-broker:$activemq_version",
+        activemq_client                             : "org.apache.activemq:activemq-client:$activemq_version",
+        activemq_jaas                               : "org.apache.activemq:activemq-jaas:$activemq_version",
+        activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
+        activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
+        activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
         antlr                                       : "org.antlr:antlr4:4.7",
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
@@ -570,9 +571,11 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
-        stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
-        testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_localstack_version",
-        testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_kafka_version",
+        stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
+        testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
+        testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
+        testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
+        testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
@@ -871,7 +874,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'checkstyle'
       project.tasks.withType(Checkstyle) {
         configFile = project.project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-        configProperties = ["checkstyle.suppressions.file": project.project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
+        configProperties = ["checkstyle.suppressions.file": project.project(":").relativePath("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
         showViolations = true
         maxErrors = 0
       }
@@ -958,6 +961,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.dependencies {
         errorprone("com.google.errorprone:error_prone_core:2.3.1")
+        errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
         // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
         // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
         errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
@@ -969,6 +973,9 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
         options.errorprone.errorproneArgs.add("MutableConstantField:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
       }
 
       if (configuration.shadowClosure) {
@@ -1052,7 +1059,9 @@ class BeamModulePlugin implements Plugin<Project> {
         if (configuration.validateShadowJar) {
           project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
             ext.outFile = project.file("${project.reportsDir}/${name}.out")
-            inputs.files project.configurations.shadow.artifacts.files
+            inputs.files(project.configurations.shadow.artifacts.files)
+                .withPropertyName("shadowArtifactsFiles")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
             outputs.files outFile
             doLast {
               project.configurations.shadow.artifacts.files.each {
@@ -1546,7 +1555,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // development image at docker.io (see sdks/CONTAINERS.md):
     //
     //    format: apache/beam_$NAME_sdk:latest
-    //    ie: apache/beam_python3.7_sdk:latest apache/beam_java_sdk:latest apache/beam_go_sdk:latest
+    //    ie: apache/beam_python3.7_sdk:latest apache/beam_java8_sdk:latest apache/beam_go_sdk:latest
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
@@ -1948,9 +1957,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
-      // If none of them applied, version set here will be used as default value.
+      // If none of them applied, version set here will be used as default value. Currently
+      // the minimum version supported by Beam is 3.6
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '2.7'
+          project.pythonVersion : '3.6'
 
       project.task('setupVirtualenv')  {
         doLast {
@@ -1984,6 +1994,7 @@ class BeamModulePlugin implements Plugin<Project> {
             '**/*.pyc',
             'sdks/python/*.egg*/**',
             'sdks/python/test-suites/**',
+            'sdks/python/__pycache__',
             '**/reports/test/index.html',
           ])
           )
@@ -2042,8 +2053,8 @@ class BeamModulePlugin implements Plugin<Project> {
         return argList.join(' ')
       }
 
-      project.ext.toxTask = { name, tox_env ->
-        project.tasks.register(name) {
+      project.ext.toxTask = { name, tox_env, posargs='' ->
+        project.tasks.create(name) {
           dependsOn 'setupVirtualenv'
           dependsOn ':sdks:python:sdist'
 
@@ -2057,16 +2068,11 @@ class BeamModulePlugin implements Plugin<Project> {
             def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
             }
           }
-          outputs.cacheIf { true }
-          inputs.files(project.pythonSdkDeps)
-              .withPropertyName('pythonSdkDeps')
-              .withPathSensitivity(PathSensitivity.RELATIVE)
-
-          outputs.dir("${pythonRootDir}/target/.tox/${tox_env}/log/")
-              .withPropertyName('outputLog')
+          inputs.files project.pythonSdkDeps
+          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
         }
       }
 

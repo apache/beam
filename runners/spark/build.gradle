@@ -132,8 +132,7 @@ task validatesRunnerBatch(type: Test) {
         )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
-
-          // Only one SparkContext may be running in a JVM (SPARK-2243)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
@@ -142,7 +141,6 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
@@ -153,7 +151,6 @@ task validatesRunnerBatch(type: Test) {
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
@@ -219,12 +216,12 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
+    // multiple coders bug BEAM-8894
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   filter {
@@ -237,9 +234,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext'
     // multiple coders bug BEAM-8894
     excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
-    //SDF
+    // SDF
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedBounded'
   }
 }
 

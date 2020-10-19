@@ -38,7 +38,7 @@ from tenacity import stop_after_attempt
 from tenacity import wait_fixed
 from urllib.request import urlopen, URLError, HTTPError
 
-SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'glp', 'cddl', 'mpl']
+SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'glp', 'cddl', 'mpl', 'gnu', 'mozilla public license']
 RETRY_NUM = 9
 THREADS = 16
 
@@ -101,13 +101,22 @@ def pull_from_url(file_name, url, dep, no_list):
 
 def pull_source_code(base_url, dir_name, dep):
     # base_url example: https://repo1.maven.org/maven2/org/mortbay/jetty/jsp-2.1/6.1.14/
-    soup = BeautifulSoup(urlopen(base_url).read(), "html.parser")
+    try:
+      soup = BeautifulSoup(urlopen(base_url).read(), "html.parser")
+    except:
+      logging.error('Error reading source base from {base_url}'.format(base_url=base_url))
+      raise
+    source_count = 0
     for href in (a["href"] for a in soup.select("a[href]")):
         if href.endswith(
-                '.jar') and not 'javadoc' in href:  # download jar file only
+                '.jar') and 'sources.jar' in href:  # download sources jar file only
             file_name = dir_name + '/' + href
             url = base_url + '/' + href
+            logging.debug('Pulling source from {url}'.format(url=url))
             pull_from_url(file_name, url, dep, incorrect_source_url)
+            source_count = source_count + 1
+    if source_count == 0:
+      raise RuntimeError('No source found at {base_url}'.format(base_url=base_url))
 
 
 @retry(reraise=True, stop=stop_after_attempt(3))
@@ -140,17 +149,22 @@ def execute(dep):
     }
     '''
 
-    name = dep['moduleName'].split(':')[1].lower()
+    name = dep['moduleName'].split(':')[1]
     version = dep['moduleVersion']
     name_version = name + '-' + version
+    # javac is not a runtime dependency
+    if name == 'javac':
+      logging.debug('Skipping', name_version)
+      return
+    # skip self dependencies
+    if dep['moduleName'].lower().startswith('beam'):
+      logging.debug('Skipping', name_version)
+      return
     dir_name = '{license_dir}/{name_version}.jar'.format(
         license_dir=license_dir, name_version=name_version)
 
     # if auto pulled, directory is existing at {license_dir}
     if not os.path.isdir(dir_name):
-        # skip self dependencies
-        if dep['moduleName'].startswith('beam'):
-            logging.debug('Skippig', name_version)
         os.mkdir(dir_name)
         # pull license
         try:

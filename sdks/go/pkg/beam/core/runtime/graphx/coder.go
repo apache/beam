@@ -76,10 +76,13 @@ func knownStandardCoders() []string {
 }
 
 // MarshalCoders marshals a list of coders into model coders.
-func MarshalCoders(coders []*coder.Coder) ([]string, map[string]*pipepb.Coder) {
+func MarshalCoders(coders []*coder.Coder) ([]string, map[string]*pipepb.Coder, error) {
 	b := NewCoderMarshaller()
-	ids := b.AddMulti(coders)
-	return ids, b.Build()
+	if ids, err := b.AddMulti(coders); err != nil {
+		return nil, nil, err
+	} else {
+		return ids, b.Build(), nil
+	}
 }
 
 // UnmarshalCoders unmarshals coders.
@@ -160,19 +163,23 @@ func (b *CoderUnmarshaller) WindowCoder(id string) (*coder.WindowCoder, error) {
 		return nil, err
 	}
 
-	w := urnToWindowCoder(c.GetSpec().GetUrn())
+	w, err := urnToWindowCoder(c.GetSpec().GetUrn())
+	if err != nil {
+		return nil, errors.SetTopLevelMsgf(err, "failed to unmarshal window coder %v", id)
+	}
 	b.windowCoders[id] = w
 	return w, nil
 }
 
-func urnToWindowCoder(urn string) *coder.WindowCoder {
+func urnToWindowCoder(urn string) (*coder.WindowCoder, error) {
 	switch urn {
 	case urnGlobalWindow:
-		return coder.NewGlobalWindow()
+		return coder.NewGlobalWindow(), nil
 	case urnIntervalWindow:
-		return coder.NewIntervalWindow()
+		return coder.NewIntervalWindow(), nil
 	default:
-		panic(fmt.Sprintf("Failed to translate URN to window coder, unexpected URN: %v", urn))
+		err := errors.Errorf("unexpected URN %v for window coder", urn)
+		return nil, errors.WithContext(err, "translate URN to window coder")
 	}
 }
 
@@ -422,19 +429,19 @@ func NewCoderMarshaller() *CoderMarshaller {
 }
 
 // Add adds the given coder to the set and returns its id. Idempotent.
-func (b *CoderMarshaller) Add(c *coder.Coder) string {
+func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 	switch c.Kind {
 	case coder.Custom:
 		ref, err := encodeCustomCoder(c.Custom)
 		if err != nil {
 			typeName := c.Custom.Name
-			panic(errors.SetTopLevelMsgf(err, "Failed to encode custom coder for type %s. "+
+			return "", errors.SetTopLevelMsgf(err, "failed to encode custom coder for type %s. "+
 				"Make sure the type was registered before calling beam.Init. For example: "+
-				"beam.RegisterType(reflect.TypeOf((*TypeName)(nil)).Elem())", typeName))
+				"beam.RegisterType(reflect.TypeOf((*TypeName)(nil)).Elem())", typeName)
 		}
 		data, err := protox.EncodeBase64(ref)
 		if err != nil {
-			panic(errors.Wrapf(err, "Failed to marshal custom coder %v", c))
+			return "", errors.Wrapf(err, "failed to marshal custom coder %v", c)
 		}
 		inner := b.internCoder(&pipepb.Coder{
 			Spec: &pipepb.FunctionSpec{
@@ -442,15 +449,20 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 				Payload: []byte(data),
 			},
 		})
-		return b.internBuiltInCoder(urnLengthPrefixCoder, inner)
+		return b.internBuiltInCoder(urnLengthPrefixCoder, inner), nil
 
 	case coder.KV:
-		comp := b.AddMulti(c.Components)
-		return b.internBuiltInCoder(urnKVCoder, comp...)
+		comp, err := b.AddMulti(c.Components)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to marshal KV coder %v", c)
+		}
+		return b.internBuiltInCoder(urnKVCoder, comp...), nil
 
 	case coder.CoGBK:
-		comp := b.AddMulti(c.Components)
-
+		comp, err := b.AddMulti(c.Components)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to marshal CoGBK coder %v", c)
+		}
 		value := comp[1]
 		if len(comp) > 2 {
 			// TODO(BEAM-490): don't inject union coder for CoGBK.
@@ -461,62 +473,77 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 
 		// SDKs always provide iterableCoder to runners, but can receive StateBackedIterables in return.
 		stream := b.internBuiltInCoder(urnIterableCoder, value)
-		return b.internBuiltInCoder(urnKVCoder, comp[0], stream)
+		return b.internBuiltInCoder(urnKVCoder, comp[0], stream), nil
 
 	case coder.WindowedValue:
-		comp := b.AddMulti(c.Components)
-		comp = append(comp, b.AddWindowCoder(c.Window))
-		return b.internBuiltInCoder(urnWindowedValueCoder, comp...)
+		comp := []string{}
+		if ids, err := b.AddMulti(c.Components); err != nil {
+			return "", errors.Wrapf(err, "failed to marshal window coder %v", c)
+		} else {
+			comp = append(comp, ids...)
+		}
+		if id, err := b.AddWindowCoder(c.Window); err != nil {
+			return "", errors.Wrapf(err, "failed to marshal window coder %v", c)
+		} else {
+			comp = append(comp, id)
+		}
+		return b.internBuiltInCoder(urnWindowedValueCoder, comp...), nil
 
 	case coder.Bytes:
 		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
-		return b.internBuiltInCoder(urnBytesCoder)
+		return b.internBuiltInCoder(urnBytesCoder), nil
 
 	case coder.Bool:
-		return b.internBuiltInCoder(urnBoolCoder)
+		return b.internBuiltInCoder(urnBoolCoder), nil
 
 	case coder.VarInt:
-		return b.internBuiltInCoder(urnVarIntCoder)
+		return b.internBuiltInCoder(urnVarIntCoder), nil
 
 	case coder.Double:
-		return b.internBuiltInCoder(urnDoubleCoder)
+		return b.internBuiltInCoder(urnDoubleCoder), nil
 
 	case coder.String:
-		return b.internBuiltInCoder(urnStringCoder)
+		return b.internBuiltInCoder(urnStringCoder), nil
 
 	case coder.Row:
 		rt := c.T.Type()
 		s, err := schema.FromType(rt)
 		if err != nil {
-			panic(errors.SetTopLevelMsgf(err, "Failed to convert type %v to a schema.", rt))
+			return "", errors.SetTopLevelMsgf(err, "failed to convert type %v to a schema.", rt)
 		}
-		return b.internRowCoder(s)
+		return b.internRowCoder(s), nil
 
 	// TODO(BEAM-10660): Handle coder.Timer support.
 
 	default:
-		panic(fmt.Sprintf("Failed to marshal coder %v, unexpected coder kind: %v", c, c.Kind))
+		err := errors.Errorf("unexpected coder kind: %v", c.Kind)
+		return "", errors.WithContextf(err, "failed to marshal coder %v", c)
 	}
 }
 
 // AddMulti adds the given coders to the set and returns their ids. Idempotent.
-func (b *CoderMarshaller) AddMulti(list []*coder.Coder) []string {
+func (b *CoderMarshaller) AddMulti(list []*coder.Coder) ([]string, error) {
 	var ids []string
 	for _, c := range list {
-		ids = append(ids, b.Add(c))
+		if id, err := b.Add(c); err != nil {
+			return nil, errors.Wrapf(err, "failed to marshal the coder %v.", c)
+		} else {
+			ids = append(ids, id)
+		}
 	}
-	return ids
+	return ids, nil
 }
 
 // AddWindowCoder adds a window coder.
-func (b *CoderMarshaller) AddWindowCoder(w *coder.WindowCoder) string {
+func (b *CoderMarshaller) AddWindowCoder(w *coder.WindowCoder) (string, error) {
 	switch w.Kind {
 	case coder.GlobalWindow:
-		return b.internBuiltInCoder(urnGlobalWindow)
+		return b.internBuiltInCoder(urnGlobalWindow), nil
 	case coder.IntervalWindow:
-		return b.internBuiltInCoder(urnIntervalWindow)
+		return b.internBuiltInCoder(urnIntervalWindow), nil
 	default:
-		panic(fmt.Sprintf("Failed to add window coder %v, unexpected window kind: %v", w, w.Kind))
+		err := errors.Errorf("window coder with unexpected type %v", w.Kind)
+		return "", errors.WithContextf(err, "failed to unmarshal window coder %v", w)
 	}
 }
 

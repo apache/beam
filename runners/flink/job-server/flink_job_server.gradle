@@ -122,13 +122,17 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name, Boolean streaming) {
+def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpointing) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
   ]
   if (streaming) {
     pipelineOptions += "--streaming"
+    if (checkpointing) {
+      pipelineOptions += "--checkpointingInterval=3000"
+      pipelineOptions += "--shutdownSourcesAfterIdleMs=60000"
+    }
   }
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
@@ -139,35 +143,42 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
     pipelineOpts: pipelineOptions,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     testCategories: {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-      if (streaming) {
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
-      } else {
-        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+      if (streaming && checkpointing) {
+        includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        // TestStreamSource does not support checkpointing
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      } else {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+        if (streaming) {
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
+        } else {
+          excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        }
+        //SplitableDoFnTests
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+
       }
-      //SplitableDoFnTests
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     },
     testFilter: {
       // TODO(BEAM-10016)
@@ -176,12 +187,14 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   )
 }
 
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true)
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false)
+project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true)
 
 task validatesPortableRunner() {
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
+  dependsOn validatesPortableRunnerStreamingCheckpoint
 }
 
 def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()

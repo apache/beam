@@ -32,7 +32,7 @@ public class ExecutableFile {
   private String sourceGCSLocation;
   private String destinationLocation;
 
-  static final Logger LOG = LoggerFactory.getLogger(ExecutableFile.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutableFile.class);
 
   public String getSourceGCSLocation() {
     return sourceGCSLocation;

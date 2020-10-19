@@ -20,66 +20,38 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 def pythonRootDir = "${rootDir}/sdks/python"
 def pythonVersionSuffix = project.ext.pythonVersion == '2.7' ? '2' : project.ext.pythonVersion.replace('.', '')
-def pythonContainerTask = ":sdks:python:container:py${pythonVersionSuffix}:docker"
 
-class CompatibilityMatrixConfig {
-  // Execute batch or streaming pipelines.
-  boolean streaming = false
-  // Execute on Docker or Process based environment.
-  SDK_WORKER_TYPE workerType = SDK_WORKER_TYPE.DOCKER
+ext {
+  pythonContainerTask = ":sdks:python:container:py${pythonVersionSuffix}:docker"
+}
 
-  enum SDK_WORKER_TYPE {
-    DOCKER, PROCESS, LOOPBACK
+def createFlinkRunnerTestTask(String workerType) {
+  def taskName = "flinkCompatibilityMatrix${workerType}"
+  // `project(':runners:flink:1.10:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
+  def jobServerJar = "${rootDir}/runners/flink/1.10/job-server/build/libs/beam-runners-flink-1.10-job-server-${version}.jar"
+  def options = "--flink_job_server_jar=${jobServerJar} --environment_type=${workerType}"
+  if (workerType == 'PROCESS') {
+    options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
-
-  // Whether to pre-optimize the pipeline with the Python optimizer.
-  boolean preOptimize = false
-}
-
-def flinkCompatibilityMatrix = {
-  def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
-  def workerType = config.workerType.name()
-  def streaming = config.streaming
-  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
-  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
-  def extra_experiments = []
-  if (config.preOptimize)
-    extra_experiments.add('pre_optimize=all')
-  tasks.create(name: name) {
-    dependsOn 'setupVirtualenv'
-    dependsOn ':runners:flink:1.10:job-server:shadowJar'
-    dependsOn ':sdks:java:container:docker' // required for test_external_transforms
-    if (workerType.toLowerCase() == 'docker')
-      dependsOn pythonContainerTask
-    else if (workerType.toLowerCase() == 'process')
-      dependsOn 'createProcessWorker'
-    doLast {
-      exec {
-        executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.10:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
-      }
-    }
+  def task = toxTask(taskName, 'flink-runner-test', options)
+  // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
+  task.dependsOn ':runners:flink:1.10:job-server:shadowJar'
+  // The Java SDK worker is required to execute external transforms.
+  task.dependsOn ':sdks:java:container:docker'
+  if (workerType == 'DOCKER') {
+    task.dependsOn ext.pythonContainerTask
+  } else if (workerType == 'PROCESS') {
+    task.dependsOn 'createProcessWorker'
   }
+  return task
 }
 
-task flinkCompatibilityMatrixDocker() {
-  dependsOn flinkCompatibilityMatrix(streaming: false)
-  dependsOn flinkCompatibilityMatrix(streaming: true)
-}
-
-task flinkCompatibilityMatrixProcess() {
-  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
-  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
-}
-
-task flinkCompatibilityMatrixLoopback() {
-  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
-  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
-  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
-}
+createFlinkRunnerTestTask('DOCKER')
+createFlinkRunnerTestTask('PROCESS')
+createFlinkRunnerTestTask('LOOPBACK')
 
 task flinkValidatesRunner() {
-  dependsOn 'flinkCompatibilityMatrixLoopback'
+  dependsOn 'flinkCompatibilityMatrixLOOPBACK'
 }
 
 // TODO(BEAM-8598): Enable on pre-commit.
@@ -146,52 +118,30 @@ task createProcessWorker {
   }
 }
 
-def sparkCompatibilityMatrix = {
-  def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
-  def workerType = config.workerType.name()
-  def streaming = config.streaming
-  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
-  def name = "sparkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
-  tasks.create(name: name) {
-    dependsOn 'createProcessWorker'
-    dependsOn 'setupVirtualenv'
-    dependsOn ':runners:spark:job-server:shadowJar'
-    doLast {
-      def argMap = [
-              "environment_type"    : workerType,
-              "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
-              "environment_cache_millis": 10000,
-      ]
-      def argString = mapToArgString(argMap)
-
-      // Optionally specify test function names separated by space e.g.:
-      // ./gradlew :sdks:python:test-suites:portable:py37:sparkValidatesRunner -Ptests="test_external_transforms test_read"
-      // Otherwise run all test functions under SparkRunnerTest
-      def tests = project.hasProperty('tests') ?
-              project.property('tests').split().collect{ "SparkRunnerTest.$it" }.join(' ') : ''
-
-      exec {
-        executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString ${environment_config}"
-      }
-    }
+def createSparkRunnerTestTask(String workerType) {
+  def taskName = "sparkCompatibilityMatrix${workerType}"
+  // `project(':runners:spark:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
+  def jobServerJar = "${rootDir}/runners/spark/job-server/build/libs/beam-runners-spark-job-server-${version}.jar"
+  def options = "--spark_job_server_jar=${jobServerJar} --environment_type=${workerType}"
+  if (workerType == 'PROCESS') {
+    options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
+  def task = toxTask(taskName, 'spark-runner-test', options)
+  task.dependsOn ':runners:spark:job-server:shadowJar'
+  if (workerType == 'DOCKER') {
+    task.dependsOn ext.pythonContainerTask
+  } else if (workerType == 'PROCESS') {
+    task.dependsOn 'createProcessWorker'
+  }
+  return task
 }
 
-task sparkCompatibilityMatrixDocker() {
-  dependsOn sparkCompatibilityMatrix(streaming: false)
-}
-
-task sparkCompatibilityMatrixProcess() {
-  dependsOn sparkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
-}
-
-task sparkCompatibilityMatrixLoopback() {
-  dependsOn sparkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
-}
+createSparkRunnerTestTask('DOCKER')
+createSparkRunnerTestTask('PROCESS')
+createSparkRunnerTestTask('LOOPBACK')
 
 task sparkValidatesRunner() {
-  dependsOn 'sparkCompatibilityMatrixLoopback'
+  dependsOn 'sparkCompatibilityMatrixLOOPBACK'
 }
 
 project.task("preCommitPy${pythonVersionSuffix}") {

@@ -205,7 +205,7 @@ public class BigQueryHelpers {
         this.started = false;
         executeJob.apply(currentJobId);
       } catch (RuntimeException e) {
-        LOG.warn("Job {} failed with {}", currentJobId.getJobId(), e);
+        LOG.warn("Job {} failed.", currentJobId.getJobId(), e);
         // It's possible that the job actually made it to BQ even though we got a failure here.
         // For example, the response from BQ may have timed out returning. getRetryJobId will
         // return the correct job id to use on retry, or a job id to continue polling (if it turns

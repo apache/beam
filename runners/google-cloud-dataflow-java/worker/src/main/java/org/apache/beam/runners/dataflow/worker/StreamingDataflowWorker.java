@@ -861,7 +861,7 @@ public class StreamingDataflowWorker {
                   writer = new PrintWriter(outputFile, UTF_8.name());
                   page.captureData(writer);
                 } catch (IOException e) {
-                  LOG.warn("Error dumping status page., {}", e);
+                  LOG.warn("Error dumping status page.", e);
                 } finally {
                   if (writer != null) {
                     writer.close();

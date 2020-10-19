@@ -23,20 +23,20 @@ import (
 
 // ExpandedComponents type asserts the Components field with interface{} type
 // and returns its pipeline component proto representation
-func ExpandedComponents(exp *graph.ExpandedTransform) *pipepb.Components {
+func ExpandedComponents(exp *graph.ExpandedTransform) (*pipepb.Components, error) {
 	if c, ok := exp.Components.(*pipepb.Components); ok {
-		return c
+		return c, nil
 	}
-	panic(errors.Errorf("malformed components; %v lacks a conforming pipeline component", exp))
+	return nil, errors.Errorf("malformed components; %v lacks a conforming pipeline component", exp)
 }
 
 // ExpandedTransform type asserts the Transform field with interface{} type
 // and returns its pipeline ptransform proto representation
-func ExpandedTransform(exp *graph.ExpandedTransform) *pipepb.PTransform {
+func ExpandedTransform(exp *graph.ExpandedTransform) (*pipepb.PTransform, error) {
 	if t, ok := exp.Transform.(*pipepb.PTransform); ok {
-		return t
+		return t, nil
 	}
-	panic(errors.Errorf("malformed transform; %v lacks a conforming pipeline ptransform", exp))
+	return nil, errors.Errorf("malformed transform; %v lacks a conforming pipeline ptransform", exp)
 }
 
 // ExternalInputs returns the map (tag -> graph node representing the

@@ -326,7 +326,8 @@ public class SourceRDD {
     @Override
     public Option<Partitioner> partitioner() {
       // setting the partitioner helps to "keep" the same partitioner in the following
-      // mapWithState read for Read.Unbounded, preventing a post-mapWithState shuffle.
+      // mapWithState read for SplittableParDo.PrimitiveUnboundedRead, preventing a
+      // post-mapWithState shuffle.
       return scala.Some.apply(partitioner);
     }
 
