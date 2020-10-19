@@ -53,7 +53,7 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
       boolean useTimestampAttribute, PayloadFormat payloadFormat, @Nullable Schema schema) {
     this.useTimestampAttribute = useTimestampAttribute;
     this.payloadFormat = payloadFormat;
-    this.payloadSchema = schema == null ? null :stripFromTimestampField(schema);
+    this.payloadSchema = schema == null ? null : stripFromTimestampField(schema);
   }
 
   public static RowToPubsubMessage of(boolean useTimestampAttribute, PayloadFormat payloadFormat) {
