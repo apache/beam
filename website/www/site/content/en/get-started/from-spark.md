@@ -21,7 +21,7 @@ limitations under the License.
 
 If you already know [_Apache Spark_](http://spark.apache.org/),
 learning _Apache Beam_ is easy.
-Beam and Spark are mostly equivalent, so you already know the basic concepts.
+The Beam and Spark APIs are similar, so you already know the basic concepts.
 
 A collection of elements in Spark is called a _Resilient Distributed Dataset_ (RDD),
 while in Beam it's called a _Parallel Collection_ (PCollection).
@@ -39,13 +39,13 @@ multiplies them by two, adds all the values together, and prints the result.
 {{< highlight py >}}
 import pyspark
 
-with pyspark.SparkContext() as sc:
-    result = (
-        sc.parallelize([1, 2, 3, 4])
-        .map(lambda x: x * 2)
-        .reduce(lambda x, y: x + y)
-    )
-    print(result)
+sc = pyspark.SparkContext()
+result = (
+    sc.parallelize([1, 2, 3, 4])
+    .map(lambda x: x * 2)
+    .reduce(lambda x, y: x + y)
+)
+print(result)
 {{< /highlight >}}
 
 In Beam you _pipe_ your data through the pipeline using the
@@ -71,6 +71,17 @@ with beam.Pipeline() as pipeline:
 > That's because we can only access the elements of a PCollection
 > from within a PTransform.
 
+Another thing to note is that Beam pipelines are constructed _lazily_.
+This means that when you _pipe_ `|` data you're only _decalring_ the
+transformations and the order you want them to happen,
+but the actual computation doesn't happen.
+The pipeline is run _after_ the `with beam.Pipeline() as pipeline` context has
+closed.
+The pipeline is then sent to your runner of choice and it processes the data.
+
+> ℹ️ When the `with beam.Pipeline() as pipeline` context closes,
+> it implicitly calls `pipeline.run()` which triggers the computation to happen.
+
 A label can optionally be added to a transform using the
 _right shift operator_ `>>` like `data | 'My description' >> beam.Map(...)`.
 This serves both as comments and makes your pipeline easier to debug.
@@ -86,7 +97,7 @@ with beam.Pipeline() as pipeline:
         | 'Create numbers' >> beam.Create([1, 2, 3, 4])
         | 'Multiply by two' >> beam.Map(lambda x: x * 2)
         | 'Sum everything' >> beam.CombineGlobally(sum)
-        | beam.Map(print)
+        | 'Print results' >> beam.Map(print)
     )
 {{< /highlight >}}
 
@@ -114,8 +125,8 @@ Here's a comparison on how to get started both in PySpark and Beam.
 <tr>
     <td><b>Creating a<br>local pipeline</b></td>
     <td>
-        <code>with pyspark.SparkContext() as sc:</code><br>
-        <code>&nbsp;&nbsp;&nbsp;&nbsp;# Your pipeline code here.</code>
+        <code>sc = pyspark.SparkContext() as sc:</code><br>
+        <code># Your pipeline code here.</code>
     </td>
     <td>
         <code>with beam.Pipeline() as pipeline:</code><br>
@@ -157,22 +168,22 @@ Here's a comparison on how to get started both in PySpark and Beam.
 Here are the equivalents of some common transforms in both PySpark and Beam.
 
 {{< table >}}
-|                   | PySpark                               | Beam                                                    |
-|-------------------|---------------------------------------|---------------------------------------------------------|
-| **Map**           | `values.map(lambda x: x * 2)`         | `values | beam.Map(lambda x: x * 2)`                    |
-| **Filter**        | `values.filter(lambda x: x % 2 == 0)` | `values | beam.Filter(lambda x: x % 2 == 0)`            |
-| **FlatMap**       | `values.flatMap(lambda x: range(x))`  | `values | beam.FlatMap(lambda x: range(x))`             |
-| **Group by key**  | `pairs.groupByKey()`                  | `pairs | beam.GroupByKey()`                             |
-| **Reduce**        | `values.reduce(lambda x, y: x+y)`     | `values | beam.CombineGlobally(sum)`                    |
-| **Reduce by key** | `pairs.reduceByKey(lambda x, y: x+y)` | `pairs | beam.CombinePerKey(sum)`                       |
-| **Distinct**      | `values.distinct()`                   | `values | beam.Distinct()`                              |
-| **Count**         | `values.count()`                      | `values | beam.combiners.Count.Globally()`              |
-| **Count by key**  | `pairs.countByKey()`                  | `pairs | beam.combiners.Count.PerKey()`                 |
-| **Take smallest** | `values.takeOrdered(3)`               | `values | beam.combiners.Top.Smallest(3)`               |
-| **Take largest**  | `values.takeOrdered(3, lambda x: -x)` | `values | beam.combiners.Top.Largest(3)`                |
-| **Random sample** | `values.takeSample(False, 3)`         | `values | beam.combiners.Sample.FixedSizeGlobally(3)`   |
-| **Union**         | `values.union(otherValues)`           | `(values, otherValues) | beam.Flatten()`                |
-| **Co-group**      | `pairs.cogroup(otherPairs)`           | `{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()` |
+|                                                                                  | PySpark                               | Beam                                                    |
+|----------------------------------------------------------------------------------|---------------------------------------|---------------------------------------------------------|
+| [**Map**](/documentation/transforms/python/elementwise/map/)                     | `values.map(lambda x: x * 2)`         | `values | beam.Map(lambda x: x * 2)`                    |
+| [**Filter**](/documentation/transforms/python/elementwise/filter/)               | `values.filter(lambda x: x % 2 == 0)` | `values | beam.Filter(lambda x: x % 2 == 0)`            |
+| [**FlatMap**](/documentation/transforms/python/elementwise/flatmap/)             | `values.flatMap(lambda x: range(x))`  | `values | beam.FlatMap(lambda x: range(x))`             |
+| [**Group by key**](/documentation/transforms/python/aggregation/groupbykey/)     | `pairs.groupByKey()`                  | `pairs | beam.GroupByKey()`                             |
+| [**Reduce**](/documentation/transforms/python/aggregation/combineglobally/)      | `values.reduce(lambda x, y: x+y)`     | `values | beam.CombineGlobally(sum)`                    |
+| [**Reduce by key**](/documentation/transforms/python/aggregation/combineperkey/) | `pairs.reduceByKey(lambda x, y: x+y)` | `pairs | beam.CombinePerKey(sum)`                       |
+| [**Distinct**](/documentation/transforms/python/aggregation/distinct/)           | `values.distinct()`                   | `values | beam.Distinct()`                              |
+| [**Count**](/documentation/transforms/python/aggregation/count/)                 | `values.count()`                      | `values | beam.combiners.Count.Globally()`              |
+| [**Count by key**](/documentation/transforms/python/aggregation/count/)          | `pairs.countByKey()`                  | `pairs | beam.combiners.Count.PerKey()`                 |
+| [**Take smallest**](/documentation/transforms/python/aggregation/top/)           | `values.takeOrdered(3)`               | `values | beam.combiners.Top.Smallest(3)`               |
+| [**Take largest**](/documentation/transforms/python/aggregation/top/)            | `values.takeOrdered(3, lambda x: -x)` | `values | beam.combiners.Top.Largest(3)`                |
+| [**Random sample**](/documentation/transforms/python/aggregation/sample/)        | `values.takeSample(False, 3)`         | `values | beam.combiners.Sample.FixedSizeGlobally(3)`   |
+| [**Union**](/documentation/transforms/python/other/flatten/)                     | `values.union(otherValues)`           | `(values, otherValues) | beam.Flatten()`                |
+| [**Co-group**](/documentation/transforms/python/aggregation/cogroupbykey/)       | `pairs.cogroup(otherPairs)`           | `{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()` |
 {{< /table >}}
 
 > ℹ️ To learn more about the transforms available in Beam, check the
@@ -191,15 +202,15 @@ Here's an example to scale numbers into a range between zero and one.
 {{< highlight py >}}
 import pyspark
 
-with pyspark.SparkContext() as sc:
-    values = sc.parallelize([1, 2, 3, 4])
-    total = values.reduce(lambda x, y: x + y)
+sc = pyspark.SparkContext()
+values = sc.parallelize([1, 2, 3, 4])
+total = values.reduce(lambda x, y: x + y)
 
-    # We can simply use `total` since it's already a Python value from `reduce`.
-    scaled_values = values.map(lambda x: x / total)
+# We can simply use `total` since it's already a Python value from `reduce`.
+scaled_values = values.map(lambda x: x / total)
 
-    # But to access `scaled_values`, we need to call `collect`.
-    print(scaled_values.collect())
+# But to access `scaled_values`, we need to call `collect`.
+print(scaled_values.collect())
 {{< /highlight >}}
 
 In Beam the results from _all_ transforms result in a PCollection.
