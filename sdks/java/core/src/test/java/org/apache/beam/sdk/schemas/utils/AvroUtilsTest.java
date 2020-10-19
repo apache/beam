@@ -49,6 +49,7 @@ import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -607,5 +608,26 @@ public class AvroUtilsTest {
     users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
     assertTrue(users.hasSchema());
     CoderProperties.coderSerializable(users.getCoder());
+  }
+
+  @Test
+  public void testAvroBytesToRowAndRowToAvroBytesFunctions() {
+    Schema schema =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addInt64Field("f_long")
+            .addDoubleField("f_double")
+            .addStringField("f_string")
+            .build();
+
+    SimpleFunction<Row, byte[]> toBytesFn = AvroUtils.getRowToAvroBytesFunction(schema);
+    SimpleFunction<byte[], Row> toRowFn = AvroUtils.getAvroBytesToRowFunction(schema);
+
+    Row row = Row.withSchema(schema).attachValues(1, 1L, 1d, "string");
+
+    byte[] serializedRow = toBytesFn.apply(row);
+    Row deserializedRow = toRowFn.apply(serializedRow);
+
+    assertEquals(row, deserializedRow);
   }
 }

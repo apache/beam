@@ -5,7 +5,7 @@ dependencies:
   build:
   - vcs: "git"
     name: "cloud.google.com/go"
-    commit: "4f6c921ec566a33844f4e7879b31cd8575a6982d"
+    commit: "03869a08dc16b35ad4968e92d34c5a2a2961b205"
     url: "https://code.googlesource.com/gocloud"
     transitive: false
   - urls:
@@ -238,7 +238,7 @@ dependencies:
     - "git@github.com:googleapis/gax-go.git"
     vcs: "git"
     name: "github.com/googleapis/gax-go"
-    commit: "317e0006254c44a0ac427cc52a0e083ff0b9622f"
+    commit: "bd5b16380fd03dc758d11cef74ba2e3bc8b0e8c2"
     transitive: false
   - name: "github.com/gorilla/websocket"
     host:
@@ -620,7 +620,7 @@ dependencies:
     transitive: false
   - vcs: "git"
     name: "go.opencensus.io"
-    commit: "aa2b39d1618ef56ba156f27cfcdae9042f68f0bc"
+    commit: "3fb168f674736c026e623310bfccb0691e6dec8a"
     url: "https://github.com/census-instrumentation/opencensus-go"
     transitive: false
   - vcs: "git"
@@ -640,7 +640,7 @@ dependencies:
     transitive: false
   - vcs: "git"
     name: "golang.org/x/oauth2"
-    commit: "a032972e28060ca4f5644acffae3dfc268cc09db"
+    commit: "5d25da1a8d43b66f2898c444f899c7bcfd6a407e"
     url: "https://go.googlesource.com/oauth2"
     transitive: false
   - vcs: "git"
@@ -650,7 +650,7 @@ dependencies:
     transitive: false
   - vcs: "git"
     name: "golang.org/x/sys"
-    commit: "37707fdb30a5b38865cfb95e5aab41707daec7fd"
+    commit: "fde4db37ae7ad8191b03d30d27f258b5291ae4e3"
     url: "https://go.googlesource.com/sys"
     transitive: false
   - vcs: "git"
@@ -670,17 +670,17 @@ dependencies:
     transitive: false
   - vcs: "git"
     name: "google.golang.org/api"
-    commit: "386d4e5f4f92f86e6aec85985761bba4b938a2d5"
+    commit: "0324d5e90dc7753607860272666845fad9ceb97e"
     url: "https://code.googlesource.com/google-api-go-client"
     transitive: false
   - vcs: "git"
     name: "google.golang.org/genproto"
-    commit: "2b5a72b8730b0b16380010cfe5286c42108d88e7"
+    commit: "4d944d34d83c502a5f761500a14d8842648415c3"
     url: "https://github.com/google/go-genproto"
     transitive: false
   - vcs: "git"
     name: "google.golang.org/grpc"
-    commit: "7646b5360d049a7ca31e9133315db43456f39e2e"
+    commit: "5e8f83304c0563d1ba74db05fee83d9c18ab9a58"
     url: "https://github.com/grpc/grpc-go"
     transitive: false
   - vcs: "git"

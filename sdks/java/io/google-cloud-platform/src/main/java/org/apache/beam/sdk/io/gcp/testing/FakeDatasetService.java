@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -213,14 +214,15 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public long insertAll(
       TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
       throws IOException, InterruptedException {
-    List<ValueInSingleWindow<TableRow>> windowedRows = Lists.newArrayList();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> windowedRows = Lists.newArrayList();
     for (TableRow row : rowList) {
       windowedRows.add(
-          ValueInSingleWindow.of(
+          FailsafeValueInSingleWindow.of(
               row,
               GlobalWindow.TIMESTAMP_MAX_VALUE,
               GlobalWindow.INSTANCE,
-              PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              PaneInfo.ON_TIME_AND_ONLY_FIRING,
+              row));
     }
     return insertAll(
         ref,
@@ -237,7 +239,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public <T> long insertAll(
       TableReference ref,
-      List<ValueInSingleWindow<TableRow>> rowList,
+      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
       @Nullable List<String> insertIdList,
       InsertRetryPolicy retryPolicy,
       List<ValueInSingleWindow<T>> failedInserts,

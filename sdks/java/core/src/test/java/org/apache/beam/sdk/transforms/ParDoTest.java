@@ -1584,7 +1584,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTestStream.class,
       UsesBundleFinalizer.class,
-      UsesStatefulParDo.class,
+      UsesStatefulParDo.class
     })
     public void testBundleFinalizationWithState() {
       TestStream.Builder<KV<String, Long>> stream =
@@ -1625,7 +1625,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTestStream.class,
       UsesBundleFinalizer.class,
-      UsesSideInputs.class,
+      UsesSideInputs.class
     })
     public void testBundleFinalizationWithSideInputs() {
       TestStream.Builder<KV<String, Long>> stream =
@@ -2374,7 +2374,17 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
-    public void testOrderedListState() {
+    public void testOrderedListStateBounded() {
+      testOrderedListStateImpl(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateUnbounded() {
+      testOrderedListStateImpl(true);
+    }
+
+    void testOrderedListStateImpl(boolean unbounded) {
       final String stateId = "foo";
 
       DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
@@ -2408,6 +2418,7 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
+              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected =
@@ -2423,7 +2434,17 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
-    public void testOrderedListStateRangeFetch() {
+    public void testOrderedListStateRangeFetchBounded() {
+      testOrderedListStateRangeFetchImpl(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateRangeFetchUnbounded() {
+      testOrderedListStateRangeFetchImpl(true);
+    }
+
+    void testOrderedListStateRangeFetchImpl(boolean unbounded) {
       final String stateId = "foo";
 
       DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
@@ -2459,6 +2480,7 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
+              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected1 = Lists.newArrayList();
@@ -2482,7 +2504,17 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
-    public void testOrderedListStateRangeDelete() {
+    public void testOrderedListStateRangeDeleteBounded() {
+      testOrderedListStateRangeDeleteImpl(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateRangeDeleteUnbounded() {
+      testOrderedListStateRangeDeleteImpl(true);
+    }
+
+    void testOrderedListStateRangeDeleteImpl(boolean unbounded) {
       final String stateId = "foo";
       DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
           new DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>>() {
@@ -2525,6 +2557,7 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
+              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected =
@@ -4411,7 +4444,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesTestStream.class,
+      UsesTestStream.class
     })
     public void testOutputTimestamp() {
       final String timerId = "bar";
@@ -5415,7 +5448,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesOnWindowExpiration.class,
+      UsesOnWindowExpiration.class
     })
     public void testOnWindowExpirationSimpleBounded() {
       runOnWindowExpirationSimple(false);
@@ -5427,7 +5460,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
       UsesOnWindowExpiration.class,
-      UsesUnboundedPCollections.class,
+      UsesUnboundedPCollections.class
     })
     public void testOnWindowExpirationSimpleUnbounded() {
       runOnWindowExpirationSimple(true);

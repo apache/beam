@@ -180,8 +180,8 @@ func (tracker *Tracker) TrySplit(fraction float64) (primary, residual interface{
 
 // GetProgress reports progress based on the claimed size and unclaimed sizes of the restriction.
 func (tracker *Tracker) GetProgress() (done, remaining float64) {
-	done = float64(tracker.claimed - tracker.rest.Start)
-	remaining = float64(tracker.rest.End - tracker.claimed)
+	done = float64((tracker.claimed + 1) - tracker.rest.Start)
+	remaining = float64(tracker.rest.End - (tracker.claimed + 1))
 	return
 }
 

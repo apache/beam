@@ -15,14 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite;
+package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import com.google.cloud.pubsublite.proto.SequencedMessage;
-import io.grpc.StatusException;
-import java.util.List;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.Row;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
-/** A PullSubscriber exposes a "pull" mechanism for retrieving messages. */
-interface PullSubscriber extends AutoCloseable {
-  /** Pull currently available messages from this subscriber. Does not block. */
-  List<SequencedMessage> pull() throws StatusException;
+public class KafkaTableProviderAvroIT extends KafkaTableProviderIT {
+  private final SimpleFunction<Row, byte[]> toBytesFn =
+      AvroUtils.getRowToAvroBytesFunction(TEST_TABLE_SCHEMA);
+
+  @Override
+  protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+    return new ProducerRecord<>(
+        kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
+  }
+
+  @Override
+  protected String getPayloadFormat() {
+    return "avro";
+  }
 }

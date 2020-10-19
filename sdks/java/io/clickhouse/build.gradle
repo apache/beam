@@ -47,7 +47,7 @@ idea {
   }
 }
 
-def clickhouse_jdbc_version = "0.1.47"
+def clickhouse_jdbc_version = "0.2.4"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"

@@ -387,7 +387,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class})
+  @Category(ValidatesRunner.class)
   public void testNoWindowFnDoesNotReassignWindows() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
