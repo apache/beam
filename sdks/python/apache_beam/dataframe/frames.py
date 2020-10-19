@@ -55,12 +55,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               requires_partition_by=partitionings.Nothing(),
               preserves_partition_by=partitionings.Singleton()))
 
-    elif isinstance(key, DeferredSeries):
+    elif isinstance(key, DeferredSeries) and key._expr.proxy().dtype == bool:
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               # yapf: disable
               'getitem',
-              lambda df, indexer: df[indexer],
+              lambda df,
+              indexer: df[indexer],
               [self._expr, key._expr],
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Singleton()))
@@ -72,33 +73,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       # We could consider returning a deferred scalar, but that might
       # be more surprising than a clear error.
       raise frame_base.WontImplementError('non-deferred')
-
-    if isinstance(key, frame_base.DeferredBase):
-      # Fail early if key is a DeferredBase as it interacts surprisingly with
-      # key in self._expr.proxy().columns
-      raise NotImplementedError(
-          "Indexing with a deferred frame is not yet supported. Consider "
-          "using df.loc[...]")
-
-    if isinstance(key, slice):
-      types = set([type(key.start), type(key.stop), type(key.step)])
-      if types == {type(None)}:
-        # Empty slice is just a copy.
-        return frame_base.DeferredFrame.wrap(self._expr)
-      elif types in [{int}, {type(None), int}]:
-        # This depends on the contents of the index.
-        raise frame_base.WontImplementError(
-            'Use iloc or loc with integer slices.')
-      else:
-        return self.loc[key]
-
-    elif (isinstance(key, list) and
-          all(key_column in self._expr.proxy().columns
-              for key_column in key)) or key in self._expr.proxy().columns:
-      return self._elementwise(lambda df: df[key], 'get_column')
-    else:
-      raise NotImplementedError(key)
-
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -551,9 +525,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     return self._expr.proxy().__contains__(key)
 
   def __setitem__(self, key, value):
-    if isinstance(key, str) or (
-        isinstance(key, list) and all(isinstance(c, str) for c in key)) or (
-        isnstance(key, DeferredSeries) and key._expr.proxy().dtype == bool):
+    if isinstance(key, str) or (isinstance(key, list) and all(
+        isinstance(c, str) for c in key)) or (isnstance(key, DeferredSeries) and
+                                              key._expr.proxy().dtype == bool):
       # yapf: disable
       return self._elementwise(
           lambda df, key, value: df.__setitem__(key, value),
