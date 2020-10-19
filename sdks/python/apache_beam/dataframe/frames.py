@@ -620,7 +620,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     return frame_base._elementwise_method('assign')(self, **kwargs)
 
   apply = frame_base.not_implemented_method('apply')
-  explode = frame_base.not_implemented_method('explode')
   isin = frame_base.not_implemented_method('isin')
   append = frame_base.not_implemented_method('append')
   combine = frame_base.not_implemented_method('combine')
@@ -631,6 +630,19 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   melt = frame_base.not_implemented_method('melt')
   pivot = frame_base.not_implemented_method('pivot')
   pivot_table = frame_base.not_implemented_method('pivot_table')
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def explode(self, column, ignore_index):
+    # ignoring the index will not preserve it
+    preserves = partitionings.Nothing() if ignore_index else partitionings.Singleton()
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'explode',
+            lambda df: df.explode(column, ignore_index),
+            [self._expr],
+            preserves_partition_by=preserves,
+            requires_partition_by=partitionings.Nothing()))
 
 
   @frame_base.args_to_kwargs(pd.DataFrame)

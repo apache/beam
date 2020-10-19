@@ -109,7 +109,6 @@ class DoctestTest(unittest.TestCase):
 
             # element-wise
             'pandas.core.frame.DataFrame.eval': ['*'],
-            'pandas.core.frame.DataFrame.explode': ['*'],
 
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
