@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1beta1.model.DicomStore;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
@@ -202,4 +203,10 @@ public interface HealthcareApiClient {
   Empty deleteHL7v2Store(String store) throws IOException;
 
   Empty deleteFhirStore(String store) throws IOException;
+
+  String retrieveDicomStudyMetadata(String dicomWebPath) throws IOException;
+
+  DicomStore createDicomStore(String dataset, String name) throws IOException;
+
+  DicomStore createDicomStore(String dataset, String name, String pubsubTopic) throws IOException;
 }

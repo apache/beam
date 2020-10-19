@@ -29,6 +29,7 @@ import com.google.api.services.healthcare.v1beta1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1beta1.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyFhirStoreRequest;
+import com.google.api.services.healthcare.v1beta1.model.DicomStore;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
 import com.google.api.services.healthcare.v1beta1.model.ExportResourcesRequest;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
@@ -194,6 +195,64 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Empty deleteFhirStore(String name) throws IOException {
     return client.projects().locations().datasets().fhirStores().delete(name).execute();
+  }
+
+  @Override
+  public String retrieveDicomStudyMetadata(String dicomWebPath) throws IOException {
+    String[] webPathSplit;
+    webPathSplit = dicomWebPath.split("/dicomWeb/");
+    String dicomStorePath = webPathSplit[0];
+
+    String[] searchParameters;
+    searchParameters = webPathSplit[1].split("/");
+    String studyId = searchParameters[1];
+    //        String seriesId = searchParameters[3];
+    //        String instanceId = searchParameters[5];
+
+    String searchQuery = String.format("studies/%s/metadata", studyId);
+
+    return makeRetrieveStudyMetadataRequest(dicomStorePath, searchQuery);
+  }
+
+  @Override
+  public DicomStore createDicomStore(String dataset, String name) throws IOException {
+    return createDicomStore(dataset, name, null);
+  }
+
+  @Override
+  public DicomStore createDicomStore(String dataset, String name, @Nullable String pubsubTopic)
+      throws IOException {
+    DicomStore store = new DicomStore();
+
+    if (pubsubTopic != null) {
+      NotificationConfig notificationConfig = new NotificationConfig();
+      notificationConfig.setPubsubTopic(pubsubTopic);
+      store.setNotificationConfig(notificationConfig);
+    }
+
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .dicomStores()
+        .create(dataset, store)
+        .setDicomStoreId(name)
+        .execute();
+  }
+
+  private String makeRetrieveStudyMetadataRequest(String dicomStorePath, String searchQuery)
+      throws IOException {
+    CloudHealthcare.Projects.Locations.Datasets.DicomStores.Studies.RetrieveMetadata request =
+        this.client
+            .projects()
+            .locations()
+            .datasets()
+            .dicomStores()
+            .studies()
+            .retrieveMetadata(dicomStorePath, searchQuery);
+    com.google.api.client.http.HttpResponse response = request.executeUnparsed();
+
+    return response.parseAsString();
   }
 
   @Override
