@@ -803,7 +803,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     elif isinstance(other, DeferredDataFrame):
       proxy = self._expr.proxy().corrwith(other._expr.proxy())
       self, other = self.align(other, axis=0, join='inner')
-      valid_cols = list(set(self.columns).intersection(other.columns).intersection(proxy.index))
+      valid_cols = list(
+          set(self.columns)
+          .intersection(other.columns)
+          .intersection(proxy.index))
       corrs = [self[col].corr(other[col], **kwargs) for col in valid_cols]
       def fill_dataframe(*args):
         result = proxy.copy(deep=True)
