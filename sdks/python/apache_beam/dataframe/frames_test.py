@@ -170,6 +170,11 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.corr(min_periods=12).round(8), df, distributed=True)
     self._run_test(
         lambda df: df.cov(min_periods=12).round(8), df, distributed=True)
+    self._run_test(lambda df: df.corrwith(df.a).round(8), df, distributed=True)
+    self._run_test(
+        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8),
+        df,
+        distributed=True)
 
 
 class AllowNonParallelTest(unittest.TestCase):
