@@ -32,6 +32,7 @@ import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -144,7 +145,7 @@ public class PubsubMessageToRowTest implements Serializable {
               assertEquals(2, size(messages));
               assertEquals(
                   ImmutableSet.of(map("attr1", "val1"), map("attr2", "val2")),
-                  convertToSet(messages, m -> m.getAttributeMap()));
+                  convertToSet(messages, PubsubMessage::getAttributeMap));
 
               assertEquals(
                   ImmutableSet.of("{ \"invalid1\" : \"sdfsd\" }", "{ \"invalid2"),
@@ -247,7 +248,7 @@ public class PubsubMessageToRowTest implements Serializable {
               assertEquals(2, size(messages));
               assertEquals(
                   ImmutableSet.of(map("attr1", "val1"), map("attr2", "val2")),
-                  convertToSet(messages, m -> m.getAttributeMap()));
+                  convertToSet(messages, PubsubMessage::getAttributeMap));
 
               assertEquals(
                   ImmutableSet.of("{ \"invalid1\" : \"sdfsd\" }", "{ \"invalid2"),
@@ -321,6 +322,30 @@ public class PubsubMessageToRowTest implements Serializable {
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
     Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
+  }
+
+  @Test
+  public void testParsesAvroPayload() {
+    Schema payloadSchema = getParserSchema();
+    Row row = row(payloadSchema, 3, "Dovahkiin", 5.5, 5L);
+    byte[] payload = AvroUtils.getRowToAvroBytesFunction(payloadSchema).apply(row);
+    Row parsedRow =
+        PubsubMessageToRow.parsePayload(
+            payload,
+            payloadSchema,
+            PayloadFormat.AVRO,
+            null,
+            AvroUtils.getAvroBytesToRowFunction(payloadSchema));
+    assertEquals(row, parsedRow);
+  }
+
+  private Schema getParserSchema() {
+    return Schema.builder()
+        .addInt32Field("id")
+        .addNullableField("name", FieldType.STRING)
+        .addNullableField("real", FieldType.DOUBLE)
+        .addNullableField("number", FieldType.INT64)
+        .build();
   }
 
   private Row row(Schema schema, Object... objects) {
