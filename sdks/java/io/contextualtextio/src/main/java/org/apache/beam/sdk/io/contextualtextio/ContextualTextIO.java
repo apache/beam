@@ -180,9 +180,7 @@ import org.slf4j.LoggerFactory;
  *      .apply(ContextualTextIO.readFiles());
  * }</pre>
  *
- * <p>Example 6: reading with recordNum metadata. (the Objects still contain recordNums, but these
- * recordNums would correspond to their positions in their respective offsets rather than their
- * positions within the entire file).
+ * <p>Example 6: reading with recordNum metadata.
  *
  * <pre>{@code
  * Pipeline p = ...;
@@ -192,14 +190,15 @@ import org.slf4j.LoggerFactory;
  *      .setWithRecordNumMetadata(true));
  * }</pre>
  *
- * <p>NOTE: When using {@link ContextualTextIO.Read#withHasMultilineCSVRecords(Boolean)} this
- * option, a single reader will be used to process the file, rather than multiple readers which can
- * read from different offsets. For a large file this can result in lower performance.
+ * <p>NOTE: When using {@link ContextualTextIO.Read#withHasMultilineCSVRecords(Boolean)}, a single
+ * reader will be used to process the file, rather than multiple readers which can read from
+ * different offsets. For a large file this can result in lower performance.
  *
  * <p>NOTE: Use {@link Read#withRecordNumMetadata()} when recordNum metadata is required. Computing
- * record positions currently introduces a grouping step, which increases the resources used by the
- * pipeline. By default withRecordNumMetadata is set to false, so the shuffle step is not performed.
- * <b> this option is only supported with default triggers.</b>
+ * absolute record positions currently introduces a grouping step, which increases the resources
+ * used by the pipeline. By default withRecordNumMetadata is set to false, in this case record
+ * objects will not contain absolute record positions within the entire file, but will still contain
+ * relative positions in respective offsets.
  *
  * <h3>Reading a very large number of files</h3>
  *
@@ -340,9 +339,10 @@ public class ContextualTextIO {
     }
 
     /**
-     * Allows the user to opt into getting recordNums associated with each record.
+     * Allows the user to opt into getting recordNums associated with each record. <b> This option
+     * is only supported with default triggers.</b>
      *
-     * <p>When set to true, it will introduce a shuffle step to assemble the recordNums for each
+     * <p>When set to true, it will introduce a grouping step to assemble the recordNums for each
      * record, which will increase the resources used by the pipeline.
      *
      * <p>Use this when you need metadata like fileNames and you need processed position/order
