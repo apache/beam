@@ -206,7 +206,7 @@ sc = pyspark.SparkContext()
 values = sc.parallelize([1, 2, 3, 4])
 total = values.reduce(lambda x, y: x + y)
 
-# We can simply use `total` since it's already a Python value from `reduce`.
+# We can simply use `total` since it's already a Python `int` value from `reduce`.
 scaled_values = values.map(lambda x: x / total)
 
 # But to access `scaled_values`, we need to call `collect`.
@@ -214,7 +214,8 @@ print(scaled_values.collect())
 {{< /highlight >}}
 
 In Beam the results from _all_ transforms result in a PCollection.
-We use _side inputs_ to feed a PCollection into a transform and access its values.
+We use [_side inputs_](/documentation/programming-guide/#side-inputs)
+to feed a PCollection into a transform and access its values.
 
 Any transform that accepts a function, like
 [`Map`](/documentation/transforms/python/elementwise/map),
