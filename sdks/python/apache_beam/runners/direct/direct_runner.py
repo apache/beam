@@ -46,11 +46,13 @@ from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.transforms import userstate
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import CombineValuesDoFn
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.typehints import trivial_inference
 
 # Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
@@ -107,6 +109,11 @@ class SwitchingDirectRunner(PipelineRunner):
             if any(isinstance(arg, ArgumentPlaceholder)
                    for arg in args_to_check):
               self.supported_by_fnapi_runner = False
+          if userstate.is_stateful_dofn(dofn):
+            _, timer_specs = userstate.get_dofn_specs(dofn)
+            for timer in timer_specs:
+              if timer.time_domain == TimeDomain.REAL_TIME:
+                self.supported_by_fnapi_runner = False
 
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
