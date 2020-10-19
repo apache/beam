@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 /** Jet specific implementation of {@link PipelineResult}. */
 public class JetPipelineResult implements PipelineResult {
 
-  private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JetPipelineResult.class);
 
   private final Job job;
   private final JetMetricResults metricResults;

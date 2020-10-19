@@ -63,7 +63,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class ExampleEchoPipelineTest {
 
-  static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipelineTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipelineTest.class);
 
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
@@ -128,7 +128,7 @@ public class ExampleEchoPipelineTest {
   @SuppressWarnings("serial")
   private static class EchoInputDoFn extends DoFn<KV<String, String>, KV<String, String>> {
 
-    static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);
 
     private SubProcessConfiguration configuration;
     private String binaryName;

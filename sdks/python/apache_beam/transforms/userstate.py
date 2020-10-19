@@ -21,16 +21,17 @@ Experimental; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 
 import types
 from builtins import object
-from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Iterable
+from typing import NamedTuple
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -43,7 +44,9 @@ from apache_beam.transforms.timeutil import TimeDomain
 
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
-  from apache_beam.transforms.core import CombineFn
+  from apache_beam.transforms.core import CombineFn, DoFn
+  from apache_beam.utils import windowed_value
+  from apache_beam.utils.timestamp import Timestamp
 
 CallableT = TypeVar('CallableT', bound=Callable)
 
@@ -60,9 +63,11 @@ class StateSpec(object):
     self.coder = coder
 
   def __repr__(self):
+    # type: () -> str
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     raise NotImplementedError
 
 
@@ -87,6 +92,7 @@ class BagStateSpec(StateSpec):
 class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
   def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         set_spec=beam_runner_api_pb2.SetStateSpec(
             element_coder_id=context.coders.get_id(self.coder)))
@@ -140,15 +146,17 @@ class CombiningValueStateSpec(StateSpec):
 
 
 # TODO(BEAM-9562): Update Timer to have of() and clear() APIs.
-Timer = namedtuple(
+Timer = NamedTuple(
     'Timer',
-    'user_key '
-    'dynamic_timer_tag '
-    'windows '
-    'clear_bit '
-    'fire_timestamp '
-    'hold_timestamp '
-    'paneinfo')
+    [
+        ('user_key', Any),
+        ('dynamic_timer_tag', str),
+        ('windows', Tuple['windowed_value.BoundedWindow', ...]),
+        ('clear_bit', bool),
+        ('fire_timestamp', Optional['Timestamp']),
+        ('hold_timestamp', Optional['Timestamp']),
+        ('paneinfo', Optional['windowed_value.PaneInfo']),
+    ])
 
 
 # TODO(BEAM-9562): Plumb through actual key_coder and window_coder.
@@ -157,13 +165,15 @@ class TimerSpec(object):
   prefix = "ts-"
 
   def __init__(self, name, time_domain):
+    # type: (str, str) -> None
     self.name = self.prefix + name
     if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
       raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
     self.time_domain = time_domain
-    self._attached_callback = None
+    self._attached_callback = None  # type: Optional[Callable]
 
   def __repr__(self):
+    # type: () -> str
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(self, context, key_coder, window_coder):
@@ -179,15 +189,18 @@ class TimerFamilySpec(object):
   prefix = "tfs-"
 
   def __init__(self, name, time_domain):
+    # type: (str, str) -> None
     self.name = self.prefix + name
     if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
       raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
     self.time_domain = time_domain
 
   def __repr__(self):
+    # type: () -> str
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(self, context, key_coder, window_coder):
+    # type: (PipelineContext, coders.Coder, coders.Coder) -> beam_runner_api_pb2.TimerFamilySpec
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(
@@ -214,6 +227,7 @@ def on_timer(timer_spec):
     raise ValueError('@on_timer decorator expected TimerSpec.')
 
   def _inner(method):
+    # type: (CallableT) -> CallableT
     if not callable(method):
       raise ValueError('@on_timer decorator expected callable.')
     if timer_spec._attached_callback:
@@ -226,7 +240,7 @@ def on_timer(timer_spec):
 
 
 def get_dofn_specs(dofn):
-  # type: (...) -> Tuple[Set[StateSpec], Set[TimerSpec]]
+  # type: (DoFn) -> Tuple[Set[StateSpec], Set[TimerSpec]]
 
   """Gets the state and timer specs for a DoFn, if any.
 
@@ -267,6 +281,8 @@ def get_dofn_specs(dofn):
 
 
 def is_stateful_dofn(dofn):
+  # type: (DoFn) -> bool
+
   """Determines whether a given DoFn is a stateful DoFn."""
 
   # A Stateful DoFn is a DoFn that uses user state or timers.
@@ -275,6 +291,8 @@ def is_stateful_dofn(dofn):
 
 
 def validate_stateful_dofn(dofn):
+  # type: (DoFn) -> None
+
   """Validates the proper specification of a stateful DoFn."""
 
   # Get state and timer specs.
@@ -305,23 +323,37 @@ def validate_stateful_dofn(dofn):
                        (timer_spec, method_name, dofn))
 
 
-class RuntimeTimer(object):
+class BaseTimer(object):
+  def clear(self):
+    # type: () -> None
+    raise NotImplementedError
+
+  def set(self, timestamp):
+    # type: (Timestamp) -> None
+    raise NotImplementedError
+
+
+class RuntimeTimer(BaseTimer):
   """Timer interface object passed to user code."""
   def __init__(self, timer_spec):
+    # type: (TimerSpec) -> None
     self._cleared = False
-    self._new_timestamp = None
+    self._new_timestamp = None  # type: Optional[Timestamp]
 
   def clear(self):
+    # type: () -> None
     self._cleared = True
     self._new_timestamp = None
 
   def set(self, timestamp):
+    # type: (Timestamp) -> None
     self._new_timestamp = timestamp
 
 
 class RuntimeState(object):
   """State interface object passed to user code."""
   def prefetch(self):
+    # type: () -> None
     # The default implementation here does nothing.
     pass
 
@@ -376,11 +408,24 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
 
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
-  def get_timer(self, timer_spec, key, window, timestamp, pane):
+  def get_timer(self,
+                timer_spec,  # type: TimerSpec
+                key,  # type: Any
+                window,  # type: windowed_value.BoundedWindow
+                timestamp,  # type: Timestamp
+                pane,  # type: windowed_value.PaneInfo
+               ):
+    # type: (...) -> BaseTimer
     raise NotImplementedError(type(self))
 
-  def get_state(self, state_spec, key, window):
+  def get_state(self,
+                state_spec,  # type: StateSpec
+                key,  # type: Any
+                window,  # type: windowed_value.BoundedWindow
+               ):
+    # type: (...) -> RuntimeState
     raise NotImplementedError(type(self))
 
   def commit(self):
+    # type: () -> None
     raise NotImplementedError(type(self))

@@ -61,6 +61,8 @@ var (
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
 	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
+	workerRegion         = flag.String("worker_region", "", "Dataflow worker region (optional)")
+	workerZone           = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 
 	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
@@ -159,6 +161,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		TempLocation:        *tempLocation,
 		Worker:              *jobopts.WorkerBinary,
 		WorkerJar:           *workerJar,
+		WorkerRegion:        *workerRegion,
+		WorkerZone:          *workerZone,
 		TeardownPolicy:      *teardownPolicy,
 	}
 	if opts.TempLocation == "" {
@@ -171,8 +175,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
-		ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)})
+	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
+	if err != nil {
+		return errors.WithContext(err, "generating model pipeline")
+	}
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
 	if err != nil {
 		return errors.WithContext(err, "generating model pipeline")
 	}
@@ -188,7 +195,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, proto.MarshalTextString(model))
-		job, err := dataflowlib.Translate(model, opts, workerURL, jarURL, modelURL)
+		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, jarURL, modelURL)
 		if err != nil {
 			return err
 		}

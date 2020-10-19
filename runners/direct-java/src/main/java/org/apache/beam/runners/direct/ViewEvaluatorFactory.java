@@ -20,23 +20,16 @@ package org.apache.beam.runners.direct;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.DirectWriteViewVisitor.WriteView;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
-import org.apache.beam.runners.direct.ViewOverrideFactory.WriteView;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link CreatePCollectionView}
- * primitive {@link PTransform}.
- *
- * <p>The {@link ViewEvaluatorFactory} produces {@link TransformEvaluator TransformEvaluators} for
- * the {@link WriteView} {@link PTransform}, which is part of the {@link DirectRunner} override.
- * This transform is an override for the {@link CreatePCollectionView} transform that applies
- * windowing and triggers before the view is written.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link DirectRunner-specific}
+ * {@link WriteView} step.
  */
 class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext context;

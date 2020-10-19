@@ -77,12 +77,12 @@ func goCapabilities() []string {
 }
 
 // CreateEnvironment produces the appropriate payload for the type of environment.
-func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) *pipepb.Environment {
+func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) (*pipepb.Environment, error) {
 	var serializedPayload []byte
 	switch urn {
 	case "beam:env:process:v1":
 		// TODO Support process based SDK Harness.
-		panic(fmt.Sprintf("Unsupported environment %v", urn))
+		return nil, errors.Errorf("unsupported environment %v", urn)
 	case "beam:env:external:v1":
 		config := extractEnvironmentConfig(ctx)
 		payload := &pipepb.ExternalPayload{Endpoint: &pipepb.ApiServiceDescriptor{Url: config}}
@@ -107,7 +107,7 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 				}),
 			},
 		},
-	}
+	}, nil
 }
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
@@ -124,10 +124,16 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 
 	m := newMarshaller(opt)
 	for _, edge := range tree.Edges {
-		m.addMultiEdge(edge)
+		_, err := m.addMultiEdge(edge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	for _, t := range tree.Children {
-		m.addScopeTree(t)
+		_, err := m.addScopeTree(t)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	p := &pipepb.Pipeline{
@@ -184,18 +190,26 @@ func (m *marshaller) getRequirements() []string {
 	return reqs
 }
 
-func (m *marshaller) addScopeTree(s *ScopeTree) string {
+func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 	id := scopeID(s.Scope.Scope)
 	if _, exists := m.transforms[id]; exists {
-		return id
+		return id, nil
 	}
 
 	var subtransforms []string
 	for _, edge := range s.Edges {
-		subtransforms = append(subtransforms, m.addMultiEdge(edge)...)
+		ids, err := m.addMultiEdge(edge)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to add scope tree: %v", s)
+		}
+		subtransforms = append(subtransforms, ids...)
 	}
 	for _, tree := range s.Children {
-		subtransforms = append(subtransforms, m.addScopeTree(tree))
+		id, err := m.addScopeTree(tree)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to add scope tree: %v", s)
+		}
+		subtransforms = append(subtransforms, id)
 	}
 
 	transform := &pipepb.PTransform{
@@ -204,60 +218,89 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 		EnvironmentId: m.addDefaultEnv(),
 	}
 
-	m.updateIfCombineComposite(s, transform)
+	if err := m.updateIfCombineComposite(s, transform); err != nil {
+		return "", errors.Wrapf(err, "failed to add scope tree: %v", s)
+	}
 
 	m.transforms[id] = transform
-	return id
+	return id, nil
 }
 
 // updateIfCombineComposite examines the scope tree and sets the PTransform Spec
 // to be a CombinePerKey with a CombinePayload if it's a liftable composite.
 // Beam Portability requires that composites contain an implementation for runners
 // that don't understand the URN and Payload, which this lightly checks for.
-func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PTransform) {
+func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PTransform) error {
 	if s.Scope.Name != graph.CombinePerKeyScope ||
 		len(s.Edges) != 2 ||
 		len(s.Edges[0].Edge.Input) != 1 ||
 		len(s.Edges[1].Edge.Output) != 1 ||
 		s.Edges[1].Edge.Op != graph.Combine {
-		return
+		return nil
 	}
 
 	edge := s.Edges[1].Edge
-	acID := m.coders.Add(edge.AccumCoder)
+	acID, err := m.coders.Add(edge.AccumCoder)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update PTransform spec: %v", transform)
+	}
+	mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(edge)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update PTransform spec: %v", transform)
+	}
 	payload := &pipepb.CombinePayload{
 		CombineFn: &pipepb.FunctionSpec{
 			Urn:     URNDoFn,
-			Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
+			Payload: []byte(mustEncodeMultiEdge),
 		},
 		AccumulatorCoderId: acID,
 	}
 	transform.Spec = &pipepb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
+	return nil
 }
 
-func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
+func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
+	handleErr := func(err error) ([]string, error) {
+		return nil, errors.Wrapf(err, "failed to add input kind: %v", edge)
+	}
 	id := edgeID(edge.Edge)
 	if _, exists := m.transforms[id]; exists {
-		return []string{id}
+		return []string{id}, nil
 	}
 
 	switch {
 	case edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1:
-		return []string{m.expandCoGBK(edge)}
+		cogbkID, err := m.expandCoGBK(edge)
+		if err != nil {
+			return handleErr(err)
+		}
+		return []string{cogbkID}, nil
 	case edge.Edge.Op == graph.Reshuffle:
-		return []string{m.expandReshuffle(edge)}
+		reshuffleID, err := m.expandReshuffle(edge)
+		if err != nil {
+			return handleErr(err)
+		}
+		return []string{reshuffleID}, nil
 	case edge.Edge.Op == graph.External && edge.Edge.Payload == nil:
-		return []string{m.expandCrossLanguage(edge)}
+		edgeID, err := m.expandCrossLanguage(edge)
+		if err != nil {
+			return handleErr(err)
+		}
+		return []string{edgeID}, nil
 	}
 
 	inputs := make(map[string]string)
 	for i, in := range edge.Edge.Input {
-		m.addNode(in.From)
+		if _, err := m.addNode(in.From); err != nil {
+			return handleErr(err)
+		}
 		inputs[fmt.Sprintf("i%v", i)] = nodeID(in.From)
 	}
 	outputs := make(map[string]string)
 	for i, out := range edge.Edge.Output {
-		m.addNode(out.To)
+		if _, err := m.addNode(out.To); err != nil {
+			return handleErr(err)
+		}
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 	}
 
@@ -281,7 +324,13 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				// "", even if the input is already KV.
 
 				out := fmt.Sprintf("%v_keyed%v_%v", nodeID(in.From), edgeID(edge.Edge), i)
-				m.makeNode(out, m.coders.Add(makeBytesKeyedCoder(in.From.Coder)), in.From)
+				coderId, err := m.coders.Add(makeBytesKeyedCoder(in.From.Coder))
+				if err != nil {
+					return handleErr(err)
+				}
+				if _, err := m.makeNode(out, coderId, in.From); err != nil {
+					return handleErr(err)
+				}
 
 				payload := &pipepb.ParDoPayload{
 					DoFn: &pipepb.FunctionSpec{
@@ -322,31 +371,44 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				}
 
 			case graph.Map, graph.MultiMap:
-				panic("NYI")
+				return nil, errors.Errorf("not implemented")
 
 			default:
-				panic(fmt.Sprintf("unexpected input kind: %v", edge))
+				return nil, errors.Errorf("unexpected input kind: %v", edge)
 			}
+		}
+
+		mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(edge.Edge)
+		if err != nil {
+			return handleErr(err)
 		}
 
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
 				Urn:     URNDoFn,
-				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
+				Payload: []byte(mustEncodeMultiEdge),
 			},
 			SideInputs: si,
 		}
 		if edge.Edge.DoFn.IsSplittable() {
-			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
+			coderId, err := m.coders.Add(edge.Edge.RestrictionCoder)
+			if err != nil {
+				return handleErr(err)
+			}
+			payload.RestrictionCoderId = coderId
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Combine:
+		mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(edge.Edge)
+		if err != nil {
+			return handleErr(err)
+		}
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
 				Urn:     URNDoFn,
-				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
+				Payload: []byte(mustEncodeMultiEdge),
 			},
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
@@ -358,8 +420,12 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		spec = &pipepb.FunctionSpec{Urn: URNGBK}
 
 	case graph.WindowInto:
+		windowFn, err := makeWindowFn(edge.Edge.WindowFn)
+		if err != nil {
+			return handleErr(err)
+		}
 		payload := &pipepb.WindowIntoPayload{
-			WindowFn: makeWindowFn(edge.Edge.WindowFn),
+			WindowFn: windowFn,
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
 
@@ -367,7 +433,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		spec = &pipepb.FunctionSpec{Urn: edge.Edge.Payload.URN, Payload: edge.Edge.Payload.Data}
 
 	default:
-		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Edge.Op))
+		err := errors.Errorf("unexpected opcode: %v", edge.Edge.Op)
+		return handleErr(err)
 	}
 
 	var transformEnvID = ""
@@ -384,17 +451,19 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	}
 	m.transforms[id] = transform
 	allPIds = append(allPIds, id)
-	return allPIds
+	return allPIds, nil
 }
 
-func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) string {
+func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 	edge := namedEdge.Edge
 	id := edgeID(edge)
 
 	inputs := make(map[string]string)
 
 	for tag, n := range ExternalInputs(edge) {
-		m.addNode(n)
+		if _, err := m.addNode(n); err != nil {
+			return "", errors.Wrapf(err, "failed to expand cross language transform for edge: %v", namedEdge)
+		}
 		// Ignore tag if it is a dummy SourceInputTag
 		if tag == graph.SourceInputTag {
 			tag = fmt.Sprintf("i%v", edge.External.InputsMap[tag])
@@ -420,33 +489,61 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) string {
 		// map consumers of these outputs to the expanded transform's outputs.
 		outputs := make(map[string]string)
 		for i, out := range edge.Output {
-			m.addNode(out.To)
+			if _, err := m.addNode(out.To); err != nil {
+				return "", errors.Wrapf(err, "failed to expand cross language transform for edge: %v", namedEdge)
+			}
 			outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 		}
 		transform.Outputs = outputs
-		transform.EnvironmentId = ExpandedTransform(edge.External.Expanded).EnvironmentId
+		environment, err := ExpandedTransform(edge.External.Expanded)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to expand cross language transform for edge: %v", namedEdge)
+		}
+		transform.EnvironmentId = environment.EnvironmentId
 	}
 
 	m.transforms[id] = transform
-	return id
+	return id, nil
 }
 
-func (m *marshaller) expandCoGBK(edge NamedEdge) string {
+func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
 	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in cogbk.go.
+	handleErr := func(err error) (string, error) {
+		return "", errors.Wrapf(err, "failed to expand CoGBK transform for edge: %v", edge)
+	}
 
 	id := edgeID(edge.Edge)
-	kvCoderID := m.coders.Add(MakeKVUnionCoder(edge.Edge))
-	gbkCoderID := m.coders.Add(MakeGBKUnionCoder(edge.Edge))
+	kvCoder, err := MakeKVUnionCoder(edge.Edge)
+	if err != nil {
+		return handleErr(err)
+	}
+	kvCoderID, err := m.coders.Add(kvCoder)
+	if err != nil {
+		return handleErr(err)
+	}
+	gbkCoder, err := MakeGBKUnionCoder(edge.Edge)
+	if err != nil {
+		return handleErr(err)
+	}
+	gbkCoderID, err := m.coders.Add(gbkCoder)
+	if err != nil {
+		return handleErr(err)
+	}
 
 	var subtransforms []string
 
 	inputs := make(map[string]string)
 	for i, in := range edge.Edge.Input {
-		m.addNode(in.From)
+
+		if _, err := m.addNode(in.From); err != nil {
+			return handleErr(err)
+		}
 
 		out := fmt.Sprintf("%v_%v_inject%v", nodeID(in.From), id, i)
-		m.makeNode(out, kvCoderID, in.From)
+		if _, err := m.makeNode(out, kvCoderID, in.From); err != nil {
+			return handleErr(err)
+		}
 
 		// Inject(i)
 
@@ -481,7 +578,9 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	// Flatten
 
 	out := fmt.Sprintf("%v_flatten", nodeID(outNode))
-	m.makeNode(out, kvCoderID, outNode)
+	if _, err := m.makeNode(out, kvCoderID, outNode); err != nil {
+		return handleErr(err)
+	}
 
 	flattenID := fmt.Sprintf("%v_flatten", id)
 	flatten := &pipepb.PTransform{
@@ -497,7 +596,9 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	// CoGBK
 
 	gbkOut := fmt.Sprintf("%v_out", nodeID(outNode))
-	m.makeNode(gbkOut, gbkCoderID, outNode)
+	if _, err := m.makeNode(gbkOut, gbkCoderID, outNode); err != nil {
+		return handleErr(err)
+	}
 
 	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pipepb.PTransform{
@@ -511,7 +612,9 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 	// Expand
 
-	m.addNode(outNode)
+	if _, err := m.addNode(outNode); err != nil {
+		return handleErr(err)
+	}
 
 	expandID := fmt.Sprintf("%v_expand", id)
 	payload := &pipepb.ParDoPayload{
@@ -543,7 +646,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		Subtransforms: subtransforms,
 		EnvironmentId: m.addDefaultEnv(),
 	}
-	return cogbkID
+	return cogbkID, nil
 }
 
 // expandReshuffle translates resharding to a composite reshuffle
@@ -569,36 +672,62 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 // User code is able to write reshards, but it's easier to access
 // the window coders framework side, which is critical for the reshard
 // to function with unbounded inputs.
-func (m *marshaller) expandReshuffle(edge NamedEdge) string {
+func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
+	handleErr := func(err error) (string, error) {
+		return "", errors.Wrapf(err, "failed to expand Reshuffle transform for edge: %v", edge)
+	}
 	id := edgeID(edge.Edge)
-	var kvCoderID, gbkCoderID string
-	{
-		kv := makeUnionCoder()
-		kvCoderID = m.coders.Add(kv)
-		gbkCoderID = m.coders.Add(coder.NewCoGBK(kv.Components))
+	kvCoder, err := makeUnionCoder()
+	if err != nil {
+		return handleErr(err)
+	}
+	kvCoderID, err := m.coders.Add(kvCoder)
+	if err != nil {
+		return handleErr(err)
+	}
+	gbkCoderID, err := m.coders.Add(coder.NewCoGBK(kvCoder.Components))
+	if err != nil {
+		return handleErr(err)
 	}
 
 	var subtransforms []string
 
 	in := edge.Edge.Input[0]
 
-	origInput := m.addNode(in.From)
+	origInput, err := m.addNode(in.From)
+	if err != nil {
+		return handleErr(err)
+	}
 	// We need to preserve the old windowing/triggering here
 	// for re-instatement after the GBK.
 	preservedWSId := m.pcollections[origInput].GetWindowingStrategyId()
 
 	// Get the windowing strategy from before:
 	postReify := fmt.Sprintf("%v_%v_reifyts", nodeID(in.From), id)
-	m.makeNode(postReify, kvCoderID, in.From)
+	if _, err := m.makeNode(postReify, kvCoderID, in.From); err != nil {
+		return handleErr(err)
+	}
 
 	// We need to replace postReify's windowing strategy with one appropriate
 	// for reshuffles.
 	{
 		wfn := window.NewGlobalWindows()
+		windowFn, err := makeWindowFn(wfn)
+		if err != nil {
+			return handleErr(err)
+		}
+		coderId, err := makeWindowCoder(wfn)
+		if err != nil {
+			return handleErr(err)
+		}
+		windowCoderId, err := m.coders.AddWindowCoder(coderId)
+		if err != nil {
+			return handleErr(err)
+		}
 		m.pcollections[postReify].WindowingStrategyId =
 			m.internWindowingStrategy(&pipepb.WindowingStrategy{
 				// Not segregated by time...
-				WindowFn: makeWindowFn(wfn),
+				WindowFn: windowFn,
 				// ...output after every element is received...
 				Trigger: &pipepb.Trigger{
 					Trigger: &pipepb.Trigger_Always_{
@@ -614,7 +743,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 				// TODO(BEAM-3304): migrate to user side operations once trigger support is in.
 				EnvironmentId:   m.addDefaultEnv(),
 				MergeStatus:     pipepb.MergeStatus_NON_MERGING,
-				WindowCoderId:   m.coders.AddWindowCoder(makeWindowCoder(wfn)),
+				WindowCoderId:   windowCoderId,
 				ClosingBehavior: pipepb.ClosingBehavior_EMIT_IF_NONEMPTY,
 				AllowedLateness: 0,
 				OnTimeBehavior:  pipepb.OnTimeBehavior_FIRE_ALWAYS,
@@ -650,7 +779,9 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 	// GBK
 
 	gbkOut := fmt.Sprintf("%v_out", nodeID(outNode))
-	m.makeNode(gbkOut, gbkCoderID, outNode)
+	if _, err := m.makeNode(gbkOut, gbkCoderID, outNode); err != nil {
+		return handleErr(err)
+	}
 
 	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pipepb.PTransform{
@@ -664,7 +795,10 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 
 	// Expand
 
-	outPCol := m.addNode(outNode)
+	outPCol, err := m.addNode(outNode)
+	if err != nil {
+		return handleErr(err)
+	}
 	m.pcollections[outPCol].WindowingStrategyId = preservedWSId
 
 	outputID := fmt.Sprintf("%v_unreify", id)
@@ -699,27 +833,37 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 		},
 		EnvironmentId: m.addDefaultEnv(),
 	}
-	return reshuffleID
+	return reshuffleID, nil
 }
 
-func (m *marshaller) addNode(n *graph.Node) string {
+func (m *marshaller) addNode(n *graph.Node) (string, error) {
 	id := nodeID(n)
 	if _, exists := m.pcollections[id]; exists {
-		return id
+		return id, nil
 	}
 	// TODO(herohde) 11/15/2017: expose UniqueName to user.
-	return m.makeNode(id, m.coders.Add(n.Coder), n)
+	cid, err := m.coders.Add(n.Coder)
+	if err != nil {
+		return "", err
+	}
+	return m.makeNode(id, cid, n)
 }
 
-func (m *marshaller) makeNode(id, cid string, n *graph.Node) string {
+func (m *marshaller) makeNode(id, cid string, n *graph.Node) (string, error) {
+	windowingStrategyId, err := m.addWindowingStrategy(n.WindowingStrategy())
+
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to make node %v with node id %v", n, id)
+	}
+
 	col := &pipepb.PCollection{
 		UniqueName:          id,
 		CoderId:             cid,
 		IsBounded:           boolToBounded(n.Bounded()),
-		WindowingStrategyId: m.addWindowingStrategy(n.WindowingStrategy()),
+		WindowingStrategyId: windowingStrategyId,
 	}
 	m.pcollections[id] = col
-	return id
+	return id, nil
 }
 
 func boolToBounded(bounded bool) pipepb.IsBounded_Enum {
@@ -737,10 +881,13 @@ func (m *marshaller) addDefaultEnv() string {
 	return id
 }
 
-func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) string {
-	ws := marshalWindowingStrategy(m.coders, w)
+func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, error) {
+	ws, err := marshalWindowingStrategy(m.coders, w)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to add window strategy %v", w)
+	}
 	ws.EnvironmentId = m.addDefaultEnv()
-	return m.internWindowingStrategy(ws)
+	return m.internWindowingStrategy(ws), nil
 }
 
 func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string {
@@ -757,12 +904,24 @@ func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string
 
 // marshalWindowingStrategy marshals the given windowing strategy in
 // the given coder context.
-func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pipepb.WindowingStrategy {
+func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) (*pipepb.WindowingStrategy, error) {
+	windowFn, err := makeWindowFn(w.Fn)
+	if err != nil {
+		return nil, err
+	}
+	coderId, err := makeWindowCoder(w.Fn)
+	if err != nil {
+		return nil, err
+	}
+	windowCoderId, err := c.AddWindowCoder(coderId)
+	if err != nil {
+		return nil, err
+	}
 	ws := &pipepb.WindowingStrategy{
-		WindowFn:         makeWindowFn(w.Fn),
+		WindowFn:         windowFn,
 		MergeStatus:      pipepb.MergeStatus_NON_MERGING,
 		AccumulationMode: pipepb.AccumulationMode_DISCARDING,
-		WindowCoderId:    c.AddWindowCoder(makeWindowCoder(w.Fn)),
+		WindowCoderId:    windowCoderId,
 		Trigger: &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
@@ -773,15 +932,15 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *
 		AllowedLateness: 0,
 		OnTimeBehavior:  pipepb.OnTimeBehavior_FIRE_ALWAYS,
 	}
-	return ws
+	return ws, nil
 }
 
-func makeWindowFn(w *window.Fn) *pipepb.FunctionSpec {
+func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return &pipepb.FunctionSpec{
 			Urn: URNGlobalWindowsWindowFn,
-		}
+		}, nil
 	case window.FixedWindows:
 		return &pipepb.FunctionSpec{
 			Urn: URNFixedWindowsWindowFn,
@@ -790,7 +949,7 @@ func makeWindowFn(w *window.Fn) *pipepb.FunctionSpec {
 					Size: ptypes.DurationProto(w.Size),
 				},
 			),
-		}
+		}, nil
 	case window.SlidingWindows:
 		return &pipepb.FunctionSpec{
 			Urn: URNSlidingWindowsWindowFn,
@@ -800,7 +959,7 @@ func makeWindowFn(w *window.Fn) *pipepb.FunctionSpec {
 					Period: ptypes.DurationProto(w.Period),
 				},
 			),
-		}
+		}, nil
 	case window.Sessions:
 		return &pipepb.FunctionSpec{
 			Urn: URNSessionsWindowFn,
@@ -809,32 +968,32 @@ func makeWindowFn(w *window.Fn) *pipepb.FunctionSpec {
 					GapSize: ptypes.DurationProto(w.Gap),
 				},
 			),
-		}
+		}, nil
 	default:
-		panic(fmt.Sprintf("Unexpected windowing strategy: %v", w))
+		return nil, errors.Errorf("unexpected windowing strategy: %v", w)
 	}
 }
 
-func makeWindowCoder(w *window.Fn) *coder.WindowCoder {
+func makeWindowCoder(w *window.Fn) (*coder.WindowCoder, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
-		return coder.NewGlobalWindow()
+		return coder.NewGlobalWindow(), nil
 	case window.FixedWindows, window.SlidingWindows, URNSlidingWindowsWindowFn:
-		return coder.NewIntervalWindow()
+		return coder.NewIntervalWindow(), nil
 	default:
-		panic(fmt.Sprintf("Unexpected windowing strategy: %v", w))
+		return nil, errors.Errorf("unexpected windowing strategy: %v", w)
 	}
 }
 
-func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
+func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) (string, error) {
 	ref, err := EncodeMultiEdge(edge)
 	if err != nil {
-		panic(errors.Wrapf(err, "Failed to serialize %v", edge))
+		return "", errors.Wrapf(err, "failed to serialize %v", edge)
 	}
 	return protox.MustEncodeBase64(&v1pb.TransformPayload{
 		Urn:  URNDoFn,
 		Edge: ref,
-	})
+	}), nil
 }
 
 // makeBytesKeyedCoder returns KV<[]byte,A,> for any coder,

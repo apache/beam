@@ -139,7 +139,7 @@ if [[ "$SAVE_MAIN_SESSION" -eq 0 ]]; then
     --flink_job_server_jar "$FLINK_JOB_SERVER_JAR" \
     --parallelism 1 \
     --environment_type DOCKER \
-    --environment_config "$PYTHON_CONTAINER_IMAGE" \
+    --environment_options "docker_container_image=$PYTHON_CONTAINER_IMAGE" \
     --flink_master "localhost:$FLINK_PORT" \
     --flink_submit_uber_jar \
   ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
@@ -149,7 +149,7 @@ else
     --flink_job_server_jar "$FLINK_JOB_SERVER_JAR" \
     --parallelism 1 \
     --environment_type DOCKER \
-    --environment_config "$PYTHON_CONTAINER_IMAGE" \
+    --environment_options "docker_container_image=$PYTHON_CONTAINER_IMAGE" \
     --flink_master "localhost:$FLINK_PORT" \
     --flink_submit_uber_jar \
     --save_main_session

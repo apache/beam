@@ -25,8 +25,11 @@ import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
@@ -527,5 +530,41 @@ public class AutoValueSchemaTest {
     SimpleAutoValueWithStaticFactory value =
         registry.getFromRowFunction(SimpleAutoValueWithStaticFactory.class).apply(row);
     verifyAutoValue(value);
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class SchemaFieldNameSimpleClass {
+    @SchemaFieldName("renamed")
+    abstract String getStr();
+  }
+
+  @Test
+  public void testSchema_SchemaFieldName() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SchemaFieldNameSimpleClass.class);
+    SchemaTestUtils.assertSchemaEquivalent(
+        Schema.of(Field.of("renamed", FieldType.STRING)), schema);
+  }
+
+  @Test
+  public void testFromRow_SchemaFieldName() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        Row.withSchema(Schema.of(Field.of("renamed", FieldType.STRING)))
+            .withFieldValue("renamed", "value!")
+            .build();
+    SchemaFieldNameSimpleClass value =
+        registry.getFromRowFunction(SchemaFieldNameSimpleClass.class).apply(row);
+    assertEquals("value!", value.getStr());
+  }
+
+  @Test
+  public void testToRow_SchemaFieldName() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    AutoValue_AutoValueSchemaTest_SchemaFieldNameSimpleClass value =
+        new AutoValue_AutoValueSchemaTest_SchemaFieldNameSimpleClass("another value!");
+    Row row = registry.getToRowFunction(SchemaFieldNameSimpleClass.class).apply(value);
+    assertEquals("another value!", row.getValue("renamed"));
   }
 }

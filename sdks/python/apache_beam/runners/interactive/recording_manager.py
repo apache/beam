@@ -22,6 +22,8 @@ import threading
 import time
 import warnings
 
+import pandas as pd
+
 import apache_beam as beam
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import background_caching_job as bcj
@@ -263,7 +265,7 @@ class Recording:
 
     size = sum(
         cache_manager.size('full', s.cache_key) for s in self._streams.values())
-    return {'size': size}
+    return {'size': size, 'duration': self._duration_secs}
 
 
 class RecordingManager:
@@ -387,8 +389,8 @@ class RecordingManager:
       return True
     return False
 
-  def record(self, pcolls, max_n, max_duration_secs):
-    # type: (List[beam.pvalue.PCollection], int, int) -> Recording
+  def record(self, pcolls, max_n, max_duration):
+    # type: (List[beam.pvalue.PCollection], int, Union[int,str]) -> Recording
 
     """Records the given PCollections."""
 
@@ -398,6 +400,11 @@ class RecordingManager:
         '{} belongs to a different user-defined pipeline ({}) than that of'
         ' other PCollections ({}).'.format(
             pcoll, pcoll.pipeline, self.user_pipeline))
+
+    if isinstance(max_duration, str) and max_duration != 'inf':
+      max_duration_secs = pd.to_timedelta(max_duration).total_seconds()
+    else:
+      max_duration_secs = max_duration
 
     # Make sure that all PCollections to be shown are watched. If a PCollection
     # has not been watched, make up a variable name for that PCollection and

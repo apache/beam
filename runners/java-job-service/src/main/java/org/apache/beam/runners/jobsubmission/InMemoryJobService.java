@@ -259,9 +259,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               }
             } catch (Exception e) {
               LOG.warn(
-                  "Failed to remove job staging directory for token {}: {}",
-                  stagingSessionToken,
-                  e);
+                  "Failed to remove job staging directory for token {}.", stagingSessionToken, e);
             } finally {
               onFinishedInvocationCleanup(invocationId);
             }

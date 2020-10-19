@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -164,6 +166,15 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
+
+    // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
+    // executing an unbounded pipeline or the user specifically requested it.
+    if (mOptions.isStreaming()
+        || ExperimentalOptions.hasExperiment(
+            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    }
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 

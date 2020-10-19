@@ -24,6 +24,7 @@ import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.internal.CloseableMonitor;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.ProxyService;
+import com.google.cloud.pubsublite.internal.PullSubscriber;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
@@ -139,7 +140,7 @@ class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
   static class SubscriberState {
     Instant lastDeliveredPublishTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
     Optional<Offset> lastDelivered = Optional.empty();
-    PullSubscriber subscriber;
+    PullSubscriber<SequencedMessage> subscriber;
     Committer committer;
   }
 

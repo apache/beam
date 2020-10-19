@@ -461,7 +461,7 @@ public class NexmarkUtils {
         new DoFn<T, T>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            LOG.info("%s: %s", name, c.element());
+            LOG.info("{}: {}", name, c.element());
             c.output(c.element());
           }
         });

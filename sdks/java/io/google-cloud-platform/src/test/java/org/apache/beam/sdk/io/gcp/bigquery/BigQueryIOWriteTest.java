@@ -1556,7 +1556,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION,
             multiPartitionsTag,
             singlePartitionTag,
-            RowWriterFactory.tableRows(SerializableFunctions.identity()));
+            RowWriterFactory.tableRows(
+                SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     DoFnTester<
             Iterable<WriteBundlesToFiles.Result<TableDestination>>,

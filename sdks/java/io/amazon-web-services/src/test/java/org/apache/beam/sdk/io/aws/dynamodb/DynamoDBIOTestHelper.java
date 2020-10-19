@@ -42,13 +42,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Assert;
 import org.junit.Rule;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /** A utility to generate test table and data for {@link DynamoDBIOTest}. */
 class DynamoDBIOTestHelper implements Serializable {
+  private static final String LOCALSTACK_VERSION = "0.11.3";
 
   @Rule
-  private static LocalStackContainer localStackContainer =
-      new LocalStackContainer().withServices(LocalStackContainer.Service.DYNAMODB);
+  private static final LocalStackContainer localStackContainer =
+      new LocalStackContainer(
+              DockerImageName.parse("localstack/localstack").withTag(LOCALSTACK_VERSION))
+          .withServices(LocalStackContainer.Service.DYNAMODB);
 
   private static AmazonDynamoDB dynamoDBClient;
 

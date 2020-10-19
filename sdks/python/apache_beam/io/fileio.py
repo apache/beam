@@ -84,8 +84,6 @@ a destination named `'avro'`, or `'csv'`. The value returned by the
 `destination` call is then passed to the `sink` call, to determine what sort of
 sink will be used for each destination. The return type of the `destination`
 parameter can be anything, as long as elements can be grouped by it.
-
-No backward compatibility guarantees. Everything in this module is experimental.
 """
 
 # pytype: skip-file
@@ -170,7 +168,6 @@ class _MatchAllFn(beam.DoFn):
     return match_result.metadata_list
 
 
-@experimental()
 class MatchFiles(beam.PTransform):
   """Matches a file pattern using ``FileSystems.match``.
 
@@ -187,7 +184,6 @@ class MatchFiles(beam.PTransform):
     return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
 
 
-@experimental()
 class MatchAll(beam.PTransform):
   """Matches file patterns from the input PCollection via ``FileSystems.match``.
 
@@ -242,7 +238,6 @@ class ReadableFile(object):
     return self.open().read().decode('utf-8')
 
 
-@experimental()
 class ReadMatches(beam.PTransform):
   """Converts each result of MatchFiles() or MatchAll() to a ReadableFile.
 
@@ -258,8 +253,6 @@ class ReadMatches(beam.PTransform):
 
 class FileSink(object):
   """Specifies how to write elements to individual files in ``WriteToFiles``.
-
-  **NOTE: THIS CLASS IS EXPERIMENTAL.**
 
   A Sink class must implement the following:
 
@@ -285,8 +278,6 @@ class FileSink(object):
 @beam.typehints.with_input_types(str)
 class TextSink(FileSink):
   """A sink that encodes utf8 elements, and writes to file handlers.
-
-  **NOTE: THIS CLASS IS EXPERIMENTAL.**
 
   This sink simply calls file_handler.write(record.encode('utf8') + '\n') on all
   records that come into it.
