@@ -1381,7 +1381,7 @@ public class StreamingDataflowWorker {
         // The MapTask instruction is ordered by dependencies, such that the first element is
         // always going to be the shuffle task.
         String stepName = computationState.getMapTask().getInstructions().get(0).getName();
-        if (options.isHotKeyLoggingEnabled()) {
+        if (options.isHotKeyLoggingEnabled() && keyCoder != null) {
           hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
         } else {
           hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
