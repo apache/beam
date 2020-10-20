@@ -259,7 +259,26 @@ class GcsIO(object):
     if not paths:
       return []
 
+    from concurrent.futures import ThreadPoolExecutor
+    e = ThreadPoolExecutor(max_workers=10)
+
+    def _execute_batch_request(input_request):
+      local_result_statuses = []
+      api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+      for i, api_call in enumerate(api_calls):
+        path = paths_chunk[i]
+        exception = None
+        if api_call.is_error:
+          exception = api_call.exception
+          # Return success when the file doesn't exist anymore for idempotency.
+          if isinstance(exception, HttpError) and exception.status_code == 404:
+            exception = None
+        local_result_statuses.append((path, exception))
+      return local_result_statuses
+
+
     paths = iter(paths)
+    futures = []
     result_statuses = []
     while True:
       paths_chunk = list(islice(paths, MAX_BATCH_OPERATION_SIZE))
@@ -274,16 +293,9 @@ class GcsIO(object):
         request = storage.StorageObjectsDeleteRequest(
             bucket=bucket, object=object_path)
         batch_request.Add(self.client.objects, 'Delete', request)
-      api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
-      for i, api_call in enumerate(api_calls):
-        path = paths_chunk[i]
-        exception = None
-        if api_call.is_error:
-          exception = api_call.exception
-          # Return success when the file doesn't exist anymore for idempotency.
-          if isinstance(exception, HttpError) and exception.status_code == 404:
-            exception = None
-        result_statuses.append((path, exception))
+      futures.append(e.submit(_execute_batch_request, batch_request))
+    for f in futures:
+      result_statuses.extend(f.result())
     return result_statuses
 
   @retry.with_exponential_backoff(
