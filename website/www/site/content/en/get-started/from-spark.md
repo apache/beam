@@ -2,14 +2,14 @@
 title: "Getting started from Apache Spark"
 ---
 <!--
-Licensed under the Apache License, Version 2.0 (the "License"); 
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS, 
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
@@ -23,7 +23,11 @@ If you already know [_Apache Spark_](http://spark.apache.org/),
 learning _Apache Beam_ is easy.
 The Beam and Spark APIs are similar, so you already know the basic concepts.
 
-A collection of elements in Spark is called a _Resilient Distributed Dataset_ (RDD),
+Spark stores data _Spark DataFrames_ for structured data,
+and in _Resilient Distributed Datasets_ (RDD) for unstructured data.
+We are using RDDs for this guide.
+
+A _Spark RDD_ represents a collection of elements,
 while in Beam it's called a _Parallel Collection_ (PCollection).
 A PCollection in Beam does _not_ have any ordering guarantees.
 
