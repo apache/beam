@@ -769,7 +769,7 @@ different table for each year.
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The Beam SDK for Python does not currently support dynamic destinations.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_dynamic_destinations>}}
 {{< /highlight >}}
 
 ### Using time partitioning
@@ -805,7 +805,7 @@ This example generates one partition per day.
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The Beam SDK for Python does not currently support time partitioning.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_time_partitioning>}}
 {{< /highlight >}}
 
 
