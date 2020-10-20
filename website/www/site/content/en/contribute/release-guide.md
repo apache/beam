@@ -135,7 +135,20 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
 
   Here, the key ID is the 8-digit hex string in the `pub` line: `845E6689`.
 
-  Now, add your Apache GPG key to the Beam’s `KEYS` file both in [`dev`](https://dist.apache.org/repos/dist/dev/beam/KEYS) and [`release`](https://dist.apache.org/repos/dist/release/beam/KEYS) repositories at `dist.apache.org`. Follow the instructions listed at the top of these files. (Note: Only PMC members have write access to the release repository. If you end up getting 403 errors ask on the mailing list for assistance.)
+* Add your Apache GPG key to the Beam’s `KEYS` file both in
+[`dev`](https://dist.apache.org/repos/dist/dev/beam/KEYS) and 
+[`release`](https://dist.apache.org/repos/dist/release/beam/KEYS) repositories at `dist.apache.org`
+with the following instructions for cloning the SVN repository and committing the change.
+(Note: Only PMC members have write access to the release repository. If you end up getting 403
+errors ask on the mailing list for assistance.)
+
+      export NAME="Nomen Nescio"
+      svn co https://dist.apache.org/repos/dist/dev/beam
+      cd beam
+      (gpg --list-sigs ${NAME} && gpg --armor --export ${NAME}) >> KEYS
+      # Review changes before committing.
+      svn status 
+      svn commit --no-auth-cache KEYS
 
 * Configure `git` to use this key when signing code by giving it your key ID, as follows:
 
