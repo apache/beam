@@ -5189,15 +5189,15 @@ what subset of the restriction has been completed during processing.
 To define a splittable DoFn, you must choose whether the splittable DoFn is bounded (default) or
 unbounded and define a way to initialize an initial restriction for an element.
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExample >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExample >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight go }}
+{{< highlight go >}}
 func (fn *splittableDoFn) CreateInitialRestriction(filename string) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: 0,
@@ -5226,22 +5226,22 @@ func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, 
 	}
 	return nil
 }
-{{ /highlight }}
+{{< /highlight >}}
 
 At this point, we have a splittable DoFn that supports [runner-initiated splits](#runner-initiated-split)
 enabling dynamic work rebalancing. To increase the rate at which initial parallelization of work occurs
 or for those runners that do not support [runner-initiated splitting](#current-status), we recommend providing
 a set of initial splits:
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExampleWithSplitting >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExampleWithSplitting >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight go }}
+{{< highlight go >}}
 func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
 	size := 64 * (1 << 20)
 	i := rest.Start
@@ -5255,7 +5255,7 @@ func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Res
 	splits = append(splits, offsetrange.Restriction{i, rest.End})
 	return splits	
 }
-{{ /highlight }}
+{{< /highlight >}}
 
 ### 12.2 Sizing and progress {#sizing-and-progress}
 
@@ -5271,15 +5271,15 @@ By default, we use the restriction tracker’s estimate for work remaining falli
 that all restrictions have an equal cost. To override the default, SDF authors can provide the
 appropriate method within the restriction provider.
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_GetSize >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_GetSize >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight go }}
+{{< highlight go >}}
 func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Restriction) float64 {
 	weight := float64(1)
 	if strings.Contains(filename, “expensiveRecords”) {
@@ -5287,7 +5287,7 @@ func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Rest
 	}
 	return weight * rest.Size()
 }
-{{ /highlight }}
+{{< /highlight >}}
 
 ### 12.3 SDF-initiated checkpoint {#sdf-initiated-checkpoint}
 
@@ -5301,13 +5301,13 @@ signal can suggest a time to resume at. While the runner tries to honor the resu
 guaranteed. This allows execution to continue on a restriction that has available work improving
 resource utilization.
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_SdkInitiatedCheckpoint >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_SdkInitiatedCheckpoint >}}
-{{ /highlight }}
+{{< /highlight >}}
 
 ### 12.4 Runner-initiated split {#runner-initiated-split}
 
@@ -5319,15 +5319,15 @@ splittable DoFn with this in mind since the end of the restriction may change. T
 processing loop, it is important to use the result from trying to claim a piece of the restriction
 instead of assuming one can process till the end.
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BadTryClaimLoop >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BadTryClaimLoop >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight go }}
+{{< highlight go >}}
 func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
             file, err := os.Open(filename)
 	if err != nil {
@@ -5348,7 +5348,7 @@ func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string,
 	}
 	return nil
 }
-{{ /highlight }}
+{{< /highlight >}}
 
 ### 12.5 Watermark estimation {#watermark-estimation}
 
@@ -5380,13 +5380,13 @@ through an external service.
 The restriction provider lets you override the default watermark estimation logic and use an existing
 watermark estimator implementation. You can also provide your own watermark estimator implementation.
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_CustomWatermarkEstimator >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_CustomWatermarkEstimator >}}
-{{ /highlight }}
+{{< /highlight >}}
 
 ### 12.6 Bundle finalization {#bundle-finalization}
 
@@ -5395,13 +5395,13 @@ The callback is invoked once the runner has acknowledged that it has durably per
 For example, a message queue might need to acknowledge messages that it has ingested into the pipeline.
 Bundle finalization is not limited to splittable DoFns.
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BundleFinalize >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BundleFinalize >}}
-{{ /highlight }}
+{{< /highlight >}}
 
 ### 12.7 Truncating SDFs during drain {#truncating-sdfs-during-drain}
 
@@ -5411,10 +5411,10 @@ unbounded restrictions finish processing at the next SDF-initiated checkpoint or
 You are able to override this default behavior by defining the appropriate method on the restriction
 provider.
 
-{{ highlight java }}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_Truncate >}}
-{{ /highlight }}
+{{< /highlight >}}
 
-{{ highlight py }}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_Truncate >}}
-{{ /highlight }}
+{{< /highlight >}}

@@ -1610,6 +1610,7 @@ def nlp_analyze_text():
         | 'Write adjacency list' >> beam.io.WriteToText('adjancency_list.txt'))
   # [END nlp_analyze_text]
 
+# TODO: show how to set coder
 def sdf_basic_example():
   # [START SDF_BasicExample]
   class FileToWordsFn(beam.DoFn):
@@ -1627,6 +1628,73 @@ def sdf_basic_example():
       return beam.io.restriction_trackers.OffsetRestrictionTracker()
   # [END SDF_BasicExample]
 
+# TODO: write python version
+def sdf_basic_example_with_splitting():
+  # [START SDF_BasicExampleWithSplitting]
+  # void splitRestriction(@Restriction OffsetRange restriction, OutputReceiver<OffsetRange> splitReceiver) {
+  #     long splitSize = 64 * (1 << 20);
+  # long i = restriction.getFrom();
+  # while (i < restriction.getTo() - splitSize) {
+  # // Compute and output 64 MiB size ranges to process in parallel
+  # long end = i + splitSize;
+  # splitReceiver.output(new OffsetRange(i, end));
+  # i = end;
+  # }
+  # // Output the last range
+  # splitReceiver.output(new OffsetRange(i, restriction.getTo()));
+  # }
+  # [END SDF_BasicExampleWithSplitting]
+
+# TODO: make python match java
+def sdf_sdk_initiated_checkpointing():
+  # [START SDF_SdkInitiatedCheckpoint]
+  # public interface Service {
+  #     Record readNextRecord(long position) throws ThrottlingException, ElementNotReadyException;
+  # }
+  #
+  # public interface Record {
+  #     long getPosition();
+  # }
+  #
+  # @ProcessElement
+  # public ProcessContinuation processElement(RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Record> outputReceiver) {
+  #     long currentPosition = tracker.currentRestriction().getFrom();
+  # Service service = initializeService();
+  # try {
+  # while (true) {
+  # Record record = service.readNextRecord(currentPosition);
+  # if (!tracker.tryClaim(record.getPosition())) {
+  # return ProcessContinuation.stop();
+  # }
+  # currentPosition = record.getPosition() + 1;
+  #
+  # outputReceiver.output(record);
+  # }
+  # } catch (ThrottlingException exception) {
+  # return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(60));
+  # } catch (ElementNotReadyException e) {
+  # return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(10));
+  # }
+  # }
+
+  class MySplittableDoFn(beam.DoFn):
+    def process(self,
+        element,
+        restriction_tracker=beam.DoFn.RestrictionParam(MyRestrictionProvider())):
+      while True:
+        # Pull records from an external service.
+        records = external_service.fetch()
+        # If there is no record at this moment, resume current element and restriction.
+        if records.empty():
+          restriction_tracker.defer_remainder()
+          return
+        for record in records:
+          if restriction_tracker.try_claim(record):
+            yield record
+          else:
+            return
+  # [END SDF_SdkInitiatedCheckpoint]
+
 def sdf_get_size():
   # [START SDF_GetSize]
   # The RestrictionProvider is responsible for calculating the size of given restriction.
@@ -1636,6 +1704,124 @@ def sdf_get_size():
       return restriction.size() * weight
   # [END SDF_GetSize]
 
+# TODO: make python version
+def sdf_bad_try_claim_loop():
+  pass
+  # [START SDF_BadTryClaimLoop]
+  # @ProcessElement
+  # public void badTryClaimLoop(@Element String fileName, RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Integer> outputReceiver) throws IOException {
+  #     RandomAccessFile file = new RandomAccessFile(fileName, "r");
+  # seekToNextRecordBoundaryInFile(file, tracker.currentRestriction().getFrom());
+  # while (file.getFilePointer() < tracker.currentRestriction().getTo()) {
+  # // The restriction tracker can be modified by another thread in parallel. Only after
+  # // successfully claiming should we produce any output and/or perform side effects.
+  # tracker.tryClaim(file.getFilePointer());
+  # outputReceiver.output(readNextRecord(file));
+  # }
+  # }
+  # [END SDF_BadTryClaimLoop]
+
+# TODO: make python match java
+def sdf_custom_watermark_estimator():
+  # [START SDF_CustomWatermarkEstimator]
+  # @GetInitialWatermarkEstimatorState
+  # public MyCustomWatermarkType getInitialWatermarkEstimatorState(@Element String element, @Restriction OffsetRange restriction) {
+  #                                                                                                                               // Compute and return the initial watermark estimator state for each element and restriction.
+  #   // All subsequent processing of an element and restriction will be restored from the existing state.
+  #   return new MyCustomWatermarkType(element, restriction);
+  # }
+  #
+  # @NewWatermarkEstimator
+  # public WatermarkEstimator<MyCustomWatermarkType> newWatermarkEstimator(@WatermarkEstimatorState MyCustomWatermarkType oldState) {
+  # return new MyCustomWatermarkEstimator(oldState);
+  # }
+  #
+  # @GetWatermarkEstimatorStateCoder
+  # public Coder<MyCustomWatermarkType> getWatermarkEstimatorStateCoder() {
+  # return AvroCoder.of(MyCustomWatermarkType.class);
+  # }
+  #
+  # public static class MyCustomWatermarkType {
+  # public MyCustomWatermarkType(String element, OffsetRange restriction) {
+  # // store data necessary for future watermark computations
+  # }
+  # }
+  #
+  # public static class MyCustomWatermarkEstimator implements TimestampObservingWatermarkEstimator<MyCustomWatermarkType> {
+  # public MyCustomWatermarkEstimator(MyCustomWatermarkType type) {
+  # // initialize watermark estimator state
+  # }
+  #
+  # @Override
+  # public void observeTimestamp(Instant timestamp) {
+  # // will be invoked on each output
+  # }
+  #
+  # @Override
+  # public Instant currentWatermark() {
+  # // return a monotonically increasing value
+  # return null;
+  # }
+  #
+  # @Override
+  # public MyCustomWatermarkType getState() {
+  # // Return state that will be restored during subsequent processing of this element and restriction.
+  # return null;
+  # }
+  # }
+  # }
+
+  # First, you need to define a WatermarkEstimator
+  class MyCustomWatermarkEstimator(WatermarkEstimator):
+    def __init__(self, estimator_state):
+      self.state = estimator_state
+
+    def observe_timestamp(self, timestamp):
+    # Update the watermark based on the timestamp. This function is called by the system everytime
+    # there is a record output from SDF.
+
+    def current_watermark(self):
+      return current_watermark
+
+    def get_estimator_state(self):
+      return self.state
+
+  # Then, a WatermarkEstimatorProvider needs to be created for this WatermarkEstimator
+  class MyWatermarkEstimatorProvider(WatermarkEstimatorProvider):
+    def initial_estimator_state(self, element, restriction):
+      return initial_state
+
+    def create_watermark_estimator(self, estimator_state):
+      return MyCustomWatermarkEstimator(estimator_state)
+
+  # Finally, define the SDF with MyWatermarkEstimator.
+  class MySplittableDoFn(beam.DoFn):
+    def process(self,
+        element,
+        restriction_tracker=beam.DoFn.RestrictionParam(MyRestrictionProvider()),
+        watermark_estimator=
+        beam.DoFn.WatermarkEstimatorParam(MyWatermarkEstimatorProvider())):
+    # The current watermark can be inspected.
+    watermark_estimator.current_watermark()
+  # [END SDF_CustomWatermarkEstimator]
+
+# TODO: write python version
+def sdf_truncate():
+  pass
+  # [START SDF_Truncate]
+  # @TruncateRestriction
+  # @Nullable
+  # TruncateResult<OffsetRange> truncateRestriction(@Element String fileName, @Restriction OffsetRange restriction) {
+  # if (fileName.contains("optional")) {
+  #                                    // Skip optional files
+  # return null;
+  # }
+  # return TruncateResult.of(restriction);
+  # }
+  # [END SDF_Truncate]
+
+
+# TODO: Make java and python line up better
 def bundle_finalize():
   # [START BundleFinalize]
   class MySplittableDoFn(beam.DoFn):

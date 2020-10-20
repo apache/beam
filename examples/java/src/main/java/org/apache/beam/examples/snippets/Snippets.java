@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.Serializable;
-import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -42,7 +41,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
@@ -51,11 +49,9 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.ml.AnnotateText;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -80,7 +76,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
@@ -113,7 +108,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -1182,9 +1176,11 @@ public class Snippets {
       public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
         // ... produce output ...
 
-        bundleFinalizer.afterBundleCommit(Instant.now().plus(Duration.standardMinutes(5)), () -> {
-          // ... perform a side effect ...
-        });
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(Duration.standardMinutes(5)),
+            () -> {
+              // ... perform a side effect ...
+            });
       }
       // [END BundleFinalize]
     }
@@ -1192,9 +1188,8 @@ public class Snippets {
 
   private static class SplittableDoFn {
 
-    private static void seekToNextRecordBoundaryInFile(RandomAccessFile file, long initialPosition) {
-
-    }
+    private static void seekToNextRecordBoundaryInFile(
+        RandomAccessFile file, long initialPosition) {}
 
     private static Integer readNextRecord(RandomAccessFile file) {
       // ... read a record ...
@@ -1210,7 +1205,11 @@ public class Snippets {
       }
 
       @ProcessElement
-      public void processElement(@Element String fileName, RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Integer> outputReceiver) throws IOException {
+      public void processElement(
+          @Element String fileName,
+          RestrictionTracker<OffsetRange, Long> tracker,
+          OutputReceiver<Integer> outputReceiver)
+          throws IOException {
         RandomAccessFile file = new RandomAccessFile(fileName, "r");
         seekToNextRecordBoundaryInFile(file, tracker.currentRestriction().getFrom());
         while (tracker.tryClaim(file.getFilePointer())) {
@@ -1224,11 +1223,12 @@ public class Snippets {
         return OffsetRange.Coder.of();
       }
     }
-    // [START SDF_BasicExample]
+    // [END SDF_BasicExample]
 
     private static class BasicExampleWithInitialSplitting extends FileToWordsFn {
       // [START SDF_BasicExampleWithSplitting]
-      void splitRestriction(@Restriction OffsetRange restriction, OutputReceiver<OffsetRange> splitReceiver) {
+      void splitRestriction(
+          @Restriction OffsetRange restriction, OutputReceiver<OffsetRange> splitReceiver) {
         long splitSize = 64 * (1 << 20);
         long i = restriction.getFrom();
         while (i < restriction.getTo() - splitSize) {
@@ -1246,7 +1246,11 @@ public class Snippets {
     private static class BasicExampleWithBadTryClaimLoop extends DoFn<String, Integer> {
       // [START SDF_BadTryClaimLoop]
       @ProcessElement
-      public void badTryClaimLoop(@Element String fileName, RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Integer> outputReceiver) throws IOException {
+      public void badTryClaimLoop(
+          @Element String fileName,
+          RestrictionTracker<OffsetRange, Long> tracker,
+          OutputReceiver<Integer> outputReceiver)
+          throws IOException {
         RandomAccessFile file = new RandomAccessFile(fileName, "r");
         seekToNextRecordBoundaryInFile(file, tracker.currentRestriction().getFrom());
         while (file.getFilePointer() < tracker.currentRestriction().getTo()) {
@@ -1256,20 +1260,24 @@ public class Snippets {
           outputReceiver.output(readNextRecord(file));
         }
       }
-      // [START SDF_BadTryClaimLoop]
+      // [END SDF_BadTryClaimLoop]
     }
 
     private static class CustomWatermarkEstimatorExample extends DoFn<String, Integer> {
       // [START SDF_CustomWatermarkEstimator]
       @GetInitialWatermarkEstimatorState
-      public MyCustomWatermarkType getInitialWatermarkEstimatorState(@Element String element, @Restriction OffsetRange restriction) {
-        // Compute and return the initial watermark estimator state for each element and restriction.
-        // All subsequent processing of an element and restriction will be restored from the existing state.
+      public MyCustomWatermarkType getInitialWatermarkEstimatorState(
+          @Element String element, @Restriction OffsetRange restriction) {
+        // Compute and return the initial watermark estimator state for each element and
+        // restriction.
+        // All subsequent processing of an element and restriction will be restored from the
+        // existing state.
         return new MyCustomWatermarkType(element, restriction);
       }
 
       @NewWatermarkEstimator
-      public WatermarkEstimator<MyCustomWatermarkType> newWatermarkEstimator(@WatermarkEstimatorState MyCustomWatermarkType oldState) {
+      public WatermarkEstimator<MyCustomWatermarkType> newWatermarkEstimator(
+          @WatermarkEstimatorState MyCustomWatermarkType oldState) {
         return new MyCustomWatermarkEstimator(oldState);
       }
 
@@ -1284,7 +1292,8 @@ public class Snippets {
         }
       }
 
-      public static class MyCustomWatermarkEstimator implements TimestampObservingWatermarkEstimator<MyCustomWatermarkType> {
+      public static class MyCustomWatermarkEstimator
+          implements TimestampObservingWatermarkEstimator<MyCustomWatermarkType> {
         public MyCustomWatermarkEstimator(MyCustomWatermarkType type) {
           // initialize watermark estimator state
         }
@@ -1302,7 +1311,8 @@ public class Snippets {
 
         @Override
         public MyCustomWatermarkType getState() {
-          // Return state that will be restored during subsequent processing of this element and restriction.
+          // Return state that will be restored during subsequent processing of this element and
+          // restriction.
           return null;
         }
       }
@@ -1310,11 +1320,9 @@ public class Snippets {
     // [END SDF_CustomWatermarkEstimator]
 
     private static class SdkInitiatedCheckpointExample extends DoFn<String, Integer> {
-      public static class ThrottlingException extends Exception {
-      }
+      public static class ThrottlingException extends Exception {}
 
-      public static class ElementNotReadyException extends Exception {
-      }
+      public static class ElementNotReadyException extends Exception {}
 
       private Service initializeService() {
         return null;
@@ -1330,19 +1338,20 @@ public class Snippets {
       }
 
       @ProcessElement
-      public ProcessContinuation processElement(RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Record> outputReceiver) {
+      public ProcessContinuation processElement(
+          RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Record> outputReceiver) {
         long currentPosition = tracker.currentRestriction().getFrom();
         Service service = initializeService();
         try {
-            while (true) {
-              Record record = service.readNextRecord(currentPosition);
-              if (!tracker.tryClaim(record.getPosition())) {
-                return ProcessContinuation.stop();
-              }
-              currentPosition = record.getPosition() + 1;
-
-              outputReceiver.output(record);
+          while (true) {
+            Record record = service.readNextRecord(currentPosition);
+            if (!tracker.tryClaim(record.getPosition())) {
+              return ProcessContinuation.stop();
             }
+            currentPosition = record.getPosition() + 1;
+
+            outputReceiver.output(record);
+          }
         } catch (ThrottlingException exception) {
           return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(60));
         } catch (ElementNotReadyException e) {
@@ -1356,7 +1365,8 @@ public class Snippets {
       // [START SDF_Truncate]
       @TruncateRestriction
       @Nullable
-      TruncateResult<OffsetRange> truncateRestriction(@Element String fileName, @Restriction OffsetRange restriction) {
+      TruncateResult<OffsetRange> truncateRestriction(
+          @Element String fileName, @Restriction OffsetRange restriction) {
         if (fileName.contains("optional")) {
           // Skip optional files
           return null;
@@ -1370,7 +1380,8 @@ public class Snippets {
       // [START SDF_GetSize]
       @GetSize
       double getSize(@Element String fileName, @Restriction OffsetRange restriction) {
-        return (fileName.contains("expensiveRecords") ? 2 : 1) * restriction.getTo() - restriction.getFrom();
+        return (fileName.contains("expensiveRecords") ? 2 : 1) * restriction.getTo()
+            - restriction.getFrom();
       }
       // [END SDF_GetSize]
     }
