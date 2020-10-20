@@ -1083,16 +1083,6 @@ public class StreamingDataflowWorker {
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
     SdkWorkerHarness worker = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
 
-    if (workItem.hasHotKeyInfo()) {
-      Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
-      Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
-
-      // The MapTask instruction is ordered by dependencies, such that the first element is
-      // always going to be the shuffle task.
-      String stepName = computationState.getMapTask().getInstructions().get(0).getName();
-      hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
-    }
-
     Work work =
         new Work(workItem) {
           @Override
@@ -1383,6 +1373,20 @@ public class StreamingDataflowWorker {
       @Nullable
       Object executionKey =
           keyCoder == null ? null : keyCoder.decode(key.newInput(), Coder.Context.OUTER);
+
+      if (workItem.hasHotKeyInfo()) {
+        Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
+        Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
+
+        // The MapTask instruction is ordered by dependencies, such that the first element is
+        // always going to be the shuffle task.
+        String stepName = computationState.getMapTask().getInstructions().get(0).getName();
+        if (options.isHotKeyLoggingEnabled() && keyCoder != null) {
+          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
+        } else {
+          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
+        }
+      }
 
       executionState
           .getContext()
