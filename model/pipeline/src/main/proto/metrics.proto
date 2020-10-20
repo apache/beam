@@ -24,14 +24,13 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "MetricsApi";
 
 
 import "beam_runner_api.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/timestamp.proto";
 
 // A specification for describing a well known MonitoringInfo.
 //
