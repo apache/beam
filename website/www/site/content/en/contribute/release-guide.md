@@ -563,11 +563,11 @@ _Tip_: Another tool in your toolbox is the known issues section of the release b
 * JIRA release item for the subsequent release has been created;
 * All test failures from branch verification have associated JIRA issues;
 * There are no release blocking JIRA issues;
-* Combined javadoc has the appropriate contents;
 * Release branch has been created;
 * There are no open pull requests to release branch;
 * Originating branch has the version information updated to the new version;
 * Nightly snapshot is in progress (do revisit it continually);
+* Set `JAVA_HOME` to JDK 8 (Example: `export JAVA_HOME=/example/path/to/java/jdk8`).
 
 The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.
 
@@ -607,7 +607,7 @@ For this step, we recommend you using automation script to create a RC, but you 
           docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
-          - For Java SDK images, there should be around 1400 dependencies.
+          - For Java SDK images, there should be around 200 dependencies.
           ```
           docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
@@ -686,7 +686,7 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
 
 ### Blog post
 
-Write a blog post similar to [beam-2.20.0.md](https://github.com/apache/beam/blob/master/website/www/site/content/en/blog/beam-2.20.0.md).
+Write a blog post similar to [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d).
 
 - Update `CHANGES.md` by adding a new section for the next release.
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
@@ -743,7 +743,7 @@ For more information on changes in {$RELEASE_VERSION}, check out the
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
 
 ${CONTRIBUTORS}
 ```
