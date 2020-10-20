@@ -1615,3 +1615,7 @@ class SDFBoundedSourceReader(PTransform):
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
+
+  def display_data(self):
+    return self._data_to_display
+
