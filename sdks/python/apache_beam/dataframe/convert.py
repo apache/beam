@@ -157,16 +157,17 @@ def to_pcollection(
   new_dataframes = [
       df for df in dataframes if df._expr._id not in TO_PCOLLECTION_CACHE
   ]
-  new_results = {p: extract_input(p)
-                 for p in placeholders
-                 } | label >> transforms._DataframeExpressionsTransform(
-                     dict(
-                         (ix, df._expr) for ix, df in enumerate(new_dataframes))
-                 )  # type: Dict[Any, pvalue.PCollection]
+  if len(new_dataframes):
+    new_results = {p: extract_input(p)
+                   for p in placeholders
+                   } | label >> transforms._DataframeExpressionsTransform({
+                       ix: df._expr
+                       for (ix, df) in enumerate(new_dataframes)
+                   })  # type: Dict[Any, pvalue.PCollection]
 
-  TO_PCOLLECTION_CACHE.update(
-      {new_dataframes[ix]._expr._id: pc
-       for ix, pc in new_results.items()})
+    TO_PCOLLECTION_CACHE.update(
+        {new_dataframes[ix]._expr._id: pc
+         for ix, pc in new_results.items()})
 
   raw_results = {
       ix: TO_PCOLLECTION_CACHE[df._expr._id]
