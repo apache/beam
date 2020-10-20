@@ -618,9 +618,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     return self._expr.proxy().__contains__(key)
 
   def __setitem__(self, key, value):
-    if isinstance(key, str) or (isinstance(key, list) and all(
-        isinstance(c, str) for c in key)) or (isinstance
-            (key, DeferredSeries) and key._expr.proxy().dtype == bool):
+    if isinstance(
+        key, str) or (isinstance(key, list) and
+                      all(isinstance(c, str)
+                          for c in key)) or (isinstance(key, DeferredSeries) and
+                                             key._expr.proxy().dtype == bool):
       # yapf: disable
       return self._elementwise(
           lambda df, key, value: df.__setitem__(key, value),
