@@ -65,6 +65,7 @@ dependencies {
   antlr library.java.antlr
   permitUnusedDeclared "org.antlr:antlr4:4.7"
   // Required to load constants from the model, e.g. max timestamp for global window
+  permitUnusedDeclared "com.github.luben:zstd-jni:1.4.5-2"
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
   shadow library.java.vendored_bytebuddy_1_10_8
