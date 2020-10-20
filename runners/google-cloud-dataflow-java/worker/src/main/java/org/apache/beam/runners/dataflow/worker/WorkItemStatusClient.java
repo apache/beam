@@ -360,4 +360,8 @@ public class WorkItemStatusClient {
 
     executionContext.commitMetricUpdates();
   }
+
+  public BatchModeExecutionContext getExecutionContext() {
+    return this.executionContext;
+  }
 }
