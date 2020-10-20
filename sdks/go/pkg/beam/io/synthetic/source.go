@@ -23,6 +23,8 @@
 package synthetic
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"math/rand"
@@ -125,10 +127,10 @@ func (fn *sourceFn) Setup() {
 // ProcessElement creates a number of random elements based on the restriction
 // tracker received. Each element is a random byte slice key and value, in the
 // form of KV<[]byte, []byte>.
-func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, _ SourceConfig, emit func([]byte, []byte)) error {
+func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, emit func([]byte, []byte)) error {
 	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
-		key := make([]byte, 8)
-		val := make([]byte, 8)
+		key := make([]byte, config.KeySize)
+		val := make([]byte, config.ValueSize)
 		if _, err := fn.rng.Read(key); err != nil {
 			return err
 		}
@@ -165,6 +167,8 @@ func DefaultSourceConfig() *SourceConfigBuilder {
 		cfg: SourceConfig{
 			NumElements:   1, // 0 is invalid (drops elements).
 			InitialSplits: 1, // 0 is invalid (drops elements).
+			KeySize:       8, // 0 is invalid (drops elements).
+			ValueSize:     8, // 0 is invalid (drops elements).
 		},
 	}
 }
@@ -197,6 +201,24 @@ func (b *SourceConfigBuilder) InitialSplits(val int) *SourceConfigBuilder {
 	return b
 }
 
+// KeySize determines the size of the key of elements for the source to
+// generate.
+//
+// Valid values are in the range of [1, ...] and the default value is 8.
+func (b *SourceConfigBuilder) KeySize(val int) *SourceConfigBuilder {
+	b.cfg.KeySize = val
+	return b
+}
+
+// ValueSize determines the size of the value of elements for the source to
+// generate.
+//
+// Valid values are in the range of [1, ...] and the default value is 8.
+func (b *SourceConfigBuilder) ValueSize(val int) *SourceConfigBuilder {
+	b.cfg.ValueSize = val
+	return b
+}
+
 // Build constructs the SourceConfig initialized by this builder. It also
 // performs error checking on the fields, and panics if any have been set to
 // invalid values.
@@ -207,6 +229,32 @@ func (b *SourceConfigBuilder) Build() SourceConfig {
 	if b.cfg.NumElements <= 0 {
 		panic(fmt.Sprintf("SourceConfig.NumElements must be >= 1. Got: %v", b.cfg.NumElements))
 	}
+	if b.cfg.KeySize <= 0 {
+		panic(fmt.Sprintf("SourceConfig.KeySize must be >= 1. Got: %v", b.cfg.KeySize))
+	}
+	if b.cfg.ValueSize <= 0 {
+		panic(fmt.Sprintf("SourceConfig.ValueSize must be >= 1. Got: %v", b.cfg.ValueSize))
+	}
+	return b.cfg
+}
+
+// BuildFromJSON constructs the SourceConfig by populating it with the parsed
+// JSON. Panics if there is an error in the syntax of the JSON or if the input
+// contains unknown object keys.
+//
+// An example of valid JSON object:
+// {
+// 	 "num_records": 5,
+// 	 "key_size": 5,
+// 	 "value_size": 5
+// }
+func (b *SourceConfigBuilder) BuildFromJSON(jsonData []byte) SourceConfig {
+	decoder := json.NewDecoder(bytes.NewReader(jsonData))
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&b.cfg); err != nil {
+		panic(fmt.Sprintf("Could not unmarshal SourceConfig: %v", err))
+	}
 	return b.cfg
 }
 
@@ -214,6 +262,8 @@ func (b *SourceConfigBuilder) Build() SourceConfig {
 // synthetic source. It should be created via a SourceConfigBuilder, not by
 // directly initializing it (the fields are public to allow encoding).
 type SourceConfig struct {
-	NumElements   int
-	InitialSplits int
+	NumElements   int `json:"num_records"`
+	InitialSplits int `json:"initial_splits"`
+	KeySize       int `json:"key_size"`
+	ValueSize     int `json:"value_size"`
 }
