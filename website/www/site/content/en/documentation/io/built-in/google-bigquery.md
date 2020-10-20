@@ -594,11 +594,6 @@ as the previous example.
 
 ### Setting the insertion method
 
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support specifying the insertion
-method.
-{{< /paragraph >}}
-
 BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
 streaming inserts. Each insertion method provides different tradeoffs of cost,
 quota, and data consistency. See the BigQuery documentation for
@@ -725,10 +720,6 @@ You can either keep retrying, or return the failed records in a separate
 
 ### Using dynamic destinations
 
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support dynamic destinations.
-{{< /paragraph >}}
-
 You can use the dynamic destinations feature to write elements in a
 `PCollection` to different BigQuery tables, possibly with different schemas.
 
@@ -773,10 +764,6 @@ different table for each year.
 {{< /highlight >}}
 
 ### Using time partitioning
-
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support time partitioning.
-{{< /paragraph >}}
 
 BigQuery time partitioning divides your table into smaller partitions, which is
 called a [partitioned table](https://cloud.google.com/bigquery/docs/partitioned-tables).
