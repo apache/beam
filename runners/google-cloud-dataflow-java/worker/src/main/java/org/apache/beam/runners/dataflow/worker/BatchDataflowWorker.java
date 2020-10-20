@@ -382,7 +382,7 @@ public class BatchDataflowWorker implements Closeable {
       workItemStatusClient.setWorker(worker, executionContext);
 
       DataflowWorkProgressUpdater progressUpdater =
-          new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker);
+          new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
       executeWork(worker, progressUpdater);
       workItemStatusClient.reportSuccess();
       return true;

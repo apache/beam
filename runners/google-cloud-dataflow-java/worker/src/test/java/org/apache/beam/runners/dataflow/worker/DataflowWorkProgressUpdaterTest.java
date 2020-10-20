@@ -37,11 +37,13 @@ import com.google.api.services.dataflow.model.Position;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.StubbedExecutor;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -68,6 +70,7 @@ public class DataflowWorkProgressUpdaterTest {
   private static final Long WORK_ID = 1234567890L;
   private static final String STEP_ID = "TEST_STEP_ID";
   private static final Duration HOT_KEY_AGE = Duration.standardSeconds(1);
+  private static final String HOT_KEY = "key";
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -76,8 +79,10 @@ public class DataflowWorkProgressUpdaterTest {
   private DataflowWorkProgressUpdater progressUpdater;
   private long startTime;
   private FixedClock clock;
+  private DataflowPipelineOptions options;
   @Mock private WorkItemStatusClient workItemStatusClient;
   @Mock private DataflowWorkExecutor worker;
+  @Mock private BatchModeExecutionContext context;
   @Mock private HotKeyLogger hotKeyLogger;
   @Captor private ArgumentCaptor<DynamicSplitResult> splitResultCaptor;
 
@@ -87,6 +92,8 @@ public class DataflowWorkProgressUpdaterTest {
     startTime = 0L;
     clock = new FixedClock(startTime);
     executor = new StubbedExecutor(clock);
+    options = PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setHotKeyLoggingEnabled(true);
 
     WorkItem workItem = new WorkItem();
     workItem.setProjectId(PROJECT_ID);
@@ -96,9 +103,18 @@ public class DataflowWorkProgressUpdaterTest {
     workItem.setReportStatusInterval(toCloudDuration(Duration.millis(300)));
     workItem.setInitialReportIndex(1L);
 
+    when(workItemStatusClient.getExecutionContext()).thenReturn(context);
+    when(context.getKey()).thenReturn(HOT_KEY);
+
     progressUpdater =
         new DataflowWorkProgressUpdater(
-            workItemStatusClient, workItem, worker, executor.getExecutor(), clock, hotKeyLogger) {
+            workItemStatusClient,
+            workItem,
+            worker,
+            executor.getExecutor(),
+            clock,
+            hotKeyLogger,
+            options) {
 
           // Shorten reporting interval boundaries for faster testing.
           @Override
@@ -131,6 +147,19 @@ public class DataflowWorkProgressUpdaterTest {
 
   @Test
   public void workProgressLogsHotKeyDetection() throws Exception {
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE, HOT_KEY);
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressLogsHotKeyDetectionNotEnabled() throws Exception {
+    options.setHotKeyLoggingEnabled(false);
     when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
         .thenReturn(generateServiceState(null, 1000));
     progressUpdater.startReportingProgress();
@@ -261,6 +290,7 @@ public class DataflowWorkProgressUpdaterTest {
 
     // And nothing happened after that.
     verify(workItemStatusClient, Mockito.atLeastOnce()).uniqueWorkId();
+    verify(workItemStatusClient, Mockito.atLeastOnce()).getExecutionContext();
     verifyNoMoreInteractions(workItemStatusClient);
   }
 
