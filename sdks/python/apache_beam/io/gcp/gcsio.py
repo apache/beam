@@ -276,7 +276,6 @@ class GcsIO(object):
         local_result_statuses.append((path, exception))
       return local_result_statuses
 
-
     paths = iter(paths)
     futures = []
     result_statuses = []
