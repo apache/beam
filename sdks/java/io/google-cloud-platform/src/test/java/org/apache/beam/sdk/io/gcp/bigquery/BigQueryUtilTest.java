@@ -47,7 +47,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -196,15 +196,16 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryHelpers.parseTableSpec("project:dataset.table");
     DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
 
-    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();
     for (int i = 0; i < 25; ++i) {
       rows.add(
-          ValueInSingleWindow.of(
+          FailsafeValueInSingleWindow.of(
               rawRow("foo", 1234),
               GlobalWindow.TIMESTAMP_MAX_VALUE,
               GlobalWindow.INSTANCE,
-              PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              PaneInfo.ON_TIME_AND_ONLY_FIRING,
+              rawRow("foo", 1234)));
       ids.add("");
     }
 

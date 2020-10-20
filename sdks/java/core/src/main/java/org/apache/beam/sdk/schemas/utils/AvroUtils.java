@@ -20,12 +20,15 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -69,6 +73,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -418,6 +423,64 @@ public class AvroUtils {
       throw new IllegalArgumentException("No schema provided for getSchema(GenericRecord)");
     }
     return new AvroRecordSchema().schemaFor(TypeDescriptor.of(clazz));
+  }
+
+  /** Returns a function mapping encoded AVRO {@link GenericRecord}s to Beam {@link Row}s. */
+  public static SimpleFunction<byte[], Row> getAvroBytesToRowFunction(Schema beamSchema) {
+    return new AvroBytesToRowFn(beamSchema);
+  }
+
+  private static class AvroBytesToRowFn extends SimpleFunction<byte[], Row> {
+    private final AvroCoder<GenericRecord> coder;
+    private final Schema beamSchema;
+
+    AvroBytesToRowFn(Schema beamSchema) {
+      org.apache.avro.Schema avroSchema = toAvroSchema(beamSchema);
+      coder = AvroCoder.of(avroSchema);
+      this.beamSchema = beamSchema;
+    }
+
+    @Override
+    public Row apply(byte[] bytes) {
+      try {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+        GenericRecord record = coder.decode(inputStream);
+        return AvroUtils.toBeamRowStrict(record, beamSchema);
+      } catch (Exception e) {
+        throw new AvroRuntimeException(
+            "Could not decode avro record from given bytes "
+                + new String(bytes, Charset.defaultCharset()),
+            e);
+      }
+    }
+  }
+
+  /** Returns a function mapping Beam {@link Row}s to encoded AVRO {@link GenericRecord}s. */
+  public static SimpleFunction<Row, byte[]> getRowToAvroBytesFunction(Schema beamSchema) {
+    return new RowToAvroBytesFn(beamSchema);
+  }
+
+  private static class RowToAvroBytesFn extends SimpleFunction<Row, byte[]> {
+    private final transient org.apache.avro.Schema avroSchema;
+    private final AvroCoder<GenericRecord> coder;
+
+    RowToAvroBytesFn(Schema beamSchema) {
+      avroSchema = toAvroSchema(beamSchema);
+      coder = AvroCoder.of(avroSchema);
+    }
+
+    @Override
+    public byte[] apply(Row row) {
+      try {
+        GenericRecord record = toGenericRecord(row, avroSchema);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        coder.encode(record, outputStream);
+        return outputStream.toByteArray();
+      } catch (Exception e) {
+        throw new AvroRuntimeException(
+            String.format("Could not encode avro from given row: %s", row), e);
+      }
+    }
   }
 
   /**

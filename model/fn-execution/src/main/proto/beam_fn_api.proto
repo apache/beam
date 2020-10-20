@@ -34,7 +34,7 @@ syntax = "proto3";
 
 package org.apache.beam.model.fn_execution.v1;
 
-option go_package = "fnexecution_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1;fnexecution_v1";
 option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "BeamFnApi";
 
@@ -43,7 +43,6 @@ import "endpoints.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
-import "google/protobuf/wrappers.proto";
 import "metrics.proto";
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -108,7 +107,7 @@ message InstructionRequest {
     ProcessBundleProgressRequest process_bundle_progress = 1002;
     ProcessBundleSplitRequest process_bundle_split = 1003;
     FinalizeBundleRequest finalize_bundle = 1004;
-    ProcessBundleProgressMetadataRequest process_bundle_progress_metadata = 1005;
+    MonitoringInfosMetadataRequest monitoring_infos = 1005;
 
     // DEPRECATED
     RegisterRequest register = 1000;
@@ -135,7 +134,7 @@ message InstructionResponse {
     ProcessBundleProgressResponse process_bundle_progress = 1002;
     ProcessBundleSplitResponse process_bundle_split = 1003;
     FinalizeBundleResponse finalize_bundle = 1004;
-    ProcessBundleProgressMetadataResponse process_bundle_progress_metadata = 1005;
+    MonitoringInfosMetadataResponse monitoring_infos = 1005;
 
     // DEPRECATED
     RegisterResponse register = 1000;
@@ -288,7 +287,7 @@ message ProcessBundleResponse {
   // An SDK can report metrics using an identifier that only contains the
   // associated payload. A runner who wants to receive the full metrics
   // information can request all the monitoring metadata via a
-  // ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+  // MonitoringInfosMetadataRequest providing a list of ids as necessary.
   //
   // The SDK is allowed to reuse the identifiers across multiple bundles as long
   // as the MonitoringInfo could be reconstructed fully by overwriting its
@@ -307,18 +306,18 @@ message ProcessBundleProgressRequest {
   string instruction_id = 1;
 }
 
-// A request to provide full MonitoringInfo for a given bundle.
+// A request to provide full MonitoringInfo for a given id.
 //
 // An SDK can report metrics using an identifier that only contains the
 // associated payload. A runner who wants to receive the full metrics
 // information can request all the monitoring metadata via a
-// ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+// MonitoringInfosMetadataRequest providing a list of ids as necessary.
 //
-// The SDK is allowed to reuse the identifiers across multiple bundles as long
-// as the MonitoringInfo could be reconstructed fully by overwriting its
-// payload field with the bytes specified here.
-message ProcessBundleProgressMetadataRequest {
-  // A list of ids for which the full MonitoringInfo is requested for.
+// The MonitoringInfo ids are scoped to the associated control connection. For
+// example, an SDK may reuse the ids across multiple bundles.
+message MonitoringInfosMetadataRequest {
+  // A list of ids for which MonitoringInfo are requested. All but the payload
+  // field will be populated.
   repeated string monitoring_info_id = 1;
 }
 
@@ -332,7 +331,7 @@ message ProcessBundleProgressResponse {
   // An SDK can report metrics using an identifier that only contains the
   // associated payload. A runner who wants to receive the full metrics
   // information can request all the monitoring metadata via a
-  // ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+  // MonitoringInfosMetadataRequest providing a list of ids as necessary.
   //
   // The SDK is allowed to reuse the identifiers across multiple bundles as long
   // as the MonitoringInfo could be reconstructed fully by overwriting its
@@ -348,13 +347,13 @@ message ProcessBundleProgressResponse {
 // An SDK can report metrics using an identifier that only contains the
 // associated payload. A runner who wants to receive the full metrics
 // information can request all the monitoring metadata via a
-// ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+// MonitoringInfosMetadataRequest providing a list of ids as necessary.
 //
-// The SDK is allowed to reuse the identifiers across multiple bundles as long
-// as the MonitoringInfo could be reconstructed fully by overwriting its
-// payload field with the bytes specified here.
-message ProcessBundleProgressMetadataResponse {
-  // A mapping from an identifier to the full metrics information.
+// The MonitoringInfo ids are scoped to the associated control connection. For
+// example an SDK may reuse the ids across multiple bundles.
+message MonitoringInfosMetadataResponse {
+  // A mapping from a requested identifier to a MonitoringInfo. All fields
+  // except for the payload of the MonitoringInfo will be specified.
   map<string, org.apache.beam.model.pipeline.v1.MonitoringInfo> monitoring_info = 1;
 }
 
@@ -375,9 +374,6 @@ message ProcessBundleSplitRequest {
 
     // A set of allowed element indices where the SDK may split. When this is
     // empty, there are no constraints on where to split.
-    // Specifically, the first_residual_element of a split result must be an
-    // allowed split point, and the last_primary_element must immediately
-    // preceded an allowed split point.
     repeated int64 allowed_split_points = 3;
 
     // (Required for GrpcRead operations) Number of total elements expected

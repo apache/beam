@@ -99,6 +99,30 @@ public class BigQueryUtils {
     }
   }
 
+  /** Options for how to convert BigQuery schemas to Beam schemas. */
+  @AutoValue
+  public abstract static class SchemaConversionOptions implements Serializable {
+
+    /**
+     * Controls whether to use the map or row FieldType for a TableSchema field that appears to
+     * represent a map (it is an array of structs containing only {@code key} and {@code value}
+     * fields).
+     */
+    public abstract boolean getInferMaps();
+
+    public static Builder builder() {
+      return new AutoValue_BigQueryUtils_SchemaConversionOptions.Builder().setInferMaps(false);
+    }
+
+    /** Builder for {@link SchemaConversionOptions}. */
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setInferMaps(boolean inferMaps);
+
+      public abstract SchemaConversionOptions build();
+    }
+  }
+
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
   /**
@@ -200,6 +224,9 @@ public class BigQueryUtils {
           .put("SqlCharType", StandardSQLTypeName.STRING)
           .build();
 
+  private static final String BIGQUERY_MAP_KEY_FIELD_NAME = "key";
+  private static final String BIGQUERY_MAP_VALUE_FIELD_NAME = "value";
+
   /**
    * Get the corresponding BigQuery {@link StandardSQLTypeName} for supported Beam {@link
    * FieldType}.
@@ -235,7 +262,7 @@ public class BigQueryUtils {
    */
   @Experimental(Kind.SCHEMAS)
   private static FieldType fromTableFieldSchemaType(
-      String typeName, List<TableFieldSchema> nestedFields) {
+      String typeName, List<TableFieldSchema> nestedFields, SchemaConversionOptions options) {
     switch (typeName) {
       case "STRING":
         return FieldType.STRING;
@@ -265,7 +292,18 @@ public class BigQueryUtils {
                 "SqlTimestampWithLocalTzType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "STRUCT":
       case "RECORD":
-        Schema rowSchema = fromTableFieldSchema(nestedFields);
+        if (options.getInferMaps() && nestedFields.size() == 2) {
+          TableFieldSchema key = nestedFields.get(0);
+          TableFieldSchema value = nestedFields.get(1);
+          if (BIGQUERY_MAP_KEY_FIELD_NAME.equals(key.getName())
+              && BIGQUERY_MAP_VALUE_FIELD_NAME.equals(value.getName())) {
+            return FieldType.map(
+                fromTableFieldSchemaType(key.getType(), key.getFields(), options),
+                fromTableFieldSchemaType(value.getType(), value.getFields(), options));
+          }
+        }
+
+        Schema rowSchema = fromTableFieldSchema(nestedFields, options);
         return FieldType.row(rowSchema);
       default:
         throw new UnsupportedOperationException(
@@ -273,14 +311,17 @@ public class BigQueryUtils {
     }
   }
 
-  private static Schema fromTableFieldSchema(List<TableFieldSchema> tableFieldSchemas) {
+  private static Schema fromTableFieldSchema(
+      List<TableFieldSchema> tableFieldSchemas, SchemaConversionOptions options) {
     Schema.Builder schemaBuilder = Schema.builder();
     for (TableFieldSchema tableFieldSchema : tableFieldSchemas) {
       FieldType fieldType =
-          fromTableFieldSchemaType(tableFieldSchema.getType(), tableFieldSchema.getFields());
+          fromTableFieldSchemaType(
+              tableFieldSchema.getType(), tableFieldSchema.getFields(), options);
 
       Optional<Mode> fieldMode = Optional.ofNullable(tableFieldSchema.getMode()).map(Mode::valueOf);
-      if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()) {
+      if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()
+          && !fieldType.getTypeName().isMapType()) {
         fieldType = FieldType.array(fieldType);
       }
 
@@ -322,7 +363,14 @@ public class BigQueryUtils {
         field.setFields(toTableFieldSchema(subType));
       }
       if (TypeName.MAP == type.getTypeName()) {
-        throw new IllegalArgumentException("Maps are not supported in BigQuery.");
+        Schema mapSchema =
+            Schema.builder()
+                .addField(BIGQUERY_MAP_KEY_FIELD_NAME, type.getMapKeyType())
+                .addField(BIGQUERY_MAP_VALUE_FIELD_NAME, type.getMapValueType())
+                .build();
+        type = FieldType.row(mapSchema);
+        field.setFields(toTableFieldSchema(mapSchema));
+        field.setMode(Mode.REPEATED.toString());
       }
       field.setType(toStandardSQLTypeName(type).toString());
 
@@ -340,7 +388,13 @@ public class BigQueryUtils {
   /** Convert a BigQuery {@link TableSchema} to a Beam {@link Schema}. */
   @Experimental(Kind.SCHEMAS)
   public static Schema fromTableSchema(TableSchema tableSchema) {
-    return fromTableFieldSchema(tableSchema.getFields());
+    return fromTableSchema(tableSchema, SchemaConversionOptions.builder().build());
+  }
+
+  /** Convert a BigQuery {@link TableSchema} to a Beam {@link Schema}. */
+  @Experimental(Kind.SCHEMAS)
+  public static Schema fromTableSchema(TableSchema tableSchema, SchemaConversionOptions options) {
+    return fromTableFieldSchema(tableSchema.getFields(), options);
   }
 
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
@@ -442,6 +496,21 @@ public class BigQueryUtils {
         List<Object> convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
         for (Object item : items) {
           convertedItems.add(fromBeamField(elementType, item));
+        }
+        return convertedItems;
+
+      case MAP:
+        FieldType keyElementType = fieldType.getMapKeyType();
+        FieldType valueElementType = fieldType.getMapValueType();
+        Map<?, ?> pairs = (Map<?, ?>) fieldValue;
+        convertedItems = Lists.newArrayListWithCapacity(pairs.size());
+        for (Map.Entry<?, ?> pair : pairs.entrySet()) {
+          convertedItems.add(
+              new TableRow()
+                  .set(BIGQUERY_MAP_KEY_FIELD_NAME, fromBeamField(keyElementType, pair.getKey()))
+                  .set(
+                      BIGQUERY_MAP_VALUE_FIELD_NAME,
+                      fromBeamField(valueElementType, pair.getValue())));
         }
         return convertedItems;
 
@@ -643,7 +712,7 @@ public class BigQueryUtils {
       case DECIMAL:
         throw new RuntimeException("Does not support converting DECIMAL type value");
       case MAP:
-        throw new RuntimeException("Does not support converting MAP type value");
+        return convertAvroRecordToMap(beamFieldType, avroValue, options);
       default:
         throw new RuntimeException(
             "Does not support converting unknown type value: " + beamFieldTypeName);
@@ -679,6 +748,20 @@ public class BigQueryUtils {
       ret.add(convertAvroFormat(collectionElement, v, options));
     }
     return ret;
+  }
+
+  private static Object convertAvroRecordToMap(
+      FieldType beamField, Object value, BigQueryUtils.ConversionOptions options) {
+    List<GenericData.Record> records = (List<GenericData.Record>) value;
+    ImmutableMap.Builder<Object, Object> ret = ImmutableMap.builder();
+    FieldType keyElement = beamField.getMapKeyType();
+    FieldType valueElement = beamField.getMapValueType();
+    for (GenericData.Record record : records) {
+      ret.put(
+          convertAvroFormat(keyElement, record.get(0), options),
+          convertAvroFormat(valueElement, record.get(1), options));
+    }
+    return ret.build();
   }
 
   private static Object convertAvroPrimitiveTypes(TypeName beamType, Object value) {

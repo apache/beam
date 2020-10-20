@@ -25,9 +25,8 @@ applyJavaNature(enableChecker:false,
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 ext.summary = "Common test classes for ElasticsearchIO"
 
-def jna_version = "4.1.0"
 def log4j_version = "2.11.1"
-def elastic_search_version = "7.5.0"
+def elastic_search_version = "7.9.2"
 
 configurations.all {
   resolutionStrategy {
@@ -44,7 +43,6 @@ dependencies {
   testCompile project(":sdks:java:io:elasticsearch")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.slf4j_api
-  testCompile "net.java.dev.jna:jna:$jna_version"
   testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.hamcrest_core
