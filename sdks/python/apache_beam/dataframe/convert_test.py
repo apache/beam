@@ -107,50 +107,35 @@ class ConvertTest(unittest.TestCase):
       df_3a = 3 * df_a
       df_ab = df_a * df_b
 
-      # Converting multiple results at a time can be more efficient.
+      # Two calls to to_pcollection with the same Dataframe should produce the
+      # same PCollection(s)
       pc_2a_, pc_ab_ = convert.to_pcollection(df_2a, df_ab)
-      # Converting the same expressions should yeild the same pcolls
       pc_3a, pc_2a, pc_ab = convert.to_pcollection(df_3a, df_2a, df_ab)
 
-      self.assertEqual(id(pc_2a), id(pc_2a_))
-      self.assertEqual(id(pc_ab), id(pc_ab_))
+      self.assertIs(pc_2a, pc_2a_)
+      self.assertIs(pc_ab, pc_ab_)
+      self.assertIsNot(pc_3a, pc_2a)
+      self.assertIsNot(pc_3a, pc_ab)
 
-      assert_that(pc_2a, equal_to(list(2 * a)), label='Check2a')
-      assert_that(pc_3a, equal_to(list(3 * a)), label='Check3a')
-      assert_that(pc_ab, equal_to(list(a * b)), label='Checkab')
-
-  def test_convert_memoization_yield_pandas(self):
-    with beam.Pipeline() as p:
-      a = pd.Series([1, 2, 3])
-      b = pd.Series([100, 200, 300])
-
-      pc_a = p | 'A' >> beam.Create([a])
-      pc_b = p | 'B' >> beam.Create([b])
-
-      df_a = convert.to_dataframe(pc_a, proxy=a[:0])
-      df_b = convert.to_dataframe(pc_b, proxy=b[:0])
-
-      df_2a = 2 * df_a
-      df_3a = 3 * df_a
-      df_ab = df_a * df_b
-
-      # Converting multiple results at a time can be more efficient.
-      pc_2a_, pc_ab_ = convert.to_pcollection(df_2a, df_ab,
+      # The same conversions without the unbatching transform should also cache
+      # PCollections
+      pc_2a_pandas_, pc_ab_pandas_ = convert.to_pcollection(df_2a, df_ab,
                                             yield_elements='pandas')
-
-      # Converting the same expressions should yeild the same pcolls
-      pc_3a, pc_2a, pc_ab = convert.to_pcollection(df_3a, df_2a, df_ab,
+      pc_3a_pandas, pc_2a_pandas, pc_ab_pandas = convert.to_pcollection(df_3a, df_2a, df_ab,
                                                    yield_elements='pandas')
 
-      self.assertEqual(id(pc_2a), id(pc_2a_))
-      self.assertEqual(id(pc_ab), id(pc_ab_))
+      self.assertIs(pc_2a_pandas, pc_2a_pandas_)
+      self.assertIs(pc_ab_pandas, pc_ab_pandas_)
+      self.assertIsNot(pc_3a_pandas, pc_2a_pandas)
+      self.assertIsNot(pc_3a_pandas, pc_ab_pandas)
 
-      assert_that(pc_2a, equal_to_unordered_series(2 * a), label='Check2a')
-      assert_that(pc_3a, equal_to_unordered_series(3 * a), label='Check3a')
-      assert_that(pc_ab, equal_to_unordered_series(a * b), label='Checkab')
+      # .. but the cached PCollections should be different
+      self.assertIsNot(pc_2a_pandas, pc_2a)
+      self.assertIsNot(pc_ab_pandas, pc_ab)
+      self.assertIsNot(pc_3a_pandas, pc_3a)
 
   def test_convert_memoization_clears_cache(self):
-    # This test re-runs the other memoization tests, and makes sure that the
+    # This test re-runs the other memoization test, and makes sure that the
     # cache is cleaned up with the pipeline. Otherwise there would be concerns
     # of it growing without bound.
 
@@ -167,9 +152,6 @@ class ConvertTest(unittest.TestCase):
     try:
       self.test_convert_memoization()
       self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 3)
-
-      self.test_convert_memoization_yield_pandas()
-      self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 6)
 
       gc.collect()
 
