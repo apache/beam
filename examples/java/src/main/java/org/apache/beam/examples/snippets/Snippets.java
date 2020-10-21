@@ -1339,16 +1339,16 @@ public class Snippets {
         return null;
       }
 
-      // [START SDF_UserInitiatedCheckpoint]
       public interface Service {
         List<Record> readNextRecords(long position)
-            throws ThrottlingException, ElementNotReadyException;
+            throws ThrottlingException;
       }
 
       public interface Record {
         long getPosition();
       }
 
+      // [START SDF_UserInitiatedCheckpoint]
       @ProcessElement
       public ProcessContinuation processElement(
           RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Record> outputReceiver) {
