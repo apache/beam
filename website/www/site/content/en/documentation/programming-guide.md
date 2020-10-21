@@ -5215,7 +5215,7 @@ func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, 
 		return err
 	}
 	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
-	
+
 	if err != nil {
 		return err
 	}
@@ -5253,7 +5253,7 @@ func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Res
 	}
 	// Output the last range
 	splits = append(splits, offsetrange.Restriction{i, rest.End})
-	return splits	
+	return splits
 }
 {{< /highlight >}}
 
@@ -5294,7 +5294,7 @@ func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Rest
 Some I/Os cannot produce all of the data necessary to complete a restriction within the lifetime of a
 single bundle. This typically happens with unbounded restrictions, but can also happen with bounded
 restrictions. For example, there could be more data that needs to be ingested but is not available yet.
-Another cause of this scenario is the source system throttling your data. 
+Another cause of this scenario is the source system throttling your data.
 
 Your splittable DoFn can signal to you that you are not done processing the current restriction. This
 signal can suggest a time to resume at. While the runner tries to honor the resume time, this is not
@@ -5334,7 +5334,7 @@ func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string,
 		return err
 	}
 	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
-	
+
 	if err != nil {
 		return err
 	}
@@ -5345,7 +5345,7 @@ func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string,
 	for offset < end {
 		// Only after successfully claiming should we produce any output and/or
 		// perform side effects.
-    	rt.TryClaim(offset) 
+    	rt.TryClaim(offset)
 		record, newOffset := readNextRecord(file)
 		emit(record)
 		offset = newOffset
