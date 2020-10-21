@@ -1267,6 +1267,8 @@ public class Snippets {
     }
 
     private static class CustomWatermarkEstimatorExample extends DoFn<String, Integer> {
+      private static Instant currentWatermark = Instant.now();
+
       // [START SDF_CustomWatermarkEstimator]
 
       // (Optional) Define a custom watermark state type to save information between bundle
@@ -1286,7 +1288,6 @@ public class Snippets {
       // Define a WatermarkEstimator
       public static class MyCustomWatermarkEstimator
           implements TimestampObservingWatermarkEstimator<MyCustomWatermarkState> {
-        private Instant currentWatermark;
 
         public MyCustomWatermarkEstimator(MyCustomWatermarkState type) {
           // Initialize watermark estimator state
