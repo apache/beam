@@ -243,7 +243,6 @@ import time
 import uuid
 from builtins import object
 from builtins import zip
-from typing import Optional
 
 from future.utils import itervalues
 from past.builtins import unicode
@@ -663,7 +662,6 @@ class _JsonToDictCoder(coders.Coder):
 
   def to_type_hint(self):
     return dict
-
 
 
 class _CustomBigQuerySource(BoundedSource):
