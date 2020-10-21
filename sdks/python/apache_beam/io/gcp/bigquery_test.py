@@ -50,6 +50,8 @@ from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
+from apache_beam.io.gcp.bigquery_read_internal import \
+  bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -394,14 +396,14 @@ class TestReadFromBigQuery(unittest.TestCase):
       RuntimeValueProvider.set_runtime_options({})
       options = self.UserDefinedOptions()
 
-      ReadFromBigQuery.get_destination_uri(
+      bigquery_export_destination_uri(
           options.gcs_location, None, uuid.uuid4().hex)
 
   def test_get_destination_uri_none(self):
     with self.assertRaisesRegex(ValueError,
                                 '^ReadFromBigQuery requires a GCS '
                                 'location to be provided'):
-      ReadFromBigQuery.get_destination_uri(None, None, uuid.uuid4().hex)
+      bigquery_export_destination_uri(None, None, uuid.uuid4().hex)
 
   def test_get_destination_uri_runtime_vp(self):
     # Provide values at job-execution time.
@@ -409,14 +411,14 @@ class TestReadFromBigQuery(unittest.TestCase):
     options = self.UserDefinedOptions()
     unique_id = uuid.uuid4().hex
 
-    uri = ReadFromBigQuery.get_destination_uri(
+    uri = bigquery_export_destination_uri(
         options.gcs_location, None, unique_id)
     self.assertEqual(
         uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
 
   def test_get_destination_uri_static_vp(self):
     unique_id = uuid.uuid4().hex
-    uri = ReadFromBigQuery.get_destination_uri(
+    uri = bigquery_export_destination_uri(
         StaticValueProvider(str, 'gs://bucket'), None, unique_id)
     self.assertEqual(
         uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
@@ -426,15 +428,15 @@ class TestReadFromBigQuery(unittest.TestCase):
     RuntimeValueProvider.set_runtime_options({})
     options = self.UserDefinedOptions()
 
-    with self.assertLogs('apache_beam.io.gcp.bigquery',
+    with self.assertLogs('apache_beam.io.gcp.bigquery_read_internal',
                          level='DEBUG') as context:
-      ReadFromBigQuery.get_destination_uri(
+      bigquery_export_destination_uri(
           options.gcs_location, 'gs://bucket', uuid.uuid4().hex)
     self.assertEqual(
         context.output,
         [
-            'DEBUG:apache_beam.io.gcp.bigquery:gcs_location is empty, '
-            'using temp_location instead'
+            'DEBUG:apache_beam.io.gcp.bigquery_read_internal:gcs_location is '
+            'empty, using temp_location instead'
         ])
 
 
