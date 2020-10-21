@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -66,7 +65,7 @@ public class ParDoMultiOutputTranslatorBatch<InputT, OutputT>
     Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
     Map<String, PCollectionView<?>> sideInputMapping;
 
-    Map<TupleTag<?>, PValue> outputs = context.getOutputs();
+    Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs();
     Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
     // DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
@@ -119,7 +118,7 @@ public class ParDoMultiOutputTranslatorBatch<InputT, OutputT>
                     outputMap,
                     sideInputMapping));
 
-    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
       ComputeTSet<WindowedValue<OutputT>, Iterator<RawUnionValue>> tempTSet =
           outputTSet.direct().compute(new OutputTagFilter(outputMap.get(output.getKey())));
       context.setOutputDataSet((PCollection) output.getValue(), tempTSet);

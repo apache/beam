@@ -66,7 +66,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -105,7 +105,8 @@ public class PTransformMatchersTest implements Serializable {
             p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
     output.setName("dummy output");
 
-    return AppliedPTransform.of("pardo", input.expand(), output.expand(), pardo, p);
+    return AppliedPTransform.of(
+        "pardo", PValues.expandInput(input), PValues.expandOutput(output), pardo, p);
   }
 
   @Test
@@ -504,7 +505,7 @@ public class PTransformMatchersTest implements Serializable {
     AppliedPTransform application =
         AppliedPTransform.of(
             "Flatten",
-            ImmutableMap.<TupleTag<?>, PValue>builder()
+            ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
                 .put(new TupleTag<Integer>(), duplicate)
                 .put(new TupleTag<Integer>(), duplicate)
                 .build(),

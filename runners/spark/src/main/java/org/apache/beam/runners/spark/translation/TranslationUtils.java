@@ -42,7 +42,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -350,12 +349,12 @@ public final class TranslationUtils {
    * @return mapping between TupleTag and a coder
    */
   public static Map<TupleTag<?>, Coder<WindowedValue<?>>> getTupleTagCoders(
-      Map<TupleTag<?>, PValue> outputs) {
+      Map<TupleTag<?>, PCollection<?>> outputs) {
     Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap = new HashMap<>(outputs.size());
 
-    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
       // we get the first PValue as all of them are fro the same type.
-      PCollection<?> pCollection = (PCollection<?>) output.getValue();
+      PCollection<?> pCollection = output.getValue();
       Coder<?> coder = pCollection.getCoder();
       Coder<? extends BoundedWindow> wCoder =
           pCollection.getWindowingStrategy().getWindowFn().windowCoder();

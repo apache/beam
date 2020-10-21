@@ -126,7 +126,7 @@ class FlinkStreamingTranslationContext {
     return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
   }
 
-  public <T extends PInput> Map<TupleTag<?>, PValue> getInputs(PTransform<T, ?> transform) {
+  public <T extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<T, ?> transform) {
     return currentTransform.getInputs();
   }
 
@@ -135,7 +135,7 @@ class FlinkStreamingTranslationContext {
     return (T) Iterables.getOnlyElement(currentTransform.getOutputs().values());
   }
 
-  public <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(
+  public <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
       PTransform<?, OutputT> transform) {
     return currentTransform.getOutputs();
   }

@@ -62,7 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -150,9 +150,9 @@ public class ParDoTranslationTest {
 
     @Test
     public void toTransformProto() throws Exception {
-      Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+      Map<TupleTag<?>, PCollection<?>> inputs = new HashMap<>();
       inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
-      inputs.putAll(parDo.getAdditionalInputs());
+      inputs.putAll(PValues.fullyExpand(parDo.getAdditionalInputs()));
       PCollectionTuple output = mainInput.apply(parDo);
 
       SdkComponents sdkComponents = SdkComponents.create();
@@ -162,7 +162,7 @@ public class ParDoTranslationTest {
       RunnerApi.PTransform protoTransform =
           PTransformTranslation.toProto(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
-                  "foo", inputs, output.expand(), parDo, p),
+                  "foo", inputs, PValues.expandOutput(output), parDo, p),
               sdkComponents);
       RunnerApi.Components components = sdkComponents.toComponents();
       RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);

@@ -52,7 +52,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
@@ -112,21 +111,21 @@ class ParDoBoundMultiTranslator<InT, OutT>
         transform.getSideInputs().values().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
-    final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
+    final ArrayList<Map.Entry<TupleTag<?>, PCollection<?>>> outputs =
         new ArrayList<>(node.getOutputs().entrySet());
 
     final Map<TupleTag<?>, Integer> tagToIndexMap = new HashMap<>();
     final Map<Integer, PCollection<?>> indexToPCollectionMap = new HashMap<>();
 
     for (int index = 0; index < outputs.size(); ++index) {
-      final Map.Entry<TupleTag<?>, PValue> taggedOutput = outputs.get(index);
+      final Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput = outputs.get(index);
       tagToIndexMap.put(taggedOutput.getKey(), index);
 
       if (!(taggedOutput.getValue() instanceof PCollection)) {
         throw new IllegalArgumentException(
             "Expected side output to be PCollection, but was: " + taggedOutput.getValue());
       }
-      final PCollection<?> sideOutputCollection = (PCollection<?>) taggedOutput.getValue();
+      final PCollection<?> sideOutputCollection = taggedOutput.getValue();
       indexToPCollectionMap.put(index, sideOutputCollection);
     }
 

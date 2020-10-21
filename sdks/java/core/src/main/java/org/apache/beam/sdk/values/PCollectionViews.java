@@ -196,6 +196,26 @@ public class PCollectionViews {
   }
 
   /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   *
+   * @deprecated See {@link #listView}.
+   */
+  @Deprecated
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewUsingVoidKey(
+      PCollection<KV<Void, T>> pCollection,
+      TupleTag<MultimapView<Void, T>> tag,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        tag,
+        new ListViewFn<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
    * Returns a {@code PCollectionView<Map<K, V>>} capable of processing elements windowed using the
    * provided {@link WindowingStrategy}.
    */

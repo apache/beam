@@ -29,17 +29,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 @AutoValue
 @Internal
 public abstract class TaggedPValue {
-  public static TaggedPValue of(TupleTag<?> tag, PValue value) {
+  public static TaggedPValue of(TupleTag<?> tag, PCollection<?> value) {
     return new AutoValue_TaggedPValue(tag, value);
   }
 
-  public static TaggedPValue ofExpandedValue(PValue value) {
+  public static TaggedPValue ofExpandedValue(PCollection<?> value) {
     return of(Iterables.getOnlyElement(value.expand().keySet()), value);
   }
 
   /** Returns the local tag associated with the {@link PValue}. */
   public abstract TupleTag<?> getTag();
 
-  /** Returns the {@link PValue}. */
-  public abstract PValue getValue();
+  /** Returns the {@link PCollection}. */
+  public abstract PCollection<?> getValue();
 }

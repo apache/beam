@@ -52,7 +52,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -83,7 +82,7 @@ class MultiStepCombine<
       }
 
       private <K, InputT> boolean isApplicable(
-          Map<TupleTag<?>, PValue> inputs, GlobalCombineFn<InputT, ?, ?> fn) {
+          Map<TupleTag<?>, PCollection<?>> inputs, GlobalCombineFn<InputT, ?, ?> fn) {
         if (!(fn instanceof CombineFn)) {
           return false;
         }

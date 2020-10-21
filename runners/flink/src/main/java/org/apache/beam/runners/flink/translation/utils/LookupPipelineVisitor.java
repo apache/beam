@@ -71,7 +71,7 @@ public class LookupPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
     return applied;
   }
 
-  public Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
+  public Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform) {
     return applied(transform).getInputs();
   }
 
@@ -80,7 +80,7 @@ public class LookupPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
     return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(applied(transform)));
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs(PTransform<?, ?> transform) {
     return applied(transform).getOutputs();
   }
 
