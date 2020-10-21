@@ -5169,7 +5169,7 @@ Executing a splittable DoFn follows the following steps:
 3. The runner redistributes the element and restriction pairs to several workers.
 4. Element and restriction pairs are processed in parallel (e.g. the file is read).
 
-_PairWithRestriction -> SplitRestriction -> Redistribute -> ProcessElementAndRestrictionPair_
+![Diagram of steps that a splittable DoFn is composed of](/images/sdf_high_level_overview.svg)
 
 Within the last step, the element and restriction pair can pause its own processing and/or be split into
 further element and restriction pairs. This last step is what enables I/O-like capabilities for DoFns.
