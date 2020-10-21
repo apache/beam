@@ -144,7 +144,7 @@ public class ReplacementOutputsTest {
     thrown.expectMessage(intsTag.toString());
     thrown.expectMessage(ints.toString());
     ReplacementOutputs.tagged(
-        PValues.expandOutput((POutput) original),
+        PValues.expandOutput(original),
         PCollectionTuple.of(strsTag, replacementStrs).and(moreIntsTag, moreReplacementInts));
   }
 
@@ -157,7 +157,7 @@ public class ReplacementOutputsTest {
     thrown.expectMessage(moreIntsTag.toString());
     thrown.expectMessage(moreReplacementInts.toString());
     ReplacementOutputs.tagged(
-        PValues.expandOutput((POutput) original),
+        PValues.expandOutput(original),
         PCollectionTuple.of(strsTag, replacementStrs)
             .and(moreIntsTag, moreReplacementInts)
             .and(intsTag, replacementInts));
