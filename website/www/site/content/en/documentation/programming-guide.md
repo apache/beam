@@ -5368,7 +5368,6 @@ this SDF to configure which watermark estimator to use.
 *   Any data produced before the watermark may be considered late. See
 [watermarks and late data](#watermarks-and-late-data) for more details.
 
-
 #### 12.5.1 Controlling the watermark {#controlling-the-watermark}
 
 There are two general types of watermark estimators: timestamp observing and external clock observing.
@@ -5403,7 +5402,7 @@ Bundle finalization is not limited to splittable DoFns.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BundleFinalize >}}
 {{< /highlight >}}
 
-### 12.7 Truncating SDFs during drain {#truncating-sdfs-during-drain}
+### 12.7 Truncating during drain {#truncating-during-drain}
 
 Runners which support draining pipelines need the ability to drain splittable DoFns; otherwise, the
 pipeline may never stop. By default, bounded restrictions process the remainder of the restriction while
