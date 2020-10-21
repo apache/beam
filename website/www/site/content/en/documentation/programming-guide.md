@@ -5302,11 +5302,11 @@ guaranteed. This allows execution to continue on a restriction that has availabl
 resource utilization.
 
 {{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_SdkInitiatedCheckpoint >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_UserInitiatedCheckpoint >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_SdkInitiatedCheckpoint >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_UserInitiatedCheckpoint >}}
 {{< /highlight >}}
 
 ### 12.4 Runner-initiated split {#runner-initiated-split}
@@ -5338,10 +5338,14 @@ func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string,
 	if err != nil {
 		return err
 	}
-	for offset < rt.GetRestriction().End {
-		// The restriction tracker can be modified by another thread in parallel. Only after
-		// successfully claiming should we produce any output and/or perform side effects. 
-		 rt.TryClaim(offset) 
+
+	// The restriction tracker can be modified by another thread in parallel
+	// so storing state locally is ill advised.
+	end = rt.GetRestriction().(offsetrange.Restriction).End
+	for offset < end {
+		// Only after successfully claiming should we produce any output and/or
+		// perform side effects.
+    	rt.TryClaim(offset) 
 		record, newOffset := readNextRecord(file)
 		emit(record)
 		offset = newOffset
@@ -5408,7 +5412,8 @@ provider.
 Bundle finalization enables DoFns to perform side effects by registering a callback.
 The callback is invoked once the runner has acknowledged that it has durably persisted the output.
 For example, a message queue might need to acknowledge messages that it has ingested into the pipeline.
-Bundle finalization is not limited to splittable DoFns.
+Bundle finalization is not limited to splittable DoFns but is called out here since this is the primary
+use case.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BundleFinalize >}}

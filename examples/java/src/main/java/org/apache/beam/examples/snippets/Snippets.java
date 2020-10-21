@@ -1253,9 +1253,12 @@ public class Snippets {
           throws IOException {
         RandomAccessFile file = new RandomAccessFile(fileName, "r");
         seekToNextRecordBoundaryInFile(file, tracker.currentRestriction().getFrom());
-        while (file.getFilePointer() < tracker.currentRestriction().getTo()) {
-          // The restriction tracker can be modified by another thread in parallel. Only after
-          // successfully claiming should we produce any output and/or perform side effects.
+        // The restriction tracker can be modified by another thread in parallel
+        // so storing state locally is ill advised.
+        long end = tracker.currentRestriction().getTo();
+        while (file.getFilePointer() < end) {
+          // Only after successfully claiming should we produce any output and/or
+          // perform side effects.
           tracker.tryClaim(file.getFilePointer());
           outputReceiver.output(readNextRecord(file));
         }
@@ -1265,61 +1268,69 @@ public class Snippets {
 
     private static class CustomWatermarkEstimatorExample extends DoFn<String, Integer> {
       // [START SDF_CustomWatermarkEstimator]
-      @GetInitialWatermarkEstimatorState
-      public MyCustomWatermarkType getInitialWatermarkEstimatorState(
-          @Element String element, @Restriction OffsetRange restriction) {
-        // Compute and return the initial watermark estimator state for each element and
-        // restriction.
-        // All subsequent processing of an element and restriction will be restored from the
-        // existing state.
-        return new MyCustomWatermarkType(element, restriction);
-      }
 
-      @NewWatermarkEstimator
-      public WatermarkEstimator<MyCustomWatermarkType> newWatermarkEstimator(
-          @WatermarkEstimatorState MyCustomWatermarkType oldState) {
-        return new MyCustomWatermarkEstimator(oldState);
-      }
-
-      @GetWatermarkEstimatorStateCoder
-      public Coder<MyCustomWatermarkType> getWatermarkEstimatorStateCoder() {
-        return AvroCoder.of(MyCustomWatermarkType.class);
-      }
-
-      public static class MyCustomWatermarkType {
-        public MyCustomWatermarkType(String element, OffsetRange restriction) {
-          // store data necessary for future watermark computations
+      // (Optional) Define a custom watermark state type to save information between bundle
+      // processing rounds.
+      public static class MyCustomWatermarkState {
+        public MyCustomWatermarkState(String element, OffsetRange restriction) {
+          // Store data necessary for future watermark computations
         }
       }
 
+      // (Optional) Choose which coder to use to encode the watermark estimator state.
+      @GetWatermarkEstimatorStateCoder
+      public Coder<MyCustomWatermarkState> getWatermarkEstimatorStateCoder() {
+        return AvroCoder.of(MyCustomWatermarkState.class);
+      }
+
+      // Define a WatermarkEstimator
       public static class MyCustomWatermarkEstimator
-          implements TimestampObservingWatermarkEstimator<MyCustomWatermarkType> {
-        public MyCustomWatermarkEstimator(MyCustomWatermarkType type) {
-          // initialize watermark estimator state
+          implements TimestampObservingWatermarkEstimator<MyCustomWatermarkState> {
+        private Instant currentWatermark;
+
+        public MyCustomWatermarkEstimator(MyCustomWatermarkState type) {
+          // Initialize watermark estimator state
         }
 
         @Override
         public void observeTimestamp(Instant timestamp) {
-          // will be invoked on each output
+          // Will be invoked on each output from the SDF
         }
 
         @Override
         public Instant currentWatermark() {
-          // return a monotonically increasing value
-          return null;
+          // Return a monotonically increasing value
+          return currentWatermark;
         }
 
         @Override
-        public MyCustomWatermarkType getState() {
-          // Return state that will be restored during subsequent processing of this element and
-          // restriction.
+        public MyCustomWatermarkState getState() {
+          // Return state to resume future watermark estimation after a checkpoint/split
           return null;
         }
+      }
+
+      // Then, update the DoFn to generate the initial watermark estimator state for all new element
+      // and restriction pairs and to create a new instance given watermark estimator state.
+
+      @GetInitialWatermarkEstimatorState
+      public MyCustomWatermarkState getInitialWatermarkEstimatorState(
+          @Element String element, @Restriction OffsetRange restriction) {
+        // Compute and return the initial watermark estimator state for each element and
+        // restriction. All subsequent processing of an element and restriction will be restored
+        // from the existing state.
+        return new MyCustomWatermarkState(element, restriction);
+      }
+
+      @NewWatermarkEstimator
+      public WatermarkEstimator<MyCustomWatermarkState> newWatermarkEstimator(
+          @WatermarkEstimatorState MyCustomWatermarkState oldState) {
+        return new MyCustomWatermarkEstimator(oldState);
       }
     }
     // [END SDF_CustomWatermarkEstimator]
 
-    private static class SdkInitiatedCheckpointExample extends DoFn<String, Integer> {
+    private static class UserInitiatedCheckpointExample extends DoFn<String, Integer> {
       public static class ThrottlingException extends Exception {}
 
       public static class ElementNotReadyException extends Exception {}
@@ -1328,9 +1339,10 @@ public class Snippets {
         return null;
       }
 
-      // [START SDF_SdkInitiatedCheckpoint]
+      // [START SDF_UserInitiatedCheckpoint]
       public interface Service {
-        Record readNextRecord(long position) throws ThrottlingException, ElementNotReadyException;
+        List<Record> readNextRecords(long position)
+            throws ThrottlingException, ElementNotReadyException;
       }
 
       public interface Record {
@@ -1344,21 +1356,26 @@ public class Snippets {
         Service service = initializeService();
         try {
           while (true) {
-            Record record = service.readNextRecord(currentPosition);
-            if (!tracker.tryClaim(record.getPosition())) {
-              return ProcessContinuation.stop();
+            List<Record> records = service.readNextRecords(currentPosition);
+            if (records.isEmpty()) {
+              // Return a short delay if there is no data to process at the moment.
+              return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(10));
             }
-            currentPosition = record.getPosition() + 1;
+            for (Record record : records) {
+              if (!tracker.tryClaim(record.getPosition())) {
+                return ProcessContinuation.stop();
+              }
+              currentPosition = record.getPosition() + 1;
 
-            outputReceiver.output(record);
+              outputReceiver.output(record);
+            }
           }
         } catch (ThrottlingException exception) {
+          // Return a longer delay in case we are being throttled.
           return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(60));
-        } catch (ElementNotReadyException e) {
-          return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(10));
         }
       }
-      // [END SDF_SdkInitiatedCheckpoint]
+      // [END SDF_UserInitiatedCheckpoint]
     }
 
     private static class TruncateExample extends DoFn<String, Integer> {
