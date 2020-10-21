@@ -258,6 +258,9 @@ from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
+from apache_beam.io.gcp.bigquery_read_internal import \
+  bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
@@ -662,6 +665,7 @@ class _JsonToDictCoder(coders.Coder):
     return dict
 
 
+
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
@@ -872,7 +876,7 @@ class _CustomBigQuerySource(BoundedSource):
         bigquery_tools.BigQueryJobTypes.EXPORT,
         random.randint(0, 1000))
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
-    gcs_location = ReadFromBigQuery.get_destination_uri(
+    gcs_location = bigquery_export_destination_uri(
         self.gcs_location, temp_location, self._source_uuid)
     if self.use_json_exports:
       job_ref = bq.perform_extract_job([gcs_location],
@@ -1799,32 +1803,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     return WriteToBigQuery(**config)
 
 
-class _PassThroughThenCleanup(PTransform):
-  """A PTransform that invokes a DoFn after the input PCollection has been
-    processed.
-  """
-  def __init__(self, cleanup_dofn):
-    self.cleanup_dofn = cleanup_dofn
-
-  def expand(self, input):
-    class PassThrough(beam.DoFn):
-      def process(self, element):
-        yield element
-
-    output = input | beam.ParDo(PassThrough()).with_outputs(
-        'cleanup_signal', main='main')
-    main_output = output['main']
-    cleanup_signal = output['cleanup_signal']
-
-    _ = (
-        input.pipeline
-        | beam.Create([None])
-        | beam.ParDo(
-            self.cleanup_dofn, beam.pvalue.AsSingleton(cleanup_signal)))
-
-    return main_output
-
-
 class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
@@ -1909,54 +1887,23 @@ class ReadFromBigQuery(PTransform):
     self._args = args
     self._kwargs = kwargs
 
-  @staticmethod
-  def get_destination_uri(
-      gcs_location_vp,  # type: Optional[ValueProvider]
-      temp_location,  # type: Optional[str]
-      unique_id,  # type: str
-      directory_only=False,  # type: bool
-  ):
-    """Returns the fully qualified Google Cloud Storage URI where the
-    extracted table should be written.
-    """
-    file_pattern = 'bigquery-table-dump-*.json'
-
-    gcs_location = None
-    if gcs_location_vp is not None:
-      gcs_location = gcs_location_vp.get()
-
-    if gcs_location is not None:
-      gcs_base = gcs_location
-    elif temp_location is not None:
-      gcs_base = temp_location
-      _LOGGER.debug("gcs_location is empty, using temp_location instead")
-    else:
-      raise ValueError(
-          'ReadFromBigQuery requires a GCS location to be provided. Neither '
-          'gcs_location in the constructor nor the fallback option '
-          '--temp_location is set.')
-
-    if directory_only:
-      return FileSystems.join(gcs_base, unique_id)
-    else:
-      return FileSystems.join(gcs_base, unique_id, file_pattern)
-
   def expand(self, pcoll):
-    class RemoveExportedFiles(beam.DoFn):
-      def __init__(self, gcs_location_vp):
-        self._gcs_location_vp = gcs_location_vp
-        self._temp_location = temp_location
-        self._unique_id = unique_id
-
-      def process(self, unused_element, signal):
-        gcs_location = ReadFromBigQuery.get_destination_uri(
-            self._gcs_location_vp, self._temp_location, self._unique_id, True)
-        FileSystems.delete([gcs_location + '/'])
-
     unique_id = str(uuid.uuid4())[0:10]
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
+    gcs_location_vp = self.gcs_location
+    unique_id = str(uuid.uuid4())[0:10]
+
+    def file_path_to_remove(unused_elm):
+      gcs_location = bigquery_export_destination_uri(
+          gcs_location_vp, temp_location, unique_id, True)
+      return gcs_location + '/'
+
+    files_to_remove_pcoll = beam.pvalue.AsList(
+        pcoll.pipeline
+        | beam.Create([None])
+        | beam.Map(file_path_to_remove))
 
     try:
       step_name = self.label
@@ -1974,4 +1921,4 @@ class ReadFromBigQuery(PTransform):
                 unique_id=unique_id,
                 *self._args,
                 **self._kwargs))
-        | _PassThroughThenCleanup(RemoveExportedFiles(self.gcs_location)))
+        | _PassThroughThenCleanup(files_to_remove_pcoll))
