@@ -5230,7 +5230,7 @@ func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, 
 
 At this point, we have a splittable DoFn that supports [runner-initiated splits](#runner-initiated-split)
 enabling dynamic work rebalancing. To increase the rate at which initial parallelization of work occurs
-or for those runners that do not support [runner-initiated splitting](#current-status), we recommend providing
+or for those runners that do not support runner-initiated splitting, we recommend providing
 a set of initial splits:
 
 {{< highlight java >}}
