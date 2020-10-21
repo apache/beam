@@ -44,7 +44,6 @@ from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _JsonToDictCoder
@@ -411,8 +410,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     options = self.UserDefinedOptions()
     unique_id = uuid.uuid4().hex
 
-    uri = bigquery_export_destination_uri(
-        options.gcs_location, None, unique_id)
+    uri = bigquery_export_destination_uri(options.gcs_location, None, unique_id)
     self.assertEqual(
         uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
 

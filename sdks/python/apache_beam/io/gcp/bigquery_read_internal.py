@@ -28,7 +28,6 @@ from apache_beam.transforms import PTransform
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.value_provider import ValueProvider
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -94,9 +93,10 @@ class _PassThroughThenCleanup(PTransform):
 
     cleanup_input = input.pipeline | beam.Create([None])
 
-    cleanup_input | beam.ParDo(
+    _ = cleanup_input | beam.ParDo(
         RemoveExtractedFiles(),
         beam.pvalue.AsSingleton(cleanup_signal),
-        self.side_input,)
+        self.side_input,
+    )
 
     return main_output
