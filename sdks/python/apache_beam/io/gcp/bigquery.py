@@ -669,7 +669,6 @@ class _JsonToDictCoder(coders.Coder):
     return dict
 
 
-
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
