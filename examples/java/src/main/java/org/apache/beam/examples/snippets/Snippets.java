@@ -1340,8 +1340,7 @@ public class Snippets {
       }
 
       public interface Service {
-        List<Record> readNextRecords(long position)
-            throws ThrottlingException;
+        List<Record> readNextRecords(long position) throws ThrottlingException;
       }
 
       public interface Record {
