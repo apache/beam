@@ -84,8 +84,7 @@ class _PassThroughThenCleanup(PTransform):
 
     class RemoveExtractedFiles(beam.DoFn):
       def process(self, unused_element, unused_signal, gcs_locations):
-        for location in gcs_locations:
-          FileSystems.delete(location)
+        FileSystems.delete(list(gcs_locations))
 
     main_output, cleanup_signal = input | beam.ParDo(
         PassThrough()).with_outputs(
