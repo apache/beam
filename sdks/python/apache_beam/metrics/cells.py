@@ -42,7 +42,13 @@ except ImportError:
 
   globals()['cython'] = fake_cython
 
-__all__ = ['DistributionResult', 'GaugeResult']
+__all__ = [
+    'MetricAggregator',
+    'MetricCell',
+    'MetricCellFactory',
+    'DistributionResult',
+    'GaugeResult'
+]
 
 
 class MetricCell(object):
@@ -72,6 +78,12 @@ class MetricCell(object):
     raise NotImplementedError
 
   def __reduce__(self):
+    raise NotImplementedError
+
+
+class MetricCellFactory(object):
+  def __call__(self):
+    # type: () -> MetricCell
     raise NotImplementedError
 
 

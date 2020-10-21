@@ -55,6 +55,7 @@ if TYPE_CHECKING:
   from apache_beam.metrics.cells import GaugeData
   from apache_beam.metrics.cells import DistributionData
   from apache_beam.metrics.cells import MetricCell
+  from apache_beam.metrics.cells import MetricCellFactory
   from apache_beam.metrics.metricbase import MetricName
   from apache_beam.portability.api import metrics_pb2
 
@@ -169,7 +170,7 @@ MetricsEnvironment = _MetricsEnvironment()
 class _TypedMetricName(object):
   """Like MetricName, but also stores the cell type of the metric."""
   def __init__(self,
-               cell_type,  # type: Type[MetricCell]
+               cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
                metric_name  # type: Union[str, MetricName]
               ):
     # type: (...) -> None
@@ -203,7 +204,7 @@ _DEFAULT = None  # type: Any
 class MetricUpdater(object):
   """A callable that updates the metric as quickly as possible."""
   def __init__(self,
-               cell_type,  # type: Type[MetricCell]
+               cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
                metric_name,  # type: Union[str, MetricName]
                default=None):
     self.typed_metric_name = _TypedMetricName(cell_type, metric_name)
@@ -300,7 +301,10 @@ class MetricsContainer(object):
         for key,
         cell in self.metrics.items()
     ]
-    return {monitoring_infos.to_key(mi): mi for mi in all_user_metrics}
+    return {
+        monitoring_infos.to_key(mi): mi
+        for mi in all_user_metrics if mi is not None
+    }
 
   def reset(self):
     # type: () -> None
