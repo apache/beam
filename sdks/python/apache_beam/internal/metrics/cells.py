@@ -136,7 +136,7 @@ class HistogramData(object):
   The data structure that holds data about a histogram metric.
 
   This object is not thread safe, so it's not supposed to be modified
-  by other than the HistogramCell that contains it.
+  outside the HistogramCell.
   """
   def __init__(self, histogram):
     self.histogram = histogram
