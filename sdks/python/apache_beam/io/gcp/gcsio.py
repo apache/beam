@@ -262,7 +262,7 @@ class GcsIO(object):
     from concurrent.futures import ThreadPoolExecutor
     e = ThreadPoolExecutor(max_workers=10)
 
-    def _execute_batch_request(input_request):
+    def _execute_batch_request(input_request, paths_chunk):
       local_result_statuses = []
       api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
       for i, api_call in enumerate(api_calls):
@@ -282,7 +282,7 @@ class GcsIO(object):
     while True:
       paths_chunk = list(islice(paths, MAX_BATCH_OPERATION_SIZE))
       if not paths_chunk:
-        return result_statuses
+        break
       batch_request = BatchApiRequest(
           batch_url=GCS_BATCH_ENDPOINT,
           retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
@@ -292,7 +292,8 @@ class GcsIO(object):
         request = storage.StorageObjectsDeleteRequest(
             bucket=bucket, object=object_path)
         batch_request.Add(self.client.objects, 'Delete', request)
-      futures.append(e.submit(_execute_batch_request, batch_request))
+      futures.append(e.submit(_execute_batch_request, batch_request, paths_chunk))
+
     for f in futures:
       result_statuses.extend(f.result())
     return result_statuses
