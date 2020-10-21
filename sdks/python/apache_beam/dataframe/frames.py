@@ -1649,5 +1649,5 @@ for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
   setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
 
-DeferredSeries.multiply = DeferredSeries.mul
-DeferredDataFrame.multiply = DeferredDataFrame.mul
+DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
+DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
