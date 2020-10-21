@@ -1180,6 +1180,35 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
+  # [START model_bigqueryio_write_dynamic_destinations]
+  fictional_characters_view = beam.pvalue.AsDict(
+      p | beam.Create([('Yoda', True), ('Obi Wan Kenobi', True)]))
+
+  def table_fn(element, fictional_characters):
+    if element in fictional_characters:
+      return 'my_dataset.fictional_quotes'
+    else:
+      return 'my_dataset.real_quotes'
+
+  quotes | beam.io.WriteToBigQuery(
+      table_fn,
+      schema=table_schema,
+      table_side_inputs=(fictional_characters_view, ),
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+  # [END model_bigqueryio_write_dynamic_destinations]
+
+  # [START model_bigqueryio_time_partitioning]
+  quotes | beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+      additional_bq_parameters={'timePartitioning': {
+          'type': 'HOUR'
+      }})
+  # [END model_bigqueryio_time_partitioning]
+
 
 def model_composite_transform_example(contents, output_path):
   """Example of a composite transform.
