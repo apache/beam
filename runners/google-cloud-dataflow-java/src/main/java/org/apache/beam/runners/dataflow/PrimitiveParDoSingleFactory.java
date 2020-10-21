@@ -35,16 +35,16 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DisplayData;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PTransformReplacements;
-import org.apache.beam.sdk.runners.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -71,16 +71,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  */
 public class PrimitiveParDoSingleFactory<InputT, OutputT>
     extends SingleInputOutputOverrideFactory<
-        PCollection<? extends InputT>, PCollection<OutputT>, ParDo.SingleOutput<InputT, OutputT>> {
+        PCollection<? extends InputT>, PCollection<OutputT>, SingleOutput<InputT, OutputT>> {
   @Override
-  public PTransformReplacement<PCollection<? extends InputT>, PCollection<OutputT>>
+  public PTransformOverrideFactory.PTransformReplacement<
+          PCollection<? extends InputT>, PCollection<OutputT>>
       getReplacementTransform(
           AppliedPTransform<
                   PCollection<? extends InputT>,
                   PCollection<OutputT>,
                   SingleOutput<InputT, OutputT>>
               transform) {
-    return PTransformReplacement.of(
+    return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
         new ParDoSingle<>(
             transform.getTransform(),
@@ -195,7 +196,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       if (signature.usesState() || signature.usesTimers()) {
         checkArgument(
             mainInput.getCoder() instanceof KvCoder,
-            "DoFn's that use state or timers must have an input PCollection with a KvCoder but received %s",
+            "DoFn's that use state or timers must have an input PCollection with a KvCoder but"
+                + " received %s",
             mainInput.getCoder());
         keyCoder = ((KvCoder) mainInput.getCoder()).getKeyCoder();
       } else {

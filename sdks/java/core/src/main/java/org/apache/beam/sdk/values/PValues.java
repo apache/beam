@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -35,19 +36,25 @@ public class PValues {
   // Do not instantiate
   private PValues() {}
 
-  // For backwards-compatibility, PCollectionView is still a "PValue" to users, which occurs in
-  // three places:
-  //
-  //    POutput#expand (users can write custom POutputs)
-  //    PInput#expand (users can write custom PInputs)
-  //    PTransform#getAdditionalInputs (users can have their composites report inputs not passed by
-  // apply())
-  //
-  // These all return Map<TupleTag<?> PValue>. A user's implementation of these methods is permitted
-  // to return
-  // either a PCollection or a PCollectionView for each PValue. PCollection's expand to themselves
-  // and
-  // PCollectionView expands to the PCollection that it is a view of.
+  /**
+   * Returns all the tagged {@link PCollection PCollections} represented in the given {@link
+   * PValue}.
+   *
+   * <p>For backwards-compatibility, PCollectionView is still a "PValue" to users, which occurs in
+   * only these places:
+   *
+   * <ul>
+   *   <li>{@link POutput#expand} (users can write custom POutputs)
+   *   <li>{@link PInput#expand} (users can write custom PInputs)
+   *   <li>{@link PTransform#getAdditionalInputs} (users can have their composites report inputs not
+   *       passed by {@link PCollection#apply})
+   * </ul>
+   *
+   * <p>These all return {@code Map<TupleTag<?> PValue>}. A user's implementation of these methods
+   * is permitted to return either a {@link PCollection} or a {@link PCollectionView} for each
+   * PValue. PCollection's expand to themselves and {@link PCollectionView} expands to the {@link
+   * PCollection} that it is a view of.
+   */
   public static Map<TupleTag<?>, PCollection<?>> fullyExpand(
       Map<TupleTag<?>, PValue> partiallyExpanded) {
     Map<TupleTag<?>, PCollection<?>> result = new LinkedHashMap<>();
@@ -73,11 +80,11 @@ public class PValues {
                   PValue.class.getSimpleName(),
                   pvalue.getValue()));
         }
-        // At this point we know it is a PCollectionView or some internal hacked PValue. To be
-        // liberal, we
-        // allow it to expand into any number of PCollections, but do not allow structures that
-        // require
-        // further recursion.
+        /* At this point we know it is a PCollectionView or some internal hacked PValue. To be
+        liberal, we
+        allow it to expand into any number of PCollections, but do not allow structures that
+        require
+        further recursion. */
         for (Map.Entry<TupleTag<?>, PValue> valueComponent :
             pvalue.getValue().expand().entrySet()) {
           if (!(valueComponent.getValue() instanceof PCollection)) {

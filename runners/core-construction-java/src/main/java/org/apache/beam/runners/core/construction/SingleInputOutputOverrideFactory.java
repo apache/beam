@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.runners;
+package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
@@ -29,8 +28,6 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link PTransformOverrideFactory} which consumes from a {@link PValue} and produces a {@link
  * PValue}. {@link #mapOutputs(Map, PValue)} is implemented.
  */
-@Internal
-@Experimental(Experimental.Kind.CORE_RUNNERS_ONLY)
 public abstract class SingleInputOutputOverrideFactory<
         InputT extends PValue,
         OutputT extends PValue,

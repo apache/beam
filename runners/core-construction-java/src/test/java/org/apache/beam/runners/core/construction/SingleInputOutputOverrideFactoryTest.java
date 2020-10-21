@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.runners;
+package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -28,7 +29,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
@@ -82,7 +82,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
     PCollection<Integer> output = input.apply("Map", MapElements.via(fn));
     PCollection<Integer> reappliedOutput = input.apply("ReMap", MapElements.via(fn));
     Map<PCollection<?>, ReplacementOutput> replacementMap =
-        factory.mapOutputs(PValues.expandValue(output), reappliedOutput);
+        factory.mapOutputs(PValues.expandOutput(output), reappliedOutput);
     assertThat(
         replacementMap,
         Matchers.hasEntry(
@@ -99,7 +99,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
     PCollection<Integer> reappliedOutput = input.apply("ReMap", MapElements.via(fn));
     thrown.expect(IllegalArgumentException.class);
     factory.mapOutputs(
-        PValues.expandOutput((POutput) PCollectionList.of(output).and(input).and(reappliedOutput)),
+        PValues.expandOutput(PCollectionList.of(output).and(input).and(reappliedOutput)),
         reappliedOutput);
   }
 }

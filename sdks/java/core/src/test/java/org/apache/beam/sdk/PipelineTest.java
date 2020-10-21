@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
@@ -43,8 +42,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PTransformReplacements;
-import org.apache.beam.sdk.runners.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -56,21 +53,16 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TaggedPValue;
@@ -425,29 +417,6 @@ public class PipelineTest {
         });
   }
 
-  @Test
-  public void testReplaceAllPCollectionView() {
-    pipeline.enableAbandonedNodeEnforcement(false);
-    pipeline.apply(GenerateSequence.from(0).to(100)).apply(View.asList());
-
-    pipeline.replaceAll(
-        ImmutableList.of(
-            PTransformOverride.of(
-                application -> application.getTransform() instanceof View.AsList,
-                new ViewAsListOverride())));
-    pipeline.traverseTopologically(
-        new PipelineVisitor.Defaults() {
-          @Override
-          public CompositeBehavior enterCompositeTransform(Node node) {
-            if (!node.isRootNode()) {
-              assertThat(
-                  node.getTransform().getClass(), not(anyOf(Matchers.equalTo(View.AsList.class))));
-            }
-            return CompositeBehavior.ENTER_TRANSFORM;
-          }
-        });
-  }
-
   /**
    * Tests that {@link Pipeline#replaceAll(List)} throws when one of the PTransformOverride still
    * matches.
@@ -542,41 +511,6 @@ public class PipelineTest {
     assertEquals(
         nameToTransformClass.get("original_application/custom_name"),
         Max.integersGlobally().getClass());
-  }
-
-  static class ViewAsListOverride<T>
-      extends SingleInputOutputOverrideFactory<
-          PCollection<T>, PCollectionView<List<T>>, View.AsList<T>> {
-    @Override
-    public PTransformReplacement<PCollection<T>, PCollectionView<List<T>>> getReplacementTransform(
-        AppliedPTransform<PCollection<T>, PCollectionView<List<T>>, View.AsList<T>> transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          new FakeViewAsList<>(PCollectionViews.findPCollectionView(transform)));
-    }
-  }
-
-  static class FakeViewAsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
-    private final PCollectionView<List<T>> originalView;
-
-    FakeViewAsList(PCollectionView<List<T>> originalView) {
-      this.originalView = originalView;
-    }
-
-    @Override
-    public PCollectionView<List<T>> expand(PCollection<T> input) {
-      PCollection<KV<Void, T>> materializationInput =
-          input.apply(new View.VoidKeyToMultimapMaterialization<>());
-      Coder<T> inputCoder = input.getCoder();
-      PCollectionView<List<T>> view =
-          PCollectionViews.listViewUsingVoidKey(
-              materializationInput,
-              (TupleTag<Materializations.MultimapView<Void, T>>) originalView.getTagInternal(),
-              (PCollectionViews.TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
-              materializationInput.getWindowingStrategy());
-      materializationInput.apply(View.CreatePCollectionView.of(view));
-      return view;
-    }
   }
 
   static class GenerateSequenceToCreateOverride
