@@ -1612,7 +1612,17 @@ def nlp_analyze_text():
 
 
 def sdf_basic_example():
+  import os
+  from apache_beam.io.restriction_trackers import OffsetRange
+  read_next_record = None
   # [START SDF_BasicExample]
+  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+    def initial_restriction(self, file_name):
+      return OffsetRange(0, os.stat(file_name).st_size)
+
+    def create_tracker(self, restriction):
+      return beam.io.restriction_trackers.OffsetRestrictionTracker()
+
   class FileToWordsFn(beam.DoFn):
     def process(
         self,
@@ -1621,16 +1631,10 @@ def sdf_basic_example():
       with open(file_name) as file_handle:
         file_handle.seek(tracker.current_restriction.start())
         while tracker.try_claim(file_handle.tell()):
-          yield read_next_record(file)
+          yield read_next_record(file_handle)
 
-  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
-    def initial_restriction(self, file_name):
-      return OffsetRange(0, size(file_name))
-
-    def create_tracker(self, restriction):
-      return beam.io.restriction_trackers.OffsetRestrictionTracker()
-
-    # Providing the coder is only necessary if it can not be inferred at runtime.
+    # Providing the coder is only necessary if it can not be inferred at
+    # runtime.
     def restriction_coder(self):
       return ...
 
@@ -1638,17 +1642,17 @@ def sdf_basic_example():
 
 
 def sdf_basic_example_with_splitting():
+  from apache_beam.io.restriction_trackers import OffsetRange
   # [START SDF_BasicExampleWithSplitting]
   class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
     def split(self, file_name, restriction):
       # Compute and output 64 MiB size ranges to process in parallel
       split_size = 64 * (1 << 20)
-      start, end = restriction
-      i = start
-      while i < end - split_size:
-        yield [i, i + split_size]
+      i = restriction.start
+      while i < restriction.end - split_size:
+        yield OffsetRange(i, i + split_size)
         i += split_size
-      yield [i, end]
+      yield OffsetRange(i, restriction.end)
 
   # [END SDF_BasicExampleWithSplitting]
 
@@ -1656,7 +1660,8 @@ def sdf_basic_example_with_splitting():
 def sdf_sdk_initiated_checkpointing():
   timestamp = None
   external_service = None
-
+  class MyRestrictionProvider(object):
+    pass
   # [START SDF_UserInitiatedCheckpoint]
   class MySplittableDoFn(beam.DoFn):
     def process(
@@ -1689,7 +1694,8 @@ def sdf_sdk_initiated_checkpointing():
 
 def sdf_get_size():
   # [START SDF_GetSize]
-  # The RestrictionProvider is responsible for calculating the size of given restriction.
+  # The RestrictionProvider is responsible for calculating the size of given
+  # restriction.
   class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
     def restriction_size(self, file_name, restriction):
       weight = 2 if "expensiveRecords" in file_name else 1
@@ -1699,6 +1705,9 @@ def sdf_get_size():
 
 
 def sdf_bad_try_claim_loop():
+  class FileToWordsRestrictionProvider(object):
+    pass
+  read_next_record = None
   # [START SDF_BadTryClaimLoop]
   class BadTryClaimLoop(beam.DoFn):
     def process(
@@ -1714,14 +1723,21 @@ def sdf_bad_try_claim_loop():
           # Only after successfully claiming should we produce any output and/or
           # perform side effects.
           tracker.try_claim(file_handle.tell())
-          yield read_next_record(file)
+          yield read_next_record(file_handle)
 
   # [END SDF_BadTryClaimLoop]
 
 
 def sdf_custom_watermark_estimator():
-  # (Optional) Define a custom watermark state type to save information between bundle
-  # processing rounds.
+  from apache_beam.io.iobase import WatermarkEstimator
+  from apache_beam.transforms.core import WatermarkEstimatorProvider
+  current_watermark = None
+  class MyRestrictionProvider(object):
+    pass
+
+  # [START SDF_CustomWatermarkEstimator]
+  # (Optional) Define a custom watermark state type to save information between
+  # bundle processing rounds.
   class MyCustomerWatermarkEstimatorState(object):
     def __init__(self, element, restriction):
       # Store data necessary for future watermark computations
@@ -1741,10 +1757,12 @@ def sdf_custom_watermark_estimator():
       return current_watermark
 
     def get_estimator_state(self):
-      # Return state to resume future watermark estimation after a checkpoint/split
+      # Return state to resume future watermark estimation after a
+      # checkpoint/split
       return self.state
 
-  # Then, a WatermarkEstimatorProvider needs to be created for this WatermarkEstimator
+  # Then, a WatermarkEstimatorProvider needs to be created for this
+  # WatermarkEstimator
   class MyWatermarkEstimatorProvider(WatermarkEstimatorProvider):
     def initial_estimator_state(self, element, restriction):
       return MyCustomerWatermarkEstimatorState(element, restriction)
@@ -1762,7 +1780,6 @@ def sdf_custom_watermark_estimator():
             MyWatermarkEstimatorProvider())):
       # The current watermark can be inspected.
       watermark_estimator.current_watermark()
-
   # [END SDF_CustomWatermarkEstimator]
 
 
@@ -1786,7 +1803,8 @@ def bundle_finalize():
     def process(self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
       # ... produce output ...
 
-      # Register callback function for this bundle that performs the side effect.
+      # Register callback function for this bundle that performs the side
+      # effect.
       bundle_finalizer.register(my_callback_func)
 
   # [END BundleFinalize]
