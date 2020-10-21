@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.runners.spark.translation.TranslationUtils.canAvoidRddSerialization;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Arrays;
@@ -65,7 +64,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -93,19 +91,14 @@ public final class TransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
-        Collection<PValue> pcs = context.getInputs(transform).values();
+        Collection<PCollection<?>> pcs = context.getInputs(transform).values();
         JavaRDD<WindowedValue<T>> unionRDD;
         if (pcs.isEmpty()) {
           unionRDD = context.getSparkContext().emptyRDD();
         } else {
           JavaRDD<WindowedValue<T>>[] rdds = new JavaRDD[pcs.size()];
           int index = 0;
-          for (PValue pc : pcs) {
-            checkArgument(
-                pc instanceof PCollection,
-                "Flatten had non-PCollection value in input: %s of type %s",
-                pc,
-                pc.getClass().getSimpleName());
+          for (PCollection<?> pc : pcs) {
             rdds[index] = ((BoundedDataset<T>) context.borrowDataset(pc)).getRDD();
             index++;
           }
@@ -412,7 +405,7 @@ public final class TransformTranslator {
           all = inRDD.mapPartitionsToPair(multiDoFnFunction);
         }
 
-        Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+        Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
           StorageLevel level = StorageLevel.fromString(context.storageLevel());
           if (canAvoidRddSerialization(level)) {
@@ -429,7 +422,7 @@ public final class TransformTranslator {
                     .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
           }
         }
-        for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+        for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
           JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
               all.filter(new TranslationUtils.TupleTagFilter(output.getKey()));
           // Object is the best we can do since different outputs can have different tags
