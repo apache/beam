@@ -29,6 +29,7 @@ and displayed as part of their pipeline execution.
 
 from __future__ import absolute_import
 
+import logging
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Dict
@@ -52,6 +53,8 @@ if TYPE_CHECKING:
   from apache_beam.metrics.metricbase import Metric
 
 __all__ = ['Metrics', 'MetricsFilter']
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Metrics(object):
