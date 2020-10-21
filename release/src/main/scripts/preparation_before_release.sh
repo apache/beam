@@ -34,7 +34,7 @@ echo "Do you want to generate a new GPG key associated with your Apache account?
 read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "===============Generating new GPG key================"
-  sudo apt-get install rng-tools
+  sudo apt-get install rng-tools # Get more entropy for creating a GPG key.
   sudo rngd -r /dev/urandom
   echo "NOTE: When creating the key, please select the type to be RSA and RSA (default), and the size to be 4096 bit long."
   gpg --full-generate-key
