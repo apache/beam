@@ -24,7 +24,8 @@ to read data from a single or multiple topics from
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
 
-This template supports serializable string formats, such as JSON. The template supports Apache Kafka SASL/SCRAM security mechanisms
+This template supports serializable plaintext formats and [PubSubMessage](https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage). 
+The template supports Apache Kafka SASL/SCRAM security mechanisms via PLAINTEXT or SSL
 and retrieving credentials from [HashiCorp Vault](https://www.vaultproject.io/).
 
 ## Requirements
@@ -34,6 +35,7 @@ and retrieving credentials from [HashiCorp Vault](https://www.vaultproject.io/).
 - Existing source Kafka topic(s)
 - An existing Pub/Sub destination output topic
 - (Optional) An existing HashiCorp Vault
+- (Optional) A configured secure SSL connection for Kafka
 
 ## Getting Started
 
@@ -70,24 +72,50 @@ The result of the `shadowJar` task execution is a `.jar` file that is generated
 under the `build/libs/` folder in kafka-to-pubsub directory.
 
 ## Local execution
-To execute this pipeline locally, specify the parameters: Kafka Bootstrap servers, Kafka input topic, Pub/Sub output topic with the form:
+To execute this pipeline locally, specify the parameters: 
+- Kafka Bootstrap servers
+- Kafka input topics
+- Pub/Sub output topic with the form
 ```bash
 --bootstrapServers=host:port \
---inputTopic=your-input-topic \
+--inputTopics=your-input-topic \
 --outputTopic=projects/your-project-id/topics/your-topic-pame
 ```
-Optionally, specify a URL to credentials in HashiCorp Vault and token to access them:
+Optionally, to choose the output format, specify one of two available formats:
+- PLAINTEXT (default)
+- PUBSUB
+```bash
+--outputFormat=PLAINTEXT
+```
+Optionally, to retrieve Kafka credentials for SASL/SCRAM, 
+specify a URL to credentials in HashiCorp Vault and token to access them:
 ```bash
 --secretStoreUrl=http(s)://host:port/path/to/credentials
 --vaultToken=your-token
 ```
+Optionally, to configure secure SSL connection between the pipeline and Kafka,
+specify the parameters:
+- A local path to a truststore file
+- A local path to a keystore file
+- Truststore password
+- Keystore password
+- Key password
+```bash
+--truststorePath=path/to/kafka.truststore.jks
+--keystorePath=path/to/kafka.keystore.jks
+--truststorePassword=your-truststore-password
+--keystorePassword=your-keystore-password
+--keyPassword=your-key-password
+```
 To change the runner, specify:
-
-```--runner=YOUR_SELECTED_RUNNER```
-
+```bash
+--runner=YOUR_SELECTED_RUNNER
+```
 See examples/java/README.md for instructions about how to configure different runners.
 
 ## Google Dataflow Template
+
+_Note: The Dataflow Template doesn't support SSL configuration._ 
 
 ### Setting Up Project Environment
 
@@ -161,8 +189,9 @@ You can do this in 3 different ways:
         --parameters bootstrapServers="broker_1:9092,broker_2:9092" \
         --parameters inputTopics="topic1,topic2" \
         --parameters outputTopic="projects/${PROJECT}/topics/your-topic-name" \
-        --parameters secretStoreUrl="http(s)://host:port/path/to/credentials"
-        --parameters vaultToken="your-token"
+        --parameters outputFormat="PLAINTEXT" \
+        --parameters secretStoreUrl="http(s)://host:port/path/to/credentials" \
+        --parameters vaultToken="your-token" \
         --region "${REGION}"
     ```
 3. With a REST API request
@@ -182,6 +211,7 @@ You can do this in 3 different ways:
                      "bootstrapServers": "broker_1:9091, broker_2:9092",
                      "inputTopics": "topic1, topic2",
                      "outputTopic": "projects/'$PROJECT'/topics/your-topic-name",
+                     "outputFormat": "PLAINTEXT",
                      "secretStoreUrl": "http(s)://host:port/path/to/credentials",
                      "vaultToken": "your-token"
                  }
@@ -191,4 +221,33 @@ You can do this in 3 different ways:
         "${TEMPLATES_LAUNCH_API}"
     ```
 
+## Use Cases
 
+Generally, the whole range of use cases can be described via the simplest and
+the most complex examples. All other use cases can be described as different 
+variations between the simplest and the most complex ones.
+
+### The simplest use case
+
+There are:
+- One Kafka server without SASL and SSL
+- One topic in Kafka
+- One topic in Google Pub/Sub
+
+Kafka can be reached without any authentication and SSL certificates. 
+The pipeline streams plaintext messages from Kafka topic to Google Pub/Sub topic.
+
+### The most complex use case
+
+There are:
+- Several Kafka servers with configured SASL/SCRAM and SSL secure connection
+- Several topics in Kafka with same username and password
+- One topic in Google Pub/Sub
+- Unsealed HashiCorp Vault secret storage with known secret access token
+- SSL certificate located locally
+
+The pipeline reaches Vault secret storage via access token and 
+retrieves the credentials that contain username and password for Kafka topics. 
+Using the SSL certificate and retrieved credentials the pipeline connects to 
+Kafka and streams messages from Kafka topics into Google Pub/Sub converting them
+into PubSubMessages. 

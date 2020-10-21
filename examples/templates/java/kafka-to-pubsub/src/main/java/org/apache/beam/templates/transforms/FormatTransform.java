@@ -40,8 +40,8 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 public class FormatTransform {
 
   public enum FORMAT {
-    JSON,
-    AVRO
+    PUBSUB,
+    PLAINTEXT
   }
 
   /**
@@ -76,7 +76,7 @@ public class FormatTransform {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      if (options.getOutputFormat() == FORMAT.JSON) {
+      if (options.getOutputFormat() == FORMAT.PUBSUB) {
         return input
             .apply(
                 "convertMessagesToPubsubMessages",

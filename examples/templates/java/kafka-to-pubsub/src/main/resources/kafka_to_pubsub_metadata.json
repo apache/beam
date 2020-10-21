@@ -26,10 +26,11 @@
     {
       "name": "outputFormat",
       "label": "Message format that is written into Pub/Sub",
-      "helpText": "One of two message formats that is written to Pub/Sub. JSON or AVRO",
+      "helpText": "One of two message formats that is written to Pub/Sub. PUBSUB or PLAINTEXT. Default is PLAINTEXT",
       "regexes": [
-        "^(JSON|AVRO)$"
-      ]
+        "^(PUBSUB|PLAINTEXT)$"
+      ],
+      "isOptional": true
     },
     {
       "name": "secretStoreUrl",
