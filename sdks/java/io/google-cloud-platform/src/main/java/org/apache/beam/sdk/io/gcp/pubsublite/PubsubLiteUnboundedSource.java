@@ -21,8 +21,11 @@ import static com.google.cloud.pubsublite.internal.Preconditions.checkState;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.internal.BufferingPullSubscriber;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
+import com.google.cloud.pubsublite.proto.Cursor;
+import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import io.grpc.StatusException;
 import java.io.IOException;
@@ -88,14 +91,18 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
           Offset checkpointed = checkpointMark.partitionOffsetMap.get(partition);
           state.lastDelivered = Optional.of(checkpointed);
           state.subscriber =
-              new BufferingPullSubscriber(
-                  subscriberFactories.get(partition),
-                  subscriberOptions.flowControlSettings(),
-                  checkpointed);
+              new TranslatingPullSubscriber(
+                  new BufferingPullSubscriber(
+                      subscriberFactories.get(partition),
+                      subscriberOptions.flowControlSettings(),
+                      SeekRequest.newBuilder()
+                          .setCursor(Cursor.newBuilder().setOffset(checkpointed.value()))
+                          .build()));
         } else {
           state.subscriber =
-              new BufferingPullSubscriber(
-                  subscriberFactories.get(partition), subscriberOptions.flowControlSettings());
+              new TranslatingPullSubscriber(
+                  new BufferingPullSubscriber(
+                      subscriberFactories.get(partition), subscriberOptions.flowControlSettings()));
         }
         statesBuilder.put(partition, state);
       }

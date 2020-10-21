@@ -134,6 +134,12 @@ public class TestPubsub implements TestRule {
       if (subscriptionPath != null) {
         pubsub.deleteSubscription(subscriptionPath);
       }
+      for (SubscriptionPath subscriptionPath :
+          pubsub.listSubscriptions(
+              projectPathFromPath(String.format("projects/%s", pipelineOptions.getProject())),
+              eventsTopicPath)) {
+        pubsub.deleteSubscription(subscriptionPath);
+      }
       if (eventsTopicPath != null) {
         pubsub.deleteTopic(eventsTopicPath);
       }

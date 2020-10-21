@@ -184,6 +184,9 @@ public class SamzaPipelineTranslator {
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
           .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
           .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+          .put(
+              PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
+              new SplittableParDoTranslators.ProcessKeyedElements<>())
           .put(ExecutableStage.URN, new ParDoBoundMultiTranslator())
           .build();
     }

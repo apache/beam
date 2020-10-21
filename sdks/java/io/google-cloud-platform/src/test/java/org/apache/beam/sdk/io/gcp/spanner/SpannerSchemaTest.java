@@ -34,10 +34,11 @@ public class SpannerSchemaTest {
             .addColumn("test", "pk", "STRING(48)")
             .addKeyPart("test", "pk", false)
             .addColumn("test", "maxKey", "STRING(MAX)")
+            .addColumn("test", "numericVal", "NUMERIC")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(2, schema.getColumns("test").size());
+    assertEquals(3, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
   }
 

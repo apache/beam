@@ -103,13 +103,10 @@ def patch_retry(testcase, module):
   """
   real_retry_with_exponential_backoff = retry.with_exponential_backoff
 
-  def patched_retry_with_exponential_backoff(num_retries, retry_filter):
+  def patched_retry_with_exponential_backoff(**kwargs):
     """A patch for retry decorator to use a mock dummy clock and logger."""
-    return real_retry_with_exponential_backoff(
-        num_retries=num_retries,
-        retry_filter=retry_filter,
-        logger=Mock(),
-        clock=Mock())
+    kwargs.update(logger=Mock(), clock=Mock())
+    return real_retry_with_exponential_backoff(**kwargs)
 
   patch.object(
       retry,

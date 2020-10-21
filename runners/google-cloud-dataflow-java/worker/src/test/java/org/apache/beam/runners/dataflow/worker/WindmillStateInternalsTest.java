@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.DataflowMatchers.ByteStringMatcher.byteStringEq;
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -27,17 +28,23 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Iterables;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.WindmillStateInternals.IdTracker;
+import org.apache.beam.runners.dataflow.worker.WindmillStateInternals.WindmillOrderedList;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListUpdateRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -46,15 +53,19 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.hamcrest.Matchers;
@@ -169,6 +180,341 @@ public class WindmillStateInternalsTest {
     }
     return result;
   }
+
+  public static final Range<Long> FULL_ORDERED_LIST_RANGE =
+      Range.closedOpen(WindmillOrderedList.MIN_TS_MICROS, WindmillOrderedList.MAX_TS_MICROS);
+
+  @Test
+  public void testOrderedListAddBeforeRead() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(future);
+
+    orderedList.readLater();
+
+    final TimestampedValue<String> helloValue =
+        TimestampedValue.of("hello", Instant.ofEpochMilli(100));
+    final TimestampedValue<String> worldValue =
+        TimestampedValue.of("world", Instant.ofEpochMilli(75));
+    final TimestampedValue<String> goodbyeValue =
+        TimestampedValue.of("goodbye", Instant.ofEpochMilli(50));
+
+    orderedList.add(helloValue);
+    waitAndSet(future, Arrays.asList(worldValue), 200);
+    assertThat(orderedList.read(), Matchers.contains(worldValue, helloValue));
+
+    orderedList.add(goodbyeValue);
+    assertThat(orderedList.read(), Matchers.contains(goodbyeValue, worldValue, helloValue));
+  }
+
+  @Test
+  public void testOrderedListClearBeforeRead() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    final TimestampedValue<String> helloElement = TimestampedValue.of("hello", Instant.EPOCH);
+    orderedListState.clear();
+    orderedListState.add(helloElement);
+    assertThat(orderedListState.read(), Matchers.containsInAnyOrder(helloElement));
+
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
+  }
+
+  @Test
+  public void testOrderedListIsEmptyFalse() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(future);
+    ReadableState<Boolean> result = orderedList.isEmpty().readLater();
+    Mockito.verify(mockReader)
+        .orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of());
+
+    waitAndSet(future, Arrays.asList(TimestampedValue.of("world", Instant.EPOCH)), 200);
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
+  public void testOrderedListIsEmptyTrue() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(future);
+    ReadableState<Boolean> result = orderedList.isEmpty().readLater();
+    Mockito.verify(mockReader)
+        .orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of());
+
+    waitAndSet(future, Collections.emptyList(), 200);
+    assertThat(result.read(), Matchers.is(true));
+  }
+
+  @Test
+  public void testOrderedListIsEmptyAfterClear() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    orderedList.clear();
+    ReadableState<Boolean> result = orderedList.isEmpty();
+    Mockito.verify(mockReader, never())
+        .orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of());
+    assertThat(result.read(), Matchers.is(true));
+
+    orderedList.add(TimestampedValue.of("hello", Instant.EPOCH));
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
+  public void testOrderedListAddPersist() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    orderedList.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(key(NAMESPACE, "orderedList"), updates.getTag());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+
+    assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+  }
+
+  @Test
+  public void testOrderedListClearPersist() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+    orderedListState.clear();
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(2)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(STATE_FAMILY, updates.getStateFamily());
+    assertEquals(key(NAMESPACE, "orderedList"), updates.getTag());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(2, updates.getInserts(0).getEntriesCount());
+
+    assertEquals("world", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
+    assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(2000, updates.getInserts(0).getEntries(1).getSortKey());
+    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testOrderedListDeleteRangePersist() {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(3)));
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(4)));
+    orderedListState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(STATE_FAMILY, updates.getStateFamily());
+    assertEquals(key(NAMESPACE, "orderedList"), updates.getTag());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(2, updates.getInserts(0).getEntriesCount());
+
+    assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
+    assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(4000, updates.getInserts(0).getEntries(1).getSortKey());
+    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+  }
+
+  @Test
+  public void testOrderedListMergePendingAdds() {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> fromStorage = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(fromStorage);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("second", Instant.ofEpochMilli(1)));
+    orderedListState.add(TimestampedValue.of("third", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("fourth", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("eighth", Instant.ofEpochMilli(10)));
+    orderedListState.add(TimestampedValue.of("ninth", Instant.ofEpochMilli(15)));
+
+    fromStorage.set(
+        ImmutableList.of(
+            TimestampedValue.of("first", Instant.ofEpochMilli(-1)),
+            TimestampedValue.of("fifth", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("sixth", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("seventh", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("tenth", Instant.ofEpochMilli(20))));
+
+    TimestampedValue[] expected =
+        Iterables.toArray(
+            ImmutableList.of(
+                TimestampedValue.of("first", Instant.ofEpochMilli(-1)),
+                TimestampedValue.of("second", Instant.ofEpochMilli(1)),
+                TimestampedValue.of("third", Instant.ofEpochMilli(2)),
+                TimestampedValue.of("fourth", Instant.ofEpochMilli(2)),
+                TimestampedValue.of("fifth", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("sixth", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("seventh", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("eighth", Instant.ofEpochMilli(10)),
+                TimestampedValue.of("ninth", Instant.ofEpochMilli(15)),
+                TimestampedValue.of("tenth", Instant.ofEpochMilli(20))),
+            TimestampedValue.class);
+
+    TimestampedValue[] read = Iterables.toArray(orderedListState.read(), TimestampedValue.class);
+    assertArrayEquals(expected, read);
+  }
+
+  @Test
+  public void testOrderedListPersistEmpty() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    // 1 bag update = the clear
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getDeletesCount());
+    assertEquals(WindmillOrderedList.MIN_TS_MICROS, updates.getDeletes(0).getRange().getStart());
+    assertEquals(WindmillOrderedList.MAX_TS_MICROS, updates.getDeletes(0).getRange().getLimit());
+  }
+
+  @Test
+  public void testNewOrderedListNoFetch() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTestNewKey.state(NAMESPACE, addr);
+
+    assertThat(orderedList.read(), Matchers.emptyIterable());
+
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
+  }
+
+  // test ordered list cleared before read
+  // test fetch + add + read
+  // test ids
 
   @Test
   public void testBagAddBeforeRead() throws Exception {

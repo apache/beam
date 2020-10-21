@@ -91,24 +91,16 @@ def run_bq_pipeline(argv=None):
         use_standard_sql=known_args.use_standard_sql,
         use_json_exports=known_args.use_json_exports,
         kms_key=kms_key)
-  if known_args.native:
-    _ = data | 'write' >> beam.io.Write(
-        beam.io.BigQuerySink(
-            known_args.output,
-            schema=table_schema,
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-            kms_key=kms_key))
-  else:
-    temp_file_format = (
-        'NEWLINE_DELIMITED_JSON' if known_args.use_json_exports else 'AVRO')
-    _ = data | 'write' >> beam.io.WriteToBigQuery(
-        known_args.output,
-        schema=table_schema,
-        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-        temp_file_format=temp_file_format,
-        kms_key=kms_key)
+
+  temp_file_format = (
+      'NEWLINE_DELIMITED_JSON' if known_args.use_json_exports else 'AVRO')
+  _ = data | 'write' >> beam.io.WriteToBigQuery(
+      known_args.output,
+      schema=table_schema,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+      temp_file_format=temp_file_format,
+      kms_key=kms_key)
 
   result = p.run()
   result.wait_until_finish()

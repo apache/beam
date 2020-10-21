@@ -40,8 +40,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -91,7 +93,8 @@ public class SparkExecutableStageFunctionTest {
     MockitoAnnotations.initMocks(this);
     when(contextFactory.get(any())).thenReturn(stageContext);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+        .thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver> inputReceiver =
         ImmutableMap.of("input", Mockito.mock(FnDataReceiver.class));
@@ -114,7 +117,8 @@ public class SparkExecutableStageFunctionTest {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -153,7 +157,8 @@ public class SparkExecutableStageFunctionTest {
               OutputReceiverFactory receiverFactory,
               TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
-              BundleProgressHandler progressHandler) {
+              BundleProgressHandler progressHandler,
+              BundleFinalizationHandler finalizationHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -205,6 +210,11 @@ public class SparkExecutableStageFunctionTest {
           }
 
           @Override
+          public InstructionRequestHandler getInstructionRequestHandler() {
+            return null;
+          }
+
+          @Override
           public void close() {}
         };
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
@@ -227,7 +237,7 @@ public class SparkExecutableStageFunctionTest {
     List<WindowedValue<Integer>> inputs = new ArrayList<>();
     inputs.add(WindowedValue.valueInGlobalWindow(0));
     function.call(inputs.iterator());
-    verify(stageBundleFactory).getBundle(any(), any(), any(), any());
+    verify(stageBundleFactory).getBundle(any(), any(), any(), any(BundleProgressHandler.class));
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);

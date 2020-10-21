@@ -22,7 +22,6 @@
 from __future__ import absolute_import
 
 import copy
-import functools
 import inspect
 import logging
 import random
@@ -75,7 +74,8 @@ from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
-  from apache_beam.io import iobase  # pylint: disable=ungrouped-imports
+  from google.protobuf import message  # pylint: disable=ungrouped-imports
+  from apache_beam.io import iobase
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.transforms import create_source
@@ -103,6 +103,7 @@ __all__ = [
     'CombineValues',
     'GroupBy',
     'GroupByKey',
+    'Select',
     'Partition',
     'Windowing',
     'WindowInto',
@@ -919,9 +920,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     raise NotImplementedError(str(self))
 
   def add_inputs(self, mutable_accumulator, elements, *args, **kwargs):
-    """DEPRECATED and unused.
-
-    Returns the result of folding each element in elements into accumulator.
+    """Returns the result of folding each element in elements into accumulator.
 
     This is provided in case the implementation affords more efficient
     bulk addition of elements. The default implementation simply loops
@@ -991,14 +990,10 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       *args: Additional arguments and side inputs.
       **kwargs: Additional arguments and side inputs.
     """
-    if args or kwargs:
-      add_input = lambda accumulator, element: self.add_input(
-          accumulator, element, *args, **kwargs)
-    else:
-      add_input = self.add_input
     return self.extract_output(
-        functools.reduce(
-            add_input, elements, self.create_accumulator(*args, **kwargs)),
+        self.add_inputs(
+            self.create_accumulator(*args, **kwargs), elements, *args,
+            **kwargs),
         *args,
         **kwargs)
 
@@ -1095,6 +1090,12 @@ class CallableWrapperCombineFn(CombineFn):
       accumulator = [self._fn(accumulator, *args, **kwargs)]
     return accumulator
 
+  def add_inputs(self, accumulator, elements, *args, **kwargs):
+    accumulator.extend(elements)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator, *args, **kwargs)]
+    return accumulator
+
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
 
@@ -1162,6 +1163,12 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
 
   def add_input(self, accumulator, element):
     accumulator.append(element)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator)]
+    return accumulator
+
+  def add_inputs(self, accumulator, elements):
+    accumulator.extend(elements)
     if len(accumulator) > self._buffer_size:
       accumulator = [self._fn(accumulator)]
     return accumulator
@@ -1381,8 +1388,9 @@ class ParDo(PTransformWithSideInputs):
     window_coder = input_pcoll.windowing.windowfn.get_window_coder()
     return key_coder, window_coder
 
-  def to_runner_api_parameter(self, context, **extra_kwargs):
-    # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
+  # typing: PTransform base class does not accept extra_kwargs
+  def to_runner_api_parameter(self, context, **extra_kwargs):  # type: ignore[override]
+    # type: (PipelineContext, **typing.Any) -> typing.Tuple[str, message.Message]
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
@@ -1394,6 +1402,8 @@ class ParDo(PTransformWithSideInputs):
     is_splittable = sig.is_splittable_dofn()
     if is_splittable:
       restriction_coder = sig.get_restriction_coder()
+      # restriction_coder will never be None when is_splittable is True
+      assert restriction_coder is not None
       restriction_coder_id = context.coders.get_id(
           restriction_coder)  # type: typing.Optional[str]
       context.add_requirement(
@@ -1536,9 +1546,10 @@ class PickledDoFnInfo(DoFnInfo):
 
 class StatelessDoFnInfo(DoFnInfo):
 
-  REGISTERED_DOFNS = {}
+  REGISTERED_DOFNS = {}  # type: typing.Dict[str, typing.Type[DoFn]]
 
   def __init__(self, urn):
+    # type: (str) -> None
     assert urn in self.REGISTERED_DOFNS
     self._urn = urn
 
@@ -1894,7 +1905,7 @@ class CombineGlobally(PTransform):
   """
   has_defaults = True
   as_view = False
-  fanout = None
+  fanout = None  # type: typing.Optional[int]
 
   def __init__(self, fn, *args, **kwargs):
     if not (isinstance(fn, CombineFn) or callable(fn)):
@@ -2177,7 +2188,31 @@ class CombineValuesDoFn(DoFn):
     # Expected elements input to this DoFn are 2-tuples of the form
     # (key, iter), with iter an iterable of all the values associated with key
     # in the input PCollection.
-    yield element[0], self.combinefn.apply(element[1], *args, **kwargs)
+    if self.runtime_type_check:
+      # Apply the combiner in a single operation rather than artificially
+      # breaking it up so that output type violations manifest as TypeCheck
+      # errors rather than type errors.
+      return [(element[0], self.combinefn.apply(element[1], *args, **kwargs))]
+
+    # Add the elements into three accumulators (for testing of merge).
+    elements = list(element[1])
+    accumulators = []
+    for k in range(3):
+      if len(elements) <= k:
+        break
+      accumulators.append(
+          self.combinefn.add_inputs(
+              self.combinefn.create_accumulator(*args, **kwargs),
+              elements[k::3],
+              *args,
+              **kwargs))
+    # Merge the accumulators.
+    accumulator = self.combinefn.merge_accumulators(
+        accumulators, *args, **kwargs)
+    # Convert accumulator to the final result.
+    return [(
+        element[0], self.combinefn.extract_output(accumulator, *args,
+                                                  **kwargs))]
 
   def default_type_hints(self):
     hints = self.combinefn.get_type_hints()
@@ -2364,8 +2399,8 @@ class GroupBy(PTransform):
   """
   def __init__(
       self,
-      *fields,  # type: typing.Union[str, callable]
-      **kwargs  # type: typing.Union[str, callable]
+      *fields,  # type: typing.Union[str, typing.Callable]
+      **kwargs  # type: typing.Union[str, typing.Callable]
     ):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
@@ -2393,8 +2428,8 @@ class GroupBy(PTransform):
 
   def aggregate_field(
       self,
-      field,  # type: typing.Union[str, callable]
-      combine_fn,  # type: typing.Union[callable, CombineFn]
+      field,  # type: typing.Union[str, typing.Callable]
+      combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
     ):
     """Returns a grouping operation that also aggregates grouped values.
@@ -2435,22 +2470,27 @@ class GroupBy(PTransform):
     return pcoll | Map(lambda x: (self._key_func()(x), x)) | GroupByKey()
 
 
-_dynamic_named_tuple_cache = {}
+_dynamic_named_tuple_cache = {
+}  # type: typing.Dict[typing.Tuple[str, typing.Tuple[str, ...]], typing.Type[tuple]]
 
 
 def _dynamic_named_tuple(type_name, field_names):
+  # type: (str, typing.Tuple[str, ...]) -> typing.Type[tuple]
   cache_key = (type_name, field_names)
   result = _dynamic_named_tuple_cache.get(cache_key)
   if result is None:
     import collections
     result = _dynamic_named_tuple_cache[cache_key] = collections.namedtuple(
         type_name, field_names)
-    result.__reduce__ = lambda self: (
-        _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))
+    # typing: can't override a method. also, self type is unknown and can't
+    # be cast to tuple
+    result.__reduce__ = lambda self: (  # type: ignore[assignment]
+        _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))  # type: ignore[arg-type]
   return result
 
 
 def _unpickle_dynamic_named_tuple(type_name, field_names, values):
+  # type: (str, typing.Tuple[str, ...], typing.Iterable[typing.Any]) -> tuple
   return _dynamic_named_tuple(type_name, field_names)(*values)
 
 
@@ -2461,8 +2501,8 @@ class _GroupAndAggregate(PTransform):
 
   def aggregate_field(
       self,
-      field,  # type: typing.Union[str, callable]
-      combine_fn,  # type: typing.Union[callable, CombineFn]
+      field,  # type: typing.Union[str, typing.Callable]
+      combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
       ):
     field = _expr_to_callable(field, 0)
@@ -2488,6 +2528,45 @@ class _GroupAndAggregate(PTransform):
             lambda key,
             value: _dynamic_named_tuple('Result', result_fields)
             (*(key + value))))
+
+
+class Select(PTransform):
+  """Converts the elements of a PCollection into a schema'd PCollection of Rows.
+
+  `Select(...)` is roughly equivalent to `Map(lambda x: Row(...))` where each
+  argument (which may be a string or callable) of `ToRow` is applied to `x`.
+  For example,
+
+      pcoll | beam.Select('a', b=lambda x: foo(x))
+
+  is the same as
+
+      pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
+  """
+  def __init__(self,
+               *args,  # type: typing.Union[str, typing.Callable]
+               **kwargs  # type: typing.Union[str, typing.Callable]
+               ):
+    self._fields = [(
+        expr if isinstance(expr, str) else 'arg%02d' % ix,
+        _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
+                    ] + [(name, _expr_to_callable(expr, name))
+                         for (name, expr) in kwargs.items()]
+
+  def default_label(self):
+    return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
+
+  def expand(self, pcoll):
+    return pcoll | Map(
+        lambda x: pvalue.Row(**{name: expr(x)
+                                for name, expr in self._fields}))
+
+  def infer_output_type(self, input_type):
+    from apache_beam.typehints import row_type
+    return row_type.RowTypeConstraint([
+        (name, trivial_inference.infer_return_type(expr, [input_type]))
+        for (name, expr) in self._fields
+    ])
 
 
 class Partition(PTransformWithSideInputs):
@@ -2535,7 +2614,7 @@ class Windowing(object):
                accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
                timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
                allowed_lateness=0, # type: typing.Union[int, float]
-               environment_id=None, # type: str
+               environment_id=None, # type: typing.Optional[str]
                ):
     """Class representing the window strategy.
 
@@ -2726,8 +2805,9 @@ class WindowInto(ParDo):
       self.with_output_types(output_type)
     return super(WindowInto, self).expand(pcoll)
 
-  def to_runner_api_parameter(self, context, **extra_kwargs):
-    # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
+  # typing: PTransform base class does not accept extra_kwargs
+  def to_runner_api_parameter(self, context, **extra_kwargs):  # type: ignore[override]
+    # type: (PipelineContext, **typing.Any) -> typing.Tuple[str, message.Message]
     return (
         common_urns.primitives.ASSIGN_WINDOWS.urn,
         self.windowing.to_runner_api(context))

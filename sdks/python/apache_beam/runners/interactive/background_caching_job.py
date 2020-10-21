@@ -15,25 +15,25 @@
 # limitations under the License.
 #
 
-"""Module to build and run background caching job.
+"""Module to build and run background source recording jobs.
 
 For internal use only; no backwards-compatibility guarantees.
 
-A background caching job is a job that captures events for all capturable
-sources of a given pipeline. With Interactive Beam, one such job is started when
-a pipeline run happens (which produces a main job in contrast to the background
-caching job) and meets the following conditions:
+A background source recording job is a job that records events for all
+recordable sources of a given pipeline. With Interactive Beam, one such job is
+started when a pipeline run happens (which produces a main job in contrast to
+the background source recording job) and meets the following conditions:
 
-  #. The pipeline contains capturable sources, configured through
-     interactive_beam.options.capturable_sources.
+  #. The pipeline contains recordable sources, configured through
+     interactive_beam.options.recordable_sources.
   #. No such background job is running.
   #. No such background job has completed successfully and the cached events are
-     still valid (invalidated when capturable sources change in the pipeline).
+     still valid (invalidated when recordable sources change in the pipeline).
 
-Once started, the background caching job runs asynchronously until it hits some
-capture limit configured in interactive_beam.options. Meanwhile, the main job
-and future main jobs from the pipeline will run using the deterministic
-replayable captured events until they are invalidated.
+Once started, the background source recording job runs asynchronously until it
+hits some recording limit configured in interactive_beam.options. Meanwhile,
+the main job and future main jobs from the pipeline will run using the
+deterministic replayable recorded events until they are invalidated.
 """
 
 # pytype: skip-file
@@ -54,17 +54,17 @@ _LOGGER = logging.getLogger(__name__)
 
 class BackgroundCachingJob(object):
   """A simple abstraction that controls necessary components of a timed and
-  space limited background caching job.
+  space limited background source recording job.
 
-  A background caching job successfully completes source data capture in 2
-  conditions:
+  A background source recording job successfully completes source data
+  recording in 2 conditions:
 
     #. The job is finite and runs into DONE state;
     #. The job is infinite but hits an interactive_beam.options configured limit
        and gets cancelled into CANCELLED/CANCELLING state.
 
-  In both situations, the background caching job should be treated as done
-  successfully.
+  In both situations, the background source recording job should be treated as
+  done successfully.
   """
   def __init__(self, pipeline_result, limiters):
     self._pipeline_result = pipeline_result
@@ -104,13 +104,12 @@ class BackgroundCachingJob(object):
       return self._pipeline_result.state is PipelineState.RUNNING
 
   def cancel(self):
-    """Cancels this background caching job.
+    """Cancels this background source recording job.
     """
     with self._result_lock:
       if not PipelineState.is_terminal(self._pipeline_result.state):
         try:
           self._pipeline_result.cancel()
-          # self._pipeline_result.wait_until_finish()
         except NotImplementedError:
           # Ignore the cancel invocation if it is never implemented by the
           # runner.
@@ -123,7 +122,8 @@ class BackgroundCachingJob(object):
 
 
 def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
-  """Attempts to run a background caching job for a user-defined pipeline.
+  """Attempts to run a background source recording job for a user-defined
+  pipeline.
 
   Returns True if a job was started, False otherwise.
 
@@ -135,7 +135,7 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
     attempt_to_cancel_background_caching_job(user_pipeline)
     # Cancel the gRPC server serving the test stream if there is one.
     attempt_to_stop_test_stream_service(user_pipeline)
-    # TODO(BEAM-8335): refactor background caching job logic from
+    # TODO(BEAM-8335): refactor background source recording job logic from
     # pipeline_instrument module to this module and aggregate tests.
     from apache_beam.runners.interactive import pipeline_instrument as instr
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
@@ -155,10 +155,10 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
 
 
 def is_background_caching_job_needed(user_pipeline):
-  """Determines if a background caching job needs to be started.
+  """Determines if a background source recording job needs to be started.
 
-  It does several state checks and record state changes throughout the process.
-  It is not idempotent to simplify the usage.
+  It does several state checks and recording state changes throughout the
+  process. It is not idempotent to simplify the usage.
   """
   job = ie.current_env().get_background_caching_job(user_pipeline)
   # Checks if the pipeline contains any source that needs to be cached.
@@ -166,9 +166,9 @@ def is_background_caching_job_needed(user_pipeline):
   # If this is True, we can invalidate a previous done/running job if there is
   # one.
   cache_changed = is_source_to_cache_changed(user_pipeline)
-  # When capture replay is disabled, cache is always needed for capturable
+  # When recording replay is disabled, cache is always needed for recordable
   # sources (if any).
-  if need_cache and not ie.current_env().options.enable_capture_replay:
+  if need_cache and not ie.current_env().options.enable_recording_replay:
     from apache_beam.runners.interactive.options import capture_control
     capture_control.evict_captured_data()
     return True
@@ -201,7 +201,7 @@ def is_cache_complete(pipeline_id):
       user_pipeline, update_cached_source_signature=False)
 
   # Stop reading from the cache if the background job is done or the underlying
-  # cache signature changed that requires a new background caching job.
+  # cache signature changed that requires a new background source recording job.
   return is_done or cache_changed
 
 
@@ -211,8 +211,9 @@ def has_source_to_cache(user_pipeline):
   interactive environment into a streaming cache if this has not been done.
   The wrapping doesn't invalidate existing cache in any way.
 
-  This can help determining if a background caching job is needed to write cache
-  for sources and if a test stream service is needed to serve the cache.
+  This can help determining if a background source recording job is needed to
+  write cache for sources and if a test stream service is needed to serve the
+  cache.
 
   Throughout the check, if source-to-cache has changed from the last check, it
   also cleans up the invalidated cache early on.
@@ -236,10 +237,11 @@ def has_source_to_cache(user_pipeline):
 
 
 def attempt_to_cancel_background_caching_job(user_pipeline):
-  """Attempts to cancel background caching job for a user-defined pipeline.
+  """Attempts to cancel background source recording job for a user-defined
+  pipeline.
 
-  If no background caching job needs to be cancelled, NOOP. Otherwise, cancel
-  such job.
+  If no background source recording job needs to be cancelled, NOOP. Otherwise,
+  cancel such job.
   """
   job = ie.current_env().get_background_caching_job(user_pipeline)
   if job:
@@ -274,7 +276,7 @@ def is_source_to_cache_changed(
   transforms for the user-defined pipeline if there is any change.
 
   When it's True, there is addition/deletion/mutation of source transforms that
-  requires a new background caching job.
+  requires a new background source recording job.
   """
   # By default gets empty set if the user_pipeline is first time seen because
   # we can treat it as adding transforms.
@@ -286,8 +288,8 @@ def is_source_to_cache_changed(
   # change by default.
   if is_changed and update_cached_source_signature:
     options = ie.current_env().options
-    # No info needed when capture replay is disabled.
-    if options.enable_capture_replay:
+    # No info needed when recording replay is disabled.
+    if options.enable_recording_replay:
       if not recorded_signature:
 
         def sizeof_fmt(num, suffix='B'):
@@ -302,13 +304,13 @@ def is_source_to_cache_changed(
             'In order to have a deterministic replay, a segment of data will '
             'be recorded from all sources for %s seconds or until a total of '
             '%s have been written to disk.',
-            options.capture_duration.total_seconds(),
-            sizeof_fmt(options.capture_size_limit))
+            options.recording_duration.total_seconds(),
+            sizeof_fmt(options.recording_size_limit))
       else:
         _LOGGER.info(
             'Interactive Beam has detected a new streaming source was '
             'added to the pipeline. In order for the cached streaming '
-            'data to start at the same time, all captured data has been '
+            'data to start at the same time, all recorded data has been '
             'cleared and a new segment of data will be recorded.')
 
     ie.current_env().cleanup(user_pipeline)

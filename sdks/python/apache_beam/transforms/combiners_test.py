@@ -21,7 +21,6 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import functools
 import itertools
 import random
 import sys
@@ -253,8 +252,7 @@ class CombineTest(unittest.TestCase):
   def test_sharded_top_combine_fn(self):
     def test_combine_fn(combine_fn, shards, expected):
       accumulators = [
-          functools.reduce(
-              combine_fn.add_input, shard, combine_fn.create_accumulator())
+          combine_fn.add_inputs(combine_fn.create_accumulator(), shard)
           for shard in shards
       ]
       final_accumulator = combine_fn.merge_accumulators(accumulators)
@@ -418,7 +416,7 @@ class CombineTest(unittest.TestCase):
                   max).with_common_input()).without_defaults())
       assert_that(result, equal_to([(1, 7.0 / 4, 3)]))
 
-  def test_to_list_and_to_dict(self):
+  def test_to_list_and_to_dict1(self):
     with TestPipeline() as pipeline:
       the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
       timestamp = 0
@@ -442,6 +440,7 @@ class CombineTest(unittest.TestCase):
       assert_that(
           result_windowed, matcher([the_list]), label='to-list-wo-defaults')
 
+  def test_to_list_and_to_dict2(self):
     with TestPipeline() as pipeline:
       pairs = [(1, 2), (3, 4), (5, 6)]
       timestamp = 0

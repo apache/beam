@@ -54,7 +54,9 @@ task sdist {
     copy { from collection.singleFile; into buildDir; rename { tarball } }
     logger.info('Create distribution tar file {} in {}', tarball, buildDir)
   }
-  inputs.files pythonSdkDeps
+  inputs.files(pythonSdkDeps)
+      .withPropertyName('pythonSdkDeps')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
   outputs.file "${buildDir}/${tarball}"
 }
 

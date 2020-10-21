@@ -59,6 +59,7 @@ from typing import List
 from typing import Optional
 
 import pkg_resources
+from future.moves.urllib.parse import urlparse
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -119,6 +120,7 @@ class Stager(object):
                            temp_dir,  # type: str
                            build_setup_args=None,  # type: Optional[List[str]]
                            populate_requirements_cache=None,  # type: Optional[str]
+                           skip_prestaged_dependencies=False, # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -136,6 +138,8 @@ class Stager(object):
             only for testing.
           populate_requirements_cache: Callable for populating the requirements
             cache. Used only for testing.
+          skip_prestaged_dependencies: Skip staging dependencies that can be
+            added into SDK containers during prebuilding.
 
         Returns:
           A list of tuples of local file paths and file names (no paths) to be
@@ -150,51 +154,110 @@ class Stager(object):
 
     setup_options = options.view_as(SetupOptions)
 
-    # Stage a requirements file if present.
-    if setup_options.requirements_file is not None:
-      if not os.path.isfile(setup_options.requirements_file):
-        raise RuntimeError(
-            'The file %s cannot be found. It was specified in the '
-            '--requirements_file command line option.' %
-            setup_options.requirements_file)
-      resources.append((setup_options.requirements_file, REQUIREMENTS_FILE))
-      requirements_cache_path = (
-          os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
-          if setup_options.requirements_cache is None else
-          setup_options.requirements_cache)
-      # Populate cache with packages from requirements and stage the files
-      # in the cache.
-      if not os.path.exists(requirements_cache_path):
-        os.makedirs(requirements_cache_path)
-      (
-          populate_requirements_cache if populate_requirements_cache else
-          Stager._populate_requirements_cache)(
-              setup_options.requirements_file, requirements_cache_path)
-      for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
-        resources.append((pkg, os.path.basename(pkg)))
+    # We can skip boot dependencies: apache beam sdk, python packages from
+    # requirements.txt, python packages from extra_packages and workflow tarball
+    # if we know we are using a dependency pre-installed sdk container image.
+    if not skip_prestaged_dependencies:
+      # Stage a requirements file if present.
+      if setup_options.requirements_file is not None:
+        if not os.path.isfile(setup_options.requirements_file):
+          raise RuntimeError(
+              'The file %s cannot be found. It was specified in the '
+              '--requirements_file command line option.' %
+              setup_options.requirements_file)
+        resources.append((setup_options.requirements_file, REQUIREMENTS_FILE))
+        requirements_cache_path = (
+            os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
+            if setup_options.requirements_cache is None else
+            setup_options.requirements_cache)
+        # Populate cache with packages from requirements and stage the files
+        # in the cache.
+        if not os.path.exists(requirements_cache_path):
+          os.makedirs(requirements_cache_path)
+        (
+            populate_requirements_cache if populate_requirements_cache else
+            Stager._populate_requirements_cache)(
+                setup_options.requirements_file, requirements_cache_path)
+        for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
+          resources.append((pkg, os.path.basename(pkg)))
 
-    # Handle a setup file if present.
-    # We will build the setup package locally and then copy it to the staging
-    # location because the staging location is a remote path and the file cannot
-    # be created directly there.
-    if setup_options.setup_file is not None:
-      if not os.path.isfile(setup_options.setup_file):
-        raise RuntimeError(
-            'The file %s cannot be found. It was specified in the '
-            '--setup_file command line option.' % setup_options.setup_file)
-      if os.path.basename(setup_options.setup_file) != 'setup.py':
-        raise RuntimeError(
-            'The --setup_file option expects the full path to a file named '
-            'setup.py instead of %s' % setup_options.setup_file)
-      tarball_file = Stager._build_setup_package(
-          setup_options.setup_file, temp_dir, build_setup_args)
-      resources.append((tarball_file, WORKFLOW_TARBALL_FILE))
+      # Handle a setup file if present.
+      # We will build the setup package locally and then copy it to the staging
+      # location because the staging location is a remote path and the file
+      # cannot be created directly there.
+      if setup_options.setup_file is not None:
+        if not os.path.isfile(setup_options.setup_file):
+          raise RuntimeError(
+              'The file %s cannot be found. It was specified in the '
+              '--setup_file command line option.' % setup_options.setup_file)
+        if os.path.basename(setup_options.setup_file) != 'setup.py':
+          raise RuntimeError(
+              'The --setup_file option expects the full path to a file named '
+              'setup.py instead of %s' % setup_options.setup_file)
+        tarball_file = Stager._build_setup_package(
+            setup_options.setup_file, temp_dir, build_setup_args)
+        resources.append((tarball_file, WORKFLOW_TARBALL_FILE))
 
-    # Handle extra local packages that should be staged.
-    if setup_options.extra_packages is not None:
-      resources.extend(
-          Stager._create_extra_packages(
-              setup_options.extra_packages, temp_dir=temp_dir))
+      # Handle extra local packages that should be staged.
+      if setup_options.extra_packages is not None:
+        resources.extend(
+            Stager._create_extra_packages(
+                setup_options.extra_packages, temp_dir=temp_dir))
+
+      if hasattr(setup_options, 'sdk_location'):
+
+        if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
+            setup_options.sdk_location):
+          # If --sdk_location is not specified then the appropriate package
+          # will be obtained from PyPI (https://pypi.python.org) based on the
+          # version of the currently running SDK. If the option is
+          # present then no version matching is made and the exact URL or path
+          # is expected.
+          #
+          # Unit tests running in the 'python setup.py test' context will
+          # not have the sdk_location attribute present and therefore we
+          # will not stage SDK.
+          sdk_remote_location = 'pypi' if (
+              setup_options.sdk_location == 'default'
+          ) else setup_options.sdk_location
+          resources.extend(
+              Stager._create_beam_sdk(sdk_remote_location, temp_dir))
+        elif setup_options.sdk_location == 'container':
+          # Use the SDK that's built into the container, rather than re-staging
+          # it.
+          pass
+        else:
+          # This branch is also used by internal tests running with the SDK
+          # built at head.
+          if os.path.isdir(setup_options.sdk_location):
+            # TODO(angoenka): remove reference to Dataflow
+            sdk_path = os.path.join(
+                setup_options.sdk_location, DATAFLOW_SDK_TARBALL_FILE)
+          else:
+            sdk_path = setup_options.sdk_location
+
+          if os.path.isfile(sdk_path):
+            _LOGGER.info('Copying Beam SDK "%s" to staging location.', sdk_path)
+            resources.append((
+                sdk_path,
+                Stager._desired_sdk_filename_in_staging_location(
+                    setup_options.sdk_location)))
+          else:
+            if setup_options.sdk_location == 'default':
+              raise RuntimeError(
+                  'Cannot find default Beam SDK tar file "%s"' % sdk_path)
+            elif not setup_options.sdk_location:
+              _LOGGER.info(
+                  'Beam SDK will not be staged since --sdk_location '
+                  'is empty.')
+            else:
+              raise RuntimeError(
+                  'The file "%s" cannot be found. Its location was specified '
+                  'by the --sdk_location command-line option.' % sdk_path)
+
+    # The following artifacts are not processed by python sdk container boot
+    # sequence in a setup mode and hence should not be skipped even if a
+    # prebuilt sdk container image is used.
 
     # TODO(heejong): remove jar_packages experimental flag when cross-language
     #   dependency management is implemented for all runners.
@@ -215,56 +278,6 @@ class Stager(object):
           temp_dir, names.PICKLED_MAIN_SESSION_FILE)
       pickler.dump_session(pickled_session_file)
       resources.append((pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
-
-    if hasattr(setup_options, 'sdk_location'):
-
-      if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
-          setup_options.sdk_location):
-        # If --sdk_location is not specified then the appropriate package
-        # will be obtained from PyPI (https://pypi.python.org) based on the
-        # version of the currently running SDK. If the option is
-        # present then no version matching is made and the exact URL or path
-        # is expected.
-        #
-        # Unit tests running in the 'python setup.py test' context will
-        # not have the sdk_location attribute present and therefore we
-        # will not stage SDK.
-        sdk_remote_location = 'pypi' if (
-            setup_options.sdk_location == 'default'
-        ) else setup_options.sdk_location
-        resources.extend(Stager._create_beam_sdk(sdk_remote_location, temp_dir))
-      elif setup_options.sdk_location == 'container':
-        # Use the SDK that's built into the container, rather than re-staging
-        # it.
-        pass
-      else:
-        # This branch is also used by internal tests running with the SDK built
-        # at head.
-        if os.path.isdir(setup_options.sdk_location):
-          # TODO(angoenka): remove reference to Dataflow
-          sdk_path = os.path.join(
-              setup_options.sdk_location, DATAFLOW_SDK_TARBALL_FILE)
-        else:
-          sdk_path = setup_options.sdk_location
-
-        if os.path.isfile(sdk_path):
-          _LOGGER.info('Copying Beam SDK "%s" to staging location.', sdk_path)
-          resources.append((
-              sdk_path,
-              Stager._desired_sdk_filename_in_staging_location(
-                  setup_options.sdk_location)))
-        else:
-          if setup_options.sdk_location == 'default':
-            raise RuntimeError(
-                'Cannot find default Beam SDK tar file "%s"' % sdk_path)
-          elif not setup_options.sdk_location:
-            _LOGGER.info(
-                'Beam SDK will not be staged since --sdk_location '
-                'is empty.')
-          else:
-            raise RuntimeError(
-                'The file "%s" cannot be found. Its location was specified by '
-                'the --sdk_location command-line option.' % sdk_path)
 
     worker_options = options.view_as(WorkerOptions)
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
@@ -356,6 +369,7 @@ class Stager(object):
     return retrieval_token, staged_resources
 
   @staticmethod
+  @retry.with_exponential_backoff(num_retries=4)
   def _download_file(from_url, to_path):
     """Downloads a file over http/https from a url or copy it from a remote
         path to local path."""
@@ -366,7 +380,6 @@ class Stager(object):
         # We check if the file is actually there because wget returns a file
         # even for a 404 response (file will contain the contents of the 404
         # response).
-        # TODO(angoenka): Extract and use the filename when downloading file.
         response, content = get_new_http().request(from_url)
         if int(response['status']) >= 400:
           raise RuntimeError(
@@ -608,7 +621,7 @@ class Stager(object):
     """Creates a Beam SDK file with the appropriate version.
 
       Args:
-        sdk_remote_location: A URL from which thefile can be downloaded or a
+        sdk_remote_location: A URL from which the file can be downloaded or a
           remote file location. The SDK file can be a tarball or a wheel. Set
           to 'pypi' to download and stage a wheel and source SDK from PyPi.
         temp_dir: path to temporary location where the file should be
@@ -653,10 +666,12 @@ class Stager(object):
 
       return staged_sdk_files
     elif Stager._is_remote_path(sdk_remote_location):
-      local_download_file = os.path.join(temp_dir, 'beam-sdk.tar.gz')
+      sdk_remote_parsed = urlparse(sdk_remote_location)
+      sdk_remote_filename = os.path.basename(sdk_remote_parsed.path)
+      local_download_file = os.path.join(temp_dir, sdk_remote_filename)
       Stager._download_file(sdk_remote_location, local_download_file)
       staged_name = Stager._desired_sdk_filename_in_staging_location(
-          sdk_remote_location)
+          local_download_file)
       _LOGGER.info('Staging Beam SDK from %s', sdk_remote_location)
       return [(local_download_file, staged_name)]
     else:

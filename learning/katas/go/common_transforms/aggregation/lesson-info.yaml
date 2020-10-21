@@ -21,3 +21,5 @@ content:
 - count
 - sum
 - mean
+- min
+- max

@@ -133,7 +133,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
 
     @Override
     public void onError(Throwable t) {
-      LOG.warn("Logging client failed unexpectedly. ClientId: {}", t, sdkWorkerId);
+      LOG.warn("Logging client failed unexpectedly. ClientId: {}", sdkWorkerId, t);
       // We remove these from the connected clients map to prevent a race between
       // the close method and this InboundObserver calling a terminal method on the
       // StreamObserver. If we removed it, then we are responsible for the terminal call.

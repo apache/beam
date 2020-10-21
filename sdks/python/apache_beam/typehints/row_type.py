@@ -51,3 +51,6 @@ class RowTypeConstraint(typehints.TypeConstraint):
     return 'Row(%s)' % ', '.join(
         '%s=%s' % (name, typehints._unified_repr(t)) for name,
         t in self._fields)
+
+  def get_type_for(self, name):
+    return dict(self._fields)[name]

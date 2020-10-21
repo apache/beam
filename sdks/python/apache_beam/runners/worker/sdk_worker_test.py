@@ -32,6 +32,7 @@ from builtins import range
 from collections import namedtuple
 
 import grpc
+import hamcrest as hc
 import mock
 
 from apache_beam.coders import VarIntCoder
@@ -42,6 +43,7 @@ from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
 from apache_beam.runners.worker.sdk_worker import CachingStateHandler
 from apache_beam.runners.worker.sdk_worker import SdkWorker
 from apache_beam.utils import thread_pool_executor
@@ -133,6 +135,96 @@ class SdkWorkerTest(unittest.TestCase):
         1,
         lull_duration_s * 1e9,
         threading.current_thread())
+
+  def test_inactive_bundle_processor_returns_empty_progress_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
+    worker = SdkWorker(bundle_processor_cache)
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='progress_instruction_id',
+        process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressRequest(
+            instruction_id='instruction_id'))
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='progress_instruction_id',
+            process_bundle_progress=beam_fn_api_pb2.
+            ProcessBundleProgressResponse()))
+
+    # Add a mock bundle processor as if it was running before it's released
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.release('instruction_id')
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='progress_instruction_id',
+            process_bundle_progress=beam_fn_api_pb2.
+            ProcessBundleProgressResponse()))
+
+  def test_failed_bundle_processor_returns_failed_progress_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
+    worker = SdkWorker(bundle_processor_cache)
+
+    # Add a mock bundle processor as if it was running before it's discarded
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.discard('instruction_id')
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='progress_instruction_id',
+        process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressRequest(
+            instruction_id='instruction_id'))
+    hc.assert_that(
+        worker.do_instruction(split_request).error,
+        hc.contains_string(
+            'Bundle processing associated with instruction_id has failed'))
+
+  def test_inactive_bundle_processor_returns_empty_split_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
+    worker = SdkWorker(bundle_processor_cache)
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='split_instruction_id',
+        process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitRequest(
+            instruction_id='instruction_id'))
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='split_instruction_id',
+            process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitResponse()))
+
+    # Add a mock bundle processor as if it was running before it's released
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.release('instruction_id')
+    self.assertEqual(
+        worker.do_instruction(split_request),
+        beam_fn_api_pb2.InstructionResponse(
+            instruction_id='split_instruction_id',
+            process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitResponse()))
+
+  def test_failed_bundle_processor_returns_failed_split_response(self):
+    bundle_processor = mock.MagicMock()
+    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache.activate('instruction_id')
+    worker = SdkWorker(bundle_processor_cache)
+
+    # Add a mock bundle processor as if it was running before it's discarded
+    bundle_processor_cache.active_bundle_processors['instruction_id'] = (
+        'descriptor_id', bundle_processor)
+    bundle_processor_cache.discard('instruction_id')
+    split_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='split_instruction_id',
+        process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitRequest(
+            instruction_id='instruction_id'))
+    hc.assert_that(
+        worker.do_instruction(split_request).error,
+        hc.contains_string(
+            'Bundle processing associated with instruction_id has failed'))
 
   def test_log_lull_in_bundle_processor(self):
     bundle_processor_cache = mock.MagicMock()
@@ -517,7 +609,7 @@ class ShortIdCacheTest(unittest.TestCase):
     # Retrieve all of the monitoring infos by short id, and verify that the
     # metadata (everything but the payload) matches the originals
     actual_recovered_infos = cache.getInfos(
-        case.expectedShortId for case in test_cases)
+        case.expectedShortId for case in test_cases).values()
     for recoveredInfo, case in zip(actual_recovered_infos, test_cases):
       self.assertEqual(
           monitoringInfoMetadata(case.info),

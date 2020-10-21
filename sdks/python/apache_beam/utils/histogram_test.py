@@ -106,13 +106,13 @@ class HistogramTest(unittest.TestCase):
     histogram = Histogram(LinearBucket(0, 0.2, 50))
     histogram.record(-1, -2, -3, -4, -5, 0, 1, 2, 3, 4)
     self.assertEqual(histogram.p50(), float('-inf'))
-    self.assertIn('P50: <0', histogram.get_percentile_info('integers', ''))
+    self.assertIn('P50: <0', histogram.get_percentile_info())
 
   def test_p50_positive_infinity(self):
     histogram = Histogram(LinearBucket(0, 0.2, 50))
     histogram.record(6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
     self.assertEqual(histogram.p50(), float('inf'))
-    self.assertIn('P50: >=10', histogram.get_percentile_info('integers', ''))
+    self.assertIn('P50: >=10', histogram.get_percentile_info())
 
   def test_empty_p99(self):
     histogram = Histogram(LinearBucket(0, 0.2, 50))
@@ -128,6 +128,49 @@ class HistogramTest(unittest.TestCase):
     histogram.clear()
     self.assertEqual(histogram.total_count(), 0)
     self.assertEqual(histogram._buckets.get(5, 0), 0)
+
+  def test_equal(self):
+    histogram1 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram2 = Histogram(LinearBucket(0, 0.2, 50))
+    self.assertEqual(histogram1, histogram2)
+    self.assertEqual(hash(histogram1), hash(histogram2))
+
+    histogram1 = Histogram(LinearBucket(0, 0.2, 5))
+    histogram2 = Histogram(LinearBucket(0, 0.2, 50))
+    self.assertNotEqual(histogram1, histogram2)
+
+    histogram1 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram2 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram1.record(1)
+    histogram2.record(1)
+    self.assertEqual(histogram1, histogram2)
+    self.assertEqual(hash(histogram1), hash(histogram2))
+
+    histogram1 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram2 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram1.record(1)
+    histogram2.record(10)
+    self.assertNotEqual(histogram1, histogram2)
+
+  def test_copy(self):
+    histogram1 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram1.record(0, 1, 2, 3, 4)
+    histogram2 = histogram1.copy()
+    self.assertEqual(histogram1, histogram2)
+
+    histogram1.record(5, 6, 7, 8, 9)
+    self.assertNotEqual(histogram1, histogram2)
+
+  def test_combine(self):
+    histogram1 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram1.record(0, 1, 2, 3, 4)
+    histogram2 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram2.record(5, 6, 7, 8, 9)
+
+    histogram = Histogram(LinearBucket(0, 0.2, 50))
+    histogram.record(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+
+    self.assertEqual(histogram1.combine(histogram2), histogram)
 
 
 if __name__ == '__main__':

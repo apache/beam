@@ -72,7 +72,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -123,6 +122,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({"rawtypes", "unchecked"})
 @VisibleForTesting
 public class DataflowPipelineTranslator {
+
   // Must be kept in sync with their internal counterparts.
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -191,6 +191,7 @@ public class DataflowPipelineTranslator {
    * may be of use to other classes (eg the {@link PTransform} to StepName mapping).
    */
   public static class JobSpecification {
+
     private final Job job;
     private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
     private final RunnerApi.Pipeline pipelineProto;
@@ -261,6 +262,7 @@ public class DataflowPipelineTranslator {
    * <p>For internal use only.
    */
   class Translator extends PipelineVisitor.Defaults implements TranslationContext {
+
     /**
      * An id generator to be used when giving unique ids for pipeline level constructs. This is
      * purposely wrapped inside of a {@link Supplier} to prevent the incorrect usage of the {@link
@@ -646,6 +648,10 @@ public class DataflowPipelineTranslator {
       if (value instanceof PValue) {
         PValue pvalue = (PValue) value;
         addInput(name, translator.asOutputReference(pvalue, translator.getProducer(pvalue)));
+        if (value instanceof PCollection
+            && translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
+          addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
+        }
       } else {
         throw new IllegalStateException("Input must be a PValue");
       }
@@ -1071,7 +1077,7 @@ public class DataflowPipelineTranslator {
     ///////////////////////////////////////////////////////////////////////////
     // IO Translation.
 
-    registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
+    registerTransformTranslator(SplittableParDo.PrimitiveBoundedRead.class, new ReadTranslator());
 
     registerTransformTranslator(
         TestStream.class,

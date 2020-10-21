@@ -1207,7 +1207,7 @@ each element in the `PCollection`.
 {{< /highlight >}}
 
 {{< highlight py >}}
-beam.Map(AddTimestampFn(timestamp_seconds))
+beam.Map(AddTimestampFn(min_timestamp, max_timestamp))
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -1396,7 +1396,7 @@ To view the full code in Python, see
 
 This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
-[`beam.io.ReadStringsFromPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
+[`beam.io.ReadFromPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadFromPubSub).
 
 {{< highlight java >}}
   // This example is not currently available for the Beam SDK for Java.
@@ -1405,10 +1405,11 @@ messages from a Pub/Sub subscription or topic using
 {{< highlight py >}}
   # Read from Pub/Sub into a PCollection.
   if known_args.input_subscription:
-    lines = p | beam.io.ReadStringsFromPubSub(
+    data = p | beam.io.ReadFromPubSub(
         subscription=known_args.input_subscription)
   else:
-    lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
+    data = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+  lines = data | 'DecodeString' >> beam.Map(lambda d: d.decode('utf-8'))
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -1424,7 +1425,7 @@ outputs.
 
 This example uses an unbounded `PCollection` and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
-using [`beam.io.WriteStringsToPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub).
+using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteToPubSub).
 
 {{< highlight java >}}
   // This example is not currently available for the Beam SDK for Java.
@@ -1432,7 +1433,9 @@ using [`beam.io.WriteStringsToPubSub`](https://beam.apache.org/releases/pydoc/{{
 
 {{< highlight py >}}
   # Write to Pub/Sub
-  output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+  _ = (output
+    | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
+    | beam.io.WriteToPubSub(known_args.output_topic))
 {{< /highlight >}}
 
 {{< highlight go >}}

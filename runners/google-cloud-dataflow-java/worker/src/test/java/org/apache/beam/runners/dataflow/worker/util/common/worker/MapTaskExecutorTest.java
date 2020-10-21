@@ -34,6 +34,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -482,5 +483,27 @@ public class MapTaskExecutorTest {
       assertThat(e.getSuppressed(), arrayWithSize(1));
       assertThat(e.getSuppressed()[0].getMessage(), equalTo("suppressed in abort"));
     }
+  }
+
+  @Test
+  public void testAbort() throws Exception {
+    // Operation must be an instance of ReadOperation or ReceivingOperation per preconditions
+    // in MapTaskExecutor.
+    ReadOperation o1 = Mockito.mock(ReadOperation.class);
+    ReadOperation o2 = Mockito.mock(ReadOperation.class);
+
+    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    MapTaskExecutor executor =
+        new MapTaskExecutor(Arrays.<Operation>asList(o1, o2), counterSet, stateTracker);
+    Mockito.doAnswer(
+            invocation -> {
+              executor.abort();
+              return null;
+            })
+        .when(o1)
+        .finish();
+    executor.execute();
+    Mockito.verify(o1, atLeastOnce()).abortReadLoop();
+    Mockito.verify(o2, atLeastOnce()).abortReadLoop();
   }
 }

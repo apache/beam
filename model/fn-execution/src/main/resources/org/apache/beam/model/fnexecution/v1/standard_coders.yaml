@@ -407,9 +407,8 @@ coder:
 examples:
   "\x01\x00\x00\x00\x00\x00": {f_map: {}}
   "\x01\x00\x00\x00\x00\x02\x03foo\x01\xa9F\x03bar\x01\xff\xff\xff\xff\xff\xff\xff\xff\x7f": {f_map: {"foo": 9001, "bar": 9223372036854775807}}
-  "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything":null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}
+  "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything": null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}
 
----
 
 coder:
   urn: "beam:coder:row:v1"
@@ -417,3 +416,4 @@ coder:
   payload: "\n\x7f\n\x0bf_timestamp\x1ap:n\n#beam:logical_type:micros_instant:v1\x1aG2E\nC\n\r\n\x07seconds\x1a\x02\x10\x04\n\x0c\n\x06micros\x1a\x02\x10\x04\x12$4d3f6e8f-7412-4ad7-bfd9-b424a1664aef\n\x0e\n\x08f_string\x1a\x02\x10\x07\n\x0b\n\x05f_int\x1a\x02\x10\x04\x12$33dafd37-397c-4083-a84e-42177d122221"
 examples:
     "\x03\x00\x02\x00\xb6\x95\xd5\xf9\x05\xc0\xc4\x07\x1b2020-08-13T14:14:14.123456Z\xc0\xf7\x85\xda\xae\x98\xeb\x02": {f_timestamp: {seconds: 1597328054, micros: 123456}, f_string: "2020-08-13T14:14:14.123456Z", f_int: 1597328054123456}
+

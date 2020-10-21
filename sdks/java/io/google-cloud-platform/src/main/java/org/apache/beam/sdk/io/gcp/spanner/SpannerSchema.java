@@ -169,6 +169,9 @@ abstract class SpannerSchema implements Serializable {
       if ("DATE".equals(spannerType)) {
         return Type.date();
       }
+      if ("NUMERIC".equals(spannerType)) {
+        return Type.numeric();
+      }
 
       if (spannerType.startsWith("ARRAY")) {
         // Substring "ARRAY<xxx>"

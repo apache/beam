@@ -74,16 +74,8 @@ public class WriteBuilder
 
   @Override
   public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration c) {
-    SnowflakeIO.DataSourceConfiguration dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create()
-            .withServerName(c.getServerName())
-            .withDatabase(c.getDatabase())
-            .withSchema(c.getSchema())
-            .withRole(c.getRole())
-            .withWarehouse(c.getWarehouse());
-
     return SnowflakeIO.<byte[]>write()
-        .withDataSourceConfiguration(dataSourceConfiguration)
+        .withDataSourceConfiguration(c.getDataSourceConfiguration())
         .withStorageIntegrationName(c.getStorageIntegrationName())
         .withStagingBucketName(c.getStagingBucketName())
         .withTableSchema(c.getTableSchema())

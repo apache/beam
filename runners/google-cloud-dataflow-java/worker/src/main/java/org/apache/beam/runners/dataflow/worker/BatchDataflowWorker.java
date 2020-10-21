@@ -382,7 +382,7 @@ public class BatchDataflowWorker implements Closeable {
       workItemStatusClient.setWorker(worker, executionContext);
 
       DataflowWorkProgressUpdater progressUpdater =
-          new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker);
+          new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
       executeWork(worker, progressUpdater);
       workItemStatusClient.reportSuccess();
       return true;
@@ -443,7 +443,7 @@ public class BatchDataflowWorker implements Closeable {
     try {
       this.memoryMonitorThread.join(timeoutMilliSec);
     } catch (InterruptedException ex) {
-      LOG.warn("Failed to wait for monitor thread to exit. Ex: {}", ex);
+      LOG.warn("Failed to wait for monitor thread to exit.", ex);
     }
     if (this.memoryMonitorThread.isAlive()) {
       LOG.warn("memoryMonitorThread didn't exit. Please, check for potential memory leaks.");

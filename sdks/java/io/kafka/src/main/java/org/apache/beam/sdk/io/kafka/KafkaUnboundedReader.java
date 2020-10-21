@@ -191,8 +191,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 consumerSpEL.getRecordTimestamp(rawRecord),
                 consumerSpEL.getRecordTimestampType(rawRecord),
                 ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
-                valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
+                (K) consumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
+                (V) consumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
 
         curTimestamp =
             pState.timestampPolicy.getTimestampForRecord(pState.mkTimestampPolicyContext(), record);
@@ -284,7 +284,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaUnboundedSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaUnboundedReader.class);
 
   @VisibleForTesting static final String METRIC_NAMESPACE = "KafkaIOReader";
 

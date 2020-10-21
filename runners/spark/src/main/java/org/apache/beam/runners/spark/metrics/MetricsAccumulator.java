@@ -61,7 +61,6 @@ public class MetricsAccumulator {
           MetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
           MetricsContainerStepMapAccumulator accumulator =
               new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
-          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
 
           if (maybeCheckpointDir.isPresent()) {
             Optional<MetricsContainerStepMap> maybeRecoveredValue =
@@ -70,6 +69,7 @@ public class MetricsAccumulator {
               accumulator = new MetricsContainerStepMapAccumulator(maybeRecoveredValue.get());
             }
           }
+          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
           instance = accumulator;
         }
       }

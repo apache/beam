@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row>> {
   private final Schema schema;
   private final String keyField;
-  private static final Logger LOG = LoggerFactory.getLogger(DataStoreV1SchemaIOProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(EntityToRow.class);
 
   private EntityToRow(Schema schema, String keyField) {
     this.schema = schema;

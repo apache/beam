@@ -34,6 +34,11 @@ public class SamzaTransformOverrides {
             PTransformOverride.of(
                 PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
                 new SamzaPublishViewTransformOverride()))
+
+        // Note that we have a direct replacement for SplittableParDo.ProcessKeyedElements
+        // for unbounded splittable DoFns and do not need to rely on
+        // SplittableParDoViaKeyedWorkItems override. Once this direct replacement supports side
+        // inputs we can remove the SplittableParDoNaiveBounded override.
         .add(
             PTransformOverride.of(
                 PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
@@ -41,6 +46,7 @@ public class SamzaTransformOverrides {
             PTransformOverride.of(
                 PTransformMatchers.splittableProcessKeyedBounded(),
                 new SplittableParDoNaiveBounded.OverrideFactory()))
+
         // TODO: [BEAM-5362] Support @RequiresStableInput on Samza runner
         .add(
             PTransformOverride.of(

@@ -27,6 +27,11 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Spark',
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+      // Publish all test results to Jenkins.
+      publishers {
+        archiveJunit('**/pytest*.xml')
+      }
+
       // Gradle goals for this job.
       steps {
         gradle {

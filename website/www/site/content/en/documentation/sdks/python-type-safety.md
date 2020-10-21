@@ -34,6 +34,13 @@ These flags control Beam type safety:
 
   Enables runtime type checking of every element.
   This may affect pipeline performance, so the default is to skip these checks.
+- `--type_check_additional`
+
+  Enables additional type checks. These are no enabled by default to preserve
+  backwards compatibility. This flag accepts a comma-separate list of options:
+  - `all`: Enable all additional checks.
+  - `ptransform_fn`: Enable type hint decorators when used with the
+    `@ptransform_fn` decorator.
 
 ## Benefits of Type Hints
 

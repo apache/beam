@@ -23,7 +23,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import copy
-import functools
 import heapq
 import operator
 import random
@@ -162,6 +161,9 @@ class CountCombineFn(core.CombineFn):
 
   def add_input(self, accumulator, element):
     return accumulator + 1
+
+  def add_inputs(self, accumulator, elements):
+    return accumulator + len(list(elements))
 
   def merge_accumulators(self, accumulators):
     return sum(accumulators)
@@ -936,10 +938,8 @@ class PhasedCombineFnExecutor(object):
     return self.combine_fn.apply(elements)
 
   def add_only(self, elements):
-    return functools.reduce(
-        self.combine_fn.add_input,
-        elements,
-        self.combine_fn.create_accumulator())
+    return self.combine_fn.add_inputs(
+        self.combine_fn.create_accumulator(), elements)
 
   def merge_only(self, accumulators):
     return self.combine_fn.merge_accumulators(accumulators)
@@ -968,13 +968,13 @@ class Latest(object):
         return (
             pcoll
             | core.ParDo(self.add_timestamp).with_output_types(
-                Tuple[T, TimestampType])  # type: ignore[misc]
+                Tuple[T, TimestampType])
             | core.CombineGlobally(LatestCombineFn()))
       else:
         return (
             pcoll
             | core.ParDo(self.add_timestamp).with_output_types(
-                Tuple[T, TimestampType])  # type: ignore[misc]
+                Tuple[T, TimestampType])
             | core.CombineGlobally(LatestCombineFn()).without_defaults())
 
   @with_input_types(Tuple[K, V])
@@ -991,11 +991,11 @@ class Latest(object):
       return (
           pcoll
           | core.ParDo(self.add_timestamp).with_output_types(
-              Tuple[K, Tuple[T, TimestampType]])  # type: ignore[misc]
+              Tuple[K, Tuple[T, TimestampType]])
           | core.CombinePerKey(LatestCombineFn()))
 
 
-@with_input_types(Tuple[T, TimestampType])  # type: ignore[misc]
+@with_input_types(Tuple[T, TimestampType])
 @with_output_types(T)
 class LatestCombineFn(core.CombineFn):
   """CombineFn to get the element with the latest timestamp

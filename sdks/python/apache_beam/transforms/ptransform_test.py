@@ -33,6 +33,7 @@ from builtins import map
 from builtins import range
 from builtins import zip
 from functools import reduce
+from typing import Optional
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -896,6 +897,36 @@ class TestGroupBy(unittest.TestCase):
           ]))
 
 
+class SelectTest(unittest.TestCase):
+  def test_simple(self):
+    with TestPipeline() as p:
+      rows = (
+          p | beam.Create([1, 2, 10])
+          | beam.Select(a=lambda x: x * x, b=lambda x: -x))
+
+      assert_that(
+          rows,
+          equal_to([
+              beam.Row(a=1, b=-1),
+              beam.Row(a=4, b=-2),
+              beam.Row(a=100, b=-10),
+          ]),
+          label='CheckFromLambdas')
+
+      from_attr = rows | beam.Select('b', z='a')
+      assert_that(
+          from_attr,
+          equal_to([
+              beam.Row(b=-1, z=1),
+              beam.Row(b=-2, z=4),
+              beam.Row(
+                  b=-10,
+                  z=100,
+              ),
+          ]),
+          label='CheckFromAttrs')
+
+
 @beam.ptransform_fn
 def SamplePTransform(pcoll):
   """Sample transform using the @ptransform_fn decorator."""
@@ -908,7 +939,7 @@ def SamplePTransform(pcoll):
 class PTransformLabelsTest(unittest.TestCase):
   class CustomTransform(beam.PTransform):
 
-    pardo = None
+    pardo = None  # type: Optional[beam.PTransform]
 
     def expand(self, pcoll):
       self.pardo = '*Do*' >> beam.FlatMap(lambda x: [x + 1])

@@ -19,16 +19,17 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -59,6 +60,7 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
   // https://github.com/seznam/euphoria/blob/master/euphoria-spark/src/main/java/cz/seznam/euphoria/spark/SparkFlowTranslator.java#L106
 
   static {
+    TRANSFORM_TRANSLATORS.put(Impulse.class, new ImpulseTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
 
@@ -71,7 +73,8 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
 
     TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
 
-    TRANSFORM_TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(
+        SplittableParDo.PrimitiveBoundedRead.class, new ReadSourceTranslatorBatch());
 
     TRANSFORM_TRANSLATORS.put(
         View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());

@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -122,6 +123,7 @@ import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
@@ -498,6 +500,83 @@ public class KafkaIOTest {
     PCollection<KV<Integer, AvroGeneratedUser>> input = p.apply(reader.withoutMetadata());
 
     PAssert.that(input).containsInAnyOrder(inputs);
+    p.run();
+  }
+
+  public static class IntegerDeserializerWithHeadersAssertor extends IntegerDeserializer
+      implements Deserializer<Integer> {
+    ConsumerSpEL consumerSpEL = null;
+
+    @Override
+    public Integer deserialize(String topic, byte[] data) {
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      if (consumerSpEL == null) {
+        consumerSpEL = new ConsumerSpEL();
+      }
+      if (consumerSpEL.deserializerSupportsHeaders()) {
+        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
+        // 2.1.0 onwards
+        try {
+          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
+          assertEquals("deserialize", stackTraceElements[3].getMethodName());
+        } catch (ClassNotFoundException e) {
+        }
+      } else {
+        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
+      }
+      return super.deserialize(topic, data);
+    }
+  }
+
+  public static class LongDeserializerWithHeadersAssertor extends LongDeserializer
+      implements Deserializer<Long> {
+    ConsumerSpEL consumerSpEL = null;
+
+    @Override
+    public Long deserialize(String topic, byte[] data) {
+      if (consumerSpEL == null) {
+        consumerSpEL = new ConsumerSpEL();
+      }
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      if (consumerSpEL.deserializerSupportsHeaders()) {
+        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
+        // 2.1.0 onwards
+        try {
+          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
+          assertEquals("deserialize", stackTraceElements[3].getMethodName());
+        } catch (ClassNotFoundException e) {
+        }
+      } else {
+        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
+      }
+      return super.deserialize(topic, data);
+    }
+  }
+
+  @Test
+  public void testDeserializationWithHeaders() throws Exception {
+    // To assert that we continue to prefer the Deserializer API with headers in Kafka API 2.1.0
+    // onwards
+    int numElements = 1000;
+    String topic = "my_topic";
+
+    KafkaIO.Read<Integer, Long> reader =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("none")
+            .withTopic("my_topic")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withMaxNumRecords(numElements)
+            .withKeyDeserializerAndCoder(
+                KafkaIOTest.IntegerDeserializerWithHeadersAssertor.class,
+                BigEndianIntegerCoder.of())
+            .withValueDeserializerAndCoder(
+                KafkaIOTest.LongDeserializerWithHeadersAssertor.class, BigEndianLongCoder.of());
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
     p.run();
   }
 

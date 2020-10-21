@@ -362,8 +362,7 @@ class GreedyPCollectionFusers {
         "Unknown {} {} will not fuse into an existing {}",
         PTransform.class.getSimpleName(),
         transform.getTransform(),
-        ExecutableStage.class.getSimpleName(),
-        PTransform.class.getSimpleName());
+        ExecutableStage.class.getSimpleName());
     return false;
   }
 

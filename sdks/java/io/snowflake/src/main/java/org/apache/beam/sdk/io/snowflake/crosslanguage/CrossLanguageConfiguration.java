@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
+import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
+
 /** Parameters abstract class to expose the transforms to an external SDK. */
 public abstract class CrossLanguageConfiguration {
   private String serverName;
   private String username;
   private String password;
   private String privateKeyPath;
+  private String rawPrivateKey;
   private String privateKeyPassphrase;
   private String oAuthToken;
   private String database;
@@ -64,6 +67,14 @@ public abstract class CrossLanguageConfiguration {
 
   public void setPrivateKeyPath(String privateKeyPath) {
     this.privateKeyPath = privateKeyPath;
+  }
+
+  public String getRawPrivateKey() {
+    return rawPrivateKey;
+  }
+
+  public void setRawPrivateKey(String rawPrivateKey) {
+    this.rawPrivateKey = rawPrivateKey;
   }
 
   public String getPrivateKeyPassphrase() {
@@ -144,5 +155,25 @@ public abstract class CrossLanguageConfiguration {
 
   public void setStorageIntegrationName(String storageIntegrationName) {
     this.storageIntegrationName = storageIntegrationName;
+  }
+
+  public SnowflakeIO.DataSourceConfiguration getDataSourceConfiguration() {
+    SnowflakeIO.DataSourceConfiguration dataSourceConfiguration =
+        SnowflakeIO.DataSourceConfiguration.create()
+            .withUsernamePasswordAuth(getUsername(), getPassword())
+            .withOAuth(getOAuthToken())
+            .withKeyPairRawAuth(getUsername(), getRawPrivateKey(), getPrivateKeyPassphrase())
+            .withServerName(getServerName())
+            .withDatabase(getDatabase())
+            .withSchema(getSchema())
+            .withRole(getRole())
+            .withWarehouse(getWarehouse());
+
+    if (getPrivateKeyPath() != null) {
+      dataSourceConfiguration =
+          dataSourceConfiguration.withKeyPairPathAuth(
+              getUsername(), getPrivateKeyPath(), getPrivateKeyPassphrase());
+    }
+    return dataSourceConfiguration;
   }
 }

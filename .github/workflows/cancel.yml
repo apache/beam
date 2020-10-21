@@ -30,9 +30,10 @@ jobs:
     name: "Cancel duplicate workflow runs"
     runs-on: ubuntu-latest
     steps:
-      - uses: potiuk/cancel-workflow-runs@v2.0.1
+      - uses: potiuk/cancel-workflow-runs@e9e87cb7738dbb999654aa90d69359d62c9e4eae #v3
         name: "Cancel duplicate workflow runs"
         with:
           cancelMode: duplicates
+          notifyPRCancel: true
           token: ${{ secrets.GITHUB_TOKEN }}
           sourceRunId: ${{ github.event.workflow_run.id }}

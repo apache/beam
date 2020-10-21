@@ -13,12 +13,12 @@
     { "name": "fixed", "type": {"type": "fixed", "size": 4, "name": "fixed4"} },
     { "name": "date", "type": {"type": "int", "logicalType": "date"} },
     { "name": "timestampMillis", "type": {"type": "long", "logicalType": "timestamp-millis"} },
-    { "name": "testEnum", "type": {"name": "TestEnum", "type": "enum", "symbols": ["abc","cde"] } },
+    { "name": "TestEnum", "type": {"name": "TestEnum", "type": "enum", "symbols": ["abc","cde"] } },
     { "name": "row", "type": ["null", {
      "type": "record",
      "name": "TestAvroNested",
       "fields": [
-        { "name": "bool_non_nullable", "type": "boolean"},
+        { "name": "BOOL_NON_NULLABLE", "type": "boolean"},
         { "name": "int", "type": ["int", "null"]}
          ]
        }]

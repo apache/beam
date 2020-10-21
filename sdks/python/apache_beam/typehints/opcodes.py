@@ -39,6 +39,7 @@ from functools import reduce
 
 from past.builtins import unicode
 
+from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
@@ -268,7 +269,7 @@ def build_map(state, arg):
   if sys.version_info <= (2, ) or arg == 0:
     state.stack.append(Dict[Union[()], Union[()]])
   else:
-    state.stack[-arg:] = [
+    state.stack[-2 * arg:] = [
         Dict[reduce(union, state.stack[-2 * arg::2], Union[()]),
              reduce(union, state.stack[-2 * arg + 1::2], Union[()])]
     ]
@@ -297,8 +298,12 @@ def load_attr(state, arg):
   """
   o = state.stack.pop()
   name = state.get_name(arg)
+  state.stack.append(_getattr(o, name))
+
+
+def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
-    state.stack.append(Const(getattr(o.value, name)))
+    return Const(getattr(o.value, name))
   elif (inspect.isclass(o) and
         isinstance(getattr(o, name, None),
                    (types.MethodType, types.FunctionType))):
@@ -307,9 +312,11 @@ def load_attr(state, arg):
       func = getattr(o, name).__func__
     else:
       func = getattr(o, name)  # Python 3 has no unbound methods
-    state.stack.append(Const(BoundMethod(func, o)))
+    return Const(BoundMethod(func, o))
+  elif isinstance(o, row_type.RowTypeConstraint):
+    return o.get_type_for(name)
   else:
-    state.stack.append(Any)
+    return Any
 
 
 def load_method(state, arg):

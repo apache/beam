@@ -351,11 +351,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     timerInternalsFactory.setInputWatermark(actualInputWatermark);
 
-    pushbackFnRunner.startBundle();
-    for (KeyedTimerData<?> keyedTimerData : timerInternalsFactory.removeReadyTimers()) {
-      fireTimer(keyedTimerData);
+    Collection<? extends KeyedTimerData<?>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    if (!readyTimers.isEmpty()) {
+      pushbackFnRunner.startBundle();
+      for (KeyedTimerData<?> keyedTimerData : readyTimers) {
+        fireTimer(keyedTimerData);
+      }
+      pushbackFnRunner.finishBundle();
     }
-    pushbackFnRunner.finishBundle();
 
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(actualInputWatermark)) {
