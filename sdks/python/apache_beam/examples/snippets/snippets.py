@@ -1615,6 +1615,7 @@ def sdf_basic_example():
   import os
   from apache_beam.io.restriction_trackers import OffsetRange
   read_next_record = None
+
   # [START SDF_BasicExample]
   class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
     def initial_restriction(self, file_name):
@@ -1643,6 +1644,7 @@ def sdf_basic_example():
 
 def sdf_basic_example_with_splitting():
   from apache_beam.io.restriction_trackers import OffsetRange
+
   # [START SDF_BasicExampleWithSplitting]
   class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
     def split(self, file_name, restriction):
@@ -1660,8 +1662,10 @@ def sdf_basic_example_with_splitting():
 def sdf_sdk_initiated_checkpointing():
   timestamp = None
   external_service = None
+
   class MyRestrictionProvider(object):
     pass
+
   # [START SDF_UserInitiatedCheckpoint]
   class MySplittableDoFn(beam.DoFn):
     def process(
@@ -1707,7 +1711,9 @@ def sdf_get_size():
 def sdf_bad_try_claim_loop():
   class FileToWordsRestrictionProvider(object):
     pass
+
   read_next_record = None
+
   # [START SDF_BadTryClaimLoop]
   class BadTryClaimLoop(beam.DoFn):
     def process(
@@ -1732,6 +1738,7 @@ def sdf_custom_watermark_estimator():
   from apache_beam.io.iobase import WatermarkEstimator
   from apache_beam.transforms.core import WatermarkEstimatorProvider
   current_watermark = None
+
   class MyRestrictionProvider(object):
     pass
 
@@ -1780,6 +1787,7 @@ def sdf_custom_watermark_estimator():
             MyWatermarkEstimatorProvider())):
       # The current watermark can be inspected.
       watermark_estimator.current_watermark()
+
   # [END SDF_CustomWatermarkEstimator]
 
 
