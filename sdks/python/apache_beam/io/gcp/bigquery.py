@@ -1900,8 +1900,8 @@ class ReadFromBigQuery(PTransform):
 
     files_to_remove_pcoll = beam.pvalue.AsList(
         pcoll.pipeline
-        | beam.Create([None])
-        | beam.Map(file_path_to_remove))
+        | 'FilesToRemoveImpulse' >> beam.Create([None])
+        | 'MapFilesToRemove' >> beam.Map(file_path_to_remove))
 
     try:
       step_name = self.label
