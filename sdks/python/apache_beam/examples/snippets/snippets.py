@@ -1182,7 +1182,8 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
 
   # [START model_bigqueryio_write_dynamic_destinations]
   fictional_characters_view = beam.pvalue.AsDict(
-      p | beam.Create([('Yoda', True), ('Obi Wan Kenobi', True)]))
+      p | 'CreateCharacters' >> beam.Create([('Yoda', True),
+                                             ('Obi Wan Kenobi', True)]))
 
   def table_fn(element, fictional_characters):
     if element in fictional_characters:
@@ -1190,7 +1191,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
     else:
       return 'my_dataset.real_quotes'
 
-  quotes | beam.io.WriteToBigQuery(
+  quotes | 'WriteWithDynamicDestination' >> beam.io.WriteToBigQuery(
       table_fn,
       schema=table_schema,
       table_side_inputs=(fictional_characters_view, ),
@@ -1199,7 +1200,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [END model_bigqueryio_write_dynamic_destinations]
 
   # [START model_bigqueryio_time_partitioning]
-  quotes | beam.io.WriteToBigQuery(
+  quotes | 'WriteWithTimePartitioning' >> beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
       write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
