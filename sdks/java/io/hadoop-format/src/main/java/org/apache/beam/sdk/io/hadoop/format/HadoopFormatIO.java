@@ -364,7 +364,11 @@ public class HadoopFormatIO {
 
     public abstract @Nullable TypeDescriptor<K> getKeyTypeDescriptor();
 
+    public abstract @Nullable Coder<K> getKeyCoder();
+
     public abstract @Nullable TypeDescriptor<V> getValueTypeDescriptor();
+
+    public abstract @Nullable Coder<V> getValueCoder();
 
     public abstract @Nullable TypeDescriptor<?> getinputFormatClass();
 
@@ -384,7 +388,11 @@ public class HadoopFormatIO {
 
       abstract Builder<K, V> setKeyTypeDescriptor(TypeDescriptor<K> keyTypeDescriptor);
 
+      abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
+
       abstract Builder<K, V> setValueTypeDescriptor(TypeDescriptor<V> valueTypeDescriptor);
+
+      abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
 
       abstract Builder<K, V> setInputFormatClass(TypeDescriptor<?> inputFormatClass);
 
@@ -437,6 +445,12 @@ public class HadoopFormatIO {
           .build();
     }
 
+    /** Transforms the keys read from the source using the given key translation function. */
+    public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function, Coder<K> coder) {
+      checkArgument(coder != null, "coder can not be null");
+      return withKeyTranslation(function).toBuilder().setKeyCoder(coder).build();
+    }
+
     /** Transforms the values read from the source using the given value translation function. */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function) {
       checkArgument(function != null, "function can not be null");
@@ -447,13 +461,25 @@ public class HadoopFormatIO {
           .build();
     }
 
+    /** Transforms the values read from the source using the given value translation function. */
+    public Read<K, V> withValueTranslation(SimpleFunction<?, V> function, Coder<V> coder) {
+      checkArgument(coder != null, "coder can not be null");
+      return withValueTranslation(function).toBuilder().setValueCoder(coder).build();
+    }
+
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
       validateTransform();
       // Get the key and value coders based on the key and value classes.
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
-      Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
-      Coder<V> valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
+      Coder<K> keyCoder = getKeyCoder();
+      if (keyCoder == null) {
+        keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
+      }
+      Coder<V> valueCoder = getValueCoder();
+      if (valueCoder == null) {
+        valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
+      }
       HadoopInputFormatBoundedSource<K, V> source =
           new HadoopInputFormatBoundedSource<>(
               getConfiguration(),
