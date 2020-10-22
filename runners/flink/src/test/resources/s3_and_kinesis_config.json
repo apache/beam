@@ -1,0 +1,21 @@
+{
+  "events": [
+    {
+      "name": "test_event",
+      "lateness_in_sec": 5,
+      "lookback_days": 1
+    }
+  ],
+  "s3": {
+    "parallelism": 1,
+    "lookback_hours": 12
+  },
+  "kinesis": {
+    "stream": "kinesis_stream",
+    "parallelism": 1,
+    "properties": {
+      "aws.region": "us-west-2"
+    },
+    "stream_start_mode": "LATEST"
+  }
+}
