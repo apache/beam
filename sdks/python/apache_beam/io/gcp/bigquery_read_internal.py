@@ -25,9 +25,9 @@ import uuid
 from typing import Optional
 
 import apache_beam as beam
-from apache_beam.transforms import PTransform
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.transforms import PTransform
 
 _LOGGER = logging.getLogger(__name__)
 
