@@ -17,11 +17,9 @@
  */
 package org.apache.beam.templates.options;
 
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.templates.transforms.FormatTransform;
 
 public interface KafkaToPubsubOptions extends PipelineOptions {
   @Description("Kafka Bootstrap Servers")
@@ -45,13 +43,6 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   void setOutputTopic(String outputTopic);
 
-  @Description("")
-  @Validation.Required
-  @Default.Enum("JSON")
-  FormatTransform.FORMAT getOutputFormat();
-
-  void setOutputFormat(FormatTransform.FORMAT outputFormat);
-
   @Description("URL to credentials in Vault")
   String getSecretStoreUrl();
 
@@ -61,4 +52,29 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
   String getVaultToken();
 
   void setVaultToken(String vaultToken);
+
+  @Description("The path to the trust store file")
+  String getTruststorePath();
+
+  void setTruststorePath(String truststorePath);
+
+  @Description("The path to the key store file")
+  String getKeystorePath();
+
+  void setKeystorePath(String keystorePath);
+
+  @Description("The password for the trust store file")
+  String getTruststorePassword();
+
+  void setTruststorePassword(String truststorePassword);
+
+  @Description("The store password for the key store file")
+  String getKeystorePassword();
+
+  void setKeystorePassword(String keystorePassword);
+
+  @Description("The password of the private key in the key store file")
+  String getKeyPassword();
+
+  void setKeyPassword(String keyPassword);
 }

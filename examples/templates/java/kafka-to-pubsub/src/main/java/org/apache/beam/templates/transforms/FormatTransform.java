@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.templates.ConsumerFactoryFn;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -39,21 +40,20 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 /** Different transformations over the processed data in the pipeline. */
 public class FormatTransform {
 
-  public enum FORMAT {
-    PUBSUB,
-    PLAINTEXT
-  }
-
   /**
    * Configures Kafka consumer.
    *
    * @param bootstrapServers Kafka servers to read from
    * @param topicsList Kafka topics to read from
-   * @param config configuration for the Kafka consumer
+   * @param kafkaConfig configuration for the Kafka consumer
+   * @param sslConfig configuration for the SSL connection
    * @return configured reading from Kafka
    */
   public static PTransform<PBegin, PCollection<KV<String, String>>> readFromKafka(
-      String bootstrapServers, List<String> topicsList, Map<String, Object> config) {
+      String bootstrapServers,
+      List<String> topicsList,
+      Map<String, Object> kafkaConfig,
+      Map<String, String> sslConfig) {
     return KafkaIO.<String, String>read()
         .withBootstrapServers(bootstrapServers)
         .withTopics(topicsList)
@@ -61,11 +61,15 @@ public class FormatTransform {
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
         .withValueDeserializerAndCoder(
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
-        .withConsumerConfigUpdates(config)
+        .withConsumerConfigUpdates(kafkaConfig)
+        .withConsumerFactoryFn(new ConsumerFactoryFn(sslConfig))
         .withoutMetadata();
   }
 
-  /** Converts all strings into a chosen {@link FORMAT} and writes them into PubSub topic. */
+  /**
+   * The {@link FormatOutput} wraps a String serializable messages with the {@link PubsubMessage}
+   * class.
+   */
   public static class FormatOutput extends PTransform<PCollection<String>, PDone> {
 
     private final KafkaToPubsubOptions options;
@@ -76,20 +80,15 @@ public class FormatTransform {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      if (options.getOutputFormat() == FORMAT.PUBSUB) {
-        return input
-            .apply(
-                "convertMessagesToPubsubMessages",
-                MapElements.into(TypeDescriptor.of(PubsubMessage.class))
-                    .via(
-                        (String json) ->
-                            new PubsubMessage(json.getBytes(Charsets.UTF_8), ImmutableMap.of())))
-            .apply(
-                "writePubsubMessagesToPubSub",
-                PubsubIO.writeMessages().to(options.getOutputTopic()));
-      } else {
-        return input.apply("writeToPubSub", PubsubIO.writeStrings().to(options.getOutputTopic()));
-      }
+      return input
+          .apply(
+              "convertMessagesToPubsubMessages",
+              MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                  .via(
+                      (String json) ->
+                          new PubsubMessage(json.getBytes(Charsets.UTF_8), ImmutableMap.of())))
+          .apply(
+              "writePubsubMessagesToPubSub", PubsubIO.writeMessages().to(options.getOutputTopic()));
     }
   }
 }

@@ -92,12 +92,6 @@ in the following format:
 --inputTopics=your-input-topic \
 --outputTopic=projects/your-project-id/topics/your-topic-pame
 ```
-Optionally, to choose the output format, specify one of two available formats:
-- PLAINTEXT (default)
-- PUBSUB
-```bash
---outputFormat=PLAINTEXT
-```
 Optionally, to retrieve Kafka credentials for SASL/SCRAM, 
 specify a URL to the credentials in HashiCorp Vault and the vault access token:
 ```bash
@@ -161,8 +155,8 @@ Dataflow Flex Templates package the pipeline as a Docker image and stage these i
 on your project's [Container Registry](https://cloud.google.com/container-registry).
 
 To execute the template you need to create the template spec file containing all
-the necessary information to run the job. This template already has the following [metadata
-file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
+the necessary information to run the job. This template already has the following 
+[metadata file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
 
 Navigate to the template folder:
 
@@ -229,4 +223,5 @@ You can do this in 3 different ways:
         '
         "${TEMPLATES_LAUNCH_API}"
     ```
-    _Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration._ 
+
+_Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration._ 

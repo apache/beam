@@ -39,6 +39,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.scram.ScramMechanism;
 import org.slf4j.Logger;
@@ -168,7 +169,7 @@ public class KafkaToPubsub {
 
     // Create the configuration for Kafka
     Map<String, Object> config = new HashMap<>();
-    config.put(SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_256.mechanismName());
+    config.put(SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_512.mechanismName());
     config.put("security.protocol", SecurityProtocol.SASL_PLAINTEXT.name());
     config.put(
         SaslConfigs.SASL_JAAS_CONFIG,
@@ -176,6 +177,17 @@ public class KafkaToPubsub {
             "org.apache.kafka.common.security.scram.ScramLoginModule required "
                 + "username=\"%s\" password=\"%s\";",
             username, password));
+    return config;
+  }
+
+  public static Map<String, String> configureSsl(KafkaToPubsubOptions options) {
+    Map<String, String> config = new HashMap<>();
+    config.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, options.getTruststorePath());
+    config.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, options.getKeystorePath());
+    config.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, options.getTruststorePassword());
+    config.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, options.getKeystorePassword());
+    config.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, options.getKeyPassword());
+
     return config;
   }
 
@@ -197,10 +209,18 @@ public class KafkaToPubsub {
               + "Trying to initiate an unauthorized connection.");
     } catch (IOException exception) {
       LOG.error(
-          String.format(
-              "Failed to retrieve credentials for Kafka client. "
-                  + "Trying to initiate an unauthorized connection. Details: %s",
-              exception));
+          "Failed to retrieve credentials for Kafka client. "
+              + "Trying to initiate an unauthorized connection.",
+          exception);
+    }
+
+    Map<String, String> sslConfig = new HashMap<>();
+    try {
+      sslConfig.putAll(configureSsl(options));
+    } catch (NullPointerException e) {
+      LOG.info(
+          "No information to retrieve SSL certificate was provided. "
+              + "Trying to initiate a plain text connection.");
     }
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.getInputTopics().split(",")));
@@ -235,7 +255,8 @@ public class KafkaToPubsub {
     pipeline
         .apply(
             "readFromKafka",
-            FormatTransform.readFromKafka(options.getBootstrapServers(), topicsList, kafkaConfig))
+            FormatTransform.readFromKafka(
+                options.getBootstrapServers(), topicsList, kafkaConfig, sslConfig))
         .apply("createValues", Values.create())
         .apply("writeToPubSub", new FormatTransform.FormatOutput(options));
 

@@ -42,9 +42,11 @@ public class KafkaToPubsubTest {
   public void testKafkaReadingFailsWrongBootstrapServer() {
     final String bootstrapServers = "some-server:9092";
     final List<String> topicsList = new ArrayList<>(Collections.singletonList("TEST-TOPIC"));
-    final HashMap<String, Object> config = new HashMap<>();
+    final HashMap<String, Object> kafkaConfig = new HashMap<>();
+    final HashMap<String, String> sslConfig = new HashMap<>();
 
-    pipeline.apply(FormatTransform.readFromKafka(bootstrapServers, topicsList, config));
+    pipeline.apply(
+        FormatTransform.readFromKafka(bootstrapServers, topicsList, kafkaConfig, sslConfig));
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage("Failed to construct kafka consumer");
     pipeline.run();
