@@ -1530,18 +1530,17 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   initializes restriction based on input element that is expected to be of
   BoundedSource type.
   """
-  def __init__(self, source=None, desired_chunk_size=None):
+  def __init__(self, source: BoundedSource = None, desired_chunk_size=None):
     self._check_source(source)
     self._source = source
     self._desired_chunk_size = desired_chunk_size
 
   def _check_source(self, src):
-    _LOGGER.error("migryz>>>> _check_source: %s, type: %s", src, type(src))
     if src is not None and not isinstance(src, BoundedSource):
       raise RuntimeError(
           'SDFBoundedSourceRestrictionProvider can only utilize BoundedSource')
 
-  def initial_restriction(self, element_source):
+  def initial_restriction(self, element_source: BoundedSource):
     src = element_source if self._source is None else self._source
     self._check_source(src)
     range_tracker = src.get_range_tracker(None, None)
