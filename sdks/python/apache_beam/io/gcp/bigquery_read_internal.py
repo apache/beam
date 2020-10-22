@@ -43,15 +43,14 @@ from apache_beam.io.iobase import SDFBoundedSourceReader
 from apache_beam.io.textio import _TextSource
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms import PTransform
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.transforms import PTransform
 from apache_beam.utils.annotations import experimental
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
   TableReference = None
-
 
 _LOGGER = logging.getLogger(__name__)
 
