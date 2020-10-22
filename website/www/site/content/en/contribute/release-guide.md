@@ -110,19 +110,11 @@ or running all commands manually.
 
 __NOTE__: When generating the key, please make sure you choose the key type as __RSA and RSA (default)__ and key size as __4096 bit__.
 
+* To run the commands manually, refer to the contents of `preparation_before_release.sh`.
 
-##### Run all commands manually
+##### Key ID
 
-* Get more entropy for creating a GPG key
-
-      sudo apt-get install rng-tools
-      sudo rngd -r /dev/urandom
-
-* Create a GPG key
-
-      gpg --full-generate-key
-
-* Determine your Apache GPG Key and Key ID, as follows:
+* You may need your Key ID for future steps. Determine your Apache GPG Key and Key ID as follows:
 
       gpg --list-sigs --keyid-format LONG
 
@@ -134,20 +126,6 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
       sub   2048R/BA4D50BE 2016-02-23
 
   Here, the key ID is the 8-digit hex string in the `pub` line: `845E6689`.
-
-  Now, add your Apache GPG key to the Beam’s `KEYS` file both in [`dev`](https://dist.apache.org/repos/dist/dev/beam/KEYS) and [`release`](https://dist.apache.org/repos/dist/release/beam/KEYS) repositories at `dist.apache.org`. Follow the instructions listed at the top of these files. (Note: Only PMC members have write access to the release repository. If you end up getting 403 errors ask on the mailing list for assistance.)
-
-* Configure `git` to use this key when signing code by giving it your key ID, as follows:
-
-      git config --global user.signingkey 845E6689
-
-  You may drop the `--global` option if you’d prefer to use this key for the current repository only.
-
-* Start GPG agent in order to unlock your GPG key
-
-      eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
-      export GPG_TTY=$(tty)
-      export GPG_AGENT_INFO
 
 #### Access to Apache Nexus repository
 
