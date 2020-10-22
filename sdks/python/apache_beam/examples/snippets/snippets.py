@@ -1200,7 +1200,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [END model_bigqueryio_write_dynamic_destinations]
 
   # [START model_bigqueryio_time_partitioning]
-  quotes | 'WriteWithTimePartitioning' >>  beam.io.WriteToBigQuery(
+  quotes | 'WriteWithTimePartitioning' >> beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
       write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
