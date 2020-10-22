@@ -171,7 +171,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 
     prepareFilesToStage(mOptions);
-    LOG.info("Prepare {} files to stage.", mOptions.getFilesToStage().size());
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());

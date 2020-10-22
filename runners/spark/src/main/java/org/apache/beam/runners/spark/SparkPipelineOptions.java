@@ -114,7 +114,9 @@ public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
    */
   @Internal
   static void prepareFilesToStage(SparkPipelineOptions options) {
-    if (!isLocalSparkMaster(options)) {
+    // LinkedIn: local mode also applies to use Spark submit script, so disable the check
+    // if (!isLocalSparkMaster(options)) {
+    if (options.getFilesToStage() != null) {
       List<String> filesToStage =
           options.getFilesToStage().stream()
               .map(File::new)
