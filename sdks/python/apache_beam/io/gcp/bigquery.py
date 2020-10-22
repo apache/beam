@@ -258,8 +258,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
-from apache_beam.io.gcp.bigquery_read_internal import \
-  bigquery_export_destination_uri
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
