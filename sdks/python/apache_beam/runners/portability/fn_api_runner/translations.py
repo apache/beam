@@ -261,12 +261,11 @@ class Stage(object):
       stage_components = beam_runner_api_pb2.Components()
       stage_components.CopyFrom(components)
 
-      # Only keep the referenced PCollections.
-      # Make pcollectionKey snapshot to avoid "Map modified during iteration"
-      # in py3
-      for pcoll_id in list(stage_components.pcollections.keys()):
-        if pcoll_id not in all_inputs and pcoll_id not in all_outputs:
-          del stage_components.pcollections[pcoll_id]
+      # Only keep the PCollections referenced in this stage.
+      stage_components.pcollections.clear()
+      for pcoll_id in all_inputs.union(all_outputs):
+        stage_components.pcollections[pcoll_id].CopyFrom(
+            components.pcollections[pcoll_id])
 
       # Only keep the transforms in this stage.
       # Also gather up payload data as we iterate over the transforms.
@@ -517,6 +516,7 @@ def pipeline_from_stages(
   new_proto.CopyFrom(pipeline_proto)
   components = new_proto.components
   components.transforms.clear()
+  components.pcollections.clear()
 
   roots = set()
   parents = {
@@ -525,6 +525,11 @@ def pipeline_from_stages(
       proto in pipeline_proto.components.transforms.items()
       for child in proto.subtransforms
   }
+
+  def copy_output_pcollections(transform):
+    for pcoll_id in transform.outputs.values():
+      components.pcollections[pcoll_id].CopyFrom(
+          pipeline_proto.components.pcollections[pcoll_id])
 
   def add_parent(child, parent):
     if parent is None:
@@ -536,6 +541,7 @@ def pipeline_from_stages(
           parent in pipeline_proto.components.transforms):
         components.transforms[parent].CopyFrom(
             pipeline_proto.components.transforms[parent])
+        copy_output_pcollections(components.transforms[parent])
         del components.transforms[parent].subtransforms[:]
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
@@ -547,6 +553,7 @@ def pipeline_from_stages(
             'Could not find subtransform to copy: ' + subtransform_id)
       subtransform = pipeline_proto.components.transforms[subtransform_id]
       components.transforms[subtransform_id].CopyFrom(subtransform)
+      copy_output_pcollections(components.transforms[subtransform_id])
       copy_subtransforms(subtransform)
 
   all_consumers = collections.defaultdict(
@@ -562,9 +569,10 @@ def pipeline_from_stages(
       copy_subtransforms(transform)
     else:
       transform = stage.executable_stage_transform(
-          known_runner_urns, all_consumers, components)
+          known_runner_urns, all_consumers, pipeline_proto.components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
+    copy_output_pcollections(transform)
     add_parent(transform_id, stage.parent)
 
   del new_proto.root_transform_ids[:]
