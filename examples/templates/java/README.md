@@ -86,7 +86,7 @@ To execute this pipeline locally, specify the parameters:
 - Kafka Bootstrap servers
 - Kafka input topics
 - Pub/Sub output topic
-in the followin format:
+in the following format:
 ```bash
 --bootstrapServers=host:port \
 --inputTopics=your-input-topic \
