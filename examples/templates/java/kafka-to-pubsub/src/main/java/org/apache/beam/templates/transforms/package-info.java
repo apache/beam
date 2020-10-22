@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Kafka to Pubsub template for Google Cloud Dataflow. */
+/** Kafka to Pubsub template. */
 package org.apache.beam.templates.transforms;

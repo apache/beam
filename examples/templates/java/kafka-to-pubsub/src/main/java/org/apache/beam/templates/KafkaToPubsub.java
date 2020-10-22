@@ -29,8 +29,10 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.templates.avro.TaxiRide;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.templates.transforms.FormatTransform;
 import org.apache.http.HttpResponse;
@@ -232,12 +234,24 @@ public class KafkaToPubsub {
      *  2) Extract values only
      *  3) Write successful records to PubSub
      */
-    pipeline
-        .apply(
-            "readFromKafka",
-            FormatTransform.readFromKafka(options.getBootstrapServers(), topicsList, kafkaConfig))
-        .apply("createValues", Values.create())
-        .apply("writeToPubSub", new FormatTransform.FormatOutput(options));
+
+    if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
+      pipeline
+          .apply(
+              "readAvrosFromKafka",
+              FormatTransform.readAvrosFromKafka(
+                  options.getBootstrapServers(), topicsList, kafkaConfig))
+          .apply("createValues", Values.create())
+          .apply("writeAvrosToPubSub", PubsubIO.writeAvros(TaxiRide.class));
+
+    } else {
+      pipeline
+          .apply(
+              "readFromKafka",
+              FormatTransform.readFromKafka(options.getBootstrapServers(), topicsList, kafkaConfig))
+          .apply("createValues", Values.create())
+          .apply("writeToPubSub", new FormatTransform.FormatOutput(options));
+    }
 
     return pipeline.run();
   }

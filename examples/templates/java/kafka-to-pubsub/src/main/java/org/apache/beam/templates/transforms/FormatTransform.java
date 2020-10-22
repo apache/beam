@@ -19,6 +19,7 @@ package org.apache.beam.templates.transforms;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -31,6 +32,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.templates.avro.TaxiRide;
+import org.apache.beam.templates.avro.TaxiRidesKafkaAvroDeserializer;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -41,7 +44,8 @@ public class FormatTransform {
 
   public enum FORMAT {
     PUBSUB,
-    PLAINTEXT
+    PLAINTEXT,
+    AVRO;
   }
 
   /**
@@ -61,6 +65,27 @@ public class FormatTransform {
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
         .withValueDeserializerAndCoder(
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+        .withConsumerConfigUpdates(config)
+        .withoutMetadata();
+  }
+
+  /**
+   * Configures Kafka consumer to read avros to {@link TaxiRide} format.
+   *
+   * @param bootstrapServers Kafka servers to read from
+   * @param topicsList Kafka topics to read from
+   * @param config configuration for the Kafka consumer
+   * @return configured reading from Kafka
+   */
+  public static PTransform<PBegin, PCollection<KV<String, TaxiRide>>> readAvrosFromKafka(
+      String bootstrapServers, List<String> topicsList, Map<String, Object> config) {
+    return KafkaIO.<String, TaxiRide>read()
+        .withBootstrapServers(bootstrapServers)
+        .withTopics(topicsList)
+        .withKeyDeserializerAndCoder(
+            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+        .withValueDeserializerAndCoder(
+            TaxiRidesKafkaAvroDeserializer.class, AvroCoder.of(TaxiRide.class))
         .withConsumerConfigUpdates(config)
         .withoutMetadata();
   }

@@ -17,4 +17,4 @@
  */
 
 /** Kafka to Pubsub template. */
-package org.apache.beam.templates;
+package org.apache.beam.templates.avro;

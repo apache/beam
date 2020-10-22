@@ -15,6 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.templates.avro;
 
-/** Kafka to Pubsub template. */
-package org.apache.beam.templates;
+import io.confluent.kafka.serializers.AbstractKafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import java.util.Map;
+import org.apache.kafka.common.serialization.Deserializer;
+
+/** Example of custom AVRO Deserialize. */
+public class TaxiRidesKafkaAvroDeserializer extends AbstractKafkaAvroDeserializer
+    implements Deserializer<TaxiRide> {
+
+  @Override
+  public void configure(Map<String, ?> configs, boolean isKey) {
+    configure(new KafkaAvroDeserializerConfig(configs));
+  }
+
+  @Override
+  public TaxiRide deserialize(String s, byte[] bytes) {
+    return (TaxiRide) this.deserialize(bytes);
+  }
+
+  @Override
+  public void close() {}
+}
