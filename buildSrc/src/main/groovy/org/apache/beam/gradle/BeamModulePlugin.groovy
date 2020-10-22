@@ -811,9 +811,6 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.value:auto-value-annotations:1.7",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
-        // This contains many improved annotations beyond javax.annotations for enhanced static checking
-        // of the codebase
-        "org.checkerframework:checker-qual:$checkerframework_version",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
@@ -857,6 +854,11 @@ class BeamModulePlugin implements Plugin<Project> {
           annotationProcessor dep
           testAnnotationProcessor dep
         }
+
+        // This contains many improved annotations beyond javax.annotations for enhanced static checking
+        // of the codebase. It is runtime so users can also take advantage of them. The annotations themselves
+        // are MIT licensed (checkerframework is GPL and cannot be distributed)
+        compile "org.checkerframework:checker-qual:$checkerframework_version"
       }
 
       // Add the optional and provided configurations for dependencies
