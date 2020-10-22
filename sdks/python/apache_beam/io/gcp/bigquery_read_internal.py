@@ -22,6 +22,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 import logging
 import uuid
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam.transforms import PTransform
@@ -32,11 +33,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def bigquery_export_destination_uri(
-    gcs_location_vp,  # type: Optional[ValueProvider]
-    temp_location,  # type: Optional[str]
-    unique_id,  # type: str
-    directory_only=False,  # type: bool
-):
+    gcs_location_vp: Optional[ValueProvider],
+    temp_location: Optional[str],
+    unique_id: str,
+    directory_only: bool = False,
+) -> str:
   """Returns the fully qualified Google Cloud Storage URI where the
   extracted table should be written.
   """
