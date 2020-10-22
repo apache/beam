@@ -5158,11 +5158,11 @@ performance of traditional I/O connectors.
 
 ### 12.1. SDF basics {#sdf-basics}
 
-At a high level, a SDF is responsible for processing element and restriction pairs. A
+At a high level, an SDF is responsible for processing element and restriction pairs. A
 restriction represents a subset of work that would have been necessary to have been done when
 processing the element.
 
-Executing a SDF follows the following steps:
+Executing an SDF follows the following steps:
 
 1. Each element is paired with a restriction (e.g. filename is paired with offset range representing the whole file).
 2. Each element and restriction pair is split (e.g. offset ranges are broken up into smaller pieces).
@@ -5171,7 +5171,7 @@ Executing a SDF follows the following steps:
 the element and restriction pair can pause its own processing and/or be split into further element and
 restriction pairs.
 
-![Diagram of steps that a SDF is composed of](/images/sdf_high_level_overview.svg)
+![Diagram of steps that an SDF is composed of](/images/sdf_high_level_overview.svg)
 
 
 #### 12.1.1. A basic SDF {#a-basic-sdf}
@@ -5185,7 +5185,7 @@ this is the `DoFn`. [Python](https://github.com/apache/beam/blob/f4c273426139685
 has a dedicated RestrictionProvider type. The restriction tracker is responsible for tracking
 what subset of the restriction has been completed during processing.
 
-To define a SDF, you must choose whether the SDF is bounded (default) or
+To define an SDF, you must choose whether the SDF is bounded (default) or
 unbounded and define a way to initialize an initial restriction for an element.
 
 {{< highlight java >}}
@@ -5227,7 +5227,7 @@ func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, 
 }
 {{< /highlight >}}
 
-At this point, we have a SDF that supports [runner-initiated splits](#runner-initiated-split)
+At this point, we have an SDF that supports [runner-initiated splits](#runner-initiated-split)
 enabling dynamic work rebalancing. To increase the rate at which initial parallelization of work occurs
 or for those runners that do not support runner-initiated splitting, we recommend providing
 a set of initial splits:
@@ -5258,7 +5258,7 @@ func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Res
 
 ### 12.2. Sizing and progress {#sizing-and-progress}
 
-Sizing and progress are used during execution of a SDF to inform runners so that they may
+Sizing and progress are used during execution of an SDF to inform runners so that they may
 perform intelligent decisions about which restrictions to split and how to parallelize work.
 
 Before processing an element and restriction, an initial size may be used by a runner to choose
@@ -5358,7 +5358,7 @@ func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string,
 The default watermark estimator does not produce a watermark estimate. Therefore, the output watermark
 is solely computed by the minimum of upstream watermarks.
 
-A SDF can advance the output watermark by specifying a lower bound for all future output
+An SDF can advance the output watermark by specifying a lower bound for all future output
 that this element and restriction pair will produce. The runner computes the minimum output watermark
 by taking the minimum over all upstream watermarks and the minimum reported by each element and
 restriction pair. The reported watermark must monotonically increase for each element and restriction
@@ -5366,7 +5366,7 @@ pair across bundle boundaries. When an element and restriction pair stops proces
 it is no longer considered part of the above calculation.
 
 Tips:
-*   If you author a SDF that outputs records with timestamps, you should expose ways to allow users of
+*   If you author an SDF that outputs records with timestamps, you should expose ways to allow users of
 this SDF to configure which watermark estimator to use.
 *   Any data produced before the watermark may be considered late. See
 [watermarks and late data](#watermarks-and-late-data) for more details.
