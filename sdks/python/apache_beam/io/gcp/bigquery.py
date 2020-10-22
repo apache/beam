@@ -234,7 +234,6 @@ encoding when writing to BigQuery.
 from __future__ import absolute_import
 
 import collections
-import decimal
 import itertools
 import json
 import logging
@@ -243,6 +242,7 @@ import time
 import uuid
 from builtins import object
 from builtins import zip
+from typing import Union
 
 from future.utils import itervalues
 from past.builtins import unicode
@@ -257,6 +257,7 @@ from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.io.gcp.bigquery_read_internal import ReadAllFromBigQuery
 from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
@@ -591,84 +592,6 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
-FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
-
-
-class _JsonToDictCoder(coders.Coder):
-  """A coder for a JSON string to a Python dict."""
-  def __init__(self, table_schema):
-    self.fields = self._convert_to_tuple(table_schema.fields)
-    self._converters = {
-        'INTEGER': int,
-        'INT64': int,
-        'FLOAT': float,
-        'FLOAT64': float,
-        'NUMERIC': self._to_decimal,
-        'BYTES': self._to_bytes,
-    }
-
-  @staticmethod
-  def _to_decimal(value):
-    return decimal.Decimal(value)
-
-  @staticmethod
-  def _to_bytes(value):
-    """Converts value from str to bytes on Python 3.x. Does nothing on
-    Python 2.7."""
-    return value.encode('utf-8')
-
-  @classmethod
-  def _convert_to_tuple(cls, table_field_schemas):
-    """Recursively converts the list of TableFieldSchema instances to the
-    list of tuples to prevent errors when pickling and unpickling
-    TableFieldSchema instances.
-    """
-    if not table_field_schemas:
-      return []
-
-    return [
-        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
-        for x in table_field_schemas
-    ]
-
-  def decode(self, value):
-    value = json.loads(value.decode('utf-8'))
-    return self._decode_with_schema(value, self.fields)
-
-  def _decode_with_schema(self, value, schema_fields):
-    for field in schema_fields:
-      if field.name not in value:
-        # The field exists in the schema, but it doesn't exist in this row.
-        # It probably means its value was null, as the extract to JSON job
-        # doesn't preserve null fields
-        value[field.name] = None
-        continue
-
-      if field.type == 'RECORD':
-        nested_values = value[field.name]
-        if field.mode == 'REPEATED':
-          for i, nested_value in enumerate(nested_values):
-            nested_values[i] = self._decode_with_schema(
-                nested_value, field.fields)
-        else:
-          value[field.name] = self._decode_with_schema(
-              nested_values, field.fields)
-      else:
-        try:
-          converter = self._converters[field.type]
-          value[field.name] = converter(value[field.name])
-        except KeyError:
-          # No need to do any conversion
-          pass
-    return value
-
-  def is_deterministic(self):
-    return True
-
-  def to_type_hint(self):
-    return dict
-
-
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
@@ -712,7 +635,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.project = project
     self.validate = validate
     self.flatten_results = flatten_results
-    self.coder = coder or _JsonToDictCoder
+    self.coder = coder
     self.kms_key = kms_key
     self.split_result = None
     self.options = pipeline_options
@@ -720,7 +643,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.bigquery_job_labels = bigquery_job_labels or {}
     self.use_json_exports = use_json_exports
     self.temp_dataset = temp_dataset
-    self._job_name = job_name or 'AUTOMATIC_JOB_NAME'
+    self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
 
@@ -1812,7 +1735,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     return WriteToBigQuery(**config)
 
 
-class ReadFromBigQuery(PTransform):
+class NewReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
@@ -1897,7 +1820,6 @@ class ReadFromBigQuery(PTransform):
     self._kwargs = kwargs
 
   def expand(self, pcoll):
-    unique_id = str(uuid.uuid4())[0:10]
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
@@ -1931,3 +1853,57 @@ class ReadFromBigQuery(PTransform):
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(files_to_remove_pcoll))
+
+
+class ReadFromBigQuery(PTransform):
+  def __init__(self, gcs_location=None, *args, **kwargs):
+    if gcs_location:
+      if not isinstance(gcs_location, (str, unicode, ValueProvider)):
+        raise TypeError(
+            '%s: gcs_location must be of type string'
+            ' or ValueProvider; got %r instead' %
+            (self.__class__.__name__, type(gcs_location)))
+
+      if isinstance(gcs_location, (str, unicode)):
+        gcs_location = StaticValueProvider(str, gcs_location)
+
+    self.gcs_location = gcs_location
+
+    self._args = args
+    self._kwargs = kwargs
+
+  def expand(self, pcoll):
+
+    kwargs = self._kwargs
+
+    def get_value(elm: Union[ValueProvider, str]):
+      if isinstance(elm, ValueProvider):
+        return elm.get()
+      else:
+        return elm
+
+    def create_bigquery_read_request(unused_elm):
+      from apache_beam.io.gcp.bigquery_read_internal import ReadFromBigQueryRequest
+      table_ref = None
+      if get_value(kwargs.get('table', None)):
+        table_ref = bigquery_tools.parse_table_reference(
+            get_value(kwargs.get('table', None)),
+            get_value(kwargs.get('dataset', None)),
+            get_value(kwargs.get('project', None)))
+      return ReadFromBigQueryRequest(
+          query=get_value(kwargs.get('query', None)),
+          use_standard_sql=get_value(kwargs.get('use_standard_sql', True)),
+          table=table_ref,
+          flatten_results=get_value(kwargs.get('flatten_results', True)),
+      )
+
+    gcs_location_vp = self.gcs_location
+    return (
+        pcoll.pipeline
+        | 'ReadBQImpulse' >> beam.Create([None])
+        | 'CreateBQReadRequest' >> beam.Map(create_bigquery_read_request)
+        | ReadAllFromBigQuery(
+            gcs_location=gcs_location_vp,
+            bigquery_job_labels=kwargs.get('bigquery_job_labels', {}),
+            validate=kwargs.get('validate', True),
+            kms_key=kwargs.get('kms_key', None)))
