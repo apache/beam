@@ -1545,13 +1545,12 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
           'SDFBoundedSourceRestrictionProvider can only utilize BoundedSource')
 
   def initial_restriction(self, element_source: BoundedSource):
-    src = element_source
-    self._check_source(src)
-    range_tracker = src.get_range_tracker(None, None)
+    self._check_source(element_source)
+    range_tracker = element_source.get_range_tracker(None, None)
     return _SDFBoundedSourceRestriction(
         SourceBundle(
             None,
-            src,
+            element_source,
             range_tracker.start_position(),
             range_tracker.stop_position()))
 
