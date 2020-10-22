@@ -5144,49 +5144,48 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-## 12 Splittable DoFns {#splittable-dofns}
+## 12. Splittable `DoFns` {#splittable-dofns}
 
-Splittable DoFns (SDFs) enable users to create modular components containing I/Os (and some advanced
+A Splittable `DoFn` (SDF) enables users to create modular components containing I/Os (and some advanced
 [non I/O use cases](https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv)). Having modular
 I/O components that can be connected to each other simplify typical patterns that users want.
 For example, a popular use case is to read filenames from a message queue followed by parsing those
-files. Traditionally users were required to either write a single I/O connector that contained the
+files. Traditionally, users were required to either write a single I/O connector that contained the
 logic for the message queue and the file reader (increased complexity) or choose to reuse a message
-queue I/O followed by a regular DoFn that read the file (decreased performance). With splittable DoFns,
-we bring the richness of Apache Beam’s I/O APIs to DoFns enabling modularity while maintaining the
+queue I/O followed by a regular `DoFn` that read the file (decreased performance). With SDF,
+we bring the richness of Apache Beam’s I/O APIs to a `DoFn` enabling modularity while maintaining the
 performance of traditional I/O connectors.
 
-### 12.1 Splittable DoFn basics {#splittable-dofn-basics}
+### 12.1. SDF basics {#sdf-basics}
 
-At a high level, a splittable DoFn is responsible for processing element and restriction pairs. A
+At a high level, a SDF is responsible for processing element and restriction pairs. A
 restriction represents a subset of work that would have been necessary to have been done when
 processing the element.
 
-Executing a splittable DoFn follows the following steps:
+Executing a SDF follows the following steps:
 
 1. Each element is paired with a restriction (e.g. filename is paired with offset range representing the whole file).
 2. Each element and restriction pair is split (e.g. offset ranges are broken up into smaller pieces).
 3. The runner redistributes the element and restriction pairs to several workers.
-4. Element and restriction pairs are processed in parallel (e.g. the file is read).
+4. Element and restriction pairs are processed in parallel (e.g. the file is read). Within this last step,
+the element and restriction pair can pause its own processing and/or be split into further element and
+restriction pairs.
 
-![Diagram of steps that a splittable DoFn is composed of](/images/sdf_high_level_overview.svg)
-
-Within the last step, the element and restriction pair can pause its own processing and/or be split into
-further element and restriction pairs. This last step is what enables I/O-like capabilities for DoFns.
+![Diagram of steps that a SDF is composed of](/images/sdf_high_level_overview.svg)
 
 
-#### 12.1.1 A basic splittable DoFn {#a-basic-splittable-dofn}
+#### 12.1.1. A basic SDF {#a-basic-sdf}
 
-A basic splittable DoFn is composed of three parts: a restriction, a restriction provider, and a
+A basic SDF is composed of three parts: a restriction, a restriction provider, and a
 restriction tracker. The restriction is used to represent a subset of work for a given element.
 The restriction provider lets SDF authors override default implementations for splitting, sizing,
 watermark estimation, and so forth. In [Java](https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/DoFn.java#L92)
 and [Go](https://github.com/apache/beam/blob/0f466e6bcd4ac8677c2bd9ecc8e6af3836b7f3b8/sdks/go/pkg/beam/pardo.go#L226),
-this is the DoFn. [Python](https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/python/apache_beam/transforms/core.py#L213)
+this is the `DoFn`. [Python](https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/python/apache_beam/transforms/core.py#L213)
 has a dedicated RestrictionProvider type. The restriction tracker is responsible for tracking
 what subset of the restriction has been completed during processing.
 
-To define a splittable DoFn, you must choose whether the splittable DoFn is bounded (default) or
+To define a SDF, you must choose whether the SDF is bounded (default) or
 unbounded and define a way to initialize an initial restriction for an element.
 
 {{< highlight java >}}
@@ -5228,7 +5227,7 @@ func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, 
 }
 {{< /highlight >}}
 
-At this point, we have a splittable DoFn that supports [runner-initiated splits](#runner-initiated-split)
+At this point, we have a SDF that supports [runner-initiated splits](#runner-initiated-split)
 enabling dynamic work rebalancing. To increase the rate at which initial parallelization of work occurs
 or for those runners that do not support runner-initiated splitting, we recommend providing
 a set of initial splits:
@@ -5257,9 +5256,9 @@ func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Res
 }
 {{< /highlight >}}
 
-### 12.2 Sizing and progress {#sizing-and-progress}
+### 12.2. Sizing and progress {#sizing-and-progress}
 
-Sizing and progress are used during execution of a splittable DoFn to inform runners so that they may
+Sizing and progress are used during execution of a SDF to inform runners so that they may
 perform intelligent decisions about which restrictions to split and how to parallelize work.
 
 Before processing an element and restriction, an initial size may be used by a runner to choose
@@ -5285,18 +5284,18 @@ func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Rest
 	if strings.Contains(filename, “expensiveRecords”) {
 		weight = 2
 	}
-	return weight * rest.Size()
+	return weight * (rest.End - rest.Start)
 }
 {{< /highlight >}}
 
-### 12.3 User initiated checkpoint {#user-initiated-checkpoint}
+### 12.3. User-initiated checkpoint {#user-initiated-checkpoint}
 
 Some I/Os cannot produce all of the data necessary to complete a restriction within the lifetime of a
 single bundle. This typically happens with unbounded restrictions, but can also happen with bounded
 restrictions. For example, there could be more data that needs to be ingested but is not available yet.
 Another cause of this scenario is the source system throttling your data.
 
-Your splittable DoFn can signal to you that you are not done processing the current restriction. This
+Your SDF can signal to you that you are not done processing the current restriction. This
 signal can suggest a time to resume at. While the runner tries to honor the resume time, this is not
 guaranteed. This allows execution to continue on a restriction that has available work improving
 resource utilization.
@@ -5309,13 +5308,13 @@ resource utilization.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_UserInitiatedCheckpoint >}}
 {{< /highlight >}}
 
-### 12.4 Runner-initiated split {#runner-initiated-split}
+### 12.4. Runner-initiated split {#runner-initiated-split}
 
 A runner at any time may attempt to split a restriction while it is being processed. This allows the
 runner to either pause processing of the restriction so that other work may be done (common for
 unbounded restrictions to limit the amount of output and/or improve latency) or split the restriction
 into two pieces, increasing the available parallelism within the system. It is important to author a
-splittable DoFn with this in mind since the end of the restriction may change. Thus when writing the
+SDF with this in mind since the end of the restriction may change. Thus when writing the
 processing loop, it is important to use the result from trying to claim a piece of the restriction
 instead of assuming one can process till the end.
 
@@ -5354,17 +5353,17 @@ func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string,
 }
 {{< /highlight >}}
 
-### 12.5 Watermark estimation {#watermark-estimation}
+### 12.5. Watermark estimation {#watermark-estimation}
 
 The default watermark estimator does not produce a watermark estimate. Therefore, the output watermark
 is solely computed by the minimum of upstream watermarks.
 
-As a splittable DoFn pr an element and restriction pair, it can advance the output watermark by specifying
-a lower bound for all future output that this element and restriction pair will produce. The runner
-computes the minimum output watermark by taking the minimum over all upstream watermarks and the minimum
-reported by each element and restriction pair. The reported watermark must monotonically increase for
-each element and restriction pair across bundle boundaries. When an element and restriction pair stops
-processing its watermark, it is no longer considered part of the above calculation.
+A SDF can advance the output watermark by specifying a lower bound for all future output
+that this element and restriction pair will produce. The runner computes the minimum output watermark
+by taking the minimum over all upstream watermarks and the minimum reported by each element and
+restriction pair. The reported watermark must monotonically increase for each element and restriction
+pair across bundle boundaries. When an element and restriction pair stops processing its watermark,
+it is no longer considered part of the above calculation.
 
 Tips:
 *   If you author a SDF that outputs records with timestamps, you should expose ways to allow users of
@@ -5372,7 +5371,7 @@ this SDF to configure which watermark estimator to use.
 *   Any data produced before the watermark may be considered late. See
 [watermarks and late data](#watermarks-and-late-data) for more details.
 
-#### 12.5.1 Controlling the watermark {#controlling-the-watermark}
+#### 12.5.1. Controlling the watermark {#controlling-the-watermark}
 
 There are two general types of watermark estimators: timestamp observing and external clock observing.
 Timestamp observing watermark estimators use the output timestamp of each record to compute the watermark
@@ -5391,9 +5390,9 @@ watermark estimator implementation. You can also provide your own watermark esti
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_CustomWatermarkEstimator >}}
 {{< /highlight >}}
 
-### 12.6 Truncating during drain {#truncating-during-drain}
+### 12.6. Truncating during drain {#truncating-during-drain}
 
-Runners which support draining pipelines need the ability to drain splittable DoFns; otherwise, the
+Runners which support draining pipelines need the ability to drain SDFs; otherwise, the
 pipeline may never stop. By default, bounded restrictions process the remainder of the restriction while
 unbounded restrictions finish processing at the next SDF-initiated checkpoint or runner-initiated split.
 You are able to override this default behavior by defining the appropriate method on the restriction
@@ -5407,12 +5406,12 @@ provider.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_Truncate >}}
 {{< /highlight >}}
 
-### 12.7 Bundle finalization {#bundle-finalization}
+### 12.7. Bundle finalization {#bundle-finalization}
 
-Bundle finalization enables DoFns to perform side effects by registering a callback.
+Bundle finalization enables a `DoFn` to perform side effects by registering a callback.
 The callback is invoked once the runner has acknowledged that it has durably persisted the output.
 For example, a message queue might need to acknowledge messages that it has ingested into the pipeline.
-Bundle finalization is not limited to splittable DoFns but is called out here since this is the primary
+Bundle finalization is not limited to SDFs but is called out here since this is the primary
 use case.
 
 {{< highlight java >}}
