@@ -24,9 +24,19 @@ to read data from a single or multiple topics from
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
 
-This template supports serializable plaintext formats and [PubSubMessage](https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage). 
-The template supports Apache Kafka SASL/SCRAM security mechanisms via PLAINTEXT or SSL
-and retrieving credentials from [HashiCorp Vault](https://www.vaultproject.io/).
+Supported data formats:
+- Serializable plaintext formats, such as JSON
+- [PubSubMessage](https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage).
+
+Supported input source configurations:
+- Single or multiple Apache Kafka bootstrap servers
+- Apache Kafka SASL/SCRAM authentication over plaintext or SSL connection
+- Secrets vault service [HashiCorp Vault](https://www.vaultproject.io/).
+ 
+Supported destination configuration:
+- Single Google Pub/Sub topic.
+
+In a simple scenario, the template will create an Apache Beam pipeline that will read messages from a source Kafka server with a source topic, and stream the text messages into specified Pub/Sub destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed over plain text or SSL encrypted connection. The template supports using a single Kafka user account to authenticate in the provided source Kafka servers and topics. To support SASL authenticaton over SSL the template will need an SSL certificate location and access to a secrets vault service with Kafka username and password, currently supporting HashiCorp Vault. 
 
 ## Requirements
 
@@ -75,7 +85,8 @@ under the `build/libs/` folder in kafka-to-pubsub directory.
 To execute this pipeline locally, specify the parameters: 
 - Kafka Bootstrap servers
 - Kafka input topics
-- Pub/Sub output topic with the form
+- Pub/Sub output topic
+in the following format:
 ```bash
 --bootstrapServers=host:port \
 --inputTopics=your-input-topic \
@@ -88,12 +99,12 @@ Optionally, to choose the output format, specify one of two available formats:
 --outputFormat=PLAINTEXT
 ```
 Optionally, to retrieve Kafka credentials for SASL/SCRAM, 
-specify a URL to credentials in HashiCorp Vault and token to access them:
+specify a URL to the credentials in HashiCorp Vault and the vault access token:
 ```bash
 --secretStoreUrl=http(s)://host:port/path/to/credentials
 --vaultToken=your-token
 ```
-Optionally, to configure secure SSL connection between the pipeline and Kafka,
+Optionally, to configure secure SSL connection between the Beam pipeline and Kafka,
 specify the parameters:
 - A local path to a truststore file
 - A local path to a keystore file
@@ -111,11 +122,9 @@ To change the runner, specify:
 ```bash
 --runner=YOUR_SELECTED_RUNNER
 ```
-See examples/java/README.md for instructions about how to configure different runners.
+See examples/java/README.md for steps and examples to configure different runners.
 
 ## Google Dataflow Template
-
-_Note: The Dataflow Template doesn't support SSL configuration._ 
 
 ### Setting Up Project Environment
 
@@ -220,34 +229,4 @@ You can do this in 3 different ways:
         '
         "${TEMPLATES_LAUNCH_API}"
     ```
-
-## Use Cases
-
-Generally, the whole range of use cases can be described via the simplest and
-the most complex examples. All other use cases can be described as different 
-variations between the simplest and the most complex ones.
-
-### The simplest use case
-
-There are:
-- One Kafka server without SASL and SSL
-- One topic in Kafka
-- One topic in Google Pub/Sub
-
-Kafka can be reached without any authentication and SSL certificates. 
-The pipeline streams plaintext messages from Kafka topic to Google Pub/Sub topic.
-
-### The most complex use case
-
-There are:
-- Several Kafka servers with configured SASL/SCRAM and SSL secure connection
-- Several topics in Kafka with same username and password
-- One topic in Google Pub/Sub
-- Unsealed HashiCorp Vault secret storage with known secret access token
-- SSL certificate located locally
-
-The pipeline reaches Vault secret storage via access token and 
-retrieves the credentials that contain username and password for Kafka topics. 
-Using the SSL certificate and retrieved credentials the pipeline connects to 
-Kafka and streams messages from Kafka topics into Google Pub/Sub converting them
-into PubSubMessages. 
+    _Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration._ 
