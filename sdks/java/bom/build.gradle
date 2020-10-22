@@ -66,7 +66,15 @@ assemble.dependsOn copyPom
 // the pom.xml generation and have the publish tasks depend on `copyPom` instead.
 tasks.whenTaskAdded { task ->
   if (task.name == 'generatePomFileForMavenJavaPublication') {
-    task.enabled = false
+    // Ensures the pom file is signed later if we are performing a release (see BEAM-11068)
+    task.doLast {
+      copy {
+        from 'pom.xml.template'
+        into mavenJavaDir
+        rename 'pom.xml.template', 'pom-default.xml'
+        expand(version: project.version, modules: bomModuleNames)
+      }
+    }
   } else if (task.name.startsWith('publishMavenJavaPublication')) {
     task.dependsOn copyPom
   }

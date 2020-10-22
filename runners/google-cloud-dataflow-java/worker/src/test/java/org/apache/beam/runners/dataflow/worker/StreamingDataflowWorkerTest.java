@@ -30,6 +30,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeast;
@@ -759,6 +760,76 @@ public class StreamingDataflowWorkerTest {
       assertEquals(
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
+  }
+
+  @Test
+  public void testHotKeyLogging() throws Exception {
+    // This is to test that the worker can correctly log the key from a hot key.
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())),
+            makeSinkInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setIsReady(false);
+
+    StreamingConfigTask streamingConfig = new StreamingConfigTask();
+    streamingConfig.setStreamingComputationConfigs(
+        ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
+    streamingConfig.setWindmillServiceEndpoint("foo");
+    WorkItem workItem = new WorkItem();
+    workItem.setStreamingConfigTask(streamingConfig);
+    when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
+
+    StreamingDataflowWorkerOptions options =
+        createTestingPipelineOptions(server, "--hotKeyLoggingEnabled=true");
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    final int numIters = 2000;
+    for (int i = 0; i < numIters; ++i) {
+      server.addWorkToOffer(makeInput(i, 0, "key", DEFAULT_SHARDING_KEY));
+    }
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    worker.stop();
+
+    verify(hotKeyLogger, atLeastOnce())
+        .logHotKeyDetection(nullable(String.class), any(), eq("key"));
+  }
+
+  @Test
+  public void testHotKeyLoggingNotEnabled() throws Exception {
+    // This is to test that the worker can correctly log the key from a hot key.
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())),
+            makeSinkInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setIsReady(false);
+
+    StreamingConfigTask streamingConfig = new StreamingConfigTask();
+    streamingConfig.setStreamingComputationConfigs(
+        ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
+    streamingConfig.setWindmillServiceEndpoint("foo");
+    WorkItem workItem = new WorkItem();
+    workItem.setStreamingConfigTask(streamingConfig);
+    when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
+
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    final int numIters = 2000;
+    for (int i = 0; i < numIters; ++i) {
+      server.addWorkToOffer(makeInput(i, 0, "key", DEFAULT_SHARDING_KEY));
+    }
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    worker.stop();
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
