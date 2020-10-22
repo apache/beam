@@ -38,7 +38,6 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
-from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import SDFBoundedSourceReader
 from apache_beam.io.textio import _TextSource
@@ -47,6 +46,12 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import PTransform
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.utils.annotations import experimental
+
+try:
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+except ImportError:
+  TableReference = None
+
 
 _LOGGER = logging.getLogger(__name__)
 
