@@ -28,7 +28,7 @@
       "label": "Message format that is written into Pub/Sub",
       "helpText": "One of two message formats that is written to Pub/Sub. PUBSUB or PLAINTEXT. Default is PLAINTEXT",
       "regexes": [
-        "^(PUBSUB|PLAINTEXT)$"
+        "^(PUBSUB|AVRO)$"
       ],
       "isOptional": true
     },

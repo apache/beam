@@ -17,9 +17,11 @@
  */
 package org.apache.beam.templates.options;
 
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.templates.transforms.FormatTransform;
 
 public interface KafkaToPubsubOptions extends PipelineOptions {
   @Description("Kafka Bootstrap Servers")
@@ -42,6 +44,13 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
   String getOutputTopic();
 
   void setOutputTopic(String outputTopic);
+
+  @Description("")
+  @Validation.Required
+  @Default.Enum("PUBSUB")
+  FormatTransform.FORMAT getOutputFormat();
+
+  void setOutputFormat(FormatTransform.FORMAT outputFormat);
 
   @Description("URL to credentials in Vault")
   String getSecretStoreUrl();

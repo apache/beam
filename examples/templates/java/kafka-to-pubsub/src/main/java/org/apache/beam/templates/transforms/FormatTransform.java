@@ -32,9 +32,9 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.templates.ConsumerFactoryFn;
 import org.apache.beam.templates.avro.TaxiRide;
 import org.apache.beam.templates.avro.TaxiRidesKafkaAvroDeserializer;
-import org.apache.beam.templates.ConsumerFactoryFn;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -45,8 +45,7 @@ public class FormatTransform {
 
   public enum FORMAT {
     PUBSUB,
-    PLAINTEXT,
-    AVRO;
+    AVRO
   }
 
   /**
@@ -84,7 +83,9 @@ public class FormatTransform {
    * @return configured reading from Kafka
    */
   public static PTransform<PBegin, PCollection<KV<String, TaxiRide>>> readAvrosFromKafka(
-      String bootstrapServers, List<String> topicsList, Map<String, Object> config,Map<String, Object> kafkaConfig,
+      String bootstrapServers,
+      List<String> topicsList,
+      Map<String, Object> config,
       Map<String, String> sslConfig) {
     return KafkaIO.<String, TaxiRide>read()
         .withBootstrapServers(bootstrapServers)
@@ -94,6 +95,7 @@ public class FormatTransform {
         .withValueDeserializerAndCoder(
             TaxiRidesKafkaAvroDeserializer.class, AvroCoder.of(TaxiRide.class))
         .withConsumerConfigUpdates(config)
+        .withConsumerFactoryFn(new ConsumerFactoryFn(sslConfig))
         .withoutMetadata();
   }
 

@@ -260,7 +260,7 @@ public class KafkaToPubsub {
           .apply(
               "readAvrosFromKafka",
               FormatTransform.readAvrosFromKafka(
-                  options.getBootstrapServers(), topicsList, kafkaConfig))
+                  options.getBootstrapServers(), topicsList, kafkaConfig, sslConfig))
           .apply("createValues", Values.create())
           .apply("writeAvrosToPubSub", PubsubIO.writeAvros(TaxiRide.class));
 
@@ -268,7 +268,8 @@ public class KafkaToPubsub {
       pipeline
           .apply(
               "readFromKafka",
-              FormatTransform.readFromKafka(options.getBootstrapServers(), topicsList, kafkaConfig, sslConfig))
+              FormatTransform.readFromKafka(
+                  options.getBootstrapServers(), topicsList, kafkaConfig, sslConfig))
           .apply("createValues", Values.create())
           .apply("writeToPubSub", new FormatTransform.FormatOutput(options));
     }
