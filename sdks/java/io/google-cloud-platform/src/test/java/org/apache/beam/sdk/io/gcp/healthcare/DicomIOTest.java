@@ -23,7 +23,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,18 +34,20 @@ public class DicomIOTest {
 
   @Test
   public void test_Dicom_failedMetadataRead() {
-    String badWebpath;
-    badWebpath = "foo";
-    byte[] badMessageBody;
-    badMessageBody = badWebpath.getBytes(UTF_8);
-    PubsubMessage badMessage;
-    badMessage = new PubsubMessage(badMessageBody, null);
+    PubsubMessage badMessage = createPubSubMessage("foo");
 
-    PCollection<String> retrievedData;
-    retrievedData = pipeline.apply(Create.of(badMessage)).apply(DicomIO.retrieveStudyMetadata());
+    DicomIO.ReadDicomStudyMetadata.Result retrievedData;
+    retrievedData =
+        pipeline.apply(Create.of(badMessage)).apply(new DicomIO.ReadDicomStudyMetadata());
 
-    PAssert.that(retrievedData).empty();
+    PAssert.that(retrievedData.getReadResponse()).empty();
 
     pipeline.run();
+  }
+
+  private PubsubMessage createPubSubMessage(String webpath) {
+    byte[] badMessageBody;
+    badMessageBody = webpath.getBytes(UTF_8);
+    return new PubsubMessage(badMessageBody, null);
   }
 }
