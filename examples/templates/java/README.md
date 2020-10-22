@@ -32,11 +32,11 @@ Supported input source configurations:
 - Single or multiple Apache Kafka bootstrap servers
 - Apache Kafka SASL/SCRAM authentication over plaintext or SSL connection
 - Secrets vault service [HashiCorp Vault](https://www.vaultproject.io/).
- 
+
 Supported destination configuration:
 - Single Google Pub/Sub topic.
 
-In a simple scenario, the template will create an Apache Beam pipeline that will read messages from a source Kafka server with a source topic, and stream the text messages into specified Pub/Sub destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed over plain text or SSL encrypted connection. The template supports using a single Kafka user account to authenticate in the provided source Kafka servers and topics. To support SASL authenticaton over SSL the template will need an SSL certificate location and access to a secrets vault service with Kafka username and password, currently supporting HashiCorp Vault. 
+In a simple scenario, the template will create an Apache Beam pipeline that will read messages from a source Kafka server with a source topic, and stream the text messages into specified Pub/Sub destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed over plain text or SSL encrypted connection. The template supports using a single Kafka user account to authenticate in the provided source Kafka servers and topics. To support SASL authenticaton over SSL the template will need an SSL certificate location and access to a secrets vault service with Kafka username and password, currently supporting HashiCorp Vault.
 
 ## Requirements
 
@@ -82,7 +82,7 @@ The result of the `shadowJar` task execution is a `.jar` file that is generated
 under the `build/libs/` folder in kafka-to-pubsub directory.
 
 ## Local execution
-To execute this pipeline locally, specify the parameters: 
+To execute this pipeline locally, specify the parameters:
 - Kafka Bootstrap servers
 - Kafka input topics
 - Pub/Sub output topic
@@ -92,7 +92,7 @@ in the following format:
 --inputTopics=your-input-topic \
 --outputTopic=projects/your-project-id/topics/your-topic-pame
 ```
-Optionally, to retrieve Kafka credentials for SASL/SCRAM, 
+Optionally, to retrieve Kafka credentials for SASL/SCRAM,
 specify a URL to the credentials in HashiCorp Vault and the vault access token:
 ```bash
 --secretStoreUrl=http(s)://host:port/path/to/credentials
@@ -155,7 +155,7 @@ Dataflow Flex Templates package the pipeline as a Docker image and stage these i
 on your project's [Container Registry](https://cloud.google.com/container-registry).
 
 To execute the template you need to create the template spec file containing all
-the necessary information to run the job. This template already has the following 
+the necessary information to run the job. This template already has the following
 [metadata file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
 
 Navigate to the template folder:
@@ -224,4 +224,4 @@ You can do this in 3 different ways:
         "${TEMPLATES_LAUNCH_API}"
     ```
 
-_Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration._ 
+_Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration.
