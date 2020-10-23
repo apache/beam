@@ -253,9 +253,8 @@ public class WriteWithShardingFactoryTest implements Serializable {
       throw new IllegalArgumentException("Should not be used");
     }
 
-    @Nullable
     @Override
-    public ResourceId unwindowedFilename(
+    public @Nullable ResourceId unwindowedFilename(
         int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
       throw new IllegalArgumentException("Should not be used");
     }

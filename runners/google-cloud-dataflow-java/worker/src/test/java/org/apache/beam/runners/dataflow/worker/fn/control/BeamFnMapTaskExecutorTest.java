@@ -218,35 +218,31 @@ public class BeamFnMapTaskExecutorTest {
   private DataflowStepContext generateDataflowStepContext(String valuesPrefix) {
     NameContext nc =
         new NameContext() {
-          @Nullable
           @Override
-          public String stageName() {
+          public @Nullable String stageName() {
             return valuesPrefix + "Stage";
           }
 
-          @Nullable
           @Override
-          public String originalName() {
+          public @Nullable String originalName() {
             return valuesPrefix + "OriginalName";
           }
 
-          @Nullable
           @Override
-          public String systemName() {
+          public @Nullable String systemName() {
             return valuesPrefix + "SystemName";
           }
 
-          @Nullable
           @Override
-          public String userName() {
+          public @Nullable String userName() {
             return valuesPrefix + "UserName";
           }
         };
     DataflowStepContext dsc =
         new DataflowStepContext(nc) {
-          @Nullable
           @Override
-          public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+          public <W extends BoundedWindow> @Nullable TimerData getNextFiredTimer(
+              Coder<W> windowCoder) {
             return null;
           }
 

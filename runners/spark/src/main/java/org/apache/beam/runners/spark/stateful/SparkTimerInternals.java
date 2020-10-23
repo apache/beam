@@ -131,9 +131,8 @@ public class SparkTimerInternals implements TimerInternals {
     return Instant.now();
   }
 
-  @Nullable
   @Override
-  public Instant currentSynchronizedProcessingTime() {
+  public @Nullable Instant currentSynchronizedProcessingTime() {
     return synchronizedProcessingTime;
   }
 
@@ -147,9 +146,8 @@ public class SparkTimerInternals implements TimerInternals {
     inputWatermark = highWatermark;
   }
 
-  @Nullable
   @Override
-  public Instant currentOutputWatermarkTime() {
+  public @Nullable Instant currentOutputWatermarkTime() {
     return null;
   }
 

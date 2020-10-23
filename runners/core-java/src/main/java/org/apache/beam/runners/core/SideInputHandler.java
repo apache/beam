@@ -149,9 +149,8 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     }
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     Iterable<?> elements = getIterable(view, window);
     switch (view.getViewFn().getMaterialization().getUrn()) {
       case Materializations.ITERABLE_MATERIALIZATION_URN:

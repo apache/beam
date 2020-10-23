@@ -137,9 +137,8 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
       return SCHEMA;
     }
 
-    @Nullable
     @Override
-    public String getFilename() {
+    public @Nullable String getFilename() {
       return path;
     }
 

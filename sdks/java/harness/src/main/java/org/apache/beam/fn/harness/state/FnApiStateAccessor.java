@@ -287,9 +287,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   @Override
                   public ReadableState<Boolean> isEmpty() {
                     return new ReadableState<Boolean>() {
-                      @Nullable
                       @Override
-                      public Boolean read() {
+                      public @Nullable Boolean read() {
                         return !impl.get().iterator().hasNext();
                       }
 

@@ -170,9 +170,8 @@ public class InMemoryReader<T> extends NativeReader<T> {
           SourceTranslationUtils.cloudPositionToReaderPosition(splitPosition));
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() {
+    public @Nullable DynamicSplitResult requestCheckpoint() {
       if (!tracker.trySplitAtPosition(lastReturnedIndex + 1)) {
         return null;
       }

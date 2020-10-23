@@ -334,9 +334,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     @GuardedBy("progressLock")
     private long numRecordsRead;
 
-    @Nullable // Initialized in startReading
+    // Initialized in startReading
     @GuardedBy("progressLock")
-    private CountingChannel channel;
+    private @Nullable CountingChannel channel;
 
     private DecompressingChannelFactory channelFactory;
 

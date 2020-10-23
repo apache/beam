@@ -103,9 +103,8 @@ public class BigQueryTimePartitioningClusteringIT {
       this.tableName = tableName;
     }
 
-    @Nullable
     @Override
-    public Coder<TableDestination> getDestinationCoder() {
+    public @Nullable Coder<TableDestination> getDestinationCoder() {
       return TableDestinationCoderV3.of();
     }
 

@@ -591,7 +591,7 @@ public class StateSpecs {
 
   private static class OrderedListStateSpec<T> implements StateSpec<OrderedListState<T>> {
 
-    @Nullable private Coder<T> elemCoder;
+    private @Nullable Coder<T> elemCoder;
 
     private OrderedListStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;

@@ -132,9 +132,8 @@ public abstract class FullNameTableProvider implements TableProvider, CustomTabl
       return "google.cloud.datacatalog.subprovider";
     }
 
-    @Nullable
     @Override
-    public Table getTable(String name) {
+    public @Nullable Table getTable(String name) {
 
       // This is called only after getSubProvider() returned null,
       // and since we are tracking the actual parsed table names, this should

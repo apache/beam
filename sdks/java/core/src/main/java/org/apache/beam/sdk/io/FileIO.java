@@ -1459,9 +1459,8 @@ public class FileIO {
                   false /* isDirectory */);
             }
 
-            @Nullable
             @Override
-            public ResourceId unwindowedFilename(
+            public @Nullable ResourceId unwindowedFilename(
                 int shardNumber, int numShards, OutputFileHints outputFileHints) {
               return FileSystems.matchNewResource(
                   namingFn.getFilename(
@@ -1480,9 +1479,8 @@ public class FileIO {
           return Lists.newArrayList(spec.getAllSideInputs());
         }
 
-        @Nullable
         @Override
-        public Coder<DestinationT> getDestinationCoder() {
+        public @Nullable Coder<DestinationT> getDestinationCoder() {
           return spec.getDestinationCoder();
         }
       }
