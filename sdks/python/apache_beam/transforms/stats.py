@@ -39,9 +39,9 @@ import math
 import typing
 from builtins import round
 from typing import Any
-from typing import Generic
-from typing import Iterable
+from typing import Sized
 from typing import List
+from typing import Tuple
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -443,7 +443,7 @@ class _QuantileSpec(object):
       self.less_than = lambda a, b: key(a) > key(b)
 
   def get_argsort_key(self, elements):
-    # type: (List[Any]) -> Any
+    # type: (List) -> Any
 
     """Returns a key for sorting indices of elements by element's value."""
     if self.key is None:
@@ -468,7 +468,7 @@ class _QuantileBuffer(object):
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
   def __init__(
       self, elements, weights, weighted, level=0, min_val=None, max_val=None):
-    # type: (List[Any], List[Any], bool, int, Any, Any) -> None
+    # type: (List, List, bool, int, Any, Any) -> None
     self.elements = elements
     self.weights = weights
     self.level = level
@@ -500,13 +500,13 @@ class _QuantileState(object):
   Compact summarization of a collection on which quantiles can be estimated.
   """
   def __init__(self, unbuffered_elements, unbuffered_weights, buffers, spec):
-    # type: (List[Any], List[Any], List[_QuantileBuffer[T]], _QuantileSpec[T]) -> None
+    # type: (List, List, List[_QuantileBuffer], _QuantileSpec) -> None
     self.buffers = buffers
     self.spec = spec
     if spec.weighted:
-      self.add_unbuffered = self._add_unbuffered_weighted
+      setattr(self, 'add_unbuffered', self._add_unbuffered_weighted)
     else:
-      self.add_unbuffered = self._add_unbuffered
+      setattr(self, 'add_unbuffered', self._add_unbuffered)
 
     # The algorithm requires that the manipulated buffers always be filled to
     # capacity to perform the collapse operation. This operation can be extended
@@ -533,7 +533,7 @@ class _QuantileState(object):
     return not self.unbuffered_elements and not self.buffers
 
   def _add_unbuffered(self, elements, offset_fn):
-    # type: (Iterable[Any], Any) -> None
+    # type: (Sized, Any) -> None
 
     """
     Add elements to the unbuffered list, creating new buffers and
@@ -559,7 +559,7 @@ class _QuantileState(object):
     self.collapse_if_needed(offset_fn)
 
   def _add_unbuffered_weighted(self, elements, offset_fn):
-    # type: (List[Any], Any) -> None
+    # type: (Sized, Any) -> None
 
     """
     Add elements with weights to the unbuffered list, creating new buffers and
@@ -640,7 +640,7 @@ class _QuantileState(object):
 
 
 def _collapse(buffers, offset_fn, spec):
-  # type: (List[_QuantileBuffer[T]], Any, _QuantileSpec[T]) -> _QuantileBuffer[T]
+  # type: (List[_QuantileBuffer], Any, _QuantileSpec) -> _QuantileBuffer
 
   """
   Approximates elements from multiple buffers and produces a single buffer.
@@ -669,7 +669,7 @@ def _collapse(buffers, offset_fn, spec):
 
 
 def _interpolate(buffers, count, step, offset, spec):
-  # type: (List[_QuantileBuffer[T]], int, float, float, _QuantileSpec[T]) -> (List[Any], List[Any], Any, Any)
+  # type: (List[_QuantileBuffer], int, float, float, _QuantileSpec) -> Tuple[List, List, Any, Any]
 
   """
   Emulates taking the ordered union of all elements in buffers, repeated
@@ -733,7 +733,7 @@ def _interpolate(buffers, count, step, offset, spec):
   return new_elements, new_weights, min_val, max_val
 
 
-class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
+class ApproximateQuantilesCombineFn(CombineFn):
   """
   This combiner gives an idea of the distribution of a collection of values
   using approximate N-tiles. The output of this combiner is the list of size of
@@ -804,7 +804,7 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
     self._spec = _QuantileSpec(buffer_size, num_buffers, weighted, key, reverse)
     self._batch_input = batch_input
     if self._batch_input:
-      self.add_input = self._add_inputs
+      setattr(self, 'add_input', self._add_inputs)
 
   def __reduce__(self):
     return (
@@ -890,7 +890,7 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
 
   # TODO(BEAM-7746): Signature incompatible with supertype
   def create_accumulator(self):  # type: ignore[override]
-    # type: () -> _QuantileState[T]
+    # type: () -> _QuantileState
     self._qs = _QuantileState(
         unbuffered_elements=[],
         unbuffered_weights=[],
@@ -906,7 +906,7 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
     return quantile_state
 
   def _add_inputs(self, quantile_state, elements):
-    # type: (_QuantileState[T], Iterable) -> _QuantileState[T]
+    # type: (_QuantileState, Sized) -> _QuantileState
 
     """
     Add a batch of elements to the collection being summarized by quantile
