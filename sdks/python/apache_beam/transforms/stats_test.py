@@ -482,13 +482,74 @@ class ApproximateQuantilesTest(unittest.TestCase):
           equal_to([["ccccc", "aaa", "b"]]),
           label='checkWithKeyAndReversed')
 
+  def test_batched_quantiles(self):
+    with TestPipeline() as p:
+      data = []
+      for i in range(100):
+        data.append([(i / 10, abs(i - 500))
+                     for i in range(i * 10, (i + 1) * 10)])
+      pc = p | Create(data)
+      globally = (
+          pc |
+          'Globally' >> beam.ApproximateQuantiles.Globally(3, batch_input=True))
+      with_key = (
+          pc | 'Globally with key' >> beam.ApproximateQuantiles.Globally(
+              3, key=sum, batch_input=True))
+      key_with_reversed = (
+          pc | 'Globally with key and reversed' >>
+          beam.ApproximateQuantiles.Globally(
+              3, key=sum, reverse=True, batch_input=True))
+      assert_that(
+          globally,
+          equal_to([[(0.0, 500), (50.0, 0), (99.9, 499)]]),
+          label='checkGlobally')
+      assert_that(
+          with_key,
+          equal_to([[(50.0, 0), (22.5, 275), (99.9, 499)]]),
+          label='checkGloballyWithKey')
+      assert_that(
+          key_with_reversed,
+          equal_to([[(99.9, 499), (22.5, 275), (50.0, 0)]]),
+          label='checkGloballyWithKeyAndReversed')
+
+  def test_batched_weighted_quantiles(self):
+    with TestPipeline() as p:
+      data = []
+      for i in range(100):
+        data.append([[(i / 10, abs(i - 500))
+                      for i in range(i * 10, (i + 1) * 10)], [i] * 10])
+      pc = p | Create(data)
+      globally = (
+          pc | 'Globally' >> beam.ApproximateQuantiles.Globally(
+              3, weighted=True, batch_input=True))
+      with_key = (
+          pc | 'Globally with key' >> beam.ApproximateQuantiles.Globally(
+              3, key=sum, weighted=True, batch_input=True))
+      key_with_reversed = (
+          pc | 'Globally with key and reversed' >>
+          beam.ApproximateQuantiles.Globally(
+              3, key=sum, reverse=True, weighted=True, batch_input=True))
+      assert_that(
+          globally,
+          equal_to([[(0.0, 500), (70.8, 208), (99.9, 499)]]),
+          label='checkGlobally')
+      assert_that(
+          with_key,
+          equal_to([[(50.0, 0), (21.0, 290), (99.9, 499)]]),
+          label='checkGloballyWithKey')
+      assert_that(
+          key_with_reversed,
+          equal_to([[(99.9, 499), (21.0, 290), (50.0, 0)]]),
+          label='checkGloballyWithKeyAndReversed')
+
   @staticmethod
   def _display_data_matcher(instance):
     expected_items = [
         DisplayDataItemMatcher('num_quantiles', instance._num_quantiles),
         DisplayDataItemMatcher('weighted', str(instance._weighted)),
         DisplayDataItemMatcher('key', str(instance._key.__name__)),
-        DisplayDataItemMatcher('reverse', str(instance._reverse))
+        DisplayDataItemMatcher('reverse', str(instance._reverse)),
+        DisplayDataItemMatcher('batch_input', str(instance._batch_input)),
     ]
     return expected_items
 
@@ -551,8 +612,9 @@ class ApproximateQuantilesBufferTest(unittest.TestCase):
     combine_fn = ApproximateQuantilesCombineFn.create(
         num_quantiles=10, max_num_elements=maxInputSize, epsilon=epsilon)
     self.assertEqual(
-        expectedNumBuffers, combine_fn._num_buffers, "Number of buffers")
-    self.assertEqual(expectedBufferSize, combine_fn._buffer_size, "Buffer size")
+        expectedNumBuffers, combine_fn._spec.num_buffers, "Number of buffers")
+    self.assertEqual(
+        expectedBufferSize, combine_fn._spec.buffer_size, "Buffer size")
 
   @parameterized.expand(_build_quantilebuffer_test_data)
   def test_correctness(self, epsilon, maxInputSize, *args):
@@ -561,8 +623,8 @@ class ApproximateQuantilesBufferTest(unittest.TestCase):
     """
     combine_fn = ApproximateQuantilesCombineFn.create(
         num_quantiles=10, max_num_elements=maxInputSize, epsilon=epsilon)
-    b = combine_fn._num_buffers
-    k = combine_fn._buffer_size
+    b = combine_fn._spec.num_buffers
+    k = combine_fn._spec.buffer_size
     n = maxInputSize
     self.assertLessEqual((b - 2) * (1 << (b - 2)) + 0.5, (epsilon * n),
                          '(b-2)2^(b-2) + 1/2 <= eN')
