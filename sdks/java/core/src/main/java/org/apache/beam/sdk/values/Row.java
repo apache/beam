@@ -86,7 +86,10 @@ import org.joda.time.ReadableInstant;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public abstract class Row implements Serializable {
   private final Schema schema;
 

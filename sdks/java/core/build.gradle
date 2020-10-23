@@ -29,7 +29,8 @@ applyJavaNature(
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
-  }
+  },
+  disableLintWarnings: ['rawtypes'] // Avro-generated test code has rawtype errorss
 )
 applyAvroNature()
 applyAntlrNature()

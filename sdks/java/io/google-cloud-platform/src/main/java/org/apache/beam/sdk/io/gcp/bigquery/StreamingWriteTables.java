@@ -45,7 +45,9 @@ import org.apache.beam.sdk.values.TupleTagList;
  * <p>This transform assumes that all destination tables already exist by the time it sees a write
  * for that table.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingWriteTables<ElementT>
     extends PTransform<PCollection<KV<TableDestination, ElementT>>, WriteResult> {
   private BigQueryServices bigQueryServices;

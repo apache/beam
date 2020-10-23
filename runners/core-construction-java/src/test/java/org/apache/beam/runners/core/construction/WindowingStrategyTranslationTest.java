@@ -42,11 +42,16 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Unit tests for {@link WindowingStrategy}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindowingStrategyTranslationTest {
 
   // Each spec activates tests of all subsets of its fields
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class ToProtoAndBackSpec {
     abstract WindowingStrategy getWindowingStrategy();
   }

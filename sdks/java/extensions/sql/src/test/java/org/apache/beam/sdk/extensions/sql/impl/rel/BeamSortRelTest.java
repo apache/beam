@@ -34,7 +34,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Test for {@code BeamSortRel}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSortRelTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 

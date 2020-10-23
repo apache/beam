@@ -21,7 +21,9 @@ import java.util.Optional;
 import org.joda.time.Instant;
 
 /** Time conversion utilities. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class TimeUtil {
 
   public static java.time.Instant toJava(Instant timestamp) {

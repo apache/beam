@@ -43,7 +43,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An UnboundedSource of Pub/Sub Lite SequencedMessages. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, OffsetCheckpointMark> {
   private final SubscriberOptions subscriberOptions;
 

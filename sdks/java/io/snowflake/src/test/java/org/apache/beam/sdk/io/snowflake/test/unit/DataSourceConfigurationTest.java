@@ -29,7 +29,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Unit tests for {@link org.apache.beam.sdk.io.snowflake.SnowflakeIO.DataSourceConfiguration}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataSourceConfigurationTest {
 
   private SnowflakeIO.DataSourceConfiguration configuration;

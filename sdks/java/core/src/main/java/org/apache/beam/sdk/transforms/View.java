@@ -133,7 +133,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access this variable
  * inside a {@link ParDo} over another {@link PCollection}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class View {
 
   // Do not instantiate

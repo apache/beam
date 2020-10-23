@@ -57,7 +57,9 @@ import org.mockito.Mockito;
 
 /** Tests for PubsubJsonClient. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubJsonClientTest {
   private Pubsub mockPubsub;
   private PubsubClient client;

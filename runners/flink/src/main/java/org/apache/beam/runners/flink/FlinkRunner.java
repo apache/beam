@@ -45,7 +45,9 @@ import org.slf4j.LoggerFactory;
  * to a Flink Plan and then executing them either locally or on a Flink cluster, depending on the
  * configuration.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkRunner.class);

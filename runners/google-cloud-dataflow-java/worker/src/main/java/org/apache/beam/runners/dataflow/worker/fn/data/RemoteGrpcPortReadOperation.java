@@ -40,7 +40,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This {@link Operation} supports restart.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RemoteGrpcPortReadOperation<T> extends Operation {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteGrpcPortReadOperation.class);
   private final Coder<WindowedValue<T>> coder;

@@ -31,7 +31,9 @@ import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /** Helpers for merging state. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StateMerging {
   /**
    * Clear all state in {@code address} in all windows under merge (even result windows) in {@code

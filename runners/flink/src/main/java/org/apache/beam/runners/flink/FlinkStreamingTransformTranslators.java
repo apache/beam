@@ -126,7 +126,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link FlinkStreamingPipelineTranslator} traverses the Beam job and comes here to translate the
  * encountered Beam transformations into Flink one, based on the mapping available in this class.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlinkStreamingTransformTranslators {
 
   // --------------------------------------------------------------------------------------------

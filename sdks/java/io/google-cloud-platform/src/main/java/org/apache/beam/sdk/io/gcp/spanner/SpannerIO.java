@@ -318,7 +318,9 @@ import org.slf4j.LoggerFactory;
  * the write order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SpannerIO {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerIO.class);
 

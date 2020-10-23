@@ -77,7 +77,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SimplePushbackSideInputDoFnRunner}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimplePushbackSideInputDoFnRunnerTest {
   @Mock StepContext mockStepContext;
   @Mock private ReadyCheckingSideInputReader reader;

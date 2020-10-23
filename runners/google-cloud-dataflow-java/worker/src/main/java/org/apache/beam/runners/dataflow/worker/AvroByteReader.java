@@ -46,7 +46,9 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> the type of the elements read from the source
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroByteReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroByteReader.class);
 

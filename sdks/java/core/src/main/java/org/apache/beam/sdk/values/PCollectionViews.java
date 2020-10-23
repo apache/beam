@@ -81,7 +81,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Implementations of {@link PCollectionView} shared across the SDK.
  */
 @Internal
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "keyfor",
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class PCollectionViews {
   public interface TypeDescriptorSupplier<T> extends Supplier<TypeDescriptor<T>>, Serializable {}
 

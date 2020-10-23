@@ -36,7 +36,9 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MapElements<InputT, OutputT>
     extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   private final transient @Nullable TypeDescriptor<InputT> inputType;

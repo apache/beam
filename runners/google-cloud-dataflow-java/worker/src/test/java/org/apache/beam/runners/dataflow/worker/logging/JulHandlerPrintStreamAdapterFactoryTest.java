@@ -37,7 +37,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link JulHandlerPrintStreamAdapterFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JulHandlerPrintStreamAdapterFactoryTest {
   private static final String LOGGER_NAME = "test";
 

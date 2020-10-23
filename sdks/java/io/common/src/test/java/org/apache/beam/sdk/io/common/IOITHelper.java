@@ -26,7 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Methods common to all types of IOITs. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IOITHelper {
   private static final Logger LOG = LoggerFactory.getLogger(IOITHelper.class);
   private static final int maxAttempts = 3;

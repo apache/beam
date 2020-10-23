@@ -32,7 +32,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /** Test for {@link FlinkRunner}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkRunnerTest extends FlinkRunnerTestCompat {
 
   @Test

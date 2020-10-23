@@ -26,7 +26,9 @@ import org.joda.time.ReadableDateTime;
 /**
  * {@code CEPLiteral} represents a literal node. It corresponds to {@code RexLiteral} in Calcite.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CEPLiteral extends CEPOperation {
 
   private final Schema.TypeName typeName;

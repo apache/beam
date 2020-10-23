@@ -50,7 +50,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * StreamingDataflowWorker} ensures that a single computation * processing key is executing on one
  * thread at a time, so this is safe.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindmillStateCache implements StatusDataProvider {
   // Convert Megabytes to bytes
   private static final long MEGABYTES = 1024 * 1024;

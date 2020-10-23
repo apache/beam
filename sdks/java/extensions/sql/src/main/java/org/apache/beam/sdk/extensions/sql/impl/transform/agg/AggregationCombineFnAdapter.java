@@ -32,7 +32,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.Sq
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper {@link CombineFn}s for aggregation function calls. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AggregationCombineFnAdapter<T> {
   private abstract static class WrappedCombinerBase<T> extends CombineFn<T, Object, Object> {
     CombineFn<T, Object, Object> combineFn;

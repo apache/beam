@@ -93,7 +93,9 @@ import org.mockito.MockitoAnnotations;
  * pipeline.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SpannerIOWriteTest implements Serializable {
   private static final long CELLS_PER_KEY = 7;
 

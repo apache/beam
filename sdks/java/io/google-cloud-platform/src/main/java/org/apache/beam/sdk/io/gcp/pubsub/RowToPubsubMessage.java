@@ -44,7 +44,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * event_timestamp}, which is either ignored or written to the message attributes, depending on
  * whether config.getValue("timestampAttributeKey") is set.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
   private final boolean useTimestampAttribute;
   private final PayloadFormat payloadFormat;

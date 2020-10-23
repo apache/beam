@@ -33,7 +33,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
 @AutoValue
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class MetricResult<T> {
   /** Return the name of the metric. */
   public MetricName getName() {

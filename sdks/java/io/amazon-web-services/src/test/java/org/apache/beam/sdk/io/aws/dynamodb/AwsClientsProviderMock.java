@@ -22,7 +22,9 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import org.mockito.Mockito;
 
 /** Mocking AwsClientProvider. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AwsClientsProviderMock implements AwsClientsProvider {
 
   private static AwsClientsProviderMock instance = new AwsClientsProviderMock();

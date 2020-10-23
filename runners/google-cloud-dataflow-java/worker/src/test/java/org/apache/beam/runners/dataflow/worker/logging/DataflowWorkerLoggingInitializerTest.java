@@ -65,7 +65,9 @@ import org.slf4j.LoggerFactory;
  * not safe to assert on log counts or whether the retrieved log collection is empty.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowWorkerLoggingInitializerTest {
   @Rule public TemporaryFolder logFolder = new TemporaryFolder();
 

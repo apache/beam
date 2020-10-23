@@ -63,7 +63,10 @@ import org.joda.time.Instant;
  * Translates {@link org.apache.beam.sdk.transforms.ParDo.MultiOutput} or ExecutableStage in
  * portable api to Samza {@link DoFnOp}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ParDoBoundMultiTranslator<InT, OutT>
     implements TransformTranslator<ParDo.MultiOutput<InT, OutT>>,
         TransformConfigGenerator<ParDo.MultiOutput<InT, OutT>> {

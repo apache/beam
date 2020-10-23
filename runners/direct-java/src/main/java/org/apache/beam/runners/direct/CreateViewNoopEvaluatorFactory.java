@@ -39,6 +39,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 // TODO(https://issues.apache.org/jira/browse/BEAM-11049): remove this when CreatePCollectionView is
 // finally removed
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class CreateViewNoopEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public @Nullable <InputT> TransformEvaluator<InputT> forApplication(
