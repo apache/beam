@@ -39,24 +39,24 @@ class Client(object):
     assert boto3 is not None, 'Missing boto3 requirement'
     if isinstance(pipeline_options, pipeline_options.PipelineOptions):
       s3_options = pipeline_options.view_as(pipeline_options.S3PipelineOptions)
-      aws_access_key_id = s3_options.aws_access_key_id
-      aws_secret_access_key = s3_options.aws_secret_access_key
-      aws_session_token = s3_options.aws_session_token
-      endpoint_url = s3_options.endpoint_url
-      use_ssl = s3_options.use_ssl
-      region_name = s3_options.region_name
-      api_version = s3_options.api_version
-      region_name = s3_options.region_name
-      verify = s3_options.verify
+      access_key_id = s3_options.s3_access_key_id
+      secret_access_key = s3_options.s3_secret_access_key
+      session_token = s3_options.s3_session_token
+      endpoint_url = s3_options.s3_endpoint_url
+      use_ssl = s3_options.s3_use_ssl
+      region_name = s3_options.s3_region_name
+      api_version = s3_options.s3_api_version
+      region_name = s3_options.s3_region_name
+      verify = s3_options.s3_verify
     else:
-      aws_access_key_id = pipeline_options.get('aws_access_key_id')
-      aws_secret_access_key = pipeline_options.get('aws_secret_access_key')
-      aws_session_token = pipeline_options.get('aws_session_token')
-      endpoint_url = pipeline_options.get('endpoint_url')
-      use_ssl = pipeline_options.get('use_ssl')
-      region_name = pipeline_options.get('region_name')
-      api_version = pipeline_options.get('api_version')
-      verify = pipeline_options.get('verify')
+      access_key_id = pipeline_options.get('s3_access_key_id')
+      secret_access_key = pipeline_options.get('s3_secret_access_key')
+      session_token = pipeline_options.get('s3_session_token')
+      endpoint_url = pipeline_options.get('s3_endpoint_url')
+      use_ssl = pipeline_options.get('s3_use_ssl')
+      region_name = pipeline_options.get('s3_region_name')
+      api_version = pipeline_options.get('s3_api_version')
+      verify = pipeline_options.get('s3_verify')
 
     self.client = boto3.client(
         service_name='s3',
@@ -65,9 +65,9 @@ class Client(object):
         use_ssl=use_ssl,
         verify=verify,
         endpoint_url=endpoint_url,
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        aws_session_token=aws_session_token)
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        aws_session_token=session_token)
 
   def get_object_metadata(self, request):
     r"""Retrieves an object's metadata.

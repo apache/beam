@@ -1327,32 +1327,36 @@ class S3Options(PipelineOptions):
   def _add_argparse_args(cls, parser):
     # These options are passed to the S3 IO Client
     parser.add_argument(
-        '--aws_access_key_id',
+        '--s3_access_key_id',
         default=None,
         help='The secret key to use when creating the s3 client.')
     parser.add_argument(
-        '--aws_secret_access_key',
+        '--s3_secret_access_key',
         default=None,
         help='The secret key to use when creating the s3 client.')
     parser.add_argument(
-        '--aws_session_token',
+        '--s3_session_token',
         default=None,
         help='The session token to use when creating the s3 client.')
     parser.add_argument(
-        '--endpoint_url',
+        '--s3_endpoint_url',
         default=None,
         help='The complete URL to use for the constructed s3 client.')
     parser.add_argument(
-        '--region_name',
+        '--s3_region_name',
         default=None,
-        help='The name of the region associated with the client.')
+        help='The name of the region associated with the s3 client.')
     parser.add_argument(
-        '--api_version', default=None, help='The API version to use.')
-    parser.add_argument(
-        '--verify',
+        '--s3_api_version',
         default=None,
-        help='Whether or not to verify SSL certificates.')
+        help='The API version to use with the s3 client.')
     parser.add_argument(
-        '--use_ssl',
+        '--s3_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the s3 client.')
+    parser.add_argument(
+        '--s3_use_ssl',
         default=True,
-        help='Whether or not to use SSL. By default, SSL is used.')
+        help=(
+            'Whether or not to use SSL with the s3 client. '
+            'By default, SSL is used.'))
