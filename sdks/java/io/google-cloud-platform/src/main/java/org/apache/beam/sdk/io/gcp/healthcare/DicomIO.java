@@ -35,15 +35,8 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * The DicomIO connectors allows Beam pipelines to read from the Dicom API from Google Cloud
- * Healthcare.
- *
- * <p>Study-level metadata can be read using {@link ReadDicomStudyMetadata}. It is expecting a
- * PubSub message as input, where the message's body will contain the location of the Study. You can
- * learn how to configure PubSub messages to be published when an instance is stored in a data store
- * by following: https://cloud.google.com/healthcare/docs/how-tos/pubsub. The connector will output
- * a {@link ReadDicomStudyMetadata.Result} which will contain metadata of a study encoded in json
- * string
+ * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API from Google Cloud
+ * Healthcare. https://cloud.google.com/healthcare/docs/concepts/dicom
  */
 public class DicomIO {
 
@@ -51,16 +44,28 @@ public class DicomIO {
   public static class ReadDicomStudyMetadata
       extends PTransform<PCollection<PubsubMessage>, DicomIO.ReadDicomStudyMetadata.Result> {
 
+    /**
+     * This class makes a call to the retrieve metadata endpoint
+     * (https://cloud.google.com/healthcare/docs/how-tos/dicomweb#retrieving_metadata It is
+     * expecting a PubSub message as input, where the message's body will contain the path to the
+     * study. You can learn how to configure PubSub messages to be published when an instance is
+     * stored by following: https://cloud.google.com/healthcare/docs/how-tos/pubsub. The connector
+     * will output a {@link ReadDicomStudyMetadata.Result} which will contain metadata of the study
+     * encoded as a json array.
+     */
     public ReadDicomStudyMetadata() {}
 
-    public static final TupleTag<String> OUT = new TupleTag<String>() {};
-    public static final TupleTag<String> DEAD_LETTER = new TupleTag<String>() {};
+    /** TupleTag for the main output. */
+    public static final TupleTag<String> METADATA = new TupleTag<String>() {};
+    /** TupleTag for any error response. */
+    public static final TupleTag<String> ERROR_MESSAGE = new TupleTag<String>() {};
 
     public static class Result implements POutput, PInput {
       private PCollection<String> readResponse;
 
       private PCollection<String> failedReads;
-      /** The Pct. */
+
+      /** Contains both the response and error outputs from the transformation. */
       PCollectionTuple pct;
 
       /**
@@ -75,7 +80,7 @@ public class DicomIO {
           throws IllegalArgumentException {
         if (pct.getAll()
             .keySet()
-            .containsAll((Collection<?>) TupleTagList.of(OUT).and(DEAD_LETTER))) {
+            .containsAll((Collection<?>) TupleTagList.of(METADATA).and(ERROR_MESSAGE))) {
           return new DicomIO.ReadDicomStudyMetadata.Result(pct);
         } else {
           throw new IllegalArgumentException(
@@ -86,8 +91,8 @@ public class DicomIO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.readResponse = pct.get(OUT);
-        this.failedReads = pct.get(DEAD_LETTER);
+        this.readResponse = pct.get(METADATA);
+        this.failedReads = pct.get(ERROR_MESSAGE);
       }
 
       /**
@@ -115,7 +120,7 @@ public class DicomIO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        return ImmutableMap.of(OUT, readResponse);
+        return ImmutableMap.of(METADATA, readResponse);
       }
 
       @Override
@@ -152,9 +157,9 @@ public class DicomIO {
         try {
           String dicomWebPath = new String(msgPayload, "UTF-8");
           String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
-          context.output(OUT, responseData);
+          context.output(METADATA, responseData);
         } catch (Exception e) {
-          context.output(DEAD_LETTER, e.getMessage());
+          context.output(ERROR_MESSAGE, e.getMessage());
         }
       }
     }
@@ -165,8 +170,8 @@ public class DicomIO {
           input.apply(
               ParDo.of(new FetchStudyMetadataFn())
                   .withOutputTags(
-                      ReadDicomStudyMetadata.OUT,
-                      TupleTagList.of(ReadDicomStudyMetadata.DEAD_LETTER))));
+                      ReadDicomStudyMetadata.METADATA,
+                      TupleTagList.of(ReadDicomStudyMetadata.ERROR_MESSAGE))));
     }
   }
 }
