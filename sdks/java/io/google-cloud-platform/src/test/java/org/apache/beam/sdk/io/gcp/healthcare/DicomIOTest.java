@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,6 +42,13 @@ public class DicomIOTest {
         pipeline.apply(Create.of(badMessage)).apply(new DicomIO.ReadDicomStudyMetadata());
 
     PAssert.that(retrievedData.getReadResponse()).empty();
+
+    PAssert.that(retrievedData.getFailedReads())
+        .satisfies(
+            (errors) -> {
+              Assert.assertTrue(errors.iterator().hasNext());
+              return null;
+            });
 
     pipeline.run();
   }
