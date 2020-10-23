@@ -42,7 +42,7 @@ class Client(object):
       aws_access_key_id = s3_options.aws_access_key_id
       aws_secret_access_key = s3_options.aws_secret_access_key
       aws_session_token = s3_options.aws_session_token
-      s3_endpoint_url = s3_options.s3_endpoint_url
+      endpoint_url = s3_options.endpoint_url
       use_ssl = s3_options.use_ssl
       region_name = s3_options.region_name
       api_version = s3_options.api_version
@@ -52,7 +52,7 @@ class Client(object):
       aws_access_key_id = pipeline_options.get('aws_access_key_id')
       aws_secret_access_key = pipeline_options.get('aws_secret_access_key')
       aws_session_token = pipeline_options.get('aws_session_token')
-      s3_endpoint_url = pipeline_options.get('s3_endpoint_url')
+      endpoint_url = pipeline_options.get('endpoint_url')
       use_ssl = pipeline_options.get('use_ssl')
       region_name = pipeline_options.get('region_name')
       api_version = pipeline_options.get('api_version')

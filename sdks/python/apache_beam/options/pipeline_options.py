@@ -1339,7 +1339,7 @@ class S3Options(PipelineOptions):
         default=None,
         help='The session token to use when creating the s3 client.')
     parser.add_argument(
-        '--s3_endpoint_url',
+        '--endpoint_url',
         default=None,
         help='The complete URL to use for the constructed s3 client.')
     parser.add_argument(
