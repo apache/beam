@@ -68,6 +68,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
  *
  * <p>For now, the underline implementation is based on java.util.regex.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamMatchRel extends Match implements BeamRelNode {
 
   public BeamMatchRel(

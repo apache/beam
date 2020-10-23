@@ -36,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Exposes {@link PubsubIO.Write} as an external transform for cross-language usage. */
 @Experimental
 @AutoService(ExternalTransformRegistrar.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class ExternalWrite implements ExternalTransformRegistrar {
   public ExternalWrite() {}
 

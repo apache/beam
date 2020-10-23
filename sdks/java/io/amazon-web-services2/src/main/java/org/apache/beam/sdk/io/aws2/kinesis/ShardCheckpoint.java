@@ -42,6 +42,7 @@ import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
  *
  * This class is immutable.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class ShardCheckpoint implements Serializable {
 
   private final String streamName;

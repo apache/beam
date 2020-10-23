@@ -104,6 +104,7 @@ import org.joda.time.Instant;
 import org.mockito.Mockito;
 
 /** Mock implemenation of {@link AmazonKinesis} for testing. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class AmazonKinesisMock implements AmazonKinesis {
 
   static class TestData implements Serializable {

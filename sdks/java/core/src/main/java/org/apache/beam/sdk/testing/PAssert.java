@@ -108,6 +108,7 @@ import org.joda.time.Duration;
  *
  * <p>JUnit and Hamcrest must be linked in by any code that uses PAssert.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PAssert {
   public static final String SUCCESS_COUNTER = "PAssertSuccess";
   public static final String FAILURE_COUNTER = "PAssertFailure";

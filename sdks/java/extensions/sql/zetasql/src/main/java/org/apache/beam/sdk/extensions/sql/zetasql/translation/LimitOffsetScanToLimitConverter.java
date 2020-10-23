@@ -33,6 +33,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts LIMIT without ORDER BY. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetScan> {
 
   LimitOffsetScanToLimitConverter(ConversionContext context) {

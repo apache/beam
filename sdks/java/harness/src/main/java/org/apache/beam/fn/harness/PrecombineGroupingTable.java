@@ -39,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
 import org.joda.time.Instant;
 
 /** Static utility methods that provide {@link GroupingTable} implementations. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PrecombineGroupingTable<K, InputT, AccumT>
     implements GroupingTable<K, InputT, AccumT> {
   private static long getGroupingTableSizeBytes(PipelineOptions options) {

@@ -44,6 +44,7 @@ import org.mockito.Mockito;
 
 /** Tests for {@link OutputObjectAndByteCounter}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class OutputObjectAndByteCounterTest {
 
   private final CounterSet counterSet = new CounterSet();

@@ -83,6 +83,7 @@ import org.joda.time.Instant;
  *     Iterable<InputT>})
  * @param <W> The type of windows being used.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private static final String KEY = "TEST_KEY";
 

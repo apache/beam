@@ -49,6 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> Type of input PCollection.
  */
 @Experimental
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 abstract class AnnotateImages<T>
     extends PTransform<PCollection<T>, PCollection<List<AnnotateImageResponse>>> {
 

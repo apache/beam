@@ -36,6 +36,7 @@ import org.joda.time.Instant;
  * {@link PTransform PTransforms} for converting between explicit and implicit form of various Beam
  * values.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Reify {
   private static class ReifyView<K, V> extends PTransform<PCollection<K>, PCollection<KV<K, V>>> {
     private final PCollectionView<V> view;

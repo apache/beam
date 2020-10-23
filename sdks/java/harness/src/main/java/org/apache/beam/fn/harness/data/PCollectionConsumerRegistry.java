@@ -50,6 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * count counter for every pCollection. A combined MultiplexingConsumer (Wrapped with an
  * ElementCountFnDataReceiver) is returned by calling getMultiplexingConsumer.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PCollectionConsumerRegistry {
 
   /** Stores metadata about each consumer so that the appropriate metrics tracking can occur. */

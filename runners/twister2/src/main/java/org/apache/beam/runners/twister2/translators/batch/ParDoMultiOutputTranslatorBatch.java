@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** ParDo translator. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ParDoMultiOutputTranslatorBatch<InputT, OutputT>
     implements BatchTransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
 

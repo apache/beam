@@ -48,6 +48,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of reflection helper methods. */
 @Internal
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReflectUtils {
   /** Represents a class and a schema. */
   @AutoValue

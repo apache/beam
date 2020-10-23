@@ -43,6 +43,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PortableMetrics extends MetricResults {
   private static final String NAMESPACE_LABEL = "NAMESPACE";
   private static final String METRIC_NAME_LABEL = "NAME";

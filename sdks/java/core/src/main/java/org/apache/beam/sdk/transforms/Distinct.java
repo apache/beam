@@ -61,6 +61,7 @@ import org.joda.time.Duration;
  *
  * @param <T> the type of the elements of the input and output {@code PCollection}s
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /**

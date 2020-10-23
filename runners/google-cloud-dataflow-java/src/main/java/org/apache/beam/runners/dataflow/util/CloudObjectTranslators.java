@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for creating {@link CloudObjectTranslator} instances for {@link Coder Coders}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class CloudObjectTranslators {
   private CloudObjectTranslators() {}
 

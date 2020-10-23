@@ -25,6 +25,7 @@ import org.joda.time.Duration;
  *
  * @param <T> type of input element
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class WindowDesc<T> {
 
   public static <T> WindowDesc<T> of(Window<T> window) {

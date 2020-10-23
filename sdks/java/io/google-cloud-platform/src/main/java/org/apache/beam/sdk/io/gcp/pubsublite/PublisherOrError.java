@@ -24,6 +24,7 @@ import io.grpc.StatusException;
 
 /** A helper representing either a Publisher or an error. */
 @AutoOneOf(PublisherOrError.Kind.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 abstract class PublisherOrError {
   enum Kind {
     PUBLISHER,

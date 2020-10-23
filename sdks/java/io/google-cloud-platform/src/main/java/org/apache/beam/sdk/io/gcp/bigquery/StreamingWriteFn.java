@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 /** Implementation of DoFn to perform streaming BigQuery write. */
 @SystemDoFnInternal
 @VisibleForTesting
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class StreamingWriteFn<ErrorT, ElementT>
     extends DoFn<KV<ShardedKey<String>, TableRowInfo<ElementT>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWriteFn.class);

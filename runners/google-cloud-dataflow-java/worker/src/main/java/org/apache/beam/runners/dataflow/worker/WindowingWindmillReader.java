@@ -42,6 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A Reader that receives input data from a Windmill server, and returns a singleton iterable
  * containing the work item.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWorkItem<K, T>>> {
 
   private final Coder<K> keyCoder;

@@ -49,6 +49,7 @@ import org.junit.runners.Parameterized;
 
 /** Unit tests for {@link Schema}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SchemaCoderTest {
 
   private static final Schema INT32_SCHEMA =

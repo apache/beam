@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.slf4j.LoggerFactory;
 
 /** Twister2PipelineExecutionEnvironment. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Twister2PipelineExecutionEnvironment {
   private static final Logger LOG =
       Logger.getLogger(Twister2PipelineExecutionEnvironment.class.getName());

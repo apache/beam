@@ -83,6 +83,7 @@ import org.joda.time.Instant;
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W> The type of windows this operates on.
  */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   /**

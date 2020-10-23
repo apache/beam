@@ -65,6 +65,7 @@ import org.junit.runners.model.Statement;
  *
  * <p>Deletes the table on test shutdown.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TestBigQuery implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY_MM_dd_HH_mm_ss_SSS");

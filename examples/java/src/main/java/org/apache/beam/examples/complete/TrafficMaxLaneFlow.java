@@ -73,6 +73,7 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TrafficMaxLaneFlow {
 
   static final int WINDOW_DURATION = 60; // Default sliding window duration in minutes

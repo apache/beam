@@ -61,6 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class WorkItemStatusClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);

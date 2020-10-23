@@ -31,6 +31,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Test class for MetricsGraphiteSink. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MetricsGraphiteSinkTest {
   private static NetworkMockServer graphiteServer;
   private static int port;

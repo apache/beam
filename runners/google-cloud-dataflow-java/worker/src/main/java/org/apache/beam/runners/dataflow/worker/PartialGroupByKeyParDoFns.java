@@ -54,6 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** A factory class that creates {@link ParDoFn} for {@link PartialGroupByKeyInstruction}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PartialGroupByKeyParDoFns {
   public static <K, InputT, AccumT> ParDoFn create(
       PipelineOptions options,
