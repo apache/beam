@@ -52,6 +52,7 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
+    'S3Options'
 ]
 
 PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
@@ -257,8 +258,7 @@ class PipelineOptions(HasDisplayData):
       self,
       drop_default=False,
       add_extra_args_fn=None,  # type: Optional[Callable[[_BeamArgumentParser], None]]
-      retain_unknown_options=False
-  ):
+      retain_unknown_options=False):
     # type: (...) -> Dict[str, Any]
 
     """Returns a dictionary of all defined arguments.
@@ -743,8 +743,7 @@ class WorkerOptions(PipelineOptions):
         type=str,
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
-        help=
-        ('If and how to autoscale the workerpool.'))
+        help=('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         '--machine_type',
@@ -1321,3 +1320,39 @@ class OptionsContext(object):
       for name, value in override.items():
         setattr(options, name, value)
     return options
+
+
+class S3Options(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # These options are passed to the S3 IO Client
+    parser.add_argument(
+        '--aws_access_key_id',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--aws_secret_access_key',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--aws_session_token',
+        default=None,
+        help='The session token to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_endpoint_url',
+        default=None,
+        help='The complete URL to use for the constructed s3 client.')
+    parser.add_argument(
+        '--region_name',
+        default=None,
+        help='The name of the region associated with the client.')
+    parser.add_argument(
+        '--api_version', default=None, help='The API version to use.')
+    parser.add_argument(
+        '--verify',
+        default=None,
+        help='Whether or not to verify SSL certificates.')
+    parser.add_argument(
+        '--use_ssl',
+        default=True,
+        help='Whether or not to use SSL. By default, SSL is used.')
