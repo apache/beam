@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
  * <p>This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class DirectExecutionContext {
   private static final Logger LOG = LoggerFactory.getLogger(DirectExecutionContext.class);
   private final Clock clock;

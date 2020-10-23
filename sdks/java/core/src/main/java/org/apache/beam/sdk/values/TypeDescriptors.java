@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  * extracting type variables of parameterized types (e.g. extracting the {@code OutputT} type
  * variable of a {@code DoFn<InputT, OutputT>}).
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TypeDescriptors {
   /**
    * The {@link TypeDescriptor} for Boolean. This is the equivalent of:

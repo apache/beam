@@ -23,6 +23,7 @@ import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUp
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.List;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SumCounterUpdateAggregator implements CounterUpdateAggregator {
 
   @Override

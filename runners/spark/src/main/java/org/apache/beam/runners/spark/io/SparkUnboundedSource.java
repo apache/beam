@@ -77,6 +77,7 @@ import scala.runtime.BoxedUnit;
  *       while reporting the properties of the read (such as number of records) to the tracker.
  * </ul>
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SparkUnboundedSource {
 
   public static <T, CheckpointMarkT extends CheckpointMark> UnboundedDataset<T> read(

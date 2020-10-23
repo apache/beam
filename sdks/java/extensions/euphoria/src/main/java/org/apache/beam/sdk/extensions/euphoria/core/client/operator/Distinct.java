@@ -73,6 +73,7 @@ import org.joda.time.Duration;
             + "(e.g. using bloom filters), which might reduce the space complexity",
     state = StateComplexity.CONSTANT,
     repartitions = 1)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT>
     implements CompositeOperator<InputT, InputT> {
 

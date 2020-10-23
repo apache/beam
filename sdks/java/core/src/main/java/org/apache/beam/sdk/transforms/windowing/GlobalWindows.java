@@ -30,6 +30,7 @@ import org.joda.time.Instant;
  * <p>This is the {@link WindowFn} used for data coming from a source, before a {@link Window}
  * transform has been applied.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 
   private static final Collection<GlobalWindow> GLOBAL_WINDOWS =

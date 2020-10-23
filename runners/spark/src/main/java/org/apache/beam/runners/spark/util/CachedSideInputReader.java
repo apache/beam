@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link SideInputReader} that caches materialized views. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CachedSideInputReader implements SideInputReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(CachedSideInputReader.class);

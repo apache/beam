@@ -46,6 +46,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type represented by this {@link TypeDescriptor}
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class TypeDescriptor<T> implements Serializable {
 
   // This class is just a wrapper for TypeToken

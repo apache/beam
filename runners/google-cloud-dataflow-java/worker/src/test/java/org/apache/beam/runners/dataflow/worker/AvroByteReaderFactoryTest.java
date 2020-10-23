@@ -38,7 +38,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link AvroByteReaderFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "rawtypes",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroByteReaderFactoryTest {
   private final String pathToAvroFile = "/path/to/file.avro";
 

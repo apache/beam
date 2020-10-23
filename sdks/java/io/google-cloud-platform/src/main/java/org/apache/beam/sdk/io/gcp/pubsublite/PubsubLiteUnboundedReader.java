@@ -51,6 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.Instant;
 
 /** A reader for Pub/Sub Lite that generates a stream of SequencedMessages. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
     implements OffsetFinalizer {
   private final UnboundedSource<SequencedMessage, ?> source;

@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
  *
  * ...
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySourceBase.class);
 

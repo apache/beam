@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** The result of a {@link BigQueryIO.Write} transform. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class WriteResult implements POutput {
   private final Pipeline pipeline;
   private final TupleTag<TableRow> failedInsertsTag;

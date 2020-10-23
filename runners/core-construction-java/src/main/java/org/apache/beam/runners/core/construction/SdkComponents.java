@@ -44,6 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SdkComponents {
   private final String newIdPrefix;
   private final RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();

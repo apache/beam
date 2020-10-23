@@ -122,6 +122,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CassandraIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CassandraIO.class);

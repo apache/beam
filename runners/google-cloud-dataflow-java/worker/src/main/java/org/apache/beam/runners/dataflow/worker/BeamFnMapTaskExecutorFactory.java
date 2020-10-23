@@ -110,6 +110,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutorFactory.class);
 

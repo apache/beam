@@ -36,6 +36,7 @@ import org.joda.time.Instant;
 
 /** Provides access to the keyed StateInternals and TimerInternals. */
 @ThreadSafe
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class KeyedInternals<K> {
 
   private static class KeyedStates<K> {

@@ -34,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link Bid}.
  */
 @DefaultSchema(JavaFieldSchema.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Event implements KnownSize, Serializable {
 
   @Override

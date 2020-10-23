@@ -34,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * contains only the components specific to streaming: registry of streaming {@link
  * TransformTranslator} and registry lookup code.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PipelineTranslatorStreaming extends PipelineTranslator {
   // --------------------------------------------------------------------------------------------
   //  Transform Translator Registry

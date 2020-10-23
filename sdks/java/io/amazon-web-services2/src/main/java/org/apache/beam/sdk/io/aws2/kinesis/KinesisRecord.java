@@ -29,6 +29,7 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 
 /** {@link KinesisClientRecord} enhanced with utility methods. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class KinesisRecord {
 
   private Instant readTime;

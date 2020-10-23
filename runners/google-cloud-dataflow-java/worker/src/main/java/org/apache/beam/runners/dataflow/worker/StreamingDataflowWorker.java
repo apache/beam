@@ -153,6 +153,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implements a Streaming Dataflow worker. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StreamingDataflowWorker {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);

@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Component that regularly merges metrics and pushes them to a metrics sink. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MetricsPusher implements Serializable {
 
   private MetricsSink metricsSink;

@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> Type of the elements read by the {@link NativeReader}s.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ConcatReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(ConcatReader.class);
 

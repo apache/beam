@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 
 /** A sink which publishes messages to Pub/Sub Lite. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   private final PublisherOptions options;
 

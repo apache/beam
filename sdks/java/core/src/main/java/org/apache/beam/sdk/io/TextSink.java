@@ -34,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * '\n'} represented in {@code UTF-8} format as the record separator. Each record (including the
  * last) is terminated.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, String> {
   private final @Nullable String header;
   private final @Nullable String footer;

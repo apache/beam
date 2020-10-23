@@ -59,6 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Utilities for converting {@link PTransform PTransforms} to {@link RunnerApi Runner API protocol
  * buffers}.
  */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PTransformTranslation {
   // We specifically copy the values here so that they can be used in switch case statements
   // and we validate that the value matches the actual URN in the static block below.

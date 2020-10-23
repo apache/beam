@@ -41,6 +41,7 @@ import org.joda.time.Instant;
  * {@link TimerInternals.TimerData} with key, used by {@link SamzaTimerInternalsFactory}. Implements
  * {@link Comparable} by first comparing the wrapped TimerData then the key.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   private final byte[] keyBytes;
   private final K key;

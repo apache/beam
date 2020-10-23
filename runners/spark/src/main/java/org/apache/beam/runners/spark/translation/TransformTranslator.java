@@ -82,6 +82,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
 
 /** Supports translation between a Beam transform, and Spark's operations on RDDs. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class TransformTranslator {
 
   private TransformTranslator() {}

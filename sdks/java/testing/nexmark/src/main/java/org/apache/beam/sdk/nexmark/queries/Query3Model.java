@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query3}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Query3Model extends NexmarkQueryModel<NameCityStateId> implements Serializable {
   /** Simulator for query 3. */
   private static class Simulator extends AbstractSimulator<Event, NameCityStateId> {

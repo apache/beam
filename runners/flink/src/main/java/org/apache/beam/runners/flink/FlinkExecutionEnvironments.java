@@ -45,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);

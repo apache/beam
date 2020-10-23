@@ -99,6 +99,7 @@ import org.slf4j.LoggerFactory;
  * <p>The source and sink also accepts optional configuration: {@code withRetentionPolicy()}
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class InfluxDbIO {
   private static final Logger LOG = LoggerFactory.getLogger(InfluxDbIO.class);
 

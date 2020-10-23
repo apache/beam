@@ -71,6 +71,7 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Translates an unbounded portable pipeline into a Spark job. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SparkStreamingPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkStreamingTranslationContext> {
 

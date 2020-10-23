@@ -106,6 +106,7 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);

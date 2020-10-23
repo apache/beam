@@ -53,6 +53,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
  * Dynamically generates {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
  * on a particular {@link DoFn}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
   @Override

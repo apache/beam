@@ -115,6 +115,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link IntrinsicMapTaskExecutorFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";
 

@@ -41,6 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** Rule to detect the window/trigger settings. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamAggregationRule extends RelOptRule {
   public static final BeamAggregationRule INSTANCE =
       new BeamAggregationRule(Aggregate.class, Project.class, RelFactories.LOGICAL_BUILDER);

@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
  * support being a source.
  */
 @Experimental
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   @VisibleForTesting static final String METHOD_PROPERTY = "method";
   @VisibleForTesting static final String WRITE_DISPOSITION_PROPERTY = "writeDisposition";

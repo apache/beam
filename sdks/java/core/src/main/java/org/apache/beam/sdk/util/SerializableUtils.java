@@ -38,6 +38,7 @@ import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
 /** Utilities for working with Serializables. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SerializableUtils {
   /**
    * Serializes the argument into an array of bytes, and returns it.

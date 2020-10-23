@@ -117,6 +117,7 @@ import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for AvroIO Read and Write transforms. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AvroIOTest implements Serializable {
   /** Unit tests. */
   @RunWith(JUnit4.class)

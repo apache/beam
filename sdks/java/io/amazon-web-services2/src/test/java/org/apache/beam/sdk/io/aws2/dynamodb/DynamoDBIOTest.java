@@ -60,6 +60,7 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 /** Test Coverage for the IO. */
 @Ignore("[BEAM-7794] DynamoDBIOTest is blocking forever")
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DynamoDBIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamoDBIO.class);

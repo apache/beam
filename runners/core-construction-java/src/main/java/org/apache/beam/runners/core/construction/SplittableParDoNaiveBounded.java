@@ -61,6 +61,7 @@ import org.joda.time.Instant;
  * Utility transforms and overrides for running bounded splittable DoFn's naively, by implementing
  * {@link ProcessKeyedElements} using a simple {@link Reshuffle} and {@link ParDo}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SplittableParDoNaiveBounded {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessNaive}. */
   public static class OverrideFactory<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>

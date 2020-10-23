@@ -46,6 +46,7 @@ import org.junit.rules.ExpectedException;
  *
  * <p>Note that, any change in these records would impact tests in this package.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamSqlDslBase {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptions = ExpectedException.none();

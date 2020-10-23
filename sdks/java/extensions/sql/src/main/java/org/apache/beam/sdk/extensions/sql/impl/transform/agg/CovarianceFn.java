@@ -43,6 +43,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunc
  * Statistical Moments".
  */
 @Internal
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CovarianceFn<T extends Number>
     extends Combine.CombineFn<Row, CovarianceAccumulator, T> {
 
