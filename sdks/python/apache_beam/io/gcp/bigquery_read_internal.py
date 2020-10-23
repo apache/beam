@@ -39,13 +39,11 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.iobase import BoundedSource
-from apache_beam.io.iobase import SDFBoundedSourceReader
 from apache_beam.io.textio import _TextSource
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms import PTransform
-from apache_beam.utils.annotations import experimental
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
@@ -400,77 +398,3 @@ class _JsonToDictCoder(coders.Coder):
 
   def to_type_hint(self):
     return dict
-
-
-@experimental()
-class ReadAllFromBigQuery(PTransform):
-  """Read data from BigQuery.
-
-    PTransform:ReadAllFromBigQueryRequest->Rows
-
-    This PTransform uses a BigQuery export job to take a snapshot of the table
-    on GCS, and then reads from each produced JSON file.
-
-    It is recommended not to use this PTransform for streaming jobs on
-    GlobalWindow, since it will not be able to cleanup snapshots.
-
-  Args:
-    gcs_location (str): The name of the Google Cloud Storage
-      bucket where the extracted table should be written as a string. If
-      :data:`None`, then the temp_location parameter is used.
-    validate (bool): If :data:`True`, various checks will be done when source
-      gets initialized (e.g., is table present?).
-    kms_key (str): Experimental. Optional Cloud KMS key name for use when
-      creating new temporary tables.
-   """
-  COUNTER = 0
-
-  def __init__(
-      self,
-      gcs_location: Union[str, ValueProvider] = None,
-      validate: bool = False,
-      kms_key: str = None,
-      bigquery_job_labels: Dict[str, str] = None):
-    if gcs_location:
-      if not isinstance(gcs_location, (str, ValueProvider)):
-        raise TypeError(
-            '%s: gcs_location must be of type string'
-            ' or ValueProvider; got %r instead' %
-            (self.__class__.__name__, type(gcs_location)))
-
-    self.gcs_location = gcs_location
-    self.validate = validate
-    self.kms_key = kms_key
-    self.bigquery_job_labels = bigquery_job_labels
-
-  def expand(self, pcoll):
-    job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
-    project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
-    unique_id = str(uuid.uuid4())[0:10]
-
-    try:
-      step_name = self.label
-    except AttributeError:
-      step_name = 'ReadAllFromBigQuery_%d' % ReadAllFromBigQuery.COUNTER
-      ReadAllFromBigQuery.COUNTER += 1
-
-    sources_to_read, cleanup_locations = (
-        pcoll
-        | beam.ParDo(
-        # TODO(pabloem): Make sure we have all necessary args.
-        _BigQueryReadSplit(
-            options=pcoll.pipeline.options,
-            gcs_location=self.gcs_location,
-            bigquery_job_labels=self.bigquery_job_labels,
-            job_name=job_name,
-            step_name=step_name,
-            unique_id=unique_id,
-            kms_key=self.kms_key,
-            project=project)).with_outputs(
-        "location_to_cleanup", main="files_to_read")
-    )
-
-    return (
-        sources_to_read
-        | SDFBoundedSourceReader()
-        | _PassThroughThenCleanup(beam.pvalue.AsIter(cleanup_locations)))

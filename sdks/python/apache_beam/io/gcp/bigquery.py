@@ -243,6 +243,7 @@ import time
 import uuid
 from builtins import object
 from builtins import zip
+from typing import Dict
 from typing import Union
 
 from future.utils import itervalues
@@ -258,13 +259,15 @@ from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
-from apache_beam.io.gcp.bigquery_read_internal import ReadAllFromBigQuery
+from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
+from apache_beam.io.iobase import SDFBoundedSourceReader
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.metrics import Metrics
@@ -287,6 +290,7 @@ from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.annotations import experimental
 from apache_beam.utils.histogram import Histogram
 from apache_beam.utils.histogram import LinearBucket
 
@@ -297,6 +301,8 @@ __all__ = [
     'BigQuerySink',
     'WriteToBigQuery',
     'ReadFromBigQuery',
+    'ReadFromBigQueryRequest',
+    'ReadAllFromBigQuery',
     'SCHEMA_AUTODETECT',
 ]
 
@@ -1746,7 +1752,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     return WriteToBigQuery(**config)
 
 
-class NewReadFromBigQuery(PTransform):
+class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
@@ -1812,6 +1818,7 @@ class NewReadFromBigQuery(PTransform):
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
               #avro_conversions
    """
+
   COUNTER = 0
 
   def __init__(self, gcs_location=None, *args, **kwargs):
@@ -1831,6 +1838,45 @@ class NewReadFromBigQuery(PTransform):
     self._kwargs = kwargs
 
   def expand(self, pcoll):
+    if ('beam_fn_api' not in pcoll.pipeline.options.view_as(
+        DebugOptions).experiments):
+      return self._legacy_expand(pcoll)
+
+    kwargs = self._kwargs
+
+    def get_value(elm: Union[ValueProvider, str]):
+      if isinstance(elm, ValueProvider):
+        return elm.get()
+      else:
+        return elm
+
+    def create_bigquery_read_request(unused_elm):
+      from apache_beam.io.gcp.bigquery_read_internal import ReadFromBigQueryRequest
+      table_ref = None
+      if get_value(kwargs.get('table', None)):
+        table_ref = bigquery_tools.parse_table_reference(
+            get_value(kwargs.get('table', None)),
+            get_value(kwargs.get('dataset', None)),
+            get_value(kwargs.get('project', None)))
+      return ReadFromBigQueryRequest(
+          query=get_value(kwargs.get('query', None)),
+          use_standard_sql=get_value(kwargs.get('use_standard_sql', True)),
+          table=table_ref,
+          flatten_results=get_value(kwargs.get('flatten_results', True)),
+      )
+
+    gcs_location_vp = self.gcs_location
+    return (
+        pcoll.pipeline
+        | 'ReadBQImpulse' >> beam.Create([None])
+        | 'CreateBQReadRequest' >> beam.Map(create_bigquery_read_request)
+        | ReadAllFromBigQuery(
+            gcs_location=gcs_location_vp,
+            bigquery_job_labels=kwargs.get('bigquery_job_labels', {}),
+            validate=kwargs.get('validate', True),
+            kms_key=kwargs.get('kms_key', None)))
+
+  def _legacy_expand(self, pcoll):
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
@@ -1866,55 +1912,117 @@ class NewReadFromBigQuery(PTransform):
         | _PassThroughThenCleanup(files_to_remove_pcoll))
 
 
-class ReadFromBigQuery(PTransform):
-  def __init__(self, gcs_location=None, *args, **kwargs):
+@experimental()
+class ReadAllFromBigQuery(PTransform):
+  """Read data from BigQuery.
+
+    PTransform:ReadAllFromBigQueryRequest->Rows
+
+    This PTransform uses a BigQuery export job to take a snapshot of the table
+    on GCS, and then reads from each produced JSON file.
+
+    It is recommended not to use this PTransform for streaming jobs on
+    GlobalWindow, since it will not be able to cleanup snapshots.
+
+  Args:
+    gcs_location (str): The name of the Google Cloud Storage
+      bucket where the extracted table should be written as a string. If
+      :data:`None`, then the temp_location parameter is used.
+    validate (bool): If :data:`True`, various checks will be done when source
+      gets initialized (e.g., is table present?).
+    kms_key (str): Experimental. Optional Cloud KMS key name for use when
+      creating new temporary tables.
+   """
+  COUNTER = 0
+
+  def __init__(
+      self,
+      gcs_location: Union[str, ValueProvider] = None,
+      validate: bool = False,
+      kms_key: str = None,
+      bigquery_job_labels: Dict[str, str] = None):
     if gcs_location:
-      if not isinstance(gcs_location, (str, unicode, ValueProvider)):
+      if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
             '%s: gcs_location must be of type string'
             ' or ValueProvider; got %r instead' %
             (self.__class__.__name__, type(gcs_location)))
 
-      if isinstance(gcs_location, (str, unicode)):
-        gcs_location = StaticValueProvider(str, gcs_location)
-
     self.gcs_location = gcs_location
-
-    self._args = args
-    self._kwargs = kwargs
+    self.validate = validate
+    self.kms_key = kms_key
+    self.bigquery_job_labels = bigquery_job_labels
 
   def expand(self, pcoll):
+    job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
+    project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+    unique_id = str(uuid.uuid4())[0:10]
 
-    kwargs = self._kwargs
+    try:
+      step_name = self.label
+    except AttributeError:
+      step_name = 'ReadAllFromBigQuery_%d' % ReadAllFromBigQuery.COUNTER
+      ReadAllFromBigQuery.COUNTER += 1
 
-    def get_value(elm: Union[ValueProvider, str]):
-      if isinstance(elm, ValueProvider):
-        return elm.get()
-      else:
-        return elm
+    sources_to_read, cleanup_locations = (
+        pcoll
+        | beam.ParDo(
+        # TODO(pabloem): Make sure we have all necessary args.
+        _BigQueryReadSplit(
+            options=pcoll.pipeline.options,
+            gcs_location=self.gcs_location,
+            bigquery_job_labels=self.bigquery_job_labels,
+            job_name=job_name,
+            step_name=step_name,
+            unique_id=unique_id,
+            kms_key=self.kms_key,
+            project=project)).with_outputs(
+        "location_to_cleanup", main="files_to_read")
+    )
 
-    def create_bigquery_read_request(unused_elm):
-      from apache_beam.io.gcp.bigquery_read_internal import ReadFromBigQueryRequest
-      table_ref = None
-      if get_value(kwargs.get('table', None)):
-        table_ref = bigquery_tools.parse_table_reference(
-            get_value(kwargs.get('table', None)),
-            get_value(kwargs.get('dataset', None)),
-            get_value(kwargs.get('project', None)))
-      return ReadFromBigQueryRequest(
-          query=get_value(kwargs.get('query', None)),
-          use_standard_sql=get_value(kwargs.get('use_standard_sql', True)),
-          table=table_ref,
-          flatten_results=get_value(kwargs.get('flatten_results', True)),
-      )
-
-    gcs_location_vp = self.gcs_location
     return (
-        pcoll.pipeline
-        | 'ReadBQImpulse' >> beam.Create([None])
-        | 'CreateBQReadRequest' >> beam.Map(create_bigquery_read_request)
-        | ReadAllFromBigQuery(
-            gcs_location=gcs_location_vp,
-            bigquery_job_labels=kwargs.get('bigquery_job_labels', {}),
-            validate=kwargs.get('validate', True),
-            kms_key=kwargs.get('kms_key', None)))
+        sources_to_read
+        | SDFBoundedSourceReader()
+        | _PassThroughThenCleanup(beam.pvalue.AsIter(cleanup_locations)))
+
+
+class ReadFromBigQueryRequest:
+  """
+  Class that defines data to read from BQ.
+  """
+  def __init__(
+      self,
+      query: str = None,
+      use_standard_sql: bool = False,
+      table: Union[str, TableReference] = None,
+      flatten_results: bool = False):
+    """
+    Only one of query or table should be specified.
+
+    :param query(str): SQL query to fetch data.
+    :param use_standard_sql(boolean):
+      Specifies whether to use BigQuery's standard SQL dialect for this query.
+      The default value is :data:`True`. If set to :data:`False`,
+      the query will use BigQuery's legacy SQL dialect.
+      This parameter is ignored for table inputs.
+    :param table(str):
+      The ID of the table to read. The ID must contain only letters
+      ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. Table should
+      define project and dataset (ex.: ``'PROJECT:DATASET.TABLE'``).
+    :param flatten_results(boolean):
+      Flattens all nested and repeated fields in the query results.
+      The default value is :data:`True`.
+    """
+    self.flatten_results = flatten_results
+    self.query = query
+    self.use_standard_sql = use_standard_sql
+    self.table = table
+    self.validate()
+
+  def validate(self):
+    if self.table is not None and self.query is not None:
+      raise ValueError(
+          'Both a BigQuery table and a query were specified.'
+          ' Please specify only one of these.')
+    elif self.table is None and self.query is None:
+      raise ValueError('A BigQuery table or a query must be specified')
