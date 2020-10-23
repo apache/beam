@@ -1825,45 +1825,7 @@ class ReadFromBigQuery(PTransform):
     self._kwargs = kwargs
 
   def expand(self, pcoll):
-    if ('beam_fn_api' not in pcoll.pipeline.options.view_as(
-        DebugOptions).experiments):
-      return self._legacy_expand(pcoll)
-
-    kwargs = self._kwargs
-
-    def get_value(elm: Union[ValueProvider, str]):
-      if isinstance(elm, ValueProvider):
-        return elm.get()
-      else:
-        return elm
-
-    def create_bigquery_read_request(unused_elm):
-      from apache_beam.io.gcp.bigquery_read_internal import ReadFromBigQueryRequest
-      table_ref = None
-      if get_value(kwargs.get('table', None)):
-        table_ref = bigquery_tools.parse_table_reference(
-            get_value(kwargs.get('table', None)),
-            get_value(kwargs.get('dataset', None)),
-            get_value(kwargs.get('project', None)))
-      return ReadFromBigQueryRequest(
-          query=get_value(kwargs.get('query', None)),
-          use_standard_sql=get_value(kwargs.get('use_standard_sql', True)),
-          table=table_ref,
-          flatten_results=get_value(kwargs.get('flatten_results', True)),
-      )
-
-    gcs_location_vp = self.gcs_location
-    return (
-        pcoll.pipeline
-        | 'ReadBQImpulse' >> beam.Create([None])
-        | 'CreateBQReadRequest' >> beam.Map(create_bigquery_read_request)
-        | ReadAllFromBigQuery(
-            gcs_location=gcs_location_vp,
-            bigquery_job_labels=kwargs.get('bigquery_job_labels', {}),
-            validate=kwargs.get('validate', True),
-            kms_key=kwargs.get('kms_key', None)))
-
-  def _legacy_expand(self, pcoll):
+    # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
