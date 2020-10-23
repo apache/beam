@@ -1716,9 +1716,8 @@ public class DataflowRunnerTest implements Serializable {
                   throw new UnsupportedOperationException("should not be called");
                 }
 
-                @Nullable
                 @Override
-                public ResourceId unwindowedFilename(
+                public @Nullable ResourceId unwindowedFilename(
                     int shardNumber, int numShards, OutputFileHints outputFileHints) {
                   throw new UnsupportedOperationException("should not be called");
                 }

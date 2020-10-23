@@ -129,16 +129,16 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
           ReadDataBuilder.Configuration, PBegin, PCollection<byte[]>> {
 
     public static class Configuration extends CrossLanguageConfiguration {
-      @Nullable private Long maxNumRecords;
-      @Nullable private Duration maxReadTime;
-      @Nullable private InitialPositionInStream initialPositionInStream;
-      @Nullable private Instant initialTimestampInStream;
-      @Nullable private Integer requestRecordsLimit;
-      @Nullable private Duration upToDateThreshold;
-      @Nullable private Long maxCapacityPerShard;
-      @Nullable private WatermarkPolicy watermarkPolicy;
-      @Nullable private Duration watermarkIdleDurationThreshold;
-      @Nullable private Duration rateLimit;
+      private @Nullable Long maxNumRecords;
+      private @Nullable Duration maxReadTime;
+      private @Nullable InitialPositionInStream initialPositionInStream;
+      private @Nullable Instant initialTimestampInStream;
+      private @Nullable Integer requestRecordsLimit;
+      private @Nullable Duration upToDateThreshold;
+      private @Nullable Long maxCapacityPerShard;
+      private @Nullable WatermarkPolicy watermarkPolicy;
+      private @Nullable Duration watermarkIdleDurationThreshold;
+      private @Nullable Duration rateLimit;
 
       public void setMaxNumRecords(@Nullable Long maxNumRecords) {
         this.maxNumRecords = maxNumRecords;

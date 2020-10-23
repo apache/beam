@@ -109,9 +109,8 @@ public class DynamicFileDestinations {
       return emptyDestination;
     }
 
-    @Nullable
     @Override
-    public Coder<Params> getDestinationCoder() {
+    public @Nullable Coder<Params> getDestinationCoder() {
       return ParamsCoder.of();
     }
 

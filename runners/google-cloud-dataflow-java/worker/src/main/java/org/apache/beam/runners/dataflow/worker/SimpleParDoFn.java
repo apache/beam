@@ -518,8 +518,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
    * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
    * finished.
    */
-  @Nullable
   @VisibleForTesting
+  @Nullable
   DoFnInfo<?, ?> getDoFnInfo() {
     return fnInfo;
   }

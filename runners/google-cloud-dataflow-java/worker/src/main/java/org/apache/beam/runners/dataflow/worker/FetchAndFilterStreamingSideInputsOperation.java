@@ -103,9 +103,8 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
       this.delegate = delegate;
     }
 
-    @Nullable
     @Override
-    public PCollection<?> getPCollection() {
+    public @Nullable PCollection<?> getPCollection() {
       return delegate.getPCollection();
     }
 

@@ -47,8 +47,8 @@ public class DataflowTemplateJob extends DataflowPipelineJob {
     throw new UnsupportedOperationException(ERROR);
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,

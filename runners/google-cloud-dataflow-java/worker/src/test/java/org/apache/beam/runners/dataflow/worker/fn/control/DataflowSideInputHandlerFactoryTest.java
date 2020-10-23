@@ -73,9 +73,8 @@ public final class DataflowSideInputHandlerFactoryTest {
   public void setUp() {
     fakeSideInputReader =
         new SideInputReader() {
-          @Nullable
           @Override
-          public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+          public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
             assertEquals(GlobalWindow.INSTANCE, window);
             assertEquals(SIDE_INPUT_NAME, view.getTagInternal().getId());
 

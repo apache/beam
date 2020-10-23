@@ -74,9 +74,8 @@ public class SparkSideInputReader implements SideInputReader {
     this.broadcastStateData = broadcastStateData;
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     checkNotNull(view, "View passed to sideInput cannot be null");
     TupleTag<?> tag = view.getTagInternal();
     checkNotNull(sideInputs.get(tag), "Side input for " + view + " not available.");

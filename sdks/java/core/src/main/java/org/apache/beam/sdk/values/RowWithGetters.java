@@ -62,10 +62,9 @@ public class RowWithGetters extends Row {
     this.getters = fieldValueGetterFactory.create(getterTarget.getClass(), schema);
   }
 
-  @Nullable
   @Override
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
-  public <T> T getValue(int fieldIdx) {
+  public <T> @Nullable T getValue(int fieldIdx) {
     Field field = getSchema().getField(fieldIdx);
     FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);

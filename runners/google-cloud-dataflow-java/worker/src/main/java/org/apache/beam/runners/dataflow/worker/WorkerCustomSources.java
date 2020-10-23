@@ -632,9 +632,8 @@ public class WorkerCustomSources {
       reader.close();
     }
 
-    @Nullable
     @VisibleForTesting
-    static ReportedParallelism longToParallelism(long value) {
+    static @Nullable ReportedParallelism longToParallelism(long value) {
       if (value >= 0) {
         return new ReportedParallelism().setValue(Double.valueOf(value));
       } else {

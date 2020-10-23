@@ -1500,9 +1500,8 @@ public class DoFnOperator<InputT, OutputT>
       return new Instant(timerService.currentProcessingTime());
     }
 
-    @Nullable
     @Override
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return new Instant(timerService.currentProcessingTime());
     }
 
@@ -1511,9 +1510,8 @@ public class DoFnOperator<InputT, OutputT>
       return new Instant(getEffectiveInputWatermark());
     }
 
-    @Nullable
     @Override
-    public Instant currentOutputWatermarkTime() {
+    public @Nullable Instant currentOutputWatermarkTime() {
       return new Instant(currentOutputWatermark);
     }
 

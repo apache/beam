@@ -2121,10 +2121,9 @@ public class DoFnOperatorTest {
         .filter(o -> o instanceof StreamRecord)
         .transform(
             new Function<Object, WindowedValue<String>>() {
-              @Nullable
               @Override
               @SuppressWarnings({"unchecked", "rawtypes"})
-              public WindowedValue<String> apply(@Nullable Object o) {
+              public @Nullable WindowedValue<String> apply(@Nullable Object o) {
                 if (o instanceof StreamRecord) {
                   return (WindowedValue<String>) ((StreamRecord) o).getValue();
                 }

@@ -1077,9 +1077,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       return reader;
     }
 
-    @Nullable
     @Override
-    public Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
+    public @Nullable Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
       return CHECKPOINT_CODER;
     }
 

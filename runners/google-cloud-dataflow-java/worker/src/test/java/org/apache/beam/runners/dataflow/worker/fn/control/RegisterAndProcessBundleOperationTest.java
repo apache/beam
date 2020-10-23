@@ -470,9 +470,8 @@ public class RegisterAndProcessBundleOperationTest {
 
     SideInputReader fakeSideInputReader =
         new SideInputReader() {
-          @Nullable
           @Override
-          public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+          public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
             assertEquals(GlobalWindow.INSTANCE, window);
             assertEquals("testSideInputId", view.getTagInternal().getId());
             return (T)

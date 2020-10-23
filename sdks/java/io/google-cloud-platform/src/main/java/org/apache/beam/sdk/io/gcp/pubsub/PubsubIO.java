@@ -603,9 +603,8 @@ public class PubsubIO {
     /** User function for parsing PubsubMessage object. */
     abstract @Nullable SerializableFunction<PubsubMessage, T> getParseFn();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract Schema getBeamSchema();
+    abstract @Nullable Schema getBeamSchema();
 
     abstract @Nullable TypeDescriptor<T> getTypeDescriptor();
 

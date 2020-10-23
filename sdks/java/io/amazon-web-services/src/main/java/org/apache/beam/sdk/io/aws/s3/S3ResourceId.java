@@ -154,9 +154,8 @@ class S3ResourceId implements ResourceId {
     return SCHEME;
   }
 
-  @Nullable
   @Override
-  public String getFilename() {
+  public @Nullable String getFilename() {
     if (!isDirectory()) {
       return key.substring(key.lastIndexOf('/') + 1);
     }
