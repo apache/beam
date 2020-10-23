@@ -1498,7 +1498,8 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     if not isinstance(restriction, _SDFBoundedSourceRestriction):
       raise ValueError(
           'Initializing SDFBoundedSourceRestrictionTracker'
-          ' requires a _SDFBoundedSourceRestriction')
+          ' requires a _SDFBoundedSourceRestriction. Got %s instead.' %
+          restriction)
     self.restriction = restriction
 
   def current_progress(self):
