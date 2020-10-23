@@ -24,7 +24,7 @@ mainClassName = "org.apache.beam.runners.samza.SamzaJobServerDriver"
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.samza.jobserver',
     validateShadowJar: false,
-    enableChecker: true,
+
     exportJavadoc: false,
     shadowClosure: {
       append "reference.conf"

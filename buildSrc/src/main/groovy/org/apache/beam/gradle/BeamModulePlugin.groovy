@@ -88,8 +88,17 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
-    /** Controls whether the checker framework plugin is enabled and configured. */
-    boolean enableChecker = true
+    /** Regexes matching generated classes which should not receive extended type checking. */
+    List<String> generatedClassPatterns = []
+
+    /** Classes triggering Checker failures. A map from class name to the bug filed against checkerframework. */
+    Map<String, String> classesTriggerCheckerBugs = [:]
+
+    /**
+     Some module's tests take a very long time to compile with checkerframework.
+     Until that is solved, set this flag to skip checking for those tests.
+     */
+    boolean checkerTooSlowOnTests = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
@@ -167,6 +176,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
+
+    /**
+     * Regexes matching generated Java classes which should not receive extended type checking.
+     *
+     * By default, skips anything in the `org.apache.beam.model` namespace.
+     */
+    List<String> generatedClassPatterns = [
+      "^org\\.apache\\.beam\\.model.*"
+    ]
 
     /**
      * Automatic-Module-Name Header value to be set in MANFIEST.MF file.
@@ -720,7 +738,9 @@ class BeamModulePlugin implements Plugin<Project> {
         options.encoding = "UTF-8"
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
-        options.compilerArgs -= ["-Xlint:deprecation"]
+        options.compilerArgs -= [
+          "-Xlint:deprecation",
+        ]
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
@@ -763,20 +783,25 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
-      // Most of our modules have null errors. Once they are fixed, we can
-      // set enableChecker=true in the build.gradle. Until then, we can pass -PenableChecker to
-      // find a few errors and fix them.
-      if (configuration.enableChecker) {
-        project.apply plugin: 'org.checkerframework'
+      List<String> skipDefRegexes = []
+      skipDefRegexes << "AutoValue_.*"
+      skipDefRegexes << "AutoOneOf_.*"
+      skipDefRegexes += configuration.generatedClassPatterns
+      skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
+      String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
-        project.checkerFramework {
-          checkers = [
-            'org.checkerframework.checker.nullness.NullnessChecker'
-          ]
-          extraJavacArgs = [
-            '-AskipDefs=AutoValue_.*'
-          ]
-        }
+      project.apply plugin: 'org.checkerframework'
+      project.checkerFramework {
+        checkers = [
+          'org.checkerframework.checker.nullness.NullnessChecker'
+        ]
+
+        excludeTests = configuration.checkerTooSlowOnTests
+
+        extraJavacArgs = [
+          "-AskipDefs=${skipDefCombinedRegex}",
+          "-AsuppressWarnings=annotation.not.completed",
+        ]
 
         project.dependencies {
           checkerFramework("org.checkerframework:checker:$checkerframework_version")
@@ -1677,8 +1702,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.applyJavaNature(
           exportJavadoc: false,
           enableSpotbugs: false,
-          enableChecker: false,
           publish: configuration.publish,
+          generatedClassPatterns: configuration.generatedClassPatterns,
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,
