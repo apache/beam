@@ -107,6 +107,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
@@ -136,6 +138,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String TIMER_FAMILY_PARAMETER_METHOD = "timerFamily";
   public static final String TIMER_ID_PARAMETER_METHOD = "timerId";
   public static final String KEY_PARAMETER_METHOD = "key";
+
+  private static final Logger LOG = LoggerFactory.getLogger(ByteBuddyDoFnInvokerFactory.class);
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -229,6 +233,11 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
       if (onTimerInvoker != null) {
         onTimerInvoker.invokeOnTimer(arguments);
+      } else if (timerFamilyId.isEmpty()) {
+        // TODO: LISAMZA-18899 Remove this logic once users have consumed all the persisted timers with empty timer family ids.
+        LOG.warn(
+            "Attempted to invoke timer {} on {}, but that timer is not registered.",
+            timerId, delegate.getClass().getName());
       } else {
         throw new IllegalArgumentException(
             String.format(

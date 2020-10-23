@@ -134,7 +134,6 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'

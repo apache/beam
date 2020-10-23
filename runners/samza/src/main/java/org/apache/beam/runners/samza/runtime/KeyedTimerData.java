@@ -158,6 +158,7 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
       INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
       STRING_CODER.encode(timer.getTimerId(), outStream);
+      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
 
@@ -172,10 +173,22 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       final Instant timestamp = INSTANT_CODER.decode(inStream);
       final Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       final String timerId = STRING_CODER.decode(inStream);
-      final StateNamespace namespace =
-          StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
+      final String timerFamilyOrNamespace = STRING_CODER.decode(inStream);
+
+      // Timer family id was not encoded before this change, inorder to correctly decode timer data
+      // without timer family id encoded as well, need to add the following logic.
+      // If timerFamilyOrNamespace starts with "/" and ends with "/", then it's the name space field
+      // of the timer data, otherwise, it's the timer family id field.
+      // TODO: LISAMZA-18899 clean up the code once all jobs encode the timer family id.
+      final boolean hasTimerFamilyId =
+          !timerFamilyOrNamespace.startsWith("/") || !timerFamilyOrNamespace.endsWith("/");
+      final String timerFamilyId = hasTimerFamilyId ? timerFamilyOrNamespace : "";
+      final String nameSpaceStr =
+          hasTimerFamilyId ? STRING_CODER.decode(inStream) : timerFamilyOrNamespace;
+      final StateNamespace namespace = StateNamespaces.fromString(nameSpaceStr, windowCoder);
       final TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      final TimerData timer = TimerData.of(timerId, namespace, timestamp, outputTimestamp, domain);
+      final TimerData timer =
+          TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
 
       byte[] keyBytes = null;
       K key = null;
