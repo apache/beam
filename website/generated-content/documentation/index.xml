@@ -6973,6 +6973,492 @@ we want to batch ten seconds worth of events together in order to reduce the num
 &lt;span class="n">isTimerSetState&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">clear&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h2 id="splittable-dofns">12. Splittable &lt;code>DoFns&lt;/code>&lt;/h2>
+&lt;p>A Splittable &lt;code>DoFn&lt;/code> (SDF) enables users to create modular components containing I/Os (and some advanced
+&lt;a href="https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv">non I/O use cases&lt;/a>). Having modular
+I/O components that can be connected to each other simplify typical patterns that users want.
+For example, a popular use case is to read filenames from a message queue followed by parsing those
+files. Traditionally, users were required to either write a single I/O connector that contained the
+logic for the message queue and the file reader (increased complexity) or choose to reuse a message
+queue I/O followed by a regular &lt;code>DoFn&lt;/code> that read the file (decreased performance). With SDF,
+we bring the richness of Apache Beam’s I/O APIs to a &lt;code>DoFn&lt;/code> enabling modularity while maintaining the
+performance of traditional I/O connectors.&lt;/p>
+&lt;h3 id="sdf-basics">12.1. SDF basics&lt;/h3>
+&lt;p>At a high level, an SDF is responsible for processing element and restriction pairs. A
+restriction represents a subset of work that would have been necessary to have been done when
+processing the element.&lt;/p>
+&lt;p>Executing an SDF follows the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Each element is paired with a restriction (e.g. filename is paired with offset range representing the whole file).&lt;/li>
+&lt;li>Each element and restriction pair is split (e.g. offset ranges are broken up into smaller pieces).&lt;/li>
+&lt;li>The runner redistributes the element and restriction pairs to several workers.&lt;/li>
+&lt;li>Element and restriction pairs are processed in parallel (e.g. the file is read). Within this last step,
+the element and restriction pair can pause its own processing and/or be split into further element and
+restriction pairs.&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="/images/sdf_high_level_overview.svg" alt="Diagram of steps that an SDF is composed of">&lt;/p>
+&lt;h4 id="a-basic-sdf">12.1.1. A basic SDF&lt;/h4>
+&lt;p>A basic SDF is composed of three parts: a restriction, a restriction provider, and a
+restriction tracker. The restriction is used to represent a subset of work for a given element.
+The restriction provider lets SDF authors override default implementations for splitting, sizing,
+watermark estimation, and so forth. In &lt;a href="https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/DoFn.java#L92">Java&lt;/a>
+and &lt;a href="https://github.com/apache/beam/blob/0f466e6bcd4ac8677c2bd9ecc8e6af3836b7f3b8/sdks/go/pkg/beam/pardo.go#L226">Go&lt;/a>,
+this is the &lt;code>DoFn&lt;/code>. &lt;a href="https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/python/apache_beam/transforms/core.py#L213">Python&lt;/a>
+has a dedicated RestrictionProvider type. The restriction tracker is responsible for tracking
+what subset of the restriction has been completed during processing.&lt;/p>
+&lt;p>To define an SDF, you must choose whether the SDF is bounded (default) or
+unbounded and define a way to initialize an initial restriction for an element.&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@BoundedPerElement&lt;/span>
+&lt;span class="kd">private&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FileToWordsFn&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="nd">@GetInitialRestriction&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">OffsetRange&lt;/span> &lt;span class="nf">getInitialRestriction&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="nd">@Element&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">fileName&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="kd">throws&lt;/span> &lt;span class="n">IOException&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">File&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">fileName&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">length&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="nd">@ProcessElement&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">processElement&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="nd">@Element&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">fileName&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">RestrictionTracker&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">OutputReceiver&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="kd">throws&lt;/span> &lt;span class="n">IOException&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">RandomAccessFile&lt;/span> &lt;span class="n">file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">RandomAccessFile&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">fileName&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;r&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">seekToNextRecordBoundaryInFile&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">currentRestriction&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getFrom&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">tryClaim&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getFilePointer&lt;/span>&lt;span class="o">()))&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">readNextRecord&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="c1">// Providing the coder is only necessary if it can not be inferred at runtime.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nd">@GetRestrictionCoder&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">Coder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getRestrictionCoder&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Coder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">initial_restriction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">file_name&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">stat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_name&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">st_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">create_tracker&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">restriction_trackers&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">OffsetRestrictionTracker&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">FileToWordsFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">file_name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">tracker&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">())):&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="nb">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_name&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">file_handle&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">file_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">seek&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">current_restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">start&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">try_claim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tell&lt;/span>&lt;span class="p">()):&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="n">read_next_record&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_handle&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># Providing the coder is only necessary if it can not be inferred at&lt;/span>
+&lt;span class="c1"># runtime.&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">restriction_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="o">...&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-go>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">CreateInitialRestriction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filename&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="nx">Start&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">End&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nf">getFileLength&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filename&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">CreateTracker&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rest&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">sdf&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">LockRTracker&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">sdf&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewLockRTracker&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewTracker&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rest&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">sdf&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">LockRTracker&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">filename&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emit&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">os&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filename&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">offset&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">seekToNextRecordBoundaryInFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">GetRestriction&lt;/span>&lt;span class="p">().(&lt;/span>&lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nx">Start&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TryClaim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">offset&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">record&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">newOffset&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">readNextRecord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">file&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nf">emit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">record&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">offset&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">newOffset&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>At this point, we have an SDF that supports &lt;a href="#runner-initiated-split">runner-initiated splits&lt;/a>
+enabling dynamic work rebalancing. To increase the rate at which initial parallelization of work occurs
+or for those runners that do not support runner-initiated splitting, we recommend providing
+a set of initial splits:&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kt">void&lt;/span> &lt;span class="nf">splitRestriction&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="nd">@Restriction&lt;/span> &lt;span class="n">OffsetRange&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">OutputReceiver&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">splitReceiver&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kt">long&lt;/span> &lt;span class="n">splitSize&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">64&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span> &lt;span class="o">&amp;lt;&amp;lt;&lt;/span> &lt;span class="n">20&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="kt">long&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getFrom&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getTo&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">splitSize&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Compute and output 64 MiB size ranges to process in parallel
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kt">long&lt;/span> &lt;span class="n">end&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">splitSize&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="n">splitReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">end&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">end&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="c1">// Output the last range
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">splitReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getTo&lt;/span>&lt;span class="o">()));&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">split&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">file_name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># Compute and output 64 MiB size ranges to process in parallel&lt;/span>
+&lt;span class="n">split_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">64&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">&amp;lt;&amp;lt;&lt;/span> &lt;span class="mi">20&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">start&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">end&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">split_size&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">split_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">i&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">split_size&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="n">OffsetRange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-go>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">SplitRestriction&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filename&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rest&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">splits&lt;/span> &lt;span class="p">[]&lt;/span>&lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">size&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="mi">64&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">&amp;lt;&amp;lt;&lt;/span> &lt;span class="mi">20&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">rest&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Start&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="p">&amp;lt;&lt;/span> &lt;span class="nx">rest&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">End&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="nx">size&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Compute and output 64 MiB size ranges to process in parallel
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">end&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nx">size&lt;/span>
+&lt;span class="nx">splits&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nb">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">splits&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">end&lt;/span>&lt;span class="p">})&lt;/span>
+&lt;span class="nx">i&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">end&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// Output the last range
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">splits&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nb">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">splits&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rest&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">End&lt;/span>&lt;span class="p">})&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">splits&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h3 id="sizing-and-progress">12.2. Sizing and progress&lt;/h3>
+&lt;p>Sizing and progress are used during execution of an SDF to inform runners so that they may
+perform intelligent decisions about which restrictions to split and how to parallelize work.&lt;/p>
+&lt;p>Before processing an element and restriction, an initial size may be used by a runner to choose
+how and who processes the restrictions attempting to improve initial balancing and parallelization
+of work. During the processing of an element and restriction, sizing and progress are used to choose
+which restrictions to split and who should process them.&lt;/p>
+&lt;p>By default, we use the restriction tracker’s estimate for work remaining falling back to assuming
+that all restrictions have an equal cost. To override the default, SDF authors can provide the
+appropriate method within the restriction provider.&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@GetSize&lt;/span>
+&lt;span class="kt">double&lt;/span> &lt;span class="nf">getSize&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="nd">@Element&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">fileName&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="nd">@Restriction&lt;/span> &lt;span class="n">OffsetRange&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">fileName&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">contains&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;expensiveRecords&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">?&lt;/span> &lt;span class="n">2&lt;/span> &lt;span class="o">:&lt;/span> &lt;span class="n">1&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getTo&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">-&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getFrom&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># The RestrictionProvider is responsible for calculating the size of given&lt;/span>
+&lt;span class="c1"># restriction.&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MyRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transforms&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">restriction_size&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">file_name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">weight&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="s2">&amp;#34;expensiveRecords&amp;#34;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">file_name&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="mi">1&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">size&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">weight&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-go>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">splittableDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">RestrictionSize&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filename&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rest&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">float64&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">weight&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nb">float64&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">strings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Contains&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filename&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="err">“&lt;/span>&lt;span class="nx">expensiveRecords&lt;/span>&lt;span class="err">”&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">weight&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="mi">2&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">weight&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">rest&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">End&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="nx">rest&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Start&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h3 id="user-initiated-checkpoint">12.3. User-initiated checkpoint&lt;/h3>
+&lt;p>Some I/Os cannot produce all of the data necessary to complete a restriction within the lifetime of a
+single bundle. This typically happens with unbounded restrictions, but can also happen with bounded
+restrictions. For example, there could be more data that needs to be ingested but is not available yet.
+Another cause of this scenario is the source system throttling your data.&lt;/p>
+&lt;p>Your SDF can signal to you that you are not done processing the current restriction. This
+signal can suggest a time to resume at. While the runner tries to honor the resume time, this is not
+guaranteed. This allows execution to continue on a restriction that has available work improving
+resource utilization.&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@ProcessElement&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">ProcessContinuation&lt;/span> &lt;span class="nf">processElement&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">RestrictionTracker&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">OutputReceiver&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Record&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kt">long&lt;/span> &lt;span class="n">currentPosition&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">currentRestriction&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getFrom&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">Service&lt;/span> &lt;span class="n">service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">initializeService&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="k">try&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Record&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">records&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readNextRecords&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">currentPosition&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">records&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">isEmpty&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Return a short delay if there is no data to process at the moment.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="n">ProcessContinuation&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">resume&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">withResumeDelay&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardSeconds&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">10&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">Record&lt;/span> &lt;span class="n">record&lt;/span> &lt;span class="o">:&lt;/span> &lt;span class="n">records&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="o">(!&lt;/span>&lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">tryClaim&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">record&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getPosition&lt;/span>&lt;span class="o">()))&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">ProcessContinuation&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">stop&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="n">currentPosition&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">record&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getPosition&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">1&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">record&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span> &lt;span class="k">catch&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">ThrottlingException&lt;/span> &lt;span class="n">exception&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Return a longer delay in case we are being throttled.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="n">ProcessContinuation&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">resume&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">withResumeDelay&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardSeconds&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">60&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">MySplittableDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">restriction_tracker&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionParam&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">MyRestrictionProvider&lt;/span>&lt;span class="p">())):&lt;/span>
+&lt;span class="n">current_position&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">restriction_tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">current_restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">start&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="bp">True&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="c1"># Pull records from an external service.&lt;/span>
+&lt;span class="k">try&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">records&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">external_service&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">fetch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">current_position&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="n">records&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">empty&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;span class="c1"># Set a shorter delay in case we are being throttled.&lt;/span>
+&lt;span class="n">restriction_tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">defer_remainder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">second&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="k">return&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="n">record&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">records&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="n">restriction_tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">try_claim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">record&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">position&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">current_position&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">record&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">position&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="n">record&lt;/span>
+&lt;span class="k">else&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">return&lt;/span>
+&lt;span class="k">except&lt;/span> &lt;span class="n">TimeoutError&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="c1"># Set a longer delay in case we are being throttled.&lt;/span>
+&lt;span class="n">restriction_tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">defer_remainder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="k">return&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h3 id="runner-initiated-split">12.4. Runner-initiated split&lt;/h3>
+&lt;p>A runner at any time may attempt to split a restriction while it is being processed. This allows the
+runner to either pause processing of the restriction so that other work may be done (common for
+unbounded restrictions to limit the amount of output and/or improve latency) or split the restriction
+into two pieces, increasing the available parallelism within the system. It is important to author a
+SDF with this in mind since the end of the restriction may change. Thus when writing the
+processing loop, it is important to use the result from trying to claim a piece of the restriction
+instead of assuming one can process till the end.&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@ProcessElement&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">badTryClaimLoop&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="nd">@Element&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">fileName&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">RestrictionTracker&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">OutputReceiver&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="kd">throws&lt;/span> &lt;span class="n">IOException&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">RandomAccessFile&lt;/span> &lt;span class="n">file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">RandomAccessFile&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">fileName&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;r&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">seekToNextRecordBoundaryInFile&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">currentRestriction&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getFrom&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="c1">// The restriction tracker can be modified by another thread in parallel
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// so storing state locally is ill advised.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kt">long&lt;/span> &lt;span class="n">end&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">currentRestriction&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getTo&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getFilePointer&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">end&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Only after successfully claiming should we produce any output and/or
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// perform side effects.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">tryClaim&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getFilePointer&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">readNextRecord&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">BadTryClaimLoop&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">file_name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">tracker&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">())):&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="nb">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_name&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">file_handle&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">file_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">seek&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">current_restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">start&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="c1"># The restriction tracker can be modified by another thread in parallel&lt;/span>
+&lt;span class="c1"># so storing state locally is ill advised.&lt;/span>
+&lt;span class="n">end&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">current_restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="n">file_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tell&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">end&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="c1"># Only after successfully claiming should we produce any output and/or&lt;/span>
+&lt;span class="c1"># perform side effects.&lt;/span>
+&lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">try_claim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tell&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="n">read_next_record&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_handle&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-go>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">badTryClaimLoop&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">rt&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">sdf&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">LockRTracker&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">filename&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emit&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">os&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">filename&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">offset&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">seekToNextRecordBoundaryInFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">GetRestriction&lt;/span>&lt;span class="p">().(&lt;/span>&lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nx">Start&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// The restriction tracker can be modified by another thread in parallel
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// so storing state locally is ill advised.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">end&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">GetRestriction&lt;/span>&lt;span class="p">().(&lt;/span>&lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nx">End&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="nx">offset&lt;/span> &lt;span class="p">&amp;lt;&lt;/span> &lt;span class="nx">end&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Only after successfully claiming should we produce any output and/or
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// perform side effects.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">rt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TryClaim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">offset&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">record&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">newOffset&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">readNextRecord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">file&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nf">emit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">record&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nx">offset&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">newOffset&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="kc">nil&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h3 id="watermark-estimation">12.5. Watermark estimation&lt;/h3>
+&lt;p>The default watermark estimator does not produce a watermark estimate. Therefore, the output watermark
+is solely computed by the minimum of upstream watermarks.&lt;/p>
+&lt;p>An SDF can advance the output watermark by specifying a lower bound for all future output
+that this element and restriction pair will produce. The runner computes the minimum output watermark
+by taking the minimum over all upstream watermarks and the minimum reported by each element and
+restriction pair. The reported watermark must monotonically increase for each element and restriction
+pair across bundle boundaries. When an element and restriction pair stops processing its watermark,
+it is no longer considered part of the above calculation.&lt;/p>
+&lt;p>Tips:&lt;/p>
+&lt;ul>
+&lt;li>If you author an SDF that outputs records with timestamps, you should expose ways to allow users of
+this SDF to configure which watermark estimator to use.&lt;/li>
+&lt;li>Any data produced before the watermark may be considered late. See
+&lt;a href="#watermarks-and-late-data">watermarks and late data&lt;/a> for more details.&lt;/li>
+&lt;/ul>
+&lt;h4 id="controlling-the-watermark">12.5.1. Controlling the watermark&lt;/h4>
+&lt;p>There are two general types of watermark estimators: timestamp observing and external clock observing.
+Timestamp observing watermark estimators use the output timestamp of each record to compute the watermark
+estimate while external clock observing watermark estimators control the watermark by using a clock that
+is not associated to any individual output, such as the local clock of the machine or a clock exposed
+through an external service.&lt;/p>
+&lt;p>The restriction provider lets you override the default watermark estimation logic and use an existing
+watermark estimator implementation. You can also provide your own watermark estimator implementation.&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="c1">// (Optional) Define a custom watermark state type to save information between bundle
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// processing rounds.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyCustomWatermarkState&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="nf">MyCustomWatermarkState&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">OffsetRange&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Store data necessary for future watermark computations
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="c1">// (Optional) Choose which coder to use to encode the watermark estimator state.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nd">@GetWatermarkEstimatorStateCoder&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">Coder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyCustomWatermarkState&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getWatermarkEstimatorStateCoder&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">AvroCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyCustomWatermarkState&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="c1">// Define a WatermarkEstimator
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyCustomWatermarkEstimator&lt;/span>
+&lt;span class="kd">implements&lt;/span> &lt;span class="n">TimestampObservingWatermarkEstimator&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyCustomWatermarkState&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="nf">MyCustomWatermarkEstimator&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyCustomWatermarkState&lt;/span> &lt;span class="n">type&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Initialize watermark estimator state
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;span class="nd">@Override&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">observeTimestamp&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Instant&lt;/span> &lt;span class="n">timestamp&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Will be invoked on each output from the SDF
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;span class="nd">@Override&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">Instant&lt;/span> &lt;span class="nf">currentWatermark&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Return a monotonically increasing value
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="n">currentWatermark&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="nd">@Override&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">MyCustomWatermarkState&lt;/span> &lt;span class="nf">getState&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Return state to resume future watermark estimation after a checkpoint/split
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="c1">// Then, update the DoFn to generate the initial watermark estimator state for all new element
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// and restriction pairs and to create a new instance given watermark estimator state.
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="nd">@GetInitialWatermarkEstimatorState&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">MyCustomWatermarkState&lt;/span> &lt;span class="nf">getInitialWatermarkEstimatorState&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="nd">@Element&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="nd">@Restriction&lt;/span> &lt;span class="n">OffsetRange&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Compute and return the initial watermark estimator state for each element and
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// restriction. All subsequent processing of an element and restriction will be restored
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// from the existing state.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">MyCustomWatermarkState&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="nd">@NewWatermarkEstimator&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">WatermarkEstimator&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyCustomWatermarkState&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">newWatermarkEstimator&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="nd">@WatermarkEstimatorState&lt;/span> &lt;span class="n">MyCustomWatermarkState&lt;/span> &lt;span class="n">oldState&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">MyCustomWatermarkEstimator&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">oldState&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># (Optional) Define a custom watermark state type to save information between&lt;/span>
+&lt;span class="c1"># bundle processing rounds.&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MyCustomerWatermarkEstimatorState&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">object&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># Store data necessary for future watermark computations&lt;/span>
+&lt;span class="k">pass&lt;/span>
+&lt;span class="c1"># Define a WatermarkEstimator&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MyCustomWatermarkEstimator&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">WatermarkEstimator&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">estimator_state&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">state&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">estimator_state&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">observe_timestamp&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">timestamp&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># Will be invoked on each output from the SDF&lt;/span>
+&lt;span class="k">pass&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">current_watermark&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># Return a monotonically increasing value&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">current_watermark&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">get_estimator_state&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># Return state to resume future watermark estimation after a&lt;/span>
+&lt;span class="c1"># checkpoint/split&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">state&lt;/span>
+&lt;span class="c1"># Then, a WatermarkEstimatorProvider needs to be created for this&lt;/span>
+&lt;span class="c1"># WatermarkEstimator&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MyWatermarkEstimatorProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">WatermarkEstimatorProvider&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">initial_estimator_state&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">MyCustomerWatermarkEstimatorState&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">create_watermark_estimator&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">estimator_state&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">MyCustomWatermarkEstimator&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">estimator_state&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># Finally, define the SDF using your estimator.&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MySplittableDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">restriction_tracker&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MyRestrictionProvider&lt;/span>&lt;span class="p">()),&lt;/span>
+&lt;span class="n">watermark_estimator&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WatermarkEstimatorParam&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">MyWatermarkEstimatorProvider&lt;/span>&lt;span class="p">())):&lt;/span>
+&lt;span class="c1"># The current watermark can be inspected.&lt;/span>
+&lt;span class="n">watermark_estimator&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">current_watermark&lt;/span>&lt;span class="p">()&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h3 id="truncating-during-drain">12.6. Truncating during drain&lt;/h3>
+&lt;p>Runners which support draining pipelines need the ability to drain SDFs; otherwise, the
+pipeline may never stop. By default, bounded restrictions process the remainder of the restriction while
+unbounded restrictions finish processing at the next SDF-initiated checkpoint or runner-initiated split.
+You are able to override this default behavior by defining the appropriate method on the restriction
+provider.&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@TruncateRestriction&lt;/span>
+&lt;span class="nd">@Nullable&lt;/span>
+&lt;span class="n">TruncateResult&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">truncateRestriction&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="nd">@Element&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">fileName&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="nd">@Restriction&lt;/span> &lt;span class="n">OffsetRange&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">fileName&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">contains&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;optional&amp;#34;&lt;/span>&lt;span class="o">))&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// Skip optional files
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">TruncateResult&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">restriction&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">MyRestrictionProvider&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transforms&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionProvider&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">truncate&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">file_name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="s2">&amp;#34;optional&amp;#34;&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">file_name&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="c1"># Skip optional files&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="bp">None&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">restriction&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h3 id="bundle-finalization">12.7. Bundle finalization&lt;/h3>
+&lt;p>Bundle finalization enables a &lt;code>DoFn&lt;/code> to perform side effects by registering a callback.
+The callback is invoked once the runner has acknowledged that it has durably persisted the output.
+For example, a message queue might need to acknowledge messages that it has ingested into the pipeline.
+Bundle finalization is not limited to SDFs but is called out here since this is the primary
+use case.&lt;/p>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@ProcessElement&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">processElement&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ProcessContext&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">BundleFinalizer&lt;/span> &lt;span class="n">bundleFinalizer&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// ... produce output ...
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="n">bundleFinalizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">afterBundleCommit&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Instant&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">now&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">5&lt;/span>&lt;span class="o">)),&lt;/span>
+&lt;span class="o">()&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// ... perform a side effect ...
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">});&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">MySplittableDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bundle_finalizer&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BundleFinalizerParam&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># ... produce output ...&lt;/span>
+&lt;span class="c1"># Register callback function for this bundle that performs the side&lt;/span>
+&lt;span class="c1"># effect.&lt;/span>
+&lt;span class="n">bundle_finalizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">register&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">my_callback_func&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div></description></item><item><title>Documentation: BigQuery patterns</title><link>/documentation/patterns/bigqueryio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bigqueryio/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12004,10 +12490,6 @@ as the previous example.&lt;/p>
 &lt;span class="n">table_schema&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;source:STRING, quote:STRING&amp;#39;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h3 id="setting-the-insertion-method">Setting the insertion method&lt;/h3>
-&lt;p class="language-py">&lt;blockquote>
-&lt;p>The Beam SDK for Python does not currently support specifying the insertion
-method.&lt;/p>
-&lt;/blockquote>&lt;/p>
 &lt;p>BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
 streaming inserts. Each insertion method provides different tradeoffs of cost,
 quota, and data consistency. See the BigQuery documentation for
@@ -12140,9 +12622,6 @@ be replaced.&lt;/p>
 You can either keep retrying, or return the failed records in a separate
 &lt;code>PCollection&lt;/code> using the &lt;code>WriteResult.getFailedInserts()&lt;/code> method.&lt;/p>
 &lt;h3 id="using-dynamic-destinations">Using dynamic destinations&lt;/h3>
-&lt;p class="language-py">&lt;blockquote>
-&lt;p>The Beam SDK for Python does not currently support dynamic destinations.&lt;/p>
-&lt;/blockquote>&lt;/p>
 &lt;p>You can use the dynamic destinations feature to write elements in a
 &lt;code>PCollection&lt;/code> to different BigQuery tables, possibly with different schemas.&lt;/p>
 &lt;p>The dynamic destinations feature groups your user type by a user-defined
@@ -12263,12 +12742,22 @@ different table for each year.&lt;/p>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withWriteDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">WriteDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">WRITE_TRUNCATE&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># The Beam SDK for Python does not currently support dynamic destinations.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">fictional_characters_view&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AsDict&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;CreateCharacters&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([(&lt;/span>&lt;span class="s1">&amp;#39;Yoda&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">True&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Obi Wan Kenobi&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">True&lt;/span>&lt;span class="p">)]))&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">table_fn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">fictional_characters&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="n">element&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">fictional_characters&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="s1">&amp;#39;my_dataset.fictional_quotes&amp;#39;&lt;/span>
+&lt;span class="k">else&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="s1">&amp;#39;my_dataset.real_quotes&amp;#39;&lt;/span>
+&lt;span class="n">quotes&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;WriteWithDynamicDestination&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">table_fn&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">schema&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_schema&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">table_side_inputs&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">fictional_characters_view&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">),&lt;/span>
+&lt;span class="n">write_disposition&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BigQueryDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WRITE_TRUNCATE&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">create_disposition&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BigQueryDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CREATE_IF_NEEDED&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h3 id="using-time-partitioning">Using time partitioning&lt;/h3>
-&lt;p class="language-py">&lt;blockquote>
-&lt;p>The Beam SDK for Python does not currently support time partitioning.&lt;/p>
-&lt;/blockquote>&lt;/p>
 &lt;p>BigQuery time partitioning divides your table into smaller partitions, which is
 called a &lt;a href="https://cloud.google.com/bigquery/docs/partitioned-tables">partitioned table&lt;/a>.
 Partitioned tables make it easier for you to manage and query your data.&lt;/p>
@@ -12304,7 +12793,14 @@ only usable if you are writing to a single table.&lt;/p>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withWriteDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">WriteDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">WRITE_TRUNCATE&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># The Beam SDK for Python does not currently support time partitioning.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">quotes&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;WriteWithTimePartitioning&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">table_spec&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">schema&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_schema&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">write_disposition&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BigQueryDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WRITE_TRUNCATE&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">create_disposition&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BigQueryDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CREATE_IF_NEEDED&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">additional_bq_parameters&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;timePartitioning&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;HOUR&amp;#39;&lt;/span>
+&lt;span class="p">}})&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h2 id="limitations">Limitations&lt;/h2>
 &lt;p>BigQueryIO currently has the following limitations.&lt;/p>

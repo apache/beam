@@ -413,21 +413,13 @@ or running all commands manually.&lt;/p>
 &lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>NOTE&lt;/strong>: When generating the key, please make sure you choose the key type as &lt;strong>RSA and RSA (default)&lt;/strong> and key size as &lt;strong>4096 bit&lt;/strong>.&lt;/p>
-&lt;h5 id="run-all-commands-manually">Run all commands manually&lt;/h5>
+&lt;ul>
+&lt;li>To run the commands manually, refer to the contents of &lt;code>preparation_before_release.sh&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;h5 id="key-id">Key ID&lt;/h5>
 &lt;ul>
 &lt;li>
-&lt;p>Get more entropy for creating a GPG key&lt;/p>
-&lt;pre>&lt;code>sudo apt-get install rng-tools
-sudo rngd -r /dev/urandom
-&lt;/code>&lt;/pre>
-&lt;/li>
-&lt;li>
-&lt;p>Create a GPG key&lt;/p>
-&lt;pre>&lt;code>gpg --full-generate-key
-&lt;/code>&lt;/pre>
-&lt;/li>
-&lt;li>
-&lt;p>Determine your Apache GPG Key and Key ID, as follows:&lt;/p>
+&lt;p>You may need your Key ID for future steps. Determine your Apache GPG Key and Key ID as follows:&lt;/p>
 &lt;pre>&lt;code>gpg --list-sigs --keyid-format LONG
 &lt;/code>&lt;/pre>
 &lt;p>This will list your GPG keys. One of these should reflect your Apache account, for example:&lt;/p>
@@ -437,20 +429,6 @@ uid Nomen Nescio &amp;lt;anonymous@apache.org&amp;gt;
 sub 2048R/BA4D50BE 2016-02-23
 &lt;/code>&lt;/pre>
 &lt;p>Here, the key ID is the 8-digit hex string in the &lt;code>pub&lt;/code> line: &lt;code>845E6689&lt;/code>.&lt;/p>
-&lt;p>Now, add your Apache GPG key to the Beam’s &lt;code>KEYS&lt;/code> file both in &lt;a href="https://dist.apache.org/repos/dist/dev/beam/KEYS">&lt;code>dev&lt;/code>&lt;/a> and &lt;a href="https://dist.apache.org/repos/dist/release/beam/KEYS">&lt;code>release&lt;/code>&lt;/a> repositories at &lt;code>dist.apache.org&lt;/code>. Follow the instructions listed at the top of these files. (Note: Only PMC members have write access to the release repository. If you end up getting 403 errors ask on the mailing list for assistance.)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Configure &lt;code>git&lt;/code> to use this key when signing code by giving it your key ID, as follows:&lt;/p>
-&lt;pre>&lt;code>git config --global user.signingkey 845E6689
-&lt;/code>&lt;/pre>
-&lt;p>You may drop the &lt;code>--global&lt;/code> option if you’d prefer to use this key for the current repository only.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Start GPG agent in order to unlock your GPG key&lt;/p>
-&lt;pre>&lt;code>eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
-export GPG_TTY=$(tty)
-export GPG_AGENT_INFO
-&lt;/code>&lt;/pre>
 &lt;/li>
 &lt;/ul>
 &lt;h4 id="access-to-apache-nexus-repository">Access to Apache Nexus repository&lt;/h4>
@@ -855,11 +833,11 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
 &lt;li>JIRA release item for the subsequent release has been created;&lt;/li>
 &lt;li>All test failures from branch verification have associated JIRA issues;&lt;/li>
 &lt;li>There are no release blocking JIRA issues;&lt;/li>
-&lt;li>Combined javadoc has the appropriate contents;&lt;/li>
 &lt;li>Release branch has been created;&lt;/li>
 &lt;li>There are no open pull requests to release branch;&lt;/li>
 &lt;li>Originating branch has the version information updated to the new version;&lt;/li>
 &lt;li>Nightly snapshot is in progress (do revisit it continually);&lt;/li>
+&lt;li>Set &lt;code>JAVA_HOME&lt;/code> to JDK 8 (Example: &lt;code>export JAVA_HOME=/example/path/to/java/jdk8&lt;/code>).&lt;/li>
 &lt;/ul>
 &lt;p>The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.&lt;/p>
 &lt;p>For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.&lt;/p>
@@ -911,7 +889,7 @@ Need to verify all Python images by replacing &lt;code>${ver}&lt;/code> with eac
 &lt;pre>&lt;code>docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;ul>
-&lt;li>For Java SDK images, there should be around 1400 dependencies.&lt;/li>
+&lt;li>For Java SDK images, there should be around 200 dependencies.&lt;/li>
 &lt;/ul>
 &lt;pre>&lt;code>docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
@@ -981,7 +959,7 @@ It is created by &lt;code>build_release_candidate.sh&lt;/code> (see above).&lt;/
 &lt;li>Update &lt;code>website/www/site/static/.htaccess&lt;/code> to redirect to the new version.&lt;/li>
 &lt;/ul>
 &lt;h3 id="blog-post">Blog post&lt;/h3>
-&lt;p>Write a blog post similar to &lt;a href="https://github.com/apache/beam/blob/master/website/www/site/content/en/blog/beam-2.20.0.md">beam-2.20.0.md&lt;/a>.&lt;/p>
+&lt;p>Write a blog post similar to &lt;a href="https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d">beam-2.23.0.md&lt;/a>.&lt;/p>
 &lt;ul>
 &lt;li>Update &lt;code>CHANGES.md&lt;/code> by adding a new section for the next release.&lt;/li>
 &lt;li>Copy the changes for the current release from &lt;code>CHANGES.md&lt;/code> to the blog post and edit as necessary.&lt;/li>
@@ -1018,7 +996,7 @@ For more information on changes in {$RELEASE_VERSION}, check out the
 * {$KNOWN_ISSUE_2}
 * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
 ## List of Contributors
-According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
 ${CONTRIBUTORS}
 &lt;/code>&lt;/pre>&lt;h4 id="checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step&lt;/h4>
 &lt;ol>
