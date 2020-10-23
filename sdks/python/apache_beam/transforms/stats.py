@@ -36,14 +36,12 @@ import heapq
 import itertools
 import logging
 import math
-import sys
 import typing
 from builtins import round
 from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import List
-from typing import Sequence
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -61,30 +59,34 @@ T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
+try:
+  import mmh3  # pylint: disable=import-error
+
+  def _mmh3_hash(value):
+    # mmh3.hash64 returns two 64-bit unsigned integers
+    return mmh3.hash64(value, seed=0, signed=False)[0]
+
+  _default_hash_fn = _mmh3_hash
+  _default_hash_fn_type = 'mmh3'
+except ImportError:
+
+  def _md5_hash(value):
+    # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
+    # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
+    # integer fingerprint.
+    return int(hashlib.md5(value).hexdigest()[:16], 16)
+
+  _default_hash_fn = _md5_hash
+  _default_hash_fn_type = 'md5'
+
 
 def _get_default_hash_fn():
   """Returns either murmurhash or md5 based on installation."""
-  try:
-    import mmh3  # pylint: disable=import-error
-
-    def _mmh3_hash(value):
-      # mmh3.hash64 returns two 64-bit unsigned integers
-      return mmh3.hash64(value, seed=0, signed=False)[0]
-
-    return _mmh3_hash
-
-  except ImportError:
+  if _default_hash_fn_type == 'md5':
     logging.warning(
         'Couldn\'t find murmurhash. Install mmh3 for a faster implementation of'
         'ApproximateUnique.')
-
-    def _md5_hash(value):
-      # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
-      # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
-      # integer fingerprint.
-      return int(hashlib.md5(value).hexdigest()[:16], 16)
-
-    return _md5_hash
+  return _default_hash_fn
 
 
 class ApproximateUnique(object):
@@ -330,8 +332,8 @@ class ApproximateQuantiles(object):
         quantiles. The input PCollection is then expected to contain tuples of
         input values with the corresponding weight.
       batch_input: (optional) if set to True, the transform expects each element
-        of input PCollection to be a batch. Provides a way to accumulate multiple
-        elements at a time more efficiently.
+        of input PCollection to be a batch. Provides a way to accumulate
+        multiple elements at a time more efficiently.
     """
     def __init__(
         self,
@@ -383,8 +385,8 @@ class ApproximateQuantiles(object):
         quantiles. The input PCollection is then expected to contain tuples of
         input values with the corresponding weight.
       batch_input: (optional) if set to True, the transform expects each element
-        of input PCollection to be a batch. Provides a way to accumulate multiple
-        elements at a time more efficiently.
+        of input PCollection to be a batch. Provides a way to accumulate
+        multiple elements at a time more efficiently.
     """
     def __init__(
         self,
@@ -640,7 +642,9 @@ class _QuantileState(object):
 def _collapse(buffers, offset_fn, spec):
   # type: (List[_QuantileBuffer[T]], Any, _QuantileSpec[T]) -> _QuantileBuffer[T]
 
-  """ Approximates elements from multiple buffers and produces a single buffer."""
+  """
+  Approximates elements from multiple buffers and produces a single buffer.
+  """
   new_level = 0
   new_weight = 0
   for buffer in buffers:
@@ -656,7 +660,8 @@ def _collapse(buffers, offset_fn, spec):
   else:
     step = new_weight
     offset = offset_fn(new_weight)
-  new_elements, new_weights, min_val, max_val = _interpolate(buffers, spec.buffer_size, step, offset, spec)
+  new_elements, new_weights, min_val, max_val = \
+      _interpolate(buffers, spec.buffer_size, step, offset, spec)
   if not spec.weighted:
     new_weights = [new_weight]
   return _QuantileBuffer(
@@ -801,6 +806,18 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
     if self._batch_input:
       self.add_input = self._add_inputs
 
+  def __reduce__(self):
+    return (
+        self.__class__,
+        (
+            self._num_quantiles,
+            self._spec.buffer_size,
+            self._spec.num_buffers,
+            self._spec.key,
+            self._spec.reverse,
+            self._spec.weighted,
+            self._batch_input))
+
   @classmethod
   def create(
       cls,
@@ -837,8 +854,8 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
       weighted: (optional) if set to True, the combiner produces weighted
         quantiles. The input elements are then expected to be tuples of values
         with the corresponding weight.
-      batch_input: (optional) if set to True, inputs are expected to be batches of
-        elements.
+      batch_input: (optional) if set to True, inputs are expected to be batches
+        of elements.
     """
     max_num_elements = max_num_elements or cls._MAX_NUM_ELEMENTS
     if not epsilon:
@@ -892,7 +909,8 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
     # type: (_QuantileState[T], Iterable) -> _QuantileState[T]
 
     """
-    Add a batch of elements to the collection being summarized by quantile state.
+    Add a batch of elements to the collection being summarized by quantile
+    state.
     """
     if len(elements) == 0:
       return quantile_state
@@ -938,7 +956,8 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
     step = total_weight / (self._num_quantiles - 1)
     offset = (total_weight - 1) / (self._num_quantiles - 1)
 
-    quantiles, _, min_val, max_val = _interpolate(all_elems, self._num_quantiles - 2, step,
-                                                  offset, self._spec)
+    quantiles, _, min_val, max_val = \
+        _interpolate(all_elems, self._num_quantiles - 2, step, offset,
+                     self._spec)
 
     return [min_val] + quantiles + [max_val]
