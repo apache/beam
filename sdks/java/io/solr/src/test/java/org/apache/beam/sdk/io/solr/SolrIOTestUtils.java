@@ -29,6 +29,9 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 
 /** Test utilities to use with {@link SolrIO}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SolrIOTestUtils {
   public static final long MIN_DOC_SIZE = 30L;
   public static final long MAX_DOC_SIZE = 150L;

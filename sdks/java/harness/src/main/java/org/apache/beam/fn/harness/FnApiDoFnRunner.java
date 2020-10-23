@@ -131,7 +131,11 @@ import org.joda.time.Instant;
  * abstraction caused by StateInternals/TimerInternals since they model state and timer concepts
  * differently.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "keyfor"
+})
 public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
@@ -963,6 +967,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   /** Internal class to hold the primary and residual roots when converted to an input element. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class WindowedSplitResult {
     public static WindowedSplitResult forRoots(
         WindowedValue primaryInFullyProcessedWindowsRoot,
@@ -986,6 +992,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class SplitResultsWithStopIndex {
     public static SplitResultsWithStopIndex of(
         WindowedSplitResult windowSplit,
@@ -1807,7 +1815,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (outputTimestamp != null) {
         checkArgument(
             !outputTimestamp.isBefore(elementTimestampOrTimerHoldTimestamp),
-            "output timestamp %s should be after input message timestamp or output timestamp of firing timers %s",
+            "output timestamp %s should be after input message timestamp or output timestamp of"
+                + " firing timers %s",
             outputTimestamp,
             elementTimestampOrTimerHoldTimestamp);
       }

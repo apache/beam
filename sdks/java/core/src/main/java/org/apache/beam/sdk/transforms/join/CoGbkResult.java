@@ -44,7 +44,9 @@ import org.slf4j.LoggerFactory;
  * A row result of a {@link CoGroupByKey}. This is a tuple of {@link Iterable}s produced for a given
  * key, and these can be accessed in different ways.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoGbkResult {
   /**
    * A map of integer union tags to a list of union objects. Note: the key and the embedded union

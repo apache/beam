@@ -43,6 +43,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>For each main input window, the side input window is returned. The nonce is used by a runner
  * to associate each input with its output. The nonce is represented as an opaque set of bytes.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class WindowMappingFnRunner {
   static final String URN = PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
 

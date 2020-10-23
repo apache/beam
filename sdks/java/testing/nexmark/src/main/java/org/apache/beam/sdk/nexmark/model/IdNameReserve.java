@@ -33,7 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result type of Query8. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IdNameReserve implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();

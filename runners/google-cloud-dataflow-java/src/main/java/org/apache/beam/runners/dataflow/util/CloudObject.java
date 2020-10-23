@@ -34,7 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * add additional properties to be presented during deserialization, representing child objects by
  * building additional {@code CloudObject}s.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class CloudObject extends GenericJson implements Cloneable {
   /**
    * Constructs a {@code CloudObject} by copying the supplied serialized object spec, which must

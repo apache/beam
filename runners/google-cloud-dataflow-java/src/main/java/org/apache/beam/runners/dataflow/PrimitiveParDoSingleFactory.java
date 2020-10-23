@@ -69,7 +69,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * ParDo.SingleOutput} instances. {@link ParDoSingle} is a primitive {@link PTransform}, to ensure
  * that {@link DisplayData} appears on all {@link ParDo ParDos} in the {@link DataflowRunner}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PrimitiveParDoSingleFactory<InputT, OutputT>
     extends SingleInputOutputOverrideFactory<
         PCollection<? extends InputT>, PCollection<OutputT>, SingleOutput<InputT, OutputT>> {

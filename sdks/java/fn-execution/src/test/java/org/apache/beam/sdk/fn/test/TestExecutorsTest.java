@@ -33,7 +33,9 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link TestExecutors}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestExecutorsTest {
   @Test
   public void testSuccessfulTermination() throws Throwable {

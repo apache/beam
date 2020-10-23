@@ -41,7 +41,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * Helper for {@link FlinkBatchPipelineTranslator} and translators in {@link
  * FlinkBatchTransformTranslators}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlinkBatchTranslationContext {
 
   private final Map<PValue, DataSet<?>> dataSets;

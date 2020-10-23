@@ -55,7 +55,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
  *
  * @param <V> the type of the value written to the sink
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IsmSink<V> extends Sink<WindowedValue<IsmRecord<V>>> {
   static final int BLOCK_SIZE_BYTES = 1024 * 1024;
   private final ResourceId resourceId;

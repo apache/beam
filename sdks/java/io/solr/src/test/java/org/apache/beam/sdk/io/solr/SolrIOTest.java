@@ -66,7 +66,10 @@ import org.slf4j.LoggerFactory;
 @ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
 @SolrTestCaseJ4.SuppressSSL
 @RunWith(RandomizedRunner.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SolrIOTest extends SolrCloudTestCase {
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 

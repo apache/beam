@@ -31,7 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * A Dataflow-specific version of {@link ElementCounter}, which specifies the object counter name
  * differently as PhysicalElementCount. Additionally, it counts element windows as ElementCount.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowOutputCounter implements ElementCounter {
   /** Number of physical element and multiple-window assignments that were serialized/processed. */
   private static final String OBJECT_COUNTER_NAME = "-PhysicalElementCount";

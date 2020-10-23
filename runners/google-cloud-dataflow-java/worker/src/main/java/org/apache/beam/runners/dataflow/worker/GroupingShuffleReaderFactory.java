@@ -39,7 +39,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates a GroupingShuffleReader from a CloudObject spec. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupingShuffleReaderFactory implements ReaderFactory {
 
   /** A {@link ReaderFactory.Registrar} for grouping shuffle sources. */
@@ -62,7 +65,10 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
       throws Exception {
 
     options = checkArgumentNotNull(options);
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     Coder<WindowedValue<KV<Object, Iterable<Object>>>> typedCoder = (Coder) coder;
     return createTyped(spec, typedCoder, options, executionContext, operationContext);
   }

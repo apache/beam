@@ -76,7 +76,9 @@ import org.slf4j.LoggerFactory;
  * mechanisms for creating credentials.
  */
 @Description("Options used to configure Google Cloud Platform project and credentials.")
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /** Project id to use when launching jobs. */
   @Description(

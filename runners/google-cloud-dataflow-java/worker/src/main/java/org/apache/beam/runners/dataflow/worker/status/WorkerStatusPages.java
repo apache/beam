@@ -35,7 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Manages the server providing the worker status pages. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WorkerStatusPages {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkerStatusPages.class);

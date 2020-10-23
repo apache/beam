@@ -31,7 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server for the Flink runner. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkJobServerDriver extends JobServerDriver {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobServerDriver.class);

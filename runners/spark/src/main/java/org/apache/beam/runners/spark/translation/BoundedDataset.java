@@ -39,7 +39,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * objects; in which case they do not need to be converted to bytes since they are not transferred
  * across the network until they are broadcast.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BoundedDataset<T> implements Dataset {
   // only set if creating an RDD from a static collection
   private transient @Nullable JavaSparkContext jsc;

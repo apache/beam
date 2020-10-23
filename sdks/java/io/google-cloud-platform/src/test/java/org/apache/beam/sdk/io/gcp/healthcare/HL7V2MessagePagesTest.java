@@ -37,7 +37,9 @@ import org.mockito.Mockito;
 
 /** The type HL7v2 message id pages test. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HL7V2MessagePagesTest {
 
   /** The Healthcare API. */

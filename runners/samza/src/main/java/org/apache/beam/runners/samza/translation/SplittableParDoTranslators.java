@@ -44,7 +44,10 @@ import org.apache.samza.operators.MessageStream;
 import org.apache.samza.serializers.KVSerde;
 
 /** A set of translators for {@link SplittableParDo}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SplittableParDoTranslators {
 
   /**

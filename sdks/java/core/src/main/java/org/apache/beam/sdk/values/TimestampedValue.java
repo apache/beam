@@ -41,7 +41,9 @@ import org.joda.time.Instant;
  *
  * @param <V> the type of the value
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TimestampedValue<V> {
   /**
    * Returns a new {@link TimestampedValue} with the {@link BoundedWindow#TIMESTAMP_MIN_VALUE

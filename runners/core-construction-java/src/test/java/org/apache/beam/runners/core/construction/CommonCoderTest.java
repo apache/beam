@@ -89,7 +89,10 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests that Java SDK coders standardized by the Fn API meet the common spec. */
 @RunWith(Parameterized.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CommonCoderTest {
   private static final String STANDARD_CODERS_YAML_PATH =
       "/org/apache/beam/model/fnexecution/v1/standard_coders.yaml";

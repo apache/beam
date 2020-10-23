@@ -46,7 +46,10 @@ import org.joda.time.Instant;
  * after a checkpoint has completed. This ensures that the input is stable and we produce idempotent
  * results on failures.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   public static <InputT, OutputT> BufferingDoFnRunner<InputT, OutputT> create(

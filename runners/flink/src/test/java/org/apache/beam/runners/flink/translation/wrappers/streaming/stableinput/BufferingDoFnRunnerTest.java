@@ -47,6 +47,9 @@ import org.mockito.Mockito;
  *
  * <p>- {@link BufferedElementsTest}
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class BufferingDoFnRunnerTest {
 
   @Test

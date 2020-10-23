@@ -24,7 +24,9 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 /** Implementation of a WindmillServerBase. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindmillServer extends WindmillServerBase {
   private static final String WINDMILL_SERVER_JNI_LIBRARY_PROPERTY = "windmill.jni_library";
   private static final String DEFAULT_SHUFFLE_CLIENT_LIBRARY = "libwindmill_service_jni.so";

@@ -85,7 +85,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link FileSystem} implementation for Amazon S3. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3FileSystem.class);

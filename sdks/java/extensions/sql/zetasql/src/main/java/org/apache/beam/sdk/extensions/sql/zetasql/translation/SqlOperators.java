@@ -62,7 +62,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * Calcite. Most of functions within this class is copied from Calcite.
  */
 @Internal
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SqlOperators {
   public static final SqlOperator ZETASQL_TIMESTAMP_ADD =
       createZetaSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);

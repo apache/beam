@@ -57,7 +57,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FlinkStateInternals}. This is based on {@link StateInternalsTest}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkStateInternalsTest extends StateInternalsTest {
 
   @Override

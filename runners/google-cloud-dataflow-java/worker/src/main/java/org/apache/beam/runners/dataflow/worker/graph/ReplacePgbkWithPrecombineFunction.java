@@ -36,7 +36,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
  * A function that replaces PartialGroupByKey nodes with ParDo nodes that can be translated by the
  * {@link RegisterNodeFunction} into a Pre-combine executed by the SDK harness.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReplacePgbkWithPrecombineFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {
 

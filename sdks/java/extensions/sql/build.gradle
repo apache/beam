@@ -27,7 +27,7 @@ applyJavaNature(
   ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann'])
+  disableLintWarnings: ['dep-ann', 'rawtypes'])
 applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"

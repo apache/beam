@@ -45,7 +45,9 @@ import org.joda.time.format.PeriodFormatter;
  */
 // This class should be inlined to subclasses and deleted, simplifying them too
 // https://issues.apache.org/jira/browse/BEAM-1486
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStateMachine {
 
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY = ImmutableList.of();

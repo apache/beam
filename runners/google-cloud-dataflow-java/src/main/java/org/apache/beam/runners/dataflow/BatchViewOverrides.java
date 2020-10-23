@@ -90,7 +90,9 @@ import org.joda.time.Instant;
 /**
  * Dataflow batch overrides for {@link CreatePCollectionView}, specialized for different view types.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BatchViewOverrides {
   /**
    * Specialized implementation for {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap} for
@@ -235,7 +237,10 @@ class BatchViewOverrides {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -717,7 +722,10 @@ class BatchViewOverrides {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -746,7 +754,10 @@ class BatchViewOverrides {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>) input.getWindowingStrategy().getWindowFn().windowCoder();
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
 
       // If our key coder is deterministic, we can use the key portion of each KV

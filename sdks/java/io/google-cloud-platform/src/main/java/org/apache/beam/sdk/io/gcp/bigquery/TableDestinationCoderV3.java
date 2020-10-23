@@ -31,7 +31,9 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
  * options on {@link BigQueryIO.Write}, otherwise {@link TableDestinationCoderV2} will be used and
  * clustering information will be discarded.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TableDestinationCoderV3 extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoderV3 INSTANCE = new TableDestinationCoderV3();
   private static final Coder<String> timePartitioningCoder = NullableCoder.of(StringUtf8Coder.of());

@@ -25,7 +25,9 @@ import org.joda.time.Duration;
 import org.mortbay.log.Log;
 
 /** Represents a Twister2 pipeline execution result. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Twister2PipelineResult implements PipelineResult {
 
   PipelineResult.State state;

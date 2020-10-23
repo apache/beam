@@ -57,7 +57,9 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link BoundedReadFromUnboundedSource}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BoundedReadFromUnboundedSourceTest implements Serializable {
   private static final int NUM_RECORDS = 100;
 

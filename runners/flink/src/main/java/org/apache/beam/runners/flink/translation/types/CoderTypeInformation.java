@@ -33,6 +33,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for Beam {@link
  * org.apache.beam.sdk.coders.Coder}s.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
   private final Coder<T> coder;

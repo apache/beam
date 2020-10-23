@@ -36,7 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 // Spotbugs thinks synchronization is for the fields, but it is for the act of decoding
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class WindowSupplier implements Supplier<Collection<BoundedWindow>>, Serializable {
   private final Coder<? extends BoundedWindow> coder;
   private final Collection<byte[]> encodedWindows;

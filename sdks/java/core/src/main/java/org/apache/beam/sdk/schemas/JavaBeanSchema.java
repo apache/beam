@@ -47,7 +47,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * on the schema.
  */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on getter methods. */
   @VisibleForTesting

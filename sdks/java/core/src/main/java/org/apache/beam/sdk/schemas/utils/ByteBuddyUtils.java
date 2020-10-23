@@ -93,7 +93,11 @@ import org.joda.time.ReadablePartial;
 import org.joda.time.base.BaseLocal;
 
 @Internal
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "keyfor",
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class ByteBuddyUtils {
   private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
   private static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);

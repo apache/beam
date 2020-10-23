@@ -45,6 +45,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Base setup for ClickHouse containers. */
 @SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "unchecked",
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

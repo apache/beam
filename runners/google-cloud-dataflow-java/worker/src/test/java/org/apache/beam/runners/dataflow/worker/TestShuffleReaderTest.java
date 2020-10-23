@@ -35,7 +35,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests of TestShuffleReader. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestShuffleReaderTest {
   static final String START_KEY = "ddd";
   static final String END_KEY = "mmm";

@@ -33,7 +33,9 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link FloatCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FloatCoderTest {
 
   private static final Coder<Float> TEST_CODER = FloatCoder.of();

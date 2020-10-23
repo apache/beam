@@ -47,7 +47,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests if overrides are properly applied. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkTransformOverridesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();

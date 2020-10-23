@@ -83,7 +83,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 // Possible real inconsistency - https://issues.apache.org/jira/browse/BEAM-6560
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IsmReaderImpl<V> extends IsmReader<V> {
   /**
    * This constant represents the distance we would rather read and drop bytes for versus doing an

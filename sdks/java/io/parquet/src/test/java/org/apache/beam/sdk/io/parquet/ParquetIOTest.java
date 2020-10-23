@@ -50,7 +50,9 @@ import org.junit.runners.JUnit4;
 
 /** Test on the {@link ParquetIO}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ParquetIOTest implements Serializable {
   @Rule public transient TestPipeline mainPipeline = TestPipeline.create();
 
