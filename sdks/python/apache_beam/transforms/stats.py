@@ -505,8 +505,6 @@ class _QuantileState(object):
     self.spec = spec
     if spec.weighted:
       setattr(self, 'add_unbuffered', self._add_unbuffered_weighted)
-    else:
-      setattr(self, 'add_unbuffered', self._add_unbuffered)
 
     # The algorithm requires that the manipulated buffers always be filled to
     # capacity to perform the collapse operation. This operation can be extended
@@ -532,8 +530,8 @@ class _QuantileState(object):
     """Check if the buffered & unbuffered elements are empty or not."""
     return not self.unbuffered_elements and not self.buffers
 
-  def _add_unbuffered(self, elements, offset_fn):
-    # type: (Sized, Any) -> None
+  def add_unbuffered(self, elements, offset_fn):
+    # type: (List, Any) -> None
 
     """
     Add elements to the unbuffered list, creating new buffers and
@@ -559,7 +557,7 @@ class _QuantileState(object):
     self.collapse_if_needed(offset_fn)
 
   def _add_unbuffered_weighted(self, elements, offset_fn):
-    # type: (Sized, Any) -> None
+    # type: (List, Any) -> None
 
     """
     Add elements with weights to the unbuffered list, creating new buffers and
@@ -629,6 +627,12 @@ class _QuantileState(object):
     self.unbuffered_elements = []
 
   def collapse_if_needed(self, offset_fn):
+    # type: (Any) -> None
+
+    """
+    Checks if summary has too many buffers and collapses some of them until the
+    limit is restored.
+    """
     while len(self.buffers) > self.spec.num_buffers:
       to_collapse = [heapq.heappop(self.buffers), heapq.heappop(self.buffers)]
       min_level = to_collapse[1].level
@@ -709,8 +713,8 @@ def _interpolate(buffers, count, step, offset, spec):
       result = [sorted_elements[int(j * step)][0] for j in range(1, count + 1)]
       return result, [], min_val, max_val
 
-  sorted_elements = iter(sorted_elements)
-  weighted_element = next(sorted_elements)
+  sorted_elements_iter = iter(sorted_elements)
+  weighted_element = next(sorted_elements_iter)
   new_elements = []
   new_weights = []
   j = 0
@@ -721,7 +725,7 @@ def _interpolate(buffers, count, step, offset, spec):
     j += 1
     try:
       while current_weight <= target_weight:
-        weighted_element = next(sorted_elements)
+        weighted_element = next(sorted_elements_iter)
         current_weight += weighted_element[1]
     except StopIteration:
       pass
@@ -789,7 +793,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
   # non-optimal. The impact is logarithmic with respect to this value, so this
   # default should be fine for most uses.
   _MAX_NUM_ELEMENTS = 1e9
-  _qs = None  # type: _QuantileState[T]
+  _qs = None  # type: _QuantileState
 
   def __init__(
       self,
@@ -906,7 +910,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     return quantile_state
 
   def _add_inputs(self, quantile_state, elements):
-    # type: (_QuantileState, Sized) -> _QuantileState
+    # type: (_QuantileState, List) -> _QuantileState
 
     """
     Add a batch of elements to the collection being summarized by quantile
