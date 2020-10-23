@@ -29,6 +29,7 @@ import org.apache.beam.runners.twister2.translation.wrappers.Twister2EmptySource
 import org.apache.beam.runners.twister2.translators.BatchTransformTranslator;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 
 /** Flatten translator. */
@@ -37,7 +38,7 @@ public class FlattenTranslatorBatch<T>
   @Override
   public void translateNode(
       Flatten.PCollections<T> transform, Twister2BatchTranslationContext context) {
-    Collection<PValue> pcs = context.getInputs().values();
+    Collection<PCollection<?>> pcs = context.getInputs().values();
     List<BatchTSetImpl<WindowedValue<T>>> tSets = new ArrayList<>();
     BatchTSetImpl<WindowedValue<T>> unionTSet;
 

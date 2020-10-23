@@ -76,7 +76,7 @@ public class TransformInputsTest {
 
   @Test
   public void nonAdditionalInputsWithMultipleNonAdditionalInputsSucceeds() {
-    Map<TupleTag<?>, PValue> allInputs = new HashMap<>();
+    Map<TupleTag<?>, PCollection<?>> allInputs = new HashMap<>();
     PCollection<Integer> mainInts = pipeline.apply("MainInput", Create.of(12, 3));
     allInputs.put(new TupleTag<Integer>() {}, mainInts);
     PCollection<Void> voids = pipeline.apply("VoidInput", Create.empty(VoidCoder.of()));
@@ -96,12 +96,12 @@ public class TransformInputsTest {
     additionalInputs.put(new TupleTag<String>() {}, pipeline.apply(Create.of("1, 2", "3")));
     additionalInputs.put(new TupleTag<Long>() {}, pipeline.apply(GenerateSequence.from(3L)));
 
-    Map<TupleTag<?>, PValue> allInputs = new HashMap<>();
+    Map<TupleTag<?>, PCollection<?>> allInputs = new HashMap<>();
     PCollection<Integer> mainInts = pipeline.apply("MainInput", Create.of(12, 3));
     allInputs.put(new TupleTag<Integer>() {}, mainInts);
     PCollection<Void> voids = pipeline.apply("VoidInput", Create.empty(VoidCoder.of()));
     allInputs.put(new TupleTag<Void>() {}, voids);
-    allInputs.putAll(additionalInputs);
+    allInputs.putAll((Map) additionalInputs);
 
     AppliedPTransform<PInput, POutput, TestTransform> transform =
         AppliedPTransform.of(
@@ -118,7 +118,7 @@ public class TransformInputsTest {
 
   @Test
   public void nonAdditionalInputsWithOnlyAdditionalInputsThrows() {
-    Map<TupleTag<?>, PValue> additionalInputs = new HashMap<>();
+    Map<TupleTag<?>, PCollection<?>> additionalInputs = new HashMap<>();
     additionalInputs.put(new TupleTag<String>() {}, pipeline.apply(Create.of("1, 2", "3")));
     additionalInputs.put(new TupleTag<Long>() {}, pipeline.apply(GenerateSequence.from(3L)));
 
@@ -127,7 +127,7 @@ public class TransformInputsTest {
             "additional-only",
             additionalInputs,
             Collections.emptyMap(),
-            new TestTransform(additionalInputs),
+            new TestTransform((Map) additionalInputs),
             pipeline);
 
     thrown.expect(IllegalArgumentException.class);

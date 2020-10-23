@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -40,11 +39,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
  * <p>Captures information about a collection of transformations and their associated {@link
- * PValue}s.
+ * PCollection PCollections}.
  */
 @Internal
 public class TransformHierarchy {
@@ -61,9 +60,11 @@ public class TransformHierarchy {
 
   private final Node root;
   private final Map<Node, PInput> unexpandedInputs;
-  private final Map<POutput, Node> producers;
-  // A map of PValue to the PInput the producing PTransform is applied to
-  private final Map<PValue, PInput> producerInput;
+  private final Map<PCollection<?>, Node> producers;
+
+  // A map of PCollection<?> to the PInput the producing PTransform is applied to
+  private final Map<PCollection<?>, PInput> producerInput;
+
   // Maintain a stack based on the enclosing nodes
   private Node current;
 
@@ -99,48 +100,6 @@ public class TransformHierarchy {
     return current;
   }
 
-  @Internal
-  public Node pushFinalizedNode(
-      String name,
-      Map<TupleTag<?>, PValue> inputs,
-      PTransform<?, ?> transform,
-      Map<TupleTag<?>, PValue> outputs) {
-    checkNotNull(
-        transform, "A %s must be provided for all Nodes", PTransform.class.getSimpleName());
-    checkNotNull(
-        name, "A name must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    checkNotNull(
-        inputs, "An input must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    Node node = new Node(current, transform, name, inputs, outputs);
-    node.finishedSpecifying = true;
-    current.addComposite(node);
-    current = node;
-    return current;
-  }
-
-  @Internal
-  public Node addFinalizedPrimitiveNode(
-      String name,
-      Map<TupleTag<?>, PValue> inputs,
-      PTransform<?, ?> transform,
-      Map<TupleTag<?>, PValue> outputs) {
-    checkNotNull(
-        transform, "A %s must be provided for all Nodes", PTransform.class.getSimpleName());
-    checkNotNull(
-        name, "A name must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    checkNotNull(
-        inputs, "Inputs must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    checkNotNull(
-        outputs, "Outputs must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    Node node = new Node(current, transform, name, inputs, outputs);
-    node.finishedSpecifying = true;
-    for (PValue output : outputs.values()) {
-      producers.put(output, node);
-    }
-    current.addComposite(node);
-    return node;
-  }
-
   public Node replaceNode(Node existing, PInput input, PTransform<?, ?> transform) {
     checkNotNull(existing);
     checkNotNull(input);
@@ -150,7 +109,7 @@ public class TransformHierarchy {
         "Replacing a node when the graph has an unexpanded input. This is an SDK bug.");
     Node replacement =
         new Node(existing.getEnclosingNode(), transform, existing.getFullName(), input);
-    for (PValue output : existing.getOutputs().values()) {
+    for (PCollection<?> output : existing.getOutputs().values()) {
       Node producer = producers.get(output);
       boolean producedInExisting = false;
       do {
@@ -184,7 +143,7 @@ public class TransformHierarchy {
    */
   public void finishSpecifyingInput() {
     // Inputs must be completely specified before they are consumed by a transform.
-    for (PValue inputValue : current.getInputs().values()) {
+    for (PCollection<?> inputValue : current.getInputs().values()) {
       PInput input = producerInput.remove(inputValue);
       Node producerNode = maybeGetProducer(inputValue);
       if (producerNode != null) {
@@ -204,7 +163,7 @@ public class TransformHierarchy {
    * nodes.
    */
   public void setOutput(POutput output) {
-    for (PCollection<?> value : fullyExpand(output).values()) {
+    for (PCollection<?> value : PValues.fullyExpand(output.expand()).values()) {
       if (!producers.containsKey(value)) {
         producers.put(value, current);
         value.finishSpecifyingOutput(
@@ -222,7 +181,7 @@ public class TransformHierarchy {
    * node it is replacing. No value that is a key in {@code originalToReplacement} may be present
    * within the {@link TransformHierarchy} after this method completes.
    */
-  public void replaceOutputs(Map<PValue, ReplacementOutput> originalToReplacement) {
+  public void replaceOutputs(Map<PCollection<?>, ReplacementOutput> originalToReplacement) {
     current.replaceOutputs(originalToReplacement);
   }
 
@@ -237,11 +196,11 @@ public class TransformHierarchy {
     checkState(current != null, "Can't pop the root node of a TransformHierarchy");
   }
 
-  Node maybeGetProducer(PValue produced) {
+  Node maybeGetProducer(PCollection<?> produced) {
     return producers.get(produced);
   }
 
-  Node getProducer(PValue produced) {
+  Node getProducer(PCollection<?> produced) {
     return checkNotNull(maybeGetProducer(produced), "No producer found for %s", produced);
   }
 
@@ -258,56 +217,16 @@ public class TransformHierarchy {
    * as input. These values must still be finished specifying.
    */
   private void finishSpecifying() {
-    for (Entry<PValue, PInput> producerInputEntry : producerInput.entrySet()) {
-      PValue value = producerInputEntry.getKey();
-      value.finishSpecifying(producerInputEntry.getValue(), getProducer(value).getTransform());
+    for (Entry<PCollection<?>, PInput> producerInputEntry : producerInput.entrySet()) {
+      PCollection<?> pCollection = producerInputEntry.getKey();
+      pCollection.finishSpecifying(
+          producerInputEntry.getValue(), getProducer(pCollection).getTransform());
     }
     producerInput.clear();
   }
 
   public Node getCurrent() {
     return current;
-  }
-
-  private Map<TupleTag<?>, PCollection<?>> fullyExpand(POutput output) {
-    Map<TupleTag<?>, PCollection<?>> result = new LinkedHashMap<>();
-    for (Map.Entry<TupleTag<?>, PValue> value : output.expand().entrySet()) {
-      if (value.getValue() instanceof PCollection) {
-        PCollection<?> previous = result.put(value.getKey(), (PCollection<?>) value.getValue());
-        checkArgument(
-            previous == null,
-            "Found conflicting %ss in flattened expansion of %s: %s maps to %s and %s",
-            output,
-            TupleTag.class.getSimpleName(),
-            value.getKey(),
-            previous,
-            value.getValue());
-      } else {
-        if (value.getValue().expand().size() == 1
-            && Iterables.getOnlyElement(value.getValue().expand().values())
-                .equals(value.getValue())) {
-          throw new IllegalStateException(
-              String.format(
-                  "Non %s %s that expands into itself %s",
-                  PCollection.class.getSimpleName(),
-                  PValue.class.getSimpleName(),
-                  value.getValue()));
-        }
-        for (Map.Entry<TupleTag<?>, PCollection<?>> valueComponent :
-            fullyExpand(value.getValue()).entrySet()) {
-          PCollection<?> previous = result.put(valueComponent.getKey(), valueComponent.getValue());
-          checkArgument(
-              previous == null,
-              "Found conflicting %ss in flattened expansion of %s: %s maps to %s and %s",
-              output,
-              TupleTag.class.getSimpleName(),
-              valueComponent.getKey(),
-              previous,
-              valueComponent.getValue());
-        }
-      }
-    }
-    return result;
   }
 
   /**
@@ -329,11 +248,11 @@ public class TransformHierarchy {
     private final List<Node> parts = new ArrayList<>();
 
     // Input to the transform, in expanded form.
-    private final Map<TupleTag<?>, PValue> inputs;
+    private final Map<TupleTag<?>, PCollection<?>> inputs;
 
     // TODO: track which outputs need to be exported to parent.
     // Output of the transform, in expanded form. Null if not yet set.
-    private @Nullable Map<TupleTag<?>, PValue> outputs;
+    private @Nullable Map<TupleTag<?>, PCollection<?>> outputs;
 
     @VisibleForTesting boolean finishedSpecifying = false;
 
@@ -361,9 +280,9 @@ public class TransformHierarchy {
       this.enclosingNode = enclosingNode;
       this.transform = transform;
       this.fullName = fullName;
-      ImmutableMap.Builder<TupleTag<?>, PValue> inputs = ImmutableMap.builder();
-      inputs.putAll(input.expand());
-      inputs.putAll(transform.getAdditionalInputs());
+      ImmutableMap.Builder<TupleTag<?>, PCollection<?>> inputs = ImmutableMap.builder();
+      inputs.putAll(PValues.expandInput(input));
+      inputs.putAll(PValues.fullyExpand(transform.getAdditionalInputs()));
       this.inputs = inputs.build();
     }
 
@@ -384,8 +303,8 @@ public class TransformHierarchy {
         @Nullable Node enclosingNode,
         @Nullable PTransform<?, ?> transform,
         String fullName,
-        @Nullable Map<TupleTag<?>, PValue> inputs,
-        @Nullable Map<TupleTag<?>, PValue> outputs) {
+        @Nullable Map<TupleTag<?>, PCollection<?>> inputs,
+        @Nullable Map<TupleTag<?>, PCollection<?>> outputs) {
       this.enclosingNode = enclosingNode;
       this.transform = transform;
       this.fullName = fullName;
@@ -455,7 +374,7 @@ public class TransformHierarchy {
     private boolean returnsOthersOutput() {
       PTransform<?, ?> transform = getTransform();
       if (outputs != null) {
-        for (PValue outputValue : outputs.values()) {
+        for (PCollection<?> outputValue : outputs.values()) {
           if (!getProducer(outputValue).getTransform().equals(transform)) {
             return true;
           }
@@ -473,7 +392,7 @@ public class TransformHierarchy {
     }
 
     /** Returns the transform input, in fully expanded form. */
-    public Map<TupleTag<?>, PValue> getInputs() {
+    public Map<TupleTag<?>, PCollection<?>> getInputs() {
       return inputs;
     }
 
@@ -483,12 +402,12 @@ public class TransformHierarchy {
       checkState(
           this.outputs == null, "Tried to specify more than one output for %s", getFullName());
       checkNotNull(output, "Tried to set the output of %s to null", getFullName());
-      this.outputs = output.expand();
+      this.outputs = PValues.fullyExpand(output.expand());
 
       // Validate that a primitive transform produces only primitive output, and a composite
       // transform does not produce primitive output.
       Set<Node> outputProducers = new HashSet<>();
-      for (PValue outputValue : output.expand().values()) {
+      for (PCollection<?> outputValue : PValues.fullyExpand(output.expand()).values()) {
         outputProducers.add(getProducer(outputValue));
       }
       if (outputProducers.contains(this) && (!parts.isEmpty() || outputProducers.size() > 1)) {
@@ -500,13 +419,14 @@ public class TransformHierarchy {
         }
         throw new IllegalArgumentException(
             String.format(
-                "Output of composite transform [%s] contains a primitive %s produced by it. "
-                    + "Only primitive transforms are permitted to produce primitive outputs."
+                "Output of composite transform [%s] contains a %s produced by it. "
+                    + "Only primitive transforms are permitted to produce %ss."
                     + "%n    Outputs: %s"
                     + "%n    Other Producers: %s"
                     + "%n    Components: %s",
                 getFullName(),
-                POutput.class.getSimpleName(),
+                PCollection.class.getSimpleName(),
+                PCollection.class.getSimpleName(),
                 output.expand(),
                 otherProducerNames,
                 parts));
@@ -524,14 +444,14 @@ public class TransformHierarchy {
      * @param originalToReplacement A map from the outputs of the replacement {@link Node} to the
      *     original output.
      */
-    void replaceOutputs(Map<PValue, ReplacementOutput> originalToReplacement) {
+    void replaceOutputs(Map<PCollection<?>, ReplacementOutput> originalToReplacement) {
       checkNotNull(this.outputs, "Outputs haven't been specified for node %s yet", getFullName());
       for (Node component : this.parts) {
         // Replace the outputs of the component nodes
         component.replaceOutputs(originalToReplacement);
       }
-      ImmutableMap.Builder<TupleTag<?>, PValue> newOutputsBuilder = ImmutableMap.builder();
-      for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      ImmutableMap.Builder<TupleTag<?>, PCollection<?>> newOutputsBuilder = ImmutableMap.builder();
+      for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         ReplacementOutput mapping = originalToReplacement.get(output.getValue());
         if (mapping != null) {
           if (this.equals(producers.get(mapping.getReplacement().getValue()))) {
@@ -552,7 +472,7 @@ public class TransformHierarchy {
           newOutputsBuilder.put(output);
         }
       }
-      ImmutableMap<TupleTag<?>, PValue> newOutputs = newOutputsBuilder.build();
+      ImmutableMap<TupleTag<?>, PCollection<?>> newOutputs = newOutputsBuilder.build();
       checkState(
           outputs.size() == newOutputs.size(),
           "Number of outputs must be stable across replacement");
@@ -560,7 +480,7 @@ public class TransformHierarchy {
     }
 
     /** Returns the transform output, in expanded form. */
-    public Map<TupleTag<?>, PValue> getOutputs() {
+    public Map<TupleTag<?>, PCollection<?>> getOutputs() {
       return outputs == null ? Collections.emptyMap() : outputs;
     }
 
@@ -633,7 +553,7 @@ public class TransformHierarchy {
 
       if (!isRootNode()) {
         // Visit inputs.
-        for (PValue inputValue : inputs.values()) {
+        for (PCollection<?> inputValue : inputs.values()) {
           Node valueProducer = maybeGetProducer(inputValue);
           if (valueProducer != null) {
             if (!visitedNodes.contains(valueProducer)) {
@@ -704,7 +624,10 @@ public class TransformHierarchy {
       if (isRootNode()) {
         return "RootNode";
       }
-      return MoreObjects.toStringHelper(getClass()).add("fullName", fullName).toString();
+      return MoreObjects.toStringHelper(getClass())
+          .add("fullName", fullName)
+          .add("transform", transform)
+          .toString();
     }
   }
 }

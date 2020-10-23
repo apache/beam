@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.operators.MessageStream;
@@ -65,14 +64,14 @@ public class SplittableParDoTranslators {
         TranslationContext ctx) {
       final PCollection<KV<byte[], KV<InputT, RestrictionT>>> input = ctx.getInput(transform);
 
-      final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
+      final ArrayList<Map.Entry<TupleTag<?>, PCollection<?>>> outputs =
           new ArrayList<>(node.getOutputs().entrySet());
 
       final Map<TupleTag<?>, Integer> tagToIndexMap = new HashMap<>();
       final Map<Integer, PCollection<?>> indexToPCollectionMap = new HashMap<>();
 
       for (int index = 0; index < outputs.size(); ++index) {
-        final Map.Entry<TupleTag<?>, PValue> taggedOutput = outputs.get(index);
+        final Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput = outputs.get(index);
         tagToIndexMap.put(taggedOutput.getKey(), index);
 
         if (!(taggedOutput.getValue() instanceof PCollection)) {

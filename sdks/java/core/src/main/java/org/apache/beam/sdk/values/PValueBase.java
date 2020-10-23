@@ -105,7 +105,12 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public String toString() {
-    return (name == null ? "<unnamed>" : getName()) + " [" + getKindString() + "]";
+    return (name == null ? "<unnamed>" : getName())
+        + " ["
+        + getKindString()
+        + "@"
+        + hashCode()
+        + "]";
   }
 
   /**

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -46,7 +45,6 @@ import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -464,26 +462,15 @@ public class PTransformTranslation {
       SdkComponents components)
       throws IOException {
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
-    for (Map.Entry<TupleTag<?>, PValue> taggedInput : appliedPTransform.getInputs().entrySet()) {
-      checkArgument(
-          taggedInput.getValue() instanceof PCollection,
-          "Unexpected input type %s",
-          taggedInput.getValue().getClass());
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedInput :
+        appliedPTransform.getInputs().entrySet()) {
       transformBuilder.putInputs(
-          toProto(taggedInput.getKey()),
-          components.registerPCollection((PCollection<?>) taggedInput.getValue()));
+          toProto(taggedInput.getKey()), components.registerPCollection(taggedInput.getValue()));
     }
-    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : appliedPTransform.getOutputs().entrySet()) {
-      // TODO: Remove gating
-      if (taggedOutput.getValue() instanceof PCollection) {
-        checkArgument(
-            taggedOutput.getValue() instanceof PCollection,
-            "Unexpected output type %s",
-            taggedOutput.getValue().getClass());
-        transformBuilder.putOutputs(
-            toProto(taggedOutput.getKey()),
-            components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
-      }
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput :
+        appliedPTransform.getOutputs().entrySet()) {
+      transformBuilder.putOutputs(
+          toProto(taggedOutput.getKey()), components.registerPCollection(taggedOutput.getValue()));
     }
     for (AppliedPTransform<?, ?, ?> subtransform : subtransforms) {
       transformBuilder.addSubtransforms(components.getExistingPTransformId(subtransform));
