@@ -263,7 +263,6 @@ from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SDFBoundedSourceReader
@@ -1982,7 +1981,7 @@ class ReadFromBigQueryRequest:
       self,
       query: str = None,
       use_standard_sql: bool = False,
-      table: Union[str, TableReference] = None,
+      table: Union[str, bigquery.TableReference] = None,
       flatten_results: bool = False):
     """
     Only one of query or table should be specified.
