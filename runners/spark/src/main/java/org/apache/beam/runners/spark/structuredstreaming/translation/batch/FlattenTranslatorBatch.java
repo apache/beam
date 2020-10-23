@@ -35,7 +35,7 @@ class FlattenTranslatorBatch<T>
   @Override
   public void translateTransform(
       PTransform<PCollectionList<T>, PCollection<T>> transform, TranslationContext context) {
-    Collection<PValue> pcollectionList = context.getInputs().values();
+    Collection<PCollection<?>> pcollectionList = context.getInputs().values();
     Dataset<WindowedValue<T>> result = null;
     if (pcollectionList.isEmpty()) {
       result = context.emptyDataset();

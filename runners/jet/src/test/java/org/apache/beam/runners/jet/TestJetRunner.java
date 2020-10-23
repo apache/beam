@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Slightly altered version of the Jet based runner, used in unit-tests. */
@@ -126,7 +125,7 @@ public class TestJetRunner extends PipelineRunner<PipelineResult> {
 
       // events in the transform are not serializable, we have to translate them. We'll also flatten
       // the collection.
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
       TestStream.TestStreamCoder<T> payloadCoder =
           TestStream.TestStreamCoder.of(testStream.getValueCoder());

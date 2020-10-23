@@ -493,7 +493,7 @@ class FlinkStreamingTransformTranslators {
         DoFn<InputT, OutputT> doFn,
         PCollection<InputT> input,
         List<PCollectionView<?>> sideInputs,
-        Map<TupleTag<?>, PValue> outputs,
+        Map<TupleTag<?>, PCollection<?>> outputs,
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         DoFnSchemaInformation doFnSchemaInformation,
@@ -514,7 +514,7 @@ class FlinkStreamingTransformTranslators {
       Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
       int idCount = 0;
       tagsToIds.put(mainOutputTag, idCount++);
-      for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : outputs.entrySet()) {
         if (!tagsToOutputTags.containsKey(entry.getKey())) {
           tagsToOutputTags.put(
               entry.getKey(),
@@ -641,7 +641,7 @@ class FlinkStreamingTransformTranslators {
       outputStream.uid(transformName);
       context.setOutputDataStream(outputs.get(mainOutputTag), outputStream);
 
-      for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : outputs.entrySet()) {
         if (!entry.getKey().equals(mainOutputTag)) {
           context.setOutputDataStream(
               entry.getValue(), outputStream.getSideOutput(tagsToOutputTags.get(entry.getKey())));
@@ -1200,7 +1200,7 @@ class FlinkStreamingTransformTranslators {
     public void translateNode(
         PTransform<PCollection<T>, PCollection<T>> transform,
         FlinkStreamingTranslationContext context) {
-      Map<TupleTag<?>, PValue> allInputs = context.getInputs(transform);
+      Map<TupleTag<?>, PCollection<?>> allInputs = context.getInputs(transform);
 
       if (allInputs.isEmpty()) {
 

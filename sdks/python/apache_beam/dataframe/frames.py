@@ -46,6 +46,33 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def fillna(self, value, method, axis, **kwargs):
+    if method is not None and axis in (0, 'index'):
+      raise frame_base.WontImplementError('order-sensitive')
+    if isinstance(value, frame_base.DeferredBase):
+      value_expr = value._expr
+    else:
+      value_expr = expressions.ConstantExpression(value)
+    return frame_base.DeferredFrame.wrap(
+        # yapf: disable
+        expressions.ComputedExpression(
+            'fillna',
+            lambda df,
+            value: df.fillna(value, method=method, axis=axis, **kwargs),
+            [self._expr, value_expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def ffill(self, **kwargs):
+    return self.fillna(method='ffill', **kwargs)
+
+  pad = ffill
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   def groupby(self, by, level, axis, as_index, group_keys, **kwargs):
     if not as_index:
       raise NotImplementedError('groupby(as_index=False)')
@@ -141,7 +168,16 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton()),
         kwargs)
 
+  abs = frame_base._elementwise_method('abs')
+  astype = frame_base._elementwise_method('astype')
+  copy = frame_base._elementwise_method('copy')
   get = frame_base.not_implemented_method('get')
+
+  @property
+  def dtype(self):
+    return self._expr.proxy().dtype
+
+  dtypes = dtype
 
 
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -202,7 +238,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Index()))
     return aligned.iloc[:, 0], aligned.iloc[:, 1]
 
-  astype = frame_base._elementwise_method('astype')
+  array = property(frame_base.wont_implement_method('non-deferred value'))
 
   between = frame_base._elementwise_method('between')
 
@@ -385,24 +421,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
-  @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
-  @frame_base.maybe_inplace
-  def fillna(self, value, method):
-    if method is not None:
-      raise frame_base.WontImplementError('order-sensitive')
-    if isinstance(value, frame_base.DeferredBase):
-      value_expr = value._expr
-    else:
-      value_expr = expressions.ConstantExpression(value)
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'fillna',
-            lambda df,
-            value: df.fillna(value, method=method), [self._expr, value_expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=partitionings.Nothing()))
-
   reindex = frame_base.not_implemented_method('reindex')
   rolling = frame_base.not_implemented_method('rolling')
 
@@ -440,6 +458,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   agg = aggregate
 
+  @property
+  def axes(self):
+    return [self.index]
+
+  clip = frame_base._elementwise_method('clip')
+
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
   min = frame_base._agg_method('min')
@@ -452,6 +476,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   diff = frame_base.wont_implement_method('order-sensitive')
 
   head = tail = frame_base.wont_implement_method('order-sensitive')
+
+  filter = frame_base._elementwise_method('filter')
 
   memory_usage = frame_base.wont_implement_method('non-deferred value')
 
@@ -502,6 +528,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               lambda df: df.nsmallest(**kwargs), [per_partition],
               preserves_partition_by=partitionings.Singleton(),
               requires_partition_by=partitionings.Singleton()))
+
+  plot = frame_base.wont_implement_method('plot')
+  pop = frame_base.wont_implement_method('non-lazy')
 
   rename_axis = frame_base._elementwise_method('rename_axis')
 
@@ -667,6 +696,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def axes(self):
     return (self.index, self.columns)
 
+  @property
+  def dtypes(self):
+    return self._expr.proxy().dtypes
+
   def assign(self, **kwargs):
     for name, value in kwargs.items():
       if not callable(value) and not isinstance(value, DeferredSeries):
@@ -757,6 +790,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
+
+  clip = frame_base._elementwise_method(
+      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')})
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -898,25 +934,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
-  def fillna(self, value, method, axis, **kwargs):
-    if method is not None and axis in (0, 'index'):
-      raise frame_base.WontImplementError('order-sensitive')
-    if isinstance(value, frame_base.DeferredBase):
-      value_expr = value._expr
-    else:
-      value_expr = expressions.ConstantExpression(value)
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'fillna',
-            lambda df, value: df.fillna(
-                value, method=method, axis=axis, **kwargs),
-            [self._expr, value_expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=partitionings.Nothing()))
 
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
@@ -1102,6 +1119,18 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
+  plot = frame_base.wont_implement_method('plot')
+
+  def pop(self, item):
+    result = self[item]
+    self._expr = expressions.ComputedExpression(
+            'popped',
+            lambda df: (df.pop(item), df)[-1],
+            [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing())
+    return result
+
   prod = product = frame_base._agg_method('prod')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -1259,6 +1288,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       requires_partition_by=partitionings.Index(),
       preserves_partition_by=partitionings.Index())
 
+  values = property(frame_base.wont_implement_method('non-deferred value'))
+
 
 for io_func in dir(io):
   if io_func.startswith('to_'):
@@ -1367,6 +1398,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   all = frame_base._elementwise_method('all')
   apply = frame_base.not_implemented_method('apply')
   backfill = bfill = frame_base.not_implemented_method('backfill')
+  boxplot = frame_base.wont_implement_method('plot')
   corr = frame_base.not_implemented_method('corr')
   corrwith = frame_base.not_implemented_method('corrwith')
   cov = frame_base.not_implemented_method('cov')
@@ -1680,6 +1712,9 @@ for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
 for name in ['__neg__', '__pos__', '__invert__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
   setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+
+DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
+DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
 
 
 def _slice_parts(s):

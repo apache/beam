@@ -73,7 +73,7 @@ public abstract class Twister2TranslationContext {
     return tSet;
   }
 
-  public <T> Map<TupleTag<?>, PValue> getInputs() {
+  public <T> Map<TupleTag<?>, PCollection<?>> getInputs() {
     return currentTransform.getInputs();
   }
 
@@ -89,7 +89,7 @@ public abstract class Twister2TranslationContext {
     return currentTransform;
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs() {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs() {
     return getCurrentTransform().getOutputs();
   }
 

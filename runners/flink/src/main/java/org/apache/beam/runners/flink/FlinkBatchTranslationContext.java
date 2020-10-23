@@ -145,7 +145,7 @@ class FlinkBatchTranslationContext {
     return new CoderTypeInformation<>(windowedValueCoder);
   }
 
-  Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
+  Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform) {
     return lookupPipelineVisitor.getInputs(transform);
   }
 
@@ -153,7 +153,7 @@ class FlinkBatchTranslationContext {
     return lookupPipelineVisitor.getInput(transform);
   }
 
-  Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
+  Map<TupleTag<?>, PCollection<?>> getOutputs(PTransform<?, ?> transform) {
     return lookupPipelineVisitor.getOutputs(transform);
   }
 

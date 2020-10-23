@@ -389,7 +389,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
     def cassandra_driver_version = "3.10.2"
-    def checkerframework_version = "3.5.0"
+    def checkerframework_version = "3.7.0"
     def classgraph_version = "4.8.65"
     def gax_version = "1.57.1"
     def generated_grpc_ga_version = "1.85.1"
@@ -811,9 +811,6 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.value:auto-value-annotations:1.7",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
-        // This contains many improved annotations beyond javax.annotations for enhanced static checking
-        // of the codebase
-        "org.checkerframework:checker-qual:$checkerframework_version",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
@@ -857,6 +854,11 @@ class BeamModulePlugin implements Plugin<Project> {
           annotationProcessor dep
           testAnnotationProcessor dep
         }
+
+        // This contains many improved annotations beyond javax.annotations for enhanced static checking
+        // of the codebase. It is runtime so users can also take advantage of them. The annotations themselves
+        // are MIT licensed (checkerframework is GPL and cannot be distributed)
+        compile "org.checkerframework:checker-qual:$checkerframework_version"
       }
 
       // Add the optional and provided configurations for dependencies
@@ -1957,10 +1959,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
-      // If none of them applied, version set here will be used as default value. Currently
-      // the minimum version supported by Beam is 3.6
+      // If none of them applied, version set here will be used as default value.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.6'
+          project.pythonVersion : '3.8'
 
       project.task('setupVirtualenv')  {
         doLast {

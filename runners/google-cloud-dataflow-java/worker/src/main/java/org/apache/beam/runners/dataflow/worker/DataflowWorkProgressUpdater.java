@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
@@ -49,16 +50,22 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   /** The WorkItem for which work progress updates are sent. */
   private final WorkItem workItem;
 
+  private final DataflowPipelineOptions options;
+
   private HotKeyLogger hotKeyLogger;
 
   private boolean wasAskedToAbort = false;
 
   public DataflowWorkProgressUpdater(
-      WorkItemStatusClient workItemStatusClient, WorkItem workItem, WorkExecutor worker) {
+      WorkItemStatusClient workItemStatusClient,
+      WorkItem workItem,
+      WorkExecutor worker,
+      DataflowPipelineOptions options) {
     super(worker, Integer.MAX_VALUE);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
     this.hotKeyLogger = new HotKeyLogger();
+    this.options = options;
   }
 
   /**
@@ -73,11 +80,13 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       WorkExecutor worker,
       ScheduledExecutorService executor,
       Clock clock,
-      HotKeyLogger hotKeyLogger) {
+      HotKeyLogger hotKeyLogger,
+      DataflowPipelineOptions options) {
     super(worker, Integer.MAX_VALUE, executor, clock);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
     this.hotKeyLogger = hotKeyLogger;
+    this.options = options;
   }
 
   @Override
@@ -117,9 +126,19 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       if (result.getHotKeyDetection() != null
           && result.getHotKeyDetection().getUserStepName() != null) {
         HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
-        hotKeyLogger.logHotKeyDetection(
-            hotKeyDetection.getUserStepName(),
-            TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
+
+        // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
+        // which is the correct key. The key is also translated into a Java object in the reader.
+        if (options.isHotKeyLoggingEnabled()) {
+          hotKeyLogger.logHotKeyDetection(
+              hotKeyDetection.getUserStepName(),
+              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),
+              workItemStatusClient.getExecutionContext().getKey());
+        } else {
+          hotKeyLogger.logHotKeyDetection(
+              hotKeyDetection.getUserStepName(),
+              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
+        }
       }
 
       // Resets state after a successful progress report.

@@ -21,13 +21,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -37,28 +37,32 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 public class ReplacementOutputs {
   private ReplacementOutputs() {}
 
-  public static Map<PValue, ReplacementOutput> singleton(
-      Map<TupleTag<?>, PValue> original, PValue replacement) {
-    Entry<TupleTag<?>, PValue> originalElement = Iterables.getOnlyElement(original.entrySet());
+  public static Map<PCollection<?>, ReplacementOutput> singleton(
+      Map<TupleTag<?>, PCollection<?>> original, PValue replacement) {
+    Entry<TupleTag<?>, PCollection<?>> originalElement =
+        Iterables.getOnlyElement(original.entrySet());
     TupleTag<?> replacementTag = Iterables.getOnlyElement(replacement.expand().entrySet()).getKey();
+    PCollection<?> replacementCollection =
+        (PCollection<?>) Iterables.getOnlyElement(replacement.expand().entrySet()).getValue();
     return Collections.singletonMap(
-        replacement,
+        replacementCollection,
         ReplacementOutput.of(
             TaggedPValue.of(originalElement.getKey(), originalElement.getValue()),
-            TaggedPValue.of(replacementTag, replacement)));
+            TaggedPValue.of(replacementTag, replacementCollection)));
   }
 
-  public static Map<PValue, ReplacementOutput> tagged(
-      Map<TupleTag<?>, PValue> original, POutput replacement) {
+  public static Map<PCollection<?>, ReplacementOutput> tagged(
+      Map<TupleTag<?>, PCollection<?>> original, POutput replacement) {
     Map<TupleTag<?>, TaggedPValue> originalTags = new HashMap<>();
-    for (Map.Entry<TupleTag<?>, PValue> originalValue : original.entrySet()) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> originalValue : original.entrySet()) {
       originalTags.put(
           originalValue.getKey(),
           TaggedPValue.of(originalValue.getKey(), originalValue.getValue()));
     }
-    ImmutableMap.Builder<PValue, ReplacementOutput> resultBuilder = ImmutableMap.builder();
-    Set<TupleTag<?>> missingTags = new HashSet<>(originalTags.keySet());
-    for (Map.Entry<TupleTag<?>, PValue> replacementValue : replacement.expand().entrySet()) {
+    ImmutableMap.Builder<PCollection<?>, ReplacementOutput> resultBuilder = ImmutableMap.builder();
+    Map<TupleTag<?>, PCollection<?>> remainingTaggedOriginals = new HashMap<>(original);
+    Map<TupleTag<?>, PCollection<?>> taggedReplacements = PValues.expandOutput(replacement);
+    for (Map.Entry<TupleTag<?>, PCollection<?>> replacementValue : taggedReplacements.entrySet()) {
       TaggedPValue mapped = originalTags.get(replacementValue.getKey());
       checkArgument(
           mapped != null,
@@ -70,15 +74,16 @@ public class ReplacementOutputs {
       resultBuilder.put(
           replacementValue.getValue(),
           ReplacementOutput.of(
-              mapped, TaggedPValue.of(replacementValue.getKey(), replacementValue.getValue())));
-      missingTags.remove(replacementValue.getKey());
+              mapped,
+              TaggedPValue.of(
+                  replacementValue.getKey(), (PCollection<?>) replacementValue.getValue())));
+      remainingTaggedOriginals.remove(replacementValue.getKey());
     }
-    ImmutableMap<PValue, ReplacementOutput> result = resultBuilder.build();
     checkArgument(
-        missingTags.isEmpty(),
-        "Missing replacement for tags %s. Encountered tags: %s",
-        missingTags,
-        result.keySet());
-    return result;
+        remainingTaggedOriginals.isEmpty(),
+        "Missing replacement for tagged values %s. Replacement was: %s",
+        remainingTaggedOriginals,
+        taggedReplacements);
+    return resultBuilder.build();
   }
 }

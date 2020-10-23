@@ -57,6 +57,7 @@ import sys
 import tempfile
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import pkg_resources
 from future.moves.urllib.parse import urlparse

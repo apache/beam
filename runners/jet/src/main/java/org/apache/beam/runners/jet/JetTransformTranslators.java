@@ -91,9 +91,8 @@ class JetTransformTranslators {
         AppliedPTransform<?, ?, ?> appliedTransform,
         Node node,
         JetTranslationContext context) {
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
-      Coder outputCoder =
-          Utils.getCoder((PCollection) Utils.getOutput(appliedTransform).getValue());
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
+      Coder outputCoder = Utils.getCoder(output.getValue());
 
       String transformName = appliedTransform.getFullName();
       DAGBuilder dagBuilder = context.getDagBuilder();
@@ -152,7 +151,7 @@ class JetTransformTranslators {
       boolean usesStateOrTimers = Utils.usesStateOrTimers(appliedTransform);
       DoFn<?, ?> doFn = Utils.getDoFn(appliedTransform);
 
-      Map<TupleTag<?>, PValue> outputs = Utils.getOutputs(appliedTransform);
+      Map<TupleTag<?>, PCollection<?>> outputs = Utils.getOutputs(appliedTransform);
 
       TupleTag<?> mainOutputTag;
       try {
@@ -241,7 +240,7 @@ class JetTransformTranslators {
         }
       }
 
-      for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : outputs.entrySet()) {
         TupleTag<?> pCollId = entry.getKey();
         String edgeId = Utils.getTupleTagId(entry.getValue());
         dagBuilder.registerCollectionOfEdge(edgeId, pCollId.getId());
@@ -268,7 +267,7 @@ class JetTransformTranslators {
           (PCollection<KV<K, InputT>>) Utils.getInput(appliedTransform);
       WindowedValue.WindowedValueCoder<KV<K, InputT>> inputCoder =
           Utils.getWindowedValueCoder(input);
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
 
       WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
@@ -315,8 +314,8 @@ class JetTransformTranslators {
       String vertexId = dagBuilder.newVertexId(transformName);
       PCollection<T> input = (PCollection<T>) Utils.getInput(appliedTransform);
       Coder inputCoder = Utils.getCoder(input);
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
-      Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
+      Coder outputCoder = Utils.getCoder(output.getValue());
 
       Vertex vertex =
           dagBuilder.addVertex(
@@ -350,8 +349,8 @@ class JetTransformTranslators {
       Map<String, Coder> inputCoders =
           Utils.getCoders(
               Utils.getInputs(appliedTransform), e -> Utils.getTupleTagId(e.getValue()));
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
-      Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
+      Coder outputCoder = Utils.getCoder(output.getValue());
 
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(appliedTransform.getFullName());
@@ -387,7 +386,7 @@ class JetTransformTranslators {
       PCollection<WindowedValue> input =
           (PCollection<WindowedValue>) Utils.getInput(appliedTransform);
       Coder inputCoder = Utils.getCoder(input);
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder =
           Utils.getCoder((PCollection) Utils.getOutput(appliedTransform).getValue());
 
@@ -420,7 +419,7 @@ class JetTransformTranslators {
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(transformName);
 
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder =
           Utils.getCoder((PCollection) Utils.getOutput(appliedTransform).getValue());
       Vertex vertex = dagBuilder.addVertex(vertexId, ImpulseP.supplier(outputCoder, vertexId));

@@ -435,12 +435,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				},
 			},
 		}
-	case req.GetProcessBundleProgressMetadata() != nil:
-		msg := req.GetProcessBundleProgressMetadata()
+	case req.GetMonitoringInfos() != nil:
+		msg := req.GetMonitoringInfos()
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			Response: &fnpb.InstructionResponse_ProcessBundleProgressMetadata{
-				ProcessBundleProgressMetadata: &fnpb.ProcessBundleProgressMetadataResponse{
+			Response: &fnpb.InstructionResponse_MonitoringInfos{
+				MonitoringInfos: &fnpb.MonitoringInfosMetadataResponse{
 					MonitoringInfo: shortIdsToInfos(msg.GetMonitoringInfoId()),
 				},
 			},

@@ -131,7 +131,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.duplicated': ['*'],
             'pandas.core.frame.DataFrame.idxmax': ['*'],
             'pandas.core.frame.DataFrame.idxmin': ['*'],
-            'pandas.core.frame.DataFrame.pop': ['*'],
             'pandas.core.frame.DataFrame.rename': [
                 # Returns deferred index.
                 'df.index',
@@ -183,10 +182,6 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.to_sparse': ['type(df)'],
 
-            # DeferredSeries has no attribute dtype. Should we allow this and
-            # defer to proxy?
-            'pandas.core.frame.DataFrame.iterrows': ["print(df['int'].dtype)"],
-
             # Skipped because "seen_wont_implement" is reset before getting to
             # these calls, so the NameError they raise is not ignored.
             'pandas.core.frame.DataFrame.T': [
@@ -205,6 +200,7 @@ class DoctestTest(unittest.TestCase):
         report=True,
         wont_implement_ok={
             'pandas.core.series.Series.__array__': ['*'],
+            'pandas.core.series.Series.array': ['*'],
             'pandas.core.series.Series.cummax': ['*'],
             'pandas.core.series.Series.cummin': ['*'],
             'pandas.core.series.Series.cumsum': ['*'],
@@ -227,6 +223,7 @@ class DoctestTest(unittest.TestCase):
                 "s.nsmallest(3)",
                 "s.nsmallest(3, keep='last')",
             ],
+            'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.searchsorted': ['*'],
             'pandas.core.series.Series.shift': ['*'],
             'pandas.core.series.Series.take': ['*'],
@@ -245,7 +242,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
-            'pandas.core.series.Series.array': ['*'],
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
@@ -266,8 +262,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.name': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
-            'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
+            'pandas.core.series.Series.pop': ['ser'],  # testing side effect
             'pandas.core.series.Series.rename': ['*'],
             'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
