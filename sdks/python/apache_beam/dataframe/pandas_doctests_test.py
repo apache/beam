@@ -87,11 +87,6 @@ class DoctestTest(unittest.TestCase):
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
 
-            # DataFrame.__getitem__ cannot be used as loc
-            'pandas.core.frame.DataFrame.query': [
-                'df[df.A > df.B]', "df[df.B == df['C C']]"
-            ],
-
             # We can implement this as a zipping operator, but it won't have the
             # same capability. The doctest includes an example that branches on
             # a deferred result.
