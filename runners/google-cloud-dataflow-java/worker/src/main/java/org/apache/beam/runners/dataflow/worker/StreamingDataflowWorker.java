@@ -1468,33 +1468,36 @@ public class StreamingDataflowWorker {
       boolean retryLocally = false;
       if (KeyTokenInvalidException.isKeyTokenInvalidException(t)) {
         LOG.debug(
-            "Execution of work for {} for key {} failed due to token expiration. "
-                + "Will not retry locally.",
+            "Execution of work for computation '{}' on key '{}' failed due to token expiration. "
+                + "Work will not be retried locally.",
             computationId,
             key.toStringUtf8());
       } else {
-        LOG.error("Uncaught exception: ", t);
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
-              "Execution of work for {} for key {} failed, and Windmill "
-                  + "indicated not to retry locally.",
+              "Execution of work for computation '{}' on key '{}' failed with uncaught exception, "
+                  + "and Windmill indicated not to retry locally.",
               computationId,
-              key.toStringUtf8());
+              key.toStringUtf8(),
+              t);
         } else if (isOutOfMemoryError(t)) {
           File heapDump = memoryMonitor.tryToDumpHeap();
           LOG.error(
-              "Execution of work for {} for key {} failed with out-of-memory. "
-                  + "Will not retry locally. Heap dump {}.",
+              "Execution of work for computation '{}' for key '{}' failed with out-of-memory. "
+                  + "Work will not be retried locally. Heap dump {}.",
               computationId,
               key.toStringUtf8(),
-              heapDump == null ? "not written" : ("written to '" + heapDump + "'"));
+              heapDump == null ? "not written" : ("written to '" + heapDump + "'"),
+              t);
         } else {
           LOG.error(
-              "Execution of work for {} for key {} failed. Will retry locally.",
+              "Execution of work for computation '{}' on key '{}' failed with uncaught exception. "
+                  + "Work will be retried locally.",
               computationId,
-              key.toStringUtf8());
+              key.toStringUtf8(),
+              t);
           retryLocally = true;
         }
       }
