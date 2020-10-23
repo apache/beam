@@ -112,7 +112,7 @@ class MetricLogger(object):
   def _get_metric_cell(self, cell_type, metric_name):
     # type: (Union[Type[MetricCell], MetricCellFactory], MetricName) -> MetricCell
     with self._lock:
-      if not metric_name in self._metric:
+      if metric_name not in self._metric:
         self._metric[metric_name] = cell_type()
     return self._metric[metric_name]
 
