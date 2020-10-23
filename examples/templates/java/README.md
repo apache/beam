@@ -56,6 +56,7 @@ This section describes what is needed to get the template up and running.
   - Set up the environment
   - Creating the Dataflow Flex Template
   - Create a Dataflow job to ingest data using the template.
+- Avro format transferring.
 
 ## Assembling the Uber-JAR
 
@@ -223,5 +224,29 @@ You can do this in 3 different ways:
         '
         "${TEMPLATES_LAUNCH_API}"
     ```
+
+## AVRO format transferring.
+In this template presented example Class to deserialize AVRO from Kafka and serialize it to AVRO in Pub/Sub.
+
+To use this example in the specific case, follow the few steps:
+
+- Create your own class to describe AVRO schema. As an example use [TaxiRide class](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/TaxiRide.java). Just define necessary fields.
+- Create your own Avro Deserializer class. As an example use [TaxiRidesKafkaAvroDeserializer class](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/TaxiRidesKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
+- Modify the [FormatTransform.readAvrosFromKafka method](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
+```java
+return KafkaIO.<String, TaxiRide>read()
+        ...
+        .withValueDeserializerAndCoder(
+            TaxiRidesKafkaAvroDeserializer.class, AvroCoder.of(TaxiRide.class)) // put your classes here
+        ...
+```
+- Modify write step in the [KafkaToPubsub class](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/KafkaToPubsub.java) by put your Schema class to "writeAvrosToPubSub" step.
+```java
+if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
+      ...
+          .apply("writeAvrosToPubSub", PubsubIO.writeAvros(TaxiRide.class)); // put your SCHEMA class here
+
+    }
+```
 
 _Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration.

@@ -123,6 +123,20 @@ import org.slf4j.LoggerFactory;
  *            '
  *            "${TEMPLATES_LAUNCH_API}"
  * </pre>
+ *
+ * <p><b>Example Avro usage</b>
+ *
+ * <pre>
+ * In this template presented example Class to deserialize AVRO from Kafka and serialize it to AVRO in Pub/Sub.
+ *
+ * To use this example in the specific case, follow the few steps:
+ * <ul>
+ * <li> Create your own class to describe AVRO schema. As an example use {@link TaxiRide}. Just define necessary fields.
+ * <li> Create your own Avro Deserializer class. As an example use {@link org.apache.beam.templates.avro.TaxiRidesKafkaAvroDeserializer}. Just rename it, and put your own Schema class as the necessary types.
+ * <li> Modify the {@link FormatTransform}. Put your Schema class and Deserializer to the related parameter.
+ * <li> Modify write step in the {@link KafkaToPubsub} by put your Schema class to "writeAvrosToPubSub" step.
+ * </ul>
+ * </pre>
  */
 public class KafkaToPubsub {
 
