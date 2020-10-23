@@ -281,7 +281,8 @@ public class ConfigBuilder {
         ImmutableMap.<String, String>builder()
             .put(
                 BEAM_STORE_FACTORY,
-                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+            .put("stores.beamStore.rocksdb.compression", "lz4");
 
     if (options.getStateDurable()) {
       LOG.info("stateDurable is enabled");
