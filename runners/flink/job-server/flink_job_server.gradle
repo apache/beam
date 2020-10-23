@@ -143,41 +143,10 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
     pipelineOpts: pipelineOptions,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     testCategories: {
-      if (streaming && checkpointing) {
-        includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        // TestStreamSource does not support checkpointing
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      if (streaming) {
+        includeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       } else {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-        if (streaming) {
-          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
-        } else {
-          excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-        }
-        //SplitableDoFnTests
-        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-
+        includeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       }
     },
     testFilter: {
