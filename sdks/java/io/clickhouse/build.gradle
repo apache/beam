@@ -22,7 +22,6 @@ plugins {
 }
 applyJavaNature(enableChecker:false,
   automaticModuleName: 'org.apache.beam.sdk.io.clickhouse',
-  ignoreRawtypeErrors: true,
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann']
 )
