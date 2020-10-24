@@ -288,6 +288,11 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
+try:
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+except ImportError:
+  TableReference = None
+
 __all__ = [
     'TableRowJsonCoder',
     'BigQueryDisposition',
@@ -1593,7 +1598,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   def expand(self, pcoll):
     p = pcoll.pipeline
 
-    if (isinstance(self.table_reference, bigquery.TableReference) and
+    if (isinstance(self.table_reference, TableReference) and
         self.table_reference.projectId is None):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
@@ -1943,7 +1948,7 @@ class ReadFromBigQueryRequest:
       self,
       query: str = None,
       use_standard_sql: bool = False,
-      table: Union[str, bigquery.TableReference] = None,
+      table: Union[str, TableReference] = None,
       flatten_results: bool = False):
     """
     Only one of query or table should be specified.
