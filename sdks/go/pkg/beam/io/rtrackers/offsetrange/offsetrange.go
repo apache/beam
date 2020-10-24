@@ -89,6 +89,28 @@ func (r Restriction) EvenSplits(num int64) (splits []Restriction) {
 	return splits
 }
 
+// SizedSplits splits a restriction into multiple restrictions of the given
+// size. If the restriction cannot be evenly split, the final restriction will
+// be the remainder.
+//
+// Example: (0, 24) split into size 10s -> {(0, 10), (10, 20), (20, 24)}
+//
+// Size should be greater than 0. Otherwise there is no way to split the
+// restriction and this function will return the original restriction.
+func (r Restriction) SizedSplits(size int64) (splits []Restriction) {
+	if size < 1 {
+		// Don't split, just return original restriction.
+		return append(splits, r)
+	}
+
+	s := r.Start
+	for e := s + size; e < r.End; s, e = e, e+size {
+		splits = append(splits, Restriction{Start: s, End: e})
+	}
+	splits = append(splits, Restriction{Start: s, End: r.End})
+	return splits
+}
+
 // Size returns the restriction's size as the difference between Start and End.
 func (r Restriction) Size() float64 {
 	return float64(r.End - r.Start)
