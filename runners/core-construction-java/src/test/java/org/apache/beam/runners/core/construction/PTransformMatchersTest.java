@@ -590,9 +590,8 @@ public class PTransformMatchersTest implements Serializable {
       throw new UnsupportedOperationException("should not be called");
     }
 
-    @Nullable
     @Override
-    public ResourceId unwindowedFilename(
+    public @Nullable ResourceId unwindowedFilename(
         int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("should not be called");
     }

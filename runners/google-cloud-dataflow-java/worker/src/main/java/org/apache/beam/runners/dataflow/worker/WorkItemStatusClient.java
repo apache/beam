@@ -189,7 +189,7 @@ public class WorkItemStatusClient {
     return false;
   }
 
-  private @Nullable synchronized WorkItemServiceState execute(WorkItemStatus status)
+  private synchronized @Nullable WorkItemServiceState execute(WorkItemStatus status)
       throws IOException {
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {

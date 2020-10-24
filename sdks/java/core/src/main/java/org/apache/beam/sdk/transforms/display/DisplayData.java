@@ -209,16 +209,16 @@ public class DisplayData implements Serializable {
   public abstract static class Item implements Serializable {
 
     /** The path for the display item within a component hierarchy. */
-    @Nullable
     @JsonIgnore
+    @Nullable
     public abstract Path getPath();
 
     /**
      * The namespace for the display item. The namespace defaults to the component which the display
      * item belongs to.
      */
-    @Nullable
     @JsonGetter("namespace")
+    @Nullable
     public abstract Class<?> getNamespace();
 
     /**

@@ -154,9 +154,8 @@ class KeyedInternals<K> {
       return getInternals().currentProcessingTime();
     }
 
-    @Nullable
     @Override
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return getInternals().currentSynchronizedProcessingTime();
     }
 
@@ -165,9 +164,8 @@ class KeyedInternals<K> {
       return getInternals().currentInputWatermarkTime();
     }
 
-    @Nullable
     @Override
-    public Instant currentOutputWatermarkTime() {
+    public @Nullable Instant currentOutputWatermarkTime() {
       return getInternals().currentOutputWatermarkTime();
     }
   }

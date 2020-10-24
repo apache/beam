@@ -113,7 +113,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
-  private @Nullable volatile ExecutionState currentState;
+  private volatile @Nullable ExecutionState currentState;
 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.

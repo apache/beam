@@ -267,7 +267,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Row>> globalValues = new ConcurrentHashMap<>();
 
-    private @Nullable volatile Queue<Row> values;
+    private volatile @Nullable Queue<Row> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {

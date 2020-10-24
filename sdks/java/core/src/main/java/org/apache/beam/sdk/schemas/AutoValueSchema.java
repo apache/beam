@@ -112,9 +112,8 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     return creatorFactory;
   }
 
-  @Nullable
   @Override
-  public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+  public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     return JavaBeanUtils.schemaFromJavaBeanClass(
         typeDescriptor.getRawType(), AbstractGetterTypeSupplier.INSTANCE);
   }

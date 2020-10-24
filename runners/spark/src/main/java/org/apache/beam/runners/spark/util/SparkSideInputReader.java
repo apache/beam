@@ -49,9 +49,8 @@ public class SparkSideInputReader implements SideInputReader {
     this.sideInputs = sideInputs;
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     // --- validate sideInput.
     checkNotNull(view, "The PCollectionView passed to sideInput cannot be null ");
     KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>> windowedBroadcastHelper =

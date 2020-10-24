@@ -201,9 +201,9 @@ public class DataflowPipelineJob implements PipelineResult {
    * @return The final state of the job or null on timeout or if the thread is interrupted.
    * @throws IOException If there is a persistent problem getting job information.
    */
-  @Nullable
   @VisibleForTesting
-  public State waitUntilFinish(Duration duration, MonitoringUtil.JobMessagesHandler messageHandler)
+  public @Nullable State waitUntilFinish(
+      Duration duration, MonitoringUtil.JobMessagesHandler messageHandler)
       throws IOException, InterruptedException {
     // We ignore the potential race condition here (Ctrl-C after job submission but before the
     // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
@@ -231,8 +231,8 @@ public class DataflowPipelineJob implements PipelineResult {
     }
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
       MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
@@ -266,8 +266,8 @@ public class DataflowPipelineJob implements PipelineResult {
    * @throws IOException If there is a persistent problem getting job information.
    * @throws InterruptedException if the thread is interrupted.
    */
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
       MonitoringUtil.@Nullable JobMessagesHandler messageHandler,

@@ -83,9 +83,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     }
   }
 
-  @Nullable
   @Override
-  public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+  public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     checkForDynamicType(typeDescriptor);
     return ProtoSchemaTranslator.getSchema((Class<Message>) typeDescriptor.getRawType());
   }

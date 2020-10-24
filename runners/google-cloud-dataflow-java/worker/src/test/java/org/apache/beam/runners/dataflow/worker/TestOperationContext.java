@@ -70,9 +70,8 @@ public class TestOperationContext extends DataflowOperationContext {
     @Override
     public void reportLull(Thread trackedThread, long millis) {}
 
-    @Nullable
     @Override
-    public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+    public @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate) {
       return null;
     }
   }

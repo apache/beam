@@ -43,9 +43,8 @@ public class BigQueryTestTableProvider extends BigQueryTableProvider {
     tableSpecMap.put(name, table);
   }
 
-  @Nullable
   @Override
-  public Table getTable(String tableName) {
+  public @Nullable Table getTable(String tableName) {
     return tableSpecMap.get(tableName);
   }
 

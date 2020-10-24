@@ -289,8 +289,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.absent();
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {
