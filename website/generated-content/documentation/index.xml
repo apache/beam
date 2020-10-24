@@ -6293,7 +6293,7 @@ potentially while the pipeline is running. There could be different reasons for 
 &lt;li>Retrieve an accurate count of the number of elements that have been processed;&lt;/li>
 &lt;li>&amp;hellip;and so on.&lt;/li>
 &lt;/ul>
-&lt;h3 id="101-the-main-concepts-of-beam-metrics">10.1 The main concepts of Beam metrics&lt;/h3>
+&lt;h3 id="101-the-main-concepts-of-beam-metrics">10.1. The main concepts of Beam metrics&lt;/h3>
 &lt;ul>
 &lt;li>&lt;strong>Named&lt;/strong>. Each metric has a name which consists of a namespace and an actual name. The
 namespace can be used to differentiate between multiple metrics with the same name and also
@@ -6314,7 +6314,7 @@ transform reported, as well as aggregating the metric across the entire pipeline
 &lt;p>&lt;strong>Note:&lt;/strong> It is runner-dependent whether metrics are accessible during pipeline execution or only
 after jobs have completed.&lt;/p>
 &lt;/blockquote>
-&lt;h3 id="types-of-metrics">10.2 Types of metrics&lt;/h3>
+&lt;h3 id="types-of-metrics">10.2. Types of metrics&lt;/h3>
 &lt;p>There are three types of metrics that are supported for the moment: &lt;code>Counter&lt;/code>, &lt;code>Distribution&lt;/code> and
 &lt;code>Gauge&lt;/code>.&lt;/p>
 &lt;p>&lt;strong>Counter&lt;/strong>: A metric that reports a single long value and can be incremented or decremented.&lt;/p>
@@ -6350,7 +6350,7 @@ collected from many workers the value may not be the absolute last, but one of t
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h3 id="querying-metrics">10.3 Querying metrics&lt;/h3>
+&lt;h3 id="querying-metrics">10.3. Querying metrics&lt;/h3>
 &lt;p>&lt;code>PipelineResult&lt;/code> has a method &lt;code>metrics()&lt;/code> which returns a &lt;code>MetricResults&lt;/code> object that allows
 accessing metrics. The main method available in &lt;code>MetricResults&lt;/code> allows querying for all metrics
 matching a given filter.&lt;/p>
@@ -6373,7 +6373,7 @@ matching a given filter.&lt;/p>
 &lt;span class="n">T&lt;/span> &lt;span class="nf">getAttempted&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h3 id="using-metrics">10.4 Using metrics in pipeline&lt;/h3>
+&lt;h3 id="using-metrics">10.4. Using metrics in pipeline&lt;/h3>
 &lt;p>Below, there is a simple example of how to use a &lt;code>Counter&lt;/code> metric in a user pipeline.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// creating a pipeline with custom metrics DoFn
@@ -6404,7 +6404,7 @@ matching a given filter.&lt;/p>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h3 id="export-metrics">10.5 Export metrics&lt;/h3>
+&lt;h3 id="export-metrics">10.5. Export metrics&lt;/h3>
 &lt;p>Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period.
 The configuration is held in the &lt;a href="https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html">MetricsOptions&lt;/a> class.
 It contains push period configuration and also sink specific options such as type and URL. As for now only the REST HTTP and the Graphite sinks are supported and only
@@ -6434,7 +6434,7 @@ to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple stat
 &lt;p class="language-py">In Python DoFn declares states to be accessed by creating &lt;code>StateSpec&lt;/code> class member variables representing each state. Each
 &lt;code>StateSpec&lt;/code> is initialized with a name, this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple state variables.&lt;/p>
-&lt;h3 id="types-of-state">11.1 Types of state&lt;/h3>
+&lt;h3 id="types-of-state">11.1. Types of state&lt;/h3>
 &lt;p>Beam provides several types of state:&lt;/p>
 &lt;h4 id="valuestate">ValueState&lt;/h4>
 &lt;p>A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
@@ -6519,7 +6519,7 @@ bags larger than available memory.&lt;/p>
 &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Bag state pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">BagStateDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h3 id="deferred-state-reads">11.2 Deferred state reads&lt;/h3>
+&lt;h3 id="deferred-state-reads">11.2. Deferred state reads&lt;/h3>
 &lt;p>When a &lt;code>DoFn&lt;/code> contains multiple state specifications, reading each one in order can be slow. Calling the &lt;code>read()&lt;/code> function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
 to element processing. If you know that a state will always be read, you can annotate it as @AlwaysFetched, and then the
@@ -6565,12 +6565,12 @@ be read in the future, allowing multiple state reads to be batched together.&lt;
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h3 id="timers">11.3 Timers&lt;/h3>
+&lt;h3 id="timers">11.3. Timers&lt;/h3>
 &lt;p>Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
 Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
 TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
 firing time for that key&amp;rsquo;s timer.&lt;/p>
-&lt;h4 id="event-time-timers">11.3.1 Event-time timers&lt;/h4>
+&lt;h4 id="event-time-timers">11.3.1. Event-time timers&lt;/h4>
 &lt;p>Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that
 the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
 allows for event-time aggregations.&lt;/p>
@@ -6611,7 +6611,7 @@ allows for event-time aggregations.&lt;/p>
 &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;EventTime timer pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">EventTimerDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h4 id="processing-time-timers">11.3.2 Processing-time timers&lt;/h4>
+&lt;h4 id="processing-time-timers">11.3.2. Processing-time timers&lt;/h4>
 &lt;p>Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
 before processing. It can also be used to schedule events that should occur at a specific time. Just like with
 event-time timers, processing-time timers are per key - each key has a separate copy of the timer.&lt;/p>
@@ -6649,7 +6649,7 @@ to the current time. In Java, the &lt;code>Timer.offset&lt;/code> and &lt;code>T
 &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ProcessingTime timer pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ProcessingTimerDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h4 id="dynamic-timer-tags">11.3.3 Dynamic timer tags&lt;/h4>
+&lt;h4 id="dynamic-timer-tags">11.3.3. Dynamic timer tags&lt;/h4>
 &lt;p>Beam also supports dynamically setting a timer tag using &lt;code>TimerMap&lt;/code>. This allows for setting multiple different timers
 in a &lt;code>DoFn&lt;/code> and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
 timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
@@ -6674,7 +6674,7 @@ id, and timers in different timer families are independent.&lt;/p>
 &lt;div class=language-python>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">To&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">supported&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">See&lt;/span> &lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">9602&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h4 id="timer-output-timestamps">11.3.4 Timer output timestamps&lt;/h4>
+&lt;h4 id="timer-output-timestamps">11.3.4. Timer output timestamps&lt;/h4>
 &lt;p>By default, event-time timers will hold the output watermark of the &lt;code>ParDo&lt;/code> to the timestamp of the timer. This means
 that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish
 after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
@@ -6765,10 +6765,10 @@ past the timestamp of the minimum element. The following code demonstrates this.
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h3 id="garbage-collecting-state">11.4 Garbage collecting state&lt;/h3>
+&lt;h3 id="garbage-collecting-state">11.4. Garbage collecting state&lt;/h3>
 &lt;p>Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.&lt;/p>
-&lt;h5 id="using-windows-for-garbage-collection">11.4.1 &lt;strong>Using windows for garbage collection&lt;/strong>&lt;/h5>
+&lt;h5 id="using-windows-for-garbage-collection">11.4.1. &lt;strong>Using windows for garbage collection&lt;/strong>&lt;/h5>
 &lt;p>All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
@@ -6802,7 +6802,7 @@ garbage-collection strategy.&lt;/p>
 &lt;/div>
 &lt;p>This &lt;code>ParDo&lt;/code> stores state per day. Once the pipeline is done processing data for a given day, all the state for that
 day is garbage collected.&lt;/p>
-&lt;h5 id="using-timers-for-garbage-collection">11.4.1 &lt;strong>Using timers For garbage collection&lt;/strong>&lt;/h5>
+&lt;h5 id="using-timers-for-garbage-collection">11.4.1. &lt;strong>Using timers For garbage collection&lt;/strong>&lt;/h5>
 &lt;p>In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For
 example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
 This can be done by updating a timer that garbage collects state. For example&lt;/p>
@@ -6865,7 +6865,7 @@ This can be done by updating a timer that garbage collects state. For example&lt
 &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;User DoFn&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UserDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h3 id="state-timers-examples">11.5 State and timers examples&lt;/h3>
+&lt;h3 id="state-timers-examples">11.5. State and timers examples&lt;/h3>
 &lt;p>Following are some example uses of state and timers&lt;/p>
 &lt;h4 id="joining-clicks-and-views">11.5.1. Joining clicks and views&lt;/h4>
 &lt;p>In this example, the pipeline is processing data from an e-commerce site&amp;rsquo;s home page. There are two input streams:
@@ -6938,7 +6938,7 @@ event before the view event. The one hour join timeout should be based on event 
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;h4 id="batching-rpcs">11.5.2 Batching RPCs&lt;/h4>
+&lt;h4 id="batching-rpcs">11.5.2. Batching RPCs&lt;/h4>
 &lt;p>In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
 multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
 we want to batch ten seconds worth of events together in order to reduce the number of calls.&lt;/p>
