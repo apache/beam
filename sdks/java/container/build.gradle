@@ -110,6 +110,7 @@ task pullLicenses(type: Exec) {
   outputs.dir('build/target/java_third_party_licenses')
 }
 pullLicenses.dependsOn generateLicenseReport
+generateLicenseReport.outputs.cacheIf { false }
 
 task copyGolangLicenses(type: Copy) {
   from "${project(':release:go-licenses:java').buildDir}/output"
