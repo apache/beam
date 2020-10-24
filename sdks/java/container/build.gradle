@@ -24,6 +24,9 @@ plugins {
 applyGoNature()
 applyDockerNature()
 
+evaluationDependsOn(":sdks:java:harness")
+evaluationDependsOn(":sdks:java:io:kafka")
+
 description = "Apache Beam :: SDKs :: Java :: Container"
 
 // Figure out why the golang plugin does not add a build dependency between projects.
@@ -74,7 +77,6 @@ golang {
 // command: ./gradlew generateLicenseReport
 import com.github.jk1.license.render.*
 licenseReport {
-  outputDir = 'java_third_party_licenses'
   projects = [project,
               project.rootProject.findProject(':sdks:java:harness'),
               project.rootProject.findProject(':sdks:java:io:kafka')]
@@ -102,30 +104,30 @@ docker {
   ])
 }
 
+task pullLicenses(type: Exec) {
+  commandLine './license_scripts/license_script.sh'
+  outputs.dir('build/target/third_party_licenses')
+  outputs.dir('build/target/java_third_party_licenses')
+}
+pullLicenses.dependsOn generateLicenseReport
+
+task copyGolangLicenses(type: Copy) {
+  from "${project(':release:go-licenses:java').buildDir}/output"
+  into "build/target/go-licenses"
+  dependsOn ':release:go-licenses:java:createLicenses'
+}
+
+task skipPullLicenses(type: Exec) {
+  executable "sh"
+  args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+}
+
 if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
         project.rootProject.hasProperty(["isRelease"])) {
-  task pullLicenses(type: Exec) {
-    workingDir project.rootProject.projectDir
-    commandLine './sdks/java/container/license_scripts/license_script.sh'
-    doLast {
-      file('third_party_licenses').deleteDir()
-      file('java_third_party_licenses').deleteDir()
-    }
-  }
   dockerPrepare.dependsOn pullLicenses
-
-  task copyGolangLicenses(type: Copy) {
-    from "${project(':release:go-licenses:java').buildDir}/output"
-    into "build/target/go-licenses"
-    dependsOn ':release:go-licenses:java:createLicenses'
-  }
-  dockerPrepare.dependsOn 'copyGolangLicenses'
+  dockerPrepare.dependsOn copyGolangLicenses
 } else {
-  task createFile(type: Exec) {
-      executable "sh"
-      args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
-  }
-  dockerPrepare.dependsOn createFile
+  dockerPrepare.dependsOn skipPullLicenses
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects
