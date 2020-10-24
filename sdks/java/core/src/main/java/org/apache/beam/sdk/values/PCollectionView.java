@@ -56,8 +56,8 @@ public interface PCollectionView<T> extends PValue, Serializable {
    *
    * <p>The {@link PCollection} may not be available in all contexts.
    */
-  @Nullable
   @Internal
+  @Nullable
   PCollection<?> getPCollection();
   /**
    * <b>For internal use only.</b>

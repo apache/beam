@@ -34,10 +34,9 @@ class StreamRecordStripper {
                 o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue)
         .transform(
             new Function<Object, WindowedValue<T>>() {
-              @Nullable
               @Override
               @SuppressWarnings({"unchecked", "rawtypes"})
-              public WindowedValue<T> apply(@Nullable Object o) {
+              public @Nullable WindowedValue<T> apply(@Nullable Object o) {
                 if (o instanceof StreamRecord
                     && ((StreamRecord) o).getValue() instanceof WindowedValue) {
                   return (WindowedValue) ((StreamRecord) o).getValue();

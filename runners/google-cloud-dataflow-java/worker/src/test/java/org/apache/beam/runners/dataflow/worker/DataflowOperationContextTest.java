@@ -220,9 +220,8 @@ public class DataflowOperationContextTest {
               null /* metricsContainer */,
               ScopedProfiler.INSTANCE.emptyScope(),
               clock) {
-            @Nullable
             @Override
-            public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+            public @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate) {
               // not being used for extracting updates
               return null;
             }

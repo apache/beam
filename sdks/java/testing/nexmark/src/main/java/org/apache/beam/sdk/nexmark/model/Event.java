@@ -115,11 +115,11 @@ public class Event implements KnownSize, Serializable {
         }
       };
 
-  public @Nullable @org.apache.avro.reflect.Nullable Person newPerson;
+  public @org.apache.avro.reflect.Nullable @Nullable Person newPerson;
 
-  public @Nullable @org.apache.avro.reflect.Nullable Auction newAuction;
+  public @org.apache.avro.reflect.Nullable @Nullable Auction newAuction;
 
-  public @Nullable @org.apache.avro.reflect.Nullable Bid bid;
+  public @org.apache.avro.reflect.Nullable @Nullable Bid bid;
 
   @SuppressWarnings("unused")
   public Event() {

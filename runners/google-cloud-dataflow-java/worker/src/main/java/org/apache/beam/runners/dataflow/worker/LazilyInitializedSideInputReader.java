@@ -45,9 +45,8 @@ public class LazilyInitializedSideInputReader implements SideInputReader {
     lazyInitSideInputReader = Suppliers.memoize(sideInputReader);
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     return lazyInitSideInputReader.get().get(view, window);
   }
 

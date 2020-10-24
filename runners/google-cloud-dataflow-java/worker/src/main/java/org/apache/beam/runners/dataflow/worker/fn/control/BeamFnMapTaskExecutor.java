@@ -215,9 +215,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   }
 
   private static class NullProgressTracker implements ProgressTracker {
-    @Nullable
     @Override
-    public Progress getWorkerProgress() {
+    public @Nullable Progress getWorkerProgress() {
       return null;
     }
 
@@ -231,15 +230,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       return Collections.emptyList();
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() {
+    public @Nullable DynamicSplitResult requestCheckpoint() {
       return null;
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+    public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
       return null;
     }
   }
@@ -251,9 +248,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       this.readOperation = readOperation;
     }
 
-    @Nullable
     @Override
-    public Progress getWorkerProgress() throws Exception {
+    public @Nullable Progress getWorkerProgress() throws Exception {
       return readOperation.getProgress();
     }
 
@@ -267,15 +263,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       return Collections.emptyList();
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() throws Exception {
+    public @Nullable DynamicSplitResult requestCheckpoint() throws Exception {
       return readOperation.requestCheckpoint();
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+    public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
         throws Exception {
       return readOperation.requestDynamicSplit(splitRequest);
     }
@@ -411,9 +405,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               .collect(Collectors.toList());
     }
 
-    @Nullable
     @Override
-    public Progress getWorkerProgress() throws Exception {
+    public @Nullable Progress getWorkerProgress() throws Exception {
       return latestProgress.get();
     }
 
@@ -434,16 +427,14 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
           snapshotGaugeUpdates.values());
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() throws Exception {
+    public @Nullable DynamicSplitResult requestCheckpoint() throws Exception {
       // TODO: Implement checkpointing
       return null;
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+    public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
         throws Exception {
       return readOperation.requestDynamicSplit(splitRequest);
     }

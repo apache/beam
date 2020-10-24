@@ -53,9 +53,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Duration> getMaxCumulativeBackoff();
 
-  @Nullable
   @VisibleForTesting
-  abstract ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
+  abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
   abstract Builder toBuilder();
 

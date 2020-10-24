@@ -76,9 +76,8 @@ public class SchemaRegistry {
       providers.put(typeDescriptor, schemaProvider);
     }
 
-    @Nullable
     @Override
-    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+    public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       TypeDescriptor<?> type = typeDescriptor;
       do {
         SchemaProvider schemaProvider = providers.get(type);
@@ -93,9 +92,9 @@ public class SchemaRegistry {
       } while (true);
     }
 
-    @Nullable
     @Override
-    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> @Nullable SerializableFunction<T, Row> toRowFunction(
+        TypeDescriptor<T> typeDescriptor) {
       TypeDescriptor<?> type = typeDescriptor;
       do {
         SchemaProvider schemaProvider = providers.get(type);
@@ -110,9 +109,9 @@ public class SchemaRegistry {
       } while (true);
     }
 
-    @Nullable
     @Override
-    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> @Nullable SerializableFunction<Row, T> fromRowFunction(
+        TypeDescriptor<T> typeDescriptor) {
       TypeDescriptor<?> type = typeDescriptor;
       do {
         SchemaProvider schemaProvider = providers.get(type);

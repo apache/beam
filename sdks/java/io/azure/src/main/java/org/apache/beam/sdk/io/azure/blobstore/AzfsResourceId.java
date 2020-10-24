@@ -152,9 +152,8 @@ class AzfsResourceId implements ResourceId {
     return fromComponents(account, container, blob.substring(0, blob.lastIndexOf('/') + 1));
   }
 
-  @Nullable
   @Override
-  public String getFilename() {
+  public @Nullable String getFilename() {
     if (blob == null) {
       return null;
     }

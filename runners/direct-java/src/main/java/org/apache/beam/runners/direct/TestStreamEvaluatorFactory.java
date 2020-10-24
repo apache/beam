@@ -59,9 +59,8 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     this.evaluationContext = evaluationContext;
   }
 
-  @Nullable
   @Override
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public <InputT> @Nullable TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     return createEvaluator((AppliedPTransform) application);
   }

@@ -911,7 +911,7 @@ public class TestPOJOs {
   /** A simple POJO containing nullable basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NullablePOJO {
-    @Nullable public String str;
+    public @Nullable String str;
     public @Nullable Byte aByte;
     public @Nullable Short aShort;
     public @Nullable Integer anInt;
