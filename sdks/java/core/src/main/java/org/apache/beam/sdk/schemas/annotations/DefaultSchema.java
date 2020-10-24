@@ -59,7 +59,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "rawtypes",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 @Experimental(Kind.SCHEMAS)
 public @interface DefaultSchema {
 

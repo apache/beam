@@ -21,6 +21,7 @@ import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Creates a batch transaction. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class CreateTransactionFn extends DoFn<Object, Transaction> {
 
   private final SpannerIO.CreateTransaction config;

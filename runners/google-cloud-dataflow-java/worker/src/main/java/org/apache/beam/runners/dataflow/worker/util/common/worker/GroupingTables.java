@@ -26,6 +26,7 @@ import java.util.Random;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Static utility methods that provide {@link GroupingTable} implementations. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GroupingTables {
   /** Returns a {@link GroupingTable} that groups inputs into a {@link List}. */
   public static <K, V> GroupingTable<K, V, List<V>> buffering(

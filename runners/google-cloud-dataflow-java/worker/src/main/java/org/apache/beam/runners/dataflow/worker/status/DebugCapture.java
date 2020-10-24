@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
  * DebugCapture encapsulates a simple periodic sender for HTML pages to the debug capture service.
  * It is dynamically configured by the service.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DebugCapture {
   private static final Logger LOG = LoggerFactory.getLogger(DebugCapture.class);
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();

@@ -51,6 +51,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for LatencyRecordingHttpRequestInitializer. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class LatencyRecordingHttpRequestInitializerTest {
 
   @Rule

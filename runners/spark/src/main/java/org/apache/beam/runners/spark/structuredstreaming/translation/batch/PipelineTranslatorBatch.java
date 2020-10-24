@@ -41,6 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * only the components specific to batch: registry of batch {@link TransformTranslator} and registry
  * lookup code.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PipelineTranslatorBatch extends PipelineTranslator {
 
   // --------------------------------------------------------------------------------------------

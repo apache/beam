@@ -36,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result of Query3. */
 @DefaultSchema(JavaFieldSchema.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class NameCityStateId implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();

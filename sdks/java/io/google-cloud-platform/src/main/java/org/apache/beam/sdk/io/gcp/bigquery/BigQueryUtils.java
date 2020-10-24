@@ -65,6 +65,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 
 /** Utility methods for BigQuery related operations. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BigQueryUtils {
 
   /** Options for how to convert BigQuery data to Beam data. */

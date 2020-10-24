@@ -36,6 +36,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingInput
  * {@link #outbound(OutputChunkConsumer)} treats a single {@link OutputStream} as multiple {@link
  * ByteString}s.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DataStreams {
   public static final int DEFAULT_OUTBOUND_BUFFER_LIMIT_BYTES = 1_000_000;
 

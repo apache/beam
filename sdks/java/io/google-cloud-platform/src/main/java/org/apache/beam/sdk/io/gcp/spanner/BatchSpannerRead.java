@@ -39,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Reads from multiple partitions are executed concurrently yet in the same read-only transaction.
  */
 @AutoValue
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 abstract class BatchSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
 

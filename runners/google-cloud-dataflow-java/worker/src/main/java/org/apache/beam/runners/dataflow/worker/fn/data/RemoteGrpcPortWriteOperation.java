@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This {@link Operation} supports restart.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteGrpcPortWriteOperation.class);
 

@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);

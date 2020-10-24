@@ -50,6 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The EvaluationContext allows us to define pipeline instructions and translate between {@code
  * PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class EvaluationContext {
   private final JavaSparkContext jsc;
   private JavaStreamingContext jssc;

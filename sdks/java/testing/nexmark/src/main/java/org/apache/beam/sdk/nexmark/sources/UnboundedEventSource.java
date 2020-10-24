@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
  * the overall rate respect the {@code interEventDelayUs} period if possible. Otherwise, events are
  * returned every time the system asks for one.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckpoint> {
   private static final Duration BACKLOG_PERIOD = Duration.standardSeconds(30);
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedEventSource.class);

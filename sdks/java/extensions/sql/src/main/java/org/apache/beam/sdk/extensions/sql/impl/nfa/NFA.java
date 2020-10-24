@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
  * @see <a
  *     href="https://dl.acm.org/doi/10.1145/1376616.1376634">https://dl.acm.org/doi/10.1145/1376616.1376634</a>
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class NFA implements Serializable {
 
   private final State startState;

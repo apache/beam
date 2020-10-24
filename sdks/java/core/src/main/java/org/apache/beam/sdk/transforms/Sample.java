@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>{@link #combineFn} can also be used manually, in combination with state and with the {@link
  * Combine} transform.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Sample {
 
   /** Returns a {@link CombineFn} that computes a fixed-sized uniform sample of its inputs. */

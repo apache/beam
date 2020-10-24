@@ -59,6 +59,7 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import scala.Tuple2;
 
 /** A set of utilities to help translating Beam transformations into Spark transformations. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class TranslationUtils {
 
   private TranslationUtils() {}

@@ -77,6 +77,7 @@ import org.slf4j.LoggerFactory;
  * <p>Provides a bridge between the high-level {@code Source} API and the low-level {@code
  * CloudSource} class.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class WorkerCustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
   @VisibleForTesting static final String SERIALIZED_SOURCE_SPLITS = "serialized_source_splits";

@@ -109,6 +109,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
     extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);

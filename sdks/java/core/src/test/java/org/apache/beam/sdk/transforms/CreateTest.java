@@ -78,7 +78,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for Create. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("unchecked")
+@SuppressWarnings({
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CreateTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline p = TestPipeline.create();

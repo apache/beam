@@ -73,6 +73,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Experimental
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbTable.class);
   // Should match: mongodb://username:password@localhost:27017/database/collection

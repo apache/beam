@@ -54,6 +54,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
  * coder is preserved. This causes tests written such that coders that lose information during
  * serialization or change state during encoding/decoding will fail.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CoderProperties {
 
   /** All the contexts, for use in test cases. */

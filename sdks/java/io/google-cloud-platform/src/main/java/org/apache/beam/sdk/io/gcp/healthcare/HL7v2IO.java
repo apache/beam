@@ -153,6 +153,7 @@ import org.slf4j.LoggerFactory;
  * }***
  * </pre>
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class HL7v2IO {
 
   /** Write HL7v2 Messages to a store. */

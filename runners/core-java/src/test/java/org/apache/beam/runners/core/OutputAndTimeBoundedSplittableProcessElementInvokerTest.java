@@ -50,6 +50,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   @Rule public transient ExpectedException e = ExpectedException.none();
 

@@ -31,6 +31,7 @@ import org.joda.time.Instant;
  * A {@link BundleFactory} where a created {@link UncommittedBundle} clones all elements added to it
  * using the coder of the {@link PCollection}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class CloningBundleFactory implements BundleFactory {
   private static final CloningBundleFactory INSTANCE = new CloningBundleFactory();
 

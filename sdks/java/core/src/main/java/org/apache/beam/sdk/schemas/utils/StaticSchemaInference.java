@@ -40,6 +40,7 @@ import org.joda.time.ReadableInstant;
 
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StaticSchemaInference {
   public static List<FieldValueTypeInformation> sortBySchema(
       List<FieldValueTypeInformation> types, Schema schema) {

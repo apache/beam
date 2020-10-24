@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
  * An {@link EnvironmentFactory} that communicates to a {@link FnHarness} which is executing in the
  * same process.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
   private static final Logger LOG = LoggerFactory.getLogger(EmbeddedEnvironmentFactory.class);
 

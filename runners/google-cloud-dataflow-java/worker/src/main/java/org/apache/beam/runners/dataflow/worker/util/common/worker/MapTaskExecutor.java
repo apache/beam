@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An executor for a map task, defined by a list of Operations. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MapTaskExecutor implements WorkExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(MapTaskExecutor.class);
 

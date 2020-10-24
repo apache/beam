@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
  */
 @DefaultCoder(BigtableWriteResultCoder.class)
 @AutoValue
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class BigtableWriteResult {
   public static BigtableWriteResult create(long rowsWritten) {
     return new AutoValue_BigtableWriteResult(rowsWritten);

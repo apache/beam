@@ -119,7 +119,11 @@ import org.slf4j.LoggerFactory;
  * {@link DataflowPipelineTranslator} knows how to translate {@link Pipeline} objects into Cloud
  * Dataflow Service API {@link Job}s.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes",
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 @VisibleForTesting
 public class DataflowPipelineTranslator {
 

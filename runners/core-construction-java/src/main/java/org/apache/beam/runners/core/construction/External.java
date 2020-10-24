@@ -68,6 +68,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * high-level wrapper classes rather than this one.
  */
 @Experimental(Kind.PORTABILITY)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class External {
   private static final String EXPANDED_TRANSFORM_BASE_NAME = "external";
   private static final String IMPULSE_PREFIX = "IMPULSE";

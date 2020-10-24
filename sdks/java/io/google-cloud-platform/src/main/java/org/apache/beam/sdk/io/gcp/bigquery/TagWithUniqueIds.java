@@ -32,6 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * sequential number.
  */
 @VisibleForTesting
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class TagWithUniqueIds<ElementT>
     extends DoFn<KV<ShardedKey<String>, ElementT>, KV<ShardedKey<String>, TableRowInfo<ElementT>>> {
   private transient String randomUUID;

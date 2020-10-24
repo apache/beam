@@ -37,6 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Not thread-safe.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CloseableResource<T> implements AutoCloseable {
 
   private final T resource;

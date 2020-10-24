@@ -35,6 +35,7 @@ import org.apache.beam.sdk.values.Row;
  * same as the base type of {@link Time}, which is a Long that represents a count of time in
  * nanoseconds.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
   public static final String DATE_FIELD_NAME = "Date";
   public static final String TIME_FIELD_NAME = "Time";

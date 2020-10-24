@@ -45,6 +45,7 @@ import org.apache.beam.runners.twister2.translators.functions.Twister2SinkFuncti
  * The Twister2 worker that will execute the job logic once the job is submitted from the run
  * method.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamBatchWorker implements Serializable, BatchTSetIWorker {
 
   private static final String SIDEINPUTS = "sideInputs";
