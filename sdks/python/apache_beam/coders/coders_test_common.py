@@ -37,6 +37,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
+from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 from . import observable
@@ -569,6 +570,41 @@ class CodersTest(unittest.TestCase):
             1: "one", 300: "three hundred"
         }, {}, {i: str(i)
                 for i in range(5000)})
+
+  def test_sharded_key_coder(self):
+    key_and_coders = [(b'', b'\x00', coders.BytesCoder()),
+                      (b'key', b'\x03key', coders.BytesCoder()),
+                      ('key', b'\03\x6b\x65\x79', coders.StrUtf8Coder()),
+                      (('k', 1),
+                       b'\x01\x6b\x01',
+                       coders.TupleCoder(
+                           (coders.StrUtf8Coder(), coders.VarIntCoder())))]
+
+    for key, bytes_repr, key_coder in key_and_coders:
+      coder = coders.ShardedKeyCoder(key_coder)
+      # Verify cloud object representation
+      self.assertEqual({
+          '@type': 'kind:sharded_key',
+          'component_encodings': [key_coder.as_cloud_object()]
+      },
+                       coder.as_cloud_object())
+      self.assertEqual(b'\x00' + bytes_repr, coder.encode(ShardedKey(key, b'')))
+      self.assertEqual(
+          b'\x03123' + bytes_repr, coder.encode(ShardedKey(key, b'123')))
+
+      # Test unnested
+      self.check_coder(coder, ShardedKey(key, b''))
+      self.check_coder(coder, ShardedKey(key, b'123'))
+
+      for other_key, _, other_key_coder in key_and_coders:
+        other_coder = coders.ShardedKeyCoder(other_key_coder)
+        # Test nested
+        self.check_coder(
+            coders.TupleCoder((coder, other_coder)),
+            (ShardedKey(key, b''), ShardedKey(other_key, b'')))
+        self.check_coder(
+            coders.TupleCoder((coder, other_coder)),
+            (ShardedKey(key, b'123'), ShardedKey(other_key, b'')))
 
 
 if __name__ == '__main__':
