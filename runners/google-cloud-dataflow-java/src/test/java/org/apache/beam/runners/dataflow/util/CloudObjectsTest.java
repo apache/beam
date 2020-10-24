@@ -80,6 +80,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CloudObjects}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CloudObjectsTest {
   private static final Schema TEST_SCHEMA =
       Schema.builder()

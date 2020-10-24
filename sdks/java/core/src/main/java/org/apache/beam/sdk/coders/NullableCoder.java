@@ -35,7 +35,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the values being transcoded
  */
-public class NullableCoder<T> extends StructuredCoder<T> {
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+public class NullableCoder<T> extends StructuredCoder<@Nullable T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     if (valueCoder instanceof NullableCoder) {
       return (NullableCoder<T>) valueCoder;

@@ -41,6 +41,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * becomes ready.
  */
 @ThreadSafe
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class BufferingStreamObserver<T> implements StreamObserver<T> {
   private static final Object POISON_PILL = new Object();
   private final LinkedBlockingDeque<T> queue;

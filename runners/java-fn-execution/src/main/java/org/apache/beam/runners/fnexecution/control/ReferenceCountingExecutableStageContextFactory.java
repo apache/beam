@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
  * {@link ExecutableStageContext.Factory} which counts ExecutableStageContext reference for book
  * keeping.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReferenceCountingExecutableStageContextFactory
     implements ExecutableStageContext.Factory {
   private static final Logger LOG =

@@ -46,6 +46,7 @@ import org.joda.time.Instant;
  *
  * <p>Includes parsing / assembly of timer tags and some extra methods.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class WindmillTimerInternals implements TimerInternals {
 
   private static final String TIMER_HOLD_PREFIX = "/h";

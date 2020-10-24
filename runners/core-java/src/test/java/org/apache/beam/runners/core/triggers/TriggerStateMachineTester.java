@@ -63,6 +63,7 @@ import org.joda.time.Instant;
  *
  * @param <W> The type of windows being used.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
 
   /**

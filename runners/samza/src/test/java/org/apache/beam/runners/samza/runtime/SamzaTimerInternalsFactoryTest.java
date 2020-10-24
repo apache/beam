@@ -67,6 +67,7 @@ import org.rocksdb.WriteOptions;
  * Tests for {@link SamzaTimerInternalsFactory}. Covers both event-time timers and processing-timer
  * timers.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SamzaTimerInternalsFactoryTest {
   @Rule public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
 

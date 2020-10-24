@@ -31,6 +31,7 @@ import org.joda.time.Duration;
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This has methods to query
  * to job runtime and the final values of the accumulators.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkRunnerResult implements PipelineResult {
 
   private final Map<String, Object> accumulators;

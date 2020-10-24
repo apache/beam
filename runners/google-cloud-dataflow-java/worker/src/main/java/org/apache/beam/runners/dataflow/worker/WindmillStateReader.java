@@ -69,6 +69,7 @@ import org.joda.time.Instant;
  * <p>CAUTION Watch out for escaping references to the reader ending up inside {@link
  * WindmillStateCache}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class WindmillStateReader {
   /**
    * Ideal maximum bytes in a TagBag response. However, Windmill will always return at least one

@@ -39,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * An immutable registry from {@link String} identifiers (provided to the worker by the Dataflow
  * service) to appropriate {@link ReaderFactory} instances.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReaderRegistry implements ReaderFactory {
 
   /**

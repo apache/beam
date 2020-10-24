@@ -58,6 +58,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DirectTransformExecutor}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DirectTransformExecutorTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private PCollection<String> created;

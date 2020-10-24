@@ -50,6 +50,7 @@ import org.joda.time.Instant;
  * for the {@link PrimitiveUnboundedRead SplittableParDo.PrimitiveUnboundedRead} primitive {@link
  * PTransform}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   // Occasionally close an existing reader and resume from checkpoint, to exercise close-and-resume
   private static final double DEFAULT_READER_REUSE_CHANCE = 0.95;

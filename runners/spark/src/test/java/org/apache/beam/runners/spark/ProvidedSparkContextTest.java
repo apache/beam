@@ -36,6 +36,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 
 /** Provided Spark Context tests. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ProvidedSparkContextTest {
   private static final String[] WORDS_ARRAY = {
     "hi there", "hi", "hi sue bob",

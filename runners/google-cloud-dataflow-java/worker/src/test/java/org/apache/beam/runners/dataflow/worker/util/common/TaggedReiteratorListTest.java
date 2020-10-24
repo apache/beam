@@ -29,6 +29,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TaggedReiteratorList}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TaggedReiteratorListTest {
 
   @Test

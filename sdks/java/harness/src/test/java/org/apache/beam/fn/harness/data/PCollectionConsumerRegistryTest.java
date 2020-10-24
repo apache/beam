@@ -52,6 +52,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link PCollectionConsumerRegistryTest}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(MetricsEnvironment.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PCollectionConsumerRegistryTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();

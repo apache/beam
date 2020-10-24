@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
  * Base class that gives a context for {@link PTransform} translation: keeping track of the
  * datasets, the {@link SparkSession}, the current transform being translated.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TranslationContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);

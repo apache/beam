@@ -116,6 +116,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Code snippets used in webdocs. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Snippets {
 
   @DefaultCoder(AvroCoder.class)

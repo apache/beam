@@ -32,6 +32,7 @@ import org.joda.time.Duration;
 
 /** Configuration for a Cloud Spanner client. */
 @AutoValue
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class SpannerConfig implements Serializable {
   // A default host name for batch traffic.
   private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";

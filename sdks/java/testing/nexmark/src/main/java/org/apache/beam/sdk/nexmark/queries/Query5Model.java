@@ -34,6 +34,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query5}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Query5Model extends NexmarkQueryModel<AuctionCount> implements Serializable {
   /** Simulator for query 5. */
   private class Simulator extends AbstractSimulator<Event, AuctionCount> {

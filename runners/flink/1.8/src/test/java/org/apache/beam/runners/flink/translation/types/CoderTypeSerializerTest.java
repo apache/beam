@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.junit.Test;
 
 /** Tests {@link CoderTypeSerializer}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CoderTypeSerializerTest implements Serializable {
 
   @Test

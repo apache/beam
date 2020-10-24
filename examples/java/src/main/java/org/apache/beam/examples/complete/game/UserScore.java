@@ -70,6 +70,7 @@ import org.slf4j.LoggerFactory;
  * value for example batch data file, or use {@code injector.Injector} to generate your own batch
  * data.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class UserScore {
 
   /** Class to hold info about a game event. */

@@ -51,6 +51,7 @@ import org.joda.time.format.ISODateTimeFormat;
  *
  * <p>Components specify their display data by implementing the {@link HasDisplayData} interface.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DisplayData implements Serializable {
   private static final DisplayData EMPTY = new DisplayData(Maps.newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();

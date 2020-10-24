@@ -48,6 +48,7 @@ import org.joda.time.Instant;
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
  */
 @Internal
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class ZetaSqlBeamTranslationUtils {
 
   private static final long MICROS_PER_MILLI = 1000L;

@@ -38,6 +38,7 @@ import org.joda.time.Instant;
  */
 @AutoValue
 @Internal
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class ValueInSingleWindow<T> {
   /** Returns the value of this {@code ValueInSingleWindow}. */
   public abstract @Nullable T getValue();

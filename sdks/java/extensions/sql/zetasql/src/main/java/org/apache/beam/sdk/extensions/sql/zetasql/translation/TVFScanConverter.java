@@ -33,6 +33,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 
 /** Converts TVFScan. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
 
   TVFScanConverter(ConversionContext context) {

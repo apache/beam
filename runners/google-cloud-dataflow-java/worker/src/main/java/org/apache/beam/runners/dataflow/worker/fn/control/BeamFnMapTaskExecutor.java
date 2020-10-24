@@ -73,6 +73,7 @@ import org.slf4j.LoggerFactory;
  * <p>Note that this executor is meant to be used with the Fn API. Several of the methods to request
  * splitting, checkpointing, work progress are unimplemented.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
 

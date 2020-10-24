@@ -92,6 +92,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to RexNodes.
  */
 @Internal
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ExpressionConverter {
 
   // Constants of pre-defined functions.

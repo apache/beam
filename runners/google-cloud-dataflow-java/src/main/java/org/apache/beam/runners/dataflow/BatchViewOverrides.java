@@ -90,6 +90,7 @@ import org.joda.time.Instant;
 /**
  * Dataflow batch overrides for {@link CreatePCollectionView}, specialized for different view types.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BatchViewOverrides {
   /**
    * Specialized implementation for {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap} for

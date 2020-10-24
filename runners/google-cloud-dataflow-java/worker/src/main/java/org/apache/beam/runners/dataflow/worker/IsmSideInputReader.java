@@ -94,6 +94,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link #getSingletonForWindow} for singleton views, {@link #getListForWindow} for iterable and
  * list views, and {@link #getMapForWindow} for map and multimap views.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class IsmSideInputReader implements SideInputReader {
   private static final String SINGLETON_KIND = "singleton";
   private static final String COLLECTION_KIND = "collection";
