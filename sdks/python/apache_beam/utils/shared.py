@@ -26,22 +26,30 @@ Example usage:
 
 To share a very large list across all threads of each worker in a DoFn::
 
-  class GetNthStringFn(beam.DoFn):
-    def __init__(self, shared_handle):
-      self._shared_handle = shared_handle
+# Several built-in types such as list and dict do not directly support weak
+# references but can add support through subclassing:
+# https://docs.python.org/3/library/weakref.html
+class WeakRefList(list):
+	pass
 
-    def process(self, element):
-      def initialize_list():
-        # Build the giant initial list.
-        return [str(i) for i in range(1000000)]
+class GetNthStringFn(beam.DoFn):
+  def __init__(self, shared_handle):
+    self._shared_handle = shared_handle
 
-      giant_list = self._shared_handle.acquire(initialize_list)
-      yield giant_list[element]
+  def setup(self):
+    def initialize_list():
+      # Build the giant initial list.
+      return WeakRefList([str(i) for i in range(1000000)])
 
-  p = beam.Pipeline()
-  shared_handle = shared.Shared()
-  (p | beam.Create([2, 4, 6, 8])
-     | beam.ParDo(GetNthStringFn(shared_handle)))
+    self._giant_list = self._shared_handle.acquire(initialize_list)
+
+  def process(self, element):
+    yield self._giant_list[element]
+
+p = beam.Pipeline()
+shared_handle = shared.Shared()
+(p | beam.Create([2, 4, 6, 8])
+   | beam.ParDo(GetNthStringFn(shared_handle)))
 
 
 Real-world uses will typically involve using a side-input to a DoFn to
