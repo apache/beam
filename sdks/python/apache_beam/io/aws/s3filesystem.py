@@ -115,7 +115,7 @@ class S3FileSystem(FileSystem):
   def has_dirs(self):
     """Whether this FileSystem supports directories."""
     return False
-  
+
   def _list(self, dir_or_prefix):
     """List files in a location.
 

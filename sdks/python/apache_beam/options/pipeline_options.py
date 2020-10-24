@@ -258,7 +258,8 @@ class PipelineOptions(HasDisplayData):
       self,
       drop_default=False,
       add_extra_args_fn=None,  # type: Optional[Callable[[_BeamArgumentParser], None]]
-      retain_unknown_options=False):
+      retain_unknown_options=False
+  ):
     # type: (...) -> Dict[str, Any]
 
     """Returns a dictionary of all defined arguments.
@@ -743,7 +744,8 @@ class WorkerOptions(PipelineOptions):
         type=str,
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
-        help=('If and how to autoscale the workerpool.'))
+        help=
+        ('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         '--machine_type',
