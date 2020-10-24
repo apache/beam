@@ -35,10 +35,10 @@ class Client(object):
   """
   Wrapper for boto3 library
   """
-  def __init__(self, pipeline_options):
+  def __init__(self, options):
     assert boto3 is not None, 'Missing boto3 requirement'
-    if isinstance(pipeline_options, pipeline_options.PipelineOptions):
-      s3_options = pipeline_options.view_as(pipeline_options.S3PipelineOptions)
+    if isinstance(options, pipeline_options.PipelineOptions):
+      s3_options = options.view_as(pipeline_options.S3PipelineOptions)
       access_key_id = s3_options.s3_access_key_id
       secret_access_key = s3_options.s3_secret_access_key
       session_token = s3_options.s3_session_token
@@ -49,14 +49,14 @@ class Client(object):
       region_name = s3_options.s3_region_name
       verify = s3_options.s3_verify
     else:
-      access_key_id = pipeline_options.get('s3_access_key_id')
-      secret_access_key = pipeline_options.get('s3_secret_access_key')
-      session_token = pipeline_options.get('s3_session_token')
-      endpoint_url = pipeline_options.get('s3_endpoint_url')
-      use_ssl = pipeline_options.get('s3_use_ssl')
-      region_name = pipeline_options.get('s3_region_name')
-      api_version = pipeline_options.get('s3_api_version')
-      verify = pipeline_options.get('s3_verify')
+      access_key_id = options.get('s3_access_key_id')
+      secret_access_key = options.get('s3_secret_access_key')
+      session_token = options.get('s3_session_token')
+      endpoint_url = options.get('s3_endpoint_url')
+      use_ssl = options.get('s3_use_ssl')
+      region_name = options.get('s3_region_name')
+      api_version = options.get('s3_api_version')
+      verify = options.get('s3_verify')
 
     self.client = boto3.client(
         service_name='s3',
