@@ -39,7 +39,6 @@ import math
 import typing
 from builtins import round
 from typing import Any
-from typing import Sized
 from typing import List
 from typing import Tuple
 
@@ -505,6 +504,8 @@ class _QuantileState(object):
     self.spec = spec
     if spec.weighted:
       setattr(self, 'add_unbuffered', self._add_unbuffered_weighted)
+    else:
+      setattr(self, 'add_unbuffered', self._add_unbuffered)
 
     # The algorithm requires that the manipulated buffers always be filled to
     # capacity to perform the collapse operation. This operation can be extended
@@ -530,7 +531,7 @@ class _QuantileState(object):
     """Check if the buffered & unbuffered elements are empty or not."""
     return not self.unbuffered_elements and not self.buffers
 
-  def add_unbuffered(self, elements, offset_fn):
+  def _add_unbuffered(self, elements, offset_fn):
     # type: (List, Any) -> None
 
     """
