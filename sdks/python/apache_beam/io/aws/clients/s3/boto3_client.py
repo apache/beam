@@ -38,7 +38,7 @@ class Client(object):
   def __init__(self, options):
     assert boto3 is not None, 'Missing boto3 requirement'
     if isinstance(options, pipeline_options.PipelineOptions):
-      s3_options = options.view_as(pipeline_options.S3PipelineOptions)
+      s3_options = options.view_as(pipeline_options.S3Options)
       access_key_id = s3_options.s3_access_key_id
       secret_access_key = s3_options.s3_secret_access_key
       session_token = s3_options.s3_session_token
