@@ -39,11 +39,11 @@ package main
 import (
 	"context"
 	"flag"
-	"beam.apache.org/sdks/go/pkg/beam/core/sdf"
 	"reflect"
 	"time"
 
 	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/core/sdf"
 	"beam.apache.org/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 	"beam.apache.org/sdks/go/pkg/beam/log"
 	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
