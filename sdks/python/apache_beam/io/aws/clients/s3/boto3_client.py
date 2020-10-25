@@ -46,7 +46,6 @@ class Client(object):
       use_ssl = s3_options.s3_use_ssl
       region_name = s3_options.s3_region_name
       api_version = s3_options.s3_api_version
-      region_name = s3_options.s3_region_name
       verify = s3_options.s3_verify
     else:
       access_key_id = options.get('s3_access_key_id')
