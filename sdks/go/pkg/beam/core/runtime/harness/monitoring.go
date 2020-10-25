@@ -22,11 +22,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/coder"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/mtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/metrics"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/exec"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 type mUrn uint32

@@ -18,7 +18,7 @@ package typex
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/mtime"
 )
 
 // This file defines data types that programs use to indicate a

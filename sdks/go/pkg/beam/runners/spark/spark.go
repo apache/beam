@@ -19,8 +19,8 @@ package spark
 import (
 	"context"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/runners/universal"
 )
 
 func init() {

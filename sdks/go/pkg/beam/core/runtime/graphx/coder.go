@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
-	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/coder"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/graphx/schema"
+	v1pb "beam.apache.org/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/protox"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 )
 

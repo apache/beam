@@ -19,12 +19,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/coder"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/graphx"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/graphx/schema"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {

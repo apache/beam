@@ -25,10 +25,10 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/avroio"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/avroio"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam/x/debug"
 )
 
 var (

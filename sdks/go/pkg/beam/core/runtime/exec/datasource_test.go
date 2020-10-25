@@ -22,10 +22,10 @@ import (
 	"math"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/coder"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/mtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/window"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 func TestDataSource_PerElement(t *testing.T) {

@@ -20,14 +20,14 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/provision"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/hooks"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	jobpb "beam.apache.org/sdks/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/provision"
 	"github.com/golang/protobuf/proto"
 )
 

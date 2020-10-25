@@ -18,9 +18,9 @@ package stats
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/testing/passert"
+	"beam.apache.org/sdks/go/pkg/beam/testing/ptest"
 )
 
 // TestMinInt verifies that Min works correctly for ints.

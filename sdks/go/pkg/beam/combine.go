@@ -16,9 +16,9 @@
 package beam
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 // Combine inserts a global Combine transform into the pipeline. It

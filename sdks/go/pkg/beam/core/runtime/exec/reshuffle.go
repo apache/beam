@@ -22,8 +22,8 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/coder"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 // ReshuffleInput is a Node.

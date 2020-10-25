@@ -29,7 +29,7 @@ package jobmanagement_v1
 
 import (
 	context "context"
-	pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipeline_v1 "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

@@ -19,11 +19,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/window"
+	"beam.apache.org/sdks/go/pkg/beam/core/sdf"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/google/go-cmp/cmp"
 )
 

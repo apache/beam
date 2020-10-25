@@ -22,10 +22,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam"
 
 	// ptest uses the direct runner to execute pipelines by default.
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/direct"
 )
 
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.

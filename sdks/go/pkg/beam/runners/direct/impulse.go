@@ -19,9 +19,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/mtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/window"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/exec"
 )
 
 // Impulse emits its single element in one invocation.

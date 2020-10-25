@@ -19,11 +19,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/mtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/window"
 )
 
 func makeInput(vs ...interface{}) []MainInput {

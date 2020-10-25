@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/coder"
 )
 
 // Kind is the semantic type of a window fn.

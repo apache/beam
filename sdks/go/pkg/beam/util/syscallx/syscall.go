@@ -20,7 +20,7 @@
 package syscallx
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 // ErrUnsupported is the error returned for unsupported operations.

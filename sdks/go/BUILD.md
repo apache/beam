@@ -27,7 +27,7 @@ Goals:
 
  1. Go code can be built and tested using Gradle w/o special requirements.
  1. Go tools such as `go build`, `go test` and `go generate` work as usual.
- 1. Go code can be pulled with `go get` from `github.com/apache/beam` for users.
+ 1. Go code can be pulled with `go get` from `beam.apache.org` for users.
  1. Go programs can used in docker container images.
 
 In short, the goals are to make both worlds work well.
@@ -35,7 +35,7 @@ In short, the goals are to make both worlds work well.
 ### Gradle integration
 
 The Go toolchain expects the package name to match the directory structure,
-which in turn must be rooted in `github.com/apache/beam` for `go get` to work.
+which in turn must be rooted in `beam.apache.org` for `go get` to work.
 This directory prefix is beyond the repo itself and we must copy the Go source
 code into such a layout to invoke the tool chain. We use a single directory
 `sdks/go` for all shared library code and export it as a zip file during the
@@ -58,7 +58,7 @@ $GOPATH/src/github.com/apache
 to match the package structure expected by the code imports. Go users can just
 `go get` the code directly. For example:
 ```
-go get github.com/apache/beam/sdks/go/...
+go get beam.apache.org/sdks/go/...
 ```
 Developers must invoke Go for cross-compilation manually, if desired.
 

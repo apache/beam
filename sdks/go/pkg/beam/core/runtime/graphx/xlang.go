@@ -16,9 +16,9 @@
 package graphx
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 // ExpandedComponents type asserts the Components field with interface{} type

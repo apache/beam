@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	fnpb "beam.apache.org/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 func TestLogger(t *testing.T) {

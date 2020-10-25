@@ -22,8 +22,8 @@ import (
 	"path"
 	"text/template"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 var (

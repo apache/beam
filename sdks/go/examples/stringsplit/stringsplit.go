@@ -39,14 +39,14 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
+	"beam.apache.org/sdks/go/pkg/beam/core/sdf"
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/rtrackers/offsetrange"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
 )
 
 func init() {

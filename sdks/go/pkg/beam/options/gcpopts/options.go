@@ -23,7 +23,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/log"
 )
 
 var (

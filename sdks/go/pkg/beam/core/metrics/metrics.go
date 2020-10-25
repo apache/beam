@@ -54,7 +54,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/ioutilx"
 )
 
 // Metric cells are named and scoped by ptransform, and bundle,

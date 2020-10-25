@@ -17,13 +17,13 @@ package synthetic
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
+	"beam.apache.org/sdks/go/pkg/beam/core/sdf"
 	"math/rand"
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 func init() {

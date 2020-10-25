@@ -18,8 +18,8 @@ package primitives
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/testing/passert"
 )
 
 func genA(_ []byte, emit func(string, int)) {

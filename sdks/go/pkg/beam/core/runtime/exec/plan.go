@@ -23,8 +23,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/core/metrics"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed

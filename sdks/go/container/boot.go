@@ -24,10 +24,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/go/pkg/beam/provision"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"beam.apache.org/sdks/go/pkg/beam/artifact"
+	"beam.apache.org/sdks/go/pkg/beam/provision"
+	"beam.apache.org/sdks/go/pkg/beam/util/execx"
+	"beam.apache.org/sdks/go/pkg/beam/util/grpcx"
 )
 
 var (

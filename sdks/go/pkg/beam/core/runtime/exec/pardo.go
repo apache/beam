@@ -20,14 +20,14 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
+	"beam.apache.org/sdks/go/pkg/beam/core/funcx"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/mtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph/window"
+	"beam.apache.org/sdks/go/pkg/beam/core/metrics"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/util/errorx"
 )
 
 // ParDo is a DoFn executor.

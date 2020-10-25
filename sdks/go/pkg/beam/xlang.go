@@ -18,12 +18,12 @@ package beam
 import (
 	"context"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/graphx"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/xlangx"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	jobpb "beam.apache.org/sdks/go/pkg/beam/model/jobmanagement_v1"
 )
 
 // xlang exposes an API to execute cross-language transforms within the Go SDK.

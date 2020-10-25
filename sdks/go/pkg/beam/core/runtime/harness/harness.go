@@ -24,12 +24,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/exec"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/hooks"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	fnpb "beam.apache.org/sdks/go/pkg/beam/model/fnexecution_v1"
+	"beam.apache.org/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )

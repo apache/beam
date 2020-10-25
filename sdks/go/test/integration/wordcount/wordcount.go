@@ -23,10 +23,10 @@ import (
 
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/textio"
+	"beam.apache.org/sdks/go/pkg/beam/testing/passert"
+	"beam.apache.org/sdks/go/pkg/beam/transforms/stats"
 )
 
 var (

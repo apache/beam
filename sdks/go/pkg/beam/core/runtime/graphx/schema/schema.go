@@ -32,10 +32,10 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 var lastShortID int64

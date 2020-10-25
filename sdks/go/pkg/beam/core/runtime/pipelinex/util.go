@@ -18,7 +18,7 @@ package pipelinex
 import (
 	"sort"
 
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 )
 

@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/sdf"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )

@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 // Update merges a pipeline with the given components, which may add, replace

@@ -20,8 +20,8 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // TODO(herohde) 1/29/2018: using FullValue for nested KVs is somewhat of a hack

@@ -18,7 +18,7 @@ package funcx
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
 )
 
 // IsEmit returns true iff the supplied type is an emitter.

@@ -34,7 +34,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/symtab"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/symtab"
 )
 
 func die(format string, a ...interface{}) {

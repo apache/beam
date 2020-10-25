@@ -129,13 +129,13 @@ in a subdirectory of your GOPATH. This permits existing gradle tools to use your
 ```
 # Create a Go compatible place for the repo, using src/github.com/apache/
 # matches where Go will look for the files, or go get would put them.
-$ mkdir -p $GOPATH/src/github.com/apache/
-$ cd $GOPATH/src/github.com/apache/
+$ mkdir -p $GOPATH/src/beam.apache.org/
+$ cd $GOPATH/src/beam.apache.org/
 
 
 # Clone the repo, and update your branch as normal
-$ git clone https://github.com/apache/beam.git
-$ cd beam
+$ git clone https://github.com/apache/beam.git beam.apache.org
+$ cd beam.apache.org
 $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
 $ git fetch --all
 
@@ -153,7 +153,7 @@ Follow the [contribution guide](https://beam.apache.org/contribute/contribution-
 Until [BEAM-5379](https://issues.apache.org/jira/browse/BEAM-5379) is resolved,
 Beam locks versions of packages with the gogradle plugin. If new dependencies
 are added in a PR then the lock file needs to be updated.
-From the `$GOPATH/src/github.com/apache/beam` directory run
+From the `$GOPATH/src/beam.apache.org` directory run
 
 ```
 $ ./gradlew :sdks:go:goLock

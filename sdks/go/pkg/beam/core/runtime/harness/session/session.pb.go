@@ -18,7 +18,7 @@ package session
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import org_apache_beam_model_fn_execution_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+import org_apache_beam_model_fn_execution_v1 "beam.apache.org/sdks/go/pkg/beam/model/fnexecution_v1"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal

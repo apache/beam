@@ -27,9 +27,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
 )
 
 var (

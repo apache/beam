@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 // ValidateKVType panics if the type of the PCollection is not KV<A,B>.

@@ -16,8 +16,8 @@
 package debug
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
 )
 
 // Head returns the first "n" elements it sees, it doesn't enforce any logic

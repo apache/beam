@@ -20,18 +20,18 @@ import (
 	"context"
 	"flag"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam"
 	// Import the reflection-optimized runtime.
-	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec/optimized"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
+	_ "beam.apache.org/sdks/go/pkg/beam/core/runtime/exec/optimized"
+	_ "beam.apache.org/sdks/go/pkg/beam/io/filesystem/gcs"
+	_ "beam.apache.org/sdks/go/pkg/beam/io/filesystem/local"
 	// The imports here are for the side effect of runner registration.
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/dataflow"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/direct"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/dot"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/flink"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/spark"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/universal"
 )
 
 var runner = flag.String("runner", "direct", "Pipeline runner.")

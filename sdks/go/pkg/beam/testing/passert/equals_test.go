@@ -19,8 +19,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/testing/ptest"
 )
 
 func TestGood(t *testing.T) {

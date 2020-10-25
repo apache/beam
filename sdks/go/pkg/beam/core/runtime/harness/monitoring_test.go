@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"beam.apache.org/sdks/go/pkg/beam/core/metrics"
 )
 
 func TestGetShortID(t *testing.T) {

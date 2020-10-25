@@ -18,10 +18,10 @@ package xlangx
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/graphx"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 // MergeExpandedWithPipeline adds expanded components of all ExternalTransforms to the exisiting pipeline

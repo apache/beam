@@ -23,14 +23,14 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/textio"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
 )
 
 var (
-	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
+	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/beam.apache.org/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	output = flag.String("output", "/tmp/pingpong/out.", "Prefix of output.")
 )
 

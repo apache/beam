@@ -20,13 +20,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime"
 	// Importing to get the side effect of the remote execution hook. See init().
-	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	_ "beam.apache.org/sdks/go/pkg/beam/core/runtime/harness/init"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/pipelinex"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
 )

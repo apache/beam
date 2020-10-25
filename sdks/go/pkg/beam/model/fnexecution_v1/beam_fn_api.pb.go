@@ -37,7 +37,7 @@ package fnexecution_v1
 
 import (
 	context "context"
-	pipeline_v1 "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipeline_v1 "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
 	_ "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	duration "github.com/golang/protobuf/ptypes/duration"
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"

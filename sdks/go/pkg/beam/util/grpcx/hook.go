@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/hooks"
 	"google.golang.org/grpc"
 )
 

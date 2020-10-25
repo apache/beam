@@ -17,9 +17,9 @@
 package regression
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/testing/passert"
+	"beam.apache.org/sdks/go/pkg/beam/testing/ptest"
 )
 
 func directFn(elm int) int {

@@ -19,8 +19,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"beam.apache.org/sdks/go/pkg/beam/io/filesystem/memfs"
+	"beam.apache.org/sdks/go/pkg/beam/testing/ptest"
 )
 
 func TestWordCount(t *testing.T) {

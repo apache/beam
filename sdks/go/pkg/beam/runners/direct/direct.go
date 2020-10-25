@@ -21,15 +21,15 @@ import (
 	"context"
 	"path"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/core/graph"
+	"beam.apache.org/sdks/go/pkg/beam/core/metrics"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/exec"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/options/jobopts"
+	"beam.apache.org/sdks/go/pkg/beam/runners/vet"
 )
 
 func init() {

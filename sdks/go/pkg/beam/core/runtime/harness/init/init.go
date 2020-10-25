@@ -29,9 +29,9 @@ import (
 
 	"runtime/debug"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/harness"
+	"beam.apache.org/sdks/go/pkg/beam/util/grpcx"
 )
 
 var (

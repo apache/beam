@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/protox"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	pipepb "beam.apache.org/sdks/go/pkg/beam/model/pipeline_v1"
+	"beam.apache.org/sdks/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
 )

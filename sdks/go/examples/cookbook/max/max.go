@@ -15,19 +15,19 @@
 
 package main
 
-// See: https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/MaxPerKeyExamples.java
+// See: https://beam.apache.org/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/MaxPerKeyExamples.java
 
 import (
 	"context"
 	"flag"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/bigqueryio"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/options/gcpopts"
+	"beam.apache.org/sdks/go/pkg/beam/transforms/stats"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
 )
 
 var (

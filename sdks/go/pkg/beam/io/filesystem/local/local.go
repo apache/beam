@@ -22,7 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
+	"beam.apache.org/sdks/go/pkg/beam/io/filesystem"
 )
 
 func init() {

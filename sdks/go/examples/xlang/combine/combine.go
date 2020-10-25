@@ -29,16 +29,16 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/testing/passert"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
 
 	// Imports to enable correct filesystem access and runner setup in LOOPBACK mode
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
+	_ "beam.apache.org/sdks/go/pkg/beam/io/filesystem/gcs"
+	_ "beam.apache.org/sdks/go/pkg/beam/io/filesystem/local"
+	_ "beam.apache.org/sdks/go/pkg/beam/runners/universal"
 )
 
 var (

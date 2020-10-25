@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/log"
 )
 
 // MakeQualifiedTopicName returns a fully-qualified topic name for

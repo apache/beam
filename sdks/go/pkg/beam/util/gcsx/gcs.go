@@ -25,7 +25,7 @@ import (
 	"path"
 
 	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 	"google.golang.org/api/option"
 )
 

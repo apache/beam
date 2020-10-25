@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 // Hash validates that the incoming PCollection<string> has the given size and

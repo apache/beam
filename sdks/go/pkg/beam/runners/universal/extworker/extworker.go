@@ -22,10 +22,10 @@ import (
 	"net"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"beam.apache.org/sdks/go/pkg/beam/core/runtime/harness"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	fnpb "beam.apache.org/sdks/go/pkg/beam/model/fnexecution_v1"
+	"beam.apache.org/sdks/go/pkg/beam/util/grpcx"
 	"google.golang.org/grpc"
 )
 

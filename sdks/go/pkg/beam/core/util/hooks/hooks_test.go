@@ -19,7 +19,7 @@ import (
 	"context"
 	"testing"
 
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "beam.apache.org/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 type contextKey string

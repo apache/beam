@@ -24,10 +24,10 @@ import (
 	"log"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/textio"
+	"beam.apache.org/sdks/go/pkg/beam/transforms/stats"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
 )
 
 var (

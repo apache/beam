@@ -17,12 +17,12 @@ package funcx
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
+	"beam.apache.org/sdks/go/pkg/beam/core/sdf"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 // Note that we can't tell the difference between K, V and V, S before binding.

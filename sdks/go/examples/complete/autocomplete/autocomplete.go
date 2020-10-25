@@ -21,18 +21,18 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/textio"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/transforms/top"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam/x/debug"
 )
 
-// TODO(herohde) 5/30/2017: fully implement https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/AutoComplete.java
+// TODO(herohde) 5/30/2017: fully implement https://beam.apache.org/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/AutoComplete.java
 
 var (
-	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
+	input = flag.String("input", os.ExpandEnv("$GOPATH/src/beam.apache.org/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	n     = flag.Int("top", 3, "Number of completions")
 )
 

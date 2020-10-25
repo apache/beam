@@ -22,9 +22,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/filesystem"
+	"beam.apache.org/sdks/go/pkg/beam/log"
 	"github.com/linkedin/goavro"
 )
 

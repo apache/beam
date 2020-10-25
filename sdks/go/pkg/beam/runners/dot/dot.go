@@ -23,9 +23,9 @@ import (
 	"flag"
 	"io/ioutil"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	dotlib "github.com/apache/beam/sdks/go/pkg/beam/core/util/dot"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"beam.apache.org/sdks/go/pkg/beam"
+	dotlib "beam.apache.org/sdks/go/pkg/beam/core/util/dot"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
 )
 
 func init() {

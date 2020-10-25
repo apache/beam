@@ -48,12 +48,12 @@ import (
 	"reflect"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/textio"
+	"beam.apache.org/sdks/go/pkg/beam/log"
+	"beam.apache.org/sdks/go/pkg/beam/testing/passert"
+	"beam.apache.org/sdks/go/pkg/beam/transforms/stats"
+	"beam.apache.org/sdks/go/pkg/beam/x/beamx"
 )
 
 // TODO(herohde) 10/16/2017: support metrics and log level cutoff.

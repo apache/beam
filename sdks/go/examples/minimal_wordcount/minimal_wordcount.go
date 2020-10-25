@@ -41,13 +41,13 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"beam.apache.org/sdks/go/pkg/beam"
+	"beam.apache.org/sdks/go/pkg/beam/io/textio"
+	"beam.apache.org/sdks/go/pkg/beam/runners/direct"
+	"beam.apache.org/sdks/go/pkg/beam/transforms/stats"
 
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
+	_ "beam.apache.org/sdks/go/pkg/beam/io/filesystem/gcs"
+	_ "beam.apache.org/sdks/go/pkg/beam/io/filesystem/local"
 )
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)

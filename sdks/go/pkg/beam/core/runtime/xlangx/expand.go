@@ -18,8 +18,8 @@ package xlangx
 import (
 	"context"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	"beam.apache.org/sdks/go/pkg/beam/internal/errors"
+	jobpb "beam.apache.org/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"google.golang.org/grpc"
 )
 

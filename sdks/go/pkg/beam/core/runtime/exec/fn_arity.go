@@ -22,8 +22,8 @@ package exec
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"beam.apache.org/sdks/go/pkg/beam/core/typex"
+	"beam.apache.org/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // initCall initializes the caller for the invoker, avoiding slice allocation for the

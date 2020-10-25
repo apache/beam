@@ -18,7 +18,7 @@ package beam
 import (
 	"context"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"beam.apache.org/sdks/go/pkg/beam/core/metrics"
 )
 
 // Implementation Note: The wrapping of the embedded methods

@@ -18,7 +18,7 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"beam.apache.org/sdks/go/pkg/beam/testing/ptest"
 )
 
 func TestCoGBK(t *testing.T) {
