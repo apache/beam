@@ -24,3 +24,12 @@ RedirectMatch permanent "/documentation/sdks/(javadoc|pydoc)(.*)" "https://beam.
 RedirectMatch "/releases/([^/]+)/current(.*)" "https://beam.apache.org/releases/$1/2.25.0$2"
 
 RedirectMatch "/contribute/design-documents" "https://cwiki.apache.org/confluence/display/BEAM/Design+Documents"
+
+# Redirect all go tool requests to the static content page for go packages.
+RewriteCond %{QUERY_STRING} go-get=1
+RedirectMatch 301 /sdks/go/.* https://beam.apache.org/sdks/go/go-import.html
+
+# For all other queries, they're probably users, redirect them to the godoc.
+# Original: https://beam.apache.org/sdks/go/pkg/beam/arbitrary/subpackage
+# Desired: https://godoc.org/beam.apache.org/sdks/go/pkg/beam/arbitrary/subpackage
+RedirectMatch 301 (/sdks/go/.*) https://godoc.org/beam.apache.org/$1
