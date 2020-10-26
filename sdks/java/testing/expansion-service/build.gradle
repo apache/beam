@@ -31,6 +31,7 @@ dependencies {
   testCompile project(path: ":sdks:java:io:parquet")
   testCompile project(":sdks:java:expansion-service")
   testRuntime library.java.hadoop_client
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 
 task runTestExpansionService (type: JavaExec) {

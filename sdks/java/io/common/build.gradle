@@ -27,4 +27,5 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.postgres
   testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

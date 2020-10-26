@@ -32,4 +32,5 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "unshaded")
   runtime project(path: ":model:pipeline", configuration: "shadow")
   permitUnusedDeclared "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

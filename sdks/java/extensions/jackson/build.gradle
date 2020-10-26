@@ -32,4 +32,5 @@ dependencies {
   compile 'com.fasterxml.jackson.core:jackson-core:2.10.2'
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

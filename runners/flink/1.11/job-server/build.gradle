@@ -33,4 +33,5 @@ apply from: "$basePath/flink_job_server.gradle"
 
 dependencies {
   permitUnusedDeclared project(":runners:flink:1.11")
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

@@ -55,6 +55,7 @@ dependencies {
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 //  TODO: Enable AWS and HDFS file system.
 }
 

@@ -49,3 +49,6 @@ createCrossLanguageValidatesRunnerTask(
   numParallelTests: 1,
   classpath: crossLanguageTestClasspath
 )
+dependencies {
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
+}

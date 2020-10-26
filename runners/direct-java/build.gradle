@@ -24,7 +24,9 @@ plugins { id 'org.apache.beam.module' }
 // because it is likely to appear on the classpath of another runner.
 def dependOnProjects = [":runners:core-construction-java",
                         ":runners:core-java",
-                        ":runners:local-java"
+                        ":runners:local-java",
+                        ":runners:java-fn-execution",
+                        ":sdks:java:fn-execution"
                         ]
 
 applyJavaNature(
@@ -70,6 +72,8 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   permitUnusedDeclared "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+  permitUnusedDeclared project(":runners:java-fn-execution")
+  permitUnusedDeclared project(":sdks:java:fn-execution")
   compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
   compile "com.google.code.findbugs:jsr305:3.0.2"
   provided library.java.hamcrest_core

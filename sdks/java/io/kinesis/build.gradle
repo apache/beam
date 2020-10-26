@@ -53,4 +53,5 @@ dependencies {
   testCompile "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

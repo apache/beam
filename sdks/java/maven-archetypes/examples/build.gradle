@@ -75,3 +75,6 @@ sourceSets {
  }
 }
 
+dependencies {
+    permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
+}

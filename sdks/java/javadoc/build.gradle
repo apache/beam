@@ -84,3 +84,7 @@ task aggregateJavadoc(type: Javadoc) {
     }
   }
 }
+
+dependencies {
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
+}

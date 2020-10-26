@@ -44,4 +44,5 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

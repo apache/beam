@@ -13,7 +13,7 @@
  * distributed under the License is distributed on an AS IS BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * limitations under the License.dependencies
  */
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
@@ -28,6 +28,7 @@ dependencies {
   testCompile library.java.kafka
   testCompile "org.apache.zookeeper:zookeeper:3.5.6"
   testRuntimeOnly library.java.slf4j_log4j12
+  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 
 task runTestKafkaService (type: JavaExec) {

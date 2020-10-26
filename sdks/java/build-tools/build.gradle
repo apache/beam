@@ -23,4 +23,5 @@ description = "Apache Beam :: SDKs :: Java :: Build Tools"
 
 dependencies {
     compile "com.google.code.findbugs:jsr305:3.0.2"
+    permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
