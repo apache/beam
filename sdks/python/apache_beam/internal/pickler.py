@@ -39,6 +39,7 @@ import sys
 import threading
 import traceback
 import types
+import zlib
 from typing import Any
 from typing import Dict
 from typing import Tuple
@@ -241,7 +242,7 @@ if 'save_module' in dir(dill.dill):
 logging.getLogger('dill').setLevel(logging.WARN)
 
 
-def dumps(o, enable_trace=True):
+def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
   """For internal use only; no backwards-compatibility guarantees."""
@@ -260,18 +261,28 @@ def dumps(o, enable_trace=True):
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
   # limits.
-  c = bz2.compress(s, compresslevel=9)
+  # WARNING: Be cautious about compressor change since it can lead to pipeline
+  # representation change, and can break streaming job update compatibility on
+  # runners such as Dataflow.
+  if use_zlib:
+    c = zlib.compress(s, 9)
+  else:
+    c = bz2.compress(s, compresslevel=9)
   del s  # Free up some possibly large and no-longer-needed memory.
 
   return base64.b64encode(c)
 
 
-def loads(encoded, enable_trace=True):
+def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
   c = base64.b64decode(encoded)
 
-  s = bz2.decompress(c)
+  if use_zlib:
+    s = zlib.decompress(c)
+  else:
+    s = bz2.decompress(c)
+
   del c  # Free up some possibly large and no-longer-needed memory.
 
   with _pickle_lock_unless_py2:
