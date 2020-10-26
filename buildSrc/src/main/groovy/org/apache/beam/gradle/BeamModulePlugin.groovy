@@ -781,6 +781,9 @@ class BeamModulePlugin implements Plugin<Project> {
         project.dependencies {
           checkerFramework("org.checkerframework:checker:$checkerframework_version")
         }
+        project.configurations.all {
+          it.exclude(group:"org.checkerframework", module:"jdk8")
+        }
       }
 
       if (configuration.shadowClosure) {
