@@ -69,9 +69,8 @@ class DatabaseProvider implements TableProvider {
   }
 
   /** Table metadata to pass the schema to Calcite. */
-  @Nullable
   @Override
-  public Table getTable(String table) {
+  public @Nullable Table getTable(String table) {
     Optional<Schema> tableSchema = metastoreSchema.getTableSchema(db, table);
     if (!tableSchema.isPresent()) {
       return null;

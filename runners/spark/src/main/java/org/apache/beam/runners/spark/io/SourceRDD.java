@@ -52,6 +52,7 @@ import scala.Option;
 import scala.collection.JavaConversions;
 
 /** Classes implementing Beam {@link Source} {@link RDD}s. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SourceRDD {
 
   /**

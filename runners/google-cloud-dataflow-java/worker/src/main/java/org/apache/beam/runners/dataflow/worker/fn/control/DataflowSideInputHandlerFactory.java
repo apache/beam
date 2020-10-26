@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This handles sideinput in Dataflow. The caller should be based on ExecutableStage framework. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DataflowSideInputHandlerFactory
     implements StateRequestHandlers.SideInputHandlerFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowSideInputHandlerFactory.class);

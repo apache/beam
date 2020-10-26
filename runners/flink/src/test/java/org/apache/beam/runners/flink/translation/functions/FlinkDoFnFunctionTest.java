@@ -34,6 +34,7 @@ import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkDoFnFunction}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkDoFnFunctionTest {
 
   @Test

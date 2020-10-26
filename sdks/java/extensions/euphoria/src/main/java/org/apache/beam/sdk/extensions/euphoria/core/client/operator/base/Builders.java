@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
  * <p>For internal usage only.
  */
 @Audience(Audience.Type.INTERNAL)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Builders {
 
   /**

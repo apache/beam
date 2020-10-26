@@ -40,6 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Experimental(Kind.SCHEMAS)
 @AutoValue
 @Internal
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class DoFnSchemaInformation implements Serializable {
   /**
    * The schema of the @Element parameter. If the Java type does not match the input PCollection but

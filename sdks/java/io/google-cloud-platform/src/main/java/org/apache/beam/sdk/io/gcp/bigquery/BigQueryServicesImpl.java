@@ -44,10 +44,11 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.QueryRequest;
+import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
-import com.google.api.services.bigquery.model.TableDataList;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
@@ -106,6 +107,7 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
@@ -625,11 +627,22 @@ class BigQueryServicesImpl implements BigQueryServices {
     @VisibleForTesting
     boolean isTableEmpty(TableReference tableRef, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
-      TableDataList dataList =
+      QueryResponse response =
           executeWithRetries(
               client
-                  .tabledata()
-                  .list(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId())
+                  .jobs()
+                  .query(
+                      tableRef.getProjectId(),
+                      new QueryRequest()
+                          .setQuery(
+                              // Attempts to fetch a single row, if found returns false,
+                              // otherwise empty result. Runs quickly on large datasets.
+                              "SELECT false FROM (SELECT AS STRUCT * FROM `"
+                                  + tableRef.getDatasetId()
+                                  + "`.`"
+                                  + tableRef.getTableId()
+                                  + "` LIMIT 1) AS i WHERE i IS NOT NULL")
+                          .setUseLegacySql(false))
                   .setPrettyPrint(false),
               String.format(
                   "Unable to list table data: %s, aborting after %d retries.",
@@ -637,7 +650,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               sleeper,
               backoff,
               DONT_RETRY_NOT_FOUND);
-      return dataList.getRows() == null || dataList.getRows().isEmpty();
+      return response.getRows() == null || response.getRows().isEmpty();
     }
 
     /**

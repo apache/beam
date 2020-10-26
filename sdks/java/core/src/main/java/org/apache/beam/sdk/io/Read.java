@@ -76,6 +76,7 @@ import org.slf4j.LoggerFactory;
  * p.apply(Read.from(new MySource().withFoo("foo").withBar("bar")));
  * </pre>
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Read {
 
   /**

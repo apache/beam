@@ -30,6 +30,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class AzfsResourceId implements ResourceId {
 
   static final String SCHEME = "azfs";
@@ -151,9 +152,8 @@ class AzfsResourceId implements ResourceId {
     return fromComponents(account, container, blob.substring(0, blob.lastIndexOf('/') + 1));
   }
 
-  @Nullable
   @Override
-  public String getFilename() {
+  public @Nullable String getFilename() {
     if (blob == null) {
       return null;
     }

@@ -38,6 +38,7 @@ import org.apache.hive.hcatalog.data.transfer.ReadEntity;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 
 /** Reads partition at a given index. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class PartitionReaderFn extends DoFn<KV<Read, Integer>, HCatRecord> {
   private transient IMetaStoreClient metaStoreClient;
   private Map<String, String> configProperties;

@@ -61,6 +61,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public interface ValueProvider<T> extends Serializable {
   /**
    * Returns the runtime value wrapped by this {@link ValueProvider} in case it is {@link

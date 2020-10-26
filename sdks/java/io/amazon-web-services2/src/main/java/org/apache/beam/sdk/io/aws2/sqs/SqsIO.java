@@ -78,6 +78,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  * <p>For more information on the available options see {@link AwsOptions}.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SqsIO {
 
   public static Read read() {

@@ -57,6 +57,7 @@ import org.joda.time.Instant;
  * AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
  */
 @Experimental(Kind.TRIGGER)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AfterWatermark {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";

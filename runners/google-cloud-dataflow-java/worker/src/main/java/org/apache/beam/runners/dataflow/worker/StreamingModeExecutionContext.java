@@ -67,6 +67,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link DataflowExecutionContext} for use in streaming mode. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
@@ -167,9 +168,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
      * <p>Final updates should never be requested from a Streaming job since the work unit never
      * completes.
      */
-    @Nullable
     @Override
-    public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+    public @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate) {
       // Streaming reports deltas, so isFinalUpdate doesn't matter, and should never be true.
       long sum = totalMillisInState.getAndSet(0);
       return sum == 0 ? null : createUpdate(false, sum);

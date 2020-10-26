@@ -31,6 +31,7 @@ import org.hamcrest.Matcher;
  * Utilities for testing {@link CombineFn CombineFns}. Ensures that the {@link CombineFn} gives
  * correct results across various permutations and shardings of the input.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CombineFnTester {
   /**
    * Tests that the the {@link CombineFn}, when applied to the provided input, produces the provided

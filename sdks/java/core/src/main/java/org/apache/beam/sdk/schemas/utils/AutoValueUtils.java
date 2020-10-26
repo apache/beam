@@ -69,6 +69,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AutoValueUtils {
   public static Class getBaseAutoValueClass(Class<?> clazz) {
     int lastDot = clazz.getName().lastIndexOf('.');

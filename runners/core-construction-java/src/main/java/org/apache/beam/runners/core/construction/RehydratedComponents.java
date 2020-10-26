@@ -42,6 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>This ensures maximum memoization of rehydrated components, which is semantically necessary for
  * {@link PCollection} and nice-to-have for other objects.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class RehydratedComponents {
   private final Components components;
 

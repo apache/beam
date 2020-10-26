@@ -47,6 +47,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link BeamRelNode} to implement UNNEST, supporting specifically only {@link Correlate} with
  * {@link Uncollect}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamUnnestRel extends Uncollect implements BeamRelNode {
 
   private final RelDataType unnestType;

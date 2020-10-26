@@ -385,7 +385,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_SUM_BIGNUMERIC, // sum
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
-          FunctionSignatureId.FN_BIT_OR_INT64 // bit_or
+          FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
@@ -477,14 +477,13 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_RAND, // rand() -> double
           // FunctionSignatureId.FN_GENERATE_UUID, // generate_uuid() -> string
 
-          // FunctionSignatureId.FN_JSON_EXTRACT, // json_extract(string, string)
-          // FunctionSignatureId.FN_JSON_EXTRACT_SCALAR, // json_extract_scalar(string, string)
+          FunctionSignatureId.FN_JSON_EXTRACT, // json_extract(string, string)
+          FunctionSignatureId.FN_JSON_EXTRACT_SCALAR, // json_extract_scalar(string, string)
           // json_extract_array(string[, string]) -> array
-          // FunctionSignatureId.FN_JSON_EXTRACT_ARRAY,
-
-          // FunctionSignatureId.FN_TO_JSON_STRING, // to_json_string(any[, bool]) -> string
-          // FunctionSignatureId.FN_JSON_QUERY, // json_query(string, string)
-          // FunctionSignatureId.FN_JSON_VALUE, // json_value(string, string)
+          FunctionSignatureId.FN_JSON_EXTRACT_ARRAY,
+          FunctionSignatureId.FN_TO_JSON_STRING, // to_json_string(any[, bool]) -> string
+          FunctionSignatureId.FN_JSON_QUERY, // json_query(string, string)
+          FunctionSignatureId.FN_JSON_VALUE // json_value(string, string)
 
           // Net functions. These are all found in the "net.*" namespace.
           // FunctionSignatureId.FN_NET_FORMAT_IP,

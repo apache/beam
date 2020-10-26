@@ -68,6 +68,7 @@ import org.junit.runners.JUnit4;
 /** Test for {@link Group}. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

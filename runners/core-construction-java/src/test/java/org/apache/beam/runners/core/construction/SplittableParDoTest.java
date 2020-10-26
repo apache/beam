@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Rule;
@@ -146,7 +147,12 @@ public class SplittableParDoTest {
     PCollectionTuple output = multiOutput.expand(input);
     output.get(MAIN_OUTPUT_TAG).setName("main");
     AppliedPTransform<PCollection<Integer>, PCollectionTuple, ?> transform =
-        AppliedPTransform.of("ParDo", input.expand(), output.expand(), multiOutput, pipeline);
+        AppliedPTransform.of(
+            "ParDo",
+            PValues.expandInput(input),
+            PValues.expandOutput(output),
+            multiOutput,
+            pipeline);
     return input.apply(name, SplittableParDo.forAppliedParDo(transform)).get(MAIN_OUTPUT_TAG);
   }
 

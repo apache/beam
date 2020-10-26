@@ -41,6 +41,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * Helper for {@link FlinkBatchPipelineTranslator} and translators in {@link
  * FlinkBatchTransformTranslators}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class FlinkBatchTranslationContext {
 
   private final Map<PValue, DataSet<?>> dataSets;
@@ -145,7 +146,7 @@ class FlinkBatchTranslationContext {
     return new CoderTypeInformation<>(windowedValueCoder);
   }
 
-  Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
+  Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform) {
     return lookupPipelineVisitor.getInputs(transform);
   }
 
@@ -153,7 +154,7 @@ class FlinkBatchTranslationContext {
     return lookupPipelineVisitor.getInput(transform);
   }
 
-  Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
+  Map<TupleTag<?>, PCollection<?>> getOutputs(PTransform<?, ?> transform) {
     return lookupPipelineVisitor.getOutputs(transform);
   }
 

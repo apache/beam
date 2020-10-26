@@ -81,6 +81,7 @@ import org.slf4j.LoggerFactory;
  * running pipeline, shutting down the pipeline, and restarting the pipeline from the savepoint with
  * a different parallelism.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkSavepointTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSavepointTest.class);

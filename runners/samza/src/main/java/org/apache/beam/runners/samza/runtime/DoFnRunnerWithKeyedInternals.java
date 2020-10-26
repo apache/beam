@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 
 /** This class wraps a DoFnRunner with keyed StateInternals and TimerInternals access. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> underlying;
   private final KeyedInternals keyedInternals;

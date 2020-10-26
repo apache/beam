@@ -42,9 +42,8 @@ public class ExternalTranslation {
       return new ExternalTranslator();
     }
 
-    @Nullable
     @Override
-    public String getUrn(External.ExpandableTransform transform) {
+    public @Nullable String getUrn(External.ExpandableTransform transform) {
       return EXTERNAL_TRANSFORM_URN;
     }
 

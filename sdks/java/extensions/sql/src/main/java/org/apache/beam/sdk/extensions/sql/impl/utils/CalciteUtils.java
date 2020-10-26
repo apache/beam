@@ -39,6 +39,7 @@ import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
 /** Utility methods for Calcite related operations. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CalciteUtils {
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
 

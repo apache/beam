@@ -114,6 +114,7 @@ import org.joda.time.Instant;
 import org.slf4j.LoggerFactory;
 
 /** Run a single Nexmark query using a given configuration. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);

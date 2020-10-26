@@ -42,6 +42,7 @@ import org.junit.rules.TestRule;
  * {@link FnHarness} to properly execute, and provides access to the associated client and harness
  * during test execution.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
 
   public static EmbeddedSdkHarness create() {

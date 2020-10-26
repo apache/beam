@@ -47,7 +47,11 @@ import org.junit.runners.JUnit4;
  * PartitioningShuffleReaderFactory.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes",
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShuffleReaderFactoryTest {
   <T extends NativeReader> T runTestCreateShuffleReader(
       byte[] shuffleReaderConfig,

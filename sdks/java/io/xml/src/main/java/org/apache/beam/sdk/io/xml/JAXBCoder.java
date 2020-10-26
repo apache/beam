@@ -42,6 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class JAXBCoder<T> extends CustomCoder<T> {
 
   private final Class<T> jaxbClass;

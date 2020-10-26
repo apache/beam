@@ -1180,6 +1180,36 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
+  # [START model_bigqueryio_write_dynamic_destinations]
+  fictional_characters_view = beam.pvalue.AsDict(
+      p | 'CreateCharacters' >> beam.Create([('Yoda', True),
+                                             ('Obi Wan Kenobi', True)]))
+
+  def table_fn(element, fictional_characters):
+    if element in fictional_characters:
+      return 'my_dataset.fictional_quotes'
+    else:
+      return 'my_dataset.real_quotes'
+
+  quotes | 'WriteWithDynamicDestination' >> beam.io.WriteToBigQuery(
+      table_fn,
+      schema=table_schema,
+      table_side_inputs=(fictional_characters_view, ),
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+  # [END model_bigqueryio_write_dynamic_destinations]
+
+  # [START model_bigqueryio_time_partitioning]
+  quotes | 'WriteWithTimePartitioning' >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+      additional_bq_parameters={'timePartitioning': {
+          'type': 'HOUR'
+      }})
+  # [END model_bigqueryio_time_partitioning]
+
 
 def model_composite_transform_example(contents, output_path):
   """Example of a composite transform.
@@ -1609,3 +1639,210 @@ def nlp_analyze_text():
         | 'Parse adjacency list to JSON' >> beam.Map(json.dumps)
         | 'Write adjacency list' >> beam.io.WriteToText('adjancency_list.txt'))
   # [END nlp_analyze_text]
+
+
+def sdf_basic_example():
+  import os
+  from apache_beam.io.restriction_trackers import OffsetRange
+  read_next_record = None
+
+  # [START SDF_BasicExample]
+  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+    def initial_restriction(self, file_name):
+      return OffsetRange(0, os.stat(file_name).st_size)
+
+    def create_tracker(self, restriction):
+      return beam.io.restriction_trackers.OffsetRestrictionTracker()
+
+  class FileToWordsFn(beam.DoFn):
+    def process(
+        self,
+        file_name,
+        tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
+      with open(file_name) as file_handle:
+        file_handle.seek(tracker.current_restriction.start())
+        while tracker.try_claim(file_handle.tell()):
+          yield read_next_record(file_handle)
+
+    # Providing the coder is only necessary if it can not be inferred at
+    # runtime.
+    def restriction_coder(self):
+      return ...
+
+  # [END SDF_BasicExample]
+
+
+def sdf_basic_example_with_splitting():
+  from apache_beam.io.restriction_trackers import OffsetRange
+
+  # [START SDF_BasicExampleWithSplitting]
+  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+    def split(self, file_name, restriction):
+      # Compute and output 64 MiB size ranges to process in parallel
+      split_size = 64 * (1 << 20)
+      i = restriction.start
+      while i < restriction.end - split_size:
+        yield OffsetRange(i, i + split_size)
+        i += split_size
+      yield OffsetRange(i, restriction.end)
+
+  # [END SDF_BasicExampleWithSplitting]
+
+
+def sdf_sdk_initiated_checkpointing():
+  timestamp = None
+  external_service = None
+
+  class MyRestrictionProvider(object):
+    pass
+
+  # [START SDF_UserInitiatedCheckpoint]
+  class MySplittableDoFn(beam.DoFn):
+    def process(
+        self,
+        element,
+        restriction_tracker=beam.DoFn.RestrictionParam(
+            MyRestrictionProvider())):
+      current_position = restriction_tracker.current_restriction.start()
+      while True:
+        # Pull records from an external service.
+        try:
+          records = external_service.fetch(current_position)
+          if records.empty():
+            # Set a shorter delay in case we are being throttled.
+            restriction_tracker.defer_remainder(timestamp.Duration(second=10))
+            return
+          for record in records:
+            if restriction_tracker.try_claim(record.position):
+              current_position = record.position
+              yield record
+            else:
+              return
+        except TimeoutError:
+          # Set a longer delay in case we are being throttled.
+          restriction_tracker.defer_remainder(timestamp.Duration(seconds=60))
+          return
+
+  # [END SDF_UserInitiatedCheckpoint]
+
+
+def sdf_get_size():
+  # [START SDF_GetSize]
+  # The RestrictionProvider is responsible for calculating the size of given
+  # restriction.
+  class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
+    def restriction_size(self, file_name, restriction):
+      weight = 2 if "expensiveRecords" in file_name else 1
+      return restriction.size() * weight
+
+  # [END SDF_GetSize]
+
+
+def sdf_bad_try_claim_loop():
+  class FileToWordsRestrictionProvider(object):
+    pass
+
+  read_next_record = None
+
+  # [START SDF_BadTryClaimLoop]
+  class BadTryClaimLoop(beam.DoFn):
+    def process(
+        self,
+        file_name,
+        tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
+      with open(file_name) as file_handle:
+        file_handle.seek(tracker.current_restriction.start())
+        # The restriction tracker can be modified by another thread in parallel
+        # so storing state locally is ill advised.
+        end = tracker.current_restriction.end()
+        while file_handle.tell() < end:
+          # Only after successfully claiming should we produce any output and/or
+          # perform side effects.
+          tracker.try_claim(file_handle.tell())
+          yield read_next_record(file_handle)
+
+  # [END SDF_BadTryClaimLoop]
+
+
+def sdf_custom_watermark_estimator():
+  from apache_beam.io.iobase import WatermarkEstimator
+  from apache_beam.transforms.core import WatermarkEstimatorProvider
+  current_watermark = None
+
+  class MyRestrictionProvider(object):
+    pass
+
+  # [START SDF_CustomWatermarkEstimator]
+  # (Optional) Define a custom watermark state type to save information between
+  # bundle processing rounds.
+  class MyCustomerWatermarkEstimatorState(object):
+    def __init__(self, element, restriction):
+      # Store data necessary for future watermark computations
+      pass
+
+  # Define a WatermarkEstimator
+  class MyCustomWatermarkEstimator(WatermarkEstimator):
+    def __init__(self, estimator_state):
+      self.state = estimator_state
+
+    def observe_timestamp(self, timestamp):
+      # Will be invoked on each output from the SDF
+      pass
+
+    def current_watermark(self):
+      # Return a monotonically increasing value
+      return current_watermark
+
+    def get_estimator_state(self):
+      # Return state to resume future watermark estimation after a
+      # checkpoint/split
+      return self.state
+
+  # Then, a WatermarkEstimatorProvider needs to be created for this
+  # WatermarkEstimator
+  class MyWatermarkEstimatorProvider(WatermarkEstimatorProvider):
+    def initial_estimator_state(self, element, restriction):
+      return MyCustomerWatermarkEstimatorState(element, restriction)
+
+    def create_watermark_estimator(self, estimator_state):
+      return MyCustomWatermarkEstimator(estimator_state)
+
+  # Finally, define the SDF using your estimator.
+  class MySplittableDoFn(beam.DoFn):
+    def process(
+        self,
+        element,
+        restriction_tracker=beam.DoFn.RestrictionParam(MyRestrictionProvider()),
+        watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+            MyWatermarkEstimatorProvider())):
+      # The current watermark can be inspected.
+      watermark_estimator.current_watermark()
+
+  # [END SDF_CustomWatermarkEstimator]
+
+
+def sdf_truncate():
+  # [START SDF_Truncate]
+  class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
+    def truncate(self, file_name, restriction):
+      if "optional" in file_name:
+        # Skip optional files
+        return None
+      return restriction
+
+  # [END SDF_Truncate]
+
+
+def bundle_finalize():
+  my_callback_func = None
+
+  # [START BundleFinalize]
+  class MySplittableDoFn(beam.DoFn):
+    def process(self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+      # ... produce output ...
+
+      # Register callback function for this bundle that performs the side
+      # effect.
+      bundle_finalizer.register(my_callback_func)
+
+  # [END BundleFinalize]

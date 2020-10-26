@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
  * defined in {@link SyntheticSourceOptions}.*
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SyntheticBoundedSource extends OffsetBasedSource<KV<byte[], byte[]>> {
 
   private static final long serialVersionUID = 0;

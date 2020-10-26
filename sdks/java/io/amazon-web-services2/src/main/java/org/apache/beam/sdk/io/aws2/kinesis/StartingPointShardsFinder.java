@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
  * This class is responsible for establishing the initial set of shards that existed at the given
  * starting point.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class StartingPointShardsFinder implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(StartingPointShardsFinder.class);

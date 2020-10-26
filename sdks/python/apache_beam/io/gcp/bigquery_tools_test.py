@@ -216,26 +216,6 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
 
-  def test_insert_latency_recorded(self):
-    client = mock.Mock()
-    insert_response = mock.Mock()
-    insert_response.insertErrors = []
-    client.tabledata.InsertAll.return_value = insert_response
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    mock_recoder = mock.Mock()
-    wrapper._insert_all_rows('', '', '', [], latency_recoder=mock_recoder)
-    self.assertTrue(mock_recoder.record.called)
-
-  def test_insert_error_latency_recorded(self):
-    client = mock.Mock()
-    client.tabledata.InsertAll.side_effect = HttpError(
-        response={'status': '404'}, url='', content='')
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    mock_recoder = mock.Mock()
-    with self.assertRaises(HttpError):
-      wrapper._insert_all_rows('', '', '', [], latency_recoder=mock_recoder)
-    self.assertTrue(mock_recoder.record.called)
-
   @mock.patch('time.sleep', return_value=None)
   def test_temporary_dataset_is_unique(self, patched_time_sleep):
     client = mock.Mock()

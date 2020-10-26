@@ -35,6 +35,7 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 /** Tests StartingPointShardsFinder. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StartingPointShardsFinderTest {
 
   private static final String STREAM_NAME = "streamName";

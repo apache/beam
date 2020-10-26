@@ -24,6 +24,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.IntegerMean;
 import java.util.List;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MeanCounterUpdateAggregator implements CounterUpdateAggregator {
 
   @Override

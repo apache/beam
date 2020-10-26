@@ -35,6 +35,7 @@ import scala.Tuple2;
  *
  * @param <T> type of the elements in the collection
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MultiOuputCoder<T> extends CustomCoder<Tuple2<TupleTag<T>, WindowedValue<T>>> {
   Coder<TupleTag> tupleTagCoder;
   Map<TupleTag<?>, Coder<?>> coderMap;

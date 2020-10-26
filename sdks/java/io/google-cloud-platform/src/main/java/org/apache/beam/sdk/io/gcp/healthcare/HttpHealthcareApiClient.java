@@ -81,6 +81,7 @@ import org.slf4j.LoggerFactory;
  * mainly to encapsulate the unserializable dependencies, since most generated classes are not
  * serializable in the HTTP client.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class HttpHealthcareApiClient implements HealthcareApiClient, Serializable {
   private static final String USER_AGENT =
       String.format(

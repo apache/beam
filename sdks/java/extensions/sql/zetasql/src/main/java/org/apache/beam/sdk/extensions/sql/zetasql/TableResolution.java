@@ -30,6 +30,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Utility methods to resolve a table, given a top-level Calcite schema and a table path. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TableResolution {
 
   /**

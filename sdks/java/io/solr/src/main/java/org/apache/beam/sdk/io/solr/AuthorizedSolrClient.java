@@ -40,6 +40,7 @@ import org.apache.solr.common.params.SolrParams;
  *
  * @param <ClientT> type of SolrClient
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class AuthorizedSolrClient<ClientT extends SolrClient> implements Closeable {
   private final ClientT solrClient;
   private final String username;

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Twister pipeline translator for batch pipelines. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Twister2BatchPipelineTranslator extends Twister2PipelineTranslator {
 
   private static final Logger LOG =

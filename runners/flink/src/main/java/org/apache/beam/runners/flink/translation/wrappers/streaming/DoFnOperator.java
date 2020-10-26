@@ -132,6 +132,7 @@ import org.slf4j.LoggerFactory;
  */
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DoFnOperator<InputT, OutputT>
     extends AbstractStreamOperatorCompat<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
@@ -1500,9 +1501,8 @@ public class DoFnOperator<InputT, OutputT>
       return new Instant(timerService.currentProcessingTime());
     }
 
-    @Nullable
     @Override
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return new Instant(timerService.currentProcessingTime());
     }
 
@@ -1511,9 +1511,8 @@ public class DoFnOperator<InputT, OutputT>
       return new Instant(getEffectiveInputWatermark());
     }
 
-    @Nullable
     @Override
-    public Instant currentOutputWatermarkTime() {
+    public @Nullable Instant currentOutputWatermarkTime() {
       return new Instant(currentOutputWatermark);
     }
 

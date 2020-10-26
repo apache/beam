@@ -85,6 +85,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @AutoValue
 @Experimental
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 

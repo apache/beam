@@ -58,6 +58,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * data. For now, this will never clean up side-input data because we have no way of knowing when we
  * reach the GC horizon.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SideInputHandler implements ReadyCheckingSideInputReader {
   private static final Set<String> SUPPORTED_MATERIALIZATIONS =
       ImmutableSet.of(
@@ -149,9 +150,8 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     }
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     Iterable<?> elements = getIterable(view, window);
     switch (view.getViewFn().getMaterialization().getUrn()) {
       case Materializations.ITERABLE_MATERIALIZATION_URN:

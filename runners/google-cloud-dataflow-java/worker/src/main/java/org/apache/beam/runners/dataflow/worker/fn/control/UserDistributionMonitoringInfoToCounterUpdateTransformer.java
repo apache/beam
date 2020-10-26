@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
  * Class for transforming MonitoringInfo's containing User counter values, to relevant CounterUpdate
  * proto.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class UserDistributionMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
