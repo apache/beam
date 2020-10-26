@@ -127,7 +127,7 @@ import org.slf4j.LoggerFactory;
  * <p><b>Example Avro usage</b>
  *
  * <pre>
- * In this template presented example Class to deserialize AVRO from Kafka and serialize it to AVRO in Pub/Sub.
+ * This template contains an example Class to deserialize AVRO from Kafka and serialize it to AVRO in Pub/Sub.
  *
  * To use this example in the specific case, follow the few steps:
  * <ul>

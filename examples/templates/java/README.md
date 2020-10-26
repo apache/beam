@@ -226,13 +226,13 @@ You can do this in 3 different ways:
     ```
 
 ## AVRO format transferring.
-In this template presented example Class to deserialize AVRO from Kafka and serialize it to AVRO in Pub/Sub.
+This template contains an example Class to deserialize AVRO from Kafka and serialize it to AVRO in Pub/Sub.
 
-To use this example in the specific case, follow the few steps:
+To use this example in the specific case, follow these steps:
 
-- Create your own class to describe AVRO schema. As an example use [TaxiRide class](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/TaxiRide.java). Just define necessary fields.
-- Create your own Avro Deserializer class. As an example use [TaxiRidesKafkaAvroDeserializer class](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/TaxiRidesKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
-- Modify the [FormatTransform.readAvrosFromKafka method](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
+- Create your own class to describe AVRO schema. As an example use [TaxiRide class](kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/TaxiRide.java). Just define necessary fields.
+- Create your own Avro Deserializer class. As an example use [TaxiRidesKafkaAvroDeserializer class](kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/TaxiRidesKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
+- Modify the [FormatTransform.readAvrosFromKafka method](kafka-to-pubsub/src/main/java/org/apache/beam/templates/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
 ```java
 return KafkaIO.<String, TaxiRide>read()
         ...
@@ -240,7 +240,7 @@ return KafkaIO.<String, TaxiRide>read()
             TaxiRidesKafkaAvroDeserializer.class, AvroCoder.of(TaxiRide.class)) // put your classes here
         ...
 ```
-- Modify write step in the [KafkaToPubsub class](examples/templates/java/kafka-to-pubsub/src/main/java/org/apache/beam/templates/KafkaToPubsub.java) by put your Schema class to "writeAvrosToPubSub" step.
+- Modify the write step in the [KafkaToPubsub class](kafka-to-pubsub/src/main/java/org/apache/beam/templates/KafkaToPubsub.java) by putting your Schema class to "writeAvrosToPubSub" step.
 ```java
 if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
       ...
@@ -249,4 +249,4 @@ if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
     }
 ```
 
-_Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration.
+_Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration._
