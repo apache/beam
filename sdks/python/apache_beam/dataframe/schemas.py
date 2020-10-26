@@ -146,20 +146,22 @@ class BatchRowsAsDataFrame(beam.PTransform):
   Batching parameters are inherited from
   :class:`~apache_beam.transforms.util.BatchElements`.
   """
-  def __init__(self, *args, proxy, **kwargs):
+  def __init__(self, *args, proxy=None, **kwargs):
     self._batch_elements_transform = BatchElements(*args, **kwargs)
     self._proxy = proxy
 
   def expand(self, pcoll):
-    if isinstance(self._proxy, pd.DataFrame):
-      columns = self._proxy.columns
+    proxy = generate_proxy(
+        pcoll.element_type) if self._proxy is None else self._proxy
+    if isinstance(proxy, pd.DataFrame):
+      columns = proxy.columns
       construct = lambda batch: pd.DataFrame.from_records(
           batch, columns=columns)
-    elif isinstance(self._proxy, pd.Series):
-      dtype = self._proxy.dtype
+    elif isinstance(proxy, pd.Series):
+      dtype = proxy.dtype
       construct = lambda batch: pd.Series(batch, dtype=dtype)
     else:
-      raise NotImplementedError("Unknown proxy type: %s" % self._proxy)
+      raise NotImplementedError("Unknown proxy type: %s" % proxy)
     return pcoll | self._batch_elements_transform | beam.Map(construct)
 
 
