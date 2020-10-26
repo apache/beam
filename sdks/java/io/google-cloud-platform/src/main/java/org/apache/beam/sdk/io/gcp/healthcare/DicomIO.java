@@ -35,24 +35,24 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API from Google Cloud
- * Healthcare. https://cloud.google.com/healthcare/docs/concepts/dicom
+ * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
+ * Healthcare API: https://cloud.google.com/healthcare/docs/how-tos#dicom-guide
  */
 public class DicomIO {
 
-  /** The type ReadDicomStudyMetadata. */
+  /**
+   * This class makes a call to the retrieve metadata endpoint
+   * (https://cloud.google.com/healthcare/docs/how-tos/dicomweb#retrieving_metadata). It defines a function that can
+   * be used to process a Pubsub message from a DICOM store, read the DICOM study path and get the metadata of the
+   * specified study.
+   * You can learn how to configure PubSub messages to be published when an instance is
+   * stored by following: https://cloud.google.com/healthcare/docs/how-tos/pubsub. The connector
+   * will output a {@link ReadDicomStudyMetadata.Result} which will contain metadata of the study
+   * encoded as a json array.
+   */
   public static class ReadDicomStudyMetadata
       extends PTransform<PCollection<PubsubMessage>, DicomIO.ReadDicomStudyMetadata.Result> {
 
-    /**
-     * This class makes a call to the retrieve metadata endpoint
-     * (https://cloud.google.com/healthcare/docs/how-tos/dicomweb#retrieving_metadata It is
-     * expecting a PubSub message as input, where the message's body will contain the path to the
-     * study. You can learn how to configure PubSub messages to be published when an instance is
-     * stored by following: https://cloud.google.com/healthcare/docs/how-tos/pubsub. The connector
-     * will output a {@link ReadDicomStudyMetadata.Result} which will contain metadata of the study
-     * encoded as a json array.
-     */
     public ReadDicomStudyMetadata() {}
 
     /** TupleTag for the main output. */
@@ -84,8 +84,8 @@ public class DicomIO {
           return new DicomIO.ReadDicomStudyMetadata.Result(pct);
         } else {
           throw new IllegalArgumentException(
-              "The PCollection tuple must have the DicomIO.ReadDicomStudyMetadata.OUT "
-                  + "and DicomIO.ReadDicomStudyMetadata.DEAD_LETTER tuple tags");
+              "The PCollection tuple must have the DicomIO.ReadDicomStudyMetadata.METADATA "
+                  + "and DicomIO.ReadDicomStudyMetadata.ERROR_MESSAGE tuple tags");
         }
       }
 
