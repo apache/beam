@@ -503,9 +503,9 @@ class _QuantileState(object):
     self.buffers = buffers
     self.spec = spec
     if spec.weighted:
-      setattr(self, 'add_unbuffered', self._add_unbuffered_weighted)
+      self.add_unbuffered = self._add_unbuffered_weighted
     else:
-      setattr(self, 'add_unbuffered', self._add_unbuffered)
+      self.add_unbuffered = self._add_unbuffered
 
     # The algorithm requires that the manipulated buffers always be filled to
     # capacity to perform the collapse operation. This operation can be extended
