@@ -1,4 +1,77 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 18 Sep 2020 00:00:01 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.24.0</title><link>/blog/beam-2.24.0/</link><pubDate>Fri, 18 Sep 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.24.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 23 Oct 2020 14:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.25.0</title><link>/blog/beam-2.25.0/</link><pubDate>Fri, 23 Oct 2020 14:00:00 -0800</pubDate><guid>/blog/beam-2.25.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.25.0 release of Apache Beam. This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2250-2020-10-23">download page&lt;/a> for this release.
+For more information on changes in 2.25.0, check out the
+&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347147">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Splittable DoFn is now the default for executing the Read transform for Java based runners (Direct, Flink, Jet, Samza, Twister2). The expected output of the Read transform is unchanged. Users can opt-out using &lt;code>--experiments=use_deprecated_read&lt;/code>. The Apache Beam community is looking for feedback for this change as the community is planning to make this change permanent with no opt-out. If you run into an issue requiring the opt-out, please send an e-mail to &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a> specifically referencing BEAM-10670 in the subject line and why you needed to opt-out. (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10670">BEAM-10670&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Added cross-language support to Java&amp;rsquo;s KinesisIO, now available in the Python module &lt;code>apache_beam.io.kinesis&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10138">BEAM-10138&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10137">BEAM-10137&lt;/a>).&lt;/li>
+&lt;li>Update Snowflake JDBC dependency for SnowflakeIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10864">BEAM-10864&lt;/a>)&lt;/li>
+&lt;li>Added cross-language support to Java&amp;rsquo;s SnowflakeIO.Write, now available in the Python module &lt;code>apache_beam.io.snowflake&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9898">BEAM-9898&lt;/a>).&lt;/li>
+&lt;li>Added delete function to Java&amp;rsquo;s &lt;code>ElasticsearchIO#Write&lt;/code>. Now, Java&amp;rsquo;s ElasticsearchIO can be used to selectively delete documents using &lt;code>withIsDeleteFn&lt;/code> function (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5757">BEAM-5757&lt;/a>).&lt;/li>
+&lt;li>Java SDK: Added new IO connector for InfluxDB - InfluxDbIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Support for repeatable fields in JSON decoder for &lt;code>ReadFromBigQuery&lt;/code> added. (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10524">BEAM-10524&lt;/a>)&lt;/li>
+&lt;li>Added an opt-in, performance-driven runtime type checking system for the Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10549">BEAM-10549&lt;/a>).
+More details will be in an upcoming &lt;a href="https://beam.apache.org/blog/python-performance-runtime-type-checking/index.html">blog post&lt;/a>.&lt;/li>
+&lt;li>Added support for Python 3 type annotations on PTransforms using typed PCollections (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10258">BEAM-10258&lt;/a>).
+More details will be in an upcoming &lt;a href="https://beam.apache.org/blog/python-improved-annotations/index.html">blog post&lt;/a>.&lt;/li>
+&lt;li>Improved the Interactive Beam API where recording streaming jobs now start a long running background recording job. Running ib.show() or ib.collect() samples from the recording (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10603">BEAM-10603&lt;/a>).&lt;/li>
+&lt;li>In Interactive Beam, ib.show() and ib.collect() now have &amp;ldquo;n&amp;rdquo; and &amp;ldquo;duration&amp;rdquo; as parameters. These mean read only up to &amp;ldquo;n&amp;rdquo; elements and up to &amp;ldquo;duration&amp;rdquo; seconds of data read from the recording (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10603">BEAM-10603&lt;/a>).&lt;/li>
+&lt;li>Initial preview of &lt;a href="https://s.apache.org/simpler-python-pipelines-2020#slide=id.g905ac9257b_1_21">Dataframes&lt;/a> support.
+See also example at apache_beam/examples/wordcount_dataframe.py&lt;/li>
+&lt;li>Fixed support for type hints on &lt;code>@ptransform_fn&lt;/code> decorators in the Python SDK.
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-4091">BEAM-4091&lt;/a>)
+This has not enabled by default to preserve backwards compatibility; use the
+&lt;code>--type_check_additional=ptransform_fn&lt;/code> flag to enable. It may be enabled by
+default in future versions of Beam.&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Python 2 and Python 3.5 support dropped (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10644">BEAM-10644&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-9372">BEAM-9372&lt;/a>).&lt;/li>
+&lt;li>Pandas 1.x allowed. Older version of Pandas may still be used, but may not be as well tested.&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Python transform ReadFromSnowflake has been moved from &lt;code>apache_beam.io.external.snowflake&lt;/code> to &lt;code>apache_beam.io.snowflake&lt;/code>. The previous path will be removed in the future versions.&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Dataflow streaming timers once against not strictly time ordered when set earlier mid-bundle, as the fix for &lt;a href="https://issues.apache.org/jira/browse/BEAM-8543">BEAM-8543&lt;/a> introduced more severe bugs and has been rolled back.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.25.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay, Alan Myrvold, Aldair Coronel Ruiz, Alexey Romanenko, Andrew Pilloud, Ankur Goenka,
+Ayoub ENNASSIRI, Bipin Upadhyaya, Boyuan Zhang, Brian Hulette, Brian Michalski, Chad Dombrova,
+Chamikara Jayalath, Damon Douglas, Daniel Oliveira, David Cavazos, David Janicek, Doug Roeper, Eric
+Roshan-Eisner, Etta Rapp, Eugene Kirpichov, Filipe Regadas, Heejong Lee, Ihor Indyk, Irvi Firqotul
+Aini, Ismaël Mejía, Jan Lukavský, Jayendra, Jiadai Xia, Jithin Sukumar, Jozsef Bartok, Kamil
+Gałuszka, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Jung, Kenneth Knowles, Kevin Puthusseri, Kevin
+Sijo Puthusseri, KevinGG, Kyle Weaver, Leiyi Zhang, Lourens Naudé, Luke Cwik, Matthew Ouyang,
+Maximilian Michels, Michal Walenia, Milan Cermak, Monica Song, Nelson Osacky, Neville Li, Ning Kang,
+Pablo Estrada, Piotr Szuberski, Qihang, Rehman, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang,
+Saavan Nanavati, Sam Bourne, Sam Rohde, Sam Whittle, Sergiy Kolesnikov, Sindy Li, Siyuan Chen, Steve
+Niemitz, Terry Xian, Thomas Weise, Tobiasz Kędzierski, Truc Le, Tyson Hamilton, Udi Meiri, Valentyn
+Tymofieiev, Yichi Zhang, Yifan Mai, Yueyang Qiu, annaqin418, danielxjd, dennis, dp, fuyuwei,
+lostluck, nehsyc, odeshpande, odidev, pulasthi, purbanow, rworley-monster, sclukas77, terryxian78,
+tvalentyn, yoshiki.obata&lt;/p></description></item><item><title>Blog: Apache Beam 2.24.0</title><link>/blog/beam-2.24.0/</link><pubDate>Fri, 18 Sep 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.24.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5337,44 +5410,4 @@ limitations under the License.
 &lt;p>On management and thought leader side, Beam went from “what’s Beam?” at previous conferences to “I’m interested in Beam.” or “I’ve formed an informed opinion on Beam.” at this conference. This is one of the metrics I look for in early technology adoption.&lt;/p>
 &lt;img src="/images/blog/IMG_20160927_170455.jpg" alt="So much brainpower answering questions">
 &lt;p>We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.&lt;/p>
-&lt;p>If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have &lt;a href="/contribute/presentation-materials/">other presentation materials&lt;/a>. You can reach out to us on the &lt;a href="/get-started/support/">user mailing list&lt;/a>.&lt;/p></description></item><item><title>Blog: Apache Beam: Six Months in Incubation</title><link>/blog/six-months/</link><pubDate>Wed, 03 Aug 2016 00:00:01 -0700</pubDate><guid>/blog/six-months/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>It’s been just over six months since Apache Beam was formally accepted into incubation with the &lt;a href="http://www.apache.org">Apache Software Foundation&lt;/a>. As a community, we’ve been hard at work getting Beam off the ground.&lt;/p>
-&lt;p>Looking just at raw numbers for those first six months, that’s:&lt;/p>
-&lt;ul>
-&lt;li>48,238 lines of preexisting code donated by Cloudera, dataArtisans, and Google.&lt;/li>
-&lt;li>761 pull requests from 45 contributors.&lt;/li>
-&lt;li>498 Jira issues opened and 245 resolved.&lt;/li>
-&lt;li>1 incubating release (and another 1 in progress).&lt;/li>
-&lt;li>4,200 hours of automated tests.&lt;/li>
-&lt;li>161 subscribers / 606 messages on user@.&lt;/li>
-&lt;li>217 subscribers / 1205 messages on dev@.&lt;/li>
-&lt;li>277 stars and 174 forks on GitHub.&lt;/li>
-&lt;/ul>
-&lt;p>And behind those numbers, there’s been a ton of technical progress, including:&lt;/p>
-&lt;ul>
-&lt;li>Refactoring of the entire codebase, examples, and tests to be truly runner-independent.&lt;/li>
-&lt;li>New functionality in the Apache Flink runner for timestamps/windows in batch and bounded sources and side inputs in streaming mode.&lt;/li>
-&lt;li>Work in progress to upgrade the Apache Spark runner to use Spark 2.0.&lt;/li>
-&lt;li>Several new runners from the wider Apache community &amp;ndash; Apache Gearpump has its own feature branch, Apache Apex has a PR, and conversations are starting on Apache Storm and others.&lt;/li>
-&lt;li>New SDKs/DSLs for exposing the Beam model &amp;ndash; the Python SDK from Google is in on a feature branch, and there are plans to add the Scio DSL from Spotify.&lt;/li>
-&lt;li>Support for additional data sources and sinks &amp;ndash; Apache Kafka and JMS are in, there are PRs for Amazon Kinesis, Apache Cassandra, and MongoDB, and more connectors are being planned.&lt;/li>
-&lt;/ul>
-&lt;p>But perhaps most importantly, we’re committed to building an involved, welcoming community. So far, we’ve:&lt;/p>
-&lt;ul>
-&lt;li>Started building a vibrant developer community, with detailed design discussions on features like DoFn reuse semantics, serialization technology, and an API for accessing state.&lt;/li>
-&lt;li>Started building a user community with an active mailing list and improvements to the website and documentation.&lt;/li>
-&lt;li>Had multiple talks on Beam at venues including ApacheCon, Hadoop Summit, Kafka Summit, JBCN Barcelona, and Strata.&lt;/li>
-&lt;li>Presented at multiple existing meetups and are starting to organize some of our own.&lt;/li>
-&lt;/ul>
-&lt;p>While it’s nice to reflect back on all we’ve done, we’re working full &lt;em>stream&lt;/em> ahead towards a stable release and graduation from incubator. And we’d love your help &amp;ndash; join the &lt;a href="/get-started/support/">mailing lists&lt;/a>, check out the &lt;a href="/contribute/contribution-guide/">contribution guide&lt;/a>, and grab a &lt;a href="https://issues.apache.org/jira/browse/BEAM-520?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20in%20(newbie%2C%20starter)">starter task&lt;/a> from Jira!&lt;/p></description></item></channel></rss>
+&lt;p>If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have &lt;a href="/contribute/presentation-materials/">other presentation materials&lt;/a>. You can reach out to us on the &lt;a href="/get-started/support/">user mailing list&lt;/a>.&lt;/p></description></item></channel></rss>

@@ -180,7 +180,7 @@ version.&lt;/p>
 &lt;p>The Go SDK has the following goals for the next few months:&lt;/p>
 &lt;h2 id="usability">Usability&lt;/h2>
 &lt;ul>
-&lt;li>Beam Schema Support &lt;a href="https://issues.apache.org/jira/browse/BEAM-4124">BEAM-9615&lt;/a>&lt;/li>
+&lt;li>Beam Schema Support &lt;a href="https://issues.apache.org/jira/browse/BEAM-9615">BEAM-9615&lt;/a>&lt;/li>
 &lt;li>Improvements to starcgen &lt;a href="https://issues.apache.org/jira/browse/BEAM-9616">BEAM-9616&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="integrating-with-the-go-ecosystem">Integrating with the Go ecosystem&lt;/h2>

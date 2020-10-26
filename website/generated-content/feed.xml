@@ -1,4 +1,77 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.24.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.25.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.25.0 release of Apache Beam. This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2250-2020-10-23">download page&lt;/a> for this release.
+For more information on changes in 2.25.0, check out the
+&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347147">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Splittable DoFn is now the default for executing the Read transform for Java based runners (Direct, Flink, Jet, Samza, Twister2). The expected output of the Read transform is unchanged. Users can opt-out using &lt;code>--experiments=use_deprecated_read&lt;/code>. The Apache Beam community is looking for feedback for this change as the community is planning to make this change permanent with no opt-out. If you run into an issue requiring the opt-out, please send an e-mail to &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a> specifically referencing BEAM-10670 in the subject line and why you needed to opt-out. (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10670">BEAM-10670&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Added cross-language support to Java&amp;rsquo;s KinesisIO, now available in the Python module &lt;code>apache_beam.io.kinesis&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10138">BEAM-10138&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10137">BEAM-10137&lt;/a>).&lt;/li>
+&lt;li>Update Snowflake JDBC dependency for SnowflakeIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10864">BEAM-10864&lt;/a>)&lt;/li>
+&lt;li>Added cross-language support to Java&amp;rsquo;s SnowflakeIO.Write, now available in the Python module &lt;code>apache_beam.io.snowflake&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9898">BEAM-9898&lt;/a>).&lt;/li>
+&lt;li>Added delete function to Java&amp;rsquo;s &lt;code>ElasticsearchIO#Write&lt;/code>. Now, Java&amp;rsquo;s ElasticsearchIO can be used to selectively delete documents using &lt;code>withIsDeleteFn&lt;/code> function (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5757">BEAM-5757&lt;/a>).&lt;/li>
+&lt;li>Java SDK: Added new IO connector for InfluxDB - InfluxDbIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Support for repeatable fields in JSON decoder for &lt;code>ReadFromBigQuery&lt;/code> added. (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10524">BEAM-10524&lt;/a>)&lt;/li>
+&lt;li>Added an opt-in, performance-driven runtime type checking system for the Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10549">BEAM-10549&lt;/a>).
+More details will be in an upcoming &lt;a href="https://beam.apache.org/blog/python-performance-runtime-type-checking/index.html">blog post&lt;/a>.&lt;/li>
+&lt;li>Added support for Python 3 type annotations on PTransforms using typed PCollections (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10258">BEAM-10258&lt;/a>).
+More details will be in an upcoming &lt;a href="https://beam.apache.org/blog/python-improved-annotations/index.html">blog post&lt;/a>.&lt;/li>
+&lt;li>Improved the Interactive Beam API where recording streaming jobs now start a long running background recording job. Running ib.show() or ib.collect() samples from the recording (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10603">BEAM-10603&lt;/a>).&lt;/li>
+&lt;li>In Interactive Beam, ib.show() and ib.collect() now have &amp;ldquo;n&amp;rdquo; and &amp;ldquo;duration&amp;rdquo; as parameters. These mean read only up to &amp;ldquo;n&amp;rdquo; elements and up to &amp;ldquo;duration&amp;rdquo; seconds of data read from the recording (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10603">BEAM-10603&lt;/a>).&lt;/li>
+&lt;li>Initial preview of &lt;a href="https://s.apache.org/simpler-python-pipelines-2020#slide=id.g905ac9257b_1_21">Dataframes&lt;/a> support.
+See also example at apache_beam/examples/wordcount_dataframe.py&lt;/li>
+&lt;li>Fixed support for type hints on &lt;code>@ptransform_fn&lt;/code> decorators in the Python SDK.
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-4091">BEAM-4091&lt;/a>)
+This has not enabled by default to preserve backwards compatibility; use the
+&lt;code>--type_check_additional=ptransform_fn&lt;/code> flag to enable. It may be enabled by
+default in future versions of Beam.&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Python 2 and Python 3.5 support dropped (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10644">BEAM-10644&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-9372">BEAM-9372&lt;/a>).&lt;/li>
+&lt;li>Pandas 1.x allowed. Older version of Pandas may still be used, but may not be as well tested.&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Python transform ReadFromSnowflake has been moved from &lt;code>apache_beam.io.external.snowflake&lt;/code> to &lt;code>apache_beam.io.snowflake&lt;/code>. The previous path will be removed in the future versions.&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Dataflow streaming timers once against not strictly time ordered when set earlier mid-bundle, as the fix for &lt;a href="https://issues.apache.org/jira/browse/BEAM-8543">BEAM-8543&lt;/a> introduced more severe bugs and has been rolled back.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.25.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay, Alan Myrvold, Aldair Coronel Ruiz, Alexey Romanenko, Andrew Pilloud, Ankur Goenka,
+Ayoub ENNASSIRI, Bipin Upadhyaya, Boyuan Zhang, Brian Hulette, Brian Michalski, Chad Dombrova,
+Chamikara Jayalath, Damon Douglas, Daniel Oliveira, David Cavazos, David Janicek, Doug Roeper, Eric
+Roshan-Eisner, Etta Rapp, Eugene Kirpichov, Filipe Regadas, Heejong Lee, Ihor Indyk, Irvi Firqotul
+Aini, Ismaël Mejía, Jan Lukavský, Jayendra, Jiadai Xia, Jithin Sukumar, Jozsef Bartok, Kamil
+Gałuszka, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Jung, Kenneth Knowles, Kevin Puthusseri, Kevin
+Sijo Puthusseri, KevinGG, Kyle Weaver, Leiyi Zhang, Lourens Naudé, Luke Cwik, Matthew Ouyang,
+Maximilian Michels, Michal Walenia, Milan Cermak, Monica Song, Nelson Osacky, Neville Li, Ning Kang,
+Pablo Estrada, Piotr Szuberski, Qihang, Rehman, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang,
+Saavan Nanavati, Sam Bourne, Sam Rohde, Sam Whittle, Sergiy Kolesnikov, Sindy Li, Siyuan Chen, Steve
+Niemitz, Terry Xian, Thomas Weise, Tobiasz Kędzierski, Truc Le, Tyson Hamilton, Udi Meiri, Valentyn
+Tymofieiev, Yichi Zhang, Yifan Mai, Yueyang Qiu, annaqin418, danielxjd, dennis, dp, fuyuwei,
+lostluck, nehsyc, odeshpande, odidev, pulasthi, purbanow, rworley-monster, sclukas77, terryxian78,
+tvalentyn, yoshiki.obata&lt;/p></description><link>/blog/beam-2.25.0/</link><pubDate>Fri, 23 Oct 2020 14:00:00 -0800</pubDate><guid>/blog/beam-2.25.0/</guid><category>blog</category></item><item><title>Apache Beam 2.24.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -825,34 +898,4 @@ Schema Options, it will be removed in version &lt;code>2.23.0&lt;/code>. (&lt;a 
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.21.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aaron Meihm, Adrian Eka, Ahmet Altay, AldairCoronel, Alex Van Boxel, Alexey Romanenko, Andrew Crites, Andrew Pilloud, Ankur Goenka, Badrul (Taki) Chowdhury, Bartok Jozsef, Boyuan Zhang, Brian Hulette, brucearctor, bumblebee-coming, Chad Dombrova, Chamikara Jayalath, Chie Hayashida, Chris Gorgolewski, Chuck Yang, Colm O hEigeartaigh, Curtis &amp;ldquo;Fjord&amp;rdquo; Hawthorne, Daniel Mills, Daniel Oliveira, David Yan, Elias Djurfeldt, Emiliano Capoccia, Etienne Chauchot, Fernando Diaz, Filipe Regadas, Gleb Kanterov, Hai Lu, Hannah Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Hk-tang, Ismaël Mejía, Jacoby, Jan Lukavský, Jeroen Van Goey, jfarr, Jozef Vilcek, Kai Jiang, Kamil Wasilewski, Kenneth Knowles, KevinGG, Kyle Weaver, Kyoungha Min, Luke Cwik, Maximilian Michels, Michal Walenia, Ning Kang, Pablo Estrada, paul fisher, Piotr Szuberski, Reuven Lax, Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Sam Rohde, Sam Whittle, Spoorti Kundargi, Steve Koonce, sunjincheng121, Ted Yun, Tesio, Thomas Weise, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, Yichi Zhang, yoshiki.obata, Yueyang Qiu&lt;/p></description><link>/blog/beam-2.21.0/</link><pubDate>Wed, 27 May 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.21.0/</guid><category>blog</category></item><item><title>Beam Summit Digital Is Coming - Register Now!</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>As some of you are already aware, the 2020 edition of the Beam Summit will be completely &lt;strong>digital and free&lt;/strong>. Beam Summit Digital will take place from &lt;strong>August 24th to 28th&lt;/strong>. The conference will be spread across the course of one week with a couple of hours of program each day.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beamsummit/beamsummit-digital-2020.png"
-alt="Beam Summit Digital 2020, August 24-28">&lt;/p>
-&lt;p>While we would have loved to see all of you in person, we have to accept that 2020 will not be the year for that. So, we are looking at this as an opportunity to have a bigger and more inclusive event, where people who would normally not be able to travel to the summit will now be able to join, learn and share with the rest of the community.&lt;/p>
-&lt;h2 id="providing-you-the-best-experience-possible">Providing you the best experience possible&lt;/h2>
-&lt;p>We are going to great lengths to ensure that we provide the Beam community with the best possible experience in an online event. From audio/video quality, to an adequate schedule for our community, to making it as easy as possible to register to the event and join the sessions, to setting up ways for the community to interact and network with each other. The team behind the organization of the Beam Summit has been working on these things, and we are also teaming up with an event production company with experience in online events who are bringing in their knowledge.&lt;/p>
-&lt;p>So, what we want to say with this is: We will have a great event! And if you have any ideas on how to make it better, please let us know.&lt;/p>
-&lt;h2 id="ways-to-participate-and-help">Ways to participate and help&lt;/h2>
-&lt;p>As all things Beam, this is a community effort. The door is open for participation:&lt;/p>
-&lt;ol>
-&lt;li>Submit a proposal to talk. Please check out the &lt;strong>&lt;a href="https://sessionize.com/beam-digital-summit-2020/">Call for Papers&lt;/a>&lt;/strong> and submit a talk. The deadline for submissions is &lt;em>June 15th&lt;/em>!&lt;/li>
-&lt;li>Register to join as an attendee. Registration is now open at the &lt;strong>&lt;a href="https://crowdcast.io/e/beamsummit">registration page&lt;/a>&lt;/strong>. Registration is free!&lt;/li>
-&lt;li>Consider sponsoring the event. If your company is interested in engaging with members of the community please check out our &lt;a href="https://drive.google.com/open?id=1EbijvZKpkWwWyMryLY9sJfyZzZk1k44v">sponsoring prospectus&lt;/a>.&lt;/li>
-&lt;li>Help us get the word out. Please make sure to let your colleagues and friends in the data engineering field (and beyond!) know about the Beam Summit.&lt;/li>
-&lt;/ol>
-&lt;h2 id="follow-up-and-more-information">Follow up and more information&lt;/h2>
-&lt;p>While we will use the Crowdcast platform to broadcast the event, we will still have a full event website at &lt;a href="https://beamsummit.org">beamsummit.org&lt;/a> with details about the schedule, speakers, FAQ and everything else you need from an event. We are currently working on updating the website and will publish all event details in the next couple of weeks.&lt;/p>
-&lt;p>Please also follow us on &lt;a href="https://twitter.com/beamsummit">Twitter&lt;/a> or &lt;a href="https://www.linkedin.com/company/beam-summit/">LinkedIn&lt;/a> to get event updates.&lt;/p></description><link>/blog/beam-summit-digital-2020/</link><pubDate>Fri, 08 May 2020 00:00:01 -0800</pubDate><guid>/blog/beam-summit-digital-2020/</guid><category>blog</category></item></channel></rss>
+&lt;p>Aaron Meihm, Adrian Eka, Ahmet Altay, AldairCoronel, Alex Van Boxel, Alexey Romanenko, Andrew Crites, Andrew Pilloud, Ankur Goenka, Badrul (Taki) Chowdhury, Bartok Jozsef, Boyuan Zhang, Brian Hulette, brucearctor, bumblebee-coming, Chad Dombrova, Chamikara Jayalath, Chie Hayashida, Chris Gorgolewski, Chuck Yang, Colm O hEigeartaigh, Curtis &amp;ldquo;Fjord&amp;rdquo; Hawthorne, Daniel Mills, Daniel Oliveira, David Yan, Elias Djurfeldt, Emiliano Capoccia, Etienne Chauchot, Fernando Diaz, Filipe Regadas, Gleb Kanterov, Hai Lu, Hannah Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Hk-tang, Ismaël Mejía, Jacoby, Jan Lukavský, Jeroen Van Goey, jfarr, Jozef Vilcek, Kai Jiang, Kamil Wasilewski, Kenneth Knowles, KevinGG, Kyle Weaver, Kyoungha Min, Luke Cwik, Maximilian Michels, Michal Walenia, Ning Kang, Pablo Estrada, paul fisher, Piotr Szuberski, Reuven Lax, Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Sam Rohde, Sam Whittle, Spoorti Kundargi, Steve Koonce, sunjincheng121, Ted Yun, Tesio, Thomas Weise, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, Yichi Zhang, yoshiki.obata, Yueyang Qiu&lt;/p></description><link>/blog/beam-2.21.0/</link><pubDate>Wed, 27 May 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.21.0/</guid><category>blog</category></item></channel></rss>
