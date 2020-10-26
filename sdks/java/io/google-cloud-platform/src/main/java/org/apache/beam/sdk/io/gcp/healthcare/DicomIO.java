@@ -36,19 +36,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /**
  * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
- * Healthcare API: https://cloud.google.com/healthcare/docs/how-tos#dicom-guide
+ * Healthcare API (https://cloud.google.com/healthcare/docs/how-tos#dicom-guide).
  */
 public class DicomIO {
 
   /**
    * This class makes a call to the retrieve metadata endpoint
-   * (https://cloud.google.com/healthcare/docs/how-tos/dicomweb#retrieving_metadata). It defines a function that can
-   * be used to process a Pubsub message from a DICOM store, read the DICOM study path and get the metadata of the
-   * specified study.
-   * You can learn how to configure PubSub messages to be published when an instance is
-   * stored by following: https://cloud.google.com/healthcare/docs/how-tos/pubsub. The connector
-   * will output a {@link ReadDicomStudyMetadata.Result} which will contain metadata of the study
-   * encoded as a json array.
+   * (https://cloud.google.com/healthcare/docs/how-tos/dicomweb#retrieving_metadata). It defines a
+   * function that can be used to process a Pubsub message from a DICOM store, read the DICOM study
+   * path and get the metadata of the specified study. You can learn how to configure PubSub
+   * messages to be published when an instance is stored by following:
+   * https://cloud.google.com/healthcare/docs/how-tos/pubsub. The connector will output a {@link
+   * ReadDicomStudyMetadata.Result} which will contain metadata of the study encoded as a json
+   * array.
    */
   public static class ReadDicomStudyMetadata
       extends PTransform<PCollection<PubsubMessage>, DicomIO.ReadDicomStudyMetadata.Result> {
@@ -69,8 +69,8 @@ public class DicomIO {
       PCollectionTuple pct;
 
       /**
-       * Create DicomIO.ReadDicomStudyMetadata.Result form PCollectionTuple with OUT and DEAD_LETTER
-       * tags.
+       * Create DicomIO.ReadDicomStudyMetadata.Result from PCollectionTuple which contains the
+       * response (with METADATA and ERROR_MESSAGE tags).
        *
        * @param pct the pct
        * @return the read result

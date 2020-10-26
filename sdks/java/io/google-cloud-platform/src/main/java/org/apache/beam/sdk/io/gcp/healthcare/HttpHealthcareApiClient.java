@@ -210,7 +210,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     String[] searchParameters;
     searchParameters = webPathSplit[1].split("/");
     if (searchParameters.length < 2) {
-      throw new IOException("Invalid Web Path");
+      throw new IOException("Invalid DICOM web path");
     }
     String studyId = searchParameters[1];
 
