@@ -501,15 +501,15 @@ class ApproximateQuantilesTest(unittest.TestCase):
               3, key=sum, reverse=True, batch_input=True))
       assert_that(
           globally,
-          equal_to([[(0.0, 500), (50.0, 0), (99.9, 499)]]),
+          equal_to([[(0.0, 500), (49.9, 1), (99.9, 499)]]),
           label='checkGlobally')
       assert_that(
           with_key,
-          equal_to([[(50.0, 0), (22.5, 275), (99.9, 499)]]),
+          equal_to([[(50.0, 0), (72.5, 225), (99.9, 499)]]),
           label='checkGloballyWithKey')
       assert_that(
           key_with_reversed,
-          equal_to([[(99.9, 499), (22.5, 275), (50.0, 0)]]),
+          equal_to([[(99.9, 499), (72.5, 225), (50.0, 0)]]),
           label='checkGloballyWithKeyAndReversed')
 
   def test_batched_weighted_quantiles(self):

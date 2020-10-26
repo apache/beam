@@ -710,8 +710,11 @@ def _interpolate(buffers, count, step, offset, spec):
         buffers_have_same_weight = False
         break
     if buffers_have_same_weight:
-      step = len(sorted_elements) / (count + 1)
-      result = [sorted_elements[int(j * step)][0] for j in range(1, count + 1)]
+      offset = offset / weight
+      step = step / weight
+      result = [
+          sorted_elements[int(j * step + offset)][0] for j in range(count)
+      ]
       return result, [], min_val, max_val
 
   sorted_elements_iter = iter(sorted_elements)
