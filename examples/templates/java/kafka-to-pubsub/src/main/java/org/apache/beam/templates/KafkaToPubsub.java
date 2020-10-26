@@ -173,6 +173,32 @@ public class KafkaToPubsub {
     HttpResponse response = client.execute(request);
     String json = EntityUtils.toString(response.getEntity(), "UTF-8");
 
+    /*
+      Vault's response JSON has a specific schema, where the actual data is placed under
+      {data: {data: <actual data>}}.
+      Example:
+        {
+          "request_id": "6a0bb14b-ef24-256c-3edf-cfd52ad1d60d",
+          "lease_id": "",
+          "renewable": false,
+          "lease_duration": 0,
+          "data": {
+            "data": {
+              "password": "admin-secret",
+              "username": "admin"
+            },
+            "metadata": {
+              "created_time": "2020-10-20T11:43:11.109186969Z",
+              "deletion_time": "",
+              "destroyed": false,
+              "version": 8
+            }
+          },
+          "wrap_info": null,
+          "warnings": null,
+          "auth": null
+        }
+     */
     // Parse username and password from the response JSON
     JsonObject credentials =
         JsonParser.parseString(json)
