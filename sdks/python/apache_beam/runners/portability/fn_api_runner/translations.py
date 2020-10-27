@@ -740,6 +740,13 @@ def _group_stages_by_key(stages, get_stage_key):
   return (grouped_stages, stages_with_none_key)
 
 
+def _remap_input_pcolls(transform, pcoll_id_remap):
+  for input_key in list(transform.inputs.keys()):
+    if transform.inputs[input_key] in pcoll_id_remap:
+      transform.inputs[input_key] = pcoll_id_remap[
+          transform.inputs[input_key]]
+
+
 def eliminate_common_key_with_none(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
 
@@ -782,14 +789,15 @@ def eliminate_common_key_with_none(stages, context):
       del context.components.pcollections[to_delete_pcoll_id]
     remaining_stages.append(sibling_stages[0])
 
+  # Remap all transforms in components.
+  for transform in context.components.transforms.values():
+    _remap_input_pcolls(transform, pcoll_id_remap)
+
   # Yield stages while remapping input PCollections if needed.
   stages_to_yield = itertools.chain(ineligible_stages, remaining_stages)
   for stage in stages_to_yield:
-    for transform in stage.transforms:
-      for input_key in list(transform.inputs.keys()):
-        if transform.inputs[input_key] in pcoll_id_remap:
-          transform.inputs[input_key] = pcoll_id_remap[
-              transform.inputs[input_key]]
+    transform = only_transform(stage.transforms)
+    _remap_input_pcolls(transform, pcoll_id_remap)
     yield stage
 
 
