@@ -27,24 +27,24 @@ def DATAFLOW_VERSION = "dataflow.version"
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
 
 applyJavaNature(
-  archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
-  publish: false,
-  exportJavadoc: false,
-  enableChecker:false,
-  ignoreRawtypeErrors: true,
-  enableSpotbugs: true,
-  validateShadowJar: false,
-  shadowClosure: {
-    // In the case of the Fn API worker jar we are creating an application so we rely on
-    // the shadow plugin to include all transitive dependencies to create an uber jar.
+        archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
+        publish: false,
+        exportJavadoc: false,
+        enableChecker:false,
+        ignoreRawtypeErrors: true,
+        enableSpotbugs: true,
+        validateShadowJar: false,
+        shadowClosure: {
+          // In the case of the Fn API worker jar we are creating an application so we rely on
+          // the shadow plugin to include all transitive dependencies to create an uber jar.
 
-    // Include original source files extracted under
-    // '$buildDir/original_sources_to_package' to jar
-    from "$buildDir/original_sources_to_package"
+          // Include original source files extracted under
+          // '$buildDir/original_sources_to_package' to jar
+          from "$buildDir/original_sources_to_package"
 
-    exclude "META-INF/LICENSE.txt"
-    exclude "about.html"
-  },
+          exclude "META-INF/LICENSE.txt"
+          exclude "about.html"
+        },
 )
 
 /******************************************************************************/
@@ -101,6 +101,8 @@ dependencies {
   compile "io.opencensus:opencensus-api:0.24.0"
   compile "org.checkerframework:checker-qual:2.0.0"
   compile "org.conscrypt:conscrypt-openjdk-uber:2.2.1"
+  compile library.java.slf4j_jdk14
+  permitUnusedDeclared library.java.slf4j_jdk14
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
   shadowTest project(path: ":runners:core-java", configuration: "testRuntime")
