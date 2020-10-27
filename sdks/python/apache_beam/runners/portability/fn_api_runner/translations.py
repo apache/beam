@@ -743,8 +743,7 @@ def _group_stages_by_key(stages, get_stage_key):
 def _remap_input_pcolls(transform, pcoll_id_remap):
   for input_key in list(transform.inputs.keys()):
     if transform.inputs[input_key] in pcoll_id_remap:
-      transform.inputs[input_key] = pcoll_id_remap[
-          transform.inputs[input_key]]
+      transform.inputs[input_key] = pcoll_id_remap[transform.inputs[input_key]]
 
 
 def eliminate_common_key_with_none(stages, context):
