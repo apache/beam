@@ -63,6 +63,7 @@ public class BeamKafkaProtoTable extends BeamKafkaTable {
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
+      // We are not allowed to use non-vendored protobuf Message here to extend the wildcard
       @SuppressWarnings({"unchecked", "rawtypes"})
       SimpleFunction<byte[], Row> toRowFn = new ProtoMessageSchema.ProtoBytesToRowFn(clazz);
       return input
@@ -90,6 +91,7 @@ public class BeamKafkaProtoTable extends BeamKafkaTable {
 
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
+      // We are not allowed to use non-vendored protobuf Message here to extend the wildcard
       @SuppressWarnings({"unchecked", "rawtypes"})
       SimpleFunction<Row, byte[]> toBytesFn = new ProtoMessageSchema.RowToProtoBytesFn(clazz);
       return input
