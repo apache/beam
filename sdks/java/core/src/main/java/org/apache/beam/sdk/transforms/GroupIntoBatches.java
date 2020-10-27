@@ -19,7 +19,10 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.nio.ByteBuffer;
+import java.util.UUID;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -32,6 +35,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -89,6 +93,7 @@ public class GroupIntoBatches<K, InputT>
 
   private final long batchSize;
   @Nullable private final Duration maxBufferingDuration;
+  private static final UUID workerUuid = UUID.randomUUID();
 
   private GroupIntoBatches(long batchSize, @Nullable Duration maxBufferingDuration) {
     this.batchSize = batchSize;
@@ -105,13 +110,72 @@ public class GroupIntoBatches<K, InputT>
   }
 
   /**
-   * Set a time limit (in processing time) on how long an incomplete batch of elements is allowed to
-   * be buffered. Once a batch is flushed to output, the timer is reset.
+   * Sets a time limit (in processing time) on how long an incomplete batch of elements is allowed
+   * to be buffered. Once a batch is flushed to output, the timer is reset.
    */
   public GroupIntoBatches<K, InputT> withMaxBufferingDuration(Duration duration) {
     checkArgument(
         duration.isLongerThan(Duration.ZERO), "max buffering duration should be a positive value");
     return new GroupIntoBatches<>(batchSize, duration);
+  }
+
+  /**
+   * Outputs batched elements associated with sharded input keys. By default, keys are sharded to
+   * such that the input elements with the same key are spread to all available threads executing
+   * the transform. Runners may override the default sharding to do a better load balancing during
+   * the execution time.
+   */
+  @Experimental
+  public WithShardedKey withShardedKey() {
+    return new WithShardedKey();
+  }
+
+  public class WithShardedKey
+      extends PTransform<
+          PCollection<KV<K, InputT>>, PCollection<KV<ShardedKey<K>, Iterable<InputT>>>> {
+    private WithShardedKey() {}
+
+    /** Returns the size of the batch. */
+    public long getBatchSize() {
+      return batchSize;
+    }
+
+    @Override
+    public PCollection<KV<ShardedKey<K>, Iterable<InputT>>> expand(
+        PCollection<KV<K, InputT>> input) {
+      Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
+
+      checkArgument(
+          input.getCoder() instanceof KvCoder,
+          "coder specified in the input PCollection is not a KvCoder");
+      KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
+      Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
+      Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
+
+      return input
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<KV<K, InputT>, KV<ShardedKey<K>, InputT>>() {
+                    @Override
+                    public KV<ShardedKey<K>, InputT> apply(KV<K, InputT> input) {
+                      long tid = Thread.currentThread().getId();
+                      ByteBuffer buffer = ByteBuffer.allocate(3 * Long.BYTES);
+                      buffer.putLong(workerUuid.getMostSignificantBits());
+                      buffer.putLong(workerUuid.getLeastSignificantBits());
+                      buffer.putLong(tid);
+                      return KV.of(ShardedKey.of(input.getKey(), buffer.array()), input.getValue());
+                    }
+                  }))
+          .setCoder(KvCoder.of(ShardedKey.Coder.of(keyCoder), valueCoder))
+          .apply(
+              ParDo.of(
+                  new GroupIntoBatchesDoFn<>(
+                      batchSize,
+                      allowedLateness,
+                      maxBufferingDuration,
+                      ShardedKey.Coder.of(keyCoder),
+                      valueCoder)));
+    }
   }
 
   @Override
@@ -121,7 +185,7 @@ public class GroupIntoBatches<K, InputT>
     checkArgument(
         input.getCoder() instanceof KvCoder,
         "coder specified in the input PCollection is not a KvCoder");
-    KvCoder inputCoder = (KvCoder) input.getCoder();
+    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
     Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
     Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
 
