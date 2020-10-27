@@ -494,7 +494,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       overridesBuilder.add(
           PTransformOverride.of(
               PTransformMatchers.groupWithShardableStates(),
-              new GroupIntoBatchesOverride.StreamingGroupIntoBatchesOverrideFactory(this)));
+              new GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKeyOverrideFactory(
+                  this)));
 
       if (!fnApiEnabled) {
         overridesBuilder
@@ -526,9 +527,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           // Replace GroupIntoBatches before the state/timer replacements below since
           // GroupIntoBatches internally uses a stateful DoFn.
           .add(
-          PTransformOverride.of(
-              PTransformMatchers.classEqualTo(GroupIntoBatches.class),
-              new GroupIntoBatchesOverride.BatchGroupIntoBatchesOverrideFactory()));
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(GroupIntoBatches.class),
+                  new GroupIntoBatchesOverride.BatchGroupIntoBatchesOverrideFactory<>()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(GroupIntoBatches.WithShardedKey.class),
+                  new GroupIntoBatchesOverride
+                      .BatchGroupIntoBatchesWithShardedKeyOverrideFactory<>()));
 
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
@@ -1281,8 +1287,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   void maybeRecordPCollectionWithAutoSharding(PCollection<?> pcol) {
-    if (hasExperiment(options, "enable_streaming_auto_sharding")
-        && !hasExperiment(options, "beam_fn_api")) {
+    if (hasExperiment(options, "beam_fn_api")) {
+      LOG.warn(
+          "Runner determined sharding not available in Dataflow for GroupIntoBatches for portable "
+              + "jobs. Default sharding will be applied.");
+      return;
+    }
+    if (!options.isEnableStreamingEngine()) {
+      LOG.warn(
+          "Runner determined sharding not available in Dataflow for GroupIntoBatches for Streaming "
+              + "Appliance jobs. Default sharding will be applied.");
+      return;
+    }
+    if (hasExperiment(options, "enable_streaming_auto_sharding")) {
       pcollectionsRequiringAutoSharding.add(pcol);
     }
   }
