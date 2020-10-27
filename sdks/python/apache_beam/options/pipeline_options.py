@@ -1357,8 +1357,9 @@ class S3Options(PipelineOptions):
         default=None,
         help='Whether or not to verify SSL certificates with the s3 client.')
     parser.add_argument(
-        '--s3_use_ssl',
-        default=True,
+        '--s3_disable_ssl',
+        default=False,
+        action='store_true',
         help=(
             'Whether or not to use SSL with the s3 client. '
             'By default, SSL is used.'))

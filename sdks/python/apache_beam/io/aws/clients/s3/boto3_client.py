@@ -43,7 +43,7 @@ class Client(object):
       secret_access_key = s3_options.s3_secret_access_key
       session_token = s3_options.s3_session_token
       endpoint_url = s3_options.s3_endpoint_url
-      use_ssl = s3_options.s3_use_ssl
+      use_ssl = not s3_options.s3_disable_ssl
       region_name = s3_options.s3_region_name
       api_version = s3_options.s3_api_version
       verify = s3_options.s3_verify
@@ -52,7 +52,7 @@ class Client(object):
       secret_access_key = options.get('s3_secret_access_key')
       session_token = options.get('s3_session_token')
       endpoint_url = options.get('s3_endpoint_url')
-      use_ssl = options.get('s3_use_ssl')
+      use_ssl = not options.get('s3_disable_ssl', False)
       region_name = options.get('s3_region_name')
       api_version = options.get('s3_api_version')
       verify = options.get('s3_verify')
