@@ -34,6 +34,9 @@ dependencies {
   compile "joda-time:joda-time:2.10.5"
   compile "org.apache.commons:commons-pool2:2.6.1"
   compile "org.slf4j:slf4j-api:1.7.30"
+  testCompile "org.apache.derby:derby:10.14.2.0"
+  testCompile "org.apache.derby:derbyclient:10.14.2.0"
+  testCompile "org.apache.derby:derbynet:10.14.2.0"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
