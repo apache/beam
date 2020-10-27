@@ -150,6 +150,33 @@ class Stage(object):
             (str(env1).replace('\n', ' '), str(env2).replace('\n', ' ')))
       return env1
 
+  def _ancestors(self, context):
+    # type: (TransformContext) -> Iterator[str]
+    parents = {
+        child: parent
+        for parent,
+        transform in context.components.transforms.items()
+        for child in transform.subtransforms
+    }
+    ancestor = self.parent
+    if isinstance(ancestor, Stage):
+      ancestor = ancestor.name
+    while ancestor is not None:
+      yield ancestor
+      ancestor = parents.get(ancestor)
+
+  def _lowest_common_ancestor(self, other, context):
+    # type: (Stage, TransformContext) -> Optional[str]
+    if self.parent is None:
+      return other.parent
+    elif other.parent is None:
+      return self.parent
+    self_ancestors = set(self._ancestors(context))
+    for ancestor in other._ancestors(context):
+      if ancestor in self_ancestors:
+        return ancestor
+    return None
+
   def can_fuse(self, consumer, context):
     # type: (Stage, TransformContext) -> bool
     try:
@@ -165,8 +192,8 @@ class Stage(object):
         self.is_all_sdk_urns(context) and consumer.is_all_sdk_urns(context) and
         no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
-  def fuse(self, other):
-    # type: (Stage) -> Stage
+  def fuse(self, other, context):
+    # type: (Stage, TransformContext) -> Stage
     return Stage(
         "(%s)+(%s)" % (self.name, other.name),
         self.transforms + other.transforms,
@@ -174,7 +201,7 @@ class Stage(object):
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
             self.environment, other.environment),
-        parent=self.parent if self.parent == other.parent else None,
+        parent=self._lowest_common_ancestor(other, context),
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
@@ -842,7 +869,7 @@ def pack_combiners(stages, context):
 
   def _try_fuse_stages(a, b):
     if a.can_fuse(b, context):
-      return a.fuse(b)
+      return a.fuse(b, context)
     else:
       raise ValueError
 
@@ -958,7 +985,7 @@ def pack_combiners(stages, context):
         pack_combine_name + '/Pack', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        parent=fused_stage.parent,
         environment=fused_stage.environment)
     yield pack_stage
 
@@ -980,7 +1007,7 @@ def pack_combiners(stages, context):
         pack_combine_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        parent=fused_stage.parent,
         environment=fused_stage.environment)
     yield unpack_stage
 
@@ -1518,7 +1545,7 @@ def greedily_fuse(stages, pipeline_context):
     return s
 
   def fuse(producer, consumer):
-    fused = producer.fuse(consumer)
+    fused = producer.fuse(consumer, pipeline_context)
     replacements[producer] = fused
     replacements[consumer] = fused
 
