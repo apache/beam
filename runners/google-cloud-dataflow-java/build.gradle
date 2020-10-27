@@ -295,6 +295,9 @@ task validatesRunnerV2Test(type: Test) {
           files(project(project.path).sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+
+    // TODO(BEAM-11130): support OrderedListState in Google Cloud Dataflow Runner V2
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
   }
   filter {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing'
@@ -319,9 +322,6 @@ task validatesRunnerV2Test(type: Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests.testMapStateCoderInference'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests.testSetStateCoderInference'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testMapState'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListState'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListStateRangeDelete'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListStateRangeFetch'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream'
@@ -363,9 +363,6 @@ task validatesRunnerV2Test(type: Test) {
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedGaugeMetrics'
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testAllCommittedMetrics'
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics'
-
-    // TODO(BEAM-11130): support OrderedListState in Google Cloud Dataflow Runner V2
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListState*'
   }
 }
 
