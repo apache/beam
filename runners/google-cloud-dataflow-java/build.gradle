@@ -136,11 +136,15 @@ def legacyPipelineOptions = [
   "--workerHarnessContainerImage=",
 ]
 
-
 def fnApiPipelineOptions = [
   "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
   "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
   "--experiments=${fnapiExperiments}",
+]
+
+def runnerV2PipelineOptions = [
+  "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+  "--experiments=beam_fn_api,use_unified_worker",
 ]
 
 def commonExcludeCategories = [
@@ -282,10 +286,8 @@ task validatesRunnerV2Test(type: Test) {
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
           "--region=${dataflowRegion}",
-          "--tempRoot=${dataflowValidatesTempRoot}",
-          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-          "--experiments=beam_fn_api,use_unified_worker",
-  ])
+          "--tempRoot=${dataflowValidatesTempRoot}",] + runnerV2PipelineOptions
+  )
 
   // Increase test parallelism up to the number of Gradle workers. By default this is equal
   // to the number of CPU cores, but can be increased by setting --max-workers=N.
@@ -502,6 +504,32 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
   exclude '**/AutoCompleteIT.class'
   exclude '**/TrafficMaxLaneFlowIT.class'
   exclude '**/TrafficRoutesIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task examplesJavaRunnerV2IntegrationTest(type: Test) {
+  group = "Verification"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  dependsOn buildAndPushDockerContainer
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
+          "--tempRoot=${dataflowPostCommitTempRoot}",] + runnerV2PipelineOptions
+  )
+
+  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // this postCommit integration test excludes them.
+  include '**/*IT.class'
+  exclude '**/WordCountIT.class'
+  exclude '**/WindowedWordCountIT.class'
+  exclude '**/TopWikipediaSessionsIT.class'
+  exclude '**/AutoCompleteIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
