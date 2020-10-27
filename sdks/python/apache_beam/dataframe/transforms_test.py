@@ -98,10 +98,11 @@ class TransformTest(unittest.TestCase):
       if isinstance(output_proxy, pd.core.generic.NDFrame):
         self.assertTrue(
             output_proxy[:0].equals(expected[:0]),
-            f'Output proxy is incorrect:\nExpected:\n{expected[:0]}\n\nActual:\n{output_proxy[:0]}'
-        )
+            (
+                'Output proxy is incorrect:\n'
+                f'Expected:\n{expected[:0]}\n\nActual:\n{output_proxy[:0]}'))
       else:
-        self.assertEquals(type(output_proxy), type(expected))
+        self.assertEqual(type(output_proxy), type(expected))
 
       output_pcoll = convert.to_pcollection(output_df, yield_elements='pandas')
 

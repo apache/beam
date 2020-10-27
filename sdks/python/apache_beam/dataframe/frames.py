@@ -635,7 +635,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def explode(self, column, ignore_index):
     # ignoring the index will not preserve it
-    preserves = partitionings.Nothing() if ignore_index else partitionings.Singleton()
+    preserves = (partitionings.Nothing() if ignore_index
+                 else partitionings.Singleton())
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'explode',
@@ -659,7 +660,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         index = None
         columns = labels
       else:
-        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), got '%s'" % axis)
+        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), "
+                         "got '%s'" % axis)
     else:
       index = kwargs.get('index', None)
       columns = kwargs.get('columns', None)
@@ -1146,7 +1148,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       if rename_columns:
         # Note if both are being renamed, index and columns must be specified
         # (not axis)
-        proxy = self._expr.proxy().rename(**{k: v for (k, v) in kwargs.items() if k is not 'index'})
+        proxy = self._expr.proxy().rename(**{k: v for (k, v) in kwargs.items()
+                                             if not k == 'index'})
       else:
         # No change in columns, reuse proxy
         proxy = self._expr.proxy()
