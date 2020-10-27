@@ -120,6 +120,10 @@ custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback o
 &amp;ndash;temp_location, or pass method=&amp;quot;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
 &lt;li>Python SDK now understands &lt;code>typing.FrozenSet&lt;/code> type hints, which are not interchangeable with &lt;code>typing.Set&lt;/code>. You may need to update your pipelines if type checking fails. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10197">BEAM-10197&lt;/a>)&lt;/li>
 &lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>(&lt;a href="https://issues.apache.org/jira/browse/BEAM-11113">BEAM-11113&lt;/a>) Default compressor change breaks dataflow python streaming job update compatibility.&lt;/li>
+&lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.24.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>adesormi, Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ashwin Ramaswami, Borzoo,
