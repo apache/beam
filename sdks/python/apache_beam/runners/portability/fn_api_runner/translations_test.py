@@ -50,8 +50,7 @@ class TranslationsTest(unittest.TestCase):
         stage for stage in stages if 'key-with-none' in stage.name
     ]
     self.assertEqual(len(key_with_none_stages), 1)
-    self.assertIn(
-        'multiple-key-with-none', key_with_none_stages[0].parent)
+    self.assertIn('multiple-key-with-none', key_with_none_stages[0].parent)
 
   def test_pack_combiners(self):
     class MultipleCombines(beam.PTransform):
