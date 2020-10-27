@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -33,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.UdfProvider;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.commons.codec.digest.DigestUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -127,6 +130,13 @@ public class JavaUdfLoader {
         Collections.singletonList(inputJar),
         Collections.singletonList(
             FileSystems.matchNewResource(tmpJar.getAbsolutePath(), false /* is directory */)));
+    try (InputStream inputStream = new FileInputStream(tmpJar)) {
+      LOG.info(
+          "Copied {} to {} with md5 hash {}.",
+          inputJarPath,
+          tmpJar.getAbsolutePath(),
+          DigestUtils.md5Hex(inputStream));
+    }
     if (originalClassLoader == null) {
       // Save the original context class loader before any UDF jars are loaded.
       originalClassLoader = Thread.currentThread().getContextClassLoader();

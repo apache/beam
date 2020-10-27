@@ -144,7 +144,7 @@ public class SqlAnalyzer {
         getFunctionGroup(createFunctionStmt), String.join(".", createFunctionStmt.getNamePath()));
   }
 
-  private static String getFunctionGroup(ResolvedCreateFunctionStmt createFunctionStmt) {
+  static String getFunctionGroup(ResolvedCreateFunctionStmt createFunctionStmt) {
     switch (createFunctionStmt.getLanguage().toUpperCase()) {
       case "JAVA":
         return createFunctionStmt.getIsAggregate()

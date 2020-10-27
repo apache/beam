@@ -22,7 +22,6 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 
 import com.google.zetasql.AnalyzerOptions;
-import com.google.zetasql.Function;
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
@@ -117,28 +116,21 @@ class ZetaSQLPlannerImpl {
       statement = analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
       if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
         ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
-        if (createFunctionStmt.getLanguage().toUpperCase().equals("SQL")) {
+        if (SqlAnalyzer.getFunctionGroup(createFunctionStmt)
+            .equals(SqlAnalyzer.USER_DEFINED_FUNCTIONS)) {
           udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
-        } else if (createFunctionStmt.getLanguage().toUpperCase().equals("JAVA")) {
-          String jarPath = SqlAnalyzer.getOptionStringValue(createFunctionStmt, "path");
-          if (jarPath.isEmpty()) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "No jar was provided to define function %s. Add 'OPTIONS (path=<jar location>)' to the CREATE FUNCTION statement.",
-                    String.join(".", createFunctionStmt.getNamePath())));
-          }
-          Function function =
-              catalog.getFunctionByFullName(
-                  SqlAnalyzer.getFunctionQualifiedName(createFunctionStmt));
-          if (function.isAggregate()) {
-            Combine.CombineFn aggregateFn =
-                javaUdfLoader.loadAggregateFunction(createFunctionStmt.getNamePath(), jarPath);
-            javaAggregateFunctionBuilder.put(createFunctionStmt.getNamePath(), aggregateFn);
-          } else {
-            Method scalarFn =
-                javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
-            javaScalarFunctionBuilder.put(createFunctionStmt.getNamePath(), scalarFn);
-          }
+        } else if (SqlAnalyzer.getFunctionGroup(createFunctionStmt)
+            .equals(SqlAnalyzer.USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS)) {
+          Combine.CombineFn aggregateFn =
+              javaUdfLoader.loadAggregateFunction(
+                  createFunctionStmt.getNamePath(), getJarPath(createFunctionStmt));
+          javaAggregateFunctionBuilder.put(createFunctionStmt.getNamePath(), aggregateFn);
+        } else if (SqlAnalyzer.getFunctionGroup(createFunctionStmt)
+            .equals(SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
+          Method scalarFn =
+              javaUdfLoader.loadScalarFunction(
+                  createFunctionStmt.getNamePath(), getJarPath(createFunctionStmt));
+          javaScalarFunctionBuilder.put(createFunctionStmt.getNamePath(), scalarFn);
         }
       } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
         ResolvedCreateTableFunctionStmt createTableFunctionStmt =
@@ -189,5 +181,16 @@ class ZetaSQLPlannerImpl {
 
   static LanguageOptions getLanguageOptions() {
     return SqlAnalyzer.baseAnalyzerOptions().getLanguageOptions();
+  }
+
+  private static String getJarPath(ResolvedCreateFunctionStmt createFunctionStmt) {
+    String jarPath = SqlAnalyzer.getOptionStringValue(createFunctionStmt, "path");
+    if (jarPath.isEmpty()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "No jar was provided to define function %s. Add 'OPTIONS (path=<jar location>)' to the CREATE FUNCTION statement.",
+              String.join(".", createFunctionStmt.getNamePath())));
+    }
+    return jarPath;
   }
 }
