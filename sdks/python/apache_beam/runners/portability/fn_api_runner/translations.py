@@ -98,7 +98,7 @@ class Stage(object):
       transforms,  # type: List[beam_runner_api_pb2.PTransform]
       downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
       must_follow=frozenset(),  # type: FrozenSet[Stage]
-      parent=None,  # type: Optional[Stage]
+      parent=None,  # type: Optional[str]
       environment=None,  # type: Optional[str]
       forced_root=False):
     self.name = name
@@ -513,7 +513,11 @@ class TransformContext(object):
 
 
 def leaf_transform_stages(
-    root_ids, components, parent=None, known_composites=KNOWN_COMPOSITES):
+    root_ids,  # type: Iterable[str]
+    components,  # type: beam_runner_api_pb2.Components
+    parent=None,  # type: Optional[str]
+    known_composites=KNOWN_COMPOSITES  # type: FrozenSet[str]
+):
   # type: (...) -> Iterator[Stage]
   for root_id in root_ids:
     root = components.transforms[root_id]
@@ -566,8 +570,6 @@ def pipeline_from_stages(
     if parent is None:
       roots.add(child)
     else:
-      if isinstance(parent, Stage):
-        parent = parent.name
       if (parent not in components.transforms and
           parent in pipeline_proto.components.transforms):
         components.transforms[parent].CopyFrom(
@@ -1069,7 +1071,7 @@ def lift_combiners(stages, context):
         transform.unique_name, [transform],
         downstream_side_inputs=base_stage.downstream_side_inputs,
         must_follow=base_stage.must_follow,
-        parent=base_stage,
+        parent=base_stage.name,
         environment=base_stage.environment)
 
   def lifted_stages(stage):
@@ -1242,7 +1244,7 @@ def expand_sdf(stages, context):
               transform.unique_name, [transform],
               base_stage.downstream_side_inputs,
               union(base_stage.must_follow, frozenset(extra_must_follow)),
-              parent=base_stage,
+              parent=base_stage.name,
               environment=base_stage.environment)
 
         main_input_tag = only_element(

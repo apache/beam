@@ -24,19 +24,12 @@ import unittest
 import apache_beam as beam
 from apache_beam import runners
 from apache_beam.options import pipeline_options
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability import common_urns
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
 from apache_beam.transforms.core import Create
-
-
-def _parent_name(stage):
-  if isinstance(stage.parent, translations.Stage):
-    return stage.parent.name
-  return stage.parent
 
 
 class TranslationsTest(unittest.TestCase):
@@ -58,7 +51,7 @@ class TranslationsTest(unittest.TestCase):
     ]
     self.assertEqual(len(key_with_none_stages), 1)
     self.assertIn(
-        'multiple-key-with-none', _parent_name(key_with_none_stages[0]))
+        'multiple-key-with-none', key_with_none_stages[0].parent)
 
   def test_pack_combiners(self):
     class MultipleCombines(beam.PTransform):
@@ -83,8 +76,8 @@ class TranslationsTest(unittest.TestCase):
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
     self.assertIn('/Pack', combine_per_key_stages[0].name)
-    self.assertIn('multiple-combines', _parent_name(combine_per_key_stages[0]))
-    self.assertNotIn('-perkey', _parent_name(combine_per_key_stages[0]))
+    self.assertIn('multiple-combines', combine_per_key_stages[0].parent)
+    self.assertNotIn('-perkey', combine_per_key_stages[0].parent)
 
   def test_pack_combiners_with_missing_environment_capability(self):
     class MultipleCombines(beam.PTransform):
@@ -133,7 +126,7 @@ class TranslationsTest(unittest.TestCase):
         stage for stage in stages if 'KeyWithVoid' in stage.name
     ]
     self.assertEqual(len(key_with_void_stages), 1)
-    self.assertIn('-globally', _parent_name(key_with_void_stages[0]))
+    self.assertIn('-globally', key_with_void_stages[0].parent)
 
     combine_per_key_stages = []
     for stage in stages:
@@ -142,8 +135,8 @@ class TranslationsTest(unittest.TestCase):
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
     self.assertIn('/Pack', combine_per_key_stages[0].name)
-    self.assertIn('multiple-combines', _parent_name(combine_per_key_stages[0]))
-    self.assertNotIn('-globally', _parent_name(combine_per_key_stages[0]))
+    self.assertIn('multiple-combines', combine_per_key_stages[0].parent)
+    self.assertNotIn('-globally', combine_per_key_stages[0].parent)
 
   def test_optimize_empty_pipeline(self):
     pipeline = beam.Pipeline()
