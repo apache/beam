@@ -128,6 +128,9 @@ public class AfterWatermarkStateMachine {
         if (lateTrigger != null) {
           ExecutableTriggerStateMachine lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
           OnMergeContext lateContext = c.forTrigger(lateSubtrigger);
+          // It is necessary to merge before clearing. Clearing with this context just clears the
+          // target window state not the source windows state.
+          lateSubtrigger.invokeOnMerge(lateContext);
           lateContext.trigger().setFinished(false);
           lateSubtrigger.invokeClear(lateContext);
         }
@@ -135,7 +138,9 @@ public class AfterWatermarkStateMachine {
         // Otherwise the early trigger and end-of-window bit is done for good.
         earlyContext.trigger().setFinished(true);
         if (lateTrigger != null) {
-          c.trigger().subTrigger(LATE_INDEX).invokeOnMerge(c);
+          ExecutableTriggerStateMachine lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
+          OnMergeContext lateContext = c.forTrigger(lateSubtrigger);
+          lateSubtrigger.invokeOnMerge(lateContext);
         }
       }
     }

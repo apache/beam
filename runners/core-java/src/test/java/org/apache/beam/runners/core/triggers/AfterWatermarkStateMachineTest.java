@@ -339,9 +339,11 @@ public class AfterWatermarkStateMachineTest {
     tester.injectElements(1);
     tester.injectElements(5);
 
-    // Merging should re-activate the early trigger in the merged window
     tester.mergeWindows();
+    // Merging should re-activate the early trigger in the merged window
     verify(mockEarly).onMerge(Mockito.any(OnMergeContext.class));
+    // Merging should merge the late trigger in the merged window so it can be cleared.
+    verify(mockLate).onMerge(Mockito.any(OnMergeContext.class));
   }
 
   /**
