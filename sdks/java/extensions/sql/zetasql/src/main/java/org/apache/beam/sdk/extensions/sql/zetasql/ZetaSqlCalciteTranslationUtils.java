@@ -208,24 +208,23 @@ public final class ZetaSqlCalciteTranslationUtils {
         return rexBuilder.makeExactLiteral(
             new BigDecimal(value.getInt64Value()), toCalciteType(type, false, rexBuilder));
       case TYPE_DOUBLE:
-        // Cannot simply call makeApproxLiteral() for ZetaSQL DOUBLE type because positive infinity,
-        // negative infinity and NaN cannot be directly converted to BigDecimal. So we create three
-        // wrapper functions here for these three cases such that we can later recognize it and
-        // customize its unparsing in BeamBigQuerySqlDialect.
+        // Cannot simply call makeApproxLiteral() because +inf, -inf, and NaN cannot be represented
+        // as BigDecimal. So we create wrapper functions here for these three cases such that we can
+        // later recognize it and customize its unparsing in BeamBigQuerySqlDialect.
         double val = value.getDoubleValue();
         String wrapperFun = null;
         if (val == Double.POSITIVE_INFINITY) {
-          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_POSITIVE_INF_FUNCTION;
+          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_POSITIVE_INF_WRAPPER;
         } else if (val == Double.NEGATIVE_INFINITY) {
-          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_NEGATIVE_INF_FUNCTION;
+          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_NEGATIVE_INF_WRAPPER;
         } else if (Double.isNaN(val)) {
-          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_NAN_FUNCTION;
+          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_NAN_WRAPPER;
         }
 
         RelDataType returnType = toCalciteType(type, false, rexBuilder);
         if (wrapperFun == null) {
           return rexBuilder.makeApproxLiteral(new BigDecimal(val), returnType);
-        } else if (BeamBigQuerySqlDialect.DOUBLE_NAN_FUNCTION.equals(wrapperFun)) {
+        } else if (BeamBigQuerySqlDialect.DOUBLE_NAN_WRAPPER.equals(wrapperFun)) {
           // TODO[BEAM-10550]: Update the temporary workaround below after vendored Calcite version.
           // Adding an additional random parameter for the wrapper function of NaN, to avoid
           // triggering Calcite operation simplification. (e.g. 'NaN == NaN' would be simplify to
@@ -248,14 +247,14 @@ public final class ZetaSqlCalciteTranslationUtils {
       case TYPE_BYTES:
         return rexBuilder.makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));
       case TYPE_NUMERIC:
-        // Cannot simply call makeExactLiteral() for ZetaSQL NUMERIC type because later it will be
-        // unparsed to the string representation of the BigDecimal itself (e.g. "SELECT NUMERIC '0'"
-        // will be unparsed to "SELECT 0E-9"), and Calcite does not allow customize unparsing of
-        // SqlNumericLiteral. So we create a wrapper function here such that we can later recognize
-        // it and customize its unparsing in BeamBigQuerySqlDialect.
+        // Cannot simply call makeExactLiteral() because later it will be unparsed to the string
+        // representation of the BigDecimal itself (e.g. "SELECT NUMERIC '0'" will be unparsed to
+        // "SELECT 0E-9"), and Calcite does not allow customize unparsing of SqlNumericLiteral.
+        // So we create a wrapper function here such that we can later recognize it and customize
+        // its unparsing in BeamBigQuerySqlDialect.
         return rexBuilder.makeCall(
             SqlOperators.createZetaSqlFunction(
-                BeamBigQuerySqlDialect.NUMERIC_LITERAL_FUNCTION,
+                BeamBigQuerySqlDialect.NUMERIC_LITERAL_WRAPPER,
                 toCalciteType(type, false, rexBuilder).getSqlTypeName()),
             rexBuilder.makeExactLiteral(
                 value.getNumericValue(), toCalciteType(type, false, rexBuilder)));
