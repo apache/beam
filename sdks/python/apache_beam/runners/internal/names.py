@@ -20,8 +20,11 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
+DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
+
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 STAGED_PIPELINE_FILENAME = "pipeline.pb"
+STAGED_PIPELINE_URL_METADATA_FIELD = 'pipeline_url'
 
 # Package names for different distributions
 BEAM_PACKAGE_NAME = 'apache-beam'
