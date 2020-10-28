@@ -405,12 +405,12 @@ public class TransformHierarchy {
       checkState(
           this.outputs == null, "Tried to specify more than one output for %s", getFullName());
       checkNotNull(output, "Tried to set the output of %s to null", getFullName());
-      this.outputs = PValues.fullyExpand(output.expand());
+      this.outputs = PValues.expandOutput(output);
 
       // Validate that a primitive transform produces only primitive output, and a composite
       // transform does not produce primitive output.
       Set<Node> outputProducers = new HashSet<>();
-      for (PCollection<?> outputValue : PValues.fullyExpand(output.expand()).values()) {
+      for (PCollection<?> outputValue : PValues.expandOutput(output).values()) {
         outputProducers.add(getProducer(outputValue));
       }
       if (outputProducers.contains(this) && (!parts.isEmpty() || outputProducers.size() > 1)) {
