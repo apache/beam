@@ -205,7 +205,7 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
       actual = p | beam.io.Read(source)
       assert_that(actual, equal_to(expected_values))
 
-  @mock.patch('apache_beam.io.iobase._SDFBoundedSourceWrapper.expand')
+  @mock.patch('apache_beam.io.iobase.SDFBoundedSourceReader.expand')
   def test_sdf_wrapper_overrides_read(self, sdf_wrapper_mock_expand):
     def _fake_wrapper_expand(pbegin):
       return pbegin | beam.Create(['fake'])

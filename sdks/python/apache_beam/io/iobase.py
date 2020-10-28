@@ -54,6 +54,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
+from apache_beam.transforms import Create
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
@@ -890,7 +891,7 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
-      return pbegin | _SDFBoundedSourceWrapper(self.source)
+      return pbegin | SDFBoundedSourceReader(self.source)
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
@@ -1574,69 +1575,14 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     return coders.DillCoder()
 
 
-class _SDFBoundedSourceWrapper(ptransform.PTransform):
-  """A ``PTransform`` that uses SDF to read from a ``BoundedSource``.
-
-  NOTE: This transform can only be used with beam_fn_api enabled.
-  """
-  def __init__(self, source):
-    if not isinstance(source, BoundedSource):
-      raise RuntimeError('SDFBoundedSourceWrapper can only wrap BoundedSource')
-    super(_SDFBoundedSourceWrapper, self).__init__()
-    self.source = source
-
-  def _create_sdf_bounded_source_dofn(self):
-    source = self.source
-
-    class SDFBoundedSourceDoFn(core.DoFn):
-      def __init__(self, read_source):
-        self.source = read_source
-
-      def display_data(self):
-        return {
-            'source': DisplayDataItem(
-                self.source.__class__, label='Read Source'),
-            'source_dd': self.source
-        }
-
-      def process(
-          self,
-          element,
-          restriction_tracker=core.DoFn.RestrictionParam(
-              _SDFBoundedSourceRestrictionProvider(source=source))):
-        current_restriction = restriction_tracker.current_restriction()
-        assert isinstance(current_restriction, _SDFBoundedSourceRestriction)
-        return current_restriction.source().read(
-            current_restriction.range_tracker())
-
-    return SDFBoundedSourceDoFn(self.source)
-
-  def expand(self, pbegin):
-    return (
-        pbegin
-        | core.Impulse()
-        | core.ParDo(self._create_sdf_bounded_source_dofn()))
-
-  def get_windowing(self, unused_inputs):
-    return core.Windowing(window.GlobalWindows())
-
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    return self.source.default_output_coder()
-
-  def display_data(self):
-    return {
-        'source': DisplayDataItem(self.source.__class__, label='Read Source'),
-        'source_dd': self.source
-    }
-
-
 class SDFBoundedSourceReader(PTransform):
   """A ``PTransform`` that uses SDF to read from each ``BoundedSource`` in a
   PCollection.
 
   NOTE: This transform can only be used with beam_fn_api enabled.
   """
-  def __init__(self):
+  def __init__(self, source=None):
+    self.source = source
     super(SDFBoundedSourceReader, self).__init__()
 
   def _create_sdf_bounded_source_dofn(self):
@@ -1659,7 +1605,13 @@ class SDFBoundedSourceReader(PTransform):
     return SDFBoundedSourceDoFn()
 
   def expand(self, pvalue):
-    return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
+    if not self.source:
+      return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
+    else:
+      return (
+          pvalue
+          | Create([self.source])
+          | core.ParDo(self._create_sdf_bounded_source_dofn()))
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -1668,8 +1620,11 @@ class SDFBoundedSourceReader(PTransform):
     return self.source.default_output_coder()
 
   def display_data(self):
-    return {
-        'source': DisplayDataItem(
-            self.source.__class__, label='Read Bounded Sources'),
-        'source_dd': self.source
-    }
+    if self.source:
+      return {
+          'source': DisplayDataItem(
+              self.source.__class__, label='Read Bounded Sources'),
+          'source_dd': self.source
+      }
+    else:
+      return {}
