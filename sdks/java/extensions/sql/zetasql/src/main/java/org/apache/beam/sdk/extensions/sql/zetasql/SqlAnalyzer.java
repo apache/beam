@@ -74,6 +74,8 @@ public class SqlAnalyzer {
       "user_defined_java_scalar_functions";
   public static final String USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS =
       "user_defined_java_aggregation_functions";
+  /** Same as {@link Function}.ZETASQL_FUNCTION_GROUP_NAME. */
+  public static final String ZETASQL_FUNCTION_GROUP_NAME = "ZetaSQL";
 
   private static final ImmutableSet<ResolvedNodeKind> SUPPORTED_STATEMENT_KINDS =
       ImmutableSet.of(

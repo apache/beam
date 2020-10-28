@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTrait;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -42,7 +43,14 @@ public abstract class BeamZetaSqlCalcRuleBase extends ConverterRule {
         for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
           if (rexNode instanceof RexCall) {
             RexCall call = (RexCall) rexNode;
-            if (call.getOperator() instanceof SqlUserDefinedFunction) return true;
+            if (call.getOperator() instanceof SqlUserDefinedFunction) {
+              SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
+              if (udf.function instanceof ScalarFunctionImpl) {
+                ScalarFunctionImpl scalarFunction = (ScalarFunctionImpl) udf.function;
+                return scalarFunction.funGroup.equals(
+                    SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS);
+              }
+            }
           }
         }
       }

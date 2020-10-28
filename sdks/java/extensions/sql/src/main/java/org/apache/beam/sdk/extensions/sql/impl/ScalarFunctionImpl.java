@@ -57,11 +57,13 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     implements ScalarFunction, ImplementableFunction {
 
   private final CallImplementor implementor;
+  public final String funGroup;
 
   /** Private constructor. */
-  private ScalarFunctionImpl(Method method, CallImplementor implementor) {
+  private ScalarFunctionImpl(Method method, CallImplementor implementor, String funGroup) {
     super(method);
     this.implementor = implementor;
+    this.funGroup = funGroup;
   }
 
   /**
@@ -91,14 +93,15 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
    *
    * @param clazz class that is used to implement the function
    * @param methodName Method name (typically "eval")
+   * @param funGroup Optional function group identifier to differentiate implementations.
    * @return created {@link ScalarFunction} or null
    */
-  public static Function create(Class<?> clazz, String methodName) {
+  public static Function create(Class<?> clazz, String methodName, String funGroup) {
     final Method method = findMethod(clazz, methodName);
     if (method == null) {
       return null;
     }
-    return create(method);
+    return create(method, funGroup);
   }
 
   /**
@@ -109,6 +112,18 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
    * @return created {@link Function} or null
    */
   public static Function create(Method method) {
+    return create(method, "");
+  }
+
+  /**
+   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
+   * given method. When {@code eval} method does not suit, {@code null} is returned.
+   *
+   * @param method method that is used to implement the function
+   * @param funGroup Optional function group identifier to differentiate implementations.
+   * @return created {@link Function} or null
+   */
+  public static Function create(Method method, String funGroup) {
     if (!Modifier.isStatic(method.getModifiers())) {
       Class clazz = method.getDeclaringClass();
       if (!classHasPublicZeroArgsConstructor(clazz)) {
@@ -120,7 +135,7 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     }
 
     CallImplementor implementor = createImplementor(method);
-    return new ScalarFunctionImpl(method, implementor);
+    return new ScalarFunctionImpl(method, implementor, funGroup);
   }
 
   @Override
