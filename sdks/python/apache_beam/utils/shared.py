@@ -37,6 +37,7 @@ class GetNthStringFn(beam.DoFn):
     self._shared_handle = shared_handle
 
   def setup(self):
+    # setup is a good place to initialize transient in-memory resources.
     def initialize_list():
       # Build the giant initial list.
       return WeakRefList([str(i) for i in range(1000000)])
