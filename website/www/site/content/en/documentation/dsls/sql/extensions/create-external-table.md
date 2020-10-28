@@ -294,7 +294,11 @@ KafkaIO is experimental in Beam SQL.
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE kafka
 LOCATION 'kafka://localhost:2181/brokers'
-TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"], "format": "avro"}'
+TBLPROPERTIES '{
+    "bootstrap.servers":"localhost:9092",
+    "topics": ["topic1", "topic2"],
+    "format": "avro"
+}'
 ```
 
 *   `LOCATION`: The Kafka topic URL.
@@ -303,7 +307,7 @@ TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topi
         server.
     *   `topics`: Optional. Allows you to specify specific topics.
     *   `format`: Optional. Allows you to specify the Kafka values format. Possible values are
-    {`csv`, `avro`}. Defaults to `csv`.
+    {`csv`, `avro`, `json`}. Defaults to `csv`.
 
 ### Read Mode
 
@@ -313,7 +317,7 @@ Read Mode supports reading from a topic.
 
 Write Mode supports writing to a topic.
 
-### Supported Payload Formats
+### Supported Formats
 
 *   CSV (default)
     *   Beam parses the messages, attempting to parse fields according to the
@@ -322,10 +326,12 @@ Write Mode supports writing to a topic.
     *   An Avro schema is automatically generated from the specified field
         types. It is used to parse incoming messages and to format outgoing
         messages.
+*   JSON Objects
+    *   Beam attempts to parse JSON to match the schema.
 
 ### Schema
 
-Only simple types are supported.
+For CSV only simple types are supported.
 
 ## MongoDB
 
