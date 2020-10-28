@@ -209,18 +209,17 @@ LOCATION 'testing-integration:apache.users'
 ### Syntax
 
 ```
-CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
-  (
-   event_timestamp TIMESTAMP,
-   attributes MAP<VARCHAR, VARCHAR>,
-   payload ROW<tableElement [, tableElement ]*>
-  )
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
+    event_timestamp TIMESTAMP,
+    attributes MAP<VARCHAR, VARCHAR>,
+    payload ROW<tableElement [, tableElement ]*>
+)
 TYPE pubsub
 LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
 TBLPROPERTIES '{
-   "timestampAttributeKey": "key",
-   "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]",
-   "format": "format"
+    "timestampAttributeKey": "key",
+    "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]",
+    "format": "format"
 }'
 ```
 
