@@ -51,7 +51,7 @@ public class BeamKafkaJsonTable extends BeamKafkaTable {
   }
 
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
-  public static class JsonRecorderDecoder
+  private static class JsonRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>> {
     private final Schema schema;
     private final ObjectMapper objectMapper;
@@ -80,7 +80,7 @@ public class BeamKafkaJsonTable extends BeamKafkaTable {
   }
 
   /** A PTransform to convert {@link Row} to {@code KV<byte[], byte[]>}. */
-  public static class JsonRecorderEncoder
+  private static class JsonRecorderEncoder
       extends PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>> {
     private final ObjectMapper objectMapper;
 
