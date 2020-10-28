@@ -31,13 +31,15 @@ from apache_beam.dataframe import transforms
 
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
+  from typing import Optional
   import pandas
 
 
 # TODO: Or should this be called as_dataframe?
 def to_dataframe(
     pcoll,  # type: pvalue.PCollection
-    proxy=None,  # type: pandas.core.generic.NDFrame
+    proxy=None,  # type: Optional[pandas.core.generic.NDFrame]
+    label=None,  # type: Optional[str]
 ):
   # type: (...) -> frame_base.DeferredFrame
 
@@ -61,8 +63,12 @@ def to_dataframe(
           "the input PCollection, or provide a proxy.")
     # If no proxy is given, assume this is an element-wise schema-aware
     # PCollection that needs to be batched.
+    if label is None:
+      # Attempt to come up with a reasonable, stable label by retrieving
+      # the name of these variables in the calling context.
+      label = 'BatchElements(%s)' % _var_name(pcoll, 2)
     proxy = schemas.generate_proxy(pcoll.element_type)
-    pcoll = pcoll | 'BatchElements' >> schemas.BatchRowsAsDataFrame()
+    pcoll = pcoll | label >> schemas.BatchRowsAsDataFrame(proxy=proxy)
   return frame_base.DeferredFrame.wrap(
       expressions.PlaceholderExpression(proxy, pcoll))
 
@@ -112,23 +118,7 @@ def to_pcollection(
   if label is None:
     # Attempt to come up with a reasonable, stable label by retrieving the name
     # of these variables in the calling context.
-    current_frame = inspect.currentframe()
-    if current_frame is None:
-      label = 'ToDataframe(...)'
-
-    else:
-      previous_frame = current_frame.f_back
-
-      def name(obj):
-        for key, value in previous_frame.f_locals.items():
-          if obj is value:
-            return key
-        for key, value in previous_frame.f_globals.items():
-          if obj is value:
-            return key
-        return '...'
-
-      label = 'ToDataframe(%s)' % ', '.join(name(e) for e in dataframes)
+    label = 'ToPCollection(%s)' % ', '.join(_var_name(e, 3) for e in dataframes)
 
   def extract_input(placeholder):
     if not isinstance(placeholder._reference, pvalue.PCollection):
@@ -145,10 +135,16 @@ def to_pcollection(
                      dataframes)))  # type: Dict[Any, pvalue.PCollection]
 
   if yield_elements == "schemas":
+
+    def maybe_unbatch(pc, value):
+      if isinstance(value, frame_base._DeferredScalar):
+        return pc
+      else:
+        return pc | "Unbatch '%s'" % value._expr._id >> schemas.UnbatchPandas(
+            value._expr.proxy(), include_indexes=include_indexes)
+
     results = {
-        key: pc
-        | "Unbatch '%s'" % dataframes[key]._expr._id >> schemas.UnbatchPandas(
-            dataframes[key]._expr.proxy(), include_indexes=include_indexes)
+        key: maybe_unbatch(pc, dataframes[key])
         for (key, pc) in results.items()
     }
 
@@ -156,3 +152,18 @@ def to_pcollection(
     return results[0]
   else:
     return tuple(value for key, value in sorted(results.items()))
+
+
+def _var_name(obj, level):
+  frame = inspect.currentframe()
+  for _ in range(level):
+    if frame is None:
+      return '...'
+    frame = frame.f_back
+  for key, value in frame.f_locals.items():
+    if obj is value:
+      return key
+  for key, value in frame.f_globals.items():
+    if obj is value:
+      return key
+  return '...'
