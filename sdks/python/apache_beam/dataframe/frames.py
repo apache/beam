@@ -575,7 +575,30 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     else:
       raise NotImplementedError(key)
 
-  align = frame_base._elementwise_method('align')
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def align(self, other, join, axis, copy, level, method, **kwargs):
+    if not copy:
+      raise frame_base.WontImplementError('align(copy=False)')
+    if method is not None:
+      raise frame_base.WontImplementError('order-sensitive')
+    if kwargs:
+      raise NotImplementedError('align(%s)' % ', '.join(kwargs.keys()))
+
+    if level is not None:
+      # Could probably get by partitioning on the used levels.
+      requires_partition_by=partitionings.Singleton()
+    elif axis in ('columns', 1):
+      requires_partition_by=partitionings.Nothing()
+    else:
+      requires_partition_by=partitionings.Index()
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'align',
+            lambda df, other: df.align(other, join=join, axis=axis),
+            [self._expr, other._expr],
+            requires_partition_by=requires_partition_by,
+            preserves_partition_by=partitionings.Index()))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -775,7 +798,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  def corrwith(self, other, axis, **kwargs):
+  def corrwith(self, other, axis, drop, method):
     if axis not in (0, 'index'):
       raise NotImplementedError('corrwith(axis=%r)' % axis)
     if not isinstance(other, frame_base.DeferredFrame):
@@ -783,52 +806,45 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           expressions.ConstantExpression(other))
 
     if isinstance(other, DeferredSeries):
-      proxy = self._expr.proxy().corrwith(other._expr.proxy())
+      proxy = self._expr.proxy().corrwith(other._expr.proxy(), method=method)
       self, other = self.align(other, axis=0, join='inner')
-      corrs = [self[col].corr(other, **kwargs) for col in proxy.index]
-      def fill_dataframe(*args):
-        result = proxy.copy(deep=True)
-        for col, value in zip(proxy.index, args):
-          result[col] = value
-        return result
-      with expressions.allow_non_parallel_operations(True):
-        return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-            'fill_dataframe',
-            fill_dataframe,
-            [corr._expr for corr in corrs],
-            requires_partition_by=partitionings.Singleton(),
-            proxy=proxy))
-
+      col_names = proxy.index
+      other_cols = [other] * len(col_names)
     elif isinstance(other, DeferredDataFrame):
-      proxy = self._expr.proxy().corrwith(other._expr.proxy())
+      proxy = self._expr.proxy().corrwith(
+          other._expr.proxy(), method=method, drop=drop)
       self, other = self.align(other, axis=0, join='inner')
-      valid_cols = list(
+      col_names = list(
           set(self.columns)
           .intersection(other.columns)
           .intersection(proxy.index))
-      # Generate expressions to compute the actual correlations
-      corrs = [self[col].corr(other[col], **kwargs) for col in valid_cols]
-      # Combine the results
-      def fill_dataframe(*args):
-        result = proxy.copy(deep=True)
-        for col, value in zip(valid_cols, args):
-          result[col] = value
-        return result
-      with expressions.allow_non_parallel_operations(True):
-        return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-            'fill_dataframe',
-            fill_dataframe,
-            [corr._expr for corr in corrs],
-            requires_partition_by=partitionings.Singleton(),
-            proxy=proxy))
-
+      other_cols = [other[col_name] for col_name in col_names]
     else:
       # Raise the right error.
       self._expr.proxy().corrwith(other._expr.proxy())
       # Just in case something else becomes valid.
       raise NotImplementedError('corrwith(%s)' % type(other._expr.proxy))
+
+    # Generate expressions to compute the actual correlations.
+    corrs = [
+        self[col_name].corr(other_col, method)
+        for col_name, other_col in zip(col_names, other_cols)]
+
+    # Combine the results
+    def fill_dataframe(*args):
+      result = proxy.copy(deep=True)
+      for col, value in zip(proxy.index, args):
+        result[col] = value
+      return result
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+          'fill_dataframe',
+          fill_dataframe,
+          [corr._expr for corr in corrs],
+          requires_partition_by=partitionings.Singleton(),
+          proxy=proxy))
+
 
 
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
