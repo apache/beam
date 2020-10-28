@@ -649,10 +649,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
-  def drop(self, **kwargs):
-    labels = kwargs.get('labels', None)
+  def drop(self, labels, axis, index, columns, errors, **kwargs):
     if labels is not None:
-      axis = kwargs.get('axis', 0)
+      if index is not None or columns is not None:
+        raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
       if axis in (0, 'index'):
         index = labels
         columns = None
@@ -662,11 +662,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         raise ValueError("axis must be one of (0, 1, 'index', 'columns'), "
                          "got '%s'" % axis)
-    else:
-      index = kwargs.get('index', None)
-      columns = kwargs.get('columns', None)
-
-    errors = kwargs.get('errors', 'raise')
 
     if columns is not None:
       # Compute the proxy based on just the columns that are dropped.
@@ -683,7 +678,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     return frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
         'drop',
-        lambda df: df.drop(**kwargs),
+        lambda df: df.drop(axis=axis, index=index, columns=columns,
+                           errors=errors, **kwargs),
         [self._expr],
         proxy=proxy,
         requires_partition_by=requires))
