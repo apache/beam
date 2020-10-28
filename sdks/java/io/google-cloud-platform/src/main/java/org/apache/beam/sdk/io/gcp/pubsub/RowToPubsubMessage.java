@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.PayloadFormat;
 
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;

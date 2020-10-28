@@ -95,6 +95,11 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
 
+  public enum PayloadFormat {
+    JSON,
+    AVRO
+  }
+
   /** Returns an id that uniquely represents this IO. */
   @Override
   public String identifier() {
