@@ -110,13 +110,17 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
       PayloadFormat payloadFormat,
       @Nullable ObjectMapper objectMapper,
       @Nullable SimpleFunction<byte[], Row> avroBytesToRowFn) {
-    switch (payloadFormat) {
-      case JSON:
-        return parseJsonPayload(payload, payloadSchema, objectMapper);
-      case AVRO:
-        return avroBytesToRowFn.apply(payload);
-      default:
-        throw new IllegalArgumentException("Unsupported payload format given: " + payloadFormat);
+    try {
+      switch (payloadFormat) {
+        case JSON:
+          return parseJsonPayload(payload, payloadSchema, objectMapper);
+        case AVRO:
+          return avroBytesToRowFn.apply(payload);
+        default:
+          throw new IllegalArgumentException("Unsupported payload format given: " + payloadFormat);
+      }
+    } catch (UnsupportedRowJsonException | AvroRuntimeException e) {
+      throw new ParseException(e);
     }
   }
 
@@ -187,11 +191,11 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
                 .map(field -> getValueForFieldFlatSchema(field, timestamp, payload))
                 .collect(toList());
         o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
-      } catch (UnsupportedRowJsonException | AvroRuntimeException exception) {
+      } catch (ParseException pe) {
         if (useDlq) {
           o.get(DLQ_TAG).output(element);
         } else {
-          throw new RuntimeException("Error parsing message", exception);
+          throw new RuntimeException(pe);
         }
       }
     }
@@ -260,11 +264,11 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
                             field, timestamp, element.getAttributeMap(), payload))
                 .collect(toList());
         o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
-      } catch (UnsupportedRowJsonException | AvroRuntimeException exception) {
+      } catch (ParseException exception) {
         if (useDlq) {
           o.get(DLQ_TAG).output(element);
         } else {
-          throw new RuntimeException("Error parsing message", exception);
+          throw new RuntimeException(exception);
         }
       }
     }
@@ -281,5 +285,11 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
     public abstract Builder payloadFormat(PayloadFormat payloadFormat);
 
     public abstract PubsubMessageToRow build();
+  }
+
+  public static class ParseException extends RuntimeException {
+    ParseException(Throwable cause) {
+      super("Error parsing message", cause);
+    }
   }
 }
