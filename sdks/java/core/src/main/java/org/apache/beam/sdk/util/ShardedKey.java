@@ -30,6 +30,9 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /** A sharded key consisting of a user key and an opaque shard id represented by bytes. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShardedKey<K> {
 
   private final K key;
