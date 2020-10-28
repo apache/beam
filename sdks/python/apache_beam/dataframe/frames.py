@@ -807,7 +807,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           set(self.columns)
           .intersection(other.columns)
           .intersection(proxy.index))
+      # Generate expressions to compute the actual correlations
       corrs = [self[col].corr(other[col], **kwargs) for col in valid_cols]
+      # Combine the results
       def fill_dataframe(*args):
         result = proxy.copy(deep=True)
         for col, value in zip(valid_cols, args):
