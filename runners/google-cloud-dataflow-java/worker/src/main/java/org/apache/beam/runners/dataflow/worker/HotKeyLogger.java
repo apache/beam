@@ -54,7 +54,9 @@ public class HotKeyLogger {
             + "a symptom of key distribution being skewed. To fix, please inspect your data and "
             + "pipeline to ensure that elements are evenly distributed across your key space. If "
             + "you want to log the plain-text key to Cloud Logging please re-run with the "
-            + "`hotKeyLoggingEnabled` pipeline option.",
+            + "`hotKeyLoggingEnabled` pipeline option. See "
+            + "https://cloud.google.com/dataflow/docs/guides/specifying-exec-params for more "
+            + "information.",
         userStepName,
         TimeUtil.toCloudDuration(hotKeyAge));
   }
