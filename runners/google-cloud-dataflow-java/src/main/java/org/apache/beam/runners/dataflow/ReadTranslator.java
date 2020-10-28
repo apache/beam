@@ -50,7 +50,7 @@ class ReadTranslator implements TransformTranslator<SplittableParDo.PrimitiveBou
           PropertyNames.SOURCE_STEP_INPUT,
           cloudSourceToDictionary(
               CustomSources.serializeToCloudSource(source, context.getPipelineOptions())));
-      stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+      stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput((PTransform) transform));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
