@@ -29,8 +29,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -60,16 +58,14 @@ public interface TransformTranslator<TransformT extends PTransform> {
     DataflowPipelineOptions getPipelineOptions();
 
     /** Returns the input of the currently being translated transform. */
-    <InputT extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(
-        PTransform<InputT, ?> transform);
+    Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform);
 
-    <InputT extends PValue> InputT getInput(PTransform<InputT, ?> transform);
+    <T> PCollection<T> getInput(PTransform<PCollection<T>, ?> transform);
 
     /** Returns the output of the currently being translated transform. */
-    <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
-        PTransform<?, OutputT> transform);
+    Map<TupleTag<?>, PCollection<?>> getOutputs(PTransform<?, ?> transform);
 
-    <OutputT extends PValue> OutputT getOutput(PTransform<?, OutputT> transform);
+    <T> PCollection<T> getOutput(PTransform<?, PCollection<T>> transform);
 
     /** Returns the full name of the currently being translated transform. */
     String getFullName(PTransform<?, ?> transform);
@@ -80,15 +76,31 @@ public interface TransformTranslator<TransformT extends PTransform> {
      */
     StepTranslationContext addStep(PTransform<?, ?> transform, String type);
 
-    /** Encode a PValue reference as an output reference. */
-    OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer);
+    /** Encode a {@link PCollection} reference as an output reference. */
+    OutputReference pCollectionOutputReference(
+        PCollection<?> collection, AppliedPTransform<?, ?, ?> producer);
+
+    /**
+     * Encode a {@link TupleTag} as a reference to the materialized output.
+     *
+     * <p>Note that the materialization is carried as part of the {@link PCollectionView} but tags
+     * must be unique and side inputs cannot have equal tags yet different materializations.
+     */
+    OutputReference sideInputOutputReference(
+        PCollectionView<?> view, AppliedPTransform<?, ?, ?> producer);
 
     SdkComponents getSdkComponents();
 
     AppliedPTransform<?, ?, ?> getCurrentTransform();
 
-    /** Get the {@link AppliedPTransform} that produced the provided {@link PValue}. */
-    AppliedPTransform<?, ?, ?> getProducer(PValue value);
+    /** Get the {@link AppliedPTransform} that produced the provided {@link PCollection}. */
+    AppliedPTransform<?, ?, ?> getProducer(PCollection<?> value);
+
+    /**
+     * Get the {@link AppliedPTransform} that materializes the side input for the given {@link
+     * TupleTag}.
+     */
+    AppliedPTransform<?, ?, ?> getSideInputProducer(TupleTag<?> tag);
 
     /**
      * Gets the parent composite transform to the current transform, if one exists. Otherwise
@@ -120,7 +132,7 @@ public interface TransformTranslator<TransformT extends PTransform> {
      * StepTranslationContext#addOutput} or {@link
      * StepTranslationContext#addCollectionToSingletonOutput}) this method will throw an exception.
      */
-    void addInput(String name, PInput value);
+    void addInput(String name, PCollection<?> value);
 
     /** Adds an input that is a dictionary of strings to objects. */
     void addInput(String name, Map<String, Object> elements);
@@ -138,8 +150,8 @@ public interface TransformTranslator<TransformT extends PTransform> {
 
     /**
      * Adds an output to this {@code CollectionToSingleton} Dataflow step, consuming the specified
-     * input {@code PValue} and producing the specified output {@code PValue}. This step requires
-     * special treatment for its output encoding. Returns a pipeline level unique id.
+     * input {@link PCollection} and producing the specified output {@link PCollectionView}. This
+     * step requires special treatment for its output encoding.
      */
     void addCollectionToSingletonOutput(
         PCollection<?> inputValue, String outputName, PCollectionView<?> outputValue);
