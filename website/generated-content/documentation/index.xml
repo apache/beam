@@ -4934,23 +4934,30 @@ schema for PCollections with &lt;code>NamedTuple&lt;/code> output types. For exa
 &lt;span class="n">purchase_amount&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span>
 &lt;span class="n">pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">input&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="o">...&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Transaction&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p class="language-py">&lt;strong>beam.Row&lt;/strong>&lt;/p>
-&lt;p class="language-py">It&amp;rsquo;s also possible to create ad-hoc schema declarations with a simple lambda
-that returns instances of &lt;code>beam.Row&lt;/code>:&lt;/p>
+&lt;p class="language-py">&lt;strong>beam.Row and Select&lt;/strong>&lt;/p>
+&lt;p class="language-py">There are also methods for creating ad-hoc schema declarations. First, you can
+use a lambda that returns instances of &lt;code>beam.Row&lt;/code>:&lt;/p>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
 &lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bank&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;bank&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span>
 &lt;span class="n">purchase_amount&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;purchase_amount&amp;#34;&lt;/span>&lt;span class="p">])&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p class="language-py">Note that this declaration doesn&amp;rsquo;t include any specific information about the
-types of the &lt;code>bank&lt;/code> and &lt;code>purchase_amount&lt;/code> fields. Beam will attempt to infer
-type information, if it&amp;rsquo;s unable to it will fall back to the generic type
+&lt;p class="language-py">Sometimes it can be more concise to express the same logic with the
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Select">&lt;code>Select&lt;/code>&lt;/a> transform:&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
+&lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bank&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;bank&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;span class="n">purchase_amount&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;purchase_amount&amp;#34;&lt;/span>&lt;span class="p">])&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="language-py">Note that these declaration don&amp;rsquo;t include any specific information about the
+types of the &lt;code>bank&lt;/code> and &lt;code>purchase_amount&lt;/code> fields, so Beam will attempt to infer
+type information. If it&amp;rsquo;s unable to it will fall back to the generic type
 &lt;code>Any&lt;/code>. Sometimes this is not ideal, you can use casts to make sure Beam
-correctly infers types with &lt;code>beam.Row&lt;/code>:&lt;/p>
+correctly infers types with &lt;code>beam.Row&lt;/code> or with &lt;code>Select&lt;/code>:&lt;/p>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">input_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="c1"># {&amp;#34;bank&amp;#34;: ..., &amp;#34;purchase_amount&amp;#34;: ...}&lt;/span>
 &lt;span class="n">output_pc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input_pc&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">item&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bank&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;bank&amp;#34;&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;span class="n">purchase_amount&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">float&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;purchase_amount&amp;#34;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="n">purchase_amount&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">float&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">item&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;purchase_amount&amp;#34;&lt;/span>&lt;span class="p">])))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h3 id="using-schemas">6.6. Using Schema Transforms&lt;/h3>
 &lt;p>A schema on a &lt;code>PCollection&lt;/code> enables a rich variety of relational transforms. The fact that each record is composed of

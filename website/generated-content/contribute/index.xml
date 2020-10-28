@@ -498,16 +498,8 @@ authorization info cannot be found from ~/.docker/config.json file.&lt;/p>
 &lt;pre>&lt;code>&amp;quot;https://index.docker.io/v1/&amp;quot;: {
 &amp;quot;auth&amp;quot;: &amp;quot;xxxxxx&amp;quot;
 }
-&lt;/code>&lt;/pre>&lt;p>Release managers should have push permission; please ask for help at dev@.&lt;/p>
-&lt;pre>&lt;code>From: Release Manager
-To: dev@beam.apache.org
-Subject: DockerHub Push Permission
-Hi DockerHub Admins
-I need push permission to proceed with release, can you please add me to maintainer team?
-My docker hub ID is: xxx
-Thanks,
-Release Manager
-&lt;/code>&lt;/pre>&lt;h3 id="create-a-new-version-in-jira">Create a new version in JIRA&lt;/h3>
+&lt;/code>&lt;/pre>&lt;p>Release managers should have push permission; request membership in the &lt;a href="https://hub.docker.com/orgs/apache/teams/beammaintainers">&lt;code>beammaintainers&lt;/code> team&lt;/a> by filing a JIRA with the Apache Infrastructure team, like &lt;a href="https://issues.apache.org/jira/browse/INFRA-20900">INFRA-20900&lt;/a>.&lt;/p>
+&lt;h3 id="create-a-new-version-in-jira">Create a new version in JIRA&lt;/h3>
 &lt;p>When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:&lt;/p>
 &lt;p>&lt;strong>Attention&lt;/strong>: Only PMC has permission to perform this. If you are not a PMC, please ask for help in dev@ mailing list.&lt;/p>
 &lt;ol>
