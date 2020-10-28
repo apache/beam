@@ -72,8 +72,8 @@ public class JavaUdfLoader {
       if (!functionDefinitions.javaScalarFunctions.containsKey(functionPath)) {
         throw new IllegalArgumentException(
             String.format(
-                "No implementation of scalar function %s found in %s.\n"
-                    + " 1. Create a class implementing %s and annotate it with @AutoService(%s.class).\n"
+                "No implementation of scalar function %s found in %s.%n"
+                    + " 1. Create a class implementing %s and annotate it with @AutoService(%s.class).%n"
                     + " 2. Add function %s to the class's userDefinedScalarFunctions implementation.",
                 functionFullName,
                 jarPath,
@@ -103,8 +103,8 @@ public class JavaUdfLoader {
       if (!functionDefinitions.javaAggregateFunctions.containsKey(functionPath)) {
         throw new IllegalArgumentException(
             String.format(
-                "No implementation of aggregate function %s found in %s.\n"
-                    + " 1. Create a class implementing %s and annotate it with @AutoService(%s.class).\n"
+                "No implementation of aggregate function %s found in %s.%n"
+                    + " 1. Create a class implementing %s and annotate it with @AutoService(%s.class).%n"
                     + " 2. Add function %s to the class's userDefinedAggregateFunctions implementation.",
                 functionFullName,
                 jarPath,

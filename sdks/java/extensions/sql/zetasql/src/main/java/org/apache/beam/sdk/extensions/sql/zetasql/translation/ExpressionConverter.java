@@ -291,7 +291,6 @@ public class ExpressionConverter {
 
     RexNode ret;
 
-    ResolvedNodeKind nodeKind = expr.nodeKind();
     switch (expr.nodeKind()) {
       case RESOLVED_LITERAL:
         ret = convertResolvedLiteral((ResolvedLiteral) expr);
