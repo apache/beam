@@ -254,7 +254,7 @@ TBLPROPERTIES '{
     *   `deadLetterQueue`: The topic into which messages are written if the
         payload was not parsed. If not specified, an exception is thrown for
         parsing failures.
-    *   `format`: Optional. Allows you to specify the Pubsub payload format. 
+    *   `format`: Optional. Allows you to specify the Pubsub payload format.
         Possible values are {`json`, `avro`}. Defaults to `json`.
 
 ### Read Mode
