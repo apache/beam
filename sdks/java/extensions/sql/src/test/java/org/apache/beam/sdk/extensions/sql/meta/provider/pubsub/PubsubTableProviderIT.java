@@ -616,7 +616,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
   }
 
   protected Matcher<PubsubMessage> matcherTsNameHeightKnowsJS(
-      Instant ts, String name, int height, boolean knowsJS) {
+      Instant ts, String name, int height, boolean knowsJS) throws Exception {
     return allOf(
         matcherNameHeightKnowsJS(name, height, knowsJS),
         hasProperty("attributeMap", hasEntry("ts", String.valueOf(ts.getMillis()))));
@@ -641,7 +641,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
   protected abstract Matcher<PubsubMessage> matcherNames(String name);
 
   protected abstract Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-      String name, int height, boolean knowsJS);
+      String name, int height, boolean knowsJS) throws Exception;
 
   protected abstract Matcher<PubsubMessage> matcherNameHeight(String name, int height);
 

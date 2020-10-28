@@ -21,6 +21,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
 
+import java.io.ByteArrayOutputStream;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
@@ -86,10 +90,19 @@ public class PubsubAvroIT extends PubsubTableProviderIT {
 
   @Override
   protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-      String name, int height, boolean knowsJS) {
-    Row row = row(NAME_HEIGHT_KNOWS_JS_SCHEMA, name, height, knowsJS);
-    return hasProperty(
-        "payload",
-        equalTo(AvroUtils.getRowToAvroBytesFunction(NAME_HEIGHT_KNOWS_JS_SCHEMA).apply(row)));
+      String name, int height, boolean knowsJS) throws Exception {
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(NAME_HEIGHT_KNOWS_JS_SCHEMA);
+
+    GenericRecord record =
+        new GenericRecordBuilder(avroSchema)
+            .set("name", name)
+            .set("height", height)
+            .set("knowsJavascript", knowsJS)
+            .build();
+
+    AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    coder.encode(record, out);
+    return hasProperty("payload", equalTo(out.toByteArray()));
   }
 }

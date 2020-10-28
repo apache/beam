@@ -60,7 +60,7 @@ public class PubsubJsonIT extends PubsubTableProviderIT {
 
   @Override
   protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-      String name, int height, boolean knowsJS) {
+      String name, int height, boolean knowsJS) throws Exception {
     String jsonString =
         String.format(
             "{\"name\":\"%s\", \"height\": %s, \"knowsJavascript\": %s}", name, height, knowsJS);
