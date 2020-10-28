@@ -50,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class responsible for fetching state from the windmill server. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class StateFetcher {
   private static final Set<String> SUPPORTED_MATERIALIZATIONS =
       ImmutableSet.of(

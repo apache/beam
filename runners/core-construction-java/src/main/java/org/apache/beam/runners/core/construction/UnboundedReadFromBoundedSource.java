@@ -70,6 +70,7 @@ import org.slf4j.LoggerFactory;
  * <p>This transform is intended to be used by a runner during pipeline translation to convert a
  * Read.Bounded into a Read.Unbounded.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);

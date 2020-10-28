@@ -888,8 +888,11 @@ class Pipeline(object):
         proto.components,
         allow_proto_holders=allow_proto_holders,
         requirements=proto.requirements)
-    root_transform_id, = proto.root_transform_ids
-    p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+    if proto.root_transform_ids:
+      root_transform_id, = proto.root_transform_ids
+      p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+    else:
+      p.transforms_stack = [AppliedPTransform(None, None, '', None)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
     p.applied_labels = {
         t.unique_name

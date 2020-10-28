@@ -147,7 +147,7 @@ function verify_hourlyteamscore_dataflow() {
 #   VERSION
 # Arguments:
 #   $1 - sdk types: [tar, wheel]
-#   $2 - python interpreter version: [python2.7, python3.5, ...]
+#   $2 - python interpreter version: [python3.7, python3.8, ...]
 #######################################
 function run_release_candidate_python_mobile_gaming() {
   print_separator "Start Mobile Gaming Examples"

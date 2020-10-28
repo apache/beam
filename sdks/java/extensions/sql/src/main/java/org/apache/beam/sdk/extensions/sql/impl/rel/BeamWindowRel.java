@@ -71,6 +71,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  *   <li>Only Aggregate Analytic Functions are available.
  * </ul>
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamWindowRel extends Window implements BeamRelNode {
   public BeamWindowRel(
       RelOptCluster cluster,

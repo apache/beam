@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A helper class for initialization of the Dataflow worker harness. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class DataflowWorkerHarnessHelper {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkerHarnessHelper.class);
 
@@ -77,6 +78,7 @@ public final class DataflowWorkerHarnessHelper {
     return pipelineOptions;
   }
 
+  @SuppressWarnings("Slf4jIllegalPassedClass")
   public static void initializeLogging(Class<?> workerHarnessClass) {
     /* Set up exception handling tied to the workerHarnessClass. */
     Thread.setDefaultUncaughtExceptionHandler(

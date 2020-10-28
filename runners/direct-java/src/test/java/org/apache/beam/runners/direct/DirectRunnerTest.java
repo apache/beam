@@ -106,6 +106,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for basic {@link DirectRunner} functionality. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DirectRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 

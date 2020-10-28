@@ -28,6 +28,7 @@ import org.joda.time.Instant;
  * <p>Using this trigger will only produce output when the watermark passes the end of the {@link
  * BoundedWindow window} plus the {@link Window#withAllowedLateness allowed lateness}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class Never {
   /**
    * Returns a trigger which never fires. Output will be produced from the using {@link GroupByKey}

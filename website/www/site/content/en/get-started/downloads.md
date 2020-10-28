@@ -72,11 +72,12 @@ sure it is the same as ours.
 
 ## API stability
 
-Apache Beam uses [semantic versioning](https://semver.org/). Version numbers use
+Apache Beam generally follows the rules of
+[semantic versioning](https://semver.org/) with exceptions. Version numbers use
 the form `major.minor.incremental` and are incremented as follows:
 
 * major version for incompatible API changes
-* minor version for new functionality added in a backward-compatible manner
+* minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes
 * incremental version for forward-compatible bug fixes
 
 Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/annotations/Experimental.html)
@@ -86,6 +87,14 @@ Additionally, any API may change before the first stable release, i.e., between
 versions denoted `0.x.y`.
 
 ## Releases
+
+### 2.25.0 (2020-10-23)
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.25.0/apache-beam-2.25.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.25.0/apache-beam-2.25.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.25.0/apache-beam-2.25.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347147).
+[Blog post](/blog/beam-2.25.0).
 
 ### 2.24.0 (2020-09-18)
 Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.24.0/apache-beam-2.24.0-source-release.zip).

@@ -61,6 +61,7 @@ import org.slf4j.LoggerFactory;
  * (HEC) endpoint.
  */
 @AutoValue
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 abstract class HttpEventPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpEventPublisher.class);

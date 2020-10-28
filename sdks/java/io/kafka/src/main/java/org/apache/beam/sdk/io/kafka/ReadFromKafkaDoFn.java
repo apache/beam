@@ -115,6 +115,7 @@ import org.slf4j.LoggerFactory;
  * WatermarkEstimator}.
  */
 @UnboundedPerElement
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K, V>> {
 
   ReadFromKafkaDoFn(ReadSourceDescriptors transform) {
@@ -306,8 +307,8 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
                   consumerSpEL.getRecordTimestamp(rawRecord),
                   consumerSpEL.getRecordTimestampType(rawRecord),
                   ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                  keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
-                  valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
+                  (K) consumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
+                  (V) consumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
           int recordSize =
               (rawRecord.key() == null ? 0 : rawRecord.key().length)
                   + (rawRecord.value() == null ? 0 : rawRecord.value().length);

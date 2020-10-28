@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
  * them to the provided {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry} {@link
  * Consumer}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
     implements BeamFnService {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnLoggingService.class);
@@ -133,7 +134,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
 
     @Override
     public void onError(Throwable t) {
-      LOG.warn("Logging client failed unexpectedly. ClientId: {}", t, sdkWorkerId);
+      LOG.warn("Logging client failed unexpectedly. ClientId: {}", sdkWorkerId, t);
       // We remove these from the connected clients map to prevent a race between
       // the close method and this InboundObserver calling a terminal method on the
       // StreamObserver. If we removed it, then we are responsible for the terminal call.

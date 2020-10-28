@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Wrapper for executing a {@link Source} as a Flink {@link InputFormat}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
@@ -98,7 +99,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
         }
       };
     } catch (Exception e) {
-      LOG.warn("Could not read Source statistics: {}", e);
+      LOG.warn("Could not read Source statistics.", e);
     }
 
     return null;

@@ -66,6 +66,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMult
 
 /** Clients facing {@link FileSystem} utility. */
 @Experimental(Kind.FILESYSTEM)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "file";

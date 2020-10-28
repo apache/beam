@@ -49,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * on the schema.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class JavaFieldSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on public fields. */
   @VisibleForTesting

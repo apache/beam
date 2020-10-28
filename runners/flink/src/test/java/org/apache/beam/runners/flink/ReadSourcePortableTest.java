@@ -49,9 +49,10 @@ import org.slf4j.LoggerFactory;
 
 /** Tests that Read translation is supported in portable pipelines. */
 @RunWith(Parameterized.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReadSourcePortableTest implements Serializable {
 
-  private static final Logger LOG = LoggerFactory.getLogger(PortableExecutionTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ReadSourcePortableTest.class);
 
   @Parameters(name = "streaming: {0}")
   public static Object[] data() {

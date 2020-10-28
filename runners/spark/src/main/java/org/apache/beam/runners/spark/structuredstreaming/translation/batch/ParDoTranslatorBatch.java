@@ -59,6 +59,7 @@ import scala.Tuple2;
  * @param <InputT>
  * @param <OutputT>
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class ParDoTranslatorBatch<InputT, OutputT>
     implements TransformTranslator<PTransform<PCollection<InputT>, PCollectionTuple>> {
 
@@ -89,7 +90,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     // Init main variables
     PValue input = context.getInput();
     Dataset<WindowedValue<InputT>> inputDataSet = context.getDataset(input);
-    Map<TupleTag<?>, PValue> outputs = context.getOutputs();
+    Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs();
     TupleTag<?> mainOutputTag = getTupleTag(context);
     List<TupleTag<?>> outputTags = new ArrayList<>(outputs.keySet());
     WindowingStrategy<?, ?> windowingStrategy =
@@ -142,7 +143,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.fromBeamCoder(multipleOutputCoder));
     if (outputs.entrySet().size() > 1) {
       allOutputs.persist();
-      for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         pruneOutputFilteredByTag(context, allOutputs, output, windowCoder);
       }
     } else {
@@ -219,7 +220,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
   private void pruneOutputFilteredByTag(
       TranslationContext context,
       Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs,
-      Map.Entry<TupleTag<?>, PValue> output,
+      Map.Entry<TupleTag<?>, PCollection<?>> output,
       Coder<? extends BoundedWindow> windowCoder) {
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> filteredDataset =
         allOutputs.filter(new DoFnFilterFunction(output.getKey()));

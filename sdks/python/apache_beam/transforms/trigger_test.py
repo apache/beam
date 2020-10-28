@@ -806,9 +806,9 @@ def _windowed_value_info_check(actual, expected, key=None):
 
 
 class _ConcatCombineFn(beam.CombineFn):
-  create_accumulator = lambda self: []
+  create_accumulator = lambda self: []  # type: ignore[var-annotated]
   add_input = lambda self, acc, element: acc.append(element) or acc
-  merge_accumulators = lambda self, accs: sum(accs, [])
+  merge_accumulators = lambda self, accs: sum(accs, [])  # type: ignore[var-annotated]
   extract_output = lambda self, acc: acc
 
 

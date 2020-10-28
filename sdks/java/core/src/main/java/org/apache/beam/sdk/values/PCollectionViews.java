@@ -81,6 +81,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Implementations of {@link PCollectionView} shared across the SDK.
  */
 @Internal
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PCollectionViews {
   public interface TypeDescriptorSupplier<T> extends Supplier<TypeDescriptor<T>>, Serializable {}
 
@@ -190,6 +191,26 @@ public class PCollectionViews {
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
+        new ListViewFn<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   *
+   * @deprecated See {@link #listView}.
+   */
+  @Deprecated
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewUsingVoidKey(
+      PCollection<KV<Void, T>> pCollection,
+      TupleTag<MultimapView<Void, T>> tag,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        tag,
         new ListViewFn<>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);

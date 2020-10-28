@@ -27,6 +27,7 @@ import org.joda.time.Duration;
  *
  * @see #DEFAULT for the default configuration parameters.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class FluentBackoff {
 
   private static final double DEFAULT_EXPONENT = 1.5;

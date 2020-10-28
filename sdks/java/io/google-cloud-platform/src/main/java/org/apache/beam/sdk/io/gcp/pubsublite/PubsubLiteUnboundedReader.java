@@ -24,6 +24,7 @@ import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.internal.CloseableMonitor;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.ProxyService;
+import com.google.cloud.pubsublite.internal.PullSubscriber;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
@@ -50,6 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.Instant;
 
 /** A reader for Pub/Sub Lite that generates a stream of SequencedMessages. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
     implements OffsetFinalizer {
   private final UnboundedSource<SequencedMessage, ?> source;
@@ -139,7 +141,7 @@ class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
   static class SubscriberState {
     Instant lastDeliveredPublishTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
     Optional<Offset> lastDelivered = Optional.empty();
-    PullSubscriber subscriber;
+    PullSubscriber<SequencedMessage> subscriber;
     Committer committer;
   }
 

@@ -55,6 +55,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBui
  * <p>The outgoing edges of a {@link ParallelInstructionNode} with a {@link ParDoInstruction} are
  * {@link MultiOutputInfoEdge}s. All other edges are {@link DefaultEdge}s.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MapTaskToNetworkFunction implements Function<MapTask, MutableNetwork<Node, Edge>> {
   private static ParallelInstruction clone(JsonFactory factory, ParallelInstruction instruction) {
     try {

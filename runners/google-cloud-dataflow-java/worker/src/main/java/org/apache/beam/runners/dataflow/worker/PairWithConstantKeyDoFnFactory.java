@@ -40,6 +40,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link ParDoFnFactory} which returns a {@link ParDoFn} that transforms all {@code
  * WindowedValue<V>} to {@code WindowedValue<KV<K, V>>} for a constant key {@code K}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PairWithConstantKeyDoFnFactory implements ParDoFnFactory {
   @Override
   public ParDoFn create(

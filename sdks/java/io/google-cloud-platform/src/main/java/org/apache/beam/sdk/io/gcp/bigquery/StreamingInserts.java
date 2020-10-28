@@ -29,6 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
  * PTransform that performs streaming BigQuery write. To increase consistency, it leverages
  * BigQuery's best effort de-dup mechanism.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StreamingInserts<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private BigQueryServices bigQueryServices;
@@ -42,13 +43,15 @@ public class StreamingInserts<DestinationT, ElementT>
   private final String kmsKey;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
+  private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
 
   /** Constructor. */
   public StreamingInserts(
       CreateDisposition createDisposition,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       Coder<ElementT> elementCoder,
-      SerializableFunction<ElementT, TableRow> toTableRow) {
+      SerializableFunction<ElementT, TableRow> toTableRow,
+      SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
     this(
         createDisposition,
         dynamicDestinations,
@@ -60,6 +63,7 @@ public class StreamingInserts<DestinationT, ElementT>
         false,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         null);
   }
 
@@ -75,6 +79,7 @@ public class StreamingInserts<DestinationT, ElementT>
       boolean ignoreInsertIds,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
+      SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
       String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
@@ -86,6 +91,7 @@ public class StreamingInserts<DestinationT, ElementT>
     this.ignoreInsertIds = ignoreInsertIds;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
+    this.toFailsafeTableRow = toFailsafeTableRow;
     this.kmsKey = kmsKey;
   }
 
@@ -103,6 +109,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -119,6 +126,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -134,6 +142,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -149,6 +158,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -164,6 +174,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -179,6 +190,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -194,6 +206,7 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreInsertIds,
         elementCoder,
         toTableRow,
+        toFailsafeTableRow,
         kmsKey);
   }
 
@@ -215,6 +228,7 @@ public class StreamingInserts<DestinationT, ElementT>
             .withIgnoreUnknownValues(ignoreUnknownValues)
             .withIgnoreInsertIds(ignoreInsertIds)
             .withElementCoder(elementCoder)
-            .withToTableRow(toTableRow));
+            .withToTableRow(toTableRow)
+            .withToFailsafeTableRow(toFailsafeTableRow));
   }
 }

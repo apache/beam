@@ -32,6 +32,7 @@ import org.apache.kafka.common.errors.AuthorizationException;
  * ProducerSpEL to handle newer versions Producer API. The API is updated in Kafka 0.11 to support
  * exactly-once semantics.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class ProducerSpEL {
 
   private static boolean supportsTransactions;

@@ -40,6 +40,7 @@ from __future__ import absolute_import
 
 import copy
 import itertools
+import logging
 import operator
 import os
 import sys
@@ -53,6 +54,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -96,10 +98,13 @@ __all__ = [
     'label_from_callable',
 ]
 
+_LOGGER = logging.getLogger(__name__)
+
 T = TypeVar('T')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
 ConstructorFn = Callable[
     ['beam_runner_api_pb2.PTransform', Optional[Any], 'PipelineContext'], Any]
+ptransform_fn_typehints_enabled = False
 
 
 class _PValueishTransform(object):
@@ -136,11 +141,13 @@ class _SetInputPValues(_PValueishTransform):
 # Caches to allow for materialization of values when executing a pipeline
 # in-process, in eager mode.  This cache allows the same _MaterializedResult
 # object to be accessed and used despite Runner API round-trip serialization.
-_pipeline_materialization_cache = {}
+_pipeline_materialization_cache = {
+}  # type: Dict[Tuple[int, int], Dict[int, _MaterializedResult]]
 _pipeline_materialization_lock = threading.Lock()
 
 
 def _allocate_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -148,6 +155,7 @@ def _allocate_materialized_pipeline(pipeline):
 
 
 def _allocate_materialized_result(pipeline):
+  # type: (Pipeline) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -162,6 +170,7 @@ def _allocate_materialized_result(pipeline):
 
 
 def _get_materialized_result(pipeline_id, result_id):
+  # type: (int, int) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     if (pid, pipeline_id) not in _pipeline_materialization_cache:
@@ -172,6 +181,7 @@ def _get_materialized_result(pipeline_id, result_id):
 
 
 def _release_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -180,9 +190,10 @@ def _release_materialized_pipeline(pipeline):
 
 class _MaterializedResult(object):
   def __init__(self, pipeline_id, result_id):
+    # type: (int, int) -> None
     self._pipeline_id = pipeline_id
     self._result_id = result_id
-    self.elements = []
+    self.elements = []  # type: List[Any]
 
   def __reduce__(self):
     # When unpickled (during Runner API roundtrip serailization), get the
@@ -665,7 +676,8 @@ class PTransform(WithTypeHints, HasDisplayData):
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
-    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
+    # typing: only ParDo supports extra_kwargs
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(BEAM-3812): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
@@ -939,8 +951,6 @@ class _PTransformFnPTransform(PTransform):
 def ptransform_fn(fn):
   """A decorator for a function-based PTransform.
 
-  Experimental; no backwards-compatibility guarantees.
-
   Args:
     fn: A function implementing a custom PTransform.
 
@@ -954,11 +964,15 @@ def ptransform_fn(fn):
   resulting PCollection. For example::
 
     @ptransform_fn
+    @beam.typehints.with_input_types(..)
+    @beam.typehints.with_output_types(..)
     def CustomMapper(pcoll, mapfn):
       return pcoll | ParDo(mapfn)
 
   The equivalent approach using PTransform subclassing::
 
+    @beam.typehints.with_input_types(..)
+    @beam.typehints.with_output_types(..)
     class CustomMapper(PTransform):
 
       def __init__(self, mapfn):
@@ -976,11 +990,28 @@ def ptransform_fn(fn):
   Note that for both solutions the underlying implementation of the pipe
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
+
+  Type hint support needs to be enabled via the
+  --type_check_additional=ptransform_fn flag in Beam 2.
+  If CustomMapper is a Cython function, you can still specify input and output
+  types provided the decorators appear before @ptransform_fn.
   """
   # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
   @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
-    return _PTransformFnPTransform(fn, *args, **kwargs)
+    res = _PTransformFnPTransform(fn, *args, **kwargs)
+    if ptransform_fn_typehints_enabled:
+      # Apply type hints applied before or after the ptransform_fn decorator,
+      # falling back on PTransform defaults.
+      # If the @with_{input,output}_types decorator comes before ptransform_fn,
+      # the type hints get applied to this function. If it comes after they will
+      # get applied to fn, and @wraps will copy the _type_hints attribute to
+      # this function.
+      type_hints = get_type_hints(callable_ptransform_factory)
+      res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
+      _LOGGER.debug(
+          'type hints for %s: %s', res.default_label(), res.get_type_hints())
+    return res
 
   return callable_ptransform_factory
 

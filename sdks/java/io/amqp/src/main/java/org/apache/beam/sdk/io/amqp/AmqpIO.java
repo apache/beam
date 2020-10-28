@@ -91,6 +91,7 @@ import org.joda.time.Instant;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AmqpIO {
 
   public static Read read() {

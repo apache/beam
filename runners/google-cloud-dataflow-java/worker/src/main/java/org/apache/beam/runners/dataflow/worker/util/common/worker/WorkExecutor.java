@@ -23,6 +23,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Abstract executor for WorkItem tasks. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public interface WorkExecutor extends AutoCloseable {
 
   /** Returns the set of output counters for this task. */

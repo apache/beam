@@ -45,6 +45,7 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SideInputHandler}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SideInputHandlerTest {
 
   private static final long WINDOW_MSECS_1 = 100;

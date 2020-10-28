@@ -38,10 +38,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** MonitoringInfo to CounterUpdate transformer capable to transform MeanByteCount counter. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MeanByteCountMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(MeanByteCountMonitoringInfoToCounterUpdateTransformer.class);
 
   private final SpecMonitoringInfoValidator specValidator;
   private final Map<String, NameContext> pcollectionIdToNameContext;

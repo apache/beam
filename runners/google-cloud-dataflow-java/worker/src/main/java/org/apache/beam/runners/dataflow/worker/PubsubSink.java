@@ -44,6 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the elements written to the sink
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class PubsubSink<T> extends Sink<WindowedValue<T>> {
   private final String topic;
   private final String timestampLabel;

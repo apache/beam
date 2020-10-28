@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous with default
  * configuration.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
 
   private final Class<? extends QueryPlanner> plannerClass;

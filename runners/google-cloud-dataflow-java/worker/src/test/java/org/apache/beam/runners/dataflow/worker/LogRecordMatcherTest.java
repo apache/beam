@@ -31,7 +31,10 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link LogRecordMatcher}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("AssertionFailureIgnored")
+@SuppressWarnings({
+  "AssertionFailureIgnored",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LogRecordMatcherTest {
   @Test
   public void testMatchingLogRecord() {

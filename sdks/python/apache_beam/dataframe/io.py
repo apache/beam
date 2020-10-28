@@ -37,14 +37,98 @@ def read_csv(path, *args, **kwargs):
 
   to get a deferred Beam dataframe representing the contents of the file.
   """
-  return _ReadFromPandas(pd.read_csv, path, args, kwargs)
+  return _ReadFromPandas(pd.read_csv, path, args, kwargs, incremental=True)
 
 
-def write_csv(df, path, *args, **kwargs):
+def _as_pc(df):
   from apache_beam.dataframe import convert  # avoid circular import
   # TODO(roberwb): Amortize the computation for multiple writes?
-  return convert.to_pcollection(df) | _WriteToPandas(
+  return convert.to_pcollection(df, yield_elements='pandas')
+
+
+def to_csv(df, path, *args, **kwargs):
+  return _as_pc(df) | _WriteToPandas(
       pd.DataFrame.to_csv, path, args, kwargs, incremental=True, binary=False)
+
+
+def read_fwf(path, *args, **kwargs):
+  return _ReadFromPandas(pd.read_fwf, path, args, kwargs, incremental=True)
+
+
+def read_json(path, *args, **kwargs):
+  return _ReadFromPandas(
+      pd.read_json,
+      path,
+      args,
+      kwargs,
+      incremental=kwargs.get('lines', False),
+      binary=False)
+
+
+def to_json(df, path, orient=None, *args, **kwargs):
+  if orient is None:
+    if isinstance(df._expr.proxy(), pd.DataFrame):
+      orient = 'columns'
+    elif isinstance(df._expr.proxy(), pd.Series):
+      orient = 'index'
+    else:
+      raise frame_base.WontImplementError('not dataframes or series')
+  kwargs['orient'] = orient
+  return _as_pc(df) | _WriteToPandas(
+      pd.DataFrame.to_json,
+      path,
+      args,
+      kwargs,
+      incremental=orient in ('index', 'records', 'values'),
+      binary=False)
+
+
+def read_html(path, *args, **kwargs):
+  return _ReadFromPandas(
+      lambda *args,
+      **kwargs: pd.read_html(*args, **kwargs)[0],
+      path,
+      args,
+      kwargs)
+
+
+def to_html(df, path, *args, **kwargs):
+  return _as_pc(df) | _WriteToPandas(
+      pd.DataFrame.to_html,
+      path,
+      args,
+      kwargs,
+      incremental=(
+          df._expr.proxy().index.nlevels == 1 or
+          not kwargs.get('sparsify', True)),
+      binary=False)
+
+
+def _binary_reader(format):
+  func = getattr(pd, 'read_%s' % format)
+  return lambda path, *args, **kwargs: _ReadFromPandas(func, path, args, kwargs)
+
+
+def _binary_writer(format):
+  func = getattr(pd.DataFrame, 'to_%s' % format)
+  return (
+      lambda df,
+      path,
+      *args,
+      **kwargs: _as_pc(df) | _WriteToPandas(func, path, args, kwargs))
+
+
+for format in ('excel', 'feather', 'parquet', 'stata'):
+  globals()['read_%s' % format] = _binary_reader(format)
+  globals()['to_%s' % format] = _binary_writer(format)
+
+for format in ('sas', 'spss'):
+  if hasattr(pd, 'read_%s' % format):  # Depends on pandas version.
+    globals()['read_%s' % format] = _binary_reader(format)
+
+read_clipboard = to_clipboard = frame_base.wont_implement_method('clipboard')
+read_msgpack = to_msgpack = frame_base.wont_implement_method('deprecated')
+read_hdf = to_hdf = frame_base.wont_implement_method('random access files')
 
 
 def _prefix_range_index_with(prefix, df):
@@ -55,13 +139,18 @@ def _prefix_range_index_with(prefix, df):
 
 
 class _ReadFromPandas(beam.PTransform):
-  def __init__(self, reader, path, args, kwargs):
+  def __init__(
+      self, reader, path, args, kwargs, incremental=False, binary=True):
+    if 'compression' in kwargs:
+      raise NotImplementedError('compression')
     if not isinstance(path, str):
       raise frame_base.WontImplementError('non-deferred')
     self.reader = reader
     self.path = path
     self.args = args
     self.kwargs = kwargs
+    self.incremental = incremental
+    self.binary = binary
 
   def expand(self, root):
     # TODO(robertwb): Handle streaming (with explicit schema).
@@ -70,30 +159,54 @@ class _ReadFromPandas(beam.PTransform):
                                              limits=[1
                                                      ])[0].metadata_list[0].path
     with io.filesystems.FileSystems.open(first) as handle:
-      df = next(self.reader(handle, *self.args, chunksize=100, **self.kwargs))
+      if not self.binary:
+        handle = TextIOWrapper(handle)
+      if self.incremental:
+        sample = next(
+            self.reader(handle, *self.args, chunksize=100, **self.kwargs))
+      else:
+        sample = self.reader(handle, *self.args, **self.kwargs)
 
     pcoll = (
         paths_pcoll
         | fileio.MatchFiles(self.path)
         | fileio.ReadMatches()
-        | beam.ParDo(_ReadFromPandasDoFn(self.reader, self.args, self.kwargs)))
+        | beam.ParDo(
+            _ReadFromPandasDoFn(
+                self.reader,
+                self.args,
+                self.kwargs,
+                self.incremental,
+                self.binary)))
     from apache_beam.dataframe import convert
     return convert.to_dataframe(
-        pcoll, proxy=_prefix_range_index_with(':', df[:0]))
+        pcoll, proxy=_prefix_range_index_with(':', sample[:0]))
 
 
 # TODO(robertwb): Actually make an SDF.
 class _ReadFromPandasDoFn(beam.DoFn):
-  def __init__(self, reader, args, kwargs):
+  def __init__(self, reader, args, kwargs, incremental, binary):
     # avoid pickling issues
-    self.reader = reader.__name__
+    if reader.__module__.startswith('pandas.'):
+      reader = reader.__name__
+    self.reader = reader
     self.args = args
     self.kwargs = kwargs
+    self.incremental = incremental
+    self.binary = binary
 
   def process(self, readable_file):
-    reader = getattr(pd, self.reader)
+    reader = self.reader
+    if isinstance(reader, str):
+      reader = getattr(pd, self.reader)
     with readable_file.open() as handle:
-      for df in reader(handle, *self.args, chunksize=100, **self.kwargs):
+      if not self.binary:
+        handle = TextIOWrapper(handle)
+      if self.incremental:
+        frames = reader(handle, *self.args, chunksize=100, **self.kwargs)
+      else:
+        frames = [reader(handle, *self.args, **self.kwargs)]
+      for df in frames:
         yield _prefix_range_index_with(readable_file.metadata.path + ':', df)
 
 
@@ -118,6 +231,8 @@ class _WriteToPandas(beam.PTransform):
 
 class _WriteToPandasFileSink(fileio.FileSink):
   def __init__(self, writer, args, kwargs, incremental, binary):
+    if 'compression' in kwargs:
+      raise NotImplementedError('compression')
     self.writer = writer
     self.args = args
     self.kwargs = kwargs
@@ -148,7 +263,20 @@ class _WriteToPandasFileSink(fileio.FileSink):
     if self.empty is None:
       self.empty = self.write_to(value[:0])
     if self.header is None and len(value):
+
+      def new_value(ix):
+        if isinstance(ix, tuple):
+          return (new_value(ix[0]), ) + ix[1:]
+        else:
+          return str('x') + '_again'
+
+      def change_index(df):
+        df.index = df.index.map(new_value)
+        return df
+
       one_row = self.write_to(value[:1])
+      another_row = self.write_to(change_index(value[:1]))
+      two_rows = self.write_to(pd.concat([value[:1], change_index(value[:1])]))
       for ix, c in enumerate(self.empty):
         if one_row[ix] != c:
           break
@@ -156,9 +284,17 @@ class _WriteToPandasFileSink(fileio.FileSink):
         ix = len(self.empty)
       self.header = self.empty[:ix]
       self.footer = self.empty[ix:]
+      self.delimiter = two_rows[len(one_row) - len(self.footer):-(
+          len(another_row) - len(self.header)) or None]
       self.file_handle.write(self.header)
+      self.first = True
 
     if len(value):
+      if self.first:
+        self.first = False
+      else:
+        self.file_handle.write(self.delimiter)
+
       # IDEA(robertwb): Construct a "truncating" stream wrapper to avoid the
       # in-memory copy.
       rows = self.write_to(value)
@@ -174,7 +310,7 @@ class _WriteToPandasFileSink(fileio.FileSink):
   def buffer_record(self, value):
     self.buffer.append(value)
 
-  def flush_buffer(self, file_handle):
+  def flush_buffer(self):
     if self.buffer:
-      self.write_to(pd.concat(self.buffer), file_handle)
+      self.write_to(pd.concat(self.buffer), self.file_handle)
       self.file_handle.flush()

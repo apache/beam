@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
  * user-provided {@link org.apache.beam.sdk.values.PCollection}-based job into a {@link
  * org.apache.flink.streaming.api.datastream.DataStream} one.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
@@ -99,13 +100,6 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null) {
-      // TODO(BEAM-10670): Remove this and the ReadTranslator once the "use_deprecated_read"
-      // experiment is removed. Don't translate composite Read transforms since we expect the
-      // primitive expansion containing an SDF to be used.
-      if (PTransformTranslation.READ_TRANSFORM_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(transform))) {
-        return CompositeBehavior.ENTER_TRANSFORM;
-      }
       StreamTransformTranslator<?> translator =
           FlinkStreamingTransformTranslators.getTranslator(transform);
 
@@ -297,8 +291,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, WriteFilesResult<DestinationT> newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }

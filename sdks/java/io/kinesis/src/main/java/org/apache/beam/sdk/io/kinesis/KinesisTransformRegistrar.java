@@ -41,6 +41,7 @@ import org.joda.time.Instant;
  */
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
   public static final String WRITE_URN = "beam:external:java:kinesis:write:v1";
   public static final String READ_DATA_URN = "beam:external:java:kinesis:read_data:v1";
@@ -129,16 +130,16 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
           ReadDataBuilder.Configuration, PBegin, PCollection<byte[]>> {
 
     public static class Configuration extends CrossLanguageConfiguration {
-      @Nullable private Long maxNumRecords;
-      @Nullable private Duration maxReadTime;
-      @Nullable private InitialPositionInStream initialPositionInStream;
-      @Nullable private Instant initialTimestampInStream;
-      @Nullable private Integer requestRecordsLimit;
-      @Nullable private Duration upToDateThreshold;
-      @Nullable private Long maxCapacityPerShard;
-      @Nullable private WatermarkPolicy watermarkPolicy;
-      @Nullable private Duration watermarkIdleDurationThreshold;
-      @Nullable private Duration rateLimit;
+      private @Nullable Long maxNumRecords;
+      private @Nullable Duration maxReadTime;
+      private @Nullable InitialPositionInStream initialPositionInStream;
+      private @Nullable Instant initialTimestampInStream;
+      private @Nullable Integer requestRecordsLimit;
+      private @Nullable Duration upToDateThreshold;
+      private @Nullable Long maxCapacityPerShard;
+      private @Nullable WatermarkPolicy watermarkPolicy;
+      private @Nullable Duration watermarkIdleDurationThreshold;
+      private @Nullable Duration rateLimit;
 
       public void setMaxNumRecords(@Nullable Long maxNumRecords) {
         this.maxNumRecords = maxNumRecords;

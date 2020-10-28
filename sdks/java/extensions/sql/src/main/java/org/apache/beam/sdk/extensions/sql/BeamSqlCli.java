@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
 @Experimental
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamSqlCli {
   private BeamSqlEnv env;
   /** The store which persists all the table meta data. */

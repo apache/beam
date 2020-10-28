@@ -36,6 +36,7 @@ import org.joda.time.Instant;
 
 /** Provides access to the keyed StateInternals and TimerInternals. */
 @ThreadSafe
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class KeyedInternals<K> {
 
   private static class KeyedStates<K> {
@@ -153,9 +154,8 @@ class KeyedInternals<K> {
       return getInternals().currentProcessingTime();
     }
 
-    @Nullable
     @Override
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return getInternals().currentSynchronizedProcessingTime();
     }
 
@@ -164,9 +164,8 @@ class KeyedInternals<K> {
       return getInternals().currentInputWatermarkTime();
     }
 
-    @Nullable
     @Override
-    public Instant currentOutputWatermarkTime() {
+    public @Nullable Instant currentOutputWatermarkTime() {
       return getInternals().currentOutputWatermarkTime();
     }
   }

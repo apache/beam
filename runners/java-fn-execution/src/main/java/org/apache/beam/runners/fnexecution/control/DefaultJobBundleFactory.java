@@ -91,6 +91,7 @@ import org.slf4j.LoggerFactory;
  * is called for a stage.
  */
 @ThreadSafe
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
@@ -454,7 +455,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         OutputReceiverFactory outputReceiverFactory,
         TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler)
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler)
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
@@ -514,7 +516,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
               getOutputReceivers(currentClient.processBundleDescriptor, outputReceiverFactory),
               getTimerReceivers(currentClient.processBundleDescriptor, timerReceiverFactory),
               stateRequestHandler,
-              progressHandler);
+              progressHandler,
+              finalizationHandler);
       return new RemoteBundle() {
         @Override
         public String getId() {
@@ -559,6 +562,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     @Override
     public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
       return currentClient.processBundleDescriptor;
+    }
+
+    @Override
+    public InstructionRequestHandler getInstructionRequestHandler() {
+      return currentClient.wrappedClient.getClient().getInstructionRequestHandler();
     }
 
     @Override

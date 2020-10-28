@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
  * <p>This provides a Java-friendly wrapper around {@link InstructionRequestHandler} and {@link
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
 
@@ -179,14 +180,16 @@ public class SdkHarnessClient implements AutoCloseable {
      * }
      * }</pre>
      *
-     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization or
-     * attempts to checkpoint by returning a {@link BeamFnApi.DelayedBundleApplication}.
+     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization if
+     * {@link BundleFinalizationHandler} is {@code null} or attempts to checkpoint by returning a
+     * {@link BeamFnApi.DelayedBundleApplication} .
      */
     public ActiveBundle newBundle(
         Map<String, RemoteOutputReceiver<?>> outputReceivers,
         Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler) {
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler) {
       return newBundle(
           outputReceivers,
           timerReceivers,
@@ -199,12 +202,14 @@ public class SdkHarnessClient implements AutoCloseable {
                     "The %s does not have a registered bundle checkpoint handler.",
                     ActiveBundle.class.getSimpleName()));
           },
-          bundleId -> {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "The %s does not have a registered bundle finalization handler.",
-                    ActiveBundle.class.getSimpleName()));
-          });
+          finalizationHandler == null
+              ? bundleId -> {
+                throw new UnsupportedOperationException(
+                    String.format(
+                        "The %s does not have a registered bundle finalization handler.",
+                        ActiveBundle.class.getSimpleName()));
+              }
+              : finalizationHandler);
     }
 
     /**
@@ -561,6 +566,10 @@ public class SdkHarnessClient implements AutoCloseable {
     this.idGenerator = idGenerator;
     this.fnApiControlClient = fnApiControlClient;
     this.clientProcessors = new ConcurrentHashMap<>();
+  }
+
+  public InstructionRequestHandler getInstructionRequestHandler() {
+    return fnApiControlClient;
   }
 
   /**

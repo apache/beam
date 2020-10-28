@@ -16,6 +16,7 @@
 #
 
 # pytype: skip-file
+# mypy: check-untyped-defs
 
 from __future__ import absolute_import
 from __future__ import division
@@ -27,7 +28,6 @@ import logging
 import threading
 import time
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -96,6 +96,7 @@ class JobServiceHandle(object):
     self.job_service = job_service
     self.options = options
     self.timeout = options.view_as(PortableOptions).job_server_timeout
+    self.artifact_endpoint = options.view_as(PortableOptions).artifact_endpoint
     self._retain_unknown_options = retain_unknown_options
 
   def submit(self, proto_pipeline):
@@ -105,9 +106,12 @@ class JobServiceHandle(object):
     Submit and run the pipeline defined by `proto_pipeline`.
     """
     prepare_response = self.prepare(proto_pipeline)
+    artifact_endpoint = (
+        self.artifact_endpoint or
+        prepare_response.artifact_staging_endpoint.url)
     self.stage(
         proto_pipeline,
-        prepare_response.artifact_staging_endpoint.url,
+        artifact_endpoint,
         prepare_response.staging_session_token)
     return self.run(prepare_response.preparation_id)
 
@@ -193,8 +197,12 @@ class JobServiceHandle(object):
             pipeline_options=self.get_pipeline_options()),
         timeout=self.timeout)
 
-  def stage(self, pipeline, artifact_staging_endpoint, staging_session_token):
-    # type: (...) -> Optional[Any]
+  def stage(self,
+            proto_pipeline,  # type: beam_runner_api_pb2.Pipeline
+            artifact_staging_endpoint,
+            staging_session_token
+           ):
+    # type: (...) -> None
 
     """Stage artifacts"""
     if artifact_staging_endpoint:
@@ -284,6 +292,7 @@ class PortableRunner(runner.PipelineRunner):
         'use, such as --runner=FlinkRunner or --runner=SparkRunner.')
 
   def create_job_service_handle(self, job_service, options):
+    # type: (...) -> JobServiceHandle
     return JobServiceHandle(job_service, options)
 
   def create_job_service(self, options):
@@ -295,7 +304,7 @@ class PortableRunner(runner.PipelineRunner):
     job_endpoint = options.view_as(PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
-        server = job_server.EmbeddedJobServer()
+        server = job_server.EmbeddedJobServer()  # type: job_server.JobServer
       else:
         job_server_timeout = options.view_as(PortableOptions).job_server_timeout
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
@@ -459,6 +468,7 @@ class PipelineResult(runner.PipelineResult):
     self._runtime_exception = None
 
   def cancel(self):
+    # type: () -> None
     try:
       self._job_service.Cancel(
           beam_job_api_pb2.CancelJobRequest(job_id=self._job_id))
@@ -492,6 +502,7 @@ class PipelineResult(runner.PipelineResult):
     return self._metrics
 
   def _last_error_message(self):
+    # type: () -> str
     # Filter only messages with the "message_response" and error messages.
     messages = [
         m.message_response for m in self._messages
@@ -513,6 +524,7 @@ class PipelineResult(runner.PipelineResult):
     :return: The result of the pipeline, i.e. PipelineResult.
     """
     def read_messages():
+      # type: () -> None
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
@@ -572,6 +584,7 @@ class PipelineResult(runner.PipelineResult):
       self._cleanup()
 
   def _cleanup(self, on_exit=False):
+    # type: (bool) -> None
     if on_exit and self._cleanup_callbacks:
       _LOGGER.info(
           'Running cleanup on exit. If your pipeline should continue running, '

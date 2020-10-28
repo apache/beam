@@ -267,7 +267,7 @@ task commitWebsite {
     assert !file("${buildContentDir('apache')}/documentation/sdks/javadoc").exists()
     assert !file("${buildContentDir('apache')}/documentation/sdks/pydoc").exists()
 
-    def git = grgit.open()
+    def git = grgit.open(currentDir: project.rootDir)
     // get the latest commit on master
     def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
 
@@ -320,7 +320,7 @@ task publishWebsite {
   doLast {
     assert grgit : "Cannot publish website outside of git repository"
 
-    def git = grgit.open()
+    def git = grgit.open(currentDir: project.rootDir)
     git.checkout(branch: 'asf-site')
     if (!commitedChanges) {
       println 'No changes to push'

@@ -16,6 +16,10 @@
 
 from __future__ import absolute_import
 
+import collections
+import math
+
+import numpy as np
 import pandas as pd
 
 from apache_beam.dataframe import expressions
@@ -24,15 +28,380 @@ from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
 
 
-@frame_base.DeferredFrame._register_for(pd.Series)
-class DeferredSeries(frame_base.DeferredFrame):
+class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def __array__(self, dtype=None):
     raise frame_base.WontImplementError(
         'Conversion to a non-deferred a numpy array.')
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def droplevel(self, level, axis):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'droplevel',
+            lambda df: df.droplevel(level, axis=axis), [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Index()
+            if axis in (1, 'column') else partitionings.Nothing()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def fillna(self, value, method, axis, **kwargs):
+    if method is not None and axis in (0, 'index'):
+      raise frame_base.WontImplementError('order-sensitive')
+    if isinstance(value, frame_base.DeferredBase):
+      value_expr = value._expr
+    else:
+      value_expr = expressions.ConstantExpression(value)
+    return frame_base.DeferredFrame.wrap(
+        # yapf: disable
+        expressions.ComputedExpression(
+            'fillna',
+            lambda df,
+            value: df.fillna(value, method=method, axis=axis, **kwargs),
+            [self._expr, value_expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def ffill(self, **kwargs):
+    return self.fillna(method='ffill', **kwargs)
+
+  pad = ffill
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def groupby(self, by, level, axis, as_index, group_keys, **kwargs):
+    if not as_index:
+      raise NotImplementedError('groupby(as_index=False)')
+    if not group_keys:
+      raise NotImplementedError('groupby(group_keys=False)')
+
+    if axis in (1, 'columns'):
+      return _DeferredGroupByCols(
+          expressions.ComputedExpression(
+              'groupbycols',
+              lambda df: df.groupby(by, axis=axis, **kwargs), [self._expr],
+              requires_partition_by=partitionings.Nothing(),
+              preserves_partition_by=partitionings.Index()))
+
+    if level is None and by is None:
+      raise TypeError("You have to supply one of 'by' and 'level'")
+
+    elif level is not None:
+      if isinstance(level, (list, tuple)):
+        levels = level
+      else:
+        levels = [level]
+      all_levels = self._expr.proxy().index.names
+      levels = [all_levels[i] if isinstance(i, int) else i for i in levels]
+      levels_to_drop = self._expr.proxy().index.names.difference(levels)
+      if levels_to_drop:
+        to_group = self.droplevel(levels_to_drop)._expr
+      else:
+        to_group = self._expr
+
+    elif callable(by):
+
+      def map_index(df):
+        df = df.copy()
+        df.index = df.index.map(by)
+        return df
+
+      to_group = expressions.ComputedExpression(
+          'map_index',
+          map_index, [self._expr],
+          requires_partition_by=partitionings.Nothing(),
+          preserves_partition_by=partitionings.Singleton())
+
+    elif isinstance(by, DeferredSeries):
+
+      if isinstance(self, DeferredSeries):
+
+        def set_index(s, by):
+          df = pd.DataFrame(s)
+          df, by = df.align(by, axis=0)
+          return df.set_index(by).iloc[:, 0]
+
+      else:
+
+        def set_index(df, by):  # type: ignore
+          df, by = df.align(by, axis=0)
+          return df.set_index(by)
+
+      to_group = expressions.ComputedExpression(
+          'set_index',
+          set_index,  #
+          [self._expr, by._expr],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=partitionings.Singleton())
+
+    elif isinstance(by, np.ndarray):
+      raise frame_base.WontImplementError('order sensitive')
+
+    elif isinstance(self, DeferredDataFrame):
+      if not isinstance(by, list):
+        by = [by]
+      index_names = self._expr.proxy().index.names
+      index_names_in_by = list(set(by).intersection(index_names))
+      if index_names_in_by:
+        if set(by) == set(index_names):
+          to_group = self._expr
+        elif set(by).issubset(index_names):
+          to_group = self.droplevel(index_names.difference(by))._expr
+        else:
+          to_group = self.reset_index(index_names_in_by).set_index(by)._expr
+      else:
+        to_group = self.set_index(by)._expr
+
+    else:
+      raise NotImplementedError(by)
+
+    return DeferredGroupBy(
+        expressions.ComputedExpression(
+            'groupbyindex',
+            lambda df: df.groupby(
+                level=list(range(df.index.nlevels)), **kwargs), [to_group],
+            requires_partition_by=partitionings.Index(),
+            preserves_partition_by=partitionings.Singleton()),
+        kwargs)
+
+  abs = frame_base._elementwise_method('abs')
   astype = frame_base._elementwise_method('astype')
+  copy = frame_base._elementwise_method('copy')
+  get = frame_base.not_implemented_method('get')
+
+  @property
+  def dtype(self):
+    return self._expr.proxy().dtype
+
+  dtypes = dtype
+
+
+@frame_base.DeferredFrame._register_for(pd.Series)
+class DeferredSeries(DeferredDataFrameOrSeries):
+  def __getitem__(self, key):
+    if _is_null_slice(key) or key is Ellipsis:
+      return self
+
+    elif (isinstance(key, int) or _is_integer_slice(key)
+          ) and self._expr.proxy().index._should_fallback_to_positional():
+      raise frame_base.WontImplementError('order sensitive')
+
+    elif isinstance(key, slice) or callable(key):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              # yapf: disable
+              'getitem',
+              lambda df: df[key],
+              [self._expr],
+              requires_partition_by=partitionings.Nothing(),
+              preserves_partition_by=partitionings.Singleton()))
+
+    elif isinstance(key, DeferredSeries) and key._expr.proxy().dtype == bool:
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              # yapf: disable
+              'getitem',
+              lambda df,
+              indexer: df[indexer],
+              [self._expr, key._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Singleton()))
+
+    elif pd.core.series.is_iterator(key) or pd.core.common.is_bool_indexer(key):
+      raise frame_base.WontImplementError('order sensitive')
+
+    else:
+      # We could consider returning a deferred scalar, but that might
+      # be more surprising than a clear error.
+      raise frame_base.WontImplementError('non-deferred')
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def align(self, other, join, axis, level, method, **kwargs):
+    if level is not None:
+      raise NotImplementedError('per-level align')
+    if method is not None:
+      raise frame_base.WontImplementError('order-sensitive')
+    # We're using pd.concat here as expressions don't yet support
+    # multiple return values.
+    aligned = frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'align',
+            lambda x,
+            y: pd.concat([x, y], axis=1, join='inner'),
+            [self._expr, other._expr],
+            requires_partition_by=partitionings.Index(),
+            preserves_partition_by=partitionings.Index()))
+    return aligned.iloc[:, 0], aligned.iloc[:, 1]
+
+  array = property(frame_base.wont_implement_method('non-deferred value'))
 
   between = frame_base._elementwise_method('between')
+
+  def dot(self, other):
+    left = self._expr
+    if isinstance(other, DeferredSeries):
+      right = expressions.ComputedExpression(
+          'to_dataframe',
+          pd.DataFrame, [other._expr],
+          requires_partition_by=partitionings.Nothing(),
+          preserves_partition_by=partitionings.Index())
+      right_is_series = True
+    elif isinstance(other, DeferredDataFrame):
+      right = other._expr
+      right_is_series = False
+    else:
+      raise frame_base.WontImplementError('non-deferred result')
+
+    dots = expressions.ComputedExpression(
+        'dot',
+        # Transpose so we can sum across rows.
+        (lambda left, right: pd.DataFrame(left @ right).T),
+        [left, right],
+        requires_partition_by=partitionings.Index())
+    with expressions.allow_non_parallel_operations(True):
+      sums = expressions.ComputedExpression(
+          'sum',
+          lambda dots: dots.sum(),  #
+          [dots],
+          requires_partition_by=partitionings.Singleton())
+
+      if right_is_series:
+        result = expressions.ComputedExpression(
+            'extract',
+            lambda df: df[0], [sums],
+            requires_partition_by=partitionings.Singleton())
+      else:
+        result = sums
+      return frame_base.DeferredFrame.wrap(result)
+
+  __matmul__ = dot
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def std(self, axis, skipna, level, ddof, **kwargs):
+    if level is not None:
+      raise NotImplementedError("per-level aggregation")
+    if skipna is None or skipna:
+      self = self.dropna()  # pylint: disable=self-cls-assignment
+
+    # See the online, numerically stable formulae at
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+    # and
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+    def compute_moments(x):
+      n = len(x)
+      m = x.std(ddof=0)**2 * n
+      s = x.sum()
+      return pd.DataFrame(dict(m=[m], s=[s], n=[n]))
+
+    def combine_moments(data):
+      m = s = n = 0.0
+      for datum in data.itertuples():
+        if datum.n == 0:
+          continue
+        elif n == 0:
+          m, s, n = datum.m, datum.s, datum.n
+        else:
+          delta = s / n - datum.s / datum.n
+          m += datum.m + delta**2 * n * datum.n / (n + datum.n)
+          s += datum.s
+          n += datum.n
+      if n <= ddof:
+        return float('nan')
+      else:
+        return math.sqrt(m / (n - ddof))
+
+    moments = expressions.ComputedExpression(
+        'compute_moments',
+        compute_moments, [self._expr],
+        requires_partition_by=partitionings.Nothing())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_moments',
+              combine_moments, [moments],
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def corr(self, other, method, min_periods):
+    if method == 'pearson':  # Note that this is the default.
+      x, y = self.dropna().align(other.dropna(), 'inner')
+      return x._corr_aligned(y, min_periods)
+
+    else:
+      # The rank-based correlations are not obviously parallelizable, though
+      # perhaps an approximation could be done with a knowledge of quantiles
+      # and custom partitioning.
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'corr',
+              lambda df,
+              other: df.corr(other, method=method, min_periods=min_periods),
+              [self._expr, other._expr],
+              requires_partition_by=partitionings.Singleton()))
+
+  def _corr_aligned(self, other, min_periods):
+    std_x = self.std()
+    std_y = other.std()
+    cov = self._cov_aligned(other, min_periods)
+    return cov.apply(
+        lambda cov, std_x, std_y: cov / (std_x * std_y), args=[std_x, std_y])
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def cov(self, other, min_periods, ddof):
+    x, y = self.dropna().align(other.dropna(), 'inner')
+    return x._cov_aligned(y, min_periods, ddof)
+
+  def _cov_aligned(self, other, min_periods, ddof=1):
+    # Use the formulae from
+    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Covariance
+    def compute_co_moments(x, y):
+      n = len(x)
+      if n <= 1:
+        c = 0
+      else:
+        c = x.cov(y) * (n - 1)
+      sx = x.sum()
+      sy = y.sum()
+      return pd.DataFrame(dict(c=[c], sx=[sx], sy=[sy], n=[n]))
+
+    def combine_co_moments(data):
+      c = sx = sy = n = 0.0
+      for datum in data.itertuples():
+        if datum.n == 0:
+          continue
+        elif n == 0:
+          c, sx, sy, n = datum.c, datum.sx, datum.sy, datum.n
+        else:
+          c += (
+              datum.c + (sx / n - datum.sx / datum.n) *
+              (sy / n - datum.sy / datum.n) * n * datum.n / (n + datum.n))
+          sx += datum.sx
+          sy += datum.sy
+          n += datum.n
+      if n < max(2, ddof, min_periods or 0):
+        return float('nan')
+      else:
+        return c / (n - ddof)
+
+    moments = expressions.ComputedExpression(
+        'compute_co_moments',
+        compute_co_moments, [self._expr, other._expr],
+        requires_partition_by=partitionings.Index())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_co_moments',
+              combine_co_moments, [moments],
+              requires_partition_by=partitionings.Singleton()))
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -52,23 +421,8 @@ class DeferredSeries(frame_base.DeferredFrame):
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
-  @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
-  @frame_base.maybe_inplace
-  def fillna(self, value, method):
-    if method is not None:
-      raise frame_base.WontImplementError('order-sensitive')
-    if isinstance(value, frame_base.DeferredBase):
-      value_expr = value._expr
-    else:
-      value_expr = expressions.ConstantExpression(value)
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'fillna',
-            lambda df,
-            value: df.fillna(value, method=method), [self._expr, value_expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=partitionings.Nothing()))
+  reindex = frame_base.not_implemented_method('reindex')
+  rolling = frame_base.not_implemented_method('rolling')
 
   to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
 
@@ -104,6 +458,12 @@ class DeferredSeries(frame_base.DeferredFrame):
 
   agg = aggregate
 
+  @property
+  def axes(self):
+    return [self.index]
+
+  clip = frame_base._elementwise_method('clip')
+
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
   min = frame_base._agg_method('min')
@@ -116,6 +476,13 @@ class DeferredSeries(frame_base.DeferredFrame):
   diff = frame_base.wont_implement_method('order-sensitive')
 
   head = tail = frame_base.wont_implement_method('order-sensitive')
+
+  filter = frame_base._elementwise_method('filter')
+
+  memory_usage = frame_base.wont_implement_method('non-deferred value')
+
+  # In Series __contains__ checks the index
+  __contains__ = frame_base.wont_implement_method('non-deferred value')
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
@@ -161,6 +528,9 @@ class DeferredSeries(frame_base.DeferredFrame):
               lambda df: df.nsmallest(**kwargs), [per_partition],
               preserves_partition_by=partitionings.Singleton(),
               requires_partition_by=partitionings.Singleton()))
+
+  plot = frame_base.wont_implement_method('plot')
+  pop = frame_base.wont_implement_method('non-lazy')
 
   rename_axis = frame_base._elementwise_method('rename_axis')
 
@@ -218,58 +588,22 @@ class DeferredSeries(frame_base.DeferredFrame):
 
   @property
   def str(self):
-    expr = expressions.ComputedExpression(
-        'str',
-        lambda df: df.str, [self._expr],
-        requires_partition_by=partitionings.Nothing(),
-        preserves_partition_by=partitionings.Singleton())
-    return _DeferredStringMethods(expr)
+    return _DeferredStringMethods(self._expr)
 
 
-for base in ['add',
-             'sub',
-             'mul',
-             'div',
-             'truediv',
-             'floordiv',
-             'mod',
-             'pow',
-             'and',
-             'or']:
-  for p in ['%s', 'r%s', '__%s__', '__r%s__']:
-    # TODO: non-trivial level?
-    name = p % base
-    setattr(
-        DeferredSeries,
-        name,
-        frame_base._elementwise_method(name, restrictions={'level': None}))
-  setattr(
-      DeferredSeries,
-      '__i%s__' % base,
-      frame_base._elementwise_method('__i%s__' % base, inplace=True))
-for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
 for name in ['apply', 'map', 'transform']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
 
 
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
-class DeferredDataFrame(frame_base.DeferredFrame):
+class DeferredDataFrame(DeferredDataFrameOrSeries):
   @property
   def T(self):
     return self.transpose()
 
-  def groupby(self, by):
-    # TODO: what happens to the existing index?
-    # We set the columns to index as we have a notion of being partitioned by
-    # index, but not partitioned by an arbitrary subset of columns.
-    return DeferredGroupBy(
-        expressions.ComputedExpression(
-            'groupbyindex',
-            lambda df: df.groupby(level=list(range(df.index.nlevels))),
-            [self.set_index(by)._expr],
-            requires_partition_by=partitionings.Index(),
-            preserves_partition_by=partitionings.Singleton()))
+  @property
+  def columns(self):
+    return self._expr.proxy().columns
 
   def __getattr__(self, name):
     # Column attribute access.
@@ -280,15 +614,44 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   def __getitem__(self, key):
     # TODO: Replicate pd.DataFrame.__getitem__ logic
-    if (isinstance(key, list) and
-        all(key_column in self._expr.proxy().columns
-            for key_column in key)) or key in self._expr.proxy().columns:
+    if isinstance(key, DeferredSeries) and key._expr.proxy().dtype == bool:
+      return self.loc[key]
+
+    elif isinstance(key, frame_base.DeferredBase):
+      # Fail early if key is a DeferredBase as it interacts surprisingly with
+      # key in self._expr.proxy().columns
+      raise NotImplementedError(
+          "Indexing with a non-bool deferred frame is not yet supported. "
+          "Consider using df.loc[...]")
+
+    elif isinstance(key, slice):
+      if _is_null_slice(key):
+        return self
+      elif _is_integer_slice(key):
+        # This depends on the contents of the index.
+        raise frame_base.WontImplementError(
+            'Use iloc or loc with integer slices.')
+      else:
+        return self.loc[key]
+
+    elif (isinstance(key, list) and
+          all(key_column in self._expr.proxy().columns
+              for key_column in key)) or key in self._expr.proxy().columns:
       return self._elementwise(lambda df: df[key], 'get_column')
+
     else:
       raise NotImplementedError(key)
 
+  def __contains__(self, key):
+    # Checks if proxy has the given column
+    return self._expr.proxy().__contains__(key)
+
   def __setitem__(self, key, value):
-    if isinstance(key, str):
+    if isinstance(
+        key, str) or (isinstance(key, list) and
+                      all(isinstance(c, str)
+                          for c in key)) or (isinstance(key, DeferredSeries) and
+                                             key._expr.proxy().dtype == bool):
       # yapf: disable
       return self._elementwise(
           lambda df, key, value: df.__setitem__(key, value),
@@ -314,12 +677,52 @@ class DeferredDataFrame(frame_base.DeferredFrame):
           requires_partition_by=partitionings.Nothing(),
           preserves_partition_by=partitionings.Nothing()))
 
-  def at(self, *args, **kwargs):
-    raise NotImplementedError()
+  at = frame_base.not_implemented_method('at')
 
   @property
   def loc(self):
     return _DeferredLoc(self)
+
+  @property
+  def iloc(self):
+    return _DeferredILoc(self)
+
+  def _get_index(self):
+    return _DeferredIndex(self)
+
+  index = property(_get_index, frame_base.not_implemented_method('index'))
+
+  @property
+  def axes(self):
+    return (self.index, self.columns)
+
+  @property
+  def dtypes(self):
+    return self._expr.proxy().dtypes
+
+  def assign(self, **kwargs):
+    for name, value in kwargs.items():
+      if not callable(value) and not isinstance(value, DeferredSeries):
+        raise frame_base.WontImplementError("Unsupported value for new "
+                                            f"column '{name}': '{value}'. "
+                                            "Only callables and Series "
+                                            "instances are supported.")
+    return frame_base._elementwise_method('assign')(self, **kwargs)
+
+
+  apply = frame_base.not_implemented_method('apply')
+  explode = frame_base.not_implemented_method('explode')
+  isin = frame_base.not_implemented_method('isin')
+  append = frame_base.not_implemented_method('append')
+  combine = frame_base.not_implemented_method('combine')
+  combine_first = frame_base.not_implemented_method('combine_first')
+  count = frame_base.not_implemented_method('count')
+  drop = frame_base.not_implemented_method('drop')
+  eval = frame_base.not_implemented_method('eval')
+  reindex = frame_base.not_implemented_method('reindex')
+  melt = frame_base.not_implemented_method('melt')
+  pivot = frame_base.not_implemented_method('pivot')
+  pivot_table = frame_base.not_implemented_method('pivot_table')
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
@@ -383,13 +786,118 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   applymap = frame_base._elementwise_method('applymap')
 
   memory_usage = frame_base.wont_implement_method('non-deferred value')
+  info = frame_base.wont_implement_method('non-deferred value')
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
 
+  clip = frame_base._elementwise_method(
+      'clip', restrictions={'axis': lambda axis: axis in (0, 'index')})
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def corr(self, method, min_periods):
+    if method == 'pearson':
+      proxy = self._expr.proxy().corr()
+      columns = list(proxy.columns)
+      args = []
+      arg_indices = []
+      for ix, col1 in enumerate(columns):
+        for col2 in columns[ix+1:]:
+          arg_indices.append((col1, col2))
+          # Note that this set may be different for each pair.
+          no_na = self.loc[self[col1].notna() & self[col2].notna()]
+          args.append(
+              no_na[col1]._corr_aligned(no_na[col2], min_periods))
+      def fill_matrix(*args):
+        data = collections.defaultdict(dict)
+        for col in columns:
+          data[col][col] = 1.0
+        for ix, (col1, col2) in enumerate(arg_indices):
+          data[col1][col2] = data[col2][col1] = args[ix]
+        return pd.DataFrame(data, columns=columns, index=columns)
+      with expressions.allow_non_parallel_operations(True):
+        return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'fill_matrix',
+                fill_matrix,
+                [arg._expr for arg in args],
+                requires_partition_by=partitionings.Singleton(),
+                proxy=proxy))
+
+    else:
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'corr',
+              lambda df: df.corr(method=method, min_periods=min_periods),
+              [self._expr],
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def cov(self, min_periods, ddof):
+    proxy = self._expr.proxy().corr()
+    columns = list(proxy.columns)
+    args = []
+    arg_indices = []
+    for col in columns:
+      arg_indices.append((col, col))
+      std = self[col].std(ddof)
+      args.append(std.apply(lambda x: x*x, 'square'))
+    for ix, col1 in enumerate(columns):
+      for col2 in columns[ix+1:]:
+        arg_indices.append((col1, col2))
+        # Note that this set may be different for each pair.
+        no_na = self.loc[self[col1].notna() & self[col2].notna()]
+        args.append(no_na[col1]._cov_aligned(no_na[col2], min_periods, ddof))
+    def fill_matrix(*args):
+      data = collections.defaultdict(dict)
+      for ix, (col1, col2) in enumerate(arg_indices):
+        data[col1][col2] = data[col2][col1] = args[ix]
+      return pd.DataFrame(data, columns=columns, index=columns)
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'fill_matrix',
+              fill_matrix,
+              [arg._expr for arg in args],
+              requires_partition_by=partitionings.Singleton(),
+              proxy=proxy))
+
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
+
+  def dot(self, other):
+    # We want to broadcast the right hand side to all partitions of the left.
+    # This is OK, as its index must be the same size as the columns set of self,
+    # so cannot be too large.
+    class AsScalar(object):
+      def __init__(self, value):
+        self.value = value
+
+    if isinstance(other, frame_base.DeferredFrame):
+      proxy = other._expr.proxy()
+      with expressions.allow_non_parallel_operations():
+        side = expressions.ComputedExpression(
+            'as_scalar',
+            lambda df: AsScalar(df),
+            [other._expr],
+            requires_partition_by=partitionings.Singleton())
+    else:
+      proxy = pd.DataFrame(columns=range(len(other[0])))
+      side = expressions.ConstantExpression(AsScalar(other))
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'dot',
+            lambda left, right: left @ right.value,
+            [self._expr, side],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Index(),
+            proxy=proxy))
+
+  __matmul__ = dot
 
   head = tail = frame_base.wont_implement_method('order-sensitive')
 
@@ -398,6 +906,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   def mode(self, axis=0, *args, **kwargs):
     if axis == 1 or axis == 'columns':
+      # Number of columns is max(number mode values for each row), so we can't
+      # determine how many there will be before looking at the data.
       raise frame_base.WontImplementError('non-deferred column values')
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -424,25 +934,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
-  def fillna(self, value, method, axis, **kwargs):
-    if method is not None and axis in (0, 'index'):
-      raise frame_base.WontImplementError('order-sensitive')
-    if isinstance(value, frame_base.DeferredBase):
-      value_expr = value._expr
-    else:
-      value_expr = expressions.ConstantExpression(value)
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'fillna',
-            lambda df, value: df.fillna(
-                value, method=method, axis=axis, **kwargs),
-            [self._expr, value_expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=partitionings.Nothing()))
 
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
@@ -628,6 +1119,18 @@ class DeferredDataFrame(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
+  plot = frame_base.wont_implement_method('plot')
+
+  def pop(self, item):
+    result = self[item]
+    self._expr = expressions.ComputedExpression(
+            'popped',
+            lambda df: (df.pop(item), df)[-1],
+            [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing())
+    return result
+
   prod = product = frame_base._agg_method('prod')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -699,7 +1202,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def reset_index(self, level=None, **kwargs):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
-    if level is None or len(level) == len(self._expr.proxy().index.levels):
+    if level is None or len(level) == self._expr.proxy().index.nlevels:
       # TODO: Could do distributed re-index with offsets.
       requires_partition_by = partitionings.Singleton()
     else:
@@ -766,8 +1269,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
 
-  def transpose(self, *args, **kwargs):
-    raise frame_base.WontImplementError('non-deferred column values')
+  transpose = frame_base.wont_implement_method('non-deferred column values')
 
   def unstack(self, *args, **kwargs):
     if self._expr.proxy().index.nlevels == 1:
@@ -786,19 +1288,29 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       requires_partition_by=partitionings.Index(),
       preserves_partition_by=partitionings.Index())
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def to_csv(self, path_or_buf, **kwargs):
-    return io.write_csv(self, path_or_buf, **kwargs)
+  values = property(frame_base.wont_implement_method('non-deferred value'))
+
+
+for io_func in dir(io):
+  if io_func.startswith('to_'):
+    setattr(DeferredDataFrame, io_func, getattr(io, io_func))
+
 
 for meth in ('filter', ):
   setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))
 
 
 class DeferredGroupBy(frame_base.DeferredFrame):
+  def __init__(self, expr, kwargs):
+    super(DeferredGroupBy, self).__init__(expr)
+    self._kwargs = kwargs
+
   def agg(self, fn):
     if not callable(fn):
-      raise NotImplementedError(fn)
+      # TODO: Add support for strings in (UN)LIFTABLE_AGGREGATIONS. Test by
+      # running doctests for pandas.core.groupby.generic
+      raise NotImplementedError('GroupBy.agg currently only supports callable '
+                                'arguments')
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'agg',
@@ -806,22 +1318,37 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Index(),
             preserves_partition_by=partitionings.Singleton()))
 
+  aggregate = agg
+
+  first = last = head = tail = frame_base.not_implemented_method(
+      'order sensitive')
+
+  # TODO(robertwb): Consider allowing this for categorical keys.
+  __len__ = frame_base.wont_implement_method('non-deferred')
+  get_group = __getitem__ = frame_base.not_implemented_method('get_group')
+  groups = property(frame_base.wont_implement_method('non-deferred'))
+
 
 def _liftable_agg(meth):
   name, func = frame_base.name_and_func(meth)
 
-  def wrapper(self, *args, **kargs):
+  def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
     ungrouped = self._expr.args()[0]
+    groupby_kwargs = self._kwargs
     pre_agg = expressions.ComputedExpression(
         'pre_combine_' + name,
-        lambda df: func(df.groupby(level=list(range(df.index.nlevels)))),
+        lambda df: func(
+            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
+            **kwargs),
         [ungrouped],
         requires_partition_by=partitionings.Nothing(),
         preserves_partition_by=partitionings.Singleton())
     post_agg = expressions.ComputedExpression(
         'post_combine_' + name,
-        lambda df: func(df.groupby(level=list(range(df.index.nlevels)))),
+        lambda df: func(
+            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
+            **kwargs),
         [pre_agg],
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
@@ -833,12 +1360,15 @@ def _liftable_agg(meth):
 def _unliftable_agg(meth):
   name, func = frame_base.name_and_func(meth)
 
-  def wrapper(self, *args, **kargs):
+  def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
     ungrouped = self._expr.args()[0]
+    groupby_kwargs = self._kwargs
     post_agg = expressions.ComputedExpression(
         name,
-        lambda df: func(df.groupby(level=list(range(df.index.nlevels)))),
+        lambda df: func(
+            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
+            **kwargs),
         [ungrouped],
         requires_partition_by=partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
@@ -859,6 +1389,99 @@ def _is_associative(func):
   return func in LIFTABLE_AGGREGATIONS or (
       getattr(func, '__name__', None) in LIFTABLE_AGGREGATIONS
       and func.__module__ in ('numpy', 'builtins'))
+
+
+class _DeferredGroupByCols(frame_base.DeferredFrame):
+  # It's not clear that all of these make sense in Pandas either...
+  agg = aggregate = frame_base._elementwise_method('agg')
+  any = frame_base._elementwise_method('any')
+  all = frame_base._elementwise_method('all')
+  apply = frame_base.not_implemented_method('apply')
+  backfill = bfill = frame_base.not_implemented_method('backfill')
+  boxplot = frame_base.wont_implement_method('plot')
+  corr = frame_base.not_implemented_method('corr')
+  corrwith = frame_base.not_implemented_method('corrwith')
+  cov = frame_base.not_implemented_method('cov')
+  cumcount = cummax = cummin = cumprod = cumsum = (
+      frame_base.not_implemented_method('cum*'))
+  describe = frame_base.wont_implement_method('describe')
+  diff = frame_base._elementwise_method('diff')
+  dtypes = frame_base.not_implemented_method('dtypes')
+  expanding = frame_base.not_implemented_method('expanding')
+  ffill = frame_base.not_implemented_method('ffill')
+  fillna = frame_base._elementwise_method('fillna')
+  filter = frame_base._elementwise_method('filter')
+  first = frame_base.wont_implement_method('order sensitive')
+  get_group = frame_base._elementwise_method('group')
+  head = frame_base.wont_implement_method('order sensitive')
+  hist = frame_base.wont_implement_method('plot')
+  idxmax = frame_base._elementwise_method('idxmax')
+  idxmin = frame_base._elementwise_method('idxmin')
+  last = frame_base.wont_implement_method('order sensitive')
+  mad = frame_base._elementwise_method('mad')
+  max = frame_base._elementwise_method('max')
+  mean = frame_base._elementwise_method('mean')
+  median = frame_base._elementwise_method('median')
+  min = frame_base._elementwise_method('min')
+  nth = frame_base.not_implemented_method('nth')
+  nunique = frame_base._elementwise_method('nunique')
+  ohlc = frame_base.not_implemented_method('ohlc')
+  pad = frame_base.not_implemented_method('pad')
+  pct_change = frame_base.not_implemented_method('pct_change')
+  pipe = frame_base.not_implemented_method('pipe')
+  plot = frame_base.wont_implement_method('plot')
+  prod = frame_base._elementwise_method('prod')
+  quantile = frame_base._elementwise_method('quantile')
+  rank = frame_base.not_implemented_method('rank')
+  resample = frame_base.not_implemented_method('resample')
+  rolling = frame_base.not_implemented_method('rolling')
+  sample = frame_base.not_implemented_method('sample')
+  shift = frame_base._elementwise_method('shift')
+  size = frame_base._elementwise_method('size')
+  skew = frame_base._elementwise_method('skew')
+  std = frame_base._elementwise_method('std')
+  sum = frame_base._elementwise_method('sum')
+  tail = frame_base.wont_implement_method('order sensitive')
+  take = frame_base.wont_implement_method('deprectated')
+  transform = frame_base.not_implemented_method('transform')
+  tshift = frame_base._elementwise_method('tshift')
+  var = frame_base._elementwise_method('var')
+
+  @property
+  def groups(self):
+    return self._expr.proxy().groups
+
+  @property
+  def indices(self):
+    return self._expr.proxy().indices
+
+  @property
+  def ndim(self):
+    return self._expr.proxy().ndim
+
+  @property
+  def ngroups(self):
+    return self._expr.proxy().ngroups
+
+
+class _DeferredIndex(object):
+  def __init__(self, frame):
+    self._frame = frame
+
+  @property
+  def names(self):
+    return self._frame._expr.proxy().index.names
+
+  @property
+  def ndim(self):
+    return self._frame._expr.proxy().index.ndim
+
+  @property
+  def nlevels(self):
+    return self._frame._expr.proxy().index.nlevels
+
+  def __getattr__(self, name):
+    raise NotImplementedError('index.%s' % name)
 
 
 class _DeferredLoc(object):
@@ -912,8 +1535,91 @@ class _DeferredLoc(object):
                 else partitionings.Nothing()),
             preserves_partition_by=partitionings.Singleton()))
 
+  __setitem__ = frame_base.not_implemented_method('loc.setitem')
+
+class _DeferredILoc(object):
+  def __init__(self, frame):
+    self._frame = frame
+
+  def __getitem__(self, index):
+    if isinstance(index, tuple):
+      rows, _ = index
+      if rows != slice(None, None, None):
+        raise frame_base.WontImplementError('order-sensitive')
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'iloc',
+              lambda df: df.iloc[index],
+              [self._frame._expr],
+              requires_partition_by=partitionings.Nothing(),
+              preserves_partition_by=partitionings.Singleton()))
+    else:
+      raise frame_base.WontImplementError('order-sensitive')
+
+  __setitem__ = frame_base.wont_implement_method('iloc.setitem')
+
+
 class _DeferredStringMethods(frame_base.DeferredBase):
-  pass
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def cat(self, others, join, **kwargs):
+    if others is None:
+      # Concatenate series into a single String
+      requires = partitionings.Singleton()
+      func = lambda df: df.str.cat(join=join, **kwargs)
+      args = [self._expr]
+
+    elif (isinstance(others, frame_base.DeferredBase) or
+         (isinstance(others, list) and
+          all(isinstance(other, frame_base.DeferredBase) for other in others))):
+      if join is None:
+        raise frame_base.WontImplementError("cat with others=Series or "
+                                            "others=List[Series] requires "
+                                            "join to be specified.")
+
+      if isinstance(others, frame_base.DeferredBase):
+        others = [others]
+
+      requires = partitionings.Index()
+      def func(*args):
+        return args[0].str.cat(others=args[1:], join=join, **kwargs)
+      args = [self._expr] + [other._expr for other in others]
+
+    else:
+      raise frame_base.WontImplementError("others must be None, Series, or "
+                                          "List[Series]. List[str] is not "
+                                          "supported.")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'cat',
+            func,
+            args,
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  def repeat(self, repeats):
+    if isinstance(repeats, int):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'repeat',
+              lambda series: series.str.repeat(repeats),
+              [self._expr],
+              requires_partition_by=partitionings.Nothing(),
+              preserves_partition_by=partitionings.Singleton()))
+    elif isinstance(repeats, frame_base.DeferredBase):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'repeat',
+              lambda series, repeats_series: series.str.repeat(repeats_series),
+              [self._expr, repeats._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Singleton()))
+    elif isinstance(repeats, list):
+      raise frame_base.WontImplementError("repeats must be an integer or a "
+                                          "Series.")
+
 
 ELEMENTWISE_STRING_METHODS = [
             'capitalize',
@@ -958,7 +1664,68 @@ ELEMENTWISE_STRING_METHODS = [
             '__getitem__',
 ]
 
+def make_str_func(method):
+  def func(df, *args, **kwargs):
+    return getattr(df.str, method)(*args, **kwargs)
+  return func
+
 for method in ELEMENTWISE_STRING_METHODS:
   setattr(_DeferredStringMethods,
           method,
-          frame_base._elementwise_method(method))
+          frame_base._elementwise_method(make_str_func(method)))
+
+for base in ['add',
+             'sub',
+             'mul',
+             'div',
+             'truediv',
+             'floordiv',
+             'mod',
+             'divmod',
+             'pow',
+             'and',
+             'or']:
+  for p in ['%s', 'r%s', '__%s__', '__r%s__']:
+    # TODO: non-trivial level?
+    name = p % base
+    setattr(
+        DeferredSeries,
+        name,
+        frame_base._elementwise_method(name, restrictions={'level': None}))
+    setattr(
+        DeferredDataFrame,
+        name,
+        frame_base._elementwise_method(name, restrictions={'level': None}))
+  setattr(
+      DeferredSeries,
+      '__i%s__' % base,
+      frame_base._elementwise_method('__i%s__' % base, inplace=True))
+  setattr(
+      DeferredDataFrame,
+      '__i%s__' % base,
+      frame_base._elementwise_method('__i%s__' % base, inplace=True))
+
+for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
+  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
+  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+
+for name in ['__neg__', '__pos__', '__invert__']:
+  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
+  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+
+DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
+DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
+
+
+def _slice_parts(s):
+  yield s.start
+  yield s.stop
+  yield s.step
+
+def _is_null_slice(s):
+  return isinstance(s, slice) and all(x is None for x in _slice_parts(s))
+
+def _is_integer_slice(s):
+  return isinstance(s, slice) and all(
+      x is None or isinstance(x, int)
+      for x in _slice_parts(s)) and not _is_null_slice(s)

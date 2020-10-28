@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 
 /** Logic that specifies how to apply translations when traversing the nodes of a Beam pipeline. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class JetGraphVisitor extends Pipeline.PipelineVisitor.Defaults {
 
   private final JetTranslationContext translationContext;

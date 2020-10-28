@@ -90,6 +90,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for GroupingShuffleReader. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GroupingShuffleReaderTest {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
   private static final List<KV<Integer, List<KV<Integer, Integer>>>> NO_KVS =

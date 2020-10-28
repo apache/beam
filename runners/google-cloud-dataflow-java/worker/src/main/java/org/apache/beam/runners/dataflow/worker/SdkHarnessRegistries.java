@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Factory to create SdkHarnessRegistry */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SdkHarnessRegistries {
 
   /** Create a registry which does not require sdkHarness registration for non fnapi worker. */
@@ -224,27 +225,23 @@ public class SdkHarnessRegistries {
 
     private final SdkWorkerHarness sdkWorkerHarness =
         new SdkWorkerHarness() {
-          @Nullable
           @Override
-          public FnApiControlClient getControlClientHandler() {
+          public @Nullable FnApiControlClient getControlClientHandler() {
             return null;
           }
 
-          @Nullable
           @Override
-          public String getWorkerId() {
+          public @Nullable String getWorkerId() {
             return null;
           }
 
-          @Nullable
           @Override
-          public GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
+          public @Nullable GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
             return null;
           }
 
-          @Nullable
           @Override
-          public GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
+          public @Nullable GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
             return null;
           }
         };
@@ -274,15 +271,13 @@ public class SdkHarnessRegistries {
     @Override
     public void completeWork(SdkWorkerHarness worker) {}
 
-    @Nullable
     @Override
-    public ApiServiceDescriptor beamFnStateApiServiceDescriptor() {
+    public @Nullable ApiServiceDescriptor beamFnStateApiServiceDescriptor() {
       return null;
     }
 
-    @Nullable
     @Override
-    public ApiServiceDescriptor beamFnDataApiServiceDescriptor() {
+    public @Nullable ApiServiceDescriptor beamFnDataApiServiceDescriptor() {
       return null;
     }
   }

@@ -72,6 +72,7 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
@@ -110,7 +111,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageId
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -121,7 +121,6 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
-import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -189,6 +188,7 @@ import org.slf4j.LoggerFactory;
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
@@ -355,7 +355,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new IllegalArgumentException(
           "Project ID '"
               + project
-              + "' invalid. Please make sure you specified the Project ID, not project description.");
+              + "' invalid. Please make sure you specified the Project ID, not project"
+              + " description.");
     }
 
     DataflowPipelineDebugOptions debugOptions =
@@ -373,16 +374,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // Adding the Java version to the SDK name for user's and support convenience.
-    String javaVersion =
-        Float.parseFloat(System.getProperty("java.specification.version")) >= 9
-            ? "(JDK 11 environment)"
-            : "(JRE 8 environment)";
+    String agentJavaVer =
+        (Environments.getJavaVersion() == Environments.JavaVersion.v8)
+            ? "(JRE 8 environment)"
+            : "(JDK 11 environment)";
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgent =
         String.format(
                 "%s/%s%s",
-                dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), javaVersion)
+                dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), agentJavaVer)
             .replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 
@@ -480,24 +481,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.writeWithRunnerDeterminedSharding(),
+              new StreamingShardedWriteFactory(options)));
       if (fnApiEnabled) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(Create.Values.class),
                 new StreamingFnApiCreateOverrideFactory()));
       }
-      overridesBuilder.add(
-          PTransformOverride.of(
-              PTransformMatchers.writeWithRunnerDeterminedSharding(),
-              new StreamingShardedWriteFactory(options)));
 
       overridesBuilder.add(
           PTransformOverride.of(
               PTransformMatchers.groupWithShardableStates(),
               new GroupIntoBatchesOverride.StreamingGroupIntoBatchesOverrideFactory(this)));
 
-      if (!fnApiEnabled
-          || ExperimentalOptions.hasExperiment(options, "beam_fn_api_use_deprecated_read")) {
+      if (!fnApiEnabled) {
         overridesBuilder
             .add(
                 // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read, and
@@ -520,6 +520,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // Dataflow Streaming runner overrides the SPLITTABLE_PROCESS_KEYED transform
       // natively in the Dataflow service.
     } else {
+      if (!fnApiEnabled) {
+        overridesBuilder.add(SplittableParDo.PRIMITIVE_BOUNDED_READ_OVERRIDE);
+      }
       overridesBuilder
           // Replace GroupIntoBatches before the state/timer replacements below since
           // GroupIntoBatches internally uses a stateful DoFn.
@@ -613,9 +616,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>>
-            transform) {
+    public PTransformReplacement<PCollection<InputT>, PCollectionView<ViewT>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<InputT>,
+                    PCollectionView<ViewT>,
+                    PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
+                transform) {
       Combine.GloballyAsSingletonView<?, ?> combineTransform =
           (Combine.GloballyAsSingletonView) transform.getTransform();
       return PTransformReplacement.of(
@@ -635,20 +642,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class ReflectiveViewOverrideFactory<InputT, ViewT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>> {
+          PCollection<InputT>,
+          PCollectionView<ViewT>,
+          PTransform<PCollection<InputT>, PCollectionView<ViewT>>> {
 
-    final Class<PTransform<PCollection<InputT>, PValue>> replacement;
+    final Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement;
     final DataflowRunner runner;
 
     private ReflectiveViewOverrideFactory(
-        Class<PTransform<PCollection<InputT>, PValue>> replacement, DataflowRunner runner) {
+        Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement,
+        DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
 
     CreatePCollectionView<ViewT, ViewT> findCreatePCollectionView(
         final AppliedPTransform<
-                PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>>
+                PCollection<InputT>,
+                PCollectionView<ViewT>,
+                PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
             transform) {
       final AtomicReference<CreatePCollectionView> viewTransformRef = new AtomicReference<>();
       transform
@@ -696,12 +708,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
-        final AppliedPTransform<
-                PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>>
-            transform) {
+    public PTransformReplacement<PCollection<InputT>, PCollectionView<ViewT>>
+        getReplacementTransform(
+            final AppliedPTransform<
+                    PCollection<InputT>,
+                    PCollectionView<ViewT>,
+                    PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
+                transform) {
 
-      PTransform<PCollection<InputT>, PValue> rep =
+      PTransform<PCollection<InputT>, PCollectionView<ViewT>> rep =
           InstanceBuilder.ofType(replacement)
               .withArg(DataflowRunner.class, runner)
               .withArg(CreatePCollectionView.class, findCreatePCollectionView(transform))
@@ -711,11 +726,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PValue newOutput) {
-      // We do not replace any of the outputs because we expect that the new PTransform will
-      // re-use the original PCollectionView that was returned.
-      return ImmutableMap.of();
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollectionView<ViewT> newOutput) {
+      /*
+      The output of View.AsXYZ is a PCollectionView that expands to the PCollection to be materialized.
+      The PCollectionView itself must have the same tag since that tag may have been embedded in serialized DoFns
+      previously and cannot easily be rewired. The PCollection may differ, so we rewire it, even if the rewiring
+      is a noop.
+      */
+      return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
 
@@ -1126,8 +1145,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new DataflowJobAlreadyExistsException(
             dataflowPipelineJob,
             String.format(
-                "There is already an active job named %s with id: %s. If you want "
-                    + "to submit a second job, try again by setting a different name using --jobName.",
+                "There is already an active job named %s with id: %s. If you want to submit a"
+                    + " second job, try again by setting a different name using --jobName.",
                 newJob.getName(), jobResult.getId()));
       }
     }
@@ -1254,10 +1273,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           });
 
       LOG.warn(
-          "Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
-              + "because the key coder is not deterministic. Falling back to singleton implementation "
-              + "which may cause memory and/or performance problems. Future major versions of "
-              + "Dataflow will require deterministic key coders.",
+          "Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} because"
+              + " the key coder is not deterministic. Falling back to singleton implementation"
+              + " which may cause memory and/or performance problems. Future major versions of"
+              + " Dataflow will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
   }
@@ -1313,8 +1332,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<PubsubMessage> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<PubsubMessage> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1513,8 +1532,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1642,8 +1661,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1769,8 +1788,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1908,8 +1927,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<KV<K, OutputT>> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KV<K, OutputT>> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1932,8 +1951,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PDone newOutput) {
       return Collections.emptyMap();
     }
   }
@@ -1995,8 +2014,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, WriteFilesResult<DestinationT> newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
@@ -2005,8 +2024,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static String getContainerImageForJob(DataflowPipelineOptions options) {
     String workerHarnessContainerImage = options.getWorkerHarnessContainerImage();
 
+    Environments.JavaVersion javaVersion = Environments.getJavaVersion();
     String javaVersionId =
-        Float.parseFloat(System.getProperty("java.specification.version")) >= 9 ? "java11" : "java";
+        (javaVersion == Environments.JavaVersion.v8) ? "java" : javaVersion.toString();
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
     } else if (hasExperiment(options, "beam_fn_api")) {
@@ -2042,12 +2062,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String.format(
               "%s does not currently support %s",
               DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
-    }
-    if (DoFnSignatures.usesOrderedListState(fn)) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support %s",
-              DataflowRunner.class.getSimpleName(), OrderedListState.class.getSimpleName()));
     }
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
       throw new UnsupportedOperationException(

@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
  * of the {@link org.apache.beam.runners.core.TimerInternals.TimerData} added to the sorted timer
  * set, and removes the ready timers when the watermark is advanced.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaTimerInternalsFactory.class);
 

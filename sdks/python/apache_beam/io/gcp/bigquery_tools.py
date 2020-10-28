@@ -50,6 +50,8 @@ from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.internal.metrics.metric import MetricLogger
+from apache_beam.internal.metrics.metric import Metrics
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -59,6 +61,7 @@ from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
+from apache_beam.utils.histogram import LinearBucket
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -261,6 +264,8 @@ class BigQueryWrapper(object):
   TEMP_TABLE = 'temp_table_'
   TEMP_DATASET = 'temp_dataset_'
 
+  HISTOGRAM_METRIC_LOGGER = MetricLogger()
+
   def __init__(self, client=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
@@ -271,6 +276,11 @@ class BigQueryWrapper(object):
     # randomized prefix for row IDs.
     self._row_id_prefix = '' if client else uuid.uuid4()
     self._temporary_table_suffix = uuid.uuid4().hex
+    self._latency_histogram_metric = Metrics.histogram(
+        self.__class__,
+        'latency_histogram_ms',
+        LinearBucket(0, 20, 3000),
+        BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
 
   @property
   def unique_row_id(self):
@@ -380,10 +390,7 @@ class BigQueryWrapper(object):
             jobReference=reference,
         ))
 
-    _LOGGER.info("Inserting job request: %s", request)
-    response = self.client.jobs.Insert(request)
-    _LOGGER.info("Response was %s", response)
-    return response.jobReference
+    return self._start_job(request).jobReference
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -421,8 +428,36 @@ class BigQueryWrapper(object):
             ),
             jobReference=reference,
         ))
-    response = self.client.jobs.Insert(request)
-    return response.jobReference
+    return self._start_job(request).jobReference
+
+  def _start_job(
+      self,
+      request  # type: bigquery.BigqueryJobsInsertRequest
+  ):
+    """Inserts a BigQuery job.
+
+    If the job exists already, it returns it.
+    """
+    try:
+      response = self.client.jobs.Insert(request)
+      _LOGGER.info(
+          "Stated BigQuery job: %s\n "
+          "bq show -j --format=prettyjson --project_id=%s %s",
+          response.jobReference,
+          response.jobReference.projectId,
+          response.jobReference.jobId)
+      return response
+    except HttpError as exn:
+      if exn.status_code == 409:
+        _LOGGER.info(
+            "BigQuery job %s already exists, will not retry inserting it: %s",
+            request.job.jobReference,
+            exn)
+        return request.job
+      else:
+        _LOGGER.info(
+            "Failed to insert job %s: %s", request.job.jobReference, exn)
+        raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -456,8 +491,7 @@ class BigQueryWrapper(object):
             ),
             jobReference=reference))
 
-    response = self.client.jobs.Insert(request)
-    return response
+    return self._start_job(request)
 
   def wait_for_bq_job(self, job_reference, sleep_duration_sec=5, max_retries=0):
     """Poll job until it is DONE.
@@ -512,13 +546,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_all_rows(
-      self,
-      project_id,
-      dataset_id,
-      table_id,
-      rows,
-      skip_invalid_rows=False,
-      latency_recoder=None):
+      self, project_id, dataset_id, table_id, rows, skip_invalid_rows=False):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -534,13 +562,13 @@ class BigQueryWrapper(object):
             skipInvalidRows=skip_invalid_rows,
             # TODO(silviuc): Should have an option for ignoreUnknownValues?
             rows=rows))
-    started_millis = int(time.time() * 1000) if latency_recoder else None
+    started_millis = int(time.time() * 1000)
     try:
       response = self.client.tabledata.InsertAll(request)
       # response.insertErrors is not [] if errors encountered.
     finally:
-      if latency_recoder:
-        latency_recoder.record(int(time.time() * 1000) - started_millis)
+      self._latency_histogram_metric.update(
+          int(time.time() * 1000) - started_millis)
     return not response.insertErrors, response.insertErrors
 
   @retry.with_exponential_backoff(
@@ -572,6 +600,16 @@ class BigQueryWrapper(object):
       table_id,
       schema,
       additional_parameters=None):
+
+    valid_tablename = re.match(r'^[\w]{1,1024}$', table_id, re.ASCII)
+    if not valid_tablename:
+      raise ValueError(
+          'Invalid BigQuery table name: %s \n'
+          'A table name in BigQuery must contain only letters (a-z, A-Z), '
+          'numbers (0-9), or underscores (_) and be up to 1024 characters:\n'
+          'See https://cloud.google.com/bigquery/docs/tables#table_naming' %
+          table_id)
+
     additional_parameters = additional_parameters or {}
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -784,12 +822,12 @@ class BigQueryWrapper(object):
             ),
             jobReference=job_reference,
         ))
-    response = self.client.jobs.Insert(request)
-    return response.jobReference
+    return self._start_job(request).jobReference
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.
+      retry_if_valid_input_but_server_error_and_timeout_filter)
   def get_or_create_table(
       self,
       project_id,
@@ -946,8 +984,7 @@ class BigQueryWrapper(object):
       table_id,
       rows,
       insert_ids=None,
-      skip_invalid_rows=False,
-      latency_recoder=None):
+      skip_invalid_rows=False):
     """Inserts rows into the specified table.
 
     Args:
@@ -958,9 +995,6 @@ class BigQueryWrapper(object):
         each key in it is the name of a field.
       skip_invalid_rows: If there are rows with insertion errors, whether they
         should be skipped, and all others should be inserted successfully.
-      latency_recoder: The object that records request-to-response latencies.
-        The object should provide `record(int)` method to be invoked with
-        milliseconds latency values.
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -981,8 +1015,7 @@ class BigQueryWrapper(object):
           bigquery.TableDataInsertAllRequest.RowsValueListEntry(
               insertId=insert_id, json=json_row))
     result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, final_rows, skip_invalid_rows,
-        latency_recoder)
+        project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
     return result, errors
 
   def _convert_to_json_row(self, row):

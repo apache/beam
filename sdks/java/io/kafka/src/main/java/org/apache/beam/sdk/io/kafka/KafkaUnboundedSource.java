@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
  * An {@link UnboundedSource} to read from Kafka, used by {@link Read} transform in KafkaIO. See
  * {@link KafkaIO} for user visible documentation and example usage.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> {
 
   /**

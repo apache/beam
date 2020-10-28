@@ -49,6 +49,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * Integration test, that writes and reads data to and from real Kinesis. You need to provide {@link
@@ -56,6 +57,7 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
  * when no options are provided an instance of localstack is used.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class KinesisIOIT implements Serializable {
   private static final String LOCALSTACK_VERSION = "0.11.3";
 
@@ -159,7 +161,8 @@ public class KinesisIOIT implements Serializable {
     System.setProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY, "true");
 
     localstackContainer =
-        new LocalStackContainer(LOCALSTACK_VERSION)
+        new LocalStackContainer(
+                DockerImageName.parse("localstack/localstack").withTag(LOCALSTACK_VERSION))
             .withServices(LocalStackContainer.Service.KINESIS)
             .withEnv("USE_SSL", "true")
             .withStartupAttempts(3);

@@ -52,7 +52,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -64,6 +63,7 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.joda.time.Instant;
 
 /** A {@link Combine} that performs the combine in multiple steps. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class MultiStepCombine<
         K extends @Nullable Object,
         InputT extends @Nullable Object,
@@ -83,7 +83,7 @@ class MultiStepCombine<
       }
 
       private <K, InputT> boolean isApplicable(
-          Map<TupleTag<?>, PValue> inputs, GlobalCombineFn<InputT, ?, ?> fn) {
+          Map<TupleTag<?>, PCollection<?>> inputs, GlobalCombineFn<InputT, ?, ?> fn) {
         if (!(fn instanceof CombineFn)) {
           return false;
         }

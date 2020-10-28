@@ -28,6 +28,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 
 /** An implementation of a {@link BeamFnTimerClient} that can be used for testing. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FakeBeamFnTimerClient implements BeamFnTimerClient {
   private final ConcurrentMap<LogicalEndpoint, TimerHandler<?>> timerHandlers;
   private final ConcurrentMap<LogicalEndpoint, List<Timer<?>>> setTimers;

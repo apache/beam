@@ -70,9 +70,8 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     this.coder = coder;
   }
 
-  @Nullable
   @Override
-  public PCollection<?> getPCollection() {
+  public @Nullable PCollection<?> getPCollection() {
     throw new UnsupportedOperationException();
   }
 

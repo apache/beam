@@ -57,6 +57,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * all outputs with the output number. Afterwards a filter will filter out those elements that are
  * not to be in a specific output.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
     implements FlatMapFunction<WindowedValue<InputT>, WindowedValue<RawUnionValue>>,
         MapPartitionFunction<WindowedValue<InputT>, WindowedValue<RawUnionValue>> {

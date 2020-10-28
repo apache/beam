@@ -107,7 +107,11 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			coders, err := graphx.UnmarshalCoders(graphx.MarshalCoders([]*coder.Coder{test.c}))
+			ids, marshalCoders, err := graphx.MarshalCoders([]*coder.Coder{test.c})
+			if err != nil {
+				t.Fatalf("Marshal(%v) failed: %v", test.c, err)
+			}
+			coders, err := graphx.UnmarshalCoders(ids, marshalCoders)
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}

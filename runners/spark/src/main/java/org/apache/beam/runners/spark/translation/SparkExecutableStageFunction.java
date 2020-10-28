@@ -77,6 +77,7 @@ import scala.Tuple2;
  * The resulting data set should be further processed by a {@link
  * SparkExecutableStageExtractionFunction}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class SparkExecutableStageFunction<InputT, SideInputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, RawUnionValue> {
 

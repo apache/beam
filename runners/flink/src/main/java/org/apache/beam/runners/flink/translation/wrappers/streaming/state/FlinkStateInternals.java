@@ -77,6 +77,7 @@ import org.joda.time.Instant;
  * <p>Note: In the Flink streaming runner the key is always encoded using an {@link Coder} and
  * stored in a {@link ByteBuffer}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkStateInternals<K> implements StateInternals {
 
   private static final StateNamespace globalWindowNamespace =

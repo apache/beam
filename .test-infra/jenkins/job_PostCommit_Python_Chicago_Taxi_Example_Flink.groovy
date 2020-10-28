@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import CronJobBuilder
 import Flink
 import LoadTestsBuilder
-import PostcommitJobBuilder
+import PhraseTriggeringPostCommitBuilder
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
@@ -33,7 +33,7 @@ def chicagoTaxiJob = { scope ->
   Flink flink = new Flink(scope, 'beam_PostCommit_Python_Chicago_Taxi_Flink')
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_python2.7_sdk:latest"
+        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
       ],
       numberOfWorkers,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
@@ -41,7 +41,7 @@ def chicagoTaxiJob = { scope ->
   def pipelineOptions = [
     parallelism             : numberOfWorkers,
     job_endpoint            : 'localhost:8099',
-    environment_config      : "${DOCKER_CONTAINER_REGISTRY}/beam_python2.7_sdk:latest",
+    environment_options     : "docker_container_image=${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
     environment_type        : 'DOCKER',
     execution_mode_for_batch: 'BATCH_FORCED',
   ]
@@ -56,7 +56,7 @@ def chicagoTaxiJob = { scope ->
   }
 }
 
-PostcommitJobBuilder.postCommitJob(
+PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Flink',
     'Run Chicago Taxi on Flink',
     'Chicago Taxi Example on Flink ("Run Chicago Taxi on Flink")',
@@ -65,10 +65,13 @@ PostcommitJobBuilder.postCommitJob(
       chicagoTaxiJob(delegate)
     }
 
-CronJobBuilder.cronJob(
-    'beam_PostCommit_Python_Chicago_Taxi_Flink',
-    'H 14 * * *',
-    this
-    ) {
-      chicagoTaxiJob(delegate)
-    }
+// TODO(BEAM-9154): Chicago Taxi Example doesn't work in Python 3.
+// Uncomment below once it is fixed.
+//
+// CronJobBuilder.cronJob(
+//     'beam_PostCommit_Python_Chicago_Taxi_Flink',
+//     'H 14 * * *',
+//     this
+//     ) {
+//       chicagoTaxiJob(delegate)
+//     }

@@ -31,6 +31,7 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 
 /** Tests for {@link SimpleStateRegistryTest}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SimpleStateRegistryTest {
 
   @Test

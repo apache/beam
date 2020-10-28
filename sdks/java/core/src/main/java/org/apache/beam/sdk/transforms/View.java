@@ -133,6 +133,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access this variable
  * inside a {@link ParDo} over another {@link PCollection}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class View {
 
   // Do not instantiate
@@ -608,7 +609,7 @@ public class View {
    * various SDK requested views.
    */
   @Internal
-  static class VoidKeyToMultimapMaterialization<T>
+  public static class VoidKeyToMultimapMaterialization<T>
       extends PTransform<PCollection<T>, PCollection<KV<Void, T>>> {
 
     private static class VoidKeyToMultimapMaterializationDoFn<T> extends DoFn<T, KV<Void, T>> {

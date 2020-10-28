@@ -62,6 +62,7 @@ import org.joda.time.Instant;
  * @param <T> The type to read from the compressed file.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
@@ -334,9 +335,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     @GuardedBy("progressLock")
     private long numRecordsRead;
 
-    @Nullable // Initialized in startReading
+    // Initialized in startReading
     @GuardedBy("progressLock")
-    private CountingChannel channel;
+    private @Nullable CountingChannel channel;
 
     private DecompressingChannelFactory channelFactory;
 

@@ -31,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
@@ -112,7 +113,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
-  private @Nullable volatile ExecutionState currentState;
+  private volatile @Nullable ExecutionState currentState;
 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.

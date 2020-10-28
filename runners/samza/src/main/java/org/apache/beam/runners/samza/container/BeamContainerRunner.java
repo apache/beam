@@ -33,8 +33,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runs the beam Yarn container, using the static global job model. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamContainerRunner implements ApplicationRunner {
-  private static final Logger LOG = LoggerFactory.getLogger(ContainerCfgFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamContainerRunner.class);
 
   private final ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc;
 

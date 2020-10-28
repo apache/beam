@@ -117,6 +117,7 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  * </ul>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class SnsIO {
 
   // Write data to SNS (synchronous)
@@ -379,7 +380,7 @@ public final class SnsIO {
             if (spec.getRetryConfiguration() == null
                 || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
               SNS_WRITE_FAILURES.inc();
-              LOG.info("Unable to publish message {} due to {} ", request.message(), ex);
+              LOG.info("Unable to publish message {}.", request.message(), ex);
               throw new IOException("Error writing to SNS (no attempt made to retry)", ex);
             }
 

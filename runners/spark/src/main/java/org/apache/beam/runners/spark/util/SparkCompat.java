@@ -31,6 +31,7 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 /** A set of functions to provide API compatibility between Spark 2 and Spark 3. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SparkCompat {
   /**
    * Union of dStreams in the given StreamingContext.

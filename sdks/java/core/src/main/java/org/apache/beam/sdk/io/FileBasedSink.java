@@ -120,6 +120,7 @@ import org.slf4j.LoggerFactory;
  * @param <OutputT> the type of values written to the sink.
  */
 @Experimental(Kind.FILESYSTEM)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
@@ -943,7 +944,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
       // The caller shouldn't have to close() this Writer if it fails to open(), so close
       // the channel if prepareWrite() or writeHeader() fails.
-      String step = "";
       try {
         LOG.debug("Preparing write to {}.", outputFile);
         prepareWrite(channel);
@@ -951,7 +951,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         LOG.debug("Writing header to {}.", outputFile);
         writeHeader();
       } catch (Exception e) {
-        LOG.error("Beginning write to {} failed, closing channel.", step, outputFile, e);
+        LOG.error("Beginning write to {} failed, closing channel.", outputFile, e);
         closeChannelAndThrow(channel, outputFile, e);
       }
 

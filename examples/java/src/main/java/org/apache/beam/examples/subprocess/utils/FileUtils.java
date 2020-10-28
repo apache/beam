@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for dealing with movement of files from object stores and workers. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FileUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);

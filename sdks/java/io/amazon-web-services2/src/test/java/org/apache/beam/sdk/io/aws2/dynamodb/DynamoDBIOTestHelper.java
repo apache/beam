@@ -29,6 +29,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Assert;
 import org.junit.Rule;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -52,11 +53,15 @@ import software.amazon.awssdk.services.dynamodb.model.TableStatus;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 /** A utility to generate test table and data for {@link DynamoDBIOTest}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class DynamoDBIOTestHelper implements Serializable {
+  private static final String DYNAMODB_LOCAL_VERSION = "1.13.3";
 
   @Rule
   public static GenericContainer dynamoContainer =
-      new GenericContainer<>("amazon/dynamodb-local:latest").withExposedPorts(8000);
+      new GenericContainer<>(
+              DockerImageName.parse("amazon/dynamodb-local").withTag(DYNAMODB_LOCAL_VERSION))
+          .withExposedPorts(8000);
 
   private static DynamoDbClient dynamoDBClient;
 

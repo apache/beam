@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.ErrorManager;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -47,6 +48,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * level is INFO, the default location is a file named dataflow-json.log within the system temporary
  * directory and the default file size is 1 GB.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DataflowWorkerLoggingInitializer {
   private static final String ROOT_LOGGER_NAME = "";
 
@@ -98,6 +100,35 @@ public class DataflowWorkerLoggingInitializer {
   private static PrintStream originalStdErr = System.err;
   private static boolean initialized = false;
 
+  // This is the same as ErrorManager except that it uses the provided
+  // print stream.
+  public static class PrintStreamErrorManager extends ErrorManager {
+    public PrintStreamErrorManager(PrintStream stream) {
+      this.stream = stream;
+    }
+
+    private PrintStream stream;
+    private boolean reported = false;
+
+    @Override
+    public synchronized void error(String msg, Exception ex, int code) {
+      if (reported) {
+        // We only report the first error, to avoid clogging
+        // the screen.
+        return;
+      }
+      reported = true;
+      String text = "java.util.logging.ErrorManager: " + code;
+      if (msg != null) {
+        text = text + ": " + msg;
+      }
+      stream.println(text);
+      if (ex != null) {
+        ex.printStackTrace(stream);
+      }
+    }
+  };
+
   private static DataflowWorkerLoggingHandler makeLoggingHandler(
       String filepathProperty, String defaultFilePath) throws IOException {
     String filepath = System.getProperty(filepathProperty, defaultFilePath);
@@ -105,6 +136,9 @@ public class DataflowWorkerLoggingInitializer {
     DataflowWorkerLoggingHandler handler =
         new DataflowWorkerLoggingHandler(filepath, filesizeMb * 1024L * 1024L);
     handler.setLevel(Level.ALL);
+    // To avoid potential deadlock between the handler and the System.err print stream, use the
+    // original stderr print stream for errors. See BEAM-9399.
+    handler.setErrorManager(new PrintStreamErrorManager(getOriginalStdErr()));
     return handler;
   }
 

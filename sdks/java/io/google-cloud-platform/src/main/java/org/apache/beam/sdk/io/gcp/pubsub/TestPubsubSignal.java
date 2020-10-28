@@ -67,6 +67,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses a random temporary Pubsub topic for synchronization.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TestPubsubSignal implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(TestPubsubSignal.class);
   private static final String RESULT_TOPIC_NAME = "result";
@@ -223,6 +224,12 @@ public class TestPubsubSignal implements TestRule {
             return null;
           } catch (IOException e) {
             throw new RuntimeException(e);
+          } finally {
+            try {
+              pubsub.deleteSubscription(startSubscriptionPath);
+            } catch (IOException e) {
+              LOG.error(String.format("Leaked PubSub subscription '%s'", startSubscriptionPath));
+            }
           }
         });
   }
@@ -238,6 +245,12 @@ public class TestPubsubSignal implements TestRule {
         resultTopicPath, resultSubscriptionPath, (int) duration.getStandardSeconds());
 
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
+
+    try {
+      pubsub.deleteSubscription(resultSubscriptionPath);
+    } catch (IOException e) {
+      LOG.error(String.format("Leaked PubSub subscription '%s'", resultSubscriptionPath));
+    }
 
     if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
       throw new AssertionError(result);

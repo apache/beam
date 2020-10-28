@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> Type of records represented by the source.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
 
@@ -130,7 +131,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    *
    * @throws IllegalArgumentException if this source is in {@link Mode#FILEPATTERN} mode.
    */
-  protected final MatchResult.Metadata getSingleFileMetadata() {
+  public final MatchResult.Metadata getSingleFileMetadata() {
     checkArgument(
         mode == Mode.SINGLE_FILE_OR_SUBRANGE,
         "This function should only be called for a single file, not %s",

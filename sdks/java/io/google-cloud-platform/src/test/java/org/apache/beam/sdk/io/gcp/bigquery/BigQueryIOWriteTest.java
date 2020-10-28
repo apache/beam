@@ -139,6 +139,7 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link BigQueryIO#write}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BigQueryIOWriteTest implements Serializable {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -1556,7 +1557,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION,
             multiPartitionsTag,
             singlePartitionTag,
-            RowWriterFactory.tableRows(SerializableFunctions.identity()));
+            RowWriterFactory.tableRows(
+                SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     DoFnTester<
             Iterable<WriteBundlesToFiles.Result<TableDestination>>,

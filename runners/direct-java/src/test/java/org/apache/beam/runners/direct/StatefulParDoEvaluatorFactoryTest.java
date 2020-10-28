@@ -86,6 +86,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StatefulParDoEvaluatorFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Mock private transient EvaluationContext mockEvaluationContext;
   @Mock private transient DirectExecutionContext mockExecutionContext;

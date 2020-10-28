@@ -25,6 +25,17 @@
 
 set -e
 
+if [[ "$JAVA_HOME" ]]; then
+  version=$("$JAVA_HOME/bin/java" -version 2>&1 | awk -F '"' '/version/ {print $2}')
+  if [[ ! `echo $version | sed "s/1\.8\..*/1.8/"` == "1.8" ]]; then
+    echo "Java version $version detected. Set \$JAVA_HOME to point to a JDK 8 installation."
+    exit 1
+  fi
+else
+  echo "\$JAVA_HOME must be set."
+  exit 1
+fi
+
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
@@ -49,7 +60,7 @@ WEBSITE_ROOT_DIR=beam-site
 DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
 DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
 
-PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7" "python3.8")
+PYTHON_VER=("python3.6" "python3.7" "python3.8")
 FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "================Setting Up Environment Variables==========="

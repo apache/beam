@@ -52,6 +52,7 @@ import scala.Tuple2;
  * all outputs with the output number. Afterwards a filter will filter out those elements that are
  * not to be in a specific output.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DoFnFunction<InputT, OutputT>
     implements MapPartitionsFunction<WindowedValue<InputT>, Tuple2<TupleTag<?>, WindowedValue<?>>> {
 

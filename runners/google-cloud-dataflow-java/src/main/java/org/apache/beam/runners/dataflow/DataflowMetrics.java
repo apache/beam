@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implementation of {@link MetricResults} for the Dataflow Runner. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class DataflowMetrics extends MetricResults {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
   /**
