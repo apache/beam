@@ -24,7 +24,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
-/** TimestampFunctions. */
+/** TimestampFunctionsfdsfdsf. */
 @Internal
 public class TimestampFunctions {
   public static DateTime timestamp(String timestampStr) {
