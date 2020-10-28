@@ -20,12 +20,14 @@ package org.apache.beam.sdk.extensions.sql;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Combine;
 
 /**
  * Provider for user-defined functions written in Java. Implementations should be annotated with
  * {@link com.google.auto.service.AutoService}.
  */
+@Experimental
 public interface UdfProvider {
   /** Maps function names to scalar function implementations. */
   default Map<String, Method> userDefinedScalarFunctions() {
