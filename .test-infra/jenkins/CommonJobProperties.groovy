@@ -42,7 +42,7 @@ class CommonJobProperties {
     }
 
     // Set JDK version.
-    context.jdk('JDK 1.8 (latest)')
+    context.jdk('jdk_1.8_latest')
 
     // Restrict this project to run only on Jenkins executors as specified
     context.label(jenkinsExecutorLabel)
