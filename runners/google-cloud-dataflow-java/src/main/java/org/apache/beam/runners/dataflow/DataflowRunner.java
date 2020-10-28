@@ -188,6 +188,7 @@ import org.slf4j.LoggerFactory;
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
@@ -354,7 +355,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new IllegalArgumentException(
           "Project ID '"
               + project
-              + "' invalid. Please make sure you specified the Project ID, not project description.");
+              + "' invalid. Please make sure you specified the Project ID, not project"
+              + " description.");
     }
 
     DataflowPipelineDebugOptions debugOptions =
@@ -614,9 +616,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>>
-            transform) {
+    public PTransformReplacement<PCollection<InputT>, PCollectionView<ViewT>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<InputT>,
+                    PCollectionView<ViewT>,
+                    PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
+                transform) {
       Combine.GloballyAsSingletonView<?, ?> combineTransform =
           (Combine.GloballyAsSingletonView) transform.getTransform();
       return PTransformReplacement.of(
@@ -636,20 +642,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class ReflectiveViewOverrideFactory<InputT, ViewT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>> {
+          PCollection<InputT>,
+          PCollectionView<ViewT>,
+          PTransform<PCollection<InputT>, PCollectionView<ViewT>>> {
 
-    final Class<PTransform<PCollection<InputT>, PValue>> replacement;
+    final Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement;
     final DataflowRunner runner;
 
     private ReflectiveViewOverrideFactory(
-        Class<PTransform<PCollection<InputT>, PValue>> replacement, DataflowRunner runner) {
+        Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement,
+        DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
 
     CreatePCollectionView<ViewT, ViewT> findCreatePCollectionView(
         final AppliedPTransform<
-                PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>>
+                PCollection<InputT>,
+                PCollectionView<ViewT>,
+                PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
             transform) {
       final AtomicReference<CreatePCollectionView> viewTransformRef = new AtomicReference<>();
       transform
@@ -697,12 +708,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
-        final AppliedPTransform<
-                PCollection<InputT>, PValue, PTransform<PCollection<InputT>, PValue>>
-            transform) {
+    public PTransformReplacement<PCollection<InputT>, PCollectionView<ViewT>>
+        getReplacementTransform(
+            final AppliedPTransform<
+                    PCollection<InputT>,
+                    PCollectionView<ViewT>,
+                    PTransform<PCollection<InputT>, PCollectionView<ViewT>>>
+                transform) {
 
-      PTransform<PCollection<InputT>, PValue> rep =
+      PTransform<PCollection<InputT>, PCollectionView<ViewT>> rep =
           InstanceBuilder.ofType(replacement)
               .withArg(DataflowRunner.class, runner)
               .withArg(CreatePCollectionView.class, findCreatePCollectionView(transform))
@@ -712,11 +726,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PValue newOutput) {
-      // We do not replace any of the outputs because we expect that the new PTransform will
-      // re-use the original PCollectionView that was returned.
-      return ImmutableMap.of();
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollectionView<ViewT> newOutput) {
+      /*
+      The output of View.AsXYZ is a PCollectionView that expands to the PCollection to be materialized.
+      The PCollectionView itself must have the same tag since that tag may have been embedded in serialized DoFns
+      previously and cannot easily be rewired. The PCollection may differ, so we rewire it, even if the rewiring
+      is a noop.
+      */
+      return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
 
@@ -1127,8 +1145,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new DataflowJobAlreadyExistsException(
             dataflowPipelineJob,
             String.format(
-                "There is already an active job named %s with id: %s. If you want "
-                    + "to submit a second job, try again by setting a different name using --jobName.",
+                "There is already an active job named %s with id: %s. If you want to submit a"
+                    + " second job, try again by setting a different name using --jobName.",
                 newJob.getName(), jobResult.getId()));
       }
     }
@@ -1255,10 +1273,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           });
 
       LOG.warn(
-          "Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
-              + "because the key coder is not deterministic. Falling back to singleton implementation "
-              + "which may cause memory and/or performance problems. Future major versions of "
-              + "Dataflow will require deterministic key coders.",
+          "Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} because"
+              + " the key coder is not deterministic. Falling back to singleton implementation"
+              + " which may cause memory and/or performance problems. Future major versions of"
+              + " Dataflow will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
   }
@@ -1314,8 +1332,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<PubsubMessage> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<PubsubMessage> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1514,8 +1532,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1643,8 +1661,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1770,8 +1788,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1909,8 +1927,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<KV<K, OutputT>> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KV<K, OutputT>> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1933,8 +1951,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PDone newOutput) {
       return Collections.emptyMap();
     }
   }
@@ -1996,8 +2014,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, WriteFilesResult<DestinationT> newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }

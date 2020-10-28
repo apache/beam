@@ -27,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A wrapper around {@link Throwable} that preserves the stack trace on serialization, unlike
  * regular {@link Throwable}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class SerializableThrowable implements Serializable {
   private final @Nullable Throwable throwable;
   private final StackTraceElement @Nullable [] stackTrace;

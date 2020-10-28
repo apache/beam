@@ -131,3 +131,12 @@ task sparkRunner(type: Test) {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
 }
+
+task hadoopFormatIOElasticTest(type: Test) {
+  group = "Verification"
+  description = 'Runs HadoopFormatIO integration test with ElasticSearchContainer'
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  include '**/HadoopFormatIOElasticIT.class'
+  useJUnit { }
+}

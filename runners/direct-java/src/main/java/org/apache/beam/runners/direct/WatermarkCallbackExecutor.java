@@ -49,6 +49,7 @@ import org.joda.time.Instant;
  * followed by a call to {@link #fireForWatermark(AppliedPTransform, Instant)} for the same
  * transform with the current value of the watermark.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class WatermarkCallbackExecutor {
   /** Create a new {@link WatermarkCallbackExecutor}. */
   public static WatermarkCallbackExecutor create(Executor executor) {

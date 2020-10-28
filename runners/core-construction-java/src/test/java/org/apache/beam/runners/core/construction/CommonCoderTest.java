@@ -68,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
@@ -88,6 +89,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests that Java SDK coders standardized by the Fn API meet the common spec. */
 @RunWith(Parameterized.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CommonCoderTest {
   private static final String STANDARD_CODERS_YAML_PATH =
       "/org/apache/beam/model/fnexecution/v1/standard_coders.yaml";
@@ -111,6 +113,7 @@ public class CommonCoderTest {
               getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE),
               WindowedValue.ParamWindowedValueCoder.class)
           .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
+          .put(getUrn(StandardCoders.Enum.SHARDED_KEY), ShardedKey.Coder.class)
           .build();
 
   @AutoValue
@@ -334,6 +337,12 @@ public class CommonCoderTest {
       }
 
       return parseField(value, Schema.FieldType.row(schema));
+    } else if (s.equals(getUrn(StandardCoders.Enum.SHARDED_KEY))) {
+      Map<String, Object> kvMap = (Map<String, Object>) value;
+      Coder<?> keyCoder = ((ShardedKey.Coder) coder).getKeyCoder();
+      byte[] shardId = ((String) kvMap.get("shardId")).getBytes(StandardCharsets.ISO_8859_1);
+      return ShardedKey.of(
+          convertValue(kvMap.get("key"), coderSpec.getComponents().get(0), keyCoder), shardId);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -488,6 +497,8 @@ public class CommonCoderTest {
 
       assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
+      assertEquals(expectedValue, actualValue);
+    } else if (s.equals(getUrn(StandardCoders.Enum.SHARDED_KEY))) {
       assertEquals(expectedValue, actualValue);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());

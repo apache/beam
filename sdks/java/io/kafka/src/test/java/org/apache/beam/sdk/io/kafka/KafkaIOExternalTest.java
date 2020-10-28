@@ -61,6 +61,7 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for building {@link KafkaIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class KafkaIOExternalTest {
   @Test
   public void testConstructKafkaRead() throws Exception {

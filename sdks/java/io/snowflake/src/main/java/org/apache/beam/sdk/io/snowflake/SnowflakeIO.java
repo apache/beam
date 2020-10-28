@@ -175,6 +175,7 @@ import org.slf4j.LoggerFactory;
  * specified stagingBucketName in directory named 'data' and then into Snowflake.
  */
 @Experimental
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
 

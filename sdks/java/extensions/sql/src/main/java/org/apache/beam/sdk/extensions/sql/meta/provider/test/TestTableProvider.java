@@ -67,6 +67,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTyp
  * <p>Keeps global state and tracks class instances. Works only in DirectRunner.
  */
 @AutoService(TableProvider.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TestTableProvider extends InMemoryMetaTableProvider {
   static final Map<Long, Map<String, TableWithRows>> GLOBAL_TABLES = new ConcurrentHashMap<>();
   public static final String PUSH_DOWN_OPTION = "push_down";

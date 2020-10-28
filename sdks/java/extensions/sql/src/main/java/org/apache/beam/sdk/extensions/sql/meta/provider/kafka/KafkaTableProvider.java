@@ -48,7 +48,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
 
   private enum PayloadFormat {
     CSV,
-    AVRO
+    AVRO,
+    JSON
   }
 
   @Override
@@ -73,6 +74,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
         return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
       case AVRO:
         return new BeamKafkaAvroTable(schema, bootstrapServers, topics);
+      case JSON:
+        return new BeamKafkaJsonTable(schema, bootstrapServers, topics);
       default:
         throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
     }

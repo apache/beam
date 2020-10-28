@@ -36,6 +36,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTyp
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlValidator;
 
 /** Base class for table-valued function windowing operator (TUMBLE, HOP and SESSION). */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class SqlWindowTableFunction extends SqlFunction {
   public SqlWindowTableFunction(String name) {
     super(

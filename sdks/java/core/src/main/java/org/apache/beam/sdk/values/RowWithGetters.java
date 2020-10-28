@@ -45,6 +45,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the appropriate fields from the POJO.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class RowWithGetters extends Row {
   private final Factory<List<FieldValueGetter>> fieldValueGetterFactory;
   private final Object getterTarget;
@@ -62,10 +63,9 @@ public class RowWithGetters extends Row {
     this.getters = fieldValueGetterFactory.create(getterTarget.getClass(), schema);
   }
 
-  @Nullable
   @Override
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
-  public <T> T getValue(int fieldIdx) {
+  public <T> @Nullable T getValue(int fieldIdx) {
     Field field = getSchema().getField(fieldIdx);
     FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);

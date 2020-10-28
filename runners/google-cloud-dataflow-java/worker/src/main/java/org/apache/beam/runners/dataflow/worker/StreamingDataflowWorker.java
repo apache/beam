@@ -153,6 +153,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implements a Streaming Dataflow worker. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StreamingDataflowWorker {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
@@ -1083,16 +1084,6 @@ public class StreamingDataflowWorker {
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
     SdkWorkerHarness worker = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
 
-    if (workItem.hasHotKeyInfo()) {
-      Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
-      Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
-
-      // The MapTask instruction is ordered by dependencies, such that the first element is
-      // always going to be the shuffle task.
-      String stepName = computationState.getMapTask().getInstructions().get(0).getName();
-      hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
-    }
-
     Work work =
         new Work(workItem) {
           @Override
@@ -1384,6 +1375,20 @@ public class StreamingDataflowWorker {
       Object executionKey =
           keyCoder == null ? null : keyCoder.decode(key.newInput(), Coder.Context.OUTER);
 
+      if (workItem.hasHotKeyInfo()) {
+        Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
+        Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
+
+        // The MapTask instruction is ordered by dependencies, such that the first element is
+        // always going to be the shuffle task.
+        String stepName = computationState.getMapTask().getInstructions().get(0).getName();
+        if (options.isHotKeyLoggingEnabled() && keyCoder != null) {
+          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
+        } else {
+          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
+        }
+      }
+
       executionState
           .getContext()
           .start(
@@ -1464,33 +1469,36 @@ public class StreamingDataflowWorker {
       boolean retryLocally = false;
       if (KeyTokenInvalidException.isKeyTokenInvalidException(t)) {
         LOG.debug(
-            "Execution of work for {} for key {} failed due to token expiration. "
-                + "Will not retry locally.",
+            "Execution of work for computation '{}' on key '{}' failed due to token expiration. "
+                + "Work will not be retried locally.",
             computationId,
             key.toStringUtf8());
       } else {
-        LOG.error("Uncaught exception: ", t);
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
-              "Execution of work for {} for key {} failed, and Windmill "
-                  + "indicated not to retry locally.",
+              "Execution of work for computation '{}' on key '{}' failed with uncaught exception, "
+                  + "and Windmill indicated not to retry locally.",
               computationId,
-              key.toStringUtf8());
+              key.toStringUtf8(),
+              t);
         } else if (isOutOfMemoryError(t)) {
           File heapDump = memoryMonitor.tryToDumpHeap();
           LOG.error(
-              "Execution of work for {} for key {} failed with out-of-memory. "
-                  + "Will not retry locally. Heap dump {}.",
+              "Execution of work for computation '{}' for key '{}' failed with out-of-memory. "
+                  + "Work will not be retried locally. Heap dump {}.",
               computationId,
               key.toStringUtf8(),
-              heapDump == null ? "not written" : ("written to '" + heapDump + "'"));
+              heapDump == null ? "not written" : ("written to '" + heapDump + "'"),
+              t);
         } else {
           LOG.error(
-              "Execution of work for {} for key {} failed. Will retry locally.",
+              "Execution of work for computation '{}' on key '{}' failed with uncaught exception. "
+                  + "Work will be retried locally.",
               computationId,
-              key.toStringUtf8());
+              key.toStringUtf8(),
+              t);
           retryLocally = true;
         }
       }

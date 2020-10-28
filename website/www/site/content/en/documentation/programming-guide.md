@@ -2645,12 +2645,12 @@ pc = input | beam.Map(lambda ...).with_output_types(Transaction)
 
 
 {{< paragraph class="language-py" >}}
-**beam.Row**
+**beam.Row and Select**
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-It's also possible to create ad-hoc schema declarations with a simple lambda
-that returns instances of `beam.Row`:
+There are also methods for creating ad-hoc schema declarations. First, you can
+use a lambda that returns instances of `beam.Row`:
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2660,17 +2660,28 @@ output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Note that this declaration doesn't include any specific information about the
-types of the `bank` and `purchase_amount` fields. Beam will attempt to infer
-type information, if it's unable to it will fall back to the generic type
+Sometimes it can be more concise to express the same logic with the
+[`Select`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Select) transform:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(bank=lambda item: item["bank"],
+                                   purchase_amount=lambda item: item["purchase_amount"])
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Note that these declaration don't include any specific information about the
+types of the `bank` and `purchase_amount` fields, so Beam will attempt to infer
+type information. If it's unable to it will fall back to the generic type
 `Any`. Sometimes this is not ideal, you can use casts to make sure Beam
-correctly infers types with `beam.Row`:
+correctly infers types with `beam.Row` or with `Select`:
 {{< /paragraph >}}
 
 {{< highlight py >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=str(item["bank"]),
-                                                      purchase_amount=float(item["purchase_amount"]))
+                                                      purchase_amount=float(item["purchase_amount"])))
 {{< /highlight >}}
 
 
@@ -4320,7 +4331,7 @@ potentially while the pipeline is running. There could be different reasons for 
 *   Retrieve an accurate count of the number of elements that have been processed;
 *   ...and so on.
 
-### 10.1 The main concepts of Beam metrics
+### 10.1. The main concepts of Beam metrics
 *   **Named**. Each metric has a name which consists of a namespace and an actual name. The
     namespace can be used to differentiate between multiple metrics with the same name and also
     allows querying for all metrics within a specific namespace.
@@ -4340,7 +4351,7 @@ transform reported, as well as aggregating the metric across the entire pipeline
 > **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only
 after jobs have completed.
 
-### 10.2 Types of metrics {#types-of-metrics}
+### 10.2. Types of metrics {#types-of-metrics}
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and
 `Gauge`.
 
@@ -4386,7 +4397,7 @@ public void processElement(ProcessContext context) {
 }
 {{< /highlight >}}
 
-### 10.3 Querying metrics {#querying-metrics}
+### 10.3. Querying metrics {#querying-metrics}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics
 matching a given filter.
@@ -4414,7 +4425,7 @@ public interface MetricResult<T> {
 }
 {{< /highlight >}}
 
-### 10.4 Using metrics in pipeline {#using-metrics}
+### 10.4. Using metrics in pipeline {#using-metrics}
 Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
 
 {{< highlight java >}}
@@ -4452,7 +4463,7 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 }
 {{< /highlight >}}
 
-### 10.5 Export metrics {#export-metrics}
+### 10.5. Export metrics {#export-metrics}
 
 Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period.
 The configuration is held in the [MetricsOptions](https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html) class.
@@ -4496,7 +4507,7 @@ In Python DoFn declares states to be accessed by creating `StateSpec` class memb
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
-### 11.1 Types of state {#types-of-state}
+### 11.1. Types of state {#types-of-state}
 
 Beam provides several types of state:
 
@@ -4603,7 +4614,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
 {{< /highlight >}}
 
-### 11.2 Deferred state reads {#deferred-state-reads}
+### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
@@ -4657,14 +4668,14 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-### 11.3 Timers {#timers}
+### 11.3. Timers {#timers}
 
 Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
 Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
 TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
 firing time for that key's timer.
 
-#### 11.3.1 Event-time timers {#event-time-timers}
+#### 11.3.1. Event-time timers {#event-time-timers}
 
 Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that
 the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
@@ -4714,7 +4725,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
 {{< /highlight >}}
 
-#### 11.3.2 Processing-time timers {#processing-time-timers}
+#### 11.3.2. Processing-time timers {#processing-time-timers}
 
 Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
 before processing. It can also be used to schedule events that should occur at a specific time. Just like with
@@ -4762,7 +4773,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
 {{< /highlight >}}
 
-#### 11.3.3 Dynamic timer tags {#dynamic-timer-tags}
+#### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
 
 Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
 in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
@@ -4792,7 +4803,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< highlight python >}}
 To be supported, See BEAM-9602
 {{< /highlight >}}
-#### 11.3.4 Timer output timestamps {#timer-output-timestamps}
+#### 11.3.4. Timer output timestamps {#timer-output-timestamps}
 
 By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
 that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish
@@ -4895,11 +4906,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-### 11.4 Garbage collecting state {#garbage-collecting-state}
+### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
 
-##### 11.4.1 **Using windows for garbage collection** {#using-windows-for-garbage-collection}
+##### 11.4.1. **Using windows for garbage collection** {#using-windows-for-garbage-collection}
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
@@ -4940,7 +4951,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
 day is garbage collected.
 
-##### 11.4.1 **Using timers For garbage collection** {#using-timers-for-garbage-collection}
+##### 11.4.1. **Using timers For garbage collection** {#using-timers-for-garbage-collection}
 
 In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For
 example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
@@ -5017,7 +5028,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'User DoFn' >> beam.ParDo(UserDoFn()))
 {{< /highlight >}}
 
-### 11.5 State and timers examples {#state-timers-examples}
+### 11.5. State and timers examples {#state-timers-examples}
 
 Following are some example uses of state and timers
 
@@ -5103,7 +5114,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
  }));
 {{< /highlight >}}
 
-#### 11.5.2 Batching RPCs {#batching-rpcs}
+#### 11.5.2. Batching RPCs {#batching-rpcs}
 
 In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
 multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
@@ -5142,4 +5153,282 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     isTimerSetState.clear();
   }
 }));
+{{< /highlight >}}
+
+## 12. Splittable `DoFns` {#splittable-dofns}
+
+A Splittable `DoFn` (SDF) enables users to create modular components containing I/Os (and some advanced
+[non I/O use cases](https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv)). Having modular
+I/O components that can be connected to each other simplify typical patterns that users want.
+For example, a popular use case is to read filenames from a message queue followed by parsing those
+files. Traditionally, users were required to either write a single I/O connector that contained the
+logic for the message queue and the file reader (increased complexity) or choose to reuse a message
+queue I/O followed by a regular `DoFn` that read the file (decreased performance). With SDF,
+we bring the richness of Apache Beam’s I/O APIs to a `DoFn` enabling modularity while maintaining the
+performance of traditional I/O connectors.
+
+### 12.1. SDF basics {#sdf-basics}
+
+At a high level, an SDF is responsible for processing element and restriction pairs. A
+restriction represents a subset of work that would have been necessary to have been done when
+processing the element.
+
+Executing an SDF follows the following steps:
+
+1. Each element is paired with a restriction (e.g. filename is paired with offset range representing the whole file).
+2. Each element and restriction pair is split (e.g. offset ranges are broken up into smaller pieces).
+3. The runner redistributes the element and restriction pairs to several workers.
+4. Element and restriction pairs are processed in parallel (e.g. the file is read). Within this last step,
+the element and restriction pair can pause its own processing and/or be split into further element and
+restriction pairs.
+
+![Diagram of steps that an SDF is composed of](/images/sdf_high_level_overview.svg)
+
+
+#### 12.1.1. A basic SDF {#a-basic-sdf}
+
+A basic SDF is composed of three parts: a restriction, a restriction provider, and a
+restriction tracker. The restriction is used to represent a subset of work for a given element.
+The restriction provider lets SDF authors override default implementations for splitting, sizing,
+watermark estimation, and so forth. In [Java](https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/DoFn.java#L92)
+and [Go](https://github.com/apache/beam/blob/0f466e6bcd4ac8677c2bd9ecc8e6af3836b7f3b8/sdks/go/pkg/beam/pardo.go#L226),
+this is the `DoFn`. [Python](https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/python/apache_beam/transforms/core.py#L213)
+has a dedicated RestrictionProvider type. The restriction tracker is responsible for tracking
+what subset of the restriction has been completed during processing.
+
+To define an SDF, you must choose whether the SDF is bounded (default) or
+unbounded and define a way to initialize an initial restriction for an element.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExample >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExample >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *splittableDoFn) CreateInitialRestriction(filename string) offsetrange.Restriction {
+	return offsetrange.Restriction{
+		Start: 0,
+		End:   getFileLength(filename),
+	}
+}
+
+func (fn *splittableDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+}
+
+func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
+            file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
+
+	if err != nil {
+		return err
+	}
+	for rt.TryClaim(offset) {
+		record, newOffset := readNextRecord(file)
+		emit(record)
+		offset = newOffset
+	}
+	return nil
+}
+{{< /highlight >}}
+
+At this point, we have an SDF that supports [runner-initiated splits](#runner-initiated-split)
+enabling dynamic work rebalancing. To increase the rate at which initial parallelization of work occurs
+or for those runners that do not support runner-initiated splitting, we recommend providing
+a set of initial splits:
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExampleWithSplitting >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExampleWithSplitting >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
+	size := 64 * (1 << 20)
+	i := rest.Start
+	for i < rest.End - size {
+		// Compute and output 64 MiB size ranges to process in parallel
+		end := i + size
+     		splits = append(splits, offsetrange.Restriction{i, end})
+		i = end
+	}
+	// Output the last range
+	splits = append(splits, offsetrange.Restriction{i, rest.End})
+	return splits
+}
+{{< /highlight >}}
+
+### 12.2. Sizing and progress {#sizing-and-progress}
+
+Sizing and progress are used during execution of an SDF to inform runners so that they may
+perform intelligent decisions about which restrictions to split and how to parallelize work.
+
+Before processing an element and restriction, an initial size may be used by a runner to choose
+how and who processes the restrictions attempting to improve initial balancing and parallelization
+of work. During the processing of an element and restriction, sizing and progress are used to choose
+which restrictions to split and who should process them.
+
+By default, we use the restriction tracker’s estimate for work remaining falling back to assuming
+that all restrictions have an equal cost. To override the default, SDF authors can provide the
+appropriate method within the restriction provider.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_GetSize >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_GetSize >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Restriction) float64 {
+	weight := float64(1)
+	if strings.Contains(filename, “expensiveRecords”) {
+		weight = 2
+	}
+	return weight * (rest.End - rest.Start)
+}
+{{< /highlight >}}
+
+### 12.3. User-initiated checkpoint {#user-initiated-checkpoint}
+
+Some I/Os cannot produce all of the data necessary to complete a restriction within the lifetime of a
+single bundle. This typically happens with unbounded restrictions, but can also happen with bounded
+restrictions. For example, there could be more data that needs to be ingested but is not available yet.
+Another cause of this scenario is the source system throttling your data.
+
+Your SDF can signal to you that you are not done processing the current restriction. This
+signal can suggest a time to resume at. While the runner tries to honor the resume time, this is not
+guaranteed. This allows execution to continue on a restriction that has available work improving
+resource utilization.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_UserInitiatedCheckpoint >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_UserInitiatedCheckpoint >}}
+{{< /highlight >}}
+
+### 12.4. Runner-initiated split {#runner-initiated-split}
+
+A runner at any time may attempt to split a restriction while it is being processed. This allows the
+runner to either pause processing of the restriction so that other work may be done (common for
+unbounded restrictions to limit the amount of output and/or improve latency) or split the restriction
+into two pieces, increasing the available parallelism within the system. It is important to author a
+SDF with this in mind since the end of the restriction may change. Thus when writing the
+processing loop, it is important to use the result from trying to claim a piece of the restriction
+instead of assuming one can process till the end.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BadTryClaimLoop >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BadTryClaimLoop >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
+            file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
+
+	if err != nil {
+		return err
+	}
+
+	// The restriction tracker can be modified by another thread in parallel
+	// so storing state locally is ill advised.
+	end = rt.GetRestriction().(offsetrange.Restriction).End
+	for offset < end {
+		// Only after successfully claiming should we produce any output and/or
+		// perform side effects.
+    	rt.TryClaim(offset)
+		record, newOffset := readNextRecord(file)
+		emit(record)
+		offset = newOffset
+	}
+	return nil
+}
+{{< /highlight >}}
+
+### 12.5. Watermark estimation {#watermark-estimation}
+
+The default watermark estimator does not produce a watermark estimate. Therefore, the output watermark
+is solely computed by the minimum of upstream watermarks.
+
+An SDF can advance the output watermark by specifying a lower bound for all future output
+that this element and restriction pair will produce. The runner computes the minimum output watermark
+by taking the minimum over all upstream watermarks and the minimum reported by each element and
+restriction pair. The reported watermark must monotonically increase for each element and restriction
+pair across bundle boundaries. When an element and restriction pair stops processing its watermark,
+it is no longer considered part of the above calculation.
+
+Tips:
+*   If you author an SDF that outputs records with timestamps, you should expose ways to allow users of
+this SDF to configure which watermark estimator to use.
+*   Any data produced before the watermark may be considered late. See
+[watermarks and late data](#watermarks-and-late-data) for more details.
+
+#### 12.5.1. Controlling the watermark {#controlling-the-watermark}
+
+There are two general types of watermark estimators: timestamp observing and external clock observing.
+Timestamp observing watermark estimators use the output timestamp of each record to compute the watermark
+estimate while external clock observing watermark estimators control the watermark by using a clock that
+is not associated to any individual output, such as the local clock of the machine or a clock exposed
+through an external service.
+
+The restriction provider lets you override the default watermark estimation logic and use an existing
+watermark estimator implementation. You can also provide your own watermark estimator implementation.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_CustomWatermarkEstimator >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_CustomWatermarkEstimator >}}
+{{< /highlight >}}
+
+### 12.6. Truncating during drain {#truncating-during-drain}
+
+Runners which support draining pipelines need the ability to drain SDFs; otherwise, the
+pipeline may never stop. By default, bounded restrictions process the remainder of the restriction while
+unbounded restrictions finish processing at the next SDF-initiated checkpoint or runner-initiated split.
+You are able to override this default behavior by defining the appropriate method on the restriction
+provider.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_Truncate >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_Truncate >}}
+{{< /highlight >}}
+
+### 12.7. Bundle finalization {#bundle-finalization}
+
+Bundle finalization enables a `DoFn` to perform side effects by registering a callback.
+The callback is invoked once the runner has acknowledged that it has durably persisted the output.
+For example, a message queue might need to acknowledge messages that it has ingested into the pipeline.
+Bundle finalization is not limited to SDFs but is called out here since this is the primary
+use case.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BundleFinalize >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BundleFinalize >}}
 {{< /highlight >}}

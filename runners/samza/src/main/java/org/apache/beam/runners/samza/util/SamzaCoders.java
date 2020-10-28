@@ -27,6 +27,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.samza.serializers.Serde;
 
 /** Utils for Coders creation/conversion in Samza. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SamzaCoders {
 
   private SamzaCoders() {}

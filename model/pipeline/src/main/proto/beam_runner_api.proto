@@ -25,14 +25,12 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
 import "endpoints.proto";
-import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/timestamp.proto";
 
 message BeamConstants {
   enum Constants {
@@ -931,6 +929,28 @@ message StandardCoders {
     // Components: None
     // Experimental.
     ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
+
+    // Encodes a user key and a shard id which is an opaque byte string.
+    //
+    // The encoding for a sharded key consists of a shard id byte string and the
+    // encoded user key in the following order:
+    //
+    //     - shard id using beam:coder:bytes:v1
+    //     - encoded user key
+    //
+    // Examples:
+    // user key with an empty shard id
+    //     0x00
+    //     encode(user_key)
+    //
+    // user key with a shard id taking up two bytes.
+    //     0x02
+    //     0x11 0x22
+    //     encode(user_key)
+    //
+    // Components: the user key coder.
+    // Experimental.
+    SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
   }
 }
 

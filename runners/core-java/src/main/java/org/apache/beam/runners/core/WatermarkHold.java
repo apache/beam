@@ -50,6 +50,7 @@ import org.joda.time.Instant;
  *
  * @param <W> The kind of {@link BoundedWindow} the hold is for.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /** Return tag for state containing the output watermark hold used for elements. */
   public static <W extends BoundedWindow>

@@ -61,6 +61,7 @@ import org.joda.time.Instant;
  * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext} and
  * for running tests that need state.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class InMemoryStateInternals<K> implements StateInternals {
 
   public static <K> InMemoryStateInternals<K> forKey(@Nullable K key) {

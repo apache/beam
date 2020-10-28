@@ -37,6 +37,7 @@ import org.apache.samza.metrics.MetricsRegistryMap;
  * This class holds the {@link MetricsContainer}s for BEAM metrics, and update the results to Samza
  * metrics.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SamzaMetricsContainer {
   private static final String BEAM_METRICS_GROUP = "BeamMetrics";
   private static final String DELIMITER = "-";

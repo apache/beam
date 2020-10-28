@@ -39,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Beam {@link
  * org.apache.beam.sdk.coders.Coder Coders}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   private final Coder<T> coder;

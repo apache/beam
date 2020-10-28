@@ -33,6 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options needed for a Pub/Sub Lite Publisher. */
 @AutoValue
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class PublisherOptions implements Serializable {
   private static final long serialVersionUID = 275311613L;
 

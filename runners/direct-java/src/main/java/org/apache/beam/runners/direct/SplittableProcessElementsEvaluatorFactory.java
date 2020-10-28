@@ -47,6 +47,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class SplittableProcessElementsEvaluatorFactory<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
     implements TransformEvaluatorFactory {

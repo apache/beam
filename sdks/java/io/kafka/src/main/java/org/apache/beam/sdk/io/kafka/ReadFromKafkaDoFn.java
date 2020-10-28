@@ -115,6 +115,7 @@ import org.slf4j.LoggerFactory;
  * WatermarkEstimator}.
  */
 @UnboundedPerElement
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K, V>> {
 
   ReadFromKafkaDoFn(ReadSourceDescriptors transform) {

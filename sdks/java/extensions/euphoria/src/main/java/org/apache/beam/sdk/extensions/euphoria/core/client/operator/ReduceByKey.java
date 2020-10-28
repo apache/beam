@@ -96,6 +96,7 @@ import org.joda.time.Duration;
             + "can be efficiently used in the executor-specific implementation",
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
     repartitions = 1)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, KeyT, KV<KeyT, OutputT>> implements TypeAware.Value<ValueT> {
 

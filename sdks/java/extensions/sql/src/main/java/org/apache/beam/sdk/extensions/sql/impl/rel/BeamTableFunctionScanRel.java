@@ -70,6 +70,7 @@ import org.joda.time.Duration;
  * BeamRelNode to replace {@code TableFunctionScan}. Currently this class limits to support
  * table-valued function for streaming windowing.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamRelNode {
   public BeamTableFunctionScanRel(
       RelOptCluster cluster,

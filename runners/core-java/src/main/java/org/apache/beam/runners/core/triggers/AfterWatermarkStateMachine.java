@@ -51,6 +51,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AfterWatermarkStateMachine {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";

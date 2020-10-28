@@ -87,6 +87,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Odd's 'n Ends used throughout queries and driver. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);
 

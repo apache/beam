@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -45,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** The {@link CoderTranslatorRegistrar} for coders which are shared across languages. */
 @AutoService(CoderTranslatorRegistrar.class)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
 
   // The URNs for coders which are shared across languages
@@ -67,6 +69,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
               ModelCoders.PARAM_WINDOWED_VALUE_CODER_URN)
           .put(DoubleCoder.class, ModelCoders.DOUBLE_CODER_URN)
           .put(RowCoder.class, ModelCoders.ROW_CODER_URN)
+          .put(ShardedKey.Coder.class, ModelCoders.SHARDED_KEY_CODER_URN)
           .build();
 
   public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
@@ -88,6 +91,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(WindowedValue.ParamWindowedValueCoder.class, CoderTranslators.paramWindowedValue())
           .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
           .put(RowCoder.class, CoderTranslators.row())
+          .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
           .build();
 
   static {

@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
  * <p>If the incoming timer is being cleared, the {@link TimerData} sets the fire and hold
  * timestamps to {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TimerReceiverFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TimerReceiverFactory.class);
 

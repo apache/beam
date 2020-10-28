@@ -37,6 +37,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilde
  * case when an underlying IO supports project push-down it is more efficient to not merge {@code
  * Project} with an {@code Aggregate}, leaving it for the {@code BeamIOPUshDownRule}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
   public static final AggregateProjectMergeRule INSTANCE =
       new BeamAggregateProjectMergeRule(

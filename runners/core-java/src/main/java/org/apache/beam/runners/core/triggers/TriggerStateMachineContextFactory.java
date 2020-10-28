@@ -46,6 +46,7 @@ import org.joda.time.Instant;
  * <p>These contexts are highly interdependent and share many fields; it is inadvisable to create
  * them via any means other than this factory class.
  */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
   private final WindowFn<?, W> windowFn;

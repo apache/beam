@@ -46,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link SideInputReader} for the Spark Batch Runner. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SparkSideInputReader implements SideInputReader {
   private static final Set<String> SUPPORTED_MATERIALIZATIONS =
       ImmutableSet.of(
@@ -74,9 +75,8 @@ public class SparkSideInputReader implements SideInputReader {
     this.broadcastStateData = broadcastStateData;
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     checkNotNull(view, "View passed to sideInput cannot be null");
     TupleTag<?> tag = view.getTagInternal();
     checkNotNull(sideInputs.get(tag), "Side input for " + view + " not available.");

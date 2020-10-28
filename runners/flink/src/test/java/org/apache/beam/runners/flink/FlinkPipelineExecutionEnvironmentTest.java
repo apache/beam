@@ -77,6 +77,7 @@ import org.powermock.reflect.exceptions.FieldNotFoundException;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();

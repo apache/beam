@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
  * <p>DataflowWorker presents one public interface, getAndPerformWork(), which uses the
  * WorkUnitClient to get work, execute it, and update the work.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BatchDataflowWorker implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(BatchDataflowWorker.class);
 
@@ -382,7 +383,7 @@ public class BatchDataflowWorker implements Closeable {
       workItemStatusClient.setWorker(worker, executionContext);
 
       DataflowWorkProgressUpdater progressUpdater =
-          new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker);
+          new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
       executeWork(worker, progressUpdater);
       workItemStatusClient.reportSuccess();
       return true;

@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
  * <p>{@link MetricRegistry} is not an interface, so this is not a by-the-book decorator. That said,
  * it delegates all metric related getters to the "decorated" instance.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class WithMetricsSupport extends MetricRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(WithMetricsSupport.class);

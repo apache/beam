@@ -80,6 +80,7 @@ import org.slf4j.LoggerFactory;
 
 /** Integration tests for querying Pubsub JSON messages with SQL. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PubsubJsonIT implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubJsonIT.class);
 

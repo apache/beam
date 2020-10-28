@@ -394,6 +394,16 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
       self._not_implemented_reasons.append(
           extract_concise_reason(got, NOT_IMPLEMENTED))
 
+    if self._checker._seen_error:
+      m = re.search('^([a-zA-Z0-9_, ]+)=', example.source)
+      if m:
+        for var in m.group(1).split(','):
+          var = var.strip()
+          if var in test.globs:
+            # More informative to get a NameError than
+            # use the wrong previous value.
+            del test.globs[var]
+
     return super(BeamDataframeDoctestRunner,
                  self).report_success(out, test, example, got)
 
@@ -502,31 +512,33 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
   IMPORT_PANDAS = 'import pandas as pd'
 
   example_srcs = []
-  lines = iter(
-      [line.rstrip()
-       for line in rst.split('\n') if is_example_line(line)] + ['END'])
+  lines = iter([(lineno, line.rstrip()) for lineno,
+                line in enumerate(rst.split('\n')) if is_example_line(line)] +
+               [(None, 'END')])
 
   # https://ipython.readthedocs.io/en/stable/sphinxext.html
-  line = next(lines)
+  lineno, line = next(lines)
   while True:
     if line == 'END':
       break
     if line.startswith('.. ipython::'):
-      line = next(lines)
+      lineno, line = next(lines)
       indent = get_indent(line)
       example = []
-      example_srcs.append(example)
+      example_srcs.append((lineno, example))
       while get_indent(line) >= indent:
         if '@verbatim' in line or ':verbatim:' in line or '@savefig' in line:
           example_srcs.pop()
           break
+        line = re.sub(r'In \[\d+\]: ', '', line)
+        line = re.sub(r'\.\.\.+:', '', line)
         example.append(line[indent:])
-        line = next(lines)
-        if get_indent(line) == indent:
+        lineno, line = next(lines)
+        if get_indent(line) == indent and line[indent] not in ')]}':
           example = []
-          example_srcs.append(example)
+          example_srcs.append((lineno, example))
     else:
-      line = next(lines)
+      lineno, line = next(lines)
 
   # TODO(robertwb): Would it be better to try and detect/compare the actual
   # objects in two parallel sessions than make (stringified) doctests?
@@ -544,7 +556,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
   IP.run_cell('import numpy as np\n')
   try:
     stdout = sys.stdout
-    for src in example_srcs:
+    for lineno, src in example_srcs:
       sys.stdout = cout = StringIO()
       src = '\n'.join(src)
       if src == IMPORT_PANDAS:
@@ -555,7 +567,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
         # Strip the prompt.
         # TODO(robertwb): Figure out how to suppress this.
         output = re.sub(r'^Out\[\d+\]:\s*', '', output)
-      examples.append(doctest.Example(src, output))
+      examples.append(doctest.Example(src, output, lineno=lineno))
 
   finally:
     sys.stdout = stdout

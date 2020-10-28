@@ -63,6 +63,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SparkExecutableStageFunction}. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SparkExecutableStageFunctionTest {
   @Mock private SparkExecutableStageContextFactory contextFactory;
   @Mock private ExecutableStageContext stageContext;

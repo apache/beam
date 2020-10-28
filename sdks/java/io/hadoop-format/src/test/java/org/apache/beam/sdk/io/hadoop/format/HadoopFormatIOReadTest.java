@@ -65,6 +65,7 @@ import org.mockito.Mockito;
 
 /** Unit tests for {@link HadoopFormatIO.Read}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class HadoopFormatIOReadTest {
   private static SerializableConfiguration serConf;
   private static SimpleFunction<Text, String> myKeyTranslate;

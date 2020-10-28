@@ -62,7 +62,10 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings("CannotMockFinalClass") // Mockito 2 and above can mock final classes
+@SuppressWarnings({
+  "CannotMockFinalClass",
+  "nullness"
+}) // Mockito 2 and above can mock final classes
 public class AzureBlobStoreFileSystemTest {
 
   private static AzureBlobStoreFileSystem azureBlobStoreFileSystem;

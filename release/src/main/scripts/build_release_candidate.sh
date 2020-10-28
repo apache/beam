@@ -25,6 +25,17 @@
 
 set -e
 
+if [[ "$JAVA_HOME" ]]; then
+  version=$("$JAVA_HOME/bin/java" -version 2>&1 | awk -F '"' '/version/ {print $2}')
+  if [[ ! `echo $version | sed "s/1\.8\..*/1.8/"` == "1.8" ]]; then
+    echo "Java version $version detected. Set \$JAVA_HOME to point to a JDK 8 installation."
+    exit 1
+  fi
+else
+  echo "\$JAVA_HOME must be set."
+  exit 1
+fi
+
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir

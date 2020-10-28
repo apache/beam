@@ -112,6 +112,7 @@ import org.slf4j.LoggerFactory;
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6562
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6564
 @SuppressFBWarnings({"JLM_JSR166_UTILCONCURRENT_MONITORENTER", "IS2_INCONSISTENT_SYNC"})
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
 

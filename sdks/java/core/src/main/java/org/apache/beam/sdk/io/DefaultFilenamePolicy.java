@@ -58,6 +58,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * different files for each window and other sharding controls, see the {@code
  * WriteOneFilePerWindow} example pipeline.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** The default sharding name template. */
   public static final String DEFAULT_UNWINDOWED_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;

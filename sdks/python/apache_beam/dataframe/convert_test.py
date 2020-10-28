@@ -66,11 +66,11 @@ class ConverTest(unittest.TestCase):
       a = pd.Series([1, 2, 3])
       b = pd.Series([100, 200, 300])
 
-      pc_a = p | 'A' >> beam.Create([a])
-      pc_b = p | 'B' >> beam.Create([b])
+      pc_a = p | 'A' >> beam.Create(a)
+      pc_b = p | 'B' >> beam.Create(b)
 
-      df_a = convert.to_dataframe(pc_a, proxy=a[:0])
-      df_b = convert.to_dataframe(pc_b, proxy=b[:0])
+      df_a = convert.to_dataframe(pc_a)
+      df_b = convert.to_dataframe(pc_b)
 
       df_2a = 2 * df_a
       df_3a = 3 * df_a
@@ -84,6 +84,13 @@ class ConverTest(unittest.TestCase):
       assert_that(pc_2a, equal_to(list(2 * a)), label='Check2a')
       assert_that(pc_3a, equal_to(list(3 * a)), label='Check3a')
       assert_that(pc_ab, equal_to(list(a * b)), label='Checkab')
+
+  def test_convert_scalar(self):
+    with beam.Pipeline() as p:
+      pc = p | 'A' >> beam.Create([1, 2, 3])
+      s = convert.to_dataframe(pc)
+      pc_sum = convert.to_pcollection(s.sum())
+      assert_that(pc_sum, equal_to([6]))
 
 
 if __name__ == '__main__':

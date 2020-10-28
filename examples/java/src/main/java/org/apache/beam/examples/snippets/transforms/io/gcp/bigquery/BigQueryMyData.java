@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BigQueryMyData {
 
   @SuppressFBWarnings("URF_UNREAD_FIELD")

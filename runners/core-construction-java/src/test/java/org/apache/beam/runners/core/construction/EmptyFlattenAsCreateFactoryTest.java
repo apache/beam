@@ -32,7 +32,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -74,7 +74,7 @@ public class EmptyFlattenAsCreateFactoryTest {
     factory.getReplacementTransform(
         AppliedPTransform.of(
             "nonEmptyInput",
-            nonEmpty.expand(),
+            PValues.expandInput(nonEmpty),
             Collections.emptyMap(),
             Flatten.pCollections(),
             pipeline));
@@ -84,7 +84,8 @@ public class EmptyFlattenAsCreateFactoryTest {
   public void mapOutputsSucceeds() {
     PCollection<Long> original = pipeline.apply("Original", GenerateSequence.from(0));
     PCollection<Long> replacement = pipeline.apply("Replacement", GenerateSequence.from(0));
-    Map<PValue, ReplacementOutput> mapping = factory.mapOutputs(original.expand(), replacement);
+    Map<PCollection<?>, ReplacementOutput> mapping =
+        factory.mapOutputs(PValues.expandOutput(original), replacement);
 
     assertThat(
         mapping,

@@ -25,6 +25,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SimpleStateRegistry {
   private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
 

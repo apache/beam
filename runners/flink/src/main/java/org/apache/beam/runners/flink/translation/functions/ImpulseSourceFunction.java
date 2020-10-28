@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
  * source alive although its work is already done. It will only shutdown when the streaming job is
  * cancelled.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ImpulseSourceFunction
     implements SourceFunction<WindowedValue<byte[]>>, CheckpointedFunction {
 

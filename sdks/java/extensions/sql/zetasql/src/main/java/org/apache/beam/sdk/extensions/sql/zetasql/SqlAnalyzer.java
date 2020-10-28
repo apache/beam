@@ -65,6 +65,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SqlAnalyzer {
   public static final String PRE_DEFINED_WINDOW_FUNCTIONS = "pre_defined_window_functions";
   public static final String USER_DEFINED_FUNCTIONS = "user_defined_functions";

@@ -43,6 +43,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -51,6 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
 /** Tests for Flink streaming transform translators. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkStreamingTransformTranslatorsTest {
 
   @Test
@@ -158,7 +160,11 @@ public class FlinkStreamingTransformTranslatorsTest {
     outputs.put(new TupleTag<>(), pc);
     AppliedPTransform<?, ?, ?> appliedTransform =
         AppliedPTransform.of(
-            "test-transform", Collections.emptyMap(), outputs, transform, Pipeline.create());
+            "test-transform",
+            Collections.emptyMap(),
+            PValues.fullyExpand(outputs),
+            transform,
+            Pipeline.create());
 
     ctx.setCurrentTransform(appliedTransform);
     translator.translateNode(transform, ctx);

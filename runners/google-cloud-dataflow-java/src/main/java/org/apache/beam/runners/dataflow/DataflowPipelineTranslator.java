@@ -119,7 +119,11 @@ import org.slf4j.LoggerFactory;
  * {@link DataflowPipelineTranslator} knows how to translate {@link Pipeline} objects into Cloud
  * Dataflow Service API {@link Job}s.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes",
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 @VisibleForTesting
 public class DataflowPipelineTranslator {
 
@@ -356,7 +360,9 @@ public class DataflowPipelineTranslator {
           if (experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)
               || experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT)) {
             throw new IllegalArgumentException(
-                "Streaming engine both disabled and enabled: enableStreamingEngine is set to false, but enable_windmill_service and/or enable_streaming_engine are present. It is recommended you only set enableStreamingEngine.");
+                "Streaming engine both disabled and enabled: enableStreamingEngine is set to"
+                    + " false, but enable_windmill_service and/or enable_streaming_engine are"
+                    + " present. It is recommended you only set enableStreamingEngine.");
           }
         }
       }
@@ -432,7 +438,7 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public <InputT extends PInput> Map<TupleTag<?>, PValue> getInputs(
+    public <InputT extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(
         PTransform<InputT, ?> transform) {
       return getCurrentTransform(transform).getInputs();
     }
@@ -445,7 +451,7 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(
+    public <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
         PTransform<?, OutputT> transform) {
       return getCurrentTransform(transform).getOutputs();
     }
@@ -1274,15 +1280,10 @@ public class DataflowPipelineTranslator {
   }
 
   private static void translateOutputs(
-      Map<TupleTag<?>, PValue> outputs, StepTranslationContext stepContext) {
-    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : outputs.entrySet()) {
+      Map<TupleTag<?>, PCollection<?>> outputs, StepTranslationContext stepContext) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput : outputs.entrySet()) {
       TupleTag<?> tag = taggedOutput.getKey();
-      checkArgument(
-          taggedOutput.getValue() instanceof PCollection,
-          "Non %s returned from Multi-output %s",
-          PCollection.class.getSimpleName(),
-          stepContext);
-      stepContext.addOutput(tag.getId(), (PCollection<?>) taggedOutput.getValue());
+      stepContext.addOutput(tag.getId(), taggedOutput.getValue());
     }
   }
 

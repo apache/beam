@@ -417,3 +417,26 @@ coder:
 examples:
     "\x03\x00\x02\x00\xb6\x95\xd5\xf9\x05\xc0\xc4\x07\x1b2020-08-13T14:14:14.123456Z\xc0\xf7\x85\xda\xae\x98\xeb\x02": {f_timestamp: {seconds: 1597328054, micros: 123456}, f_string: "2020-08-13T14:14:14.123456Z", f_int: 1597328054123456}
 
+---
+
+coder:
+  urn: "beam:coder:sharded_key:v1"
+  components: [{urn: "beam:coder:string_utf8:v1"}]
+
+examples:
+  "\u0000\u0000": {
+    shardId: "",
+    key: ""
+  }
+  "\u0008\u0073\u0068\u0061\u0072\u0064\u005f\u0069\u0064\u0000": {
+    shardId: shard_id,
+    key: ""
+  }
+  "\u0008\u0073\u0068\u0061\u0072\u0064\u005f\u0069\u0064\u0003\u006b\u0065\u0079": {
+    shardId: shard_id,
+    key: "key"
+  }
+  "\u0000\u0003\u006b\u0065\u0079": {
+    shardId: "",
+    key: "key"
+  }

@@ -71,6 +71,7 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link PAssert}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PAssertTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

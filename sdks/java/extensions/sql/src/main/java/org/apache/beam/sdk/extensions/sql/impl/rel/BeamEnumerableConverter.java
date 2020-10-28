@@ -82,6 +82,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** BeamRelNode to replace a {@code Enumerable} node. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
   private static final Logger LOG = LoggerFactory.getLogger(BeamEnumerableConverter.class);
 
@@ -266,7 +267,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Row>> globalValues = new ConcurrentHashMap<>();
 
-    private @Nullable volatile Queue<Row> values;
+    private volatile @Nullable Queue<Row> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {

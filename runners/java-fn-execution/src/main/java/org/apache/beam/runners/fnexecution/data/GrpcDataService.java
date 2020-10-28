@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
  * <p>This service transmits all outgoing {@link BeamFnApi.Elements} messages to the first client
  * that connects.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);

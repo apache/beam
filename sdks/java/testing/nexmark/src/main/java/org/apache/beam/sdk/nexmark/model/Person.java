@@ -38,6 +38,7 @@ import org.joda.time.Instant;
 
 /** A person either creating an auction or making a bid. */
 @DefaultSchema(JavaFieldSchema.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Person implements KnownSize, Serializable {
   private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
