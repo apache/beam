@@ -673,11 +673,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     if level is not None:
       # Could probably get by partitioning on the used levels.
-      requires_partition_by=partitionings.Singleton()
+      requires_partition_by = partitionings.Singleton()
     elif axis in ('columns', 1):
-      requires_partition_by=partitionings.Nothing()
+      requires_partition_by = partitionings.Nothing()
     else:
-      requires_partition_by=partitionings.Index()
+      requires_partition_by = partitionings.Index()
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'align',
