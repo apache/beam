@@ -18,6 +18,10 @@ package textio
 import (
 	"context"
 	"testing"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 )
 
 // TestReadSdf tests that readSdf successfully reads a test text file, and
@@ -25,39 +29,11 @@ import (
 // line.
 func TestReadSdf(t *testing.T) {
 	f := "../../../../data/textio_test.txt"
-	f, size, err := sizeFn(context.Background(), f)
-	if err != nil {
-		t.Fatalf("sizing failed: %v", err)
+	p, s := beam.NewPipelineWithRoot()
+	lines := ReadSdf(s, f)
+	passert.Count(s, lines, "NumLines", 1)
+
+	if err := beam.Run(context.Background(), "direct", p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
 	}
-
-	lines := fakeReadSdfFn(t, f, size)
-	want := 1
-	if len(lines) != 1 {
-		t.Fatalf("received %v lines, want %v", len(lines), want)
-	}
-}
-
-// fakeReadSdfFn calls the methods in readSdfFn on a single input to simulate
-// executing an SDF, and outputs all elements produced by that input.
-func fakeReadSdfFn(t *testing.T, f string, size int64) []string {
-	t.Helper()
-
-	// emit func output
-	var receivedLines []string
-	getLines := func(line string) {
-		receivedLines = append(receivedLines, line)
-	}
-
-	sdf := &readSdfFn{}
-	rest := sdf.CreateInitialRestriction(f, size)
-	splits := sdf.SplitRestriction(f, size, rest)
-	for _, split := range splits {
-		rt := sdf.CreateTracker(split)
-		err := sdf.ProcessElement(context.Background(), rt, f, size, getLines)
-		if err != nil {
-			t.Fatalf("error executing readSdf.ProcessElement: %v", err)
-		}
-	}
-
-	return receivedLines
 }

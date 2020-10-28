@@ -61,9 +61,10 @@ type Restriction struct {
 	Start, End int64
 }
 
-// EvenSplits splits a restriction into a number of evenly sized restrictions.
-// Each split restriction is guaranteed to not be empty, and each unit from the
-// original restriction is guaranteed to be contained in one split restriction.
+// EvenSplits splits a restriction into a number of evenly sized restrictions
+// in ascending order. Each split restriction is guaranteed to not be empty, and
+// each unit from the original restriction is guaranteed to be contained in one
+// split restriction.
 //
 // Num should be greater than 0. Otherwise there is no way to split the
 // restriction and this function will return the original restriction.
@@ -90,8 +91,8 @@ func (r Restriction) EvenSplits(num int64) (splits []Restriction) {
 }
 
 // SizedSplits splits a restriction into multiple restrictions of the given
-// size. If the restriction cannot be evenly split, the final restriction will
-// be the remainder.
+// size, in ascending order. If the restriction cannot be evenly split, the
+// final restriction will be the remainder.
 //
 // Example: (0, 24) split into size 10s -> {(0, 10), (10, 20), (20, 24)}
 //
