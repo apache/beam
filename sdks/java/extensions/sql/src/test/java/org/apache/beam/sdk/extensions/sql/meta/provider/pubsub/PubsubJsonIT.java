@@ -54,13 +54,13 @@ public class PubsubJsonIT extends PubsubTableProviderIT {
   }
 
   @Override
-  protected Matcher<PubsubMessage> matcherNames(String name) {
+  protected Matcher<PubsubMessage> matcherNames(String name) throws IOException {
     return hasProperty("payload", toJsonByteLike(String.format("{\"name\":\"%s\"}", name)));
   }
 
   @Override
   protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-      String name, int height, boolean knowsJS) throws Exception {
+      String name, int height, boolean knowsJS) throws IOException {
     String jsonString =
         String.format(
             "{\"name\":\"%s\", \"height\": %s, \"knowsJavascript\": %s}", name, height, knowsJS);
@@ -69,7 +69,7 @@ public class PubsubJsonIT extends PubsubTableProviderIT {
   }
 
   @Override
-  protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) {
+  protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
     String jsonString = String.format("{\"name\":\"%s\", \"height\": %s}", name, height);
     return hasProperty("payload", toJsonByteLike(jsonString));
   }
@@ -78,11 +78,7 @@ public class PubsubJsonIT extends PubsubTableProviderIT {
     return message(timestamp, jsonPayload.getBytes(UTF_8));
   }
 
-  private Matcher<byte[]> toJsonByteLike(String jsonString) {
-    try {
-      return jsonBytesLike(jsonString);
-    } catch (IOException e) {
-      throw new RuntimeException(" jsonBytesLike thrown error");
-    }
+  private Matcher<byte[]> toJsonByteLike(String jsonString) throws IOException {
+    return jsonBytesLike(jsonString);
   }
 }

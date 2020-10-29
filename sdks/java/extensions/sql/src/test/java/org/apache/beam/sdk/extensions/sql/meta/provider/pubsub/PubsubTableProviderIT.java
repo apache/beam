@@ -601,8 +601,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
     }
   }
 
-  private PCollection<Row> query(BeamSqlEnv sqlEnv, TestPipeline pipeline, String queryString)
-      throws Exception {
+  private PCollection<Row> query(BeamSqlEnv sqlEnv, TestPipeline pipeline, String queryString) {
 
     return BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(queryString));
   }
@@ -622,6 +621,12 @@ public abstract class PubsubTableProviderIT implements Serializable {
         hasProperty("attributeMap", hasEntry("ts", String.valueOf(ts.getMillis()))));
   }
 
+  protected Matcher<PubsubMessage> matcherPayload(Instant timestamp, String payload) {
+    return allOf(
+        hasProperty("payload", equalTo(payload.getBytes(StandardCharsets.US_ASCII))),
+        hasProperty("attributeMap", hasEntry("ts", String.valueOf(timestamp.getMillis()))));
+  }
+
   protected Instant ts(long millis) {
     return Instant.ofEpochMilli(millis);
   }
@@ -630,20 +635,16 @@ public abstract class PubsubTableProviderIT implements Serializable {
 
   protected abstract PCollection<String> applyRowsToStrings(PCollection<Row> rows);
 
-  protected abstract PubsubMessage messageIdName(Instant timestamp, int id, String name);
+  protected abstract PubsubMessage messageIdName(Instant timestamp, int id, String name)
+      throws Exception;
 
-  protected Matcher<PubsubMessage> matcherPayload(Instant timestamp, String payload) {
-    return allOf(
-        hasProperty("payload", equalTo(payload.getBytes(StandardCharsets.US_ASCII))),
-        hasProperty("attributeMap", hasEntry("ts", String.valueOf(timestamp.getMillis()))));
-  }
-
-  protected abstract Matcher<PubsubMessage> matcherNames(String name);
+  protected abstract Matcher<PubsubMessage> matcherNames(String name) throws Exception;
 
   protected abstract Matcher<PubsubMessage> matcherNameHeightKnowsJS(
       String name, int height, boolean knowsJS) throws Exception;
 
-  protected abstract Matcher<PubsubMessage> matcherNameHeight(String name, int height);
+  protected abstract Matcher<PubsubMessage> matcherNameHeight(String name, int height)
+      throws Exception;
 
   private PubsubMessage messagePayload(Instant timestamp, String payload) {
     return message(timestamp, payload.getBytes(StandardCharsets.US_ASCII));

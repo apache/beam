@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.hasProperty;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -73,33 +72,36 @@ public class PubsubAvroIT extends PubsubTableProviderIT {
   }
 
   @Override
-  protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
+  protected PubsubMessage messageIdName(Instant timestamp, int id, String name) throws IOException {
     byte[] encodedRecord = createEncodedGenericRecord(PAYLOAD_SCHEMA, ImmutableList.of(id, name));
     return message(timestamp, encodedRecord);
   }
 
   @Override
-  protected Matcher<PubsubMessage> matcherNames(String name) {
+  protected Matcher<PubsubMessage> matcherNames(String name) throws IOException {
     Schema schema = Schema.builder().addStringField("name").build();
     byte[] encodedRecord = createEncodedGenericRecord(schema, ImmutableList.of(name));
     return hasProperty("payload", equalTo(encodedRecord));
   }
 
   @Override
-  protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) {
-    byte[] encodedRecord = createEncodedGenericRecord(NAME_HEIGHT_SCHEMA, ImmutableList.of(name, height));
-    return hasProperty(
-        "payload", equalTo(encodedRecord));
+  protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
+    byte[] encodedRecord =
+        createEncodedGenericRecord(NAME_HEIGHT_SCHEMA, ImmutableList.of(name, height));
+    return hasProperty("payload", equalTo(encodedRecord));
   }
 
   @Override
   protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-      String name, int height, boolean knowsJS) {
-    byte[] encodedRecord = createEncodedGenericRecord(NAME_HEIGHT_KNOWS_JS_SCHEMA, ImmutableList.of(name, height, knowsJS));
+      String name, int height, boolean knowsJS) throws IOException {
+    byte[] encodedRecord =
+        createEncodedGenericRecord(
+            NAME_HEIGHT_KNOWS_JS_SCHEMA, ImmutableList.of(name, height, knowsJS));
     return hasProperty("payload", equalTo(encodedRecord));
   }
 
-  private byte[] createEncodedGenericRecord(Schema beamSchema, List<Object> values) {
+  private byte[] createEncodedGenericRecord(Schema beamSchema, List<Object> values)
+      throws IOException {
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
     GenericRecordBuilder builder = new GenericRecordBuilder(avroSchema);
     List<org.apache.avro.Schema.Field> fields = avroSchema.getFields();
@@ -109,11 +111,7 @@ public class PubsubAvroIT extends PubsubTableProviderIT {
     AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-    try {
-      coder.encode(builder.build(), out);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    coder.encode(builder.build(), out);
     return out.toByteArray();
   }
 }
