@@ -55,14 +55,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -442,11 +435,13 @@ public class HadoopFormatIO {
       return toBuilder()
           .setKeyTranslationFunction(function)
           .setKeyTypeDescriptor(function.getOutputTypeDescriptor())
+          .setValueCoder(null)
           .build();
     }
 
     /** Transforms the keys read from the source using the given key translation function. */
     public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function, Coder<K> coder) {
+      checkArgument(function != null, "function can not be null");
       checkArgument(coder != null, "coder can not be null");
       return withKeyTranslation(function).toBuilder().setKeyCoder(coder).build();
     }
@@ -458,11 +453,13 @@ public class HadoopFormatIO {
       return toBuilder()
           .setValueTranslationFunction(function)
           .setValueTypeDescriptor(function.getOutputTypeDescriptor())
+          .setValueCoder(null)
           .build();
     }
 
     /** Transforms the values read from the source using the given value translation function. */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function, Coder<V> coder) {
+      checkArgument(function != null, "function can not be null");
       checkArgument(coder != null, "coder can not be null");
       return withValueTranslation(function).toBuilder().setValueCoder(coder).build();
     }

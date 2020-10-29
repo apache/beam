@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
@@ -237,12 +238,38 @@ public class HadoopFormatIOReadTest {
     assertEquals(serConf.get(), read.getConfiguration().get());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
     assertEquals(null, read.getValueTranslationFunction());
+    assertEquals(null, read.getKeyCoder());
     assertEquals(
         myKeyTranslate.getOutputTypeDescriptor().getRawType(),
         read.getKeyTypeDescriptor().getRawType());
     assertEquals(
         serConf.get().getClass("value.class", Object.class),
         read.getValueTypeDescriptor().getRawType());
+  }
+
+  @Test
+  public void testReadObjectCreationWithConfigurationKeyTranslationAndCoder() {
+    HadoopFormatIO.Read<String, Employee> read =
+        HadoopFormatIO.<String, Employee>read()
+            .withConfiguration(serConf.get())
+            .withKeyTranslation(myKeyTranslate, StringUtf8Coder.of());
+    assertEquals(serConf.get(), read.getConfiguration().get());
+    assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
+    assertEquals(StringUtf8Coder.of(), read.getKeyCoder());
+    assertEquals(
+        StringUtf8Coder.of().getEncodedTypeDescriptor().getRawType(),
+        read.getKeyTypeDescriptor().getRawType());
+    assertEquals(
+        serConf.get().getClass("value.class", Object.class),
+        read.getValueTypeDescriptor().getRawType());
+
+    // set key-translation again without coder should reset back to type-descriptor only
+    read = read.withKeyTranslation(myKeyTranslate);
+    assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
+    assertEquals(null, read.getKeyCoder());
+    assertEquals(
+        myKeyTranslate.getOutputTypeDescriptor().getRawType(),
+        read.getKeyTypeDescriptor().getRawType());
   }
 
   /**
@@ -281,6 +308,31 @@ public class HadoopFormatIOReadTest {
     assertEquals(
         serConf.get().getClass("key.class", Object.class),
         read.getKeyTypeDescriptor().getRawType());
+    assertEquals(
+        myValueTranslate.getOutputTypeDescriptor().getRawType(),
+        read.getValueTypeDescriptor().getRawType());
+  }
+
+  @Test
+  public void testReadObjectCreationWithConfigurationValueTranslationAndCoder() {
+    Coder<String> coder = StringUtf8Coder.of();
+    HadoopFormatIO.Read<Text, String> read =
+        HadoopFormatIO.<Text, String>read()
+            .withConfiguration(serConf.get())
+            .withValueTranslation(myValueTranslate, coder);
+    assertEquals(serConf.get(), read.getConfiguration().get());
+    assertEquals(myValueTranslate, read.getValueTranslationFunction());
+    assertEquals(coder, read.getValueCoder());
+    assertEquals(
+        coder.getEncodedTypeDescriptor().getRawType(), read.getValueTypeDescriptor().getRawType());
+    assertEquals(
+        serConf.get().getClass("key.class", Object.class),
+        read.getKeyTypeDescriptor().getRawType());
+
+    // set value-translation again without coder should reset back to type-descriptor only
+    read = read.withValueTranslation(myValueTranslate);
+    assertEquals(myValueTranslate, read.getValueTranslationFunction());
+    assertEquals(null, read.getValueCoder());
     assertEquals(
         myValueTranslate.getOutputTypeDescriptor().getRawType(),
         read.getValueTypeDescriptor().getRawType());
