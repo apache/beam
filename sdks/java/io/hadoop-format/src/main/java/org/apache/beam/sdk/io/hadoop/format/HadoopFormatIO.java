@@ -435,7 +435,7 @@ public class HadoopFormatIO {
       return toBuilder()
           .setKeyTranslationFunction(function)
           .setKeyTypeDescriptor(function.getOutputTypeDescriptor())
-          .setValueCoder(null)
+          .setKeyCoder(null)
           .build();
     }
 
