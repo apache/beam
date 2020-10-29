@@ -63,6 +63,7 @@ For more information on changes in 2.25.0, check out the
 ## Known Issues
 
 * Dataflow streaming timers once against not strictly time ordered when set earlier mid-bundle, as the fix for  [BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543) introduced more severe bugs and has been rolled back.
+* ([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113)) Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.
 
 
 ## List of Contributors
