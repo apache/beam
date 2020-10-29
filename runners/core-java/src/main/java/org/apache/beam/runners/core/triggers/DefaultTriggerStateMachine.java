@@ -36,6 +36,9 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {}
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     // If the end of the window has already been reached, then we are already ready to fire
     // and do not need to set a wake-up timer.
@@ -45,6 +48,9 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+  @Override
   public void onMerge(OnMergeContext c) throws Exception {
     // If the end of the window has already been reached, then we are already ready to fire
     // and do not need to set a wake-up timer.
@@ -52,6 +58,9 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
       c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     }
   }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {}
 
   @Override
   public void clear(TriggerContext c) throws Exception {}

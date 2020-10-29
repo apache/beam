@@ -86,13 +86,14 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet, finishedSets);
   }
 
-  public StateAccessor<?> createStateAccessor(W window, ExecutableTriggerStateMachine trigger) {
-    return new StateAccessorImpl(window, trigger);
+  public TriggerStateMachine.PrefetchContext createPrefetchContext(
+      W window, ExecutableTriggerStateMachine trigger) {
+    return new PrefetchContextImpl(window, trigger);
   }
 
-  public MergingStateAccessor<?, W> createMergingStateAccessor(
-      W mergeResult, Collection<W> mergingWindows, ExecutableTriggerStateMachine trigger) {
-    return new MergingStateAccessorImpl(trigger, mergingWindows, mergeResult);
+  public TriggerStateMachine.MergingPrefetchContext createMergingPrefetchContext(
+      W window, Collection<W> mergingWindows, ExecutableTriggerStateMachine trigger) {
+    return new MergingPrefetchContextImpl(window, mergingWindows, trigger);
   }
 
   private class TriggerInfoImpl implements TriggerStateMachine.TriggerInfo {
@@ -320,6 +321,9 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public TriggerStateMachine.TriggerContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (this.triggerInfo.trigger == trigger) {
+        return this;
+      }
       return new TriggerContextImpl(window, timers, trigger, triggerInfo.finishedSet);
     }
 
@@ -387,6 +391,9 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public TriggerStateMachine.OnElementContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (this.triggerInfo.trigger == trigger) {
+        return this;
+      }
       return new OnElementContextImpl(
           window, timers, trigger, triggerInfo.finishedSet, eventTimestamp);
     }
@@ -454,6 +461,9 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public TriggerStateMachine.OnMergeContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (this.triggerInfo.trigger == trigger) {
+        return this;
+      }
       return new OnMergeContextImpl(
           window, timers, trigger, triggerInfo.finishedSet, triggerInfo.finishedSets);
     }
@@ -496,6 +506,78 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     @Override
     public @Nullable Instant currentEventTime() {
       return timers.currentEventTime();
+    }
+  }
+
+  private class PrefetchContextImpl extends TriggerStateMachine.PrefetchContext {
+    private final StateAccessor<?> state;
+    private final W window;
+    private final ExecutableTriggerStateMachine trigger;
+
+    private PrefetchContextImpl(W window, ExecutableTriggerStateMachine trigger) {
+      this.window = window;
+      this.trigger = trigger;
+      this.state = new StateAccessorImpl(window, trigger);
+    }
+
+    @Override
+    public StateAccessor<?> state() {
+      return state;
+    }
+
+    @Override
+    public ExecutableTriggerStateMachine trigger() {
+      return trigger;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return window;
+    }
+
+    @Override
+    public TriggerStateMachine.PrefetchContext forTrigger(ExecutableTriggerStateMachine trigger) {
+      if (trigger == this.trigger) {
+        return this;
+      }
+      return new PrefetchContextImpl(window, trigger);
+    }
+  }
+
+  private class MergingPrefetchContextImpl extends TriggerStateMachine.MergingPrefetchContext {
+    private final MergingStateAccessorImpl state;
+    private final W window;
+    private final ExecutableTriggerStateMachine trigger;
+
+    private MergingPrefetchContextImpl(
+        W window, Collection<W> mergingWindows, ExecutableTriggerStateMachine trigger) {
+      this.window = window;
+      this.trigger = trigger;
+      this.state = new MergingStateAccessorImpl(trigger, mergingWindows, window);
+    }
+
+    @Override
+    public MergingStateAccessor<?, W> state() {
+      return state;
+    }
+
+    @Override
+    public ExecutableTriggerStateMachine trigger() {
+      return trigger;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return window;
+    }
+
+    @Override
+    public TriggerStateMachine.MergingPrefetchContext forTrigger(
+        ExecutableTriggerStateMachine trigger) {
+      if (trigger == this.trigger) {
+        return this;
+      }
+      return new MergingPrefetchContextImpl(window, state.activeToBeMerged, trigger);
     }
   }
 }

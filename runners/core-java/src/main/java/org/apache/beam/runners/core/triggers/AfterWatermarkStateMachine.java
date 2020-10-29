@@ -92,6 +92,13 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {
+      for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+        subTrigger.invokePrefetchOnElement(c);
+      }
+    }
+
+    @Override
     public void onElement(OnElementContext c) throws Exception {
       if (!endOfWindowReached(c)) {
         c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
@@ -106,6 +113,13 @@ public class AfterWatermarkStateMachine {
         for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
           subTrigger.invokeOnElement(c);
         }
+      }
+    }
+
+    @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {
+      for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+        subTrigger.invokePrefetchOnMerge(c);
       }
     }
 
@@ -143,6 +157,13 @@ public class AfterWatermarkStateMachine {
     private boolean endOfWindowReached(TriggerStateMachine.TriggerContext context) {
       return context.currentEventTime() != null
           && context.currentEventTime().isAfter(context.window().maxTimestamp());
+    }
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {
+      for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+        subTrigger.invokePrefetchShouldFire(c);
+      }
     }
 
     @Override
@@ -254,6 +275,9 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {}
+
+    @Override
     public void onElement(OnElementContext c) throws Exception {
       // We're interested in knowing when the input watermark passes the end of the window.
       // (It is possible this has already happened, in which case the timer will be fired
@@ -262,6 +286,9 @@ public class AfterWatermarkStateMachine {
         c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
       }
     }
+
+    @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {}
 
     @Override
     public void onMerge(OnMergeContext c) throws Exception {
@@ -296,6 +323,9 @@ public class AfterWatermarkStateMachine {
     public int hashCode() {
       return Objects.hash(getClass());
     }
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {

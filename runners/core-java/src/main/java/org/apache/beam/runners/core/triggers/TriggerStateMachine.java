@@ -247,14 +247,48 @@ public abstract class TriggerStateMachine implements Serializable {
     public abstract MergingTriggerInfo trigger();
   }
 
+  public abstract static class PrefetchContext {
+    /** Returns the interface for accessing persistent state. */
+    public abstract StateAccessor<?> state();
+
+    /** The window that the current context is executing in. */
+    public abstract BoundedWindow window();
+
+    public abstract ExecutableTriggerStateMachine trigger();
+
+    /** Create a sub-context for the given sub-trigger. */
+    public abstract PrefetchContext forTrigger(ExecutableTriggerStateMachine trigger);
+  }
+
+  public abstract static class MergingPrefetchContext extends PrefetchContext {
+    /** Create an {@code OnMergeContext} for executing the given trigger. */
+    @Override
+    public abstract MergingPrefetchContext forTrigger(ExecutableTriggerStateMachine trigger);
+
+    @Override
+    public abstract MergingStateAccessor<?, ?> state();
+  }
+
   protected final @Nullable List<TriggerStateMachine> subTriggers;
 
   protected TriggerStateMachine(@Nullable List<TriggerStateMachine> subTriggers) {
     this.subTriggers = subTriggers;
   }
 
+  /**
+   * Called to allow the trigger to prefetch any state it will likely need to read from during an
+   * {@link #onElement} call.
+   */
+  public abstract void prefetchOnElement(PrefetchContext c);
+
   /** Called every time an element is incorporated into a window. */
   public abstract void onElement(OnElementContext c) throws Exception;
+
+  /**
+   * Called to allow the trigger to prefetch any state it will likely need to read from during an
+   * {@link #onMerge} call.
+   */
+  public abstract void prefetchOnMerge(MergingPrefetchContext c);
 
   /**
    * Called immediately after windows have been merged.
@@ -274,10 +308,16 @@ public abstract class TriggerStateMachine implements Serializable {
   public abstract void onMerge(OnMergeContext c) throws Exception;
 
   /**
+   * Called to allow the trigger to prefetch any state it will likely need to read from during an
+   * {@link #shouldFire} call.
+   */
+  public abstract void prefetchShouldFire(PrefetchContext c);
+
+  /**
    * Returns {@code true} if the current state of the trigger indicates that its condition is
    * satisfied and it is ready to fire.
    */
-  public abstract boolean shouldFire(TriggerContext context) throws Exception;
+  public abstract boolean shouldFire(TriggerContext c) throws Exception;
 
   /**
    * Adjusts the state of the trigger to be ready for the next pane. For example, a {@link
@@ -286,55 +326,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * <p>If the trigger is finished, it is the responsibility of the trigger itself to record that
    * fact via the {@code context}.
    */
-  public abstract void onFire(TriggerContext context) throws Exception;
-
-  /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during an
-   * {@link #onElement} call.
-   */
-  public void prefetchOnElement(StateAccessor<?> state) {
-    if (subTriggers != null) {
-      for (TriggerStateMachine trigger : subTriggers) {
-        trigger.prefetchOnElement(state);
-      }
-    }
-  }
-
-  /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during an
-   * {@link #onMerge} call.
-   */
-  public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
-    if (subTriggers != null) {
-      for (TriggerStateMachine trigger : subTriggers) {
-        trigger.prefetchOnMerge(state);
-      }
-    }
-  }
-
-  /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during an
-   * {@link #shouldFire} call.
-   */
-  public void prefetchShouldFire(StateAccessor<?> state) {
-    if (subTriggers != null) {
-      for (TriggerStateMachine trigger : subTriggers) {
-        trigger.prefetchShouldFire(state);
-      }
-    }
-  }
-
-  /**
-   * Called to allow the trigger to prefetch any state it will likely need to read from during an
-   * {@link #onFire} call.
-   */
-  public void prefetchOnFire(StateAccessor<?> state) {
-    if (subTriggers != null) {
-      for (TriggerStateMachine trigger : subTriggers) {
-        trigger.prefetchOnFire(state);
-      }
-    }
-  }
+  public abstract void onFire(TriggerContext c) throws Exception;
 
   /**
    * Clear any state associated with this trigger in the given window.
