@@ -125,8 +125,8 @@
 
 ## Known Issues
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Dataflow streaming timers once against not strictly time ordered when set earlier mid-bundle, as the fix for  [BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543) introduced more severe bugs and has been rolled back.
+* Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113))
 
 
 # [2.24.0] - 2020-09-18
@@ -167,6 +167,7 @@
 ## Known issues
 
 * When a timer fires but is reset prior to being executed, a watermark hold may be leaked, causing a stuck pipeline [BEAM-10991](https://issues.apache.org/jira/browse/BEAM-10991).
+* Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113))
 
 # [2.23.0] - 2020-06-29
 

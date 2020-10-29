@@ -57,7 +57,7 @@ For more information on changes in 2.24.0, check out the
 
 ## Known Issues
 
-* ([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113)) Default compressor change breaks dataflow python streaming job update compatibility.
+* Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113))
 
 ## List of Contributors
 
