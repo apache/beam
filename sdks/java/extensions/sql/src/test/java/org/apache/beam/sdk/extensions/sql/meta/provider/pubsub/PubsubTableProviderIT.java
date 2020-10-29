@@ -39,7 +39,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
@@ -55,7 +53,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -297,39 +294,6 @@ public abstract class PubsubTableProviderIT implements Serializable {
     eventsTopic.publish(messages);
     assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
     pool.shutdown();
-  }
-
-  @Test
-  public void testWritesRowsToPubsub() throws Exception {
-    Schema personSchema =
-        Schema.builder()
-            .addStringField("name")
-            .addInt32Field("height")
-            .addBooleanField("knowsJavascript")
-            .build();
-    PCollection<Row> rows =
-        pipeline
-            .apply(
-                Create.of(
-                    row(personSchema, "person1", 80, true),
-                    row(personSchema, "person2", 70, false),
-                    row(personSchema, "person3", 60, true),
-                    row(personSchema, "person4", 50, false),
-                    row(personSchema, "person5", 40, true)))
-            .setRowSchema(personSchema)
-            .apply(
-                SqlTransform.query(
-                    "SELECT name FROM PCOLLECTION AS person WHERE person.knowsJavascript"));
-    // Convert rows to proper format and write to pubsub
-    PCollection<String> rowsStrings = applyRowsToStrings(rows);
-    rowsStrings.apply(PubsubIO.writeStrings().to(eventsTopic.topicPath().getPath()));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
-
-    eventsTopic
-        .assertThatTopicEventuallyReceives(
-            matcherNames("person1"), matcherNames("person3"), matcherNames("person5"))
-        .waitForUpTo(Duration.standardSeconds(20));
   }
 
   @Test
@@ -632,8 +596,6 @@ public abstract class PubsubTableProviderIT implements Serializable {
   }
 
   protected abstract String getPayloadFormat();
-
-  protected abstract PCollection<String> applyRowsToStrings(PCollection<Row> rows);
 
   protected abstract PubsubMessage messageIdName(Instant timestamp, int id, String name)
       throws Exception;

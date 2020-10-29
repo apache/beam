@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
 
@@ -30,10 +29,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
 import org.joda.time.Instant;
@@ -59,16 +54,6 @@ public class PubsubAvroIT extends PubsubTableProviderIT {
   @Override
   protected String getPayloadFormat() {
     return "avro";
-  }
-
-  @Override
-  protected PCollection<String> applyRowsToStrings(PCollection<Row> rows) {
-    return rows.apply(
-        MapElements.into(TypeDescriptors.strings())
-            .via(
-                (Row row) ->
-                    new String(
-                        AvroUtils.getRowToAvroBytesFunction(row.getSchema()).apply(row), UTF_8)));
   }
 
   @Override

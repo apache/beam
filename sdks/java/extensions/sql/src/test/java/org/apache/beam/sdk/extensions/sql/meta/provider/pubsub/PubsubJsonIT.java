@@ -23,9 +23,6 @@ import static org.hamcrest.Matchers.hasProperty;
 
 import java.io.IOException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
-import org.apache.beam.sdk.transforms.ToJson;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.hamcrest.Matcher;
 import org.joda.time.Instant;
 import org.junit.runner.RunWith;
@@ -46,11 +43,6 @@ public class PubsubJsonIT extends PubsubTableProviderIT {
   protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
     String jsonString = "{ \"id\" : " + id + ", \"name\" : \"" + name + "\" }";
     return message(timestamp, jsonString);
-  }
-
-  @Override
-  protected PCollection<String> applyRowsToStrings(PCollection<Row> rows) {
-    return rows.apply(ToJson.of());
   }
 
   @Override
