@@ -28,12 +28,7 @@ from __future__ import absolute_import
 from builtins import object
 
 # pylint: disable=unused-import
-from apache_beam.runners.internal.names import DATAFLOW_SDK_TARBALL_FILE
 from apache_beam.runners.internal.names import PICKLED_MAIN_SESSION_FILE
-from apache_beam.runners.internal.names import STAGED_PIPELINE_FILENAME
-from apache_beam.runners.internal.names import STAGED_PIPELINE_URL_METADATA_FIELD
-from apache_beam.runners.internal.names import BEAM_PACKAGE_NAME
-from apache_beam.runners.internal.names import BEAM_SDK_NAME
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'

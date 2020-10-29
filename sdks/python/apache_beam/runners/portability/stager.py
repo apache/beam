@@ -230,7 +230,7 @@ class Stager(object):
           # built at head.
           if os.path.isdir(setup_options.sdk_location):
             sdk_path = os.path.join(
-                setup_options.sdk_location, names.DATAFLOW_SDK_TARBALL_FILE)
+                setup_options.sdk_location, names.STAGED_SDK_SOURCES_FILENAME)
           else:
             sdk_path = setup_options.sdk_location
 
@@ -610,7 +610,7 @@ class Stager(object):
       else:
         raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
     else:
-      return names.DATAFLOW_SDK_TARBALL_FILE
+      return names.STAGED_SDK_SOURCES_FILENAME
 
   @staticmethod
   def _create_beam_sdk(sdk_remote_location, temp_dir):

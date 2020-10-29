@@ -20,7 +20,9 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
-DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
+# Current value is hardcoded in Dataflow internal infrastructure;
+# please don't change without a review from Dataflow maintainers.
+STAGED_SDK_SOURCES_FILENAME = 'dataflow_python_sdk.tar'
 
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 STAGED_PIPELINE_FILENAME = "pipeline.pb"
