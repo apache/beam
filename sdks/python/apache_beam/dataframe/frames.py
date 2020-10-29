@@ -1463,7 +1463,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   aggregate = agg
 
-  first = last = head = tail = frame_base.not_implemented_method(
+  first = last = head = tail = frame_base.wont_implement_method(
       'order sensitive')
 
   # TODO(robertwb): Consider allowing this for categorical keys.
