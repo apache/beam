@@ -22,6 +22,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.List;
+
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -32,6 +35,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
 import org.joda.time.Instant;
 import org.junit.runner.RunWith;
@@ -70,39 +74,46 @@ public class PubsubAvroIT extends PubsubTableProviderIT {
 
   @Override
   protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
-    Row row = row(PAYLOAD_SCHEMA, id, name);
-    return message(timestamp, AvroUtils.getRowToAvroBytesFunction(PAYLOAD_SCHEMA).apply(row));
+    byte[] encodedRecord = createEncodedGenericRecord(PAYLOAD_SCHEMA, ImmutableList.of(id, name));
+    return message(timestamp, encodedRecord);
   }
 
   @Override
   protected Matcher<PubsubMessage> matcherNames(String name) {
     Schema schema = Schema.builder().addStringField("name").build();
-    Row row = row(schema, name);
-    return hasProperty("payload", equalTo(AvroUtils.getRowToAvroBytesFunction(schema).apply(row)));
+    byte[] encodedRecord = createEncodedGenericRecord(schema, ImmutableList.of(name));
+    return hasProperty("payload", equalTo(encodedRecord));
   }
 
   @Override
   protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) {
-    Row row = row(NAME_HEIGHT_SCHEMA, name, height);
+    byte[] encodedRecord = createEncodedGenericRecord(NAME_HEIGHT_SCHEMA, ImmutableList.of(name, height));
     return hasProperty(
-        "payload", equalTo(AvroUtils.getRowToAvroBytesFunction(NAME_HEIGHT_SCHEMA).apply(row)));
+        "payload", equalTo(encodedRecord));
   }
 
   @Override
   protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-      String name, int height, boolean knowsJS) throws Exception {
-    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(NAME_HEIGHT_KNOWS_JS_SCHEMA);
+      String name, int height, boolean knowsJS) {
+    byte[] encodedRecord = createEncodedGenericRecord(NAME_HEIGHT_KNOWS_JS_SCHEMA, ImmutableList.of(name, height, knowsJS));
+    return hasProperty("payload", equalTo(encodedRecord));
+  }
 
-    GenericRecord record =
-        new GenericRecordBuilder(avroSchema)
-            .set("name", name)
-            .set("height", height)
-            .set("knowsJavascript", knowsJS)
-            .build();
-
+  private byte[] createEncodedGenericRecord(Schema beamSchema, List<Object> values) {
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecordBuilder builder = new GenericRecordBuilder(avroSchema);
+    List<org.apache.avro.Schema.Field> fields = avroSchema.getFields();
+    for (int i = 0; i < fields.size(); ++i) {
+      builder.set(fields.get(i), values.get(i));
+    }
     AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    coder.encode(record, out);
-    return hasProperty("payload", equalTo(out.toByteArray()));
+
+    try {
+      coder.encode(builder.build(), out);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return out.toByteArray();
   }
 }
