@@ -79,6 +79,7 @@ import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
+import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -92,6 +93,7 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -109,6 +111,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageIdCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -129,6 +132,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -155,6 +159,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -476,10 +481,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new StreamingPubsubIOReadOverrideFactory()));
       }
       if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
-        overridesBuilder.add(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
-                new StreamingPubsubIOWriteOverrideFactory(this)));
+        if (hasExperiment(options, "use_runner_v2")
+            || hasExperiment(options, "use_unified_worker")) {
+          overridesBuilder.add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
+                  new DataflowWriteToPubsubRunnerV2OverrideFactory()));
+        } else {
+          overridesBuilder.add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
+                  new StreamingPubsubIOWriteOverrideFactory(this)));
+        }
       }
       overridesBuilder.add(
           PTransformOverride.of(
@@ -1441,6 +1454,39 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /**
    * Suppress application of {@link PubsubUnboundedSink#expand} in streaming mode so that we can
+   * instead defer to Windmill's implementation when using Dataflow runner v2.
+   */
+  private static class DataflowRunnerV2PubsubSink extends PTransform<PCollection<byte[]>, PDone> {
+
+    private final PubsubUnboundedSink transform;
+
+    public DataflowRunnerV2PubsubSink(PubsubUnboundedSink transform) {
+      this.transform = transform;
+    }
+
+    PubsubUnboundedSink getOverriddenTransform() {
+      return transform;
+    }
+
+    @Override
+    public PDone expand(PCollection<byte[]> input) {
+      return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    protected String getKindString() {
+      return "DataflowRunnerV2PubsubSink";
+    }
+
+    static {
+      DataflowPipelineTranslator.registerTransformTranslator(
+          DataflowRunnerV2PubsubSink.class,
+          new StreamingPubsubSinkTranslators.DataflowRunnerV2PubsubSinkTranslator());
+    }
+  }
+
+  /**
+   * Suppress application of {@link PubsubUnboundedSink#expand} in streaming mode so that we can
    * instead defer to Windmill's implementation.
    */
   private static class StreamingPubsubIOWrite
@@ -1469,21 +1515,45 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator());
+          StreamingPubsubIOWrite.class,
+          new StreamingPubsubSinkTranslators.StreamingPubsubIOWriteTranslator());
     }
   }
 
-  /** Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node. */
-  private static class StreamingPubsubIOWriteTranslator
-      implements TransformTranslator<StreamingPubsubIOWrite> {
+  private static class StreamingPubsubSinkTranslators {
+    /** Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node. */
+    static class StreamingPubsubIOWriteTranslator
+        implements TransformTranslator<StreamingPubsubIOWrite> {
 
-    @Override
-    public void translate(StreamingPubsubIOWrite transform, TranslationContext context) {
-      checkArgument(
-          context.getPipelineOptions().isStreaming(),
-          "StreamingPubsubIOWrite is only for streaming pipelines.");
-      PubsubUnboundedSink overriddenTransform = transform.getOverriddenTransform();
-      StepTranslationContext stepContext = context.addStep(transform, "ParallelWrite");
+      @Override
+      public void translate(StreamingPubsubIOWrite transform, TranslationContext context) {
+        checkArgument(
+            context.getPipelineOptions().isStreaming(),
+            "StreamingPubsubIOWrite is only for streaming pipelines.");
+        StepTranslationContext stepContext = context.addStep(transform, "ParallelWrite");
+        StreamingPubsubSinkTranslators.translate(
+            transform.getOverriddenTransform(), stepContext, context.getInput(transform));
+      }
+    }
+
+    /** Rewrite {@link DataflowRunnerV2PubsubSink} to the appropriate internal node. */
+    static class DataflowRunnerV2PubsubSinkTranslator
+        implements TransformTranslator<DataflowRunnerV2PubsubSink> {
+      @Override
+      public void translate(DataflowRunnerV2PubsubSink transform, TranslationContext context) {
+        checkArgument(
+            context.getPipelineOptions().isStreaming(),
+            "StreamingPubsubIOWrite is only for streaming pipelines.");
+        StepTranslationContext stepContext = context.addStep(transform, "ParallelWrite");
+        StreamingPubsubSinkTranslators.translate(
+            transform.getOverriddenTransform(), stepContext, context.getInput(transform));
+      }
+    }
+
+    private static void translate(
+        PubsubUnboundedSink overriddenTransform,
+        StepTranslationContext stepContext,
+        PCollection input) {
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider().isAccessible()) {
         stepContext.addInput(
@@ -1508,7 +1578,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // Using a GlobalWindowCoder as a place holder because GlobalWindowCoder is known coder.
       stepContext.addEncodingInput(
           WindowedValue.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE));
-      stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+      stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
     }
   }
 
@@ -1948,6 +2018,54 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
           new StreamingPubsubIOWrite(runner, transform.getTransform()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PDone newOutput) {
+      return Collections.emptyMap();
+    }
+  }
+
+  /**
+   * A replacement {@link PTransform} for {@link PubsubUnboundedSink} when using dataflow runner v2.
+   */
+  private static class DataflowWriteToPubsubForRunnerV2
+      extends PTransform<PCollection<PubsubMessage>, PDone> {
+
+    private final PubsubUnboundedSink transform;
+
+    public DataflowWriteToPubsubForRunnerV2(PubsubUnboundedSink transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PDone expand(PCollection<PubsubMessage> input) {
+      input
+          .apply(
+              "Output Serialized PubsubMessage Proto",
+              MapElements.into(new TypeDescriptor<byte[]>() {})
+                  .via(new PubsubMessages.ParsePayloadAsPubsubMessageProto()))
+          .setCoder(ByteArrayCoder.of())
+          .apply(new DataflowRunnerV2PubsubSink(transform));
+
+      return PDone.in(input.getPipeline());
+    }
+  }
+
+  /**
+   * A {@link PTransformOverrideFactory} to provide replacement {@link PTransform} for {@link
+   * PubsubUnboundedSink} when using dataflow runner v2.
+   */
+  private static class DataflowWriteToPubsubRunnerV2OverrideFactory
+      implements PTransformOverrideFactory<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> {
+
+    @Override
+    public PTransformReplacement<PCollection<PubsubMessage>, PDone> getReplacementTransform(
+        AppliedPTransform<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new DataflowWriteToPubsubForRunnerV2(transform.getTransform()));
     }
 
     @Override
