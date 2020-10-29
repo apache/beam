@@ -40,7 +40,9 @@ public class UdfTestProvider implements UdfProvider {
           "foo",
           this.getClass().getMethod("foo"),
           "increment",
-          this.getClass().getMethod("increment", Long.class));
+          this.getClass().getMethod("increment", Long.class),
+          "isNull",
+          this.getClass().getMethod("isNull", String.class));
     } catch (NoSuchMethodException e) {
       return ImmutableMap.of();
     }
@@ -65,6 +67,10 @@ public class UdfTestProvider implements UdfProvider {
 
   public static String notRegistered() {
     return "This method is not registered as a UDF.";
+  }
+
+  public static boolean isNull(String s) {
+    return s == null;
   }
 
   /**

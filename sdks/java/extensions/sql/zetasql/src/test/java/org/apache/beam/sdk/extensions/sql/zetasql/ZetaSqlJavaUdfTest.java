@@ -94,6 +94,82 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testUnexpectedNullArgumentThrowsRuntimeException() {
+    assumeNotNull(jarPath);
+    String sql =
+        String.format(
+            "CREATE FUNCTION increment(i INT64) RETURNS INT64 LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT increment(NULL);",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("CalcFn failed to evaluate");
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testExpectedNullArgument() {
+    assumeNotNull(jarPath);
+    String sql =
+        String.format(
+            "CREATE FUNCTION isNull(s STRING) RETURNS BOOLEAN LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT isNull(NULL);",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addBooleanField("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  /**
+   * This is a loophole in type checking. The SQL function signature does not need to match the Java
+   * function signature; only the generated code is typechecked.
+   */
+  // TODO(ibzib): fix this and adjust test accordingly.
+  @Test
+  public void testNullArgumentIsNotTypeChecked() {
+    assumeNotNull(jarPath);
+    String sql =
+        String.format(
+            "CREATE FUNCTION isNull(i INT64) RETURNS INT64 LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT isNull(NULL);",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addBooleanField("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testFunctionSignatureTypeMismatchFailsPipelineConstruction() {
+    assumeNotNull(jarPath);
+    String sql =
+        String.format(
+            "CREATE FUNCTION isNull(i INT64) RETURNS BOOLEAN LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT isNull(0);",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("Could not compile CalcFn");
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+  }
+
+  @Test
   public void testBinaryJavaUdf() {
     assumeNotNull(jarPath);
     String sql =
