@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.getParsePayloadFn;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.VARCHAR;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -330,13 +332,9 @@ public class PubsubMessageToRowTest implements Serializable {
     Schema payloadSchema = getParserSchema();
     Row row = row(payloadSchema, 3, "Dovahkiin", 5.5, 5L);
     byte[] payload = AvroUtils.getRowToAvroBytesFunction(payloadSchema).apply(row);
-    Row parsedRow =
-        PubsubMessageToRow.parsePayload(
-            payload,
-            payloadSchema,
-            PayloadFormat.AVRO,
-            null,
-            AvroUtils.getAvroBytesToRowFunction(payloadSchema));
+    SimpleFunction<PubsubMessage, Row> messageToRowFn =
+        getParsePayloadFn(PayloadFormat.AVRO, payloadSchema);
+    Row parsedRow = messageToRowFn.apply(new PubsubMessage(payload, null));
     assertEquals(row, parsedRow);
   }
 
