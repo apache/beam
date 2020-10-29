@@ -17,7 +17,7 @@
 ###############################################################################
 
 ARG py_version
-FROM python:"${py_version}"-buster
+FROM python:"${py_version}"-slim-buster
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 ARG pull_licenses
