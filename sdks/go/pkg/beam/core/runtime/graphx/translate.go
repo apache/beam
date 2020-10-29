@@ -123,7 +123,7 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 	if len(edges) == 0 {
 		return nil, errors.New("empty graph")
 	}
-	
+
 	tree := NewScopeTree(edges)
 
 	m := newMarshaller(opt)
