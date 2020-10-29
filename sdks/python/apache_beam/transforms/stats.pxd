@@ -30,6 +30,7 @@ cdef class _QuantileSpec(object):
 cdef class _QuantileBuffer(object):
   cdef readonly elements
   cdef readonly weights
+  cdef readonly bint weighted
   cdef readonly int64_t level
   cdef readonly min_val
   cdef readonly max_val

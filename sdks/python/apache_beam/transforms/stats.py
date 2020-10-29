@@ -432,14 +432,14 @@ class _QuantileSpec(object):
     self.weighted_key = None if key is None else (lambda x: key(x[0]))
 
     # Used to compare values.
-    if key is None and not reverse:
-      self.less_than = lambda a, b: a < b
-    elif key is None:
+    if reverse and key is None:
       self.less_than = lambda a, b: a > b
-    elif not reverse:
-      self.less_than = lambda a, b: key(a) < key(b)
-    else:
+    elif reverse:
       self.less_than = lambda a, b: key(a) > key(b)
+    elif key is None:
+      self.less_than = lambda a, b: a < b
+    else:
+      self.less_than = lambda a, b: key(a) < key(b)
 
   def get_argsort_key(self, elements):
     # type: (List) -> Any
@@ -470,6 +470,7 @@ class _QuantileBuffer(object):
     # type: (List, List, bool, int, Any, Any) -> None
     self.elements = elements
     self.weights = weights
+    self.weighted = weighted
     self.level = level
     if min_val is None or max_val is None:
       # Buffer is always initialized with sorted elements.
@@ -480,15 +481,11 @@ class _QuantileBuffer(object):
       # elements.
       self.min_val = min_val
       self.max_val = max_val
-    self._iter = zip(
-        self.elements,
-        self.weights if weighted else itertools.repeat(self.weights[0]))
 
   def __iter__(self):
-    return self._iter
-
-  def __next__(self):
-    return next(self._iter)
+    return zip(
+        self.elements,
+        self.weights if self.weighted else itertools.repeat(self.weights[0]))
 
   def __lt__(self, other):
     return self.level < other.level
@@ -712,8 +709,10 @@ def _interpolate(buffers, count, step, offset, spec):
     if buffers_have_same_weight:
       offset = offset / weight
       step = step / weight
+      max_idx = len(sorted_elements) - 1
       result = [
-          sorted_elements[int(j * step + offset)][0] for j in range(count)
+          sorted_elements[min(int(j * step + offset), max_idx)][0]
+          for j in range(count)
       ]
       return result, [], min_val, max_val
 
