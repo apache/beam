@@ -104,12 +104,10 @@ class DoctestTest(unittest.TestCase):
 
             # element-wise
             'pandas.core.frame.DataFrame.eval': ['*'],
-            'pandas.core.frame.DataFrame.explode': ['*'],
 
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
-            'pandas.core.frame.DataFrame.drop': ['*'],
-            'pandas.core.frame.DataFrame.rename': ['*'],
+            # Difficult to determine proxy, need to inspect function
             'pandas.core.frame.DataFrame.apply': ['*'],
 
             # In theory this is possible for bounded inputs?
