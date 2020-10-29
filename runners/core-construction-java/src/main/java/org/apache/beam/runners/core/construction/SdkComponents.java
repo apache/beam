@@ -264,10 +264,18 @@ public class SdkComponents {
     if (existing != null) {
       return existing;
     }
+    // Unlike StructuredCoder, custom coders may not have proper implementation of hashCode() and
+    // equals(), this lead to unnecessary duplications. In order to avoid this we examine already
+    // registered coders and see if we can find a matching proto, and consider them same coder.
+    RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
+    for (Map.Entry<String, RunnerApi.Coder> entry : componentsBuilder.getCodersMap().entrySet()) {
+      if (entry.getValue().equals(coderProto)) {
+        return entry.getKey();
+      }
+    }
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
     coderIds.put(coder, name);
-    RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
     componentsBuilder.putCoders(name, coderProto);
     return name;
   }
