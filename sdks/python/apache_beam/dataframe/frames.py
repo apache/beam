@@ -529,7 +529,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Singleton(),
               requires_partition_by=partitionings.Singleton()))
 
-  plot = frame_base.wont_implement_method('plot')
+  plot = property(frame_base.wont_implement_method('plot'))
   pop = frame_base.wont_implement_method('non-lazy')
 
   rename_axis = frame_base._elementwise_method('rename_axis')
@@ -1245,7 +1245,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
-  plot = frame_base.wont_implement_method('plot')
+  plot = property(frame_base.wont_implement_method('plot'))
 
   def pop(self, item):
     result = self[item]
