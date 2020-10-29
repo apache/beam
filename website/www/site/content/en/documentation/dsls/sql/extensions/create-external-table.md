@@ -209,15 +209,18 @@ LOCATION 'testing-integration:apache.users'
 ### Syntax
 
 ```
-CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
-  (
-   event_timestamp TIMESTAMP,
-   attributes MAP<VARCHAR, VARCHAR>,
-   payload ROW<tableElement [, tableElement ]*>
-  )
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
+    event_timestamp TIMESTAMP,
+    attributes MAP<VARCHAR, VARCHAR>,
+    payload ROW<tableElement [, tableElement ]*>
+)
 TYPE pubsub
 LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
-TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]"}'
+TBLPROPERTIES '{
+    "timestampAttributeKey": "key",
+    "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]",
+    "format": "format"
+}'
 ```
 
 *   `event_timestamp`: The event timestamp associated with the Pub/Sub message
@@ -232,9 +235,8 @@ TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PR
         which is either millis since Unix epoch or [RFC 339
         ](https://www.ietf.org/rfc/rfc3339.txt)date string.
 *   `attributes`: The user-provided attributes map from the Pub/Sub message;
-*   `payload`: The schema of the JSON payload of the Pub/Sub message. No other
-    payload formats are currently supported by Beam SQL. If a record can't be
-    unmarshalled, the record is written to the topic specified in the
+*   `payload`: The schema of the payload of the Pub/Sub message. If a record
+    can't be unmarshalled, the record is written to the topic specified in the
     `deadLeaderQueue` field of the `tblProperties` blob. If no dead-letter queue
     is specified in this case, an exception is thrown and the pipeline will
     crash.
@@ -251,6 +253,8 @@ TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PR
     *   `deadLetterQueue`: The topic into which messages are written if the
         payload was not parsed. If not specified, an exception is thrown for
         parsing failures.
+    *   `format`: Optional. Allows you to specify the Pubsub payload format.
+        Possible values are {`json`, `avro`}. Defaults to `json`.
 
 ### Read Mode
 
@@ -271,10 +275,13 @@ declare a special set of columns, as shown below.
 
 ### Supported Payload
 
-*   JSON Objects
+*   JSON Objects (Default)
     *   Beam only supports querying messages with payload containing JSON
         objects. Beam attempts to parse JSON to match the schema of the
         `payload` field.
+*   Avro
+    *   An Avro schema is automatically generated from the specified schema of
+        the `payload` field. It is used to parse incoming messages.
 
 ### Example
 

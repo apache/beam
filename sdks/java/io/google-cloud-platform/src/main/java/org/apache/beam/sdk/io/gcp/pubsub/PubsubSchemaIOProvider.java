@@ -45,8 +45,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An implementation of {@link SchemaIOProvider} for reading and writing JSON payloads with {@link
- * PubsubIO}.
+ * An implementation of {@link SchemaIOProvider} for reading and writing JSON/AVRO payloads with
+ * {@link PubsubIO}.
  *
  * <h2>Schema</h2>
  *
@@ -95,6 +95,11 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
 
+  public enum PayloadFormat {
+    JSON,
+    AVRO
+  }
+
   /** Returns an id that uniquely represents this IO. */
   @Override
   public String identifier() {
@@ -110,6 +115,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     return Schema.builder()
         .addNullableField("timestampAttributeKey", FieldType.STRING)
         .addNullableField("deadLetterQueue", FieldType.STRING)
+        .addNullableField("format", FieldType.STRING)
         .build();
   }
 
@@ -196,6 +202,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
                           .messageSchema(dataSchema)
                           .useDlq(config.useDeadLetterQueue())
                           .useFlatSchema(useFlatSchema)
+                          .payloadFormat(config.format())
                           .build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
@@ -219,7 +226,9 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-              .apply(RowToPubsubMessage.withTimestampAttribute(config.useTimestampAttribute()))
+              .apply(
+                  RowToPubsubMessage.of(
+                      config.useTimestampAttribute(), config.format(), dataSchema))
               .apply(createPubsubMessageWrite());
         }
       };
@@ -272,12 +281,20 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     abstract @Nullable String getDeadLetterQueue();
 
+    abstract @Nullable String getFormat();
+
     boolean useDeadLetterQueue() {
       return getDeadLetterQueue() != null;
     }
 
     boolean useTimestampAttribute() {
       return getTimestampAttributeKey() != null;
+    }
+
+    PayloadFormat format() {
+      return getFormat() == null
+          ? PayloadFormat.JSON
+          : PayloadFormat.valueOf(getFormat().toUpperCase());
     }
   }
 }
