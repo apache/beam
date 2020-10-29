@@ -891,7 +891,10 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
-      return pbegin | SDFBoundedSourceReader(self.source)
+      return (
+          pbegin
+          | Create([self.source])
+          | SDFBoundedSourceReader(self.source.display_data()))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
@@ -1531,9 +1534,7 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   initializes restriction based on input element that is expected to be of
   BoundedSource type.
   """
-  def __init__(self, source: BoundedSource = None, desired_chunk_size=None):
-    self._check_source(source)
-    self._source = source
+  def __init__(self, desired_chunk_size=None):
     self._desired_chunk_size = desired_chunk_size
 
   def _check_source(self, src):
@@ -1542,7 +1543,7 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
           'SDFBoundedSourceRestrictionProvider can only utilize BoundedSource')
 
   def initial_restriction(self, element_source: BoundedSource):
-    src = element_source if self._source is None else self._source
+    src = element_source
     self._check_source(src)
     range_tracker = src.get_range_tracker(None, None)
     return _SDFBoundedSourceRestriction(
@@ -1581,8 +1582,8 @@ class SDFBoundedSourceReader(PTransform):
 
   NOTE: This transform can only be used with beam_fn_api enabled.
   """
-  def __init__(self, source=None):
-    self.source = source
+  def __init__(self, data_to_display=None):
+    self._data_to_display = data_to_display or {}
     super(SDFBoundedSourceReader, self).__init__()
 
   def _create_sdf_bounded_source_dofn(self):
@@ -1605,26 +1606,10 @@ class SDFBoundedSourceReader(PTransform):
     return SDFBoundedSourceDoFn()
 
   def expand(self, pvalue):
-    if not self.source:
-      return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
-    else:
-      return (
-          pvalue
-          | Create([self.source])
-          | core.ParDo(self._create_sdf_bounded_source_dofn()))
+    return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
 
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    return self.source.default_output_coder()
-
   def display_data(self):
-    if self.source:
-      return {
-          'source': DisplayDataItem(
-              self.source.__class__, label='Read Bounded Sources'),
-          'source_dd': self.source
-      }
-    else:
-      return {}
+    return self._data_to_display
