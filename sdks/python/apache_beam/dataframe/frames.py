@@ -1580,7 +1580,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series: series.str.repeat(repeats),
               [self._expr],
-              # Output will also be a str Series
+              # TODO(BEAM-11155): Defer to pandas to compute this proxy.
+              # Currently it incorrectly infers dtype bool, may require upstream
+              # fix.
               proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Nothing(),
               preserves_partition_by=partitionings.Singleton()))
@@ -1590,7 +1592,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series, repeats_series: series.str.repeat(repeats_series),
               [self._expr, repeats._expr],
-              # Output will also be a str Series
+              # TODO(BEAM-11155): Defer to pandas to compute this proxy.
+              # Currently it incorrectly infers dtype bool, may require upstream
+              # fix.
               proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Singleton()))
