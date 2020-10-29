@@ -173,7 +173,7 @@ func TestCoders(t *testing.T) {
 			buf := bytes.NewBuffer([]byte(results[0]))
 			decoded, err := dec.Decode(buf)
 			if err != nil {
-				t.Fatalf("Failed to decode: %q, into %v", results[0], err)
+				t.Fatalf("Failed to decode: %q, %v", results[0], err)
 			}
 
 			if !reflect.DeepEqual(decoded, test) {
