@@ -86,21 +86,31 @@ func TestRestriction_EvenSplits(t *testing.T) {
 // in the split restrictions.
 func TestRestriction_SizedSplits(t *testing.T) {
 	tests := []struct {
+		name string
 		rest Restriction
 		size int64
 		want []Restriction
 	}{
 		{
+			name: "Remainder",
 			rest: Restriction{Start: 0, End: 11},
 			size: 5,
 			want: []Restriction{{0, 5}, {5, 10}, {10, 11}},
 		},
 		{
+			name: "OffsetRemainder",
 			rest: Restriction{Start: 11, End: 22},
 			size: 5,
 			want: []Restriction{{11, 16}, {16, 21}, {21, 22}},
 		},
 		{
+			name: "OffsetExact",
+			rest: Restriction{Start: 11, End: 21},
+			size: 5,
+			want: []Restriction{{11, 16}, {16, 21}},
+		},
+		{
+			name: "LargeValues",
 			rest: Restriction{Start: 0, End: 1024 * 1024 * 1024},
 			size: 400 * 1024 * 1024,
 			want: []Restriction{
@@ -110,11 +120,13 @@ func TestRestriction_SizedSplits(t *testing.T) {
 			},
 		},
 		{
+			name: "OverlyLargeSize",
 			rest: Restriction{Start: 0, End: 5},
 			size: 10,
 			want: []Restriction{{0, 5}},
 		},
 		{
+			name: "InvalidSize",
 			rest: Restriction{Start: 0, End: 21},
 			size: 0,
 			want: []Restriction{{0, 21}},
@@ -122,8 +134,8 @@ func TestRestriction_SizedSplits(t *testing.T) {
 	}
 	for _, test := range tests {
 		test := test
-		t.Run(fmt.Sprintf("(rest[%v, %v], size = %v)",
-			test.rest.Start, test.rest.End, test.size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v (rest[%v, %v], size = %v)",
+			test.name, test.rest.Start, test.rest.End, test.size), func(t *testing.T) {
 			r := test.rest
 
 			// Get the minimum size that a split restriction can be. Max size
