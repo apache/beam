@@ -343,18 +343,18 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     // All windows that are open before element processing may need to fire.
     Set<W> windowsToConsider = windowsThatAreOpen(windows);
+    // Prefetch state necessary to determine if the triggers should fire. This is done before
+    // user processing so it may fetch with user desired state.
+    for (W mergedWindow : windowsToConsider) {
+      triggerRunner.prefetchShouldFire(
+          mergedWindow, contextFactory.base(mergedWindow, StateStyle.DIRECT).state());
+    }
 
     // Process each element, using the updated activeWindows determined by mergeWindows.
     for (WindowedValue<InputT> value : values) {
       processElement(windowToMergeResult, value);
     }
 
-    // Now that we've processed the elements, see if any of the windows need to fire.
-    // Prefetch state necessary to determine if the triggers should fire.
-    for (W mergedWindow : windowsToConsider) {
-      triggerRunner.prefetchShouldFire(
-          mergedWindow, contextFactory.base(mergedWindow, StateStyle.DIRECT).state());
-    }
     // Filter to windows that are firing.
     Collection<W> windowsToFire = windowsThatShouldFire(windowsToConsider);
     // Prefetch windows that are firing.
@@ -903,7 +903,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
     triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
-    triggerRunner.prefetchOnFire(directContext.window(), directContext.state());
     triggerRunner.prefetchIsClosed(directContext.state());
     prefetchOnTrigger(directContext, renamedContext);
   }

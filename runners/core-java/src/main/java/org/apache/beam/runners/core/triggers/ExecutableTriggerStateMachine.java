@@ -112,12 +112,20 @@ public class ExecutableTriggerStateMachine implements Serializable {
     return previous;
   }
 
+  public void invokePrefetchOnElement(TriggerStateMachine.PrefetchContext c) {
+    trigger.prefetchOnElement(c.forTrigger(this));
+  }
+
   /**
    * Invoke the {@link TriggerStateMachine#onElement} method for this trigger, ensuring that the
    * bits are properly updated if the trigger finishes.
    */
   public void invokeOnElement(TriggerStateMachine.OnElementContext c) throws Exception {
     trigger.onElement(c.forTrigger(this));
+  }
+
+  public void invokePrefetchOnMerge(TriggerStateMachine.MergingPrefetchContext c) {
+    trigger.prefetchOnMerge(c.forTrigger(this));
   }
 
   /**
@@ -127,6 +135,10 @@ public class ExecutableTriggerStateMachine implements Serializable {
   public void invokeOnMerge(TriggerStateMachine.OnMergeContext c) throws Exception {
     TriggerStateMachine.OnMergeContext subContext = c.forTrigger(this);
     trigger.onMerge(subContext);
+  }
+
+  public void invokePrefetchShouldFire(TriggerStateMachine.PrefetchContext c) {
+    trigger.prefetchShouldFire(c.forTrigger(this));
   }
 
   public boolean invokeShouldFire(TriggerStateMachine.TriggerContext c) throws Exception {
