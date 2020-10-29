@@ -42,13 +42,11 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
     self.initial_range_source = RangeSource(
         self.initial_range_start, self.initial_range_stop)
     self.sdf_restriction_provider = (
-        iobase._SDFBoundedSourceRestrictionProvider(
-            desired_chunk_size=2))
+        iobase._SDFBoundedSourceRestrictionProvider(desired_chunk_size=2))
 
   def test_initial_restriction(self):
     element = self.initial_range_source
-    restriction = (
-        self.sdf_restriction_provider.initial_restriction(element))
+    restriction = (self.sdf_restriction_provider.initial_restriction(element))
     self.assertTrue(
         isinstance(restriction, iobase._SDFBoundedSourceRestriction))
     self.assertTrue(isinstance(restriction._source_bundle, SourceBundle))
@@ -78,8 +76,7 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
 
   def test_simple_source_split(self):
     element = self.initial_range_source
-    restriction = (
-        self.sdf_restriction_provider.initial_restriction(element))
+    restriction = (self.sdf_restriction_provider.initial_restriction(element))
     expect_splits = [(0, 2), (2, 4)]
     split_bundles = list(
         self.sdf_restriction_provider.split(element, restriction))
@@ -98,14 +95,12 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
     element = self.initial_range_source
     initial_concat_source = ConcatSource([self.initial_range_source])
     sdf_concat_restriction_provider = (
-        iobase._SDFBoundedSourceRestrictionProvider(
-            desired_chunk_size=2))
-    restriction = (
-        self.sdf_restriction_provider.initial_restriction(element))
+        iobase._SDFBoundedSourceRestrictionProvider(desired_chunk_size=2))
+    restriction = (self.sdf_restriction_provider.initial_restriction(element))
     expect_splits = [(0, 2), (2, 4)]
     split_bundles = list(
-        sdf_concat_restriction_provider.split(initial_concat_source,
-                                              restriction))
+        sdf_concat_restriction_provider.split(
+            initial_concat_source, restriction))
     self.assertTrue(
         all([
             isinstance(bundle._source_bundle, SourceBundle)
@@ -118,10 +113,8 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
 
   def test_restriction_size(self):
     element = self.initial_range_source
-    restriction = (
-        self.sdf_restriction_provider.initial_restriction(element))
-    split_1, split_2 = self.sdf_restriction_provider.split(element,
-                                                           restriction)
+    restriction = (self.sdf_restriction_provider.initial_restriction(element))
+    split_1, split_2 = self.sdf_restriction_provider.split(element, restriction)
     split_1_size = self.sdf_restriction_provider.restriction_size(
         element, split_1)
     split_2_size = self.sdf_restriction_provider.restriction_size(
