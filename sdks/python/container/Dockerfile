@@ -25,6 +25,9 @@ ARG pull_licenses
 # Install native bindings required for dependencies.
 RUN apt-get update && \
     apt-get install -y \
+       curl \
+       gcc \
+       wget \
        # These packages are needed for "pip install python-snappy" below.
        libsnappy-dev \
        # This package is needed for "pip install pyyaml" below to have c bindings.
