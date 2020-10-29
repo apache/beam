@@ -1530,15 +1530,14 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   """
   A `RestrictionProvider` that is used by SDF for `BoundedSource`.
 
-  If source is provided, uses it for initializing restriction. Otherwise
-  initializes restriction based on input element that is expected to be of
-  BoundedSource type.
+  This restriction provider initializes restriction based on input
+  element that is expected to be of BoundedSource type.
   """
   def __init__(self, desired_chunk_size=None):
     self._desired_chunk_size = desired_chunk_size
 
   def _check_source(self, src):
-    if src is not None and not isinstance(src, BoundedSource):
+    if not isinstance(src, BoundedSource):
       raise RuntimeError(
           'SDFBoundedSourceRestrictionProvider can only utilize BoundedSource')
 
