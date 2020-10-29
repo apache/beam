@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -140,9 +139,9 @@ public class TransformHierarchy {
   }
 
   /**
-   * Finish specifying all of the input {@link PValue PValues} of the current {@link Node}. Ensures
-   * that all of the inputs to the current node have been fully specified, and have been produced by
-   * a node in this graph.
+   * Finish specifying all of the input {@link PCollection PCollections} of the current {@link
+   * Node}. Ensures that all of the inputs to the current node have been fully specified, and have
+   * been produced by a node in this graph.
    */
   public void finishSpecifyingInput() {
     // Inputs must be completely specified before they are consumed by a transform.
@@ -162,8 +161,8 @@ public class TransformHierarchy {
    *
    * <p>Also validates the output - specifically, a Primitive {@link PTransform} produces all of its
    * outputs, and a Composite {@link PTransform} produces none of its outputs. Verifies that the
-   * expanded output does not contain {@link PValue PValues} produced by both this node and other
-   * nodes.
+   * expanded output does not contain {@link PCollection PCollections} produced by both this node
+   * and other nodes.
    */
   public void setOutput(POutput output) {
     for (PCollection<?> value : PValues.fullyExpand(output.expand()).values()) {
@@ -207,17 +206,17 @@ public class TransformHierarchy {
     return checkNotNull(maybeGetProducer(produced), "No producer found for %s", produced);
   }
 
-  public Set<PValue> visit(PipelineVisitor visitor) {
+  public Set<PCollection<?>> visit(PipelineVisitor visitor) {
     finishSpecifying();
-    Set<PValue> visitedValues = new HashSet<>();
+    Set<PCollection<?>> visitedValues = new HashSet<>();
     root.visit(visitor, visitedValues, new HashSet<>(), new HashSet<>());
     return visitedValues;
   }
 
   /**
    * Finish specifying any remaining nodes within the {@link TransformHierarchy}. These are {@link
-   * PValue PValues} that are produced as output of some {@link PTransform} but are never consumed
-   * as input. These values must still be finished specifying.
+   * PCollection PCollections} that are produced as output of some {@link PTransform} but are never
+   * consumed as input. These values must still be finished specifying.
    */
   private void finishSpecifying() {
     for (Entry<PCollection<?>, PInput> producerInputEntry : producerInput.entrySet()) {
@@ -499,8 +498,8 @@ public class TransformHierarchy {
      * <p>The visit proceeds in the following order:
      *
      * <ul>
-     *   <li>Visit all input {@link PValue PValues} returned by the flattened expansion of {@link
-     *       Node#getInputs()}.
+     *   <li>Visit all input {@link PCollection PCollections} returned by the flattened expansion of
+     *       {@link Node#getInputs()}.
      *   <li>If the node is a composite:
      *       <ul>
      *         <li>Enter the node via {@link PipelineVisitor#enterCompositeTransform(Node)}.
@@ -510,7 +509,7 @@ public class TransformHierarchy {
      *       </ul>
      *   <li>If the node is a primitive, visit it via {@link
      *       PipelineVisitor#visitPrimitiveTransform(Node)}.
-     *   <li>Visit each {@link PValue} that was output by this node.
+     *   <li>Visit each {@link PCollection} that was output by this node.
      * </ul>
      *
      * <p>Additionally, the following ordering restrictions are observed:
@@ -521,8 +520,8 @@ public class TransformHierarchy {
      *   <li>A {@link Node} will not be visited if any enclosing {@link Node} has returned {@link
      *       CompositeBehavior#DO_NOT_ENTER_TRANSFORM} from the call to {@link
      *       PipelineVisitor#enterCompositeTransform(Node)}.
-     *   <li>A {@link PValue} will only be visited after the {@link Node} that originally produced
-     *       it has been visited.
+     *   <li>A {@link PCollection} will only be visited after the {@link Node} that originally
+     *       produced it has been visited.
      * </ul>
      *
      * <p>Provides an ordered visit of the input values, the primitive transform (or child nodes for
@@ -530,7 +529,7 @@ public class TransformHierarchy {
      */
     private void visit(
         PipelineVisitor visitor,
-        Set<PValue> visitedValues,
+        Set<PCollection<?>> visitedValues,
         Set<Node> visitedNodes,
         Set<Node> skippedComposites) {
       if (getEnclosingNode() != null && !visitedNodes.contains(getEnclosingNode())) {
@@ -590,10 +589,10 @@ public class TransformHierarchy {
       if (!isRootNode()) {
         checkNotNull(outputs, "Outputs for non-root node %s are null", getFullName());
         // Visit outputs.
-        for (PValue pValue : outputs.values()) {
-          if (visitedValues.add(pValue)) {
-            LOG.debug("Visiting output value {}", pValue);
-            visitor.visitValue(pValue, this);
+        for (PCollection<?> outputValue : outputs.values()) {
+          if (visitedValues.add(outputValue)) {
+            LOG.debug("Visiting output value {}", outputValue);
+            visitor.visitValue(outputValue, this);
           }
         }
       }

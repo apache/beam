@@ -1074,11 +1074,14 @@ class BatchViewOverrides {
       // The materializationInput type does not match what is expected for this method, but the
       // value that comes
       // out of the view receives custom processing on the worker, never actually using the ViewFn
-      return PCollectionViews.listViewUsingVoidKey(
-          (TupleTag<Materializations.MultimapView<Void, T>>) originalView.getTagInternal(),
-          (PCollection) materializationInput,
-          input.getCoder()::getEncodedTypeDescriptor,
-          materializationInput.getWindowingStrategy());
+      PCollectionView<List<T>> view =
+          PCollectionViews.listViewUsingVoidKey(
+              (TupleTag<Materializations.MultimapView<Void, T>>) originalView.getTagInternal(),
+              (PCollection) materializationInput,
+              input.getCoder()::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
+      materializationInput.apply(CreateDataflowView.forBatch(view));
+      return view;
     }
 
     @Override

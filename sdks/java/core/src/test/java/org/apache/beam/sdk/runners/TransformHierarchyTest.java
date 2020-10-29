@@ -373,7 +373,7 @@ public class TransformHierarchyTest implements Serializable {
     final Set<TransformHierarchy.Node> visitedPrimitiveNodes = new HashSet<>();
     final Set<PValue> visitedValuesInVisitor = new HashSet<>();
 
-    Set<PValue> visitedValues =
+    Set<PCollection<?>> visitedValues =
         hierarchy.visit(
             new PipelineVisitor.Defaults() {
               @Override
@@ -469,7 +469,7 @@ public class TransformHierarchyTest implements Serializable {
 
     final Set<Node> visitedCompositeNodes = new HashSet<>();
     final Set<Node> visitedPrimitiveNodes = new HashSet<>();
-    Set<PValue> visitedValues =
+    Set<PCollection<?>> visitedValues =
         hierarchy.visit(
             new Defaults() {
               @Override

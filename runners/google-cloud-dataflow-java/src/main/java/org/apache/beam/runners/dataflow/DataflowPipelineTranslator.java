@@ -515,8 +515,12 @@ public class DataflowPipelineTranslator {
 
     @Override
     public void visitValue(PValue value, TransformHierarchy.Node producer) {
-      LOG.debug("Checking translation of {}", value);
-      // Primitive transforms are the only ones assigned step names.
+      LOG.debug("Checking translation of {} produced by {}", value, producer);
+      visitPCollection((PCollection<?>) value, producer);
+    }
+
+    private void visitPCollection(PCollection<?> pcollection, TransformHierarchy.Node producer) {
+      // Checks that the output reference for produced Dataflow values are available.
       if (producer.getTransform() instanceof CreateDataflowView) {
         // CreateDataflowView produces a dummy output (as it must be a primitive transform)
         // but in the Dataflow Job graph produces only the view and not the output PCollection.
@@ -524,9 +528,16 @@ public class DataflowPipelineTranslator {
             ((CreateDataflowView) producer.getTransform()).getView().getTagInternal(),
             producer.toAppliedPTransform(getPipeline()));
         return;
+      } else if (producer.getTransform() instanceof View.CreatePCollectionView) {
+        // View.CreatePCollectionView produces a dummy output (as it must be a primitive transform)
+        // but in the Dataflow Job graph produces only the view and not the output PCollection.
+        sideInputOutputReference(
+            ((View.CreatePCollectionView) producer.getTransform()).getView().getTagInternal(),
+            producer.toAppliedPTransform(getPipeline()));
+        return;
       }
-      pCollectionOutputReference(
-          (PCollection<?>) value, producer.toAppliedPTransform(getPipeline()));
+      // Checks that the output reference for this PCollection is available
+      pCollectionOutputReference(pcollection, producer.toAppliedPTransform(getPipeline()));
     }
 
     @Override
