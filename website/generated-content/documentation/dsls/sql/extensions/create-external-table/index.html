@@ -45,15 +45,18 @@ types</a>
 as follows:</p><table><tr><td>Beam SQL Type</td><td>BigQuery Standard SQL Type</td></tr><tr><td>TINYINT, SMALLINT, INTEGER, BIGINT &nbsp;</td><td>INT64</td></tr><tr><td>FLOAT, DOUBLE, DECIMAL</td><td>FLOAT64</td></tr><tr><td>BOOLEAN</td><td>BOOL</td></tr><tr><td>DATE</td><td>DATE</td></tr><tr><td>TIME</td><td>TIME</td></tr><tr><td>TIMESTAMP</td><td>TIMESTAMP</td></tr><tr><td>CHAR, VARCHAR</td><td>STRING</td></tr><tr><td>MAP</td><td>(not supported)</td></tr><tr><td>ARRAY</td><td>ARRAY</td></tr><tr><td>ROW</td><td>STRUCT</td></tr></table><h3 id=example>Example</h3><pre><code>CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
 TYPE bigquery
 LOCATION 'testing-integration:apache.users'
-</code></pre><h2 id=pubsub>Pub/Sub</h2><h3 id=syntax-2>Syntax</h3><pre><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
-  (
-   event_timestamp TIMESTAMP,
-   attributes MAP&lt;VARCHAR, VARCHAR&gt;,
-   payload ROW&lt;tableElement [, tableElement ]*&gt;
-  )
+</code></pre><h2 id=pubsub>Pub/Sub</h2><h3 id=syntax-2>Syntax</h3><pre><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
+    event_timestamp TIMESTAMP,
+    attributes MAP&lt;VARCHAR, VARCHAR&gt;,
+    payload ROW&lt;tableElement [, tableElement ]*&gt;
+)
 TYPE pubsub
 LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
-TBLPROPERTIES '{&quot;timestampAttributeKey&quot;: &quot;key&quot;, &quot;deadLetterQueue&quot;: &quot;projects/[PROJECT]/topics/[TOPIC]&quot;}'
+TBLPROPERTIES '{
+    &quot;timestampAttributeKey&quot;: &quot;key&quot;,
+    &quot;deadLetterQueue&quot;: &quot;projects/[PROJECT]/topics/[TOPIC]&quot;,
+    &quot;format&quot;: &quot;format&quot;
+}'
 </code></pre><ul><li><code>event_timestamp</code>: The event timestamp associated with the Pub/Sub message
 by PubsubIO. It can be one of the following:<ul><li>Message publish time, which is provided by Pub/Sub. This is the default
 value if no extra configuration is provided.</li><li>A timestamp specified in one of the user-provided message attributes.
@@ -62,9 +65,8 @@ the <code>tblProperties</code> blob. The value of the attribute should conform t
 the <a href=https://beam.apache.org/releases/javadoc/2.4.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.Read.html#withTimestampAttribute-java.lang.String->requirements of
 PubsubIO</a>,
 which is either millis since Unix epoch or <a href=https://www.ietf.org/rfc/rfc3339.txt>RFC 339
-</a>date string.</li></ul></li><li><code>attributes</code>: The user-provided attributes map from the Pub/Sub message;</li><li><code>payload</code>: The schema of the JSON payload of the Pub/Sub message. No other
-payload formats are currently supported by Beam SQL. If a record can&rsquo;t be
-unmarshalled, the record is written to the topic specified in the
+</a>date string.</li></ul></li><li><code>attributes</code>: The user-provided attributes map from the Pub/Sub message;</li><li><code>payload</code>: The schema of the payload of the Pub/Sub message. If a record
+can&rsquo;t be unmarshalled, the record is written to the topic specified in the
 <code>deadLeaderQueue</code> field of the <code>tblProperties</code> blob. If no dead-letter queue
 is specified in this case, an exception is thrown and the pipeline will
 crash.</li><li><code>LOCATION</code>:<ul><li><code>PROJECT</code>: ID of the Google Cloud Project</li><li><code>TOPIC</code>: The Pub/Sub topic name. A subscription will be created
@@ -74,14 +76,16 @@ timestamp associated with the Pub/Sub message. If not specified, the
 message publish timestamp is used as an event timestamp for
 windowing/watermarking.</li><li><code>deadLetterQueue</code>: The topic into which messages are written if the
 payload was not parsed. If not specified, an exception is thrown for
-parsing failures.</li></ul></li></ul><h3 id=read-mode-1>Read Mode</h3><p>PubsubIO is currently limited to read access only.</p><h3 id=write-mode-1>Write Mode</h3><p>Not supported. PubSubIO is currently limited to read access only in Beam SQL.</p><h3 id=schema-1>Schema</h3><p>Pub/Sub messages have metadata associated with them, and you can reference this
+parsing failures.</li><li><code>format</code>: Optional. Allows you to specify the Pubsub payload format.
+Possible values are {<code>json</code>, <code>avro</code>}. Defaults to <code>json</code>.</li></ul></li></ul><h3 id=read-mode-1>Read Mode</h3><p>PubsubIO is currently limited to read access only.</p><h3 id=write-mode-1>Write Mode</h3><p>Not supported. PubSubIO is currently limited to read access only in Beam SQL.</p><h3 id=schema-1>Schema</h3><p>Pub/Sub messages have metadata associated with them, and you can reference this
 metadata in your queries. For each message, Pub/Sub exposes its publish time and
 a map of user-provided attributes in addition to the payload (unstructured in
 the general case). This information must be preserved and accessible from the
 SQL statements. Currently, this means that PubsubIO tables require you to
-declare a special set of columns, as shown below.</p><h3 id=supported-payload>Supported Payload</h3><ul><li>JSON Objects<ul><li>Beam only supports querying messages with payload containing JSON
+declare a special set of columns, as shown below.</p><h3 id=supported-payload>Supported Payload</h3><ul><li>JSON Objects (Default)<ul><li>Beam only supports querying messages with payload containing JSON
 objects. Beam attempts to parse JSON to match the schema of the
-<code>payload</code> field.</li></ul></li></ul><h3 id=example-1>Example</h3><pre><code>CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP&lt;VARCHAR, VARCHAR&gt;, payload ROW&lt;id INTEGER, location VARCHAR&gt;)
+<code>payload</code> field.</li></ul></li><li>Avro<ul><li>An Avro schema is automatically generated from the specified schema of
+the <code>payload</code> field. It is used to parse incoming messages.</li></ul></li></ul><h3 id=example-1>Example</h3><pre><code>CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP&lt;VARCHAR, VARCHAR&gt;, payload ROW&lt;id INTEGER, location VARCHAR&gt;)
 TYPE pubsub
 LOCATION 'projects/testing-integration/topics/user-location'
 </code></pre><h2 id=kafka>Kafka</h2><p>KafkaIO is experimental in Beam SQL.</p><h3 id=syntax-3>Syntax</h3><pre><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
