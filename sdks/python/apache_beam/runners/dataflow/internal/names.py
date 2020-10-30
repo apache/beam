@@ -27,6 +27,7 @@ from __future__ import absolute_import
 # Standard file names used for staging files.
 from builtins import object
 
+# Referenced by Dataflow legacy worker.
 from apache_beam.runners.internal.names import PICKLED_MAIN_SESSION_FILE  # pylint: disable=unused-import
 
 # String constants related to sources framework
