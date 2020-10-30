@@ -393,21 +393,12 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.7.0"
     def classgraph_version = "4.8.65"
-<<<<<<< HEAD
-=======
-    def gax_version = "1.60.0"
-    def generated_grpc_ga_version = "1.85.1"
-    def google_auth_version = "0.19.0"
->>>>>>> 168d442314a3bd012eedf2915d1aaef7f4092bdc
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.5"
     def google_cloud_pubsublite_version = "0.4.1"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
-<<<<<<< HEAD
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-=======
->>>>>>> 168d442314a3bd012eedf2915d1aaef7f4092bdc
     def grpc_version = "1.32.2"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
@@ -420,12 +411,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.51.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.2"
-<<<<<<< HEAD
-    def protobuf_version = "3.11.1"
-=======
-    def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.12.0"
->>>>>>> 168d442314a3bd012eedf2915d1aaef7f4092bdc
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
