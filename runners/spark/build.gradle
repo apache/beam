@@ -41,7 +41,10 @@ evaluationDependsOn(":runners:core-java")
 
 configurations {
   validatesRunner
+  hadoopVersion285
 }
+
+def hadoop_285_version = '2.8.5'
 
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
@@ -105,6 +108,7 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "testRuntime")
   validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "provided")
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$hadoop_285_version"
 }
 
 configurations.testRuntimeClasspath {
@@ -115,6 +119,14 @@ configurations.testRuntimeClasspath {
 configurations.validatesRunner {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
   exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+configurations.hadoopVersion285 {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+  }
 }
 
 task validatesRunnerBatch(type: Test) {
@@ -255,3 +267,24 @@ task validatesRunner {
 
 // Generates :runners:spark:runQuickstartJavaSpark
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs Spark tests with Hadoop version $hadoop_285_version"
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.sql.shuffle.partitions", "4"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beamTestPipelineOptions", """[
+                    "--runner=TestSparkRunner",
+                    "--streaming=false",
+                    "--enableSparkMetricSinks=true"
+                  ]"""
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  include "**/*Test.class"
+  useJUnit {
+    excludeCategories "org.apache.beam.runners.spark.StreamingTest"
+    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
+  }
+}
