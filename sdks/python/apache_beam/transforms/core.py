@@ -2608,9 +2608,9 @@ class Partition(PTransformWithSideInputs):
 
   def expand(self, pcoll):
     n = int(self.args[0])
-    return pcoll | ParDo(
-        self.ApplyPartitionFnFn(), self.fn, *self.args, **
-        self.kwargs).with_outputs(*[str(t) for t in range(n)])
+    args, kwargs = util.insert_values_in_args(self.args, self.kwargs, self.side_inputs)
+    return pcoll | ParDo(self.ApplyPartitionFnFn(), self.fn, *args, **
+                         kwargs).with_outputs(*[str(t) for t in range(n)])
 
 
 class Windowing(object):
