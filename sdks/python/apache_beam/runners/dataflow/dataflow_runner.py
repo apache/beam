@@ -1243,6 +1243,7 @@ class DataflowRunner(PipelineRunner):
         # Setting this property signals Dataflow runner to return full
         # PubsubMessages instead of just the data part of the payload.
         step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+
       if transform.source.timestamp_attribute is not None:
         step.add_property(
             PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
@@ -1344,10 +1345,9 @@ class DataflowRunner(PipelineRunner):
       if transform.sink.id_label:
         step.add_property(
             PropertyNames.PUBSUB_ID_LABEL, transform.sink.id_label)
-      if transform.sink.with_attributes:
-        # Setting this property signals Dataflow runner that the PCollection
-        # contains PubsubMessage objects instead of just raw data.
-        step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+      # Setting this property signals Dataflow runner that the PCollection
+      # contains PubsubMessage objects instead of just raw data.
+      step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
       if transform.sink.timestamp_attribute is not None:
         step.add_property(
             PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,

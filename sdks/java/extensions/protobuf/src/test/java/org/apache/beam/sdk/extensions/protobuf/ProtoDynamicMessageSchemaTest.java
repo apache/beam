@@ -56,6 +56,8 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.google.protobuf.TextFormat;
+import com.google.protobuf.TextFormat.ParseException;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
@@ -84,6 +86,16 @@ public class ProtoDynamicMessageSchemaTest {
 
   private DynamicMessage toDynamic(Message message) throws InvalidProtocolBufferException {
     return DynamicMessage.parseFrom(message.getDescriptorForType(), message.toByteArray());
+  }
+
+  private static <T extends Message.Builder> T parseFrom(String str, T builder) {
+    CharSequence charSequence = str;
+    try {
+      TextFormat.getParser().merge(charSequence, builder);
+    } catch (ParseException e) {
+      throw new IllegalArgumentException(e);
+    }
+    return builder;
   }
 
   @Test
@@ -166,7 +178,9 @@ public class ProtoDynamicMessageSchemaTest {
   public void testMapRowToProto() {
     ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(MapPrimitive.getDescriptor());
     SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
-    assertEquals(MAP_PRIMITIVE_PROTO.toString(), fromRow.apply(MAP_PRIMITIVE_ROW).toString());
+    MapPrimitive proto =
+        parseFrom(fromRow.apply(MAP_PRIMITIVE_ROW).toString(), MapPrimitive.newBuilder()).build();
+    assertEquals(MAP_PRIMITIVE_PROTO, proto);
   }
 
   @Test
@@ -180,8 +194,10 @@ public class ProtoDynamicMessageSchemaTest {
   public void testNullMapRowToProto() {
     ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(MapPrimitive.getDescriptor());
     SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
-    assertEquals(
-        NULL_MAP_PRIMITIVE_PROTO.toString(), fromRow.apply(NULL_MAP_PRIMITIVE_ROW).toString());
+    MapPrimitive proto =
+        parseFrom(fromRow.apply(NULL_MAP_PRIMITIVE_ROW).toString(), MapPrimitive.newBuilder())
+            .build();
+    assertEquals(NULL_MAP_PRIMITIVE_PROTO, proto);
   }
 
   @Test
@@ -202,9 +218,8 @@ public class ProtoDynamicMessageSchemaTest {
   public void testNestedRowToProto() throws InvalidProtocolBufferException {
     ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(Nested.getDescriptor());
     SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
-    // equality doesn't work between dynamic messages and other,
-    // so we compare string representation
-    assertEquals(NESTED_PROTO.toString(), fromRow.apply(NESTED_ROW).toString());
+    Nested proto = parseFrom(fromRow.apply(NESTED_ROW).toString(), Nested.newBuilder()).build();
+    assertEquals(NESTED_PROTO, proto);
   }
 
   @Test

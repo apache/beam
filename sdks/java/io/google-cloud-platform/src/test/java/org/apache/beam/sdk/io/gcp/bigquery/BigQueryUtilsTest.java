@@ -45,6 +45,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
@@ -74,6 +75,15 @@ public class BigQueryUtilsTest {
           .addNullableField("binary", Schema.FieldType.BYTES)
           .addNullableField("numeric", Schema.FieldType.DECIMAL)
           .build();
+
+  private static final Schema ENUM_TYPE =
+      Schema.builder()
+          .addNullableField(
+              "color", Schema.FieldType.logicalType(EnumerationType.create("RED", "GREEN", "BLUE")))
+          .build();
+
+  private static final Schema ENUM_STRING_TYPE =
+      Schema.builder().addNullableField("color", Schema.FieldType.STRING).build();
 
   private static final Schema MAP_TYPE =
       Schema.builder().addStringField("key").addDoubleField("value").build();
@@ -127,6 +137,9 @@ public class BigQueryUtilsTest {
 
   private static final TableFieldSchema NUMERIC =
       new TableFieldSchema().setName("numeric").setType(StandardSQLTypeName.NUMERIC.toString());
+
+  private static final TableFieldSchema COLOR =
+      new TableFieldSchema().setName("color").setType(StandardSQLTypeName.STRING.toString());
 
   private static final TableFieldSchema IDS =
       new TableFieldSchema()
@@ -246,6 +259,14 @@ public class BigQueryUtilsTest {
           .set("binary", null)
           .set("numeric", null);
 
+  private static final Row ENUM_ROW =
+      Row.withSchema(ENUM_TYPE).addValues(new EnumerationType.Value(1)).build();
+
+  private static final Row ENUM_STRING_ROW =
+      Row.withSchema(ENUM_STRING_TYPE).addValues("GREEN").build();
+
+  private static final TableRow BQ_ENUM_ROW = new TableRow().set("color", "GREEN");
+
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
@@ -284,6 +305,8 @@ public class BigQueryUtilsTest {
                   VALID,
                   BINARY,
                   NUMERIC));
+
+  private static final TableSchema BQ_ENUM_TYPE = new TableSchema().setFields(Arrays.asList(COLOR));
 
   private static final TableSchema BQ_ARRAY_TYPE = new TableSchema().setFields(Arrays.asList(IDS));
 
@@ -325,6 +348,13 @@ public class BigQueryUtilsTest {
             VALID,
             BINARY,
             NUMERIC));
+  }
+
+  @Test
+  public void testToTableSchema_enum() {
+    TableSchema schema = toTableSchema(ENUM_TYPE);
+
+    assertThat(schema.getFields(), containsInAnyOrder(COLOR));
   }
 
   @Test
@@ -405,6 +435,14 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
+  }
+
+  @Test
+  public void testToTableRow_enum() {
+    TableRow row = toTableRow().apply(ENUM_ROW);
+
+    assertThat(row.size(), equalTo(1));
+    assertThat(row, hasEntry("color", "GREEN"));
   }
 
   @Test
@@ -545,6 +583,12 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testFromTableSchema_enum() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ENUM_TYPE);
+    assertEquals(ENUM_STRING_TYPE, beamSchema);
+  }
+
+  @Test
   public void testFromTableSchema_array() {
     Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ARRAY_TYPE);
     assertEquals(ARRAY_TYPE, beamSchema);
@@ -584,6 +628,12 @@ public class BigQueryUtilsTest {
   public void testToBeamRow_null() {
     Row beamRow = BigQueryUtils.toBeamRow(FLAT_TYPE, BQ_NULL_FLAT_ROW);
     assertEquals(NULL_FLAT_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_enum() {
+    Row beamRow = BigQueryUtils.toBeamRow(ENUM_STRING_TYPE, BQ_ENUM_ROW);
+    assertEquals(ENUM_STRING_ROW, beamRow);
   }
 
   @Test

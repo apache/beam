@@ -433,7 +433,7 @@ public class ExpressionConverter {
   public RexCall convertTableValuedFunction(
       RelNode input,
       TableValuedFunction tvf,
-      List<ResolvedNodes.ResolvedTVFArgument> argumentList,
+      List<ResolvedNodes.ResolvedFunctionArgument> argumentList,
       List<ResolvedColumn> inputTableColumns) {
     ResolvedColumn wmCol;
     // Handle builtin windowing TVF.

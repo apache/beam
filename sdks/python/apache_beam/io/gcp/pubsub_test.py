@@ -312,16 +312,15 @@ class TestPubSubSource(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
-    sink = _PubSubSink(
+    sink = WriteToPubSub(
         'projects/fakeprj/topics/a_topic',
         id_label='id',
-        with_attributes=False,
         timestamp_attribute='time')
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher('topic', 'projects/fakeprj/topics/a_topic'),
         DisplayDataItemMatcher('id_label', 'id'),
-        DisplayDataItemMatcher('with_attributes', False),
+        DisplayDataItemMatcher('with_attributes', True),
         DisplayDataItemMatcher('timestamp_attribute', 'time'),
     ]
 

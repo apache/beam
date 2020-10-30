@@ -663,6 +663,31 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  def align(self, other, join, axis, copy, level, method, **kwargs):
+    if not copy:
+      raise frame_base.WontImplementError('align(copy=False)')
+    if method is not None:
+      raise frame_base.WontImplementError('order-sensitive')
+    if kwargs:
+      raise NotImplementedError('align(%s)' % ', '.join(kwargs.keys()))
+
+    if level is not None:
+      # Could probably get by partitioning on the used levels.
+      requires_partition_by = partitionings.Singleton()
+    elif axis in ('columns', 1):
+      requires_partition_by = partitionings.Nothing()
+    else:
+      requires_partition_by = partitionings.Index()
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'align',
+            lambda df, other: df.align(other, join=join, axis=axis),
+            [self._expr, other._expr],
+            requires_partition_by=requires_partition_by,
+            preserves_partition_by=partitionings.Index()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def set_index(self, keys, **kwargs):
     if isinstance(keys, str):
@@ -709,20 +734,70 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
                                             "instances are supported.")
     return frame_base._elementwise_method('assign')(self, **kwargs)
 
-
   apply = frame_base.not_implemented_method('apply')
-  explode = frame_base.not_implemented_method('explode')
   isin = frame_base.not_implemented_method('isin')
   append = frame_base.not_implemented_method('append')
   combine = frame_base.not_implemented_method('combine')
   combine_first = frame_base.not_implemented_method('combine_first')
   count = frame_base.not_implemented_method('count')
-  drop = frame_base.not_implemented_method('drop')
   eval = frame_base.not_implemented_method('eval')
   reindex = frame_base.not_implemented_method('reindex')
   melt = frame_base.not_implemented_method('melt')
   pivot = frame_base.not_implemented_method('pivot')
   pivot_table = frame_base.not_implemented_method('pivot_table')
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def explode(self, column, ignore_index):
+    # ignoring the index will not preserve it
+    preserves = (partitionings.Nothing() if ignore_index
+                 else partitionings.Singleton())
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'explode',
+            lambda df: df.explode(column, ignore_index),
+            [self._expr],
+            preserves_partition_by=preserves,
+            requires_partition_by=partitionings.Nothing()))
+
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def drop(self, labels, axis, index, columns, errors, **kwargs):
+    if labels is not None:
+      if index is not None or columns is not None:
+        raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
+      if axis in (0, 'index'):
+        index = labels
+        columns = None
+      elif axis in (1, 'columns'):
+        index = None
+        columns = labels
+      else:
+        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), "
+                         "got '%s'" % axis)
+
+    if columns is not None:
+      # Compute the proxy based on just the columns that are dropped.
+      proxy = self._expr.proxy().drop(columns=columns, errors=errors)
+    else:
+      proxy = self._expr.proxy()
+
+    if index is not None and errors == 'raise':
+      # In order to raise an error about missing index values, we'll
+      # need to collect the entire dataframe.
+      requires = partitionings.Singleton()
+    else:
+      requires = partitionings.Nothing()
+
+    return frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
+        'drop',
+        lambda df: df.drop(axis=axis, index=index, columns=columns,
+                           errors=errors, **kwargs),
+        [self._expr],
+        proxy=proxy,
+        requires_partition_by=requires))
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
@@ -863,6 +938,57 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               [arg._expr for arg in args],
               requires_partition_by=partitionings.Singleton(),
               proxy=proxy))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def corrwith(self, other, axis, drop, method):
+    if axis not in (0, 'index'):
+      raise NotImplementedError('corrwith(axis=%r)' % axis)
+    if not isinstance(other, frame_base.DeferredFrame):
+      other = frame_base.DeferredFrame.wrap(
+          expressions.ConstantExpression(other))
+
+    if isinstance(other, DeferredSeries):
+      proxy = self._expr.proxy().corrwith(other._expr.proxy(), method=method)
+      self, other = self.align(other, axis=0, join='inner')
+      col_names = proxy.index
+      other_cols = [other] * len(col_names)
+    elif isinstance(other, DeferredDataFrame):
+      proxy = self._expr.proxy().corrwith(
+          other._expr.proxy(), method=method, drop=drop)
+      self, other = self.align(other, axis=0, join='inner')
+      col_names = list(
+          set(self.columns)
+          .intersection(other.columns)
+          .intersection(proxy.index))
+      other_cols = [other[col_name] for col_name in col_names]
+    else:
+      # Raise the right error.
+      self._expr.proxy().corrwith(other._expr.proxy())
+      # Just in case something else becomes valid.
+      raise NotImplementedError('corrwith(%s)' % type(other._expr.proxy))
+
+    # Generate expressions to compute the actual correlations.
+    corrs = [
+        self[col_name].corr(other_col, method)
+        for col_name, other_col in zip(col_names, other_cols)]
+
+    # Combine the results
+    def fill_dataframe(*args):
+      result = proxy.copy(deep=True)
+      for col, value in zip(proxy.index, args):
+        result[col] = value
+      return result
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+          'fill_dataframe',
+          fill_dataframe,
+          [corr._expr for corr in corrs],
+          requires_partition_by=partitionings.Singleton(),
+          proxy=proxy))
+
+
 
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
@@ -1156,19 +1282,36 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         'index' in kwargs
         or kwargs.get('axis', None) in (0, 'index')
         or ('columns' not in kwargs and 'axis' not in kwargs))
+    rename_columns = (
+        'columns' in kwargs
+        or kwargs.get('axis', None) in (1, 'columns'))
+
     if rename_index:
       # Technically, it's still partitioned by index, but it's no longer
       # partitioned by the hash of the index.
       preserves_partition_by = partitionings.Nothing()
     else:
       preserves_partition_by = partitionings.Singleton()
+
     if kwargs.get('errors', None) == 'raise' and rename_index:
-      # Renaming index with checking.
+      # Renaming index with checking requires global index.
       requires_partition_by = partitionings.Singleton()
-      proxy = self._expr.proxy()
     else:
       requires_partition_by = partitionings.Nothing()
-      proxy = None
+
+    proxy = None
+    if rename_index:
+      # The proxy can't be computed by executing rename, it will error
+      # renaming the index.
+      if rename_columns:
+        # Note if both are being renamed, index and columns must be specified
+        # (not axis)
+        proxy = self._expr.proxy().rename(**{k: v for (k, v) in kwargs.items()
+                                             if not k == 'index'})
+      else:
+        # No change in columns, reuse proxy
+        proxy = self._expr.proxy()
+
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'rename',
@@ -1606,6 +1749,10 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series: series.str.repeat(repeats),
               [self._expr],
+              # TODO(BEAM-11155): Defer to pandas to compute this proxy.
+              # Currently it incorrectly infers dtype bool, may require upstream
+              # fix.
+              proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Nothing(),
               preserves_partition_by=partitionings.Singleton()))
     elif isinstance(repeats, frame_base.DeferredBase):
@@ -1614,6 +1761,10 @@ class _DeferredStringMethods(frame_base.DeferredBase):
               'repeat',
               lambda series, repeats_series: series.str.repeat(repeats_series),
               [self._expr, repeats._expr],
+              # TODO(BEAM-11155): Defer to pandas to compute this proxy.
+              # Currently it incorrectly infers dtype bool, may require upstream
+              # fix.
+              proxy=self._expr.proxy(),
               requires_partition_by=partitionings.Index(),
               preserves_partition_by=partitionings.Singleton()))
     elif isinstance(repeats, list):

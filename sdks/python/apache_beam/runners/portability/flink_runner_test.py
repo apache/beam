@@ -445,8 +445,7 @@ class FlinkRunnerTestStreaming(FlinkRunnerTest):
     super(FlinkRunnerTest, self).test_callbacks_with_exception()
 
   def test_register_finalizations(self):
-    self.enable_commit = True
-    super(FlinkRunnerTest, self).test_register_finalizations()
+    raise unittest.SkipTest("BEAM-11070")
 
 
 if __name__ == '__main__':

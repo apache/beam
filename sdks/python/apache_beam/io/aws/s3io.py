@@ -58,11 +58,13 @@ def parse_s3_path(s3_path, object_optional=False):
 
 class S3IO(object):
   """S3 I/O client."""
-  def __init__(self, client=None):
+  def __init__(self, client=None, options=None):
+    if client is None and options is None:
+      raise ValueError('Must provide one of client or options')
     if client is not None:
       self.client = client
     elif BOTO3_INSTALLED:
-      self.client = boto3_client.Client()
+      self.client = boto3_client.Client(options=options)
     else:
       message = 'AWS dependencies are not installed, and no alternative ' \
       'client was provided to S3IO.'

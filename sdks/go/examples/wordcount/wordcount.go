@@ -101,6 +101,14 @@ var (
 // output any number of elements. It operates on a PCollection of type string and
 // returns a PCollection of type string. Also, using named function transforms allows
 // for easy reuse, modular testing, and an improved monitoring experience.
+//
+// DoFns must be registered with Beam in order to be executed in ParDos. This is
+// done automatically by the starcgen code generator, or it can be done manually
+// by calling beam.RegisterFunction in an init() call.
+func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(formatFn)
+}
 
 var (
 	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)

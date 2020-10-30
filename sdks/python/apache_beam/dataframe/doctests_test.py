@@ -89,19 +89,35 @@ ignored exception
 NOT_IMPLEMENTED_RAISING_NAME_ERROR_TESTS = ERROR_RAISING_NAME_ERROR_TESTS % (
     'NotImplementedError', )
 
+FAILED_ASSIGNMENT = '''
+>>> def foo(): raise NotImplementedError()
+>>> res = 'old_value'
+>>> res = foo()
+>>> print(res)
+ignored NameError
+'''
+
 RST_IPYTHON = '''
 Here is an example
 .. ipython::
 
     2 + 2
 
-and a multi-line example
+some multi-line examples
 
 .. ipython::
 
     def foo(x):
         return x * x
     foo(4)
+    foo(
+        4
+    )
+
+    In [100]: def foo(x):
+       ....:     return x * x * x
+       ....:
+    foo(5)
 
 history is preserved
 
@@ -212,13 +228,21 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.attempted, 6)
     self.assertEqual(result.failed, 1)  # Only the very last one.
 
+  def test_failed_assignment(self):
+    result = doctests.teststring(
+        FAILED_ASSIGNMENT,
+        optionflags=doctest.ELLIPSIS,
+        not_implemented_ok=True)
+    self.assertNotEqual(result.attempted, 0)
+    self.assertEqual(result.failed, 0)
+
   def test_rst_ipython(self):
     try:
       import IPython
     except ImportError:
       raise unittest.SkipTest('IPython not available')
     result = doctests.test_rst_ipython(RST_IPYTHON, 'test_rst_ipython')
-    self.assertEqual(result.attempted, 5)
+    self.assertEqual(result.attempted, 8)
     self.assertEqual(result.failed, 1)  # Only the very last one.
 
 
