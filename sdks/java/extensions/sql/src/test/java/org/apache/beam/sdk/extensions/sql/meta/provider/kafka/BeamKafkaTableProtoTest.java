@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -30,8 +29,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 
 public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
-  private static final ProtoCoder<KafkaMessages.TestMessage> PROTO_CODER =
-      ProtoCoder.of(KafkaMessages.TestMessage.class);
 
   private static final Schema TEST_SCHEMA =
       Schema.builder()
@@ -76,7 +73,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
   }
 
   @Override
-  protected byte[] generateEncodedPayload(int i) {
+  protected byte[] generateEncodedPayload(int i) throws IOException {
     KafkaMessages.TestMessage message =
         KafkaMessages.TestMessage.newBuilder()
             .setFLong(i)
@@ -87,11 +84,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
             .build();
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    try {
-      PROTO_CODER.encode(message, out);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    message.writeDelimitedTo(out);
     return out.toByteArray();
   }
 

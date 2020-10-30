@@ -36,13 +36,13 @@ public abstract class BeamKafkaTableTest {
   protected abstract BeamKafkaTable getBeamKafkaTable();
 
   /** Returns encoded payload in the tested format corresponding to the row in `generateRow(i)`. */
-  protected abstract byte[] generateEncodedPayload(int i);
+  protected abstract byte[] generateEncodedPayload(int i) throws Exception;
 
   /** Provides a deterministic row from the given integer. */
   protected abstract Row generateRow(int i);
 
   @Test
-  public void testRecorderDecoder() {
+  public void testRecorderDecoder() throws Exception {
     BeamKafkaTable kafkaTable = getBeamKafkaTable();
 
     PCollection<Row> result =
