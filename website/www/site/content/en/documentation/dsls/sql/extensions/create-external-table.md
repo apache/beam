@@ -305,6 +305,7 @@ TBLPROPERTIES '{
     "bootstrap.servers":"localhost:9092",
     "topics": ["topic1", "topic2"],
     "format": "avro"
+    [, "protoClass": "com.example.ExampleMessage" ]*
 }'
 ```
 
@@ -314,7 +315,9 @@ TBLPROPERTIES '{
         server.
     *   `topics`: Optional. Allows you to specify specific topics.
     *   `format`: Optional. Allows you to specify the Kafka values format. Possible values are
-    {`csv`, `avro`, `json`}. Defaults to `csv`.
+        {`csv`, `avro`, `json`, `proto`}. Defaults to `csv`.
+    *   `protoClass`: Optional. Use only when `format` is equal to `proto`. Allows you to
+        specify full protocol buffer java class name.
 
 ### Read Mode
 
@@ -335,6 +338,8 @@ Write Mode supports writing to a topic.
         messages.
 *   JSON Objects
     *   Beam attempts to parse JSON to match the schema.
+*   Protocol buffers
+    *   Fields in the schema have to match the fields of the given `protoClass`.
 
 ### Schema
 
