@@ -110,7 +110,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BigQueryServicesImpl implements BigQueryServices {
 
-  private static final java.util.logging.Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
   // How frequently to log while polling.
   private static final Duration POLLING_LOG_GAP = Duration.standardMinutes(10);
