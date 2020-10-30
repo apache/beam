@@ -55,6 +55,7 @@ default in future versions of Beam.&lt;/li>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
 &lt;li>Dataflow streaming timers once against not strictly time ordered when set earlier mid-bundle, as the fix for &lt;a href="https://issues.apache.org/jira/browse/BEAM-8543">BEAM-8543&lt;/a> introduced more severe bugs and has been rolled back.&lt;/li>
+&lt;li>Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version &amp;lt;= 2.23.0 or &amp;gt; 2.25.0 if job update is critical.(&lt;a href="https://issues.apache.org/jira/browse/BEAM-11113">BEAM-11113&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.25.0 release. Thank you to all contributors!&lt;/p>
@@ -122,7 +123,7 @@ custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback o
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
-&lt;li>(&lt;a href="https://issues.apache.org/jira/browse/BEAM-11113">BEAM-11113&lt;/a>) Default compressor change breaks dataflow python streaming job update compatibility.&lt;/li>
+&lt;li>Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version &amp;lt;= 2.23.0 or &amp;gt; 2.25.0 if job update is critical.(&lt;a href="https://issues.apache.org/jira/browse/BEAM-11113">BEAM-11113&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.24.0 release. Thank you to all contributors!&lt;/p>
