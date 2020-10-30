@@ -74,6 +74,7 @@ dependencies {
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
     exclude group: "org.apache.storm", module: "storm-core"
   }
+  testCompile library.java.commons_lang3
   testCompile library.java.commons_io
   testCompile library.java.cassandra_driver_core
   testCompile library.java.cassandra_driver_mapping
