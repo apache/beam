@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
@@ -61,6 +65,22 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
             .apply(kafkaTable.getPTransformForInput());
     PAssert.that(result).containsInAnyOrder(generateRow(1), generateRow(2));
     pipeline.run();
+  }
+
+  @Test
+  public void testSchemasDoNotMatch() {
+    Schema schema = Schema.builder().addStringField("non_existing_field").build();
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new BeamKafkaProtoTable(
+                    schema, "", ImmutableList.of(), KafkaMessages.TestMessage.class));
+
+    assertThat(
+        e.getMessage(),
+        containsString("does not match schema inferred from protobuf class. Protobuf class: "));
   }
 
   @Override
