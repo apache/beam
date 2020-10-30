@@ -50,7 +50,10 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
 
   @Test
   public void testWithShuffledSchema() {
-    BeamKafkaTable kafkaTable = getBeamKafkaTable();
+    BeamKafkaTable kafkaTable =
+        new BeamKafkaProtoTable(
+            SHUFFLED_SCHEMA, "", ImmutableList.of(), KafkaMessages.TestMessage.class);
+
     PCollection<Row> result =
         pipeline
             .apply(Create.of(shuffledRow(1), shuffledRow(2)))
@@ -62,7 +65,8 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
 
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaProtoTable("", ImmutableList.of(), KafkaMessages.TestMessage.class);
+    return new BeamKafkaProtoTable(
+        TEST_SCHEMA, "", ImmutableList.of(), KafkaMessages.TestMessage.class);
   }
 
   @Override

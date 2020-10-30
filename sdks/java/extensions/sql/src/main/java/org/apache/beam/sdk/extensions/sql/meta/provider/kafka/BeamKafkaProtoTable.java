@@ -31,8 +31,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class BeamKafkaProtoTable extends BeamKafkaTable {
   private final Class<?> protoClass;
 
-  public BeamKafkaProtoTable(String bootstrapServers, List<String> topics, Class<?> protoClass) {
-    super(inferSchemaFromProtoClass(protoClass), bootstrapServers, topics);
+  public BeamKafkaProtoTable(
+      Schema messageSchema, String bootstrapServers, List<String> topics, Class<?> protoClass) {
+    super(inferAndVerifySchema(protoClass, messageSchema), bootstrapServers, topics);
     this.protoClass = protoClass;
   }
 
@@ -46,8 +47,15 @@ public class BeamKafkaProtoTable extends BeamKafkaTable {
     return new ProtoRecorderEncoder(protoClass);
   }
 
-  private static Schema inferSchemaFromProtoClass(Class<?> protoClass) {
-    return new ProtoMessageSchema().schemaFor(TypeDescriptor.of(protoClass));
+  private static Schema inferAndVerifySchema(Class<?> protoClass, Schema messageSchema) {
+    Schema inferredSchema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(protoClass));
+    if (!messageSchema.equivalent(inferredSchema)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Given message schema '%s' does not match schema inferred from protobuf class. Protobuf class: '%s' Inferred schema: '%s'",
+              messageSchema, protoClass.getCanonicalName(), inferredSchema));
+    }
+    return inferredSchema;
   }
 
   /** A PTransform to convert {@code KV<byte[], byte[]>} to {@link Row}. */
