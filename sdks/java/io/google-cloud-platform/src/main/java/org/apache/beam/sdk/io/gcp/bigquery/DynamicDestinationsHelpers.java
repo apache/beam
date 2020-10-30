@@ -25,6 +25,7 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -353,6 +354,9 @@ class DynamicDestinationsHelpers {
         do {
           try {
             BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
+            if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+              tableReference.setProjectId(bqOptions.getProject());
+            }
             return bqServices.getDatasetService(bqOptions).getTable(tableReference);
           } catch (InterruptedException | IOException e) {
             LOG.info("Failed to get BigQuery table " + tableReference);

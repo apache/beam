@@ -27,6 +27,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -67,6 +68,9 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
+    if (Strings.isNullOrEmpty(tableRef.getProjectId())) {
+      throw new NullPointerException(String.format("tableRef is missing projectId: %s", tableRef));
+    }
     return getTable(tableRef, null);
   }
 
