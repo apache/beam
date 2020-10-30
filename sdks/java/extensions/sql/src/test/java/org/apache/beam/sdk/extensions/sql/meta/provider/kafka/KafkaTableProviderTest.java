@@ -38,7 +38,7 @@ public class KafkaTableProviderTest {
 
   @Test
   public void testBuildBeamSqlCSVTable() {
-    Table table = mockTable("hello", null, null);
+    Table table = mockTable("hello");
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -51,7 +51,7 @@ public class KafkaTableProviderTest {
 
   @Test
   public void testBuildBeamSqlAvroTable() {
-    Table table = mockTable("hello", "avro", null);
+    Table table = mockTable("hello", "avro");
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -64,7 +64,7 @@ public class KafkaTableProviderTest {
 
   @Test
   public void testBuildBeamSqlProtoTable() {
-    Table table = mockTable("hello", "proto", KafkaMessages.TestMessage.class.getName());
+    Table table = mockTable("hello", "proto", KafkaMessages.SimpleMessage.class.getName());
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -78,6 +78,14 @@ public class KafkaTableProviderTest {
   @Test
   public void testGetTableType() {
     assertEquals("kafka", provider.getTableType());
+  }
+
+  private static Table mockTable(String name) {
+    return mockTable(name, null, null);
+  }
+
+  private static Table mockTable(String name, String payloadFormat) {
+    return mockTable(name, payloadFormat, null);
   }
 
   private static Table mockTable(
@@ -101,8 +109,8 @@ public class KafkaTableProviderTest {
         .location("kafka://localhost:2181/brokers?topic=test")
         .schema(
             Stream.of(
-                    Schema.Field.nullable("id", Schema.FieldType.INT32),
-                    Schema.Field.nullable("name", Schema.FieldType.STRING))
+                    Schema.Field.of("id", Schema.FieldType.INT32),
+                    Schema.Field.of("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type("kafka")
         .properties(properties)

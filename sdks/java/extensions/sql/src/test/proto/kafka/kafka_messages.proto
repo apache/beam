@@ -37,3 +37,8 @@ message ItMessage {
   int32 f_int = 2;
   string f_string = 3;
 }
+
+message SimpleMessage {
+  int32 id = 1;
+  string name = 2;
+}
