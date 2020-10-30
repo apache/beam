@@ -589,7 +589,7 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testTriggeredFileLoadsWithTempTablesPartialTableRef() throws Exception {
+  public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
     testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
   }
 
