@@ -170,7 +170,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
     @Override
     public byte[] apply(Row row) {
-      if (!protoSchema.assignableTo(row.getSchema())) {
+      if (!protoSchema.equivalent(row.getSchema())) {
         row = switchFieldsOrder(row);
       }
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

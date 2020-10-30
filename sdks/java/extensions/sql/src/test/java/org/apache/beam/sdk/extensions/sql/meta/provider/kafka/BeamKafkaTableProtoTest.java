@@ -32,20 +32,20 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
 
   private static final Schema TEST_SCHEMA =
       Schema.builder()
-          .addNullableField("f_long", Schema.FieldType.INT64)
-          .addNullableField("f_int", Schema.FieldType.INT32)
-          .addNullableField("f_double", Schema.FieldType.DOUBLE)
-          .addNullableField("f_string", Schema.FieldType.STRING)
-          .addNullableField("f_float_array", Schema.FieldType.array(Schema.FieldType.FLOAT))
+          .addInt64Field("f_long")
+          .addInt32Field("f_int")
+          .addDoubleField("f_double")
+          .addStringField("f_string")
+          .addArrayField("f_float_array", Schema.FieldType.FLOAT)
           .build();
 
   private static final Schema SHUFFLED_SCHEMA =
       Schema.builder()
-          .addNullableField("f_string", Schema.FieldType.STRING)
-          .addNullableField("f_int", Schema.FieldType.INT32)
-          .addNullableField("f_float_array", Schema.FieldType.array(Schema.FieldType.FLOAT))
-          .addNullableField("f_double", Schema.FieldType.DOUBLE)
-          .addNullableField("f_long", Schema.FieldType.INT64)
+          .addStringField("f_string")
+          .addInt32Field("f_int")
+          .addArrayField("f_float_array", Schema.FieldType.FLOAT)
+          .addDoubleField("f_double")
+          .addInt64Field("f_long")
           .build();
 
   @Test
