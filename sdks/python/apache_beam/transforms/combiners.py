@@ -66,9 +66,10 @@ TimestampType = Union[int, float, Timestamp, Duration]
 class _SupportsCombiningGlobally(ptransform.PTransform):
   """Helper for defining per-window combine scenarios in built-in combiners.
 
-  In combine-per-window scenarios users may need to indicate whether a result
-  of reducing an empty input collection during combining should be
-  an empty collection or CombineFn.default_value().
+  In combine-per-window scenarios users may need to indicate how to reduce an
+  empty input collection when a window has no elements. The result can
+  either be a default value (obtained by calling a combiner on an empty input)
+  or an empty collection if without_defaults() is used.
 
   Note that combine-per-key scenarios always have an non-empty input.
   """
