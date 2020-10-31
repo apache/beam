@@ -28,9 +28,12 @@ import org.apache.beam.runners.core.StateInternalsTest;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -62,7 +65,10 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
   protected StateInternals createStateInternals() {
     try {
       KeyedStateBackend<ByteBuffer> keyedStateBackend = createStateBackend();
-      return new FlinkStateInternals<>(keyedStateBackend, StringUtf8Coder.of());
+      return new FlinkStateInternals<>(
+          keyedStateBackend,
+          StringUtf8Coder.of(),
+          new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -72,7 +78,10 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
   public void testWatermarkHoldsPersistence() throws Exception {
     KeyedStateBackend<ByteBuffer> keyedStateBackend = createStateBackend();
     FlinkStateInternals stateInternals =
-        new FlinkStateInternals<>(keyedStateBackend, StringUtf8Coder.of());
+        new FlinkStateInternals<>(
+            keyedStateBackend,
+            StringUtf8Coder.of(),
+            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
 
     StateTag<WatermarkHoldState> stateTag =
         StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
@@ -123,7 +132,11 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     assertThat(fixedWindow.read(), is(middle));
 
     // Discard watermark view and recover it
-    stateInternals = new FlinkStateInternals<>(keyedStateBackend, StringUtf8Coder.of());
+    stateInternals =
+        new FlinkStateInternals<>(
+            keyedStateBackend,
+            StringUtf8Coder.of(),
+            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
     globalWindow = stateInternals.state(StateNamespaces.global(), stateTag);
     fixedWindow =
         stateInternals.state(

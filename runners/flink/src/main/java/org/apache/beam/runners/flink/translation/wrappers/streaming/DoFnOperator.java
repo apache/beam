@@ -387,7 +387,8 @@ public class DoFnOperator<InputT, OutputT>
 
     ListStateDescriptor<WindowedValue<InputT>> pushedBackStateDescriptor =
         new ListStateDescriptor<>(
-            "pushed-back-elements", new CoderTypeSerializer<>(windowedInputCoder));
+            "pushed-back-elements",
+            new CoderTypeSerializer<>(windowedInputCoder, serializedOptions));
 
     if (keySelector != null) {
       pushedBackElementsHandler =
@@ -409,7 +410,9 @@ public class DoFnOperator<InputT, OutputT>
 
       FlinkBroadcastStateInternals sideInputStateInternals =
           new FlinkBroadcastStateInternals<>(
-              getContainingTask().getIndexInSubtaskGroup(), getOperatorStateBackend());
+              getContainingTask().getIndexInSubtaskGroup(),
+              getOperatorStateBackend(),
+              serializedOptions);
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
       sideInputReader = sideInputHandler;
@@ -425,11 +428,13 @@ public class DoFnOperator<InputT, OutputT>
     // StatefulPardo or WindowDoFn
     if (keyCoder != null) {
       keyedStateInternals =
-          new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(), keyCoder);
+          new FlinkStateInternals<>(
+              (KeyedStateBackend) getKeyedStateBackend(), keyCoder, serializedOptions);
 
       if (timerService == null) {
         timerService =
-            getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+            getInternalTimerService(
+                "beam-timer", new CoderTypeSerializer<>(timerCoder, serializedOptions), this);
       }
 
       timerInternals = new FlinkTimerInternals();
@@ -486,7 +491,8 @@ public class DoFnOperator<InputT, OutputT>
                   windowingStrategy.getWindowFn().windowCoder(),
                   getOperatorStateBackend(),
                   getKeyedStateBackend(),
-                  options.getNumConcurrentCheckpoints());
+                  options.getNumConcurrentCheckpoints(),
+                  serializedOptions);
     }
     doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
     earlyBindStateIfNeeded();
@@ -534,7 +540,7 @@ public class DoFnOperator<InputT, OutputT>
       if (doFn != null) {
         DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
         FlinkStateInternals.EarlyBinder earlyBinder =
-            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend(), serializedOptions);
         for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
           StateSpec<?> spec =
               (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
@@ -1194,29 +1200,35 @@ public class DoFnOperator<InputT, OutputT>
     private Map<TupleTag<?>, Integer> tagsToIds;
     private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
     private Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders;
+    private SerializablePipelineOptions pipelineOptions;
 
     // There is no side output.
     @SuppressWarnings("unchecked")
     public MultiOutputOutputManagerFactory(
-        TupleTag<OutputT> mainTag, Coder<WindowedValue<OutputT>> mainCoder) {
+        TupleTag<OutputT> mainTag,
+        Coder<WindowedValue<OutputT>> mainCoder,
+        SerializablePipelineOptions pipelineOptions) {
       this(
           mainTag,
           new HashMap<>(),
           ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
               .put(mainTag, (Coder) mainCoder)
               .build(),
-          ImmutableMap.<TupleTag<?>, Integer>builder().put(mainTag, 0).build());
+          ImmutableMap.<TupleTag<?>, Integer>builder().put(mainTag, 0).build(),
+          pipelineOptions);
     }
 
     public MultiOutputOutputManagerFactory(
         TupleTag<OutputT> mainTag,
         Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
         Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
-        Map<TupleTag<?>, Integer> tagsToIds) {
+        Map<TupleTag<?>, Integer> tagsToIds,
+        SerializablePipelineOptions pipelineOptions) {
       this.mainTag = mainTag;
       this.tagsToOutputTags = tagsToOutputTags;
       this.tagsToCoders = tagsToCoders;
       this.tagsToIds = tagsToIds;
+      this.pipelineOptions = pipelineOptions;
     }
 
     @Override
@@ -1231,7 +1243,8 @@ public class DoFnOperator<InputT, OutputT>
 
       TaggedKvCoder taggedKvCoder = buildTaggedKvCoder();
       ListStateDescriptor<KV<Integer, WindowedValue<?>>> taggedOutputPushbackStateDescriptor =
-          new ListStateDescriptor<>("bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder));
+          new ListStateDescriptor<>(
+              "bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder, pipelineOptions));
       ListState<KV<Integer, WindowedValue<?>>> listStateBuffer =
           operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
       PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
@@ -1292,7 +1305,7 @@ public class DoFnOperator<InputT, OutputT>
           new MapStateDescriptor<>(
               PENDING_TIMERS_STATE_NAME,
               new StringSerializer(),
-              new CoderTypeSerializer<>(timerCoder));
+              new CoderTypeSerializer<>(timerCoder, serializedOptions));
       this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
       populateOutputTimestampQueue();
     }

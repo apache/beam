@@ -24,6 +24,7 @@ import static org.hamcrest.core.IsNull.nullValue;
 import java.util.Collections;
 import java.util.HashMap;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -95,6 +96,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getSavepointPath(), is(nullValue()));
     assertThat(options.getAllowNonRestoredState(), is(false));
     assertThat(options.getDisableMetrics(), is(false));
+    assertThat(options.getFasterCopy(), is(false));
   }
 
   @Test(expected = Exception.class)
@@ -108,7 +110,10 @@ public class FlinkPipelineOptionsTest {
         Collections.emptyMap(),
         mainTag,
         Collections.emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(
+            mainTag,
+            coder,
+            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class))),
         WindowingStrategy.globalDefault(),
         new HashMap<>(),
         Collections.emptyList(),
@@ -134,7 +139,11 @@ public class FlinkPipelineOptionsTest {
             Collections.emptyMap(),
             mainTag,
             Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                mainTag,
+                coder,
+                new SerializablePipelineOptions(
+                    PipelineOptionsFactory.as(FlinkPipelineOptions.class))),
             WindowingStrategy.globalDefault(),
             new HashMap<>(),
             Collections.emptyList(),

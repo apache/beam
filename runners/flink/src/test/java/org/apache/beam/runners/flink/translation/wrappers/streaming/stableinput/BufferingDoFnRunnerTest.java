@@ -23,8 +23,11 @@ import static org.hamcrest.Matchers.is;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -166,6 +169,7 @@ public class BufferingDoFnRunnerTest {
         WindowedValue.getFullCoder(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
         operatorStateBackend,
         null,
-        concurrentCheckpoints);
+        concurrentCheckpoints,
+        new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
   }
 }

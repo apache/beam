@@ -143,7 +143,7 @@ class FlinkBatchTranslationContext {
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
         WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
 
-    return new CoderTypeInformation<>(windowedValueCoder);
+    return new CoderTypeInformation<>(windowedValueCoder, options);
   }
 
   Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform) {

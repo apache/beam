@@ -32,6 +32,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
 import org.apache.beam.sdk.coders.Coder;
@@ -212,7 +213,10 @@ public class WindowDoFnOperatorTest {
         (Coder) inputCoder,
         outputTag,
         emptyList(),
-        new MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+        new MultiOutputOutputManagerFactory<>(
+            outputTag,
+            outputCoder,
+            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class))),
         windowingStrategy,
         emptyMap(),
         emptyList(),
