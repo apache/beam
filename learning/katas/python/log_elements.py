@@ -48,7 +48,7 @@ class LogElements(beam.PTransform):
         self.with_timestamp = with_timestamp
         self.with_window = with_window
 
-    def expand(self, input):
+    def expand(self,input):
         input | beam.ParDo(
                 self._LoggingFn(self.prefix, self.with_timestamp,
                                 self.with_window))
