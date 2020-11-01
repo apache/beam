@@ -22,19 +22,25 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.ProviderNotFoundException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import org.apache.beam.sdk.extensions.sql.ApplyMethod;
+import org.apache.beam.sdk.extensions.sql.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.UdfProvider;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.commons.codec.digest.DigestUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -157,6 +163,47 @@ public class JavaUdfLoader {
     return ServiceLoader.load(UdfProvider.class, classLoader).iterator();
   }
 
+  private Method getApplyMethod(ScalarFn scalarFn) {
+    Collection<Method> matches =
+        ReflectHelpers.declaredMethodsWithAnnotation(
+            ApplyMethod.class, scalarFn.getClass(), ScalarFn.class);
+
+    if (matches.isEmpty()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "No method annotated with @%s found in class %s.",
+              ApplyMethod.class.getSimpleName(), scalarFn.getClass().getName()));
+    }
+
+    // If we have at least one match, then either it should be the only match
+    // or it should be an extension of the other matches (which came from parent
+    // classes).
+    Method first = matches.iterator().next();
+    for (Method other : matches) {
+      if (!first.getName().equals(other.getName())
+          || !Arrays.equals(first.getParameterTypes(), other.getParameterTypes())) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Found multiple methods annotated with @%s. [%s] and [%s]",
+                ApplyMethod.class.getSimpleName(),
+                ReflectHelpers.formatMethod(first),
+                ReflectHelpers.formatMethod(other)));
+      }
+    }
+
+    // Method must be public and non-static.
+    if ((first.getModifiers() & Modifier.PUBLIC) == 0) {
+      throw new IllegalArgumentException(
+          String.format("Method %s is not public.", ReflectHelpers.formatMethod(first)));
+    }
+    if ((first.getModifiers() & Modifier.STATIC) != 0) {
+      throw new IllegalArgumentException(
+          String.format("Method %s must not be static.", ReflectHelpers.formatMethod(first)));
+    }
+
+    return first;
+  }
+
   private UserFunctionDefinitions loadJar(String jarPath) throws IOException {
     if (cache.containsKey(jarPath)) {
       LOG.debug("Using cached function definitions from {}", jarPath);
@@ -182,7 +229,8 @@ public class JavaUdfLoader {
                           "Found multiple definitions of scalar function %s in %s.",
                           functionName, jarPath));
                 }
-                scalarFunctions.put(functionPath, implementation);
+                Method method = getApplyMethod(implementation);
+                scalarFunctions.put(functionPath, method);
               });
       provider
           .userDefinedAggregateFunctions()

@@ -57,13 +57,10 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     implements ScalarFunction, ImplementableFunction {
 
   private final CallImplementor implementor;
-  public final String funGroup;
 
-  /** Private constructor. */
-  private ScalarFunctionImpl(Method method, CallImplementor implementor, String funGroup) {
+  protected ScalarFunctionImpl(Method method, CallImplementor implementor) {
     super(method);
     this.implementor = implementor;
-    this.funGroup = funGroup;
   }
 
   /**
@@ -93,15 +90,14 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
    *
    * @param clazz class that is used to implement the function
    * @param methodName Method name (typically "eval")
-   * @param funGroup Optional function group identifier to differentiate implementations.
    * @return created {@link ScalarFunction} or null
    */
-  public static Function create(Class<?> clazz, String methodName, String funGroup) {
+  public static Function create(Class<?> clazz, String methodName) {
     final Method method = findMethod(clazz, methodName);
     if (method == null) {
       return null;
     }
-    return create(method, funGroup);
+    return create(method);
   }
 
   /**
@@ -112,18 +108,12 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
    * @return created {@link Function} or null
    */
   public static Function create(Method method) {
-    return create(method, "");
+    validateMethod(method);
+    CallImplementor implementor = createImplementor(method);
+    return new ScalarFunctionImpl(method, implementor);
   }
 
-  /**
-   * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
-   * given method. When {@code eval} method does not suit, {@code null} is returned.
-   *
-   * @param method method that is used to implement the function
-   * @param funGroup Optional function group identifier to differentiate implementations.
-   * @return created {@link Function} or null
-   */
-  public static Function create(Method method, String funGroup) {
+  protected static void validateMethod(Method method) {
     if (!Modifier.isStatic(method.getModifiers())) {
       Class clazz = method.getDeclaringClass();
       if (!classHasPublicZeroArgsConstructor(clazz)) {
@@ -133,9 +123,6 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     if (method.getExceptionTypes().length != 0) {
       throw new RuntimeException(method.getName() + " must not throw checked exception");
     }
-
-    CallImplementor implementor = createImplementor(method);
-    return new ScalarFunctionImpl(method, implementor, funGroup);
   }
 
   @Override
@@ -203,7 +190,7 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     }
   }
 
-  private static CallImplementor createImplementor(Method method) {
+  protected static CallImplementor createImplementor(Method method) {
     final NullPolicy nullPolicy = getNullPolicy(method);
     return RexImpTable.createImplementor(
         new ScalarReflectiveCallNotNullImplementor(method), nullPolicy, false);
@@ -266,7 +253,7 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
    * @param name name of the method to find
    * @return the first method with matching name or null when no method found
    */
-  static Method findMethod(Class<?> clazz, String name) {
+  protected static Method findMethod(Class<?> clazz, String name) {
     for (Method method : clazz.getMethods()) {
       if (method.getName().equals(name) && !method.isBridge()) {
         return method;

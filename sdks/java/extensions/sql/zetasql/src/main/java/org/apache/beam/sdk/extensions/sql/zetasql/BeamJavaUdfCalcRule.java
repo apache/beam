@@ -26,6 +26,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
 
+// TODO(ibzib) javadoc
 public class BeamJavaUdfCalcRule extends BeamZetaSqlCalcRuleBase {
   public static final BeamJavaUdfCalcRule INSTANCE = new BeamJavaUdfCalcRule();
 

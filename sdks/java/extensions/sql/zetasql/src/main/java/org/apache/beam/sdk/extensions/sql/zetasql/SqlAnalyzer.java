@@ -68,13 +68,18 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPl
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
 @SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SqlAnalyzer {
+
+  // ZetaSQL function group identifiers. Different function groups may have divergent translation
+  // paths.
   public static final String PRE_DEFINED_WINDOW_FUNCTIONS = "pre_defined_window_functions";
   public static final String USER_DEFINED_FUNCTIONS = "user_defined_functions";
   public static final String USER_DEFINED_JAVA_SCALAR_FUNCTIONS =
       "user_defined_java_scalar_functions";
   public static final String USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS =
       "user_defined_java_aggregation_functions";
-  /** Same as {@link Function}.ZETASQL_FUNCTION_GROUP_NAME. */
+  /**
+   * Same as {@link Function}.ZETASQL_FUNCTION_GROUP_NAME. Identifies built-in ZetaSQL functions.
+   */
   public static final String ZETASQL_FUNCTION_GROUP_NAME = "ZetaSQL";
 
   private static final ImmutableSet<ResolvedNodeKind> SUPPORTED_STATEMENT_KINDS =

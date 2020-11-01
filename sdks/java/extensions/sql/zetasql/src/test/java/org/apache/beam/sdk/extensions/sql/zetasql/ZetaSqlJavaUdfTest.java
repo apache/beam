@@ -59,9 +59,9 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     assumeNotNull(jarPath);
     String sql =
         String.format(
-            "CREATE FUNCTION foo() RETURNS STRING LANGUAGE java "
+            "CREATE FUNCTION helloWorld() RETURNS STRING LANGUAGE java "
                 + "OPTIONS (path='%s'); "
-                + "SELECT foo();",
+                + "SELECT helloWorld();",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -153,6 +153,8 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
+  // TODO(ibzib) test type narrowing
+
   @Test
   public void testFunctionSignatureTypeMismatchFailsPipelineConstruction() {
     assumeNotNull(jarPath);
@@ -174,8 +176,8 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     assumeNotNull(jarPath);
     String sql =
         String.format(
-            "CREATE FUNCTION fun(str STRING, regStr STRING) RETURNS BOOLEAN LANGUAGE java OPTIONS (path='%s'); "
-                + "SELECT fun(\"a\", \"a\"), 'apple'='beta'",
+            "CREATE FUNCTION matches(str STRING, regStr STRING) RETURNS BOOLEAN LANGUAGE java OPTIONS (path='%s'); "
+                + "SELECT matches(\"a\", \"a\"), 'apple'='beta'",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -248,7 +250,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
         String.format(
             // Load an inhabited jar first so we can make sure jars load UdfProviders in isolation
             // from other jars.
-            "CREATE FUNCTION foo() RETURNS STRING LANGUAGE java OPTIONS (path='%s'); "
+            "CREATE FUNCTION helloWorld() RETURNS STRING LANGUAGE java OPTIONS (path='%s'); "
                 + "CREATE FUNCTION bar() RETURNS STRING LANGUAGE java OPTIONS (path='%s'); "
                 + "SELECT bar();",
             jarPath, emptyJarPath);

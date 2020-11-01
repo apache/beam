@@ -17,24 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.Collections;
-import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.transforms.Combine;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Provider for user-defined functions written in Java. Implementations should be annotated with
- * {@link com.google.auto.service.AutoService}.
+ * Annotates the single method in {@link ScalarFn} that is to be applied to SQL function arguments.
  */
-@Experimental
-public interface UdfProvider {
-  /** Maps function names to scalar function implementations. */
-  default Map<String, ScalarFn> userDefinedScalarFunctions() {
-    return Collections.emptyMap();
-  }
-
-  /** Maps function names to aggregate function implementations. */
-  default Map<String, Combine.CombineFn<?, ?, ?>> userDefinedAggregateFunctions() {
-    return Collections.emptyMap();
-  }
-}
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface ApplyMethod {}

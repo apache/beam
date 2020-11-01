@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.provider;
 
 import com.google.auto.service.AutoService;
-import java.lang.reflect.Method;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.ApplyMethod;
+import org.apache.beam.sdk.extensions.sql.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.UdfProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
@@ -32,19 +33,50 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @AutoService(UdfProvider.class)
 public class UdfTestProvider implements UdfProvider {
   @Override
-  public Map<String, Method> userDefinedScalarFunctions() {
-    try {
-      return ImmutableMap.of(
-          "fun",
-          this.getClass().getMethod("matches", String.class, String.class),
-          "foo",
-          this.getClass().getMethod("foo"),
-          "increment",
-          this.getClass().getMethod("increment", Long.class),
-          "isNull",
-          this.getClass().getMethod("isNull", String.class));
-    } catch (NoSuchMethodException e) {
-      return ImmutableMap.of();
+  public Map<String, ScalarFn> userDefinedScalarFunctions() {
+    return ImmutableMap.of(
+        "matches",
+        new MatchFn(),
+        "helloWorld",
+        new HelloWorldFn(),
+        "increment",
+        new IncrementFn(),
+        "isNull",
+        new IsNullFn());
+  }
+
+  public static class MatchFn extends ScalarFn {
+    @ApplyMethod
+    public boolean matches(String s, String regex) {
+      return s.matches(regex);
+    }
+  }
+
+  public static class HelloWorldFn extends ScalarFn {
+    @ApplyMethod
+    public String helloWorld() {
+      return "Hello world!";
+    }
+  }
+
+  public static class IncrementFn extends ScalarFn {
+    @ApplyMethod
+    public Long increment(Long i) {
+      return i + 1;
+    }
+  }
+
+  public static class IsNullFn extends ScalarFn {
+    @ApplyMethod
+    public boolean isNull(String s) {
+      return s == null;
+    }
+  }
+
+  public static class UnusedFn extends ScalarFn {
+    @ApplyMethod
+    public String notRegistered() {
+      return "This method is not registered as a UDF.";
     }
   }
 
@@ -53,31 +85,11 @@ public class UdfTestProvider implements UdfProvider {
     return ImmutableMap.of("agg_fun", Count.combineFn(), "custom_agg", new BitAnd<Long>());
   }
 
-  public static boolean matches(String s, String regex) {
-    return s.matches(regex);
-  }
-
-  public static String foo() {
-    return "Hello world!";
-  }
-
-  public static Long increment(Long i) {
-    return i + 1;
-  }
-
-  public static String notRegistered() {
-    return "This method is not registered as a UDF.";
-  }
-
-  public static boolean isNull(String s) {
-    return s == null;
-  }
-
   /**
    * Bitwise-and is already a built-in function, but reimplement it here as a "user-defined"
    * function.
    */
-  static class BitAnd<T extends Number> extends Combine.CombineFn<T, Long, Long> {
+  public static class BitAnd<T extends Number> extends Combine.CombineFn<T, Long, Long> {
     @Override
     public Long createAccumulator() {
       return -1L;

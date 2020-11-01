@@ -17,24 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.Collections;
-import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.transforms.Combine;
+import java.io.Serializable;
 
 /**
- * Provider for user-defined functions written in Java. Implementations should be annotated with
- * {@link com.google.auto.service.AutoService}.
+ * A scalar function that can be executed as part of a SQL query. Subclasses must contain exactly
+ * one method annotated with {@link ApplyMethod}, which will be applied to the SQL function
+ * arguments at runtime.
+ *
+ * <p>For example:
+ *
+ * <pre><code>
+ * public class IncrementFn extends ScalarFn {
+ *  {@literal @ApplyMethod}
+ *   public Long increment(Long i) {
+ *     return i + 1;
+ *   }
+ * }
+ * </code></pre>
  */
-@Experimental
-public interface UdfProvider {
-  /** Maps function names to scalar function implementations. */
-  default Map<String, ScalarFn> userDefinedScalarFunctions() {
-    return Collections.emptyMap();
-  }
-
-  /** Maps function names to aggregate function implementations. */
-  default Map<String, Combine.CombineFn<?, ?, ?>> userDefinedAggregateFunctions() {
-    return Collections.emptyMap();
-  }
-}
+public abstract class ScalarFn implements Serializable {}

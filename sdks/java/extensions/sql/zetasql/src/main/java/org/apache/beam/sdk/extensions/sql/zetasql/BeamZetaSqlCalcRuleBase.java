@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
+import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTrait;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -35,6 +35,7 @@ public abstract class BeamZetaSqlCalcRuleBase extends ConverterRule {
     super(clazz, in, out, description);
   }
 
+  // TODO(ibzib) static?
   protected boolean hasUdfInProjects(RelOptRuleCall x) {
     List<RelNode> resList = x.getRelList();
     for (RelNode relNode : resList) {
@@ -45,9 +46,9 @@ public abstract class BeamZetaSqlCalcRuleBase extends ConverterRule {
             RexCall call = (RexCall) rexNode;
             if (call.getOperator() instanceof SqlUserDefinedFunction) {
               SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
-              if (udf.function instanceof ScalarFunctionImpl) {
-                ScalarFunctionImpl scalarFunction = (ScalarFunctionImpl) udf.function;
-                return scalarFunction.funGroup.equals(
+              if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
+                ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
+                return scalarFunction.functionGroup.equals(
                     SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS);
               }
             }
