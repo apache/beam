@@ -24,6 +24,7 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -46,7 +47,7 @@ def scenarios = { datasetName ->
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     [
@@ -66,7 +67,7 @@ def scenarios = { datasetName ->
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     [
@@ -86,7 +87,7 @@ def scenarios = { datasetName ->
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     [
@@ -106,7 +107,7 @@ def scenarios = { datasetName ->
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     [
@@ -126,14 +127,14 @@ def scenarios = { datasetName ->
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTest = { scope, triggeringContext ->
-  def sdk = CommonTestProperties.SDK.PYTHON_37
+  def sdk = CommonTestProperties.SDK.PYTHON
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 16
@@ -142,7 +143,7 @@ def loadTest = { scope, triggeringContext ->
   def flink = new Flink(scope, 'beam_LoadTests_Python_GBK_Flink_Batch')
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+        "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       numberOfWorkers,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
