@@ -80,11 +80,15 @@ def to_dataframe(
 # Note that the pipeline (indirectly) holds references to the transforms which
 # keeps both the PCollections and expressions alive. This ensures the
 # expression's ids are never accidentally re-used.
-TO_PCOLLECTION_CACHE = weakref.WeakValueDictionary()
-UNBATCHED_CACHE = weakref.WeakValueDictionary()
+TO_PCOLLECTION_CACHE: weakref.WeakValueDictionary[
+    str, pvalue.PCollection] = weakref.WeakValueDictionary()
+UNBATCHED_CACHE: weakref.WeakValueDictionary[
+    str, pvalue.PCollection] = weakref.WeakValueDictionary()
 
 
-def _make_unbatched_pcoll(pc, expr, include_indexes):
+def _make_unbatched_pcoll(
+    pc: pvalue.PCollection, expr: expressions.Expression,
+    include_indexes: bool):
   label = f"Unbatch '{expr._id}'"
   if include_indexes:
     label += " with indexes"
