@@ -571,7 +571,7 @@ public class BigQueryServicesImplTest {
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
-    expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
+    expectedLogs.verifyWarn("BigQuery insertAll error, retrying:");
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} can stop quotaExceeded retry attempts. */
