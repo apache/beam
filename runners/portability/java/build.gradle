@@ -214,7 +214,7 @@ def createUlrValidatesRunnerTask = { name, environmentType ->
   }
 
   if (environmentType == "DOCKER") {
-    vrTask.dependsOn ":sdks:java:container:docker"
+    vrTask.dependsOn ":sdks:java:container:java8:docker"
   }
 
   if (needsLocalJobService) {
