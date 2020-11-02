@@ -1702,6 +1702,12 @@ def sort_stages(stages, pipeline_context):
   seen = set()  # type: Set[Stage]
   ordered = []
 
+  producers = {
+      pcoll: stage
+      for stage in all_stages for t in stage.transforms
+      for pcoll in t.outputs.values()
+  }
+
   def process(stage):
     if stage not in seen:
       seen.add(stage)
@@ -1709,6 +1715,13 @@ def sort_stages(stages, pipeline_context):
         return
       for prev in stage.must_follow:
         process(prev)
+      stage_outputs = set(
+          pcoll for transform in stage.transforms
+          for pcoll in transform.outputs.values())
+      for transform in stage.transforms:
+        for pcoll in transform.inputs.values():
+          if pcoll not in stage_outputs:
+            process(producers[pcoll])
       ordered.append(stage)
 
   for stage in stages:
