@@ -619,8 +619,17 @@ public class BigQueryUtils {
   }
 
   private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
-    if (jsonBQValue instanceof String && JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
-      return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply((String) jsonBQValue);
+    if (jsonBQValue instanceof String) {
+      String jsonBQString = (String) jsonBQValue;
+      if (JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
+        return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply(jsonBQString);
+      } else if (fieldType.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
+        return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
+      } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
+        return LocalDate.parse(jsonBQString);
+      } else if (fieldType.isLogicalType(SqlTypes.TIME.getIdentifier())) {
+        return LocalTime.parse(jsonBQString);
+      }
     }
 
     if (jsonBQValue instanceof List) {
