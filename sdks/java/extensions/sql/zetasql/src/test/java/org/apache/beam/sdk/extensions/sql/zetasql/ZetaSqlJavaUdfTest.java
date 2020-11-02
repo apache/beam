@@ -133,7 +133,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
    * This is a loophole in type checking. The SQL function signature does not need to match the Java
    * function signature; only the generated code is typechecked.
    */
-  // TODO(ibzib): fix this and adjust test accordingly.
+  // TODO(BEAM-11171): fix this and adjust test accordingly.
   @Test
   public void testNullArgumentIsNotTypeChecked() {
     assumeNotNull(jarPath);
@@ -152,8 +152,6 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
-
-  // TODO(ibzib) test type narrowing
 
   @Test
   public void testFunctionSignatureTypeMismatchFailsPipelineConstruction() {
