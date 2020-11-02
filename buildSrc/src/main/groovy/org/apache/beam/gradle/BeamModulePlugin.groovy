@@ -493,8 +493,6 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:13.2.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
-        // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
-        // This version should be in line with the one in com.google.cloud:libraries-bom.
         google_http_client                          : "com.google.http-client:google-http-client", // google_cloud_platform_libraries_bom sets version
         google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2", // google_cloud_platform_libraries_bom sets version
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
