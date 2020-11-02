@@ -33,7 +33,6 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -68,7 +67,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
       return new FlinkStateInternals<>(
           keyedStateBackend,
           StringUtf8Coder.of(),
-          new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+          new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -81,7 +80,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
         new FlinkStateInternals<>(
             keyedStateBackend,
             StringUtf8Coder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
     StateTag<WatermarkHoldState> stateTag =
         StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
@@ -136,7 +135,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
         new FlinkStateInternals<>(
             keyedStateBackend,
             StringUtf8Coder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     globalWindow = stateInternals.state(StateNamespaces.global(), stateTag);
     fixedWindow =
         stateInternals.state(

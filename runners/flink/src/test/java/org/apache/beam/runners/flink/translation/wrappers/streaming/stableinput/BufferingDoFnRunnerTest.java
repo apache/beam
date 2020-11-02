@@ -27,7 +27,6 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -170,6 +169,6 @@ public class BufferingDoFnRunnerTest {
         operatorStateBackend,
         null,
         concurrentCheckpoints,
-        new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+        new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
   }
 }

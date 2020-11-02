@@ -1200,7 +1200,7 @@ public class DoFnOperator<InputT, OutputT>
     private Map<TupleTag<?>, Integer> tagsToIds;
     private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
     private Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders;
-    private SerializablePipelineOptions pipelineOptions;
+    private final SerializablePipelineOptions pipelineOptions;
 
     // There is no side output.
     @SuppressWarnings("unchecked")

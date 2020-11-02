@@ -39,7 +39,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -216,11 +215,11 @@ public class WindowDoFnOperatorTest {
         new MultiOutputOutputManagerFactory<>(
             outputTag,
             outputCoder,
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class))),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
         windowingStrategy,
         emptyMap(),
         emptyList(),
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+        FlinkPipelineOptions.defaults(),
         VarLongCoder.of(),
         new WorkItemKeySelector(VarLongCoder.of()));
   }

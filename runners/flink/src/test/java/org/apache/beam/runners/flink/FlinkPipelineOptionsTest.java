@@ -71,7 +71,7 @@ public class FlinkPipelineOptionsTest {
   /** These defaults should only be changed with a very good reason. */
   @Test
   public void testDefaults() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     assertThat(options.getParallelism(), is(-1));
     assertThat(options.getMaxParallelism(), is(-1));
     assertThat(options.getFlinkMaster(), is("[auto]"));
@@ -111,9 +111,7 @@ public class FlinkPipelineOptionsTest {
         mainTag,
         Collections.emptyList(),
         new DoFnOperator.MultiOutputOutputManagerFactory<>(
-            mainTag,
-            coder,
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class))),
+            mainTag, coder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
         WindowingStrategy.globalDefault(),
         new HashMap<>(),
         Collections.emptyList(),
@@ -140,10 +138,7 @@ public class FlinkPipelineOptionsTest {
             mainTag,
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                mainTag,
-                coder,
-                new SerializablePipelineOptions(
-                    PipelineOptionsFactory.as(FlinkPipelineOptions.class))),
+                mainTag, coder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
             WindowingStrategy.globalDefault(),
             new HashMap<>(),
             Collections.emptyList(),

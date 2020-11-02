@@ -85,7 +85,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -200,7 +199,7 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput,
             VoidCoder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
@@ -232,7 +231,7 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput,
             VoidCoder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
@@ -302,7 +301,7 @@ public class ExecutableStageDoFnOperatorTest {
             tagsToOutputTags,
             tagsToCoders,
             tagsToIds,
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
     WindowedValue<Integer> zero = WindowedValue.valueInGlobalWindow(0);
     WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
@@ -425,7 +424,7 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput,
             VoidCoder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     ExecutableStageDoFnOperator<KV<String, Integer>, Integer> operator =
         getOperator(
             mainOutput,
@@ -442,8 +441,7 @@ public class ExecutableStageDoFnOperatorTest {
             new KeyedOneInputStreamOperatorTestHarness<>(
                 operator,
                 val -> val.getValue().getKey(),
-                new CoderTypeInformation<>(
-                    StringUtf8Coder.of(), PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+                new CoderTypeInformation<>(StringUtf8Coder.of(), FlinkPipelineOptions.defaults()));
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(bundle.getInputReceivers())
         .thenReturn(
@@ -562,7 +560,7 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput,
             VoidCoder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
@@ -599,7 +597,7 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput,
             VarIntCoder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     VarIntCoder keyCoder = VarIntCoder.of();
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(
@@ -615,8 +613,7 @@ public class ExecutableStageDoFnOperatorTest {
             new KeyedOneInputStreamOperatorTestHarness(
                 operator,
                 val -> val,
-                new CoderTypeInformation<>(
-                    keyCoder, PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+                new CoderTypeInformation<>(keyCoder, FlinkPipelineOptions.defaults()));
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(bundle.getInputReceivers())
@@ -718,7 +715,7 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput,
             VoidCoder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
 
     WindowingStrategy windowingStrategy =
@@ -766,8 +763,7 @@ public class ExecutableStageDoFnOperatorTest {
                 operator,
                 operator.keySelector,
                 new CoderTypeInformation<>(
-                    FlinkKeyUtils.ByteBufferCoder.of(),
-                    PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+                    FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
 
     testHarness.open();
 
@@ -890,7 +886,7 @@ public class ExecutableStageDoFnOperatorTest {
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput,
             VoidCoder.of(),
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
 
@@ -914,8 +910,7 @@ public class ExecutableStageDoFnOperatorTest {
                 operator,
                 operator.keySelector,
                 new CoderTypeInformation<>(
-                    FlinkKeyUtils.ByteBufferCoder.of(),
-                    PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+                    FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(bundle.getInputReceivers())
@@ -1098,9 +1093,9 @@ public class ExecutableStageDoFnOperatorTest {
             tagsToOutputTags,
             tagsToCoders,
             tagsToIds,
-            new SerializablePipelineOptions(PipelineOptionsFactory.as(FlinkPipelineOptions.class)));
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
 
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
@@ -1177,7 +1172,7 @@ public class ExecutableStageDoFnOperatorTest {
             Collections.emptyMap() /* sideInputTagMapping */,
             Collections.emptyList() /* sideInputs */,
             Collections.emptyMap() /* sideInputId mapping */,
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             stagePayload,
             jobInfo,
             contextFactory,
