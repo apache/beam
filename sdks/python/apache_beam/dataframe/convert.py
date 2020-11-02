@@ -17,7 +17,6 @@
 from __future__ import absolute_import
 
 import inspect
-import functools
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict

@@ -121,7 +121,9 @@ class ConvertTest(unittest.TestCase):
       # PCollections
       pc_2a_pandas_, pc_ab_pandas_ = convert.to_pcollection(df_2a, df_ab,
                                             yield_elements='pandas')
-      pc_3a_pandas, pc_2a_pandas, pc_ab_pandas = convert.to_pcollection(df_3a, df_2a, df_ab,
+      pc_3a_pandas, pc_2a_pandas, pc_ab_pandas = convert.to_pcollection(df_3a,
+                                                                        df_2a,
+                                                                        df_ab,
                                                    yield_elements='pandas')
 
       self.assertIs(pc_2a_pandas, pc_2a_pandas_)
