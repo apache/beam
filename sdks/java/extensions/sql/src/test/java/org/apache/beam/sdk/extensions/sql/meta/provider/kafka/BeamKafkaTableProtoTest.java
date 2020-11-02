@@ -21,8 +21,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -97,7 +95,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
   }
 
   @Override
-  protected byte[] generateEncodedPayload(int i) throws IOException {
+  protected byte[] generateEncodedPayload(int i) {
     KafkaMessages.TestMessage message =
         KafkaMessages.TestMessage.newBuilder()
             .setFLong(i)
@@ -107,9 +105,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
             .addFFloatArray((float) i)
             .build();
 
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    message.writeDelimitedTo(out);
-    return out.toByteArray();
+    return message.toByteArray();
   }
 
   private Row shuffledRow(int i) {

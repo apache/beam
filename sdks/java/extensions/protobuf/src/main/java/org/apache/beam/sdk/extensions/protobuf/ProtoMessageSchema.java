@@ -21,10 +21,7 @@ import static org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.getPro
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
@@ -139,8 +136,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     @Override
     public Row apply(byte[] bytes) {
       try {
-        InputStream inputStream = new ByteArrayInputStream(bytes);
-        T message = protoCoder.decode(inputStream);
+        T message = protoCoder.getParser().parseFrom(bytes);
         return toRowFunction.apply(message);
       } catch (IOException e) {
         throw new IllegalArgumentException("Could not decode row from proto payload.", e);
@@ -154,16 +150,12 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   }
 
   public static class RowToProtoBytesFn<T extends Message> extends SimpleFunction<Row, byte[]> {
-    private final ProtoCoder<T> protoCoder;
     private final SerializableFunction<Row, T> toMessageFunction;
-    private final Class<T> clazz;
     private final Schema protoSchema;
 
     public RowToProtoBytesFn(Class<T> clazz) {
       ProtoMessageSchema messageSchema = new ProtoMessageSchema();
       TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(clazz);
-      this.clazz = clazz;
-      this.protoCoder = ProtoCoder.of(typeDescriptor);
       this.toMessageFunction = messageSchema.fromRowFunction(typeDescriptor);
       this.protoSchema = messageSchema.schemaFor(typeDescriptor);
     }
@@ -173,14 +165,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
       if (!protoSchema.equivalent(row.getSchema())) {
         row = switchFieldsOrder(row);
       }
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      try {
-        Message message = toMessageFunction.apply(row);
-        protoCoder.encode(clazz.cast(message), outputStream);
-        return outputStream.toByteArray();
-      } catch (IOException e) {
-        throw new RuntimeException(String.format("Could not encode row %s to proto.", row), e);
-      }
+      Message message = toMessageFunction.apply(row);
+      return message.toByteArray();
     }
 
     private Row switchFieldsOrder(Row row) {
