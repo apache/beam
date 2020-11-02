@@ -1558,7 +1558,7 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   first = frame_base.wont_implement_method('order sensitive')
   get_group = frame_base._elementwise_method('group')
   head = frame_base.wont_implement_method('order sensitive')
-  hist = frame_base.wont_implement_method('hist')
+  hist = frame_base.wont_implement_method('plot')
   idxmax = frame_base._elementwise_method('idxmax')
   idxmin = frame_base._elementwise_method('idxmin')
   last = frame_base.wont_implement_method('order sensitive')
