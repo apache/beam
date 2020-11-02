@@ -26,13 +26,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 	"math/rand"
 	"reflect"
 	"time"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 func init() {
@@ -131,8 +130,19 @@ func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, em
 	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
 		key := make([]byte, config.KeySize)
 		val := make([]byte, config.ValueSize)
-		if _, err := fn.rng.Read(key); err != nil {
-			return err
+		generator := sourceFn{}
+		generator.rng = rand.New(rand.NewSource(i))
+		randomSample := generator.rng.Float64()
+		if randomSample < config.HotKeyFraction {
+			generatorHot := sourceFn{}
+			generatorHot.rng = rand.New(rand.NewSource(i % int64(config.NumHotKeys)))
+			if _, err := generatorHot.rng.Read(key); err != nil {
+				return err
+			}
+		} else {
+			if _, err := generator.rng.Read(key); err != nil {
+				return err
+			}
 		}
 		if _, err := fn.rng.Read(val); err != nil {
 			return err
@@ -165,10 +175,12 @@ type SourceConfigBuilder struct {
 func DefaultSourceConfig() *SourceConfigBuilder {
 	return &SourceConfigBuilder{
 		cfg: SourceConfig{
-			NumElements:   1, // 0 is invalid (drops elements).
-			InitialSplits: 1, // 0 is invalid (drops elements).
-			KeySize:       8, // 0 is invalid (drops elements).
-			ValueSize:     8, // 0 is invalid (drops elements).
+			NumElements:    1, // 0 is invalid (drops elements).
+			InitialSplits:  1, // 0 is invalid (drops elements).
+			KeySize:        8, // 0 is invalid (drops elements).
+			ValueSize:      8, // 0 is invalid (drops elements).
+			NumHotKeys:     0,
+			HotKeyFraction: 0,
 		},
 	}
 }
@@ -219,6 +231,23 @@ func (b *SourceConfigBuilder) ValueSize(val int) *SourceConfigBuilder {
 	return b
 }
 
+// NumHotKeys determines the number of keys with the same value among
+// generated keys.
+//
+// Valid values are in the range of [0, ...] and the default value is 0.
+func (b *SourceConfigBuilder) NumHotKeys(val int) *SourceConfigBuilder {
+	b.cfg.NumHotKeys = val
+	return b
+}
+
+// HotKeyFraction determines the value of hot key fraction.
+//
+// Valid values are floating point numbers from 0 to 1.
+func (b *SourceConfigBuilder) HotKeyFraction(val float64) *SourceConfigBuilder {
+	b.cfg.HotKeyFraction = val
+	return b
+}
+
 // Build constructs the SourceConfig initialized by this builder. It also
 // performs error checking on the fields, and panics if any have been set to
 // invalid values.
@@ -235,6 +264,12 @@ func (b *SourceConfigBuilder) Build() SourceConfig {
 	if b.cfg.ValueSize <= 0 {
 		panic(fmt.Sprintf("SourceConfig.ValueSize must be >= 1. Got: %v", b.cfg.ValueSize))
 	}
+	if b.cfg.NumHotKeys < 0 {
+		panic(fmt.Sprintf("SourceConfig.NumHotKeys must be >= 0. Got: %v", b.cfg.HotKeyFraction))
+	}
+	if b.cfg.HotKeyFraction < 0 || b.cfg.HotKeyFraction > 1 {
+		panic(fmt.Sprintf("SourceConfig.HotKeyFraction must be a floating point number from 0 and 1. Got: %v", b.cfg.NumHotKeys))
+	}
 	return b.cfg
 }
 
@@ -246,7 +281,8 @@ func (b *SourceConfigBuilder) Build() SourceConfig {
 // {
 // 	 "num_records": 5,
 // 	 "key_size": 5,
-// 	 "value_size": 5
+// 	 "value_size": 5,
+//	 "num_hot_keys": 5,
 // }
 func (b *SourceConfigBuilder) BuildFromJSON(jsonData []byte) SourceConfig {
 	decoder := json.NewDecoder(bytes.NewReader(jsonData))
@@ -262,8 +298,10 @@ func (b *SourceConfigBuilder) BuildFromJSON(jsonData []byte) SourceConfig {
 // synthetic source. It should be created via a SourceConfigBuilder, not by
 // directly initializing it (the fields are public to allow encoding).
 type SourceConfig struct {
-	NumElements   int `json:"num_records"`
-	InitialSplits int `json:"initial_splits"`
-	KeySize       int `json:"key_size"`
-	ValueSize     int `json:"value_size"`
+	NumElements    int     `json:"num_records"`
+	InitialSplits  int     `json:"initial_splits"`
+	KeySize        int     `json:"key_size"`
+	ValueSize      int     `json:"value_size"`
+	NumHotKeys     int     `json:"num_hot_keys"`
+	HotKeyFraction float64 `json:"hot_key_fraction"`
 }
