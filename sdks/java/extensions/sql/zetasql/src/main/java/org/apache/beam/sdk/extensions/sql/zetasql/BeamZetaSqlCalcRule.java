@@ -22,11 +22,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
 
 /** A {@code ConverterRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
-public class BeamZetaSqlCalcRule extends BeamZetaSqlCalcRuleBase {
+public class BeamZetaSqlCalcRule extends ConverterRule {
   public static final BeamZetaSqlCalcRule INSTANCE = new BeamZetaSqlCalcRule();
 
   private BeamZetaSqlCalcRule() {
@@ -36,7 +37,7 @@ public class BeamZetaSqlCalcRule extends BeamZetaSqlCalcRuleBase {
 
   @Override
   public boolean matches(RelOptRuleCall x) {
-    return !hasUdfInProjects(x);
+    return !ZetaSQLQueryPlanner.hasUdfInProjects(x);
   }
 
   @Override

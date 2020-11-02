@@ -24,7 +24,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import org.apache.beam.sdk.extensions.sql.ApplyMethod;
 import org.apache.beam.sdk.extensions.sql.ScalarFn;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -34,8 +33,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ScalarFnImpl}. */
 @RunWith(JUnit4.class)
 public class ScalarFnImplTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGetApplyMethod() throws InvocationTargetException, IllegalAccessException {
