@@ -1000,17 +1000,24 @@ def ptransform_fn(fn):
   @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
     res = _PTransformFnPTransform(fn, *args, **kwargs)
+    # Apply type hints applied before or after the ptransform_fn decorator,
+    # falling back on PTransform defaults.
+    # If the @with_{input,output}_types decorator comes before ptransform_fn,
+    # the type hints get applied to this function. If it comes after they will
+    # get applied to fn, and @wraps will copy the _type_hints attribute to
+    # this function.
+    type_hints = get_type_hints(callable_ptransform_factory)
     if ptransform_fn_typehints_enabled:
-      # Apply type hints applied before or after the ptransform_fn decorator,
-      # falling back on PTransform defaults.
-      # If the @with_{input,output}_types decorator comes before ptransform_fn,
-      # the type hints get applied to this function. If it comes after they will
-      # get applied to fn, and @wraps will copy the _type_hints attribute to
-      # this function.
-      type_hints = get_type_hints(callable_ptransform_factory)
       res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
       _LOGGER.debug(
           'type hints for %s: %s', res.default_label(), res.get_type_hints())
+    elif type_hints:
+      _LOGGER.warning(
+          'Ignoring type hints for %s: %s. Enable with '
+          '--type_check_additional=ptransform_fn. For details see: '
+          'https://beam.apache.org/documentation/sdks/python-type-safety/',
+          res.default_label(),
+          type_hints)
     return res
 
   return callable_ptransform_factory
