@@ -47,7 +47,6 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")

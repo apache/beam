@@ -31,7 +31,6 @@ ext.summary = "ZetaSQL to Calcite translator"
 def zetasql_version = "2020.10.1"
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:sql")
   compile library.java.vendored_calcite_1_20_0
