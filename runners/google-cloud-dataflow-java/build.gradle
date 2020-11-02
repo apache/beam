@@ -38,7 +38,8 @@ evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":examples:java")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
-evaluationDependsOn(":sdks:java:container")
+evaluationDependsOn(":sdks:java:container:java8")
+evaluationDependsOn(":sdks:java:container:java11")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
