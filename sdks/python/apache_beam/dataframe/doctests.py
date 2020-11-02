@@ -262,8 +262,6 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     allowed_exceptions = want.split('|')
     if all(exc in (WONT_IMPLEMENT, NOT_IMPLEMENTED)
            for exc in allowed_exceptions):
-      exc_type = got.split(':', 1)[0] if ':' in got else got.strip()
-
       # If it is, check for WontImplementError and NotImplementedError
       if WONT_IMPLEMENT in allowed_exceptions and got.startswith(
           WONT_IMPLEMENT):
