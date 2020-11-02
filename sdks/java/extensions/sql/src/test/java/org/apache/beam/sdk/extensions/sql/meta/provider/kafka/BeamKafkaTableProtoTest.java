@@ -78,7 +78,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
 
     assertThat(
         e.getMessage(),
-        containsString("does not match schema inferred from protobuf class. Protobuf class: "));
+        containsString("does not match schema inferred from protobuf class.\nProtobuf class: "));
   }
 
   @Override

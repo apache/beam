@@ -52,8 +52,11 @@ public class BeamKafkaProtoTable extends BeamKafkaTable {
     if (!messageSchema.equivalent(inferredSchema)) {
       throw new IllegalArgumentException(
           String.format(
-              "Given message schema '%s' does not match schema inferred from protobuf class. Protobuf class: '%s' Inferred schema: '%s'",
-              messageSchema, protoClass.getCanonicalName(), inferredSchema));
+              "Given message schema: '%s'\n"
+                  + "does not match schema inferred from protobuf class.\n"
+                  + "Protobuf class: '%s'\n"
+                  + "Inferred schema: '%s'",
+              messageSchema, protoClass.getName(), inferredSchema));
     }
     return inferredSchema;
   }
