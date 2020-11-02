@@ -1965,7 +1965,9 @@ class CombineGlobally(PTransform):
         return transform.with_input_types(type_hints.input_types[0][0])
       return transform
 
-    combine_per_key = CombinePerKey(self.fn, *self.args, **self.kwargs)
+    combine_fn = CombineFn.maybe_from_callable(
+        self.fn, has_side_inputs=self.args or self.kwargs)
+    combine_per_key = CombinePerKey(combine_fn, *self.args, **self.kwargs)
     if self.fanout:
       combine_per_key = combine_per_key.with_hot_key_fanout(self.fanout)
 
@@ -1980,16 +1982,16 @@ class CombineGlobally(PTransform):
     if not self.has_defaults and not self.as_view:
       return combined
 
-    if self.has_defaults:
-      combine_fn = (
-          self.fn if isinstance(self.fn, CombineFn) else
-          CombineFn.from_callable(self.fn))
-      default_value = combine_fn.apply([], *self.args, **self.kwargs)
-    else:
-      default_value = pvalue.AsSingleton._NO_DEFAULT  # pylint: disable=protected-access
-    view = pvalue.AsSingleton(combined, default_value=default_value)
-    if self.as_view:
-      return view
+    elif self.as_view:
+      if self.has_defaults:
+        # TODO(BEAM-3736): Call setup/teardown bundle here.
+        # This is called in the main program, but cannot be avoided
+        # in the as_view case as it must be available to all windows.
+        default_value = combine_fn.apply([], *self.args, **self.kwargs)
+      else:
+        default_value = pvalue.AsSingleton._NO_DEFAULT
+      return pvalue.AsSingleton(combined, default_value=default_value)
+
     else:
       if pcoll.windowing.windowfn != GlobalWindows():
         raise ValueError(
@@ -2006,10 +2008,22 @@ class CombineGlobally(PTransform):
           return transform.with_output_types(combined.element_type)
         return transform
 
+      # Capture in closure (avoiding capturing self).
+      args, kwargs = self.args, self.kwargs
+
+      def inject_default(_, combined):
+        if combined:
+          assert len(combined) == 1
+          return combined[0]
+        else:
+          # TODO(BEAM-3736) Call setup/teardown bundle here.
+          return combine_fn.apply([], *args, **kwargs)
+
       return (
           pcoll.pipeline
           | 'DoOnce' >> Create([None])
-          | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
+          | 'InjectDefault' >> typed(
+              Map(inject_default, pvalue.AsList(combined))))
 
   @staticmethod
   @PTransform.register_urn(
