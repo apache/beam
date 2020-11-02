@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.provider;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.AggregateFn;
 import org.apache.beam.sdk.extensions.sql.ApplyMethod;
 import org.apache.beam.sdk.extensions.sql.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.UdfProvider;
@@ -81,8 +82,12 @@ public class UdfTestProvider implements UdfProvider {
   }
 
   @Override
-  public Map<String, Combine.CombineFn<?, ?, ?>> userDefinedAggregateFunctions() {
-    return ImmutableMap.of("agg_fun", Count.combineFn(), "custom_agg", new BitAnd<Long>());
+  public Map<String, AggregateFn> userDefinedAggregateFunctions() {
+    return ImmutableMap.of(
+        "agg_fun",
+        AggregateFn.fromCombineFn(Count.combineFn()),
+        "custom_agg",
+        AggregateFn.fromCombineFn(new BitAnd<Long>()));
   }
 
   /**

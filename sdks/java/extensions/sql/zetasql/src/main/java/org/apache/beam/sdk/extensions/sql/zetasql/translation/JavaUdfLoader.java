@@ -34,12 +34,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import org.apache.beam.sdk.extensions.sql.AggregateFn;
 import org.apache.beam.sdk.extensions.sql.ApplyMethod;
 import org.apache.beam.sdk.extensions.sql.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.UdfProvider;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.commons.codec.digest.DigestUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -102,7 +102,7 @@ public class JavaUdfLoader {
    * <p><strong>WARNING</strong>: The first time a jar is loaded, it is added to the thread's
    * context {@link ClassLoader} so that the jar can be staged by the runner.
    */
-  public Combine.CombineFn loadAggregateFunction(List<String> functionPath, String jarPath) {
+  public AggregateFn loadAggregateFunction(List<String> functionPath, String jarPath) {
     String functionFullName = String.join(".", functionPath);
     try {
       UserFunctionDefinitions functionDefinitions = loadJar(jarPath);
@@ -211,7 +211,7 @@ public class JavaUdfLoader {
     }
 
     Map<List<String>, Method> scalarFunctions = new HashMap<>();
-    Map<List<String>, Combine.CombineFn> aggregateFunctions = new HashMap<>();
+    Map<List<String>, AggregateFn> aggregateFunctions = new HashMap<>();
     ClassLoader classLoader = createAndSetClassLoader(jarPath);
     Iterator<UdfProvider> providers = getUdfProviders(classLoader);
     int providersCount = 0;

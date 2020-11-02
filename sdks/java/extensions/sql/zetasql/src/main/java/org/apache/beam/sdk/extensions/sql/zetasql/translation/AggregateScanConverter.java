@@ -226,7 +226,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
                   getExpressionConverter()
                       .userFunctionDefinitions
                       .javaAggregateFunctions
-                      .get(aggregateFunctionCall.getFunction().getNamePath())));
+                      .get(aggregateFunctionCall.getFunction().getNamePath())
+                      .getCombineFn()));
     } else {
       sqlAggFunction =
           (SqlAggFunction)

@@ -17,23 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.Collections;
-import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
+import java.io.Serializable;
+import org.apache.beam.sdk.transforms.Combine;
 
-/**
- * Provider for user-defined functions written in Java. Implementations should be annotated with
- * {@link com.google.auto.service.AutoService}.
- */
-@Experimental
-public interface UdfProvider {
-  /** Maps function names to scalar function implementations. */
-  default Map<String, ScalarFn> userDefinedScalarFunctions() {
-    return Collections.emptyMap();
+/** An aggregate function that can be executed as part of a SQL query. */
+public class AggregateFn implements Serializable {
+  private final Combine.CombineFn combineFn;
+
+  private AggregateFn(Combine.CombineFn combineFn) {
+    this.combineFn = combineFn;
   }
 
-  /** Maps function names to aggregate function implementations. */
-  default Map<String, AggregateFn> userDefinedAggregateFunctions() {
-    return Collections.emptyMap();
+  public static AggregateFn fromCombineFn(Combine.CombineFn combineFn) {
+    return new AggregateFn(combineFn);
+  }
+
+  public Combine.CombineFn getCombineFn() {
+    return combineFn;
   }
 }

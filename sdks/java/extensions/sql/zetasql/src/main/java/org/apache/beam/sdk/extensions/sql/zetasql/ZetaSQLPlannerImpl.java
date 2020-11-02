@@ -32,13 +32,13 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.lang.reflect.Method;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.AggregateFn;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
@@ -106,7 +106,7 @@ class ZetaSQLPlannerImpl {
         ImmutableMap.builder();
     ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
     ImmutableMap.Builder<List<String>, Method> javaScalarFunctionBuilder = ImmutableMap.builder();
-    ImmutableMap.Builder<List<String>, Combine.CombineFn> javaAggregateFunctionBuilder =
+    ImmutableMap.Builder<List<String>, AggregateFn> javaAggregateFunctionBuilder =
         ImmutableMap.builder();
     JavaUdfLoader javaUdfLoader = new JavaUdfLoader();
 
@@ -121,7 +121,7 @@ class ZetaSQLPlannerImpl {
           udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
         } else if (SqlAnalyzer.getFunctionGroup(createFunctionStmt)
             .equals(SqlAnalyzer.USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS)) {
-          Combine.CombineFn aggregateFn =
+          AggregateFn aggregateFn =
               javaUdfLoader.loadAggregateFunction(
                   createFunctionStmt.getNamePath(), getJarPath(createFunctionStmt));
           javaAggregateFunctionBuilder.put(createFunctionStmt.getNamePath(), aggregateFn);
