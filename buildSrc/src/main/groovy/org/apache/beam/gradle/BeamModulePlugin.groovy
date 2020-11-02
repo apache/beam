@@ -400,7 +400,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.32.2"
-    def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
@@ -517,8 +516,8 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_netty                                  : "io.grpc:grpc-netty", // google_cloud_platform_libraries_bom sets version
         grpc_netty_shaded                           : "io.grpc:grpc-netty-shaded", // google_cloud_platform_libraries_bom sets version
         grpc_stub                                   : "io.grpc:grpc-stub", // google_cloud_platform_libraries_bom sets version
-        guava                                       : "com.google.guava:guava:$guava_version",
-        guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
+        guava                                       : "com.google.guava:guava", // google_cloud_platform_libraries_bom sets version
+        guava_testlib                               : "com.google.guava:guava-testlib", // google_cloud_platform_libraries_bom sets version
         hadoop_client                               : "org.apache.hadoop:hadoop-client:$hadoop_version",
         hadoop_common                               : "org.apache.hadoop:hadoop-common:$hadoop_version",
         hadoop_mapreduce_client_core                : "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_version",
@@ -554,8 +553,8 @@ class BeamModulePlugin implements Plugin<Project> {
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
         powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
-        protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
-        protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
+        protobuf_java                               : "com.google.protobuf:protobuf-java", // google_cloud_platform_libraries_bom sets version
+        protobuf_java_util                          : "com.google.protobuf:protobuf-java-util", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigquery_storage_v1beta1 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
@@ -1408,6 +1407,10 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
+      project.configurations.all { config ->
+        if (config.getName() != "errorprone" && config.getName() != "annotationProcessor" && config.getName() != "testAnnotationProcessor") {
+          project.dependencies.add(config.name, project.dependencies.enforcedPlatform(project.ext.library.java.google_cloud_platform_libraries_bom))
+        }}
     }
 
     // When applied in a module's build.gradle file, this closure provides task for running
