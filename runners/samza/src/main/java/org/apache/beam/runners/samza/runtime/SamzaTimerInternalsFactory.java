@@ -72,10 +72,13 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   // Size of each event timer is around 200B, by default with buffer size 50k, the default size is
   // 10M
-  private Integer maxEventTimerBufferSize;
+  private final int maxEventTimerBufferSize;
   // Max event time stored in eventTimerBuffer
   // If it is set to long.MAX_VALUE, it indicates the State does not contain any KeyedTimerData
-  private Long maxEventTimeInBuffer;
+  private long maxEventTimeInBuffer;
+
+  // The maximum number of ready timers to process at once per watermark.
+  private final long maxReadyTimersToProcessOnce;
 
   private SamzaTimerInternalsFactory(
       Coder<K> keyCoder,
@@ -91,6 +94,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     this.maxEventTimerBufferSize =
         pipelineOptions.getEventTimerBufferSize(); // must be placed before state initialization
     this.maxEventTimeInBuffer = Long.MAX_VALUE;
+    this.maxReadyTimersToProcessOnce = pipelineOptions.getMaxReadyTimersToProcessOnce();
     this.state = new SamzaTimerState(timerStateId, nonKeyedStateInternalsFactory, windowCoder);
     this.isBounded = isBounded;
   }
@@ -171,7 +175,9 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     final Collection<KeyedTimerData<K>> readyTimers = new ArrayList<>();
 
     while (!eventTimeBuffer.isEmpty()
-        && eventTimeBuffer.first().getTimerData().getTimestamp().isBefore(inputWatermark)) {
+        && eventTimeBuffer.first().getTimerData().getTimestamp().isBefore(inputWatermark)
+        && readyTimers.size() < maxReadyTimersToProcessOnce) {
+
       final KeyedTimerData<K> keyedTimerData = eventTimeBuffer.pollFirst();
       readyTimers.add(keyedTimerData);
       state.deletePersisted(keyedTimerData);
@@ -182,6 +188,13 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     }
     LOG.debug("Removed {} ready timers", readyTimers.size());
 
+    if (readyTimers.size() == maxReadyTimersToProcessOnce
+        && !eventTimeBuffer.isEmpty()
+        && eventTimeBuffer.first().getTimerData().getTimestamp().isBefore(inputWatermark)) {
+      LOG.warn(
+          "Loaded {} expired timers, the remaining will be processed at next watermark.",
+          maxReadyTimersToProcessOnce);
+    }
     return readyTimers;
   }
 

@@ -364,6 +364,57 @@ public class SamzaTimerInternalsFactoryTest {
   }
 
   /**
+   * Test the number of expired event timers for each watermark does not exceed the predefined
+   * limit.
+   */
+  @Test
+  public void testMaxExpiredEventTimersProcessAtOnce() {
+    // If maxExpiredTimersToProcessOnce <= the number of expired timers, then load
+    // "maxExpiredTimersToProcessOnce" timers.
+    testMaxExpiredEventTimersProcessAtOnce(10, 10, 5, 5);
+    testMaxExpiredEventTimersProcessAtOnce(10, 10, 10, 10);
+
+    // If maxExpiredTimersToProcessOnce > the number of expired timers, then load all the ready
+    // timers.
+    testMaxExpiredEventTimersProcessAtOnce(10, 10, 20, 10);
+  }
+
+  private void testMaxExpiredEventTimersProcessAtOnce(
+      int totalNumberOfTimersInStore,
+      int totalNumberOfExpiredTimers,
+      int maxExpiredTimersToProcessOnce,
+      int expectedExpiredTimersToProcess) {
+    final SamzaPipelineOptions pipelineOptions =
+        PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    pipelineOptions.setMaxReadyTimersToProcessOnce(maxExpiredTimersToProcessOnce);
+
+    final KeyValueStore<ByteArray, StateValue<?>> store = createStore();
+    final SamzaTimerInternalsFactory<String> timerInternalsFactory =
+        createTimerInternalsFactory(null, "timer", pipelineOptions, store);
+
+    final StateNamespace nameSpace = StateNamespaces.global();
+    final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
+
+    TimerInternals.TimerData timer;
+    for (int i = 0; i < totalNumberOfTimersInStore; i++) {
+      timer =
+          TimerInternals.TimerData.of(
+              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
+      timerInternals.setTimer(timer);
+    }
+
+    // Set the timestamp of the input watermark to be the value of totalNumberOfExpiredTimers
+    // so that totalNumberOfExpiredTimers timers are expected be expired with respect to this
+    // watermark.
+    final Instant inputWatermark = new Instant(totalNumberOfExpiredTimers);
+    timerInternalsFactory.setInputWatermark(inputWatermark);
+    final Collection<KeyedTimerData<String>> readyTimers =
+        timerInternalsFactory.removeReadyTimers();
+    assertEquals(expectedExpiredTimersToProcess, readyTimers.size());
+    store.close();
+  }
+
+  /**
    * Test the number of event time timers maintained in memory does not go beyond the limit defined
    * in pipeline option.
    */

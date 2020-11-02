@@ -82,6 +82,12 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setEventTimerBufferSize(int eventTimerBufferSize);
 
+  @Description("The maximum number of ready timers to process at once per watermark.")
+  @Default.Integer(Integer.MAX_VALUE)
+  int getMaxReadyTimersToProcessOnce();
+
+  void setMaxReadyTimersToProcessOnce(int maxReadyTimersToProcessOnce);
+
   @Description("The maximum parallelism allowed for any data source.")
   @Default.Integer(1)
   int getMaxSourceParallelism();
