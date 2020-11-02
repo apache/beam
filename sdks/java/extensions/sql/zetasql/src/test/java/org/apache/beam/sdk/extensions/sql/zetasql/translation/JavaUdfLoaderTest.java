@@ -40,6 +40,4 @@ public class JavaUdfLoaderTest {
         udfLoader.getUdfProviders(Thread.currentThread().getContextClassLoader());
     assertFalse(udfProviders.hasNext());
   }
-
-  // TODO(ibzib) add tests: missing annotation, method non-public, constructor, etc.
 }

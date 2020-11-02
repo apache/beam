@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
-import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.AggregateFn;
+import org.apache.beam.sdk.extensions.sql.ScalarFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */
@@ -36,13 +36,13 @@ public class UserFunctionDefinitions {
    */
   public final ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions;
 
-  public final ImmutableMap<List<String>, Method> javaScalarFunctions;
+  public final ImmutableMap<List<String>, ScalarFn> javaScalarFunctions;
   public final ImmutableMap<List<String>, AggregateFn> javaAggregateFunctions;
 
   public UserFunctionDefinitions(
       ImmutableMap<List<String>, ResolvedNodes.ResolvedCreateFunctionStmt> sqlScalarFunctions,
       ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions,
-      ImmutableMap<List<String>, Method> javaScalarFunctions,
+      ImmutableMap<List<String>, ScalarFn> javaScalarFunctions,
       ImmutableMap<List<String>, AggregateFn> javaAggregateFunctions) {
     this.sqlScalarFunctions = sqlScalarFunctions;
     this.sqlTableValuedFunctions = sqlTableValuedFunctions;

@@ -30,9 +30,9 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
-import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.AggregateFn;
+import org.apache.beam.sdk.extensions.sql.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
@@ -105,7 +105,7 @@ class ZetaSQLPlannerImpl {
     ImmutableMap.Builder<List<String>, ResolvedCreateFunctionStmt> udfBuilder =
         ImmutableMap.builder();
     ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
-    ImmutableMap.Builder<List<String>, Method> javaScalarFunctionBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<List<String>, ScalarFn> javaScalarFunctionBuilder = ImmutableMap.builder();
     ImmutableMap.Builder<List<String>, AggregateFn> javaAggregateFunctionBuilder =
         ImmutableMap.builder();
     JavaUdfLoader javaUdfLoader = new JavaUdfLoader();
@@ -127,7 +127,7 @@ class ZetaSQLPlannerImpl {
           javaAggregateFunctionBuilder.put(createFunctionStmt.getNamePath(), aggregateFn);
         } else if (SqlAnalyzer.getFunctionGroup(createFunctionStmt)
             .equals(SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
-          Method scalarFn =
+          ScalarFn scalarFn =
               javaUdfLoader.loadScalarFunction(
                   createFunctionStmt.getNamePath(), getJarPath(createFunctionStmt));
           javaScalarFunctionBuilder.put(createFunctionStmt.getNamePath(), scalarFn);
