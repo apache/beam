@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.getProtoGetter;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
@@ -119,12 +120,14 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     return creator;
   }
 
-  public static <T extends Message> SimpleFunction<byte[], Row> getProtoBytesToRowFn(
-      Class<T> clazz) {
-    return new ProtoBytesToRowFn<>(clazz);
+  // Other modules are not allowed to use non-vendored Message class
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public static <T> SimpleFunction<byte[], Row> getProtoBytesToRowFn(Class<T> clazz) {
+    checkForMessageType(clazz);
+    return new ProtoBytesToRowFn(clazz);
   }
 
-  public static class ProtoBytesToRowFn<T extends Message> extends SimpleFunction<byte[], Row> {
+  private static class ProtoBytesToRowFn<T extends Message> extends SimpleFunction<byte[], Row> {
     private final ProtoCoder<T> protoCoder;
     private final SerializableFunction<T, Row> toRowFunction;
 
@@ -144,12 +147,14 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     }
   }
 
-  public static <T extends Message> SimpleFunction<Row, byte[]> getRowToProtoBytesFn(
-      Class<T> clazz) {
-    return new RowToProtoBytesFn<>(clazz);
+  // Other modules are not allowed to use non-vendored Message class
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public static <T> SimpleFunction<Row, byte[]> getRowToProtoBytesFn(Class<T> clazz) {
+    checkForMessageType(clazz);
+    return new RowToProtoBytesFn(clazz);
   }
 
-  public static class RowToProtoBytesFn<T extends Message> extends SimpleFunction<Row, byte[]> {
+  private static class RowToProtoBytesFn<T extends Message> extends SimpleFunction<Row, byte[]> {
     private final SerializableFunction<Row, T> toMessageFunction;
     private final Schema protoSchema;
 
@@ -183,5 +188,13 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
       throw new RuntimeException(
           "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use ProtoDynamicMessageSchema  instead.");
     }
+  }
+
+  private static <T> void checkForMessageType(Class<T> clazz) {
+    checkArgument(
+        Message.class.isAssignableFrom(clazz),
+        "%s is not a subtype of %s",
+        clazz.getName(),
+        Message.class.getSimpleName());
   }
 }

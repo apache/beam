@@ -71,9 +71,7 @@ public class BeamKafkaProtoTable extends BeamKafkaTable {
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
-      // We are not allowed to use non-vendored protobuf Message here to extend the wildcard
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      SimpleFunction<byte[], Row> toRowFn = new ProtoMessageSchema.ProtoBytesToRowFn(clazz);
+      SimpleFunction<byte[], Row> toRowFn = ProtoMessageSchema.getProtoBytesToRowFn(clazz);
       return input
           .apply("decodeProtoRecord", MapElements.via(new KvToBytes()))
           .apply("Map bytes to rows", MapElements.via(toRowFn))
@@ -99,9 +97,7 @@ public class BeamKafkaProtoTable extends BeamKafkaTable {
 
     @Override
     public PCollection<KV<byte[], byte[]>> expand(PCollection<Row> input) {
-      // We are not allowed to use non-vendored protobuf Message here to extend the wildcard
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      SimpleFunction<Row, byte[]> toBytesFn = new ProtoMessageSchema.RowToProtoBytesFn(clazz);
+      SimpleFunction<Row, byte[]> toBytesFn = ProtoMessageSchema.getRowToProtoBytesFn(clazz);
       return input
           .apply("Encode proto bytes to row", MapElements.via(toBytesFn))
           .apply("Bytes to KV", MapElements.via(new BytesToKV()));
