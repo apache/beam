@@ -54,6 +54,7 @@ public class SdkComponents {
   private final BiMap<WindowingStrategy<?, ?>, String> windowingStrategyIds = HashBiMap.create();
   private final BiMap<Coder<?>, String> coderIds = HashBiMap.create();
   private final BiMap<Environment, String> environmentIds = HashBiMap.create();
+  private final BiMap<RunnerApi.Coder, String> coderProtoToId = HashBiMap.create();
   private final Set<String> requirements;
 
   private final Set<String> reservedIds = new HashSet<>();
@@ -127,6 +128,7 @@ public class SdkComponents {
     reservedIds.addAll(components.getEnvironmentsMap().keySet());
 
     components.getEnvironmentsMap().forEach(environmentIds.inverse()::forcePut);
+    components.getCodersMap().forEach(coderProtoToId.inverse()::forcePut);
 
     if (requirements != null) {
       this.requirements.addAll(requirements);
@@ -264,10 +266,17 @@ public class SdkComponents {
     if (existing != null) {
       return existing;
     }
+    // Unlike StructuredCoder, custom coders may not have proper implementation of hashCode() and
+    // equals(), this lead to unnecessary duplications. In order to avoid this we examine already
+    // registered coders and see if we can find a matching proto, and consider them same coder.
+    RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
+    if (coderProtoToId.containsKey(coderProto)) {
+      return coderProtoToId.get(coderProto);
+    }
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
     coderIds.put(coder, name);
-    RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
+    coderProtoToId.put(coderProto, name);
     componentsBuilder.putCoders(name, coderProto);
     return name;
   }
