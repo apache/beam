@@ -2608,7 +2608,8 @@ class Partition(PTransformWithSideInputs):
 
   def expand(self, pcoll):
     n = int(self.args[0])
-    args, kwargs = util.insert_values_in_args(self.args, self.kwargs, self.side_inputs)
+    args, kwargs = util.insert_values_in_args(
+        self.args, self.kwargs, self.side_inputs)
     return pcoll | ParDo(self.ApplyPartitionFnFn(), self.fn, *args, **
                          kwargs).with_outputs(*[str(t) for t in range(n)])
 
