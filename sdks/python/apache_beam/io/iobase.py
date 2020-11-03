@@ -54,7 +54,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
-from apache_beam.transforms import Create
+from apache_beam.transforms import Impulse
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
@@ -893,7 +893,8 @@ class Read(ptransform.PTransform):
     if isinstance(self.source, BoundedSource):
       return (
           pbegin
-          | Create([self.source])
+          | Impulse()
+          | core.Map(lambda _: self.source)
           | SDFBoundedSourceReader(self.source.display_data()))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
