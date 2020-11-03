@@ -632,6 +632,20 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def columns(self):
     return self._expr.proxy().columns
 
+  @columns.setter
+  def columns(self, columns):
+    def set_columns(df):
+      df = df.copy()
+      df.columns = columns
+      return df
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'set_columns',
+            set_columns, [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Singleton()))
+
   def __getattr__(self, name):
     # Column attribute access.
     if name in self._expr.proxy().columns:
