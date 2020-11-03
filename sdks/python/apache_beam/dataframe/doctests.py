@@ -58,6 +58,7 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
+from apache_beam.dataframe import pandas_top_level_functions
 from apache_beam.dataframe import transforms
 from apache_beam.dataframe.frame_base import DeferredBase
 
@@ -104,7 +105,7 @@ class TestEnvironment(object):
     self._all_frames = {}
 
   def fake_pandas_module(self):
-    return FakePandasObject(pd, self)
+    return FakePandasObject(pandas_top_level_functions.pd_wrapper, self)
 
   @contextlib.contextmanager
   def _monkey_patch_type(self, deferred_type):
