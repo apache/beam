@@ -150,33 +150,6 @@ class Stage(object):
             (str(env1).replace('\n', ' '), str(env2).replace('\n', ' ')))
       return env1
 
-  def _ancestors(self, context):
-    # type: (TransformContext) -> Iterator[str]
-    parents = {
-        child: parent
-        for parent,
-        transform in context.components.transforms.items()
-        for child in transform.subtransforms
-    }
-    ancestor = self.parent
-    if isinstance(ancestor, Stage):
-      ancestor = ancestor.name
-    while ancestor is not None:
-      yield ancestor
-      ancestor = parents.get(ancestor)
-
-  def _lowest_common_ancestor(self, other, context):
-    # type: (Stage, TransformContext) -> Optional[str]
-    if self.parent is None:
-      return other.parent
-    elif other.parent is None:
-      return self.parent
-    self_ancestors = set(self._ancestors(context))
-    for ancestor in other._ancestors(context):
-      if ancestor in self_ancestors:
-        return ancestor
-    return None
-
   def can_fuse(self, consumer, context):
     # type: (Stage, TransformContext) -> bool
     try:
@@ -201,7 +174,7 @@ class Stage(object):
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
             self.environment, other.environment),
-        parent=self._lowest_common_ancestor(other, context),
+        parent=_lowest_common_ancestor(self.name, other.name, context),
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
@@ -806,9 +779,13 @@ def eliminate_common_key_with_none(stages, context):
         only_element(stage.transforms[0].outputs.values())
         for stage in sibling_stages
     ]
+    parent = functools.reduce(
+        lambda a, b: _lowest_common_ancestor(a, b, context),
+        [s.name for s in sibling_stages])
     for to_delete_pcoll_id in output_pcoll_ids[1:]:
       pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
       del context.components.pcollections[to_delete_pcoll_id]
+    sibling_stages[0].parent = parent
     remaining_stages.append(sibling_stages[0])
 
   # Yield stages while remapping input PCollections if needed.
@@ -1193,6 +1170,36 @@ def lift_combiners(stages, context):
         yield substage
     else:
       yield stage
+
+
+def _lowest_common_ancestor(a, b, context):
+  # type: (str, str, TransformContext) -> Optional[str]
+
+  '''Returns the name of the lowest common ancestor of the two named stages.
+
+  The provided context is used to compute ancestors of stages. Note that stages
+  are considered to be ancestors of themselves.
+  '''
+  assert a != b
+
+  parents = {
+      child: parent
+      for parent,
+      transform in context.components.transforms.items()
+      for child in transform.subtransforms
+  }
+
+  def get_ancestors(name):
+    ancestor = name
+    while ancestor is not None:
+      yield ancestor
+      ancestor = parents.get(ancestor)
+
+  a_ancestors = set(get_ancestors(a))
+  for b_ancestor in get_ancestors(b):
+    if b_ancestor in a_ancestors:
+      return b_ancestor
+  return None
 
 
 def expand_sdf(stages, context):

@@ -125,7 +125,8 @@ class TranslationsTest(unittest.TestCase):
         stage for stage in stages if 'KeyWithVoid' in stage.name
     ]
     self.assertEqual(len(key_with_void_stages), 1)
-    self.assertIn('-globally', key_with_void_stages[0].parent)
+    self.assertIn('multiple-combines', key_with_void_stages[0].parent)
+    self.assertNotIn('-globally', key_with_void_stages[0].parent)
 
     combine_per_key_stages = []
     for stage in stages:
