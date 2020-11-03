@@ -28,6 +28,7 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'])
+applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
@@ -150,8 +151,17 @@ task runPojoExample(type: JavaExec) {
   args = ["--runner=DirectRunner"]
 }
 
+// These tests become flaky when run in parallel at more than 3 threads so run them in a separate task
+task runKafkaTableProviderIT(type: Test) {
+  outputs.upToDateWhen { false }
+  include '**/KafkaTableProvider*IT.class'
+  maxParallelForks 2
+  classpath = project(":sdks:java:extensions:sql").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task integrationTest(type: Test) {
-  group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
@@ -166,6 +176,7 @@ task integrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
+  exclude '**/KafkaTableProvider*IT.class'
 
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
@@ -179,5 +190,6 @@ task integrationTest(type: Test) {
 task postCommit {
   group = "Verification"
   description = "Various integration tests"
+  dependsOn runKafkaTableProviderIT
   dependsOn integrationTest
 }

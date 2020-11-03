@@ -25,7 +25,6 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
@@ -46,9 +45,6 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
       AvroUtils.toAvroSchema(EMPTY_SCHEMA);
   private static final org.apache.avro.Schema AVRO_SCHEMA = AvroUtils.toAvroSchema(TEST_SCHEMA);
   private static final AvroCoder<GenericRecord> AVRO_CODER = AvroCoder.of(AVRO_SCHEMA);
-
-  private static final SerializableFunction<Row, byte[]> toBytesFn =
-      AvroUtils.getRowToAvroBytesFunction(TEST_SCHEMA);
 
   @Override
   protected Row generateRow(int i) {
