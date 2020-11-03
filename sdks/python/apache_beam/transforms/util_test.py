@@ -675,13 +675,14 @@ class GroupIntoBatchesTest(unittest.TestCase):
     max_buffering_duration_secs = 100
 
     start_time = timestamp.Timestamp(0)
-    test_stream = TestStream().add_elements(
-        [TimestampedValue(value, start_time + i)
-         for i, value in enumerate(GroupIntoBatchesTest._create_test_data())]) \
-      .advance_watermark_to(
-        start_time + GroupIntoBatchesTest.NUM_ELEMENTS + 1) \
-      .advance_processing_time(100) \
-      .advance_watermark_to_infinity()
+    test_stream = (
+        TestStream().add_elements([
+            TimestampedValue(value, start_time + i) for i,
+            value in enumerate(GroupIntoBatchesTest._create_test_data())
+        ]).advance_processing_time(150).advance_watermark_to(
+            start_time + window_duration).advance_watermark_to(
+                start_time + window_duration +
+                1).advance_watermark_to_infinity())
 
     with TestPipeline(options=StandardOptions(streaming=True)) as pipeline:
       # To trigger the processing time timer, use a fake clock with start time
@@ -704,10 +705,10 @@ class GroupIntoBatchesTest(unittest.TestCase):
       # should be 5 (flush because of batch size reached).
       expected_0 = 5
       # There is only one element left in the window so batch size
-      # should be 1 (flush because of end of window reached).
+      # should be 1 (flush because of max buffering duration reached).
       expected_1 = 1
       # Collection has 10 elements, there are only 4 left, so batch size should
-      # be 4 (flush because of max buffering duration reached).
+      # be 4 (flush because of end of window reached).
       expected_2 = 4
       assert_that(
           num_elements_per_batch,
