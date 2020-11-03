@@ -145,6 +145,9 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
     testCategories: {
       if (streaming && checkpointing) {
         includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+        // TODO(BEAM-10940): Enable this test suite once we have support.
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         // TestStreamSource does not support checkpointing
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       } else {
