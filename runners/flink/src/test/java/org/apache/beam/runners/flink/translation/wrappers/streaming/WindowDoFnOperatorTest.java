@@ -32,13 +32,13 @@ import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -212,11 +212,14 @@ public class WindowDoFnOperatorTest {
         (Coder) inputCoder,
         outputTag,
         emptyList(),
-        new MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+        new MultiOutputOutputManagerFactory<>(
+            outputTag,
+            outputCoder,
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
         windowingStrategy,
         emptyMap(),
         emptyList(),
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+        FlinkPipelineOptions.defaults(),
         VarLongCoder.of(),
         new WorkItemKeySelector(VarLongCoder.of()));
   }

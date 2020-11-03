@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.types;
 import java.io.EOFException;
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
@@ -49,20 +50,18 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
    * org.apache.beam.sdk.io.FileSystems} registration needed for {@link
    * org.apache.beam.sdk.transforms.Reshuffle} translation.
    */
-  @SuppressWarnings("unused")
-  private final @Nullable SerializablePipelineOptions pipelineOptions;
+  private final SerializablePipelineOptions pipelineOptions;
 
-  public CoderTypeSerializer(Coder<T> coder) {
-    Preconditions.checkNotNull(coder);
-    this.coder = coder;
-    this.pipelineOptions = null;
-  }
+  private final boolean fasterCopy;
 
-  public CoderTypeSerializer(
-      Coder<T> coder, @Nullable SerializablePipelineOptions pipelineOptions) {
+  public CoderTypeSerializer(Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
     Preconditions.checkNotNull(coder);
+    Preconditions.checkNotNull(pipelineOptions);
     this.coder = coder;
     this.pipelineOptions = pipelineOptions;
+
+    FlinkPipelineOptions options = pipelineOptions.get().as(FlinkPipelineOptions.class);
+    this.fasterCopy = options.getFasterCopy();
   }
 
   @Override
@@ -72,7 +71,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public CoderTypeSerializer<T> duplicate() {
-    return new CoderTypeSerializer<>(coder);
+    return new CoderTypeSerializer<>(coder, pipelineOptions);
   }
 
   @Override
@@ -82,10 +81,14 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public T copy(T t) {
-    try {
-      return CoderUtils.clone(coder, t);
-    } catch (CoderException e) {
-      throw new RuntimeException("Could not clone.", e);
+    if (fasterCopy) {
+      return t;
+    } else {
+      try {
+        return CoderUtils.clone(coder, t);
+      } catch (CoderException e) {
+        throw new RuntimeException("Could not clone.", e);
+      }
     }
   }
 
