@@ -588,10 +588,12 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
+
+
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
 
-  FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
   def __init__(self, table_schema):
     self.fields = self._convert_to_tuple(table_schema.fields)
@@ -624,7 +626,7 @@ class _JsonToDictCoder(coders.Coder):
       return []
 
     return [
-        cls.FieldSchema(
+        FieldSchema(
             cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
         for x in table_field_schemas
     ]
