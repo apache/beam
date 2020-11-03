@@ -49,6 +49,13 @@ public class AfterEachStateMachine extends TriggerStateMachine {
     checkArgument(subTriggers.size() > 1);
   }
 
+  @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnElement(c.forTrigger(subTrigger));
+    }
+  }
+
   /** Returns an {@code AfterEach} {@code Trigger} with the given subtriggers. */
   @SafeVarargs
   public static TriggerStateMachine inOrder(TriggerStateMachine... triggers) {
@@ -75,6 +82,13 @@ public class AfterEachStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnMerge(c.forTrigger(subTrigger));
+    }
+  }
+
+  @Override
   public void onMerge(OnMergeContext context) throws Exception {
     // If merging makes a subtrigger no-longer-finished, it will automatically
     // begin participating in shouldFire and onFire appropriately.
@@ -92,6 +106,13 @@ public class AfterEachStateMachine extends TriggerStateMachine {
       }
     }
     updateFinishedState(context);
+  }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchShouldFire(c.forTrigger(subTrigger));
+    }
   }
 
   @Override

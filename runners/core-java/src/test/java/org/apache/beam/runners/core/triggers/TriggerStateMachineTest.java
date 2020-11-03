@@ -62,10 +62,19 @@ public class TriggerStateMachineTest {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {}
+
+    @Override
     public void onElement(TriggerStateMachine.OnElementContext c) {}
 
     @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+    @Override
     public void onMerge(TriggerStateMachine.OnMergeContext c) {}
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
@@ -83,10 +92,19 @@ public class TriggerStateMachineTest {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {}
+
+    @Override
     public void onElement(TriggerStateMachine.OnElementContext c) {}
 
     @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+    @Override
     public void onMerge(TriggerStateMachine.OnMergeContext c) {}
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
