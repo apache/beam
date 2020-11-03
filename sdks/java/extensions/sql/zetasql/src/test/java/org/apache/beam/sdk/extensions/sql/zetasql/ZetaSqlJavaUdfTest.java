@@ -259,6 +259,16 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testJavaUdfEmptyPath() {
+    String sql =
+        "CREATE FUNCTION foo() RETURNS STRING LANGUAGE java OPTIONS (path=''); SELECT foo();";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("No jar was provided to define function foo.");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
   public void testJavaUdfNoJarProvided() {
     String sql = "CREATE FUNCTION foo() RETURNS STRING LANGUAGE java; SELECT foo();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);

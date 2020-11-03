@@ -23,8 +23,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.ProviderNotFoundException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -40,6 +41,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,21 +124,34 @@ public class JavaUdfLoader {
     }
   }
 
-  private ClassLoader createAndSetClassLoader(String inputJarPath) throws IOException {
-    Preconditions.checkArgument(!inputJarPath.isEmpty(), "Jar path cannot be empty.");
-    ResourceId inputJar = FileSystems.matchNewResource(inputJarPath, false /* is directory */);
-    File tmpJar = File.createTempFile("sql-udf-", inputJar.getFilename());
-    FileSystems.copy(
-        Collections.singletonList(inputJar),
-        Collections.singletonList(
-            FileSystems.matchNewResource(tmpJar.getAbsolutePath(), false /* is directory */)));
-    try (InputStream inputStream = new FileInputStream(tmpJar)) {
-      LOG.info(
-          "Copied {} to {} with md5 hash {}.",
-          inputJarPath,
-          tmpJar.getAbsolutePath(),
-          DigestUtils.md5Hex(inputStream));
+  /**
+   * Creates a temporary local copy of the file at {@code inputPath}, and returns a handle to the
+   * local copy.
+   */
+  private File downloadFile(String inputPath, String mimeType) throws IOException {
+    Preconditions.checkArgument(!inputPath.isEmpty(), "Path cannot be empty.");
+    ResourceId inputResource = FileSystems.matchNewResource(inputPath, false /* is directory */);
+    try (ReadableByteChannel inputChannel = FileSystems.open(inputResource)) {
+      File outputFile = File.createTempFile("sql-udf-", inputResource.getFilename());
+      ResourceId outputResource =
+          FileSystems.matchNewResource(outputFile.getAbsolutePath(), false /* is directory */);
+      try (WritableByteChannel outputChannel = FileSystems.create(outputResource, mimeType)) {
+        ByteStreams.copy(inputChannel, outputChannel);
+      }
+      // Compute and log checksum.
+      try (InputStream inputStream = new FileInputStream(outputFile)) {
+        LOG.info(
+            "Copied {} to {} with md5 hash {}.",
+            inputPath,
+            outputFile.getAbsolutePath(),
+            DigestUtils.md5Hex(inputStream));
+      }
+      return outputFile;
     }
+  }
+
+  private ClassLoader createAndSetClassLoader(String inputJarPath) throws IOException {
+    File tmpJar = downloadFile(inputJarPath, "application/java-archive");
     if (originalClassLoader == null) {
       // Save the original context class loader before any UDF jars are loaded.
       originalClassLoader = Thread.currentThread().getContextClassLoader();
