@@ -49,7 +49,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
   private enum PayloadFormat {
     CSV,
     AVRO,
-    JSON
+    JSON,
+    PROTO
   }
 
   @Override
@@ -76,6 +77,14 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
         return new BeamKafkaAvroTable(schema, bootstrapServers, topics);
       case JSON:
         return new BeamKafkaJsonTable(schema, bootstrapServers, topics);
+      case PROTO:
+        String protoClassName = properties.getString("protoClass");
+        try {
+          Class<?> protoClass = Class.forName(protoClassName);
+          return new BeamKafkaProtoTable(schema, bootstrapServers, topics, protoClass);
+        } catch (ClassNotFoundException e) {
+          throw new IllegalArgumentException("Incorrect proto class provided: " + protoClassName);
+        }
       default:
         throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
     }
