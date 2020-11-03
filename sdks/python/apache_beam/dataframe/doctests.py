@@ -428,6 +428,11 @@ class Summary(object):
     self.skipped = skipped
     self.error_reasons = error_reasons or collections.defaultdict(lambda: [])
 
+  def result(self):
+    res = AugmentedTestResults(self.failures, self.tries)
+    res.summary = self
+    return res
+
   def __add__(self, other):
     merged_reasons = {
         key: self.error_reasons[key] + other.error_reasons[key]
@@ -583,33 +588,34 @@ def test_rst_ipython(
   return result
 
 
-def teststring(text, report=False, **runner_kwargs):
+def teststring(text, wont_implement_ok=None, not_implemented_ok=None, **kwargs):
+  return teststrings(
+      {'<string>': text},
+      wont_implement_ok={'<string>': ['*']} if wont_implement_ok else None,
+      not_implemented_ok={'<string>': ['*']} if not_implemented_ok else None,
+      **kwargs)
+
+
+def teststrings(texts, report=False, **runner_kwargs):
   optionflags = runner_kwargs.pop('optionflags', 0)
   optionflags |= (
       doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
 
-  wont_implement_ok = runner_kwargs.pop('wont_implement_ok', False)
-  not_implemented_ok = runner_kwargs.pop('not_implemented_ok', False)
-
   parser = doctest.DocTestParser()
   runner = BeamDataframeDoctestRunner(
-      TestEnvironment(),
-      optionflags=optionflags,
-      wont_implement_ok={'<string>': ['*']} if wont_implement_ok else None,
-      not_implemented_ok={'<string>': ['*']} if not_implemented_ok else None,
-      **runner_kwargs)
-  test = parser.get_doctest(
-      text, {
-          'pd': runner.fake_pandas_module(), 'np': np
-      },
-      '<string>',
-      '<string>',
-      0)
+      TestEnvironment(), optionflags=optionflags, **runner_kwargs)
+  globs = {
+      'pd': runner.fake_pandas_module(),
+      'np': np,
+      'option_context': pd.option_context,
+  }
   with expressions.allow_non_parallel_operations():
-    result = runner.run(test)
+    for name, text in texts.items():
+      test = parser.get_doctest(text, globs, name, name, 0)
+      runner.run(test)
   if report:
     runner.summarize()
-  return result
+  return runner.summary().result()
 
 
 def testfile(*args, **kwargs):
