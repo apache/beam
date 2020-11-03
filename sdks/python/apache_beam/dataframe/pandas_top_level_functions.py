@@ -57,6 +57,59 @@ def _is_top_level_function(o):
 class DeferredPandasModule(object):
   array = _defer_to_pandas('array')
   bdate_range = _defer_to_pandas('bdate_range')
+
+  @staticmethod
+  @frame_base.args_to_kwargs(pd)
+  @frame_base.populate_defaults(pd)
+  def concat(
+      objs,
+      axis,
+      join,
+      ignore_index,
+      keys,
+      levels,
+      names,
+      verify_integrity,
+      sort,
+      copy):
+
+    if ignore_index:
+      raise NotImplementedError('concat(ignore_index)')
+    if levels:
+      raise NotImplementedError('concat(levels)')
+
+    if isinstance(objs, Mapping):
+      if keys is None:
+        keys = list(objs.keys())
+      objs = [objs[k] for k in keys]
+    else:
+      objs = list(objs)
+    deferred_none = expressions.ConstantExpression(None)
+    exprs = [deferred_none if o is None else o._expr for o in objs]
+
+    if axis in (1, 'columns'):
+      required_partitioning = partitionings.Index()
+    elif verify_integrity:
+      required_partitioning = partitionings.Index()
+    else:
+      required_partitioning = partitionings.Nothing()
+
+    return frame_base.DeferredBase.wrap(
+        expressions.ComputedExpression(
+            'concat',
+            lambda *objs: pd.concat(
+                objs,
+                axis=axis,
+                join=join,
+                ignore_index=ignore_index,
+                keys=keys,
+                levels=levels,
+                names=names,
+                verify_integrity=verify_integrity),  # yapf break
+            exprs,
+            requires_partition_by=required_partitioning,
+            preserves_partition_by=partitionings.Index()))
+
   date_range = _defer_to_pandas('date_range')
   describe_option = _defer_to_pandas('describe_option')
   factorize = _call_on_first_arg('factorize')

@@ -386,7 +386,7 @@ class DoctestTest(unittest.TestCase):
         use_beam=False,
         report=True,
         not_implemented_ok={
-            'concat': ['*'],
+            'concat': ['pd.concat([s1, s2], ignore_index=True)'],
             'crosstab': ['*'],
             'cut': ['*'],
             'eval': ['*'],
