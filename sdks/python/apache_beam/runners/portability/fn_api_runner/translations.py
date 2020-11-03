@@ -780,7 +780,8 @@ def eliminate_common_key_with_none(stages, context):
         for stage in sibling_stages
     ]
     parent = functools.reduce(
-        lambda a, b: _lowest_common_ancestor(a, b, context),
+        lambda a,
+        b: _lowest_common_ancestor(a, b, context),
         [s.name for s in sibling_stages])
     for to_delete_pcoll_id in output_pcoll_ids[1:]:
       pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
