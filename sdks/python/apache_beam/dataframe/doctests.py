@@ -184,12 +184,10 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
       self.compute = self.compute_using_beam
     else:
       self.compute = self.compute_using_session
-    self._seen_wont_implement = False
-    self._seen_not_implemented = False
+    self.reset()
 
   def reset(self):
-    self._seen_wont_implement = False
-    self._seen_not_implemented = False
+    self._last_error = None
 
   def compute_using_session(self, to_compute):
     session = expressions.PartitioningSession(self._env._inputs)
@@ -253,27 +251,35 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
 
   @property
   def _seen_error(self):
-    return self._seen_wont_implement or self._seen_not_implemented
+    return self._last_error is not None
 
   def check_output(self, want, got, optionflags):
     # When an error occurs check_output is called with want=example.exc_msg,
     # and got=exc_msg
-    if got.startswith(WONT_IMPLEMENT) and (want.startswith(WONT_IMPLEMENT) or
-                                           want.startswith(NOT_IMPLEMENTED)):
-      self._seen_wont_implement = True
-      return True
-    elif got.startswith(NOT_IMPLEMENTED) and want.startswith(NOT_IMPLEMENTED):
-      self._seen_not_implemented = True
-      return True
-    elif got.startswith('NameError') and self._seen_error:
-      # After raising WontImplementError or NotImplementError,
-      # ignore a NameError.
-      # This allows us to gracefully skip tests like
-      #    >>> res = df.unsupported_operation()
-      #    >>> check(res)
-      return True
-    else:
-      self.reset()
+
+    # First check if `want` is a special string indicating wont_implement_ok
+    # and/or not_implemented_ok
+    allowed_exceptions = want.split('|')
+    if all(exc in (WONT_IMPLEMENT, NOT_IMPLEMENTED)
+           for exc in allowed_exceptions):
+      # If it is, check for WontImplementError and NotImplementedError
+      if WONT_IMPLEMENT in allowed_exceptions and got.startswith(
+          WONT_IMPLEMENT):
+        self._last_error = WONT_IMPLEMENT
+        return True
+
+      elif NOT_IMPLEMENTED in allowed_exceptions and got.startswith(
+          NOT_IMPLEMENTED):
+        self._last_error = NOT_IMPLEMENTED
+        return True
+
+      elif got.startswith('NameError') and self._seen_error:
+        # This allows us to gracefully skip tests like
+        #    >>> res = df.unsupported_operation()
+        #    >>> check(res)
+        return True
+
+    self.reset()
     want, got = self.fix(want, got)
     return super(_DeferrredDataframeOutputChecker,
                  self).check_output(want, got, optionflags)
@@ -332,10 +338,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         **kwargs)
     self.success = 0
     self.skipped = 0
-    self.wont_implement = 0
-    self._wont_implement_reasons = []
-    self.not_implemented = 0
-    self._not_implemented_reasons = []
+    self._reasons = collections.defaultdict(lambda: [])
     self._skipped_set = set()
 
   def _is_wont_implement_ok(self, example, test):
@@ -357,14 +360,16 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         example.source = 'pass'
         example.want = ''
         self.skipped += 1
-      elif example.exc_msg is None and self._is_not_implemented_ok(example,
-                                                                   test):
-        # Don't fail doctests that raise this error.
-        example.exc_msg = '%s: ...' % NOT_IMPLEMENTED
-      elif example.exc_msg is None and self._is_wont_implement_ok(example,
-                                                                  test):
-        # Don't fail doctests that raise this error.
-        example.exc_msg = '%s: ...' % WONT_IMPLEMENT
+      elif example.exc_msg is None:
+        allowed_exceptions = []
+        if self._is_not_implemented_ok(example, test):
+          allowed_exceptions.append(NOT_IMPLEMENTED)
+        if self._is_wont_implement_ok(example, test):
+          allowed_exceptions.append(WONT_IMPLEMENT)
+
+        if len(allowed_exceptions):
+          # Don't fail doctests that raise this error.
+          example.exc_msg = '|'.join(allowed_exceptions)
     with self._test_env.context():
       result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
       # Can't add attributes to builtin result.
@@ -384,15 +389,9 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
       else:
         return got.replace("\n", "\\n")
 
-    if self._checker._seen_wont_implement:
-      self.wont_implement += 1
-      self._wont_implement_reasons.append(
-          extract_concise_reason(got, WONT_IMPLEMENT))
-
-    if self._checker._seen_not_implemented:
-      self.not_implemented += 1
-      self._not_implemented_reasons.append(
-          extract_concise_reason(got, NOT_IMPLEMENTED))
+    if self._checker._last_error is not None:
+      self._reasons[self._checker._last_error].append(
+          extract_concise_reason(got, self._checker._last_error))
 
     if self._checker._seen_error:
       m = re.search('^([a-zA-Z0-9_, ]+)=', example.source)
@@ -415,14 +414,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
     self.summary().summarize()
 
   def summary(self):
-    return Summary(
-        self.failures,
-        self.tries,
-        self.skipped,
-        self.wont_implement,
-        self._wont_implement_reasons,
-        self.not_implemented,
-        self._not_implemented_reasons)
+    return Summary(self.failures, self.tries, self.skipped, self._reasons)
 
 
 class AugmentedTestResults(doctest.TestResults):
@@ -430,32 +422,23 @@ class AugmentedTestResults(doctest.TestResults):
 
 
 class Summary(object):
-  def __init__(
-      self,
-      failures=0,
-      tries=0,
-      skipped=0,
-      wont_implement=0,
-      wont_implement_reasons=None,
-      not_implemented=0,
-      not_implemented_reasons=None):
+  def __init__(self, failures=0, tries=0, skipped=0, error_reasons=None):
     self.failures = failures
     self.tries = tries
     self.skipped = skipped
-    self.wont_implement = wont_implement
-    self.wont_implement_reasons = wont_implement_reasons or []
-    self.not_implemented = not_implemented
-    self.not_implemented_reasons = not_implemented_reasons or []
+    self.error_reasons = error_reasons or collections.defaultdict(lambda: [])
 
   def __add__(self, other):
+    merged_reasons = {
+        key: self.error_reasons[key] + other.error_reasons[key]
+        for key in set(self.error_reasons.keys()).union(
+            other.error_reasons.keys())
+    }
     return Summary(
         self.failures + other.failures,
         self.tries + other.tries,
         self.skipped + other.skipped,
-        self.wont_implement + other.wont_implement,
-        self.wont_implement_reasons + other.wont_implement_reasons,
-        self.not_implemented + other.not_implemented,
-        self.not_implemented_reasons + other.not_implemented_reasons)
+        merged_reasons)
 
   def summarize(self):
     def print_partition(indent, desc, n, total):
@@ -468,27 +451,21 @@ class Summary(object):
       return
 
     print_partition(1, "skipped", self.skipped, self.tries)
-    print_partition(1, "won't implement", self.wont_implement, self.tries)
-    reason_counts = sorted(
-        collections.Counter(self.wont_implement_reasons).items(),
-        key=lambda x: x[1],
-        reverse=True)
-    for desc, count in reason_counts:
-      print_partition(2, desc, count, self.wont_implement)
-    print_partition(
-        1, "not implemented (yet)", self.not_implemented, self.tries)
-    reason_counts = sorted(
-        collections.Counter(self.not_implemented_reasons).items(),
-        key=lambda x: x[1],
-        reverse=True)
-    for desc, count in reason_counts:
-      print_partition(2, desc, count, self.not_implemented)
+    for error, reasons in self.error_reasons.items():
+      print_partition(1, error, len(reasons), self.tries)
+      reason_counts = sorted(
+          collections.Counter(reasons).items(),
+          key=lambda x: x[1],
+          reverse=True)
+      for desc, count in reason_counts:
+        print_partition(2, desc, count, len(reasons))
     print_partition(1, "failed", self.failures, self.tries)
     print_partition(
         1,
         "passed",
-        self.tries - self.skipped - self.wont_implement - self.not_implemented -
-        self.failures,
+        self.tries - self.skipped -
+        sum(len(reasons)
+            for reasons in self.error_reasons.values()) - self.failures,
         self.tries)
     print()
 
