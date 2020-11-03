@@ -424,11 +424,11 @@ public class ContextualTextIO {
     }
 
     /**
-     * Helper class for computing number of record in the File preceding the beginning of the Range
-     * in this file.
+     * Helper class for computing number of records in the File preceding the beginning of
+     * each read range (offset) in this file.
      */
     @VisibleForTesting
-    static class ComputeRecordsBeforeEachRange extends DoFn<Integer, KV<String, KV<Long, Long>>> {
+    static class ComputeRecordsBeforeEachRange extends DoFn<Integer, KV<String, Map<Long, Long>>> {
       private final PCollectionView<Map<String, Iterable<KV<Long, Long>>>> rangeSizes;
 
       public ComputeRecordsBeforeEachRange(
@@ -466,30 +466,31 @@ public class ContextualTextIO {
               .forEachRemaining(
                   x -> sorted.put(KV.of(entrySet.getKey(), x.getKey()), x.getValue()));
 
-          // HashMap that tracks number of records passed for each file
-          Map<String, Long> pastRecords = new HashMap<>();
-
-          // For each (File, Range) Pair, compute the number of records before it
+          String file = entrySet.getKey();
+          Map<Long, Long> numRecordsBeforeEachOffset = new HashMap<>();
+          Long numRecordsBefore = 0L;
           for (Map.Entry<KV<String, Long>, Long> entry : sorted.entrySet()) {
-            Long numRecords = entry.getValue();
             KV<String, Long> fileRange = entry.getKey();
-            String file = fileRange.getKey();
-            Long numRecordsBefore = 0L;
-            if (pastRecords.containsKey(file)) {
-              numRecordsBefore = pastRecords.get(file);
-            }
-            p.output(KV.of(file, KV.of(fileRange.getValue(), numRecordsBefore)));
-            pastRecords.put(file, numRecordsBefore + numRecords);
+            Long numRecords = entry.getValue();
+            Long offset = fileRange.getValue();
+            numRecordsBeforeEachOffset.put(offset, numRecordsBefore);
+            numRecordsBefore += numRecords;
           }
+          p.output(KV.of(file, numRecordsBeforeEachOffset));
         }
       }
     }
 
+    /**
+     * Helper transform for computing absolute position of each record given the read range of each
+     * record and a side input describing the describing number of records that precede
+     * the beginning of each read range.
+     */
     static class AssignRecordNums extends DoFn<KV<KV<String, Long>, Row>, Row> {
-      PCollectionView<Map<String, Iterable<KV<Long, Long>>>> numRecordsBeforeEachRange;
+      PCollectionView<Map<String, Map<Long, Long>>> numRecordsBeforeEachRange;
 
       public AssignRecordNums(
-          PCollectionView<Map<String, Iterable<KV<Long, Long>>>> numRecordsBeforeEachRange) {
+          PCollectionView<Map<String, Map<Long, Long>>> numRecordsBeforeEachRange) {
         this.numRecordsBeforeEachRange = numRecordsBeforeEachRange;
       }
 
@@ -499,10 +500,9 @@ public class ContextualTextIO {
         Long offset = p.element().getKey().getValue();
         Row record = p.element().getValue();
 
-        Iterator<KV<Long, Long>> numRecordsBeforeEachOffsetInFile = p
-            .sideInput(numRecordsBeforeEachRange).get(file).iterator();
-        Long numRecordsLessThanThisOffset = getNumRecordsBeforeOffset(offset,
-            numRecordsBeforeEachOffsetInFile);
+        Map<Long, Long> numRecordsBeforeEachOffsetInFile = p
+            .sideInput(numRecordsBeforeEachRange).get(file);
+        Long numRecordsLessThanThisOffset = numRecordsBeforeEachOffsetInFile.get(offset);
 
         Row newLine =
             Row.fromRow(record)
@@ -707,13 +707,13 @@ public class ContextualTextIO {
        * After computing the number of lines before each range, we can find the line number in original file as numLinesBeforeOffset + lineNumInCurrentOffset
        */
 
-      PCollectionView<Map<String, Iterable<KV<Long, Long>>>> numRecordsBeforeEachRange =
+      PCollectionView<Map<String, Map<Long, Long>>> numRecordsBeforeEachRange =
           singletonPcoll
               .apply(
                   "ComputeNumRecordsBeforeRange",
                   ParDo.of(new ComputeRecordsBeforeEachRange(rangeSizes))
                       .withSideInputs(rangeSizes))
-              .apply("NumRecordsBeforeEachRangeAsView", View.asMultimap());
+              .apply("NumRecordsBeforeEachRangeAsView", View.asMap());
 
       return recordsGroupedByFileAndRange
           .apply(
