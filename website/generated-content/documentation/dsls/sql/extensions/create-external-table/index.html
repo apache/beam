@@ -95,13 +95,15 @@ TBLPROPERTIES '{
     &quot;bootstrap.servers&quot;:&quot;localhost:9092&quot;,
     &quot;topics&quot;: [&quot;topic1&quot;, &quot;topic2&quot;],
     &quot;format&quot;: &quot;avro&quot;
+    [, &quot;protoClass&quot;: &quot;com.example.ExampleMessage&quot; ]*
 }'
 </code></pre><ul><li><code>LOCATION</code>: The Kafka topic URL.</li><li><code>TBLPROPERTIES</code>:<ul><li><code>bootstrap.servers</code>: Optional. Allows you to specify the bootstrap
 server.</li><li><code>topics</code>: Optional. Allows you to specify specific topics.</li><li><code>format</code>: Optional. Allows you to specify the Kafka values format. Possible values are
-{<code>csv</code>, <code>avro</code>, <code>json</code>}. Defaults to <code>csv</code>.</li></ul></li></ul><h3 id=read-mode-2>Read Mode</h3><p>Read Mode supports reading from a topic.</p><h3 id=write-mode-2>Write Mode</h3><p>Write Mode supports writing to a topic.</p><h3 id=supported-formats>Supported Formats</h3><ul><li>CSV (default)<ul><li>Beam parses the messages, attempting to parse fields according to the
+{<code>csv</code>, <code>avro</code>, <code>json</code>, <code>proto</code>}. Defaults to <code>csv</code>.</li><li><code>protoClass</code>: Optional. Use only when <code>format</code> is equal to <code>proto</code>. Allows you to
+specify full protocol buffer java class name.</li></ul></li></ul><h3 id=read-mode-2>Read Mode</h3><p>Read Mode supports reading from a topic.</p><h3 id=write-mode-2>Write Mode</h3><p>Write Mode supports writing to a topic.</p><h3 id=supported-formats>Supported Formats</h3><ul><li>CSV (default)<ul><li>Beam parses the messages, attempting to parse fields according to the
 types specified in the schema.</li></ul></li><li>Avro<ul><li>An Avro schema is automatically generated from the specified field
 types. It is used to parse incoming messages and to format outgoing
-messages.</li></ul></li><li>JSON Objects<ul><li>Beam attempts to parse JSON to match the schema.</li></ul></li></ul><h3 id=schema-2>Schema</h3><p>For CSV only simple types are supported.</p><h2 id=mongodb>MongoDB</h2><h3 id=syntax-4>Syntax</h3><pre><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+messages.</li></ul></li><li>JSON Objects<ul><li>Beam attempts to parse JSON to match the schema.</li></ul></li><li>Protocol buffers<ul><li>Fields in the schema have to match the fields of the given <code>protoClass</code>.</li></ul></li></ul><h3 id=schema-2>Schema</h3><p>For CSV only simple types are supported.</p><h2 id=mongodb>MongoDB</h2><h3 id=syntax-4>Syntax</h3><pre><code>CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE mongodb
 LOCATION 'mongodb://[HOST]:[PORT]/[DATABASE]/[COLLECTION]'
 </code></pre><ul><li><code>LOCATION</code>: Location of the collection.<ul><li><code>HOST</code>: Location of the MongoDB server. Can be localhost or an ip address.
