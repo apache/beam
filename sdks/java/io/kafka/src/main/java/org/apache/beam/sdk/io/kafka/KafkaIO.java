@@ -392,6 +392,7 @@ import org.slf4j.LoggerFactory;
  * incompatibility.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class KafkaIO {
 
   /**
@@ -1231,35 +1232,28 @@ public class KafkaIO {
 
     abstract Map<String, Object> getConsumerConfig();
 
-    @Nullable
-    abstract Map<String, Object> getOffsetConsumerConfig();
+    abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
 
-    @Nullable
-    abstract DeserializerProvider getKeyDeserializerProvider();
+    abstract @Nullable DeserializerProvider getKeyDeserializerProvider();
 
-    @Nullable
-    abstract DeserializerProvider getValueDeserializerProvider();
+    abstract @Nullable DeserializerProvider getValueDeserializerProvider();
 
-    @Nullable
-    abstract Coder<K> getKeyCoder();
+    abstract @Nullable Coder<K> getKeyCoder();
 
-    @Nullable
-    abstract Coder<V> getValueCoder();
+    abstract @Nullable Coder<V> getValueCoder();
 
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
-    @Nullable
-    abstract SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
+    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
+        getExtractOutputTimestampFn();
 
-    @Nullable
-    abstract SerializableFunction<Instant, WatermarkEstimator<Instant>>
+    abstract @Nullable SerializableFunction<Instant, WatermarkEstimator<Instant>>
         getCreateWatermarkEstimatorFn();
 
     abstract boolean isCommitOffsetEnabled();
 
-    @Nullable
-    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
+    abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
 

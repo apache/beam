@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link SyntheticUnboundedSource} that reads {@code KV<byte[], byte[]>}. */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SyntheticUnboundedSource
     extends UnboundedSource<KV<byte[], byte[]>, SyntheticRecordsCheckpoint> {
 

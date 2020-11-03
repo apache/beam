@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 from apache_beam.io.aws.clients.s3 import messages
+from apache_beam.options import pipeline_options
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -34,9 +35,38 @@ class Client(object):
   """
   Wrapper for boto3 library
   """
-  def __init__(self):
+  def __init__(self, options):
     assert boto3 is not None, 'Missing boto3 requirement'
-    self.client = boto3.client('s3')
+    if isinstance(options, pipeline_options.PipelineOptions):
+      s3_options = options.view_as(pipeline_options.S3Options)
+      access_key_id = s3_options.s3_access_key_id
+      secret_access_key = s3_options.s3_secret_access_key
+      session_token = s3_options.s3_session_token
+      endpoint_url = s3_options.s3_endpoint_url
+      use_ssl = not s3_options.s3_disable_ssl
+      region_name = s3_options.s3_region_name
+      api_version = s3_options.s3_api_version
+      verify = s3_options.s3_verify
+    else:
+      access_key_id = options.get('s3_access_key_id')
+      secret_access_key = options.get('s3_secret_access_key')
+      session_token = options.get('s3_session_token')
+      endpoint_url = options.get('s3_endpoint_url')
+      use_ssl = not options.get('s3_disable_ssl', False)
+      region_name = options.get('s3_region_name')
+      api_version = options.get('s3_api_version')
+      verify = options.get('s3_verify')
+
+    self.client = boto3.client(
+        service_name='s3',
+        region_name=region_name,
+        api_version=api_version,
+        use_ssl=use_ssl,
+        verify=verify,
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        aws_session_token=session_token)
 
   def get_object_metadata(self, request):
     r"""Retrieves an object's metadata.

@@ -43,6 +43,7 @@ import org.joda.time.Instant;
  * output elements at any time after target time.
  */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PeriodicSequence
     extends PTransform<PCollection<PeriodicSequence.SequenceDefinition>, PCollection<Instant>> {
 

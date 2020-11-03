@@ -83,6 +83,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link PTransformMatcher}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PTransformMatchersTest implements Serializable {
   @Rule
   public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -589,9 +590,8 @@ public class PTransformMatchersTest implements Serializable {
       throw new UnsupportedOperationException("should not be called");
     }
 
-    @Nullable
     @Override
-    public ResourceId unwindowedFilename(
+    public @Nullable ResourceId unwindowedFilename(
         int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("should not be called");
     }

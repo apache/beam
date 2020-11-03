@@ -45,6 +45,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -65,6 +66,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 
 /** Utility methods for BigQuery related operations. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BigQueryUtils {
 
   /** Options for how to convert BigQuery data to Beam data. */
@@ -222,6 +224,7 @@ public class BigQueryUtils {
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.DATETIME)
           .put("SqlCharType", StandardSQLTypeName.STRING)
+          .put("Enum", StandardSQLTypeName.STRING)
           .build();
 
   private static final String BIGQUERY_MAP_KEY_FIELD_NAME = "key";
@@ -545,6 +548,10 @@ public class BigQueryUtils {
         if (SqlTypes.DATE.getIdentifier().equals(identifier)
             || SqlTypes.TIME.getIdentifier().equals(identifier)) {
           return fieldValue.toString();
+        } else if ("Enum".equals(identifier)) {
+          return fieldType
+              .getLogicalType(EnumerationType.class)
+              .toString((EnumerationType.Value) fieldValue);
         } // fall through
 
       default:

@@ -53,6 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles} transform
  * will take care of writing it to a file.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class WriteBundlesToFiles<DestinationT, ElementT>
     extends DoFn<KV<DestinationT, ElementT>, Result<DestinationT>> {
 

@@ -31,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * a way such that lexicographic ordering of the bytes is consistent with the inherent ordering of
  * {@code GroupingShuffleReader} positions.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, ShufflePosition {
   private final byte[] position;
 

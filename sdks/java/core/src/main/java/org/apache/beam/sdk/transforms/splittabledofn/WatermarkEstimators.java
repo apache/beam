@@ -30,6 +30,7 @@ import org.joda.time.Instant;
  * associated {@link DoFn splittable DoFn}s.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class WatermarkEstimators {
   /** Concrete implementation of a {@link ManualWatermarkEstimator}. */
   public static class Manual implements ManualWatermarkEstimator<Instant> {

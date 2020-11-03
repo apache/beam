@@ -70,6 +70,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineTranslation}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PipelineTranslationTest {
   @Parameter(0)
   public Pipeline pipeline;

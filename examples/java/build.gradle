@@ -48,6 +48,7 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
+  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
@@ -69,6 +70,7 @@ dependencies {
   compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
   compile "com.google.code.findbugs:jsr305:3.0.2"
   compile "com.google.oauth-client:google-oauth-client:1.31.0"
+  permitUnusedDeclared "com.google.auto.value:auto-value-annotations:1.7.2"
   permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")

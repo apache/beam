@@ -88,6 +88,7 @@ import org.slf4j.LoggerFactory;
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
  * PipelineRunners} for more details.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PubsubIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);
@@ -603,9 +604,8 @@ public class PubsubIO {
     /** User function for parsing PubsubMessage object. */
     abstract @Nullable SerializableFunction<PubsubMessage, T> getParseFn();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract Schema getBeamSchema();
+    abstract @Nullable Schema getBeamSchema();
 
     abstract @Nullable TypeDescriptor<T> getTypeDescriptor();
 

@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see TestPipeline
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
@@ -288,8 +289,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.absent();
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {

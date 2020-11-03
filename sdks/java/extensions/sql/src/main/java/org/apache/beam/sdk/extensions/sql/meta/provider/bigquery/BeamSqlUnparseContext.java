@@ -47,6 +47,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BitString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimestampString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
 
   // More about escape sequences here:

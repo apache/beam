@@ -88,6 +88,7 @@ import org.slf4j.LoggerFactory;
  * Exactly-once sink transform for Kafka. See {@link KafkaIO} for user visible documentation and
  * example usage.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class KafkaExactlyOnceSink<K, V>
     extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<Void>> {
 

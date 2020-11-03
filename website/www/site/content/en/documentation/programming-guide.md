@@ -2645,12 +2645,12 @@ pc = input | beam.Map(lambda ...).with_output_types(Transaction)
 
 
 {{< paragraph class="language-py" >}}
-**beam.Row**
+**beam.Row and Select**
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-It's also possible to create ad-hoc schema declarations with a simple lambda
-that returns instances of `beam.Row`:
+There are also methods for creating ad-hoc schema declarations. First, you can
+use a lambda that returns instances of `beam.Row`:
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -2660,17 +2660,28 @@ output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Note that this declaration doesn't include any specific information about the
-types of the `bank` and `purchase_amount` fields. Beam will attempt to infer
-type information, if it's unable to it will fall back to the generic type
+Sometimes it can be more concise to express the same logic with the
+[`Select`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Select) transform:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(bank=lambda item: item["bank"],
+                                   purchase_amount=lambda item: item["purchase_amount"])
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Note that these declaration don't include any specific information about the
+types of the `bank` and `purchase_amount` fields, so Beam will attempt to infer
+type information. If it's unable to it will fall back to the generic type
 `Any`. Sometimes this is not ideal, you can use casts to make sure Beam
-correctly infers types with `beam.Row`:
+correctly infers types with `beam.Row` or with `Select`:
 {{< /paragraph >}}
 
 {{< highlight py >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=str(item["bank"]),
-                                                      purchase_amount=float(item["purchase_amount"]))
+                                                      purchase_amount=float(item["purchase_amount"])))
 {{< /highlight >}}
 
 
@@ -4320,7 +4331,7 @@ potentially while the pipeline is running. There could be different reasons for 
 *   Retrieve an accurate count of the number of elements that have been processed;
 *   ...and so on.
 
-### 10.1 The main concepts of Beam metrics
+### 10.1. The main concepts of Beam metrics
 *   **Named**. Each metric has a name which consists of a namespace and an actual name. The
     namespace can be used to differentiate between multiple metrics with the same name and also
     allows querying for all metrics within a specific namespace.
@@ -4340,7 +4351,7 @@ transform reported, as well as aggregating the metric across the entire pipeline
 > **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only
 after jobs have completed.
 
-### 10.2 Types of metrics {#types-of-metrics}
+### 10.2. Types of metrics {#types-of-metrics}
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and
 `Gauge`.
 
@@ -4386,7 +4397,7 @@ public void processElement(ProcessContext context) {
 }
 {{< /highlight >}}
 
-### 10.3 Querying metrics {#querying-metrics}
+### 10.3. Querying metrics {#querying-metrics}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics
 matching a given filter.
@@ -4414,7 +4425,7 @@ public interface MetricResult<T> {
 }
 {{< /highlight >}}
 
-### 10.4 Using metrics in pipeline {#using-metrics}
+### 10.4. Using metrics in pipeline {#using-metrics}
 Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
 
 {{< highlight java >}}
@@ -4452,7 +4463,7 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 }
 {{< /highlight >}}
 
-### 10.5 Export metrics {#export-metrics}
+### 10.5. Export metrics {#export-metrics}
 
 Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period.
 The configuration is held in the [MetricsOptions](https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html) class.
@@ -4496,7 +4507,7 @@ In Python DoFn declares states to be accessed by creating `StateSpec` class memb
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
-### 11.1 Types of state {#types-of-state}
+### 11.1. Types of state {#types-of-state}
 
 Beam provides several types of state:
 
@@ -4603,7 +4614,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
 {{< /highlight >}}
 
-### 11.2 Deferred state reads {#deferred-state-reads}
+### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
@@ -4657,14 +4668,14 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-### 11.3 Timers {#timers}
+### 11.3. Timers {#timers}
 
 Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
 Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
 TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
 firing time for that key's timer.
 
-#### 11.3.1 Event-time timers {#event-time-timers}
+#### 11.3.1. Event-time timers {#event-time-timers}
 
 Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that
 the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
@@ -4714,7 +4725,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
 {{< /highlight >}}
 
-#### 11.3.2 Processing-time timers {#processing-time-timers}
+#### 11.3.2. Processing-time timers {#processing-time-timers}
 
 Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
 before processing. It can also be used to schedule events that should occur at a specific time. Just like with
@@ -4762,7 +4773,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
 {{< /highlight >}}
 
-#### 11.3.3 Dynamic timer tags {#dynamic-timer-tags}
+#### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
 
 Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
 in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
@@ -4792,7 +4803,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< highlight python >}}
 To be supported, See BEAM-9602
 {{< /highlight >}}
-#### 11.3.4 Timer output timestamps {#timer-output-timestamps}
+#### 11.3.4. Timer output timestamps {#timer-output-timestamps}
 
 By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
 that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish
@@ -4895,11 +4906,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-### 11.4 Garbage collecting state {#garbage-collecting-state}
+### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
 
-##### 11.4.1 **Using windows for garbage collection** {#using-windows-for-garbage-collection}
+##### 11.4.1. **Using windows for garbage collection** {#using-windows-for-garbage-collection}
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
@@ -4940,7 +4951,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
 day is garbage collected.
 
-##### 11.4.1 **Using timers For garbage collection** {#using-timers-for-garbage-collection}
+##### 11.4.1. **Using timers For garbage collection** {#using-timers-for-garbage-collection}
 
 In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For
 example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
@@ -5017,7 +5028,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'User DoFn' >> beam.ParDo(UserDoFn()))
 {{< /highlight >}}
 
-### 11.5 State and timers examples {#state-timers-examples}
+### 11.5. State and timers examples {#state-timers-examples}
 
 Following are some example uses of state and timers
 
@@ -5103,7 +5114,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
  }));
 {{< /highlight >}}
 
-#### 11.5.2 Batching RPCs {#batching-rpcs}
+#### 11.5.2. Batching RPCs {#batching-rpcs}
 
 In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
 multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,

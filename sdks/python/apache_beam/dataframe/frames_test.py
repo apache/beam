@@ -111,6 +111,27 @@ class DeferredFrameTest(unittest.TestCase):
           df1,
           df2)
 
+  def test_series_getitem(self):
+    s = pd.Series([x**2 for x in range(10)])
+    self._run_test(lambda s: s[...], s, distributed=True)
+    self._run_test(lambda s: s[:], s, distributed=True)
+    self._run_test(lambda s: s[s < 10], s, distributed=True)
+    self._run_test(lambda s: s[lambda s: s < 10], s, distributed=True)
+
+    s.index = s.index.map(float)
+    self._run_test(lambda s: s[1.5:6], s, distributed=True)
+
+  def test_dataframe_getitem(self):
+    df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
+    self._run_test(lambda df: df['A'], df, distributed=True)
+    self._run_test(lambda df: df[['A', 'B']], df, distributed=True)
+
+    self._run_test(lambda df: df[:], df, distributed=True)
+    self._run_test(lambda df: df[df.A < 10], df, distributed=True)
+
+    df.index = df.index.map(float)
+    self._run_test(lambda df: df[1.5:4], df, distributed=True)
+
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
     df = pd.DataFrame(
@@ -170,6 +191,11 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.corr(min_periods=12).round(8), df, distributed=True)
     self._run_test(
         lambda df: df.cov(min_periods=12).round(8), df, distributed=True)
+    self._run_test(lambda df: df.corrwith(df.a).round(8), df, distributed=True)
+    self._run_test(
+        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8),
+        df,
+        distributed=True)
 
 
 class AllowNonParallelTest(unittest.TestCase):

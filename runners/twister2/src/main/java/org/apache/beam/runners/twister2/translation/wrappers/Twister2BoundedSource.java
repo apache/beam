@@ -41,6 +41,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /** Twister2 wrapper for Bounded Source. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Twister2BoundedSource<T> extends BaseSourceFunc<WindowedValue<T>> {
   private static final Logger LOG = Logger.getLogger(Twister2BoundedSource.class.getName());
 

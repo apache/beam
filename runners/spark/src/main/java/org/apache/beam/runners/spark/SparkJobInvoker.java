@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Creates a job invocation to manage the Spark runner's execution of a portable pipeline. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SparkJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkJobInvoker.class);

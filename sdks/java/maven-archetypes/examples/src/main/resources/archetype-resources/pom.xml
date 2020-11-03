@@ -31,11 +31,11 @@
 
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-api-client.version>@google-api-client.version@</google-api-client.version>
-    <google-http-client.version>@google-http-client.version@</google-http-client.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
     <junit.version>@junit.version@</junit.version>
+    <libraries-bom.version>@libraries-bom.version@</libraries-bom.version>
     <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
     <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
@@ -379,7 +379,6 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>${google-http-client.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -460,4 +459,17 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <!-- GCP libraries BOM sets the version for google http client -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>${libraries-bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 </project>

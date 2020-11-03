@@ -51,6 +51,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
 /** End-to-end submission test of Beam jobs on a Flink cluster. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkSubmissionTest {
 
   @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();

@@ -43,6 +43,7 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class UserMonitoringInfoToCounterUpdateTransformerTest {
 
   @Rule public final ExpectedException exception = ExpectedException.none();

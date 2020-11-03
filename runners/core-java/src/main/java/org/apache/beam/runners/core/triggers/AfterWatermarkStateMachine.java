@@ -51,6 +51,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AfterWatermarkStateMachine {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
@@ -128,6 +129,9 @@ public class AfterWatermarkStateMachine {
         if (lateTrigger != null) {
           ExecutableTriggerStateMachine lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
           OnMergeContext lateContext = c.forTrigger(lateSubtrigger);
+          // It is necessary to merge before clearing. Clearing with this context just clears the
+          // target window state not the source windows state.
+          lateSubtrigger.invokeOnMerge(lateContext);
           lateContext.trigger().setFinished(false);
           lateSubtrigger.invokeClear(lateContext);
         }
@@ -135,7 +139,9 @@ public class AfterWatermarkStateMachine {
         // Otherwise the early trigger and end-of-window bit is done for good.
         earlyContext.trigger().setFinished(true);
         if (lateTrigger != null) {
-          c.trigger().subTrigger(LATE_INDEX).invokeOnMerge(c);
+          ExecutableTriggerStateMachine lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
+          OnMergeContext lateContext = c.forTrigger(lateSubtrigger);
+          lateSubtrigger.invokeOnMerge(lateContext);
         }
       }
     }

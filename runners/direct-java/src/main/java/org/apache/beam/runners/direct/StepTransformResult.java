@@ -37,6 +37,7 @@ import org.joda.time.Instant;
 
 /** An immutable {@link TransformResult}. */
 @AutoValue
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
   public static <InputT> Builder<InputT> withHold(

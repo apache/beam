@@ -36,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link SchemaProvider} for AutoValue classes. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AutoValueSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on AutoValue getters. */
   @VisibleForTesting
@@ -111,9 +112,8 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     return creatorFactory;
   }
 
-  @Nullable
   @Override
-  public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+  public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     return JavaBeanUtils.schemaFromJavaBeanClass(
         typeDescriptor.getRawType(), AbstractGetterTypeSupplier.INSTANCE);
   }

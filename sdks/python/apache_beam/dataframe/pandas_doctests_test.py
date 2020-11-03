@@ -87,11 +87,6 @@ class DoctestTest(unittest.TestCase):
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
 
-            # DataFrame.__getitem__ cannot be used as loc
-            'pandas.core.frame.DataFrame.query': [
-                'df[df.A > df.B]', "df[df.B == df['C C']]"
-            ],
-
             # We can implement this as a zipping operator, but it won't have the
             # same capability. The doctest includes an example that branches on
             # a deferred result.
@@ -109,12 +104,10 @@ class DoctestTest(unittest.TestCase):
 
             # element-wise
             'pandas.core.frame.DataFrame.eval': ['*'],
-            'pandas.core.frame.DataFrame.explode': ['*'],
 
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
-            'pandas.core.frame.DataFrame.drop': ['*'],
-            'pandas.core.frame.DataFrame.rename': ['*'],
+            # Difficult to determine proxy, need to inspect function
             'pandas.core.frame.DataFrame.apply': ['*'],
 
             # In theory this is possible for bounded inputs?

@@ -63,6 +63,7 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.joda.time.Instant;
 
 /** A {@link Combine} that performs the combine in multiple steps. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class MultiStepCombine<
         K extends @Nullable Object,
         InputT extends @Nullable Object,

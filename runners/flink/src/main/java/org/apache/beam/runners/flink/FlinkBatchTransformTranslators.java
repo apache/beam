@@ -106,6 +106,7 @@ import org.joda.time.Instant;
 /**
  * Translators for transforming {@link PTransform PTransforms} to Flink {@link DataSet DataSets}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class FlinkBatchTransformTranslators {
 
   // --------------------------------------------------------------------------------------------

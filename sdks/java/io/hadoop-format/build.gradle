@@ -77,6 +77,7 @@ dependencies {
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
     exclude group: "org.apache.storm", module: "storm-core"
   }
+  testCompile library.java.commons_lang3
   testCompile library.java.commons_io
   testCompile library.java.cassandra_driver_core
   testCompile library.java.cassandra_driver_mapping
@@ -130,4 +131,13 @@ task sparkRunner(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
   systemProperty "beam.spark.test.reuseSparkContext", "true"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+}
+
+task hadoopFormatIOElasticTest(type: Test) {
+  group = "Verification"
+  description = 'Runs HadoopFormatIO integration test with ElasticSearchContainer'
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  include '**/HadoopFormatIOElasticIT.class'
+  useJUnit { }
 }

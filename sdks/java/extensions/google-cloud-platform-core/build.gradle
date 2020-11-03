@@ -40,6 +40,7 @@ dependencies {
   compile "org.apache.httpcomponents:httpcore:4.4.12"
   compile "com.google.code.findbugs:jsr305:3.0.2"
   compile "org.checkerframework:checker-qual:2.0.0"
+  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.google_http_client_jackson2

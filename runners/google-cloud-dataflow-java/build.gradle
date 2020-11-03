@@ -63,6 +63,7 @@ configurations {
 }
 
 dependencies {
+  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -367,6 +368,9 @@ task validatesRunnerV2Test(type: Test) {
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedGaugeMetrics'
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testAllCommittedMetrics'
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics'
+
+    // TODO(BEAM-11130): support OrderedListState in Google Cloud Dataflow Runner V2
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testOrderedListState*'
   }
 }
 

@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  *     String or String - a GCS URI of the video to be annotated.
  */
 @Experimental
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> {
 
   protected final PCollectionView<Map<T, VideoContext>> contextSideInput;

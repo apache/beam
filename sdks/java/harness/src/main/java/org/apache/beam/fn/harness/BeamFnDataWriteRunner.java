@@ -60,6 +60,7 @@ import org.slf4j.LoggerFactory;
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
  * {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamFnDataWriteRunner<InputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataWriteRunner.class);

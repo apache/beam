@@ -100,6 +100,7 @@ import org.junit.runners.model.Statement;
  * <p>See also the <a href="https://beam.apache.org/contribute/testing/">Testing</a> documentation
  * section.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TestPipeline extends Pipeline implements TestRule {
 
   private final PipelineOptions options;

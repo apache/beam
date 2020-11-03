@@ -48,6 +48,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests if overrides are properly applied. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkTransformOverridesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -96,9 +97,8 @@ public class FlinkTransformOverridesTest {
             throw new UnsupportedOperationException("should not be called");
           }
 
-          @Nullable
           @Override
-          public ResourceId unwindowedFilename(
+          public @Nullable ResourceId unwindowedFilename(
               int shardNumber, int numShards, OutputFileHints outputFileHints) {
             throw new UnsupportedOperationException("should not be called");
           }

@@ -37,6 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} for the SparkRunner. */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SparkTimerInternals implements TimerInternals {
   private final Instant highWatermark;
   private final Instant synchronizedProcessingTime;
@@ -131,9 +132,8 @@ public class SparkTimerInternals implements TimerInternals {
     return Instant.now();
   }
 
-  @Nullable
   @Override
-  public Instant currentSynchronizedProcessingTime() {
+  public @Nullable Instant currentSynchronizedProcessingTime() {
     return synchronizedProcessingTime;
   }
 
@@ -147,9 +147,8 @@ public class SparkTimerInternals implements TimerInternals {
     inputWatermark = highWatermark;
   }
 
-  @Nullable
   @Override
-  public Instant currentOutputWatermarkTime() {
+  public @Nullable Instant currentOutputWatermarkTime() {
     return null;
   }
 

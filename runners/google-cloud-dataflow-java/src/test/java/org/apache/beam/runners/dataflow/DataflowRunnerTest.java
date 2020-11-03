@@ -173,6 +173,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -1716,9 +1717,8 @@ public class DataflowRunnerTest implements Serializable {
                   throw new UnsupportedOperationException("should not be called");
                 }
 
-                @Nullable
                 @Override
-                public ResourceId unwindowedFilename(
+                public @Nullable ResourceId unwindowedFilename(
                     int shardNumber, int numShards, OutputFileHints outputFileHints) {
                   throw new UnsupportedOperationException("should not be called");
                 }

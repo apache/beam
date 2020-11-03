@@ -46,6 +46,7 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
  * This {@link SyntheticOptions} class provides common parameterizable synthetic options that are
  * used by {@link SyntheticBoundedSource} and {@link SyntheticUnboundedSource}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;
 

@@ -31,6 +31,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
  * which created, you need to create again every time you launch the {@link
  * org.apache.beam.sdk.extensions.sql.BeamSqlCli}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class InMemoryMetaStore implements MetaStore {
   private Map<String, Table> tables = new HashMap<>();
   private Map<String, TableProvider> providers = new HashMap<>();

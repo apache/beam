@@ -68,6 +68,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests of {@link JmsIO}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class JmsIOTest {
 
   private static final String BROKER_URL = "vm://localhost";

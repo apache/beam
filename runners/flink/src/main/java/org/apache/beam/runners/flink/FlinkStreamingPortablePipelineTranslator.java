@@ -117,6 +117,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 /** Translate an unbounded portable pipeline representation into a Flink pipeline representation. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkStreamingPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
         FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext> {

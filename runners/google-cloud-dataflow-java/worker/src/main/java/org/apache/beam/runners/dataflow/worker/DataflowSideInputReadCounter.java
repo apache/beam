@@ -79,6 +79,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  * input, and the AnotherParDo may be the one that actually manipulates that Iterable. This is
  * possible because both ParDos will be fused, so they will simply exchange objects in memory.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DataflowSideInputReadCounter implements SideInputReadCounter {
   private final DataflowExecutionContext executionContext;
 

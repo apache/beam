@@ -31,6 +31,7 @@ import org.joda.time.Duration;
  * fields for details. {@code SyntheticSourceOptions} uses jackson annotations which
  * PipelineOptionsFactory can use to parse and construct an instance.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SyntheticSourceOptions extends SyntheticOptions {
   private static final long serialVersionUID = 0;
 

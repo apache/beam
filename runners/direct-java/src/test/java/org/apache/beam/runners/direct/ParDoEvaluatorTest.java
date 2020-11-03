@@ -67,6 +67,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link ParDoEvaluator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ParDoEvaluatorTest {
   @Mock private EvaluationContext evaluationContext;
   private PCollection<Integer> inputPc;

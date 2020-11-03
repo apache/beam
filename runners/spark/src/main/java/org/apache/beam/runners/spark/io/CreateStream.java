@@ -86,6 +86,7 @@ import org.joda.time.Instant;
  * @param <T> The type of the element in this stream.
  */
 // TODO: write a proper Builder enforcing all those rules mentioned.
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   public static final String TRANSFORM_URN = "beam:transform:spark:createstream:v1";
 

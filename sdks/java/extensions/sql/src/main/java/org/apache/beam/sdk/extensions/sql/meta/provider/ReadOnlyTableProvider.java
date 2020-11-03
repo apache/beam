@@ -27,6 +27,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
  * A {@code ReadOnlyTableProvider} provides in-memory read only set of {@code BeamSqlTable
  * BeamSqlTables}.
  */
+@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReadOnlyTableProvider implements TableProvider {
   private final String typeName;
   private final Map<String, BeamSqlTable> tables;
