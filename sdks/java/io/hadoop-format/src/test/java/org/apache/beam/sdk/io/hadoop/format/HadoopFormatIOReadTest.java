@@ -285,7 +285,7 @@ public class HadoopFormatIOReadTest {
   }
 
   @Test
-  public void testReadObjectCreationFailsIfValueCoderFunctionIsNull() {
+  public void testReadObjectCreationFailsIfValueCoderIsNull() {
     thrown.expect(IllegalArgumentException.class);
     HadoopFormatIO.<Text, String>read()
         .withConfiguration(serConf.get())
