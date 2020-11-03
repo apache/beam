@@ -688,10 +688,6 @@ message PubSubWritePayload {
 
   // Attribute that uniquely identify messages.
   string id_attribute = 3;
-
-  // If true, writes Pub/Sub payload as well as attributes. If false, reads only the payload.
-  // TODO(BEAM-10869): consider removing/deprecating this field when fixed.
-  bool with_attributes = 4;
 }
 
 // A coder, the binary format for serialization and deserialization of data in

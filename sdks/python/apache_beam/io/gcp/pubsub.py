@@ -251,7 +251,7 @@ class _WriteStringsToPubSub(PTransform):
     self.timestamp_attribute = None
     self.project, self.topic_name = parse_topic(topic)
     self._sink = _PubSubSink(
-        topic, id_label=None, with_attributes=False, timestamp_attribute=None)
+        topic, id_label=None, timestamp_attribute=None)
 
   def expand(self, pcoll):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
@@ -293,7 +293,7 @@ class WriteToPubSub(PTransform):
     self.project, self.topic_name = parse_topic(topic)
     self.full_topic = topic
     self._sink = _PubSubSink(
-        topic, id_label, with_attributes, timestamp_attribute)
+        topic, id_label, timestamp_attribute)
 
   @staticmethod
   def message_to_proto_str(element):
@@ -437,14 +437,11 @@ class _PubSubSink(dataflow_io.NativeSink):
   def __init__(self,
                topic,  # type: str
                id_label,  # type: Optional[str]
-               with_attributes,  # type: bool
                timestamp_attribute  # type: Optional[str]
                ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.id_label = id_label
-    #TODO(BEAM-10869): Remove with_attributes since we will never look at it.
-    self.with_attributes = with_attributes
     self.timestamp_attribute = timestamp_attribute
 
     self.project, self.topic_name = parse_topic(topic)
