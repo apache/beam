@@ -22,7 +22,6 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.UserCodeException;
 
 /** Test Flink runner. */
@@ -46,7 +45,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   public static TestFlinkRunner create(boolean streaming) {
-    FlinkPipelineOptions flinkOptions = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions flinkOptions = FlinkPipelineOptions.defaults();
     flinkOptions.setStreaming(streaming);
     return TestFlinkRunner.fromOptions(flinkOptions);
   }

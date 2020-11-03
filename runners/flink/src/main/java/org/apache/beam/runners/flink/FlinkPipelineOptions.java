@@ -22,6 +22,7 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
@@ -274,4 +275,15 @@ public interface FlinkPipelineOptions
   Boolean getReIterableGroupByKeyResult();
 
   void setReIterableGroupByKeyResult(Boolean reIterableGroupByKeyResult);
+
+  @Description(
+      "Remove unneeded deep copy between operators. See https://issues.apache.org/jira/browse/BEAM-11146")
+  @Default.Boolean(false)
+  Boolean getFasterCopy();
+
+  void setFasterCopy(Boolean fasterCopy);
+
+  static FlinkPipelineOptions defaults() {
+    return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+  }
 }

@@ -125,7 +125,7 @@ public class UnboundedSourceWrapperTest {
     @Test(timeout = 30_000)
     public void testValueEmission() throws Exception {
       final int numElementsPerShard = 20;
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
 
       final long[] numElementsReceived = {0L};
       final int[] numWatermarksReceived = {0};
@@ -608,7 +608,7 @@ public class UnboundedSourceWrapperTest {
 
     private static void testSourceDoesNotShutdown(boolean shouldHaveReaders) throws Exception {
       final int parallelism = 2;
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
       // Make sure we do not shut down
       options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
@@ -696,7 +696,7 @@ public class UnboundedSourceWrapperTest {
           new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(
               CountingSource.upTo(1000));
 
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
 
       UnboundedSourceWrapper<
               Long, UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>
@@ -763,7 +763,7 @@ public class UnboundedSourceWrapperTest {
 
     @Test
     public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
 
       TestCountingSource source = new TestCountingSource(20).withoutSplitting();
 
@@ -800,7 +800,7 @@ public class UnboundedSourceWrapperTest {
           new IdlingUnboundedSource<>(
               Arrays.asList("first", "second", "third"), StringUtf8Coder.of());
 
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
       options.setShutdownSourcesAfterIdleMs(0L);
       options.setParallelism(4);
 

@@ -36,16 +36,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
   private final Coder<T> coder;
-  private final @Nullable SerializablePipelineOptions pipelineOptions;
+  private final SerializablePipelineOptions pipelineOptions;
 
-  public CoderTypeInformation(Coder<T> coder) {
+  public CoderTypeInformation(Coder<T> coder, PipelineOptions pipelineOptions) {
     checkNotNull(coder);
-    this.coder = coder;
-    this.pipelineOptions = null;
-  }
-
-  private CoderTypeInformation(Coder<T> coder, PipelineOptions pipelineOptions) {
-    checkNotNull(coder);
+    checkNotNull(pipelineOptions);
     this.coder = coder;
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
   }

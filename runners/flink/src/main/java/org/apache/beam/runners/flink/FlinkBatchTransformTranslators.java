@@ -300,7 +300,8 @@ class FlinkBatchTransformTranslators {
               WindowedValue.getFullCoder(
                   KvCoder.of(
                       inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getValueCoder())),
-                  windowingStrategy.getWindowFn().windowCoder()));
+                  windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
       final DataSet<WindowedValue<KV<K, Iterable<InputT>>>> outputDataSet =
           new GroupReduceOperator<>(
                   inputGrouping,
@@ -349,7 +350,8 @@ class FlinkBatchTransformTranslators {
           new CoderTypeInformation<>(
               WindowedValue.getFullCoder(
                   KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder),
-                  windowingStrategy.getWindowFn().windowCoder()));
+                  windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
 
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
           inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
@@ -693,8 +695,8 @@ class FlinkBatchTransformTranslators {
 
       TypeInformation<WindowedValue<RawUnionValue>> typeInformation =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
-                  unionCoder, windowingStrategy.getWindowFn().windowCoder()));
+              WindowedValue.getFullCoder(unionCoder, windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
 
       List<PCollectionView<?>> sideInputs;
       try {
@@ -842,7 +844,8 @@ class FlinkBatchTransformTranslators {
                 .returns(
                     new CoderTypeInformation<>(
                         WindowedValue.getFullCoder(
-                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE)));
+                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
+                        context.getPipelineOptions()));
       } else {
         for (PValue taggedPc : allInputs.values()) {
           checkArgument(
