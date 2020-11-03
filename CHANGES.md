@@ -64,7 +64,7 @@
 * Added support for avro payload format in Beam SQL Kafka Table ([BEAM-10885](https://issues.apache.org/jira/browse/BEAM-10885))
 * Added support for json payload format in Beam SQL Kafka Table ([BEAM-10893](https://issues.apache.org/jira/browse/BEAM-10893))
 * Added support for protobuf payload format in Beam SQL Kafka Table ([BEAM-10892](https://issues.apache.org/jira/browse/BEAM-10892))
-* Added support for avro payload format in Beam SQL Pubsub Table ([BEAM-10857](https://issues.apache.org/jira/browse/BEAM-10857))
+* Added support for avro payload format in Beam SQL Pubsub Table ([BEAM-5504](https://issues.apache.org/jira/browse/BEAM-5504))
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
