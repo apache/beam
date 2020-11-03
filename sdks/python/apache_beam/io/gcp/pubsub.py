@@ -33,7 +33,6 @@ from typing import Any
 from typing import List
 from typing import NamedTuple
 from typing import Optional
-from typing import Union
 
 from future.utils import iteritems
 from past.builtins import unicode

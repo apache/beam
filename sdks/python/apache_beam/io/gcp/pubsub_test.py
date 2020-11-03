@@ -56,7 +56,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.typehints import typehints
 from apache_beam.utils import timestamp
 
 # Protect against environments where the PubSub library is not available.
