@@ -447,10 +447,11 @@ class TriggerLoadJobs(beam.DoFn):
     result = {
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
+        'additional_bq_params': str(self.additional_bq_parameters),
+        'schema': str(self.schema),
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs.")
     }
-    result['schema'] = str(self.schema)
-    result['launchesBigQueryJobs'] = DisplayDataItem(
-        True, label="This Dataflow job launches bigquery jobs.")
     return result
 
   def start_bundle(self):
