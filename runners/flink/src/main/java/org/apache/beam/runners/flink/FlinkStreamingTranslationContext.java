@@ -115,7 +115,7 @@ class FlinkStreamingTranslationContext {
         WindowedValue.getFullCoder(
             valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
 
-    return new CoderTypeInformation<>(windowedValueCoder);
+    return new CoderTypeInformation<>(windowedValueCoder, options);
   }
 
   public AppliedPTransform<?, ?, ?> getCurrentTransform() {

@@ -20,6 +20,8 @@ package org.apache.beam.runners.flink.streaming;
 import java.util.Collections;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsTest;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -45,7 +47,10 @@ public class FlinkBroadcastStateInternalsTest extends StateInternalsTest {
       OperatorStateBackend operatorStateBackend =
           backend.createOperatorStateBackend(
               new DummyEnvironment("test", 1, 0), "", Collections.emptyList(), null);
-      return new FlinkBroadcastStateInternals<>(1, operatorStateBackend);
+      return new FlinkBroadcastStateInternals<>(
+          1,
+          operatorStateBackend,
+          new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

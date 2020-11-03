@@ -23,7 +23,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -57,7 +56,7 @@ public class FlinkRunnerTest extends FlinkRunnerTestCompat {
 
   /** Main method for {@code testEnsureStdoutStdErrIsRestored()}. */
   public static void main(String[] args) {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(NotExecutingFlinkRunner.class);
     Pipeline p = Pipeline.create(options);
     p.apply(GenerateSequence.from(0));

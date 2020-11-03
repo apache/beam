@@ -79,6 +79,11 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     LOG.info("Executing pipeline using FlinkRunner.");
 
+    if (!options.getFasterCopy()) {
+      LOG.warn(
+          "For maximum performance you should set the 'fasterCopy' option. See more at https://issues.apache.org/jira/browse/BEAM-11146");
+    }
+
     FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
 
     LOG.info("Translating pipeline to Flink program.");
