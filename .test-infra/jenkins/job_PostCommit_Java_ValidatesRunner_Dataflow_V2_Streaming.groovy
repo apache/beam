@@ -22,10 +22,10 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner V2.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2',
-    'Run Java Dataflow V2 ValidatesRunner', 'Google Cloud Dataflow Runner V2 Java ValidatesRunner Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2_Streaming',
+    'Run Java Dataflow V2 ValidatesRunner Streaming', 'Google Cloud Dataflow Runner V2 Java ValidatesRunner Tests (streaming)', this) {
 
-      description('Runs Java ValidatesRunner suite on the Dataflow runner V2.')
+      description('Runs Java ValidatesRunner suite on the Dataflow runner V2 forcing streaming mode.')
 
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 330)
 
@@ -38,7 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:google-cloud-dataflow-java:validatesRunnerV2')
+          tasks(':runners:google-cloud-dataflow-java:validatesRunnerV2Streaming')
           // Increase parallel worker threads above processor limit since most time is
           // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
           // because each one launches a Dataflow job with about 3 mins of overhead.
