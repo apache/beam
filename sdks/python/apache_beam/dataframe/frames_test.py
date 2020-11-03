@@ -77,6 +77,17 @@ class DeferredFrameTest(unittest.TestCase):
     })
     self._run_test(new_column, df)
 
+  def test_set_column_from_index(self):
+    def new_column(df):
+      df['NewCol'] = df.index
+      return df
+
+    df = pd.DataFrame({
+        'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
+        'Speed': [380., 370., 24., 26.]
+    })
+    self._run_test(new_column, df)
+
   def test_groupby(self):
     df = pd.DataFrame({'group': ['a', 'a', 'a', 'b'], 'value': [1, 2, 3, 5]})
     self._run_test(lambda df: df.groupby('group').agg(sum), df)

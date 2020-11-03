@@ -218,10 +218,20 @@ def _proxy_function(
     deferred_arg_indices = []
     deferred_arg_exprs = []
     constant_args = [None] * len(args)
+    from apache_beam.dataframe.frames import _DeferredIndex
     for ix, arg in enumerate(args):
       if isinstance(arg, DeferredBase):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(arg._expr)
+      elif isinstance(arg, _DeferredIndex):
+        deferred_arg_indices.append(ix)
+        deferred_arg_exprs.append(
+            expressions.ComputedExpression(
+                'index_as_series',
+                lambda ix: ix.index.to_series(),  # yapf break
+                [arg._frame._expr],
+                preserves_partition_by=partitionings.Singleton(),
+                requires_partition_by=partitionings.Nothing()))
       elif isinstance(arg, pd.core.generic.NDFrame):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(expressions.ConstantExpression(arg, arg[0:0]))
