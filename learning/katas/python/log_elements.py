@@ -21,18 +21,18 @@ class LogElements(beam.PTransform):
 
     class _LoggingFn(beam.DoFn):
 
-        def __init__(self, prefix='', with_timestamp=False, with_window=False):
+        def __init__(self, prefix='', time=False, with_window=False):
             super(LogElements._LoggingFn, self).__init__()
             self.prefix = prefix
-            self.with_timestamp = with_timestamp
+            self.time= time
             self.with_window = with_window
 
-        def process(self, element, timestamp=beam.DoFn.TimestampParam,
+        def process(self, element, time=beam.DoFn.TimestampParam,
                     window=beam.DoFn.WindowParam, **kwargs):
             log_line = self.prefix + str(element)
 
-            if self.with_timestamp:
-                log_line += ', timestamp=' + repr(timestamp.to_rfc3339())
+            if self.time:
+                log_line += ', time=' + repr(time.to_rfc3339())
 
             if self.with_window:
                 log_line += ', window(start=' + window.start.to_rfc3339()
@@ -42,13 +42,13 @@ class LogElements(beam.PTransform):
             yield element
 
     def __init__(self, label=None, prefix='',
-                 with_timestamp=False, with_window=False):
+                 time= False, with_window=False):
         super(LogElements, self).__init__(label)
         self.prefix = prefix
-        self.with_timestamp = with_timestamp
+        self.time=time
         self.with_window = with_window
 
     def expand(self, input):
         input | beam.ParDo(
-                self._LoggingFn(self.prefix, self.with_timestamp,
+                self._LoggingFn(self.prefix, self.time,
                                 self.with_window))
