@@ -532,6 +532,24 @@ class PTransformTest(unittest.TestCase):
       assert_that(partitions[2], equal_to([1, 4, 7]), label='p2')
       assert_that(partitions[3], equal_to([2, 5, 8]), label='p3')
 
+  def test_partition_with_callable_and_side_input(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
+      side_input = pipeline | 'Side Input' >> beam.Create([100, 1000])
+      partitions = (
+          pcoll | 'part' >> beam.Partition(
+              lambda e,
+              n,
+              offset,
+              si_list: ((e + len(si_list)) % 3) + offset,
+              4,
+              1,
+              pvalue.AsList(side_input)))
+      assert_that(partitions[0], equal_to([]))
+      assert_that(partitions[1], equal_to([1, 4, 7]), label='p1')
+      assert_that(partitions[2], equal_to([2, 5, 8]), label='p2')
+      assert_that(partitions[3], equal_to([0, 3, 6]), label='p3')
+
   def test_partition_followed_by_flatten_and_groupbykey(self):
     """Regression test for an issue with how partitions are handled."""
     with TestPipeline() as pipeline:
