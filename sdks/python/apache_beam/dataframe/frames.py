@@ -1487,22 +1487,34 @@ def _liftable_agg(meth):
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
     ungrouped = self._expr.args()[0]
+
+    to_group = ungrouped.proxy().index
+    is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
+                                  for i in range(to_group.nlevels))
     groupby_kwargs = self._kwargs
+
+    # Don't include un-observed categorical values in the preagg
+    preagg_groupby_kwargs = groupby_kwargs.copy()
+    preagg_groupby_kwargs['observed'] = True
     pre_agg = expressions.ComputedExpression(
         'pre_combine_' + name,
         lambda df: func(
-            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
-            **kwargs),
+        df.groupby(level=list(range(df.index.nlevels)),
+                   **preagg_groupby_kwargs),
+        **kwargs),
         [ungrouped],
         requires_partition_by=partitionings.Nothing(),
         preserves_partition_by=partitionings.Singleton())
+
     post_agg = expressions.ComputedExpression(
         'post_combine_' + name,
         lambda df: func(
             df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
             **kwargs),
         [pre_agg],
-        requires_partition_by=partitionings.Index(),
+        requires_partition_by=(partitionings.Singleton()
+                               if is_categorical_grouping
+                               else partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
     return frame_base.DeferredFrame.wrap(post_agg)
 
@@ -1515,6 +1527,10 @@ def _unliftable_agg(meth):
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
     ungrouped = self._expr.args()[0]
+
+    to_group = ungrouped.proxy().index
+    is_categorical_grouping = any(to_group.get_level_values(i).is_categorical() for i in range(to_group.nlevels))
+
     groupby_kwargs = self._kwargs
     post_agg = expressions.ComputedExpression(
         name,
@@ -1522,7 +1538,7 @@ def _unliftable_agg(meth):
             df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
             **kwargs),
         [ungrouped],
-        requires_partition_by=partitionings.Index(),
+        requires_partition_by=partitionings.Singleton() if is_categorical_grouping else partitionings.Index(),
         preserves_partition_by=partitionings.Singleton())
     return frame_base.DeferredFrame.wrap(post_agg)
 
