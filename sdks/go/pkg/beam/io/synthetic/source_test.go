@@ -16,6 +16,8 @@
 package synthetic
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"testing"
 )
@@ -157,6 +159,83 @@ func TestSourceConfig_BuildFromJSON(t *testing.T) {
 			got := DefaultSourceConfig().BuildFromJSON([]byte(test.jsonData))
 			if got != test.want {
 				t.Errorf("Invalid SourceConfig: got: %#v, want: %#v", got, test.want)
+			}
+		})
+	}
+}
+
+// TestSourceConfig_NumHotKeys tests that setting the number of hot keys
+// for a synthetic source works correctly.
+func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
+	tests := []struct {
+		elms    int
+		hotKeys int
+	}{
+		{elms: 15, hotKeys: 2},
+		{elms: 30, hotKeys: 10},
+		{elms: 50, hotKeys: 25},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(fmt.Sprintf("(elm = %v)", test.hotKeys), func(t *testing.T) {
+			dfn := sourceFn{}
+			cfg := DefaultSourceConfig()
+			cfg.NumElements(test.elms)
+			cfg.HotKeyFraction(1.0)
+			cfg.NumHotKeys(test.hotKeys)
+
+			keys, _, err := simulateSourceFn(t, &dfn, cfg.Build())
+			if err != nil {
+				t.Errorf("Failure processing sourceFn: %v", err)
+			}
+
+			type val struct {
+				num      int
+				isHotKey bool
+			}
+
+			m := make(map[string]val)
+			for i := 0; i < len(keys); i++ {
+				tmp := keys[i]
+				keyHex := hex.EncodeToString(tmp)
+				m[keyHex] = val{
+					num:      0,
+					isHotKey: false,
+				}
+				for j := 0; j < len(keys); j++ {
+					res := bytes.Compare(tmp, keys[j])
+					if res == 0 {
+						old := m[keyHex].num
+						num := old + 1
+						isHotKey := false
+						if num > 1 {
+							isHotKey = true
+						}
+						m[keyHex] = val{
+							num:      num,
+							isHotKey: isHotKey,
+						}
+					}
+				}
+			}
+
+			numOfHotKeys := 0
+			numOfAllKeys := 0
+			for _, element := range m {
+				numOfAllKeys += element.num
+				if element.isHotKey {
+					numOfHotKeys += 1
+				}
+			}
+
+			if numOfAllKeys != test.elms {
+				t.Errorf("SourceFn emitted wrong number of outputs: got: %v, want: %v",
+					numOfHotKeys, test.elms)
+			}
+
+			if numOfHotKeys != test.hotKeys {
+				t.Errorf("SourceFn emitted wrong number of hot keys: got: %v, want: %v",
+					numOfHotKeys, test.hotKeys)
 			}
 		})
 	}
