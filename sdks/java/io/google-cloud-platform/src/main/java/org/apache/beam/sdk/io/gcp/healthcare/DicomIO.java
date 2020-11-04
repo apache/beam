@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -37,8 +36,26 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /**
  * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
  * Healthcare API (https://cloud.google.com/healthcare/docs/how-tos#dicom-guide).
+ *
+ * <h3>Reading Study-Level Metadata</h3>
+ *
+ * The study-level metadata for a dicom instance can be read with {@link ReadDicomStudyMetadata}.
+ * Retrieve the metadata of a dicom instance given its store path as a string. This will return a
+ * {@link ReadDicomStudyMetadata.Result}. You can fetch the successful calls using
+ * getReadResponse(), and any failed reads using getFailedReads().
+ *
+ * <h3>Example</h3>
+ *
+ * {@code Pipeline p = ... String webPath = ... DicomIO.ReadDicomStudyMetadata.Result
+ * readMetadataResult = p .apply(Create.of(webPath)) PCollection<String> goodRead =
+ * readMetadataResult.getReadResponse() PCollection<String> failRead =
+ * readMetadataResult.getFailedReads() }
  */
 public class DicomIO {
+
+  public static ReadDicomStudyMetadata readDicomStudyMetadata() {
+    return new ReadDicomStudyMetadata();
+  }
 
   /**
    * This class makes a call to the retrieve metadata endpoint
@@ -51,9 +68,9 @@ public class DicomIO {
    * array.
    */
   public static class ReadDicomStudyMetadata
-      extends PTransform<PCollection<PubsubMessage>, DicomIO.ReadDicomStudyMetadata.Result> {
+      extends PTransform<PCollection<String>, DicomIO.ReadDicomStudyMetadata.Result> {
 
-    public ReadDicomStudyMetadata() {}
+    private ReadDicomStudyMetadata() {}
 
     /** TupleTag for the main output. */
     public static final TupleTag<String> METADATA = new TupleTag<String>() {};
@@ -131,7 +148,7 @@ public class DicomIO {
     /**
      * DoFn to fetch the metadata of a study from a Dicom store based on it's location and study id.
      */
-    static class FetchStudyMetadataFn extends DoFn<PubsubMessage, String> {
+    static class FetchStudyMetadataFn extends DoFn<String, String> {
 
       private HealthcareApiClient dicomStore;
 
@@ -152,10 +169,8 @@ public class DicomIO {
        */
       @ProcessElement
       public void processElement(ProcessContext context) {
-        PubsubMessage msg = context.element();
-        byte[] msgPayload = msg.getPayload();
+        String dicomWebPath = context.element();
         try {
-          String dicomWebPath = new String(msgPayload, "UTF-8");
           String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
           context.output(METADATA, responseData);
         } catch (Exception e) {
@@ -165,7 +180,7 @@ public class DicomIO {
     }
 
     @Override
-    public DicomIO.ReadDicomStudyMetadata.Result expand(PCollection<PubsubMessage> input) {
+    public DicomIO.ReadDicomStudyMetadata.Result expand(PCollection<String> input) {
       return new Result(
           input.apply(
               ParDo.of(new FetchStudyMetadataFn())
