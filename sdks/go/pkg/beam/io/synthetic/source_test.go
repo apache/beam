@@ -18,7 +18,6 @@ package synthetic
 import (
 	"encoding/hex"
 	"fmt"
-	"math"
 	"testing"
 )
 
@@ -168,15 +167,12 @@ func TestSourceConfig_BuildFromJSON(t *testing.T) {
 // for a synthetic source works correctly.
 func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 	tests := []struct {
-		elms           int
-		hotKeys        int
-		hotKeyFraction float64
+		elms    int
+		hotKeys int
 	}{
-		{elms: 15, hotKeys: 2, hotKeyFraction: 1.0},
-		{elms: 30, hotKeys: 10, hotKeyFraction: 1.0},
-		{elms: 50, hotKeys: 25, hotKeyFraction: 1.0},
-		// {elms: 30, hotKeys: 10, hotKeyFraction: 0.5}, tests for hotKeyFraction < 1.0 could be Flaky
-		// {elms: 50, hotKeys: 25, hotKeyFraction: 0.75},
+		{elms: 15, hotKeys: 2},
+		{elms: 30, hotKeys: 10},
+		{elms: 50, hotKeys: 25},
 	}
 	for _, test := range tests {
 		test := test
@@ -184,7 +180,7 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 			dfn := sourceFn{}
 			cfg := DefaultSourceConfig()
 			cfg.NumElements(test.elms)
-			cfg.HotKeyFraction(test.hotKeyFraction)
+			cfg.HotKeyFraction(1.0)
 			cfg.NumHotKeys(test.hotKeys)
 
 			keys, _, err := simulateSourceFn(t, &dfn, cfg.Build())
@@ -212,10 +208,9 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 					numOfHotKeys, test.elms)
 			}
 
-			want := int(math.Floor(float64(test.hotKeys) * test.hotKeyFraction))
-			if numOfHotKeys != want {
+			if numOfHotKeys != test.hotKeys {
 				t.Errorf("SourceFn emitted wrong number of hot keys: got: %v, want: %v",
-					numOfHotKeys, want)
+					numOfHotKeys, test.hotKeys)
 			}
 		})
 	}
