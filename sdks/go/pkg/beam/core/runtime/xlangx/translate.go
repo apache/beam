@@ -24,7 +24,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-// MergeExpandedWithPipeline adds expanded components of all ExternalTransforms to the exisiting pipeline
+// MergeExpandedWithPipeline adds expanded components of all ExternalTransforms to the existing pipeline
 func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	// Adding Expanded transforms to their counterparts in the Pipeline
 
@@ -91,7 +91,7 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 				}
 				expandedOutputs := transform.GetOutputs()
 				var pcolID string
-				if tag == graph.SinkOutputTag {
+				if tag == graph.UnnamedOutputTag {
 					for _, pcolID = range expandedOutputs {
 						// easiest way to access map with one entry (key,value)
 					}
@@ -131,10 +131,10 @@ func VerifyNamedOutputs(ext *graph.ExternalTransform) {
 
 	for tag := range ext.OutputsMap {
 		_, exists := expandedOutputs[tag]
-		if tag != graph.SinkOutputTag && !exists {
+		if tag != graph.UnnamedOutputTag && !exists {
 			panic(errors.Errorf("missing named output in expanded transform: %v is expected in %v", tag, expandedOutputs))
 		}
-		if tag == graph.SinkOutputTag && len(expandedOutputs) > 1 {
+		if tag == graph.UnnamedOutputTag && len(expandedOutputs) > 1 {
 			panic(errors.Errorf("mismatched number of unnamed outputs:\nreceived - %v\nexpected - 1", len(expandedOutputs)))
 		}
 	}
@@ -161,7 +161,7 @@ func ResolveOutputIsBounded(e *graph.MultiEdge, isBoundedUpdater func(*graph.Nod
 		isBounded := true
 
 		switch tag {
-		case graph.SinkOutputTag:
+		case graph.UnnamedOutputTag:
 			for _, id = range expandedOutputs {
 				// easiest way to access map with one entry (key,value)
 			}

@@ -20,17 +20,31 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/grpc"
 )
 
 // Expand queries the expansion service to resolve the ExpansionRequest
-func Expand(ctx context.Context, req *jobpb.ExpansionRequest, expansionAddr string) (*jobpb.ExpansionResponse, error) {
+func Expand(
+	ctx context.Context,
+	comps *pipeline_v1.Components,
+	root *pipeline_v1.PTransform,
+	namespace string,
+	expansionAddr string) (*jobpb.ExpansionResponse, error) {
 	// Querying Expansion Service
+
+	// Build expansion request proto.
+	req := &jobpb.ExpansionRequest{
+		Components: comps,
+		Transform:  root,
+		Namespace:  namespace,
+	}
 
 	// Setting grpc client
 	conn, err := grpc.Dial(expansionAddr, grpc.WithInsecure())
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to connect to expansion service at %v", expansionAddr)
+		err = errors.Wrapf(err, "unable to connect to expansion service at %v", expansionAddr)
+		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}
 	defer conn.Close()
 	client := jobpb.NewExpansionServiceClient(conn)
@@ -38,7 +52,8 @@ func Expand(ctx context.Context, req *jobpb.ExpansionRequest, expansionAddr stri
 	// Handling ExpansionResponse
 	res, err := client.Expand(ctx, req)
 	if err != nil {
-		return nil, errors.Wrapf(err, "expansion failed")
+		err = errors.Wrapf(err, "expansion failed")
+		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}
 	return res, nil
 }
