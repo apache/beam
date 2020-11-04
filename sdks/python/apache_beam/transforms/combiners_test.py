@@ -93,6 +93,7 @@ class SortedConcatWithCounters(beam.CombineFn):
     return ''.join(sorted(acc))
 
 
+@attr('ValidatesRunner')
 class CombineTest(unittest.TestCase):
   def test_builtin_combines(self):
     with TestPipeline() as pipeline:
@@ -768,6 +769,7 @@ class CombineTest(unittest.TestCase):
     self.assertFalse(query_result['gauges'])
 
 
+@attr('ValidatesRunner')
 class LatestTest(unittest.TestCase):
   def test_globally(self):
     l = [
@@ -845,6 +847,7 @@ class LatestCombineFnTest(unittest.TestCase):
     output = self.fn.extract_output(accumulator)
     self.assertEqual(output, 1)
 
+  @attr('ValidatesRunner')
   def test_with_input_types_decorator_violation(self):
     l_int = [1, 2, 3]
     l_dict = [{'a': 3}, {'g': 5}, {'r': 8}]
