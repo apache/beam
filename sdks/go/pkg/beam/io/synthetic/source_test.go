@@ -16,7 +16,6 @@
 package synthetic
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -194,16 +193,9 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 			}
 
 			m := make(map[string]int)
-			for i := 0; i < len(keys); i++ {
-				tmp := keys[i]
-				keyHex := hex.EncodeToString(tmp)
-				m[keyHex] = 0
-				for j := 0; j < len(keys); j++ {
-					res := bytes.Compare(tmp, keys[j])
-					if res == 0 {
-						m[keyHex]++
-					}
-				}
+			for _, key := range keys {
+				encoded := hex.EncodeToString(key)
+				m[encoded]++
 			}
 
 			numOfHotKeys := 0
