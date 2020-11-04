@@ -357,8 +357,7 @@ class _JsonToDictCoder(coders.Coder):
       return []
 
     return [
-        FieldSchema(
-            cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
+        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
         for x in table_field_schemas
     ]
 

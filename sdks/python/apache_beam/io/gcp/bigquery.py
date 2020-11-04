@@ -647,7 +647,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.project = project
     self.validate = validate
     self.flatten_results = flatten_results
-    self.coder = coder or _JsonToDictCoder()
+    self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
     self.split_result = None
     self.options = pipeline_options
