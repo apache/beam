@@ -67,6 +67,9 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
+    if (tableRef.getProjectId() == null) {
+      throw new NullPointerException(String.format("tableRef is missing projectId: %s", tableRef));
+    }
     return getTable(tableRef, null);
   }
 
