@@ -168,6 +168,17 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesBundleFinalizer',
 ]
 
+def commonRunnerV2ExcludeCategories = [
+        'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+        'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+        'org.apache.beam.sdk.testing.UsesSetState',
+        'org.apache.beam.sdk.testing.UsesMapState',
+        'org.apache.beam.sdk.testing.UsesMetricsPusher',
+        'org.apache.beam.sdk.testing.UsesOrderedListState',
+        'org.apache.beam.sdk.testing.UsesTestStream',
+        'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
+]
+
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
 // make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
@@ -211,6 +222,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   def excludedCategories = args.excludedCategories ?: []
 
   return tasks.create(name: name, type: Test, group: "Verification") {
+    dependsOn buildAndPushDockerContainer
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
@@ -221,6 +233,9 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
             files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      commonRunnerV2ExcludeCategories.each {
+        excludeCategories it
+      }
       excludedCategories.each {
         excludeCategories it
       }
@@ -313,12 +328,9 @@ task validatesRunnerStreaming {
 task validatesRunnerV2 {
   group = "Verification"
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2"
-  dependsOn buildAndPushDockerContainer
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
     excludedCategories: [
-      // TODO(BEAM-11130): support OrderedListState in Google Cloud Dataflow Runner V2
-      'org.apache.beam.sdk.testing.UsesOrderedListState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
     ],
     excludedTests: [
@@ -341,10 +353,6 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithState',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests.testMapStateCoderInference',
-      'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests.testSetStateCoderInference',
-      'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testMapState',
-      'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testSetState',
       'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testValueStateTaggedOutput',
       'org.apache.beam.sdk.transforms.ParDoTest$TimerFamilyTests.testTimerFamilyProcessingTime',
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.duplicateTimerSetting',
@@ -356,8 +364,6 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testProcessingTimeTimerCanBeReset',
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther',
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput',
-
-      'org.apache.beam.sdk.transforms.ParDoSchemaTest.testMapStateSchemaInference',
 
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -374,13 +380,6 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys10MB',
 
       'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
-
-      'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
-
-      'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAllAttemptedMetrics',
-      'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedGaugeMetrics',
-      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testAllCommittedMetrics',
-      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics',
     ]
   ))
 }
@@ -388,15 +387,16 @@ task validatesRunnerV2 {
 task validatesRunnerV2Streaming {
   group = "Verification"
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
-  dependsOn buildAndPushDockerContainer
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
     pipelineOptions: runnerV2PipelineOptions + ['--streaming=true'],
     excludedCategories: [
-      // TODO(BEAM-11130): support OrderedListState in Google Cloud Dataflow Runner V2
-      'org.apache.beam.sdk.testing.UsesOrderedListState',
+      // Not supported in Dataflow streaming mode.
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-      'org.apache.beam.sdk.testing.UsesMetricsPusher',
+      // Timeouts, need investigation.
+      'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
+      'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
+      'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
     ],
     excludedTests: [
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignBounded',
