@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -168,12 +169,15 @@ func TestSourceConfig_BuildFromJSON(t *testing.T) {
 // for a synthetic source works correctly.
 func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 	tests := []struct {
-		elms    int
-		hotKeys int
+		elms           int
+		hotKeys        int
+		hotKeyFraction float64
 	}{
-		{elms: 15, hotKeys: 2},
-		{elms: 30, hotKeys: 10},
-		{elms: 50, hotKeys: 25},
+		{elms: 15, hotKeys: 2, hotKeyFraction: 1.0},
+		{elms: 30, hotKeys: 10, hotKeyFraction: 1.0},
+		{elms: 50, hotKeys: 25, hotKeyFraction: 1.0},
+		{elms: 30, hotKeys: 10, hotKeyFraction: 0.5},
+		{elms: 50, hotKeys: 25, hotKeyFraction: 0.75},
 	}
 	for _, test := range tests {
 		test := test
@@ -181,7 +185,7 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 			dfn := sourceFn{}
 			cfg := DefaultSourceConfig()
 			cfg.NumElements(test.elms)
-			cfg.HotKeyFraction(1.0)
+			cfg.HotKeyFraction(test.hotKeyFraction)
 			cfg.NumHotKeys(test.hotKeys)
 
 			keys, _, err := simulateSourceFn(t, &dfn, cfg.Build())
@@ -189,32 +193,15 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 				t.Errorf("Failure processing sourceFn: %v", err)
 			}
 
-			type val struct {
-				num      int
-				isHotKey bool
-			}
-
-			m := make(map[string]val)
+			m := make(map[string]int)
 			for i := 0; i < len(keys); i++ {
 				tmp := keys[i]
 				keyHex := hex.EncodeToString(tmp)
-				m[keyHex] = val{
-					num:      0,
-					isHotKey: false,
-				}
+				m[keyHex] = 0
 				for j := 0; j < len(keys); j++ {
 					res := bytes.Compare(tmp, keys[j])
 					if res == 0 {
-						old := m[keyHex].num
-						num := old + 1
-						isHotKey := false
-						if num > 1 {
-							isHotKey = true
-						}
-						m[keyHex] = val{
-							num:      num,
-							isHotKey: isHotKey,
-						}
+						m[keyHex]++
 					}
 				}
 			}
@@ -222,8 +209,8 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 			numOfHotKeys := 0
 			numOfAllKeys := 0
 			for _, element := range m {
-				numOfAllKeys += element.num
-				if element.isHotKey {
+				numOfAllKeys += element
+				if element > 1 {
 					numOfHotKeys += 1
 				}
 			}
@@ -233,9 +220,10 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 					numOfHotKeys, test.elms)
 			}
 
-			if numOfHotKeys != test.hotKeys {
+			want := int(math.Floor(float64(test.hotKeys) * test.hotKeyFraction))
+			if numOfHotKeys != want {
 				t.Errorf("SourceFn emitted wrong number of hot keys: got: %v, want: %v",
-					numOfHotKeys, test.hotKeys)
+					numOfHotKeys, want)
 			}
 		})
 	}
