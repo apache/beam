@@ -201,7 +201,8 @@ class DeferredFrameTest(unittest.TestCase):
     df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
     df['B'] = df['B'].astype(pd.CategoricalDtype(list('cab')))
     df = df.set_index('B')
-    #self._run_test(lambda df: df.groupby(level=0).sum().index, df, distributed=True)
+    # TODO(BEAM-11190): These aggregations can be done in index partitions, but
+    # it will require a little more complex logic
     with beam.dataframe.allow_non_parallel_operations():
       self._run_test(lambda df: df.groupby(level=0).sum(), df, distributed=True)
       self._run_test(
