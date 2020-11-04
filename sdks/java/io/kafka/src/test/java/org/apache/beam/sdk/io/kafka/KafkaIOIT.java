@@ -36,6 +36,9 @@ import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -44,10 +47,14 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -114,6 +121,42 @@ public class KafkaIOIT {
   }
 
   @Test
+  public void testKafkaIOWithRunnerV2() throws IOException {
+    writePipeline
+        .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply("Write to Kafka", writeToKafka());
+
+    PCollection<Integer> elementCount =
+        readPipeline
+            .apply("Read from Runner V2 Kafka", readFromKafka())
+            .apply(
+                "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+            .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
+            .apply(
+                "Keyed by empty key",
+                MapElements.into(new TypeDescriptor<KV<byte[], String>>() {})
+                    .via(element -> KV.of(new byte[0], element)))
+            .apply(
+                "Counting elements", ParDo.of(new CountingElementFn(options.getNumberOfRecords())));
+
+    PAssert.thatSingleton(elementCount).isEqualTo(options.getNumberOfRecords());
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    cancelIfTimeouted(readResult, readState);
+
+    Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
+    IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+    IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
+  }
+
+  @Test
   public void testKafkaIOReadsAndWritesCorrectly() throws IOException {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
@@ -170,6 +213,29 @@ public class KafkaIOIT {
     //  waitUntilFinish(Duration duration) exceeds provided duration.
     if (readState == null) {
       readResult.cancel();
+    }
+  }
+
+  private static class CountingElementFn extends DoFn<KV<byte[], String>, Integer> {
+    private final int expectedCount;
+
+    CountingElementFn(Integer count) {
+      expectedCount = count;
+    }
+
+    @StateId("elementCount")
+    private final StateSpec<ValueState<Integer>> elementCountState = StateSpecs.value();
+
+    @ProcessElement
+    public void processElement(
+        @StateId("elementCount") ValueState<Integer> state, OutputReceiver<Integer> receiver) {
+      Integer currentCount = MoreObjects.firstNonNull(state.read(), 0) + 1;
+      if (currentCount.intValue() == expectedCount) {
+        receiver.output(currentCount);
+      } else {
+        state.write(currentCount);
+      }
+      return;
     }
   }
 

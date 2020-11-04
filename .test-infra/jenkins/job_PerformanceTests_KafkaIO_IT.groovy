@@ -61,6 +61,20 @@ job(jobName) {
     autoscalingAlgorithm         : 'NONE'
   ]
 
+  Map runnerV2SdfWrapperPipelineOptions = pipelineOptions + [
+    bigQueryTable                : 'kafkaioit_results_sdf_wrapper',
+    influxMeasurement            : 'kafkaioit_results_sdf_wrapper',
+    experiments                  : 'beam_fn_api,use_runner_v2,use_unified_worker',
+    streaming                    : true
+  ]
+
+  Map runnerV2SdfPipelineOptions = pipelineOptions + [
+    bigQueryTable                : 'kafkaioit_results_runner_v2',
+    influxMeasurement            : 'kafkaioit_results_runner_v2',
+    experiments                  : 'beam_fn_api,use_runner_v2,use_unified_worker,use_sdf_kafka_read',
+    streaming                    : true
+  ]
+
   steps {
     gradle {
       rootBuildScriptDir(common.checkoutDir)
@@ -68,7 +82,25 @@ job(jobName) {
       switches("--info")
       switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=dataflow")
-      tasks(":sdks:java:io:kafka:integrationTest --tests org.apache.beam.sdk.io.kafka.KafkaIOIT")
+      tasks(":sdks:java:io:kafka:integrationTest --tests org.apache.beam.sdk.io.kafka.KafkaIOIT.testKafkaIOReadsAndWritesCorrectly")
+    }
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(runnerV2SdfWrapperPipelineOptions)}\'")
+      switches("-DintegrationTestRunner=dataflow")
+      switches("-Dexperiment=use_runner_v2")
+      tasks(":sdks:java:io:kafka:integrationTest --tests org.apache.beam.sdk.io.kafka.KafkaIOIT.testKafkaIOWithRunnerV2")
+    }
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("--info")
+      switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(runnerV2SdfPipelineOptions)}\'")
+      switches("-DintegrationTestRunner=dataflow")
+      switches("-Dexperiment=use_runner_v2")
+      tasks(":sdks:java:io:kafka:integrationTest --tests org.apache.beam.sdk.io.kafka.KafkaIOIT.testKafkaIOWithRunnerV2")
     }
   }
 }

@@ -204,7 +204,6 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerContainer() {
   dependsOn ":sdks:java:container:docker"
-  finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(
           name: project.docker_image_default_repo_prefix + "java8_sdk",
           root: "apache",
@@ -235,7 +234,7 @@ afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
     if (t.dependsOn.contains(buildAndPushDockerContainer)) {
-      cleanUpDockerImages.mustRunAfter t
+      t.finalizedBy cleanUpDockerImages
     }
   }
 }

@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
@@ -230,7 +231,7 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
   @NewWatermarkEstimator
   public WatermarkEstimator<Instant> newWatermarkEstimator(
       @WatermarkEstimatorState Instant watermarkEstimatorState) {
-    return createWatermarkEstimatorFn.apply(watermarkEstimatorState);
+    return createWatermarkEstimatorFn.apply(ensureTimestampWithinBounds(watermarkEstimatorState));
   }
 
   @GetSize
@@ -326,7 +327,7 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
                     (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
             outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
             ((ManualWatermarkEstimator) watermarkEstimator)
-                .setWatermark(timestampPolicy.getWatermark(context));
+                .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
           } else {
             outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
           }
@@ -400,5 +401,14 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
     public double getTotalSize(double numRecords) {
       return avgRecordSize.get() * numRecords / (1 + avgRecordGap.get());
     }
+  }
+
+  private static Instant ensureTimestampWithinBounds(Instant timestamp) {
+    if (timestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    } else if (timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    }
+    return timestamp;
   }
 }
