@@ -485,6 +485,11 @@ public class ContextualTextIO {
       }
     }
 
+    /**
+     * Helper transform for computing absolute position of each record given the read range of each
+     * record, relative position within range, and a side input describing the number of records
+     * that precede the beginning of each read range.
+     */
     static class AssignRecordNums extends DoFn<KV<KV<String, Long>, Row>, Row> {
       PCollectionView<Map<String, Iterable<KV<Long, Long>>>> numRecordsBeforeEachRange;
 
