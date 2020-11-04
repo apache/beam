@@ -60,6 +60,9 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
+  def setup(self):
+    self._combine_fn.setup()
+
   def start_bundle(self):
     self._cache = collections.defaultdict(self._combine_fn.create_accumulator)
 
@@ -73,6 +76,9 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
       # We compact the accumulator since a GBK (which necessitates encoding)
       # will follow.
       yield WindowedValue((k, self._combine_fn.compact(va)), w.end, (w, ))
+
+  def teardown(self):
+    self._combine_fn.teardown()
 
   def default_type_hints(self):
     hints = self._combine_fn.get_type_hints()
@@ -93,12 +99,18 @@ class FinishCombine(beam.DoFn):
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
+  def setup(self):
+    self._combine_fn.setup()
+
   def process(self, element):
     k, vs = element
     return [(
         k,
         self._combine_fn.extract_output(
             self._combine_fn.merge_accumulators(vs)))]
+
+  def teardown(self):
+    self._combine_fn.teardown()
 
   def default_type_hints(self):
     hints = self._combine_fn.get_type_hints()

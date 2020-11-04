@@ -52,6 +52,7 @@ from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_a
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms import combiners
 from apache_beam.transforms import environments
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Windowing
@@ -755,6 +756,24 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         # pylint: disable=expression-not-assigned
         out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
         out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
+
+  def test_unsupported_combinefn_fail(self):
+    class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
+      def setup(self, *args, **kwargs):
+        pass
+
+      def teardown(self, *args, **kwargs):
+        pass
+
+    runner = DataflowRunner()
+    with self.assertRaisesRegex(ValueError,
+                                'CombineFn.setup and CombineFn.'
+                                'teardown are not supported'):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(CombinerWithNonDefaultSetupTeardown()))
 
 
 class CustomMergingWindowFn(window.WindowFn):
