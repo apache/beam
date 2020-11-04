@@ -226,36 +226,24 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   }
 }
 
-def createBuildAndPushDockerContainer = { Map args ->
-  def name = args.name
-  def cleanupImage = args.cleanupImage
-
-  return tasks.create(name) {
-    dependsOn ":sdks:java:container:docker"
-    if (cleanupImage) {
-      finalizedBy 'cleanUpDockerImages'
-    }
-    def defaultDockerImageName = containerImageName(
-            name: project.docker_image_default_repo_prefix + "java8_sdk",
-            root: "apache",
-            tag: project.sdk_version)
-    doLast {
-      exec {
-        commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
-      }
-      exec {
-        commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
-      }
-    }
-  }
-}
-
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerContainer() {
-  dependsOn(createBuildAndPushDockerContainer(name: "buildAndPushDockerContainerImageWithCleanup"))
+  dependsOn ":sdks:java:container:docker"
+  def defaultDockerImageName = containerImageName(
+          name: project.docker_image_default_repo_prefix + "java8_sdk",
+          root: "apache",
+          tag: project.sdk_version)
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
+    }
+    exec {
+      commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+    }
+  }
 }
 
 // Clean up built images
@@ -273,17 +261,14 @@ task cleanUpDockerImages() {
 afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
-    if (t.dependsOn.contains(buildAndPushDockerContainer)) {
-      cleanUpDockerImages.mustRunAfter t
+    if (t.dependsOn.contains(buildAndPushDockerContainer) && !t.name.equalsIgnoreCase('printRunnerV2PipelineOptions')) {
+      t.finalizedBy cleanUpDockerImages
     }
   }
 }
 
 task printRunnerV2PipelineOptions {
-  dependsOn createBuildAndPushDockerContainer (
-    name: "buildAndPushDockerContainerImageNoCleanup" ,
-    cleanupImage: false
-  )
+  dependsOn buildAndPushDockerContainer
 
   doLast {
     println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
