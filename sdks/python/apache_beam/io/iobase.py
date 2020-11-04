@@ -1618,4 +1618,3 @@ class SDFBoundedSourceReader(PTransform):
 
   def display_data(self):
     return self._data_to_display
-
