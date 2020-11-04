@@ -1069,6 +1069,23 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
+
+  # TODO(BEAM-XXXX): support @<local> in eval and query. Currently fails in
+  # proxy generation
+  eval = frame_base.maybe_inplace(
+      frame_base._elementwise_method('eval',
+                                     restrictions={'local_dict': None,
+                                                   'global_dict': None,
+                                                   'level': 0,
+                                                   'target': None,
+                                                   'resolvers': None}))
+  query = frame_base.maybe_inplace(
+      frame_base._elementwise_method('query',
+                                     restrictions={'local_dict': None,
+                                                   'global_dict': None,
+                                                   'level': 0,
+                                                   'target': None,
+                                                   'resolvers': None}))
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
