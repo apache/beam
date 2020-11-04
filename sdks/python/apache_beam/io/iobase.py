@@ -1036,8 +1036,7 @@ class Write(ptransform.PTransform):
       payload = beam_runner_api_pb2.PubSubWritePayload(
           topic=self.sink.full_topic,
           id_attribute=self.sink.id_label,
-          timestamp_attribute=self.sink.timestamp_attribute,
-          with_attributes=self.sink.with_attributes)
+          timestamp_attribute=self.sink.timestamp_attribute)
       return (common_urns.composites.PUBSUB_WRITE.urn, payload)
     else:
       return super(Write, self).to_runner_api_parameter(context)
@@ -1058,7 +1057,6 @@ class Write(ptransform.PTransform):
     sink = _PubSubSink(
         topic=payload.topic or None,
         id_label=payload.id_attribute or None,
-        with_attributes=payload.with_attributes,
         timestamp_attribute=payload.timestamp_attribute or None)
     return Write(sink)
 
