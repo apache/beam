@@ -44,7 +44,7 @@ dependencies {
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
   compile library.java.slf4j_api
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "joda-time:joda-time:2.10.5"
   compile "org.apache.httpcomponents:httpcore:4.4.11"
   runtime library.java.commons_codec

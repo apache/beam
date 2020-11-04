@@ -68,7 +68,7 @@ dependencies {
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.slf4j_api
   compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "com.google.oauth-client:google-oauth-client:1.31.0"
   permitUnusedDeclared "com.google.auto.value:auto-value-annotations:1.7.2"
   permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"

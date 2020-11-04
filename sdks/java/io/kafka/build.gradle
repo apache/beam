@@ -41,7 +41,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile project(":sdks:java:expansion-service")
   compile "org.apache.kafka:kafka-clients:1.0.0"
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "io.confluent:kafka-schema-registry-client:5.3.2"
   compile "org.apache.avro:avro:1.8.2"
   // Get back to "provided" since 2.14

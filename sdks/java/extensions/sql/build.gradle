@@ -57,7 +57,7 @@ dependencies {
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
   compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
   compile "org.mongodb:mongo-java-driver:3.9.1"
   compile "org.slf4j:slf4j-api:1.7.30"

@@ -26,7 +26,7 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.vendored_guava_26_0_jre
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "org.slf4j:slf4j-api:1.7.30"
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common

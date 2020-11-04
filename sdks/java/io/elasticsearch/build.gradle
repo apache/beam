@@ -27,7 +27,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.jackson_databind
   compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "joda-time:joda-time:2.10.5"
   compile "org.apache.httpcomponents:httpasyncclient:4.1.4"
   compile "org.apache.httpcomponents:httpclient:4.5.10"

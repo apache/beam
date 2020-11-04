@@ -32,7 +32,7 @@ dependencies {
   compile group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.12.11'
   compile group: 'com.opencsv', name: 'opencsv', version: '5.0'
   compile 'net.snowflake:snowflake-ingest-sdk:0.9.9'
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "joda-time:joda-time:2.10.5"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")

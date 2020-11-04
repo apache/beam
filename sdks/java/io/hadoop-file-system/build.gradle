@@ -30,7 +30,7 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_databind
   compile library.java.slf4j_api
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   provided library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core

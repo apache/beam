@@ -64,7 +64,7 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_26_0
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "org.checkerframework:checker-qual:2.0.0"
   testCompile library.java.junit
   testCompile library.java.mockito_core

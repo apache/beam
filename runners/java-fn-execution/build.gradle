@@ -36,7 +36,7 @@ dependencies {
   compile library.java.vendored_grpc_1_26_0
   compile library.java.slf4j_api
   compile project(path: ":model:job-management", configuration: "shadow")
-  compile "com.google.code.findbugs:jsr305:3.0.2"
+  compile library.java.jsr305
   compile "joda-time:joda-time:2.10.5"
   testCompile project(":sdks:java:harness")
   testCompile project(":runners:core-construction-java")
