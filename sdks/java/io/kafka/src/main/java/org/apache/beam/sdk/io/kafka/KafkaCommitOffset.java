@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link PTransform} that commits offsets of {@link KafkaRecord}. */
 @SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 public class KafkaCommitOffset<K, V>

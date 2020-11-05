@@ -50,6 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 public class ProtoMessageSchema extends GetterBasedSchemaProvider {

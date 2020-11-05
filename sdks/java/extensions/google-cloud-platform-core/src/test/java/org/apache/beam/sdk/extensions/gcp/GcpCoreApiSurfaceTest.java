@@ -44,6 +44,7 @@ public class GcpCoreApiSurfaceTest {
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
 
