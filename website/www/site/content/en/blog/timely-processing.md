@@ -429,7 +429,7 @@ is intuitively simple: you want to wait a certain amount of time and then
 receive a call back.
 
 To put the finishing touches on our example, we will set a processing time
-timer as soon as any data is buffered. Note that we set the timer only when  
+timer as soon as any data is buffered. Note that we set the timer only when
 the current buffer is empty, so that we don't continually reset the timer.
 When the first an element arrives, we set the timer for the current moment plus
 `MAX_BUFFER_DURATION`. After the allotted processing time has passed, a
@@ -548,7 +548,7 @@ similar features before outside of Beam.
 
 ### Event Time Windowing "Just Works"
 
-One of the raisons d'etre for Beam is correct processing of out-of-order event
+One of the raisons d'être for Beam is correct processing of out-of-order event
 data, which is almost all event data. Beam's solution to out-of-order data is
 event time windowing, where windows in event time yield correct results no
 matter what windowing a user chooses or what order the events come in.
