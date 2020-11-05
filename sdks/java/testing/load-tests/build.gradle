@@ -73,7 +73,7 @@ dependencies {
   compile "joda-time:joda-time:2.10.5"
   compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
   compile "org.checkerframework:checker-qual:2.0.0"
-  compile "org.slf4j:slf4j-api:1.7.30"
+  compile library.java.slf4j_api
   gradleRun project(project.path)
   gradleRun project(path: runnerDependency, configuration: runnerConfiguration)
 

@@ -36,7 +36,7 @@ dependencies {
   compile "org.apache.commons:commons-lang3:3.9"
   compile "org.apache.httpcomponents:httpclient:4.5.10"
   compile "org.apache.httpcomponents:httpcore:4.4.12"
-  compile "org.slf4j:slf4j-api:1.7.30"
+  compile library.java.slf4j_api
   permitUnusedDeclared "com.google.auto.value:auto-value-annotations:1.7.2"
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
