@@ -757,6 +757,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
         out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
 
+  @unittest.skip('BEAM-3736: enable once CombineFnVisitor is fixed')
   def test_unsupported_combinefn_fail(self):
     class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
       def setup(self, *args, **kwargs):
