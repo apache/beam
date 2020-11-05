@@ -168,9 +168,25 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     assertThat(stateInternals.minWatermarkHoldMs(), is(noHold.getMillis()));
   }
 
+  @Test
+  public void testGlobalWindowWatermarkHoldClear() throws Exception {
+    KeyedStateBackend<ByteBuffer> keyedStateBackend = createStateBackend();
+    FlinkStateInternals<String> stateInternals =
+        new FlinkStateInternals<>(
+            keyedStateBackend,
+            StringUtf8Coder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+    StateTag<WatermarkHoldState> stateTag =
+        StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
+    Instant now = Instant.now();
+    WatermarkHoldState state = stateInternals.state(StateNamespaces.global(), stateTag);
+    state.add(now);
+    stateInternals.clearGlobalState();
+    assertThat(state.read(), is((Instant) null));
+  }
+
   public static KeyedStateBackend<ByteBuffer> createStateBackend() throws Exception {
     MemoryStateBackend backend = new MemoryStateBackend();
-
     AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend =
         backend.createKeyedStateBackend(
             new DummyEnvironment("test", 1, 0),
