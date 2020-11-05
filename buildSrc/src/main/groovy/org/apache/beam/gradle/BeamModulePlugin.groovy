@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import org.gradle.api.artifacts.DependencyResolveDetails
 import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
@@ -400,7 +401,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.32.2"
-    def guava_version = "25.1-jre"
+    def guava_version = "30.0-jre"
     def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
@@ -1398,7 +1399,19 @@ class BeamModulePlugin implements Plugin<Project> {
         // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
         // has different dependencies than our project.
         if (config.getName() != "errorprone" && !inDependencyUpdates) {
+          if (config.getName() != "kotlinCompilerClasspath") { // TODO
+            project.dependencies.add(config.name, project.dependencies.enforcedPlatform(project.ext.library.java.google_cloud_platform_libraries_bom))
+          }
+
           config.resolutionStrategy {
+            // Resolve linkage error with guava jre vs android caused by Google Cloud libraries BOM
+            // https://github.com/GoogleCloudPlatform/cloud-opensource-java/wiki/The-Google-Cloud-Platform-Libraries-BOM#guava-versions--jre-or--android
+            eachDependency { DependencyResolveDetails details ->
+              if (details.requested.group == 'com.google.guava' && details.requested.name == 'guava') {
+                details.useVersion "$guava_version"
+                details.because 'linkage errors with android version of guava'
+              }
+            }
             // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
             // versions for only handful libraries when building the project (BEAM-9542).
             def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
@@ -1406,10 +1419,6 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
-      project.configurations.all { config ->
-        if (config.getName() != "errorprone" && config.getName() != "annotationProcessor" && config.getName() != "testAnnotationProcessor") {
-          project.dependencies.add(config.name, project.dependencies.enforcedPlatform(project.ext.library.java.google_cloud_platform_libraries_bom))
-        }}
     }
 
     // When applied in a module's build.gradle file, this closure provides task for running
