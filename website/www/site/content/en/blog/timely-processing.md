@@ -429,9 +429,9 @@ is intuitively simple: you want to wait a certain amount of time and then
 receive a call back.
 
 To put the finishing touches on our example, we will set a processing time
-timer as soon as any data is buffered. We track whether or not the timer has
-been set so we don't continually reset it. When an element arrives, if the
-timer has not been set, then we set it for the current moment plus
+timer as soon as any data is buffered. Note that we set the timer only when  
+the current buffer is empty, so that we don't continually reset the timer.
+When the first an element arrives, we set the timer for the current moment plus
 `MAX_BUFFER_DURATION`. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.
 
@@ -453,7 +453,6 @@ new DoFn<Event, EnrichedEvent>() {
       @TimerId("stale") Timer staleTimer,
       @TimerId("expiry") Timer expiryTimer) {
 
-    boolean staleTimerSet = firstNonNull(staleSetState.read(), false);
     if (firstNonNull(countState.read(), 0) == 0) {
       staleTimer.offset(MAX_BUFFER_DURATION).setRelative();
     }
