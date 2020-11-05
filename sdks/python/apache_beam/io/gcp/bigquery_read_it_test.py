@@ -337,7 +337,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     cls.table_schema2 = cls.create_table(
         cls.table_name2, cls.TABLE_DATA_2, cls.SCHEMA_BQ)
     table_id2 = '{}.{}'.format(cls.dataset_id, cls.table_name2)
-    cls.query2 = 'SELECT number, str FROM `%s`' % table_id2
+    cls.query2 = 'SELECT number, str FROM %s' % table_id2
 
     cls.table_name3 = 'python_rd_table_3'
     cls.table_schema3 = cls.create_table(
@@ -389,8 +389,8 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
           p
           | beam.Create([
               beam.io.ReadFromBigQueryRequest(query=self.query1),
-              beam.io.ReadFromBigQueryRequest(query=self.query2),
-              beam.io.ReadFromBigQueryRequest(table=self.table_name3)
+              beam.io.ReadFromBigQueryRequest(query=self.query2, use_standard_sql=False),
+              beam.io.ReadFromBigQueryRequest(table='%s.%s' % (self.dataset_id, self.table_name3))
           ])
           | beam.io.ReadAllFromBigQuery())
       assert_that(

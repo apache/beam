@@ -130,23 +130,23 @@ class ReadFromBigQueryRequest:
   def __init__(
       self,
       query: str = None,
-      use_standard_sql: bool = False,
+      use_standard_sql: bool = True,
       table: Union[str, TableReference] = None,
       flatten_results: bool = False):
     """
     Only one of query or table should be specified.
 
-    :param query(str): SQL query to fetch data.
-    :param use_standard_sql(boolean):
+    :param query: SQL query to fetch data.
+    :param use_standard_sql:
       Specifies whether to use BigQuery's standard SQL dialect for this query.
       The default value is :data:`True`. If set to :data:`False`,
       the query will use BigQuery's legacy SQL dialect.
       This parameter is ignored for table inputs.
-    :param table(str):
+    :param table:
       The ID of the table to read. The ID must contain only letters
       ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. Table should
       define project and dataset (ex.: ``'PROJECT:DATASET.TABLE'``).
-    :param flatten_results(boolean):
+    :param flatten_results:
       Flattens all nested and repeated fields in the query results.
       The default value is :data:`True`.
     """
@@ -156,6 +156,9 @@ class ReadFromBigQueryRequest:
     self.table = table
     self.validate()
 
+    # We use this internal object ID to generate BigQuery export directories.
+    self.obj_id = random.randint(0, 100000)
+
   def validate(self):
     if self.table is not None and self.query is not None:
       raise ValueError(
@@ -163,6 +166,12 @@ class ReadFromBigQueryRequest:
           ' Please specify only one of these.')
     elif self.table is None and self.query is None:
       raise ValueError('A BigQuery table or a query must be specified')
+    if self.table is not None:
+      if isinstance(self.table, str):
+        assert self.table.find('.'), (
+            'Expected a table reference '
+            '(PROJECT:DATASET.TABLE or DATASET.TABLE) instead of %s'
+            % self.table)
 
 
 class _BigQueryReadSplit(beam.transforms.DoFn):
@@ -197,8 +206,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       table_reference = self._execute_query(bq, element)
     else:
       assert element.table
-      # TODO(pabloem): Parse table reference!
-      table_reference = element.table
+      table_reference = bigquery_tools.parse_table_reference(
+          element.table, project=self._get_project())
 
     if not table_reference.projectId:
       table_reference.projectId = self._get_project()
@@ -276,10 +285,11 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.EXPORT,
-        random.randint(0, 1000))
+        element.obj_id)
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
     gcs_location = bigquery_export_destination_uri(
-        self.gcs_location, temp_location, self._source_uuid)
+        self.gcs_location, temp_location,
+        '%s%s' % (self._source_uuid, element.obj_id))
     if self.use_json_exports:
       job_ref = bq.perform_extract_job([gcs_location],
                                        export_job_name,
