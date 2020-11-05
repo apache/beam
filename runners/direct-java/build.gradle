@@ -70,7 +70,7 @@ dependencies {
   shadow library.java.vendored_grpc_1_26_0
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  permitUnusedDeclared "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+  permitUnusedDeclared library.java.vendored_grpc_1_26_0
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
   compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"

@@ -35,6 +35,6 @@ artifacts {
 
 
 dependencies {
-    permitUnusedDeclared "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+    permitUnusedDeclared library.java.vendored_grpc_1_26_0
     permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

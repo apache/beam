@@ -74,7 +74,7 @@ dependencies {
   compile project(path: ":model:job-management:", configuration: "shadow")
   compile project(":sdks:java:fn-execution")
   compile library.java.jsr305
-  compile "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+  compile library.java.vendored_grpc_1_26_0
   compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
   compile "org.checkerframework:checker-qual:2.0.0"
   provided library.java.spark_core

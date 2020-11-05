@@ -33,7 +33,7 @@ dependencies {
     compile project(path: ":model:pipeline", configuration: "shadow")
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile library.java.jsr305
-    compile "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
+    compile library.java.vendored_grpc_1_26_0
     compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
     testCompile library.java.junit
     testCompile library.java.mockito_core
