@@ -30,7 +30,10 @@ applyJavaNature(
   archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
   publish: false,
   exportJavadoc: false,
-  enableChecker:false,
+  classesTriggerCheckerBugs: [
+    'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
+    'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+  ],
   enableSpotbugs: true,
   validateShadowJar: false,
   shadowClosure: {

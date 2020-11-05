@@ -65,6 +65,7 @@ public class DirectRunnerApiSurfaceTest {
                 WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
