@@ -54,6 +54,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
@@ -120,7 +121,10 @@ import org.slf4j.LoggerFactory;
  */
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutableStageDoFnOperator.class);
@@ -132,6 +136,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
   /** A lock which has to be acquired when concurrently accessing state and timers. */
   private final ReentrantLock stateBackendLock;
+
+  private final SerializablePipelineOptions pipelineOptions;
 
   private final boolean isStateful;
 
@@ -197,6 +203,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.outputMap = outputMap;
     this.sideInputIds = sideInputIds;
     this.stateBackendLock = new ReentrantLock();
+    this.pipelineOptions = new SerializablePipelineOptions(options);
   }
 
   @Override
@@ -207,7 +214,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @Override
   public void open() throws Exception {
     executableStage = ExecutableStage.fromPayload(payload);
-    initializeUserState(executableStage, getKeyedStateBackend());
+    initializeUserState(executableStage, getKeyedStateBackend(), pipelineOptions);
     // TODO: Wire this into the distributed cache and make it pluggable.
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
@@ -1022,7 +1029,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
    * Eagerly create the user state to work around https://jira.apache.org/jira/browse/FLINK-12653.
    */
   private static void initializeUserState(
-      ExecutableStage executableStage, @Nullable KeyedStateBackend keyedStateBackend) {
+      ExecutableStage executableStage,
+      @Nullable KeyedStateBackend keyedStateBackend,
+      SerializablePipelineOptions pipelineOptions) {
     executableStage
         .getUserStates()
         .forEach(
@@ -1031,7 +1040,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 keyedStateBackend.getOrCreateKeyedState(
                     StringSerializer.INSTANCE,
                     new ListStateDescriptor<>(
-                        ref.localName(), new CoderTypeSerializer<>(ByteStringCoder.of())));
+                        ref.localName(),
+                        new CoderTypeSerializer<>(ByteStringCoder.of(), pipelineOptions)));
               } catch (Exception e) {
                 throw new RuntimeException("Couldn't initialize user states.", e);
               }

@@ -36,7 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@code PTransform} to perform a conversion of {@link Entity} to {@link Row}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row>> {
   private final Schema schema;
   private final String keyField;

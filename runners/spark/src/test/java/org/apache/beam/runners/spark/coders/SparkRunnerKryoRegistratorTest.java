@@ -35,6 +35,9 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 
 /** Testing of beam registrar. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SparkRunnerKryoRegistratorTest {
 
   @Test

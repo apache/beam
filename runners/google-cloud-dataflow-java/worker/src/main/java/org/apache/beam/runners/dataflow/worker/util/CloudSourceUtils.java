@@ -23,7 +23,9 @@ import java.util.Map;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 
 /** Utilities for working with Source Dataflow API definitions and {@link NativeReader} objects. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CloudSourceUtils {
   /**
    * Returns a copy of the source with {@code baseSpecs} flattened into {@code spec}. On conflict

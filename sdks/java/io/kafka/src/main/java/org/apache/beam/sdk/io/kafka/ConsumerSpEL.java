@@ -43,6 +43,9 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  * It auto detects the input type List/Collection/Varargs, to eliminate the method definition
  * differences.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class ConsumerSpEL {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerSpEL.class);

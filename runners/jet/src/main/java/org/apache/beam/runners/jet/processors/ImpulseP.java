@@ -34,7 +34,10 @@ import org.apache.beam.sdk.util.WindowedValue;
 /**
  * /** * Jet {@link com.hazelcast.jet.core.Processor} implementation for Beam's Impulse primitive.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ImpulseP extends AbstractProcessor {
 
   private final boolean active;

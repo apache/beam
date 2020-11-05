@@ -70,7 +70,9 @@ import org.slf4j.LoggerFactory;
  * <p>This transform is intended to be used by a runner during pipeline translation to convert a
  * Read.Bounded into a Read.Unbounded.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
@@ -170,7 +172,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       return boundedSource.getDefaultOutputCoder();
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     @Override
     public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
       return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());

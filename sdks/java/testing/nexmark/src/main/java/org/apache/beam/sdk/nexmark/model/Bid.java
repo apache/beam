@@ -39,7 +39,9 @@ import org.joda.time.Instant;
 
 /** A bid for an item on auction. */
 @DefaultSchema(JavaFieldSchema.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Bid implements KnownSize, Serializable {
   private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();

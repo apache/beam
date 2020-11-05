@@ -34,7 +34,9 @@ import org.apache.kafka.common.serialization.Deserializer;
  * CoderRegistry} configures a {@link Deserializer} instance and infers its corresponding {@link
  * Coder}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LocalDeserializerProvider<T> implements DeserializerProvider<T> {
   private Class<? extends Deserializer<T>> deserializer;
 

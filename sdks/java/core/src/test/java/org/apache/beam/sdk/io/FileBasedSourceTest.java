@@ -66,7 +66,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests code common to all file-based sources. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileBasedSourceTest {
 
   private Random random = new Random(0L);

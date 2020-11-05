@@ -67,7 +67,9 @@ import org.slf4j.LoggerFactory;
  * @param <K> the type of the keys read from the shuffle
  * @param <V> the type of the values read from the shuffle
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K, Reiterable<V>>>> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleReader.class);
 

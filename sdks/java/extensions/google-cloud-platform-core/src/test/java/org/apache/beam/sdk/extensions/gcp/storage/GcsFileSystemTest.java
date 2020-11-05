@@ -53,7 +53,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GcsFileSystem}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GcsFileSystemTest {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();

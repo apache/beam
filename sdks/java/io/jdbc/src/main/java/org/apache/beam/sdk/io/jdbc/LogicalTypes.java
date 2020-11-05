@@ -36,7 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Beam {@link org.apache.beam.sdk.schemas.Schema.LogicalType} implementations of JDBC types. */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LogicalTypes {
   static final Schema.FieldType JDBC_BIT_TYPE =
       Schema.FieldType.logicalType(

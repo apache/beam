@@ -40,6 +40,9 @@ import org.slf4j.LoggerFactory;
  * TransformEvaluatorFactory} and evaluating it on some bundle of input, and registering the result
  * using a registered {@link CompletionCallback}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class DirectTransformExecutor<T> implements TransformExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(DirectTransformExecutor.class);
 

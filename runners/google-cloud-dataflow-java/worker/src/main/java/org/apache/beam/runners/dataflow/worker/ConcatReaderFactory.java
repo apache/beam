@@ -36,7 +36,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates an {@link ConcatReader} from a {@link CloudObject} spec. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ConcatReaderFactory implements ReaderFactory {
 
   private final ReaderRegistry registry;

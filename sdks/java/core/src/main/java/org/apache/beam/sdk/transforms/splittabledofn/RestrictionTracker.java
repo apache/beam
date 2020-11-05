@@ -32,6 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * known amount of completed and remaining work.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**
    * Attempts to claim the block of work in the current restriction identified by the given

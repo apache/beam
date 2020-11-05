@@ -77,6 +77,17 @@ class DeferredFrameTest(unittest.TestCase):
     })
     self._run_test(new_column, df)
 
+  def test_set_column_from_index(self):
+    def new_column(df):
+      df['NewCol'] = df.index
+      return df
+
+    df = pd.DataFrame({
+        'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
+        'Speed': [380., 370., 24., 26.]
+    })
+    self._run_test(new_column, df)
+
   def test_groupby(self):
     df = pd.DataFrame({'group': ['a', 'a', 'a', 'b'], 'value': [1, 2, 3, 5]})
     self._run_test(lambda df: df.groupby('group').agg(sum), df)
@@ -196,6 +207,17 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8),
         df,
         distributed=True)
+
+  def test_categorical_groupby(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+    df['B'] = df['B'].astype(pd.CategoricalDtype(list('cab')))
+    df = df.set_index('B')
+    # TODO(BEAM-11190): These aggregations can be done in index partitions, but
+    # it will require a little more complex logic
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.groupby(level=0).sum(), df, distributed=True)
+      self._run_test(
+          lambda df: df.groupby(level=0).mean(), df, distributed=True)
 
 
 class AllowNonParallelTest(unittest.TestCase):

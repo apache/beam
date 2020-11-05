@@ -26,7 +26,9 @@ import org.apache.beam.sdk.annotations.Internal;
  * enters user code down through the rest of the user's stack frames until the exception is reached.
  */
 @Internal
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UserCodeException extends RuntimeException {
 
   public static UserCodeException wrap(Throwable t) {

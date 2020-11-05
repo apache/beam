@@ -87,7 +87,10 @@ import org.mockito.Mockito;
  * tracking while impulse would normally only output a single empty byte array in the global window.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WatermarkManagerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 

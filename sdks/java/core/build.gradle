@@ -20,7 +20,6 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
   enableChecker: false,
-  ignoreRawtypeErrors: true,
   shadowClosure: {
     dependencies {
       include(dependency("org.apache.commons:.*"))
@@ -29,7 +28,8 @@ applyJavaNature(
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
-  }
+  },
+  disableLintWarnings: ['rawtypes'] // Avro-generated test code has rawtype errorss
 )
 applyAvroNature()
 applyAntlrNature()

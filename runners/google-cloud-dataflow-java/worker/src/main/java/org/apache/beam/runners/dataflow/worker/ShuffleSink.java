@@ -45,7 +45,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
  *
  * @param <T> the type of the elements written to the sink
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
   enum ShuffleKind {
     UNGROUPED,

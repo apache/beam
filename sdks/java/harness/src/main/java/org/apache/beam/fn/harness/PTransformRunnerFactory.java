@@ -38,6 +38,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface PTransformRunnerFactory<T> {
   /**
    * Creates and returns a handler for a given PTransform. Note that the handler must support

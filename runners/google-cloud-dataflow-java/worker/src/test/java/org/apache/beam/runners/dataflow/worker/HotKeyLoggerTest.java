@@ -34,7 +34,9 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({HotKeyLoggerTest.class, LoggerFactory.class})
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HotKeyLoggerTest {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(HotKeyLogger.class);
 

@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Should be used with {@link com.google.auto.service.AutoService}.
  */
 @Experimental(Kind.PORTABILITY)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface ExternalTransformRegistrar {
 
   /**

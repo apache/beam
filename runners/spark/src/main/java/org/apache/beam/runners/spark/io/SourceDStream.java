@@ -50,7 +50,9 @@ import scala.Tuple2;
  * SparkPipelineOptions#getMinReadTimeMillis()}. Records bound is controlled by the {@link
  * RateController} mechanism.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends InputDStream<Tuple2<Source<T>, CheckpointMarkT>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);

@@ -33,7 +33,6 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -81,7 +80,10 @@ import org.slf4j.LoggerFactory;
  * running pipeline, shutting down the pipeline, and restarting the pipeline from the savepoint with
  * a different parallelism.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkSavepointTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSavepointTest.class);
@@ -151,7 +153,7 @@ public class FlinkSavepointTest implements Serializable {
   }
 
   private void runSavepointAndRestore(boolean isPortablePipeline) throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
     // Initial parallelism
     options.setParallelism(2);

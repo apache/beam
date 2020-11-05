@@ -85,7 +85,9 @@ import org.junit.runners.JUnit4;
  * details.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ValidateRunnerXlangTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
   private PipelineResult pipelineResult;

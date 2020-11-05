@@ -41,7 +41,9 @@ import org.slf4j.LoggerFactory;
  * system.
  */
 @NotThreadSafe
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);

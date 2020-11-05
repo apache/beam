@@ -23,7 +23,9 @@ import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.util.GceMetadataUtil;
 
 /** Metadata class for BigQueryIO. i.e. to use as BQ job labels. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class BigQueryIOMetadata {
 
   private String beamJobId;

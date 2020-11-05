@@ -40,7 +40,9 @@ import org.joda.time.chrono.ISOChronology;
  * <p>In both formats, fractional seconds are either three digits (millisecond resolution), six
  * digits (microsecond resolution), or nine digits (nanosecond resolution).
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class TimeUtil {
   private TimeUtil() {} // Non-instantiable.
 

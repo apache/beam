@@ -19,7 +19,6 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   enableChecker: false,
-  ignoreRawtypeErrors: true,
   exportJavadoc: false,
   automaticModuleName: 'org.apache.beam.sdk.extensions.euphoria')
 

@@ -20,9 +20,8 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        enableChecker:false,
-        ignoreRawtypeErrors:true,
-        automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format')
+  enableChecker:false,
+  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

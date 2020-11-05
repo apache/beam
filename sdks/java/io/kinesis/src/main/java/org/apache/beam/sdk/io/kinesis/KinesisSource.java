@@ -30,7 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Represents source for single stream in Kinesis. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisSource.class);

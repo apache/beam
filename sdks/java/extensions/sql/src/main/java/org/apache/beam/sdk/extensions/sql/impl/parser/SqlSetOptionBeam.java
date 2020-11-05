@@ -31,7 +31,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 
 /** SQL parse tree node to represent {@code SET} and {@code RESET} statements. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SqlSetOptionBeam extends SqlSetOption implements SqlExecutableStatement {
 
   public SqlSetOptionBeam(SqlParserPos pos, String scope, SqlIdentifier name, SqlNode value) {

@@ -39,7 +39,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Utility class for easier creating input data sets for operator testing. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestUtils {
 
   private static class PrimitiveOutputTranslatorProvider implements TranslatorProvider {

@@ -68,7 +68,10 @@ import org.slf4j.LoggerFactory;
  * user-provided {@link org.apache.beam.sdk.values.PCollection}-based job into a {@link
  * org.apache.flink.streaming.api.datastream.DataStream} one.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);

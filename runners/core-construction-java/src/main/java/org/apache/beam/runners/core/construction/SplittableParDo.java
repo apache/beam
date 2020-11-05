@@ -99,6 +99,9 @@ import org.joda.time.Instant;
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
  * ParDo.of(splittable DoFn)}, but not for direct use by pipeline writers.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
   /**
