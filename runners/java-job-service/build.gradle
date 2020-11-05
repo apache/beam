@@ -33,7 +33,7 @@ dependencies {
   compile project(":sdks:java:fn-execution")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
-  compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
+  compile library.java.jackson_core
   compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
   compile library.java.jsr305
   compile library.java.joda_time

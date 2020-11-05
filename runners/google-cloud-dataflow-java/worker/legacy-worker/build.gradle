@@ -216,7 +216,7 @@ dependencies {
     compile project(path: ":model:pipeline", configuration: "shadow")
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile "com.fasterxml.jackson.core:jackson-annotations:2.10.2"
-    compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
+    compile library.java.jackson_core
     compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
     compile "javax.servlet:javax.servlet-api:3.1.0"
     compile library.java.joda_time

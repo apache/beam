@@ -86,7 +86,7 @@ dependencies {
   compile "org.apache.httpcomponents:httpclient:4.5.12"
   compile "org.apache.httpcomponents:httpcore:4.4.13"
   compile "org.checkerframework:checker-qual:2.0.0"
-  compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
+  compile library.java.jackson_core
   compile "org.hamcrest:hamcrest:2.1"
   compile "org.threeten:threetenbp:1.4.4"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")

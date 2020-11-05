@@ -26,7 +26,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.jackson_databind
-  compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
+  compile library.java.jackson_core
   compile library.java.jsr305
   compile library.java.joda_time
   compile "org.apache.httpcomponents:httpasyncclient:4.1.4"

@@ -55,7 +55,7 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.69"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
-  compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
+  compile library.java.jackson_core
   compile library.java.jsr305
   compile library.java.vendored_guava_26_0_jre
   compile "org.mongodb:mongo-java-driver:3.9.1"
