@@ -953,6 +953,9 @@ class ProtoCoder(FastCoder):
           'Expected a subclass of google.protobuf.message.Message'
           ', but got a %s' % typehint))
 
+  def to_type_hint(self):
+    return self.proto_message_type
+
 
 class DeterministicProtoCoder(ProtoCoder):
   """A deterministic Coder for Google Protocol Buffers.
