@@ -904,6 +904,13 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     This method can be useful if there is some state that needs to be loaded
     before executing any of the other methods. The resources can then be
     disposed of in ``CombineFn.teardown``.
+
+    If you are using Dataflow, you need to enable Dataflow Runner V2
+    before using this feature.
+
+    Args:
+      *args: Additional arguments and side inputs.
+      **kwargs: Additional arguments and side inputs.
     """
     pass
 
@@ -994,7 +1001,15 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     raise NotImplementedError(str(self))
 
   def teardown(self, *args, **kwargs):
-    """Called to clean up an instance before it is discarded."""
+    """Called to clean up an instance before it is discarded.
+
+    If you are using Dataflow, you need to enable Dataflow Runner V2
+    before using this feature.
+
+    Args:
+      *args: Additional arguments and side inputs.
+      **kwargs: Additional arguments and side inputs.
+    """
     pass
 
   def apply(self, elements, *args, **kwargs):
