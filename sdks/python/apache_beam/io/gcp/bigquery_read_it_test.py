@@ -383,7 +383,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
   @skip(['PortableRunner', 'FlinkRunner'])
   @attr('IT')
   def test_read_queries(self):
-    args = self.args + ["--experiments=beam_fn_api"]
+    args = self.args + ["--experiments=use_runner_v2"]
     with beam.Pipeline(argv=args) as p:
       result = (
           p
