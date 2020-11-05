@@ -389,8 +389,10 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
           p
           | beam.Create([
               beam.io.ReadFromBigQueryRequest(query=self.query1),
-              beam.io.ReadFromBigQueryRequest(query=self.query2, use_standard_sql=False),
-              beam.io.ReadFromBigQueryRequest(table='%s.%s' % (self.dataset_id, self.table_name3))
+              beam.io.ReadFromBigQueryRequest(
+                  query=self.query2, use_standard_sql=False),
+              beam.io.ReadFromBigQueryRequest(
+                  table='%s.%s' % (self.dataset_id, self.table_name3))
           ])
           | beam.io.ReadAllFromBigQuery())
       assert_that(

@@ -288,7 +288,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         element.obj_id)
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
     gcs_location = bigquery_export_destination_uri(
-        self.gcs_location, temp_location,
+        self.gcs_location,
+        temp_location,
         '%s%s' % (self._source_uuid, element.obj_id))
     if self.use_json_exports:
       job_ref = bq.perform_extract_job([gcs_location],
