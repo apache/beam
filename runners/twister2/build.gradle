@@ -41,7 +41,7 @@ dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
 
     compile "com.fasterxml.jackson.core:jackson-annotations:2.10.2"
-    compile "joda-time:joda-time:2.10.5"
+    compile library.java.joda_time
     compile library.java.vendored_grpc_1_26_0
     compile "org.checkerframework:checker-qual:2.0.0"
     compile "org.mortbay.jetty:jetty-util:6.1.26"

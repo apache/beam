@@ -37,7 +37,7 @@ dependencies {
   compile library.java.slf4j_api
   compile project(path: ":model:job-management", configuration: "shadow")
   compile library.java.jsr305
-  compile "joda-time:joda-time:2.10.5"
+  compile library.java.joda_time
   testCompile project(":sdks:java:harness")
   testCompile project(":runners:core-construction-java")
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")

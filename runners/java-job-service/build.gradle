@@ -36,7 +36,7 @@ dependencies {
   compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
   compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
   compile library.java.jsr305
-  compile "joda-time:joda-time:2.10.5"
+  compile library.java.joda_time
   compile "org.apache.commons:commons-compress:1.20"
   compile library.java.vendored_grpc_1_26_0
   compile library.java.slf4j_api

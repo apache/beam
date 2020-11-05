@@ -30,7 +30,7 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.jackson_datatype_joda
   compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
-  compile "joda-time:joda-time:2.10.5"
+  compile library.java.joda_time
   testCompile library.java.joda_time
   testCompile library.java.junit
 }

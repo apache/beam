@@ -37,7 +37,7 @@ dependencies {
   compile project(path: ":sdks:java:harness", configuration: "shadow")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.slf4j_api
-  compile "joda-time:joda-time:2.10.5"
+  compile library.java.joda_time
   compile "org.hamcrest:hamcrest:2.1"
   testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
   testCompile library.java.hamcrest_core

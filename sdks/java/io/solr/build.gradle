@@ -31,7 +31,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.commons_compress
 
-  compile "joda-time:joda-time:2.10.5"
+  compile library.java.joda_time
   compile library.java.slf4j_api
   compile "org.apache.solr:solr-solrj:$solrVersion"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")

@@ -31,7 +31,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile library.java.google_cloud_bigquery
   compile "com.google.code.gson:gson:2.8.6"
-  compile "joda-time:joda-time:2.10.5"
+  compile library.java.joda_time
   compile "org.apache.commons:commons-compress:1.20"
   compile "org.apache.commons:commons-lang3:3.9"
   compile "org.apache.httpcomponents:httpclient:4.5.10"
