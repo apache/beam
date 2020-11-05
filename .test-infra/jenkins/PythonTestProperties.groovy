@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-
-
 class PythonTestProperties {
   final static String LOAD_TEST_PYTHON_VERSION = '3.7'
 }
