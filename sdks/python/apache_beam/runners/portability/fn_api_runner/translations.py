@@ -484,6 +484,13 @@ class TransformContext(object):
         self.maybe_length_prefixed_coder(
             self.components.pcollections[pcoll_id].coder_id))
 
+  @memoize_on_instance
+  def parents_map(self):
+    return {
+        child: parent
+        for (parent, transform) in self.components.transforms.items()
+        for child in transform.subtransforms
+    }
 
 def leaf_transform_stages(
     root_ids,  # type: Iterable[str]
@@ -1183,12 +1190,7 @@ def _lowest_common_ancestor(a, b, context):
   '''
   assert a != b
 
-  parents = {
-      child: parent
-      for parent,
-      transform in context.components.transforms.items()
-      for child in transform.subtransforms
-  }
+  parents = context.parents_map()
 
   def get_ancestors(name):
     ancestor = name
