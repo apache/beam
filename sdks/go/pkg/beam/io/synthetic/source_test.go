@@ -195,17 +195,10 @@ func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
 			}
 
 			numOfHotKeys := 0
-			numOfAllKeys := 0
 			for _, element := range m {
-				numOfAllKeys += element
 				if element > 1 {
 					numOfHotKeys += 1
 				}
-			}
-
-			if numOfAllKeys != test.elms {
-				t.Errorf("SourceFn emitted wrong number of outputs: got: %v, want: %v",
-					numOfHotKeys, test.elms)
 			}
 
 			if numOfHotKeys != test.hotKeys {

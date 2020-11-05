@@ -26,12 +26,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 	"math/rand"
 	"reflect"
 	"time"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 func init() {
@@ -130,17 +131,15 @@ func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, em
 	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
 		key := make([]byte, config.KeySize)
 		val := make([]byte, config.ValueSize)
-		generator := sourceFn{}
-		generator.rng = rand.New(rand.NewSource(i))
-		randomSample := generator.rng.Float64()
+		generator := rand.New(rand.NewSource(i))
+		randomSample := generator.Float64()
 		if randomSample < config.HotKeyFraction {
-			generatorHot := sourceFn{}
-			generatorHot.rng = rand.New(rand.NewSource(i % int64(config.NumHotKeys)))
-			if _, err := generatorHot.rng.Read(key); err != nil {
+			generatorHot := rand.New(rand.NewSource(i % int64(config.NumHotKeys)))
+			if _, err := generatorHot.Read(key); err != nil {
 				return err
 			}
 		} else {
-			if _, err := generator.rng.Read(key); err != nil {
+			if _, err := fn.rng.Read(key); err != nil {
 				return err
 			}
 		}
