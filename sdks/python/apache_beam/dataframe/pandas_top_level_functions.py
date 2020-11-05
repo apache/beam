@@ -41,7 +41,8 @@ def _defer_to_pandas(name):
   def wrapper(*args, **kwargs):
     res = getattr(pd, name)(*args, **kwargs)
     if type(res) in frame_base.DeferredBase._pandas_type_map.keys():
-      return DeferredBase.wrap(expressions.ConstantExpression(res, res[0:0]))
+      return frame_base.DeferredBase.wrap(
+          expressions.ConstantExpression(res, res[0:0]))
     else:
       return res
 

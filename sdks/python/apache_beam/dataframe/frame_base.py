@@ -224,6 +224,9 @@ def _proxy_function(
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(arg._expr)
       elif isinstance(arg, _DeferredIndex):
+        # TODO(robertwb): Consider letting indices pass through as indices.
+        # This would require updating the partitioning code, as indices don't
+        # have indices.
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(
             expressions.ComputedExpression(
