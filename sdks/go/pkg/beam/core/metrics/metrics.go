@@ -381,6 +381,11 @@ func (m *distribution) get() (count, sum, min, max int64) {
 	return m.count, m.sum, m.min, m.max
 }
 
+// DistributionValue is the value of a Distribution metric.
+type DistributionValue struct {
+	Count, Sum, Min, Max int64
+}
+
 // Gauge is a time, value pair metric.
 type Gauge struct {
 	name name
@@ -447,4 +452,51 @@ func (m *gauge) get() (int64, time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.v, m.t
+}
+
+// GaugeValue is the value of a Gauge metric.
+type GaugeValue struct {
+	Value     int64
+	Timestamp time.Time
+}
+
+// MetricResults queries for all metric values that match a given filter.
+type MetricResults interface {
+	// TODO: Implement metrics filtering
+	Query() MetricQueryResults
+}
+
+// MetricQueryResults is the results of a query. Allows accessing all of the
+// metrics that matched the filter.
+type MetricQueryResults interface {
+	GetCounters() []CounterResult
+	GetDistributions() []DistributionResult
+	GetGauges() []GaugeResult
+}
+
+// CounterResult is an attempted and a commited value of a Counter metric plus
+// key.
+type CounterResult struct {
+	Attempted, Committed int64
+	Key                  MetricKey
+}
+
+// DistributionResult is an attempted and a commited value of a Distribution
+// metric plus key.
+type DistributionResult struct {
+	Attempted, Committed DistributionValue
+	Key                  MetricKey
+}
+
+// GaugeResult is an attempted and a commited value of a Gauge metric plus
+// key.
+type GaugeResult struct {
+	Attempted, Committed GaugeValue
+	Key                  MetricKey
+}
+
+// MetricKey includes the namespace and the name of the metric, as well as
+// the step that reported the metric.
+type MetricKey struct {
+	Step, Name, Namespace string
 }

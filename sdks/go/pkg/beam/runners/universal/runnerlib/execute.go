@@ -20,6 +20,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
@@ -29,19 +30,20 @@ import (
 
 // Execute executes a pipeline on the universal runner serving the given endpoint.
 // Convenience function.
-func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobOptions, async bool) (string, error) {
+func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobOptions, async bool) (*UniversalPipelineResult, error) {
 	// (1) Prepare job to obtain artifact staging instructions.
+	presult := &UniversalPipelineResult{JobID: ""}
 
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
-		return "", errors.WithContextf(err, "connecting to job service")
+		return presult, errors.WithContextf(err, "connecting to job service")
 	}
 	defer cc.Close()
 	client := jobpb.NewJobServiceClient(cc)
 
 	prepID, artifactEndpoint, st, err := Prepare(ctx, client, p, opt)
 	if err != nil {
-		return "", err
+		return presult, err
 	}
 
 	log.Infof(ctx, "Prepared job with id: %v and staging token: %v", prepID, st)
@@ -58,7 +60,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 
 			worker, err := BuildTempWorkerBinary(ctx)
 			if err != nil {
-				return "", err
+				return presult, err
 			}
 			defer os.Remove(worker)
 
@@ -70,7 +72,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 
 	token, err := Stage(ctx, prepID, artifactEndpoint, bin, st)
 	if err != nil {
-		return "", err
+		return presult, err
 	}
 
 	log.Infof(ctx, "Staged binary artifact with token: %v", token)
@@ -79,7 +81,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 
 	jobID, err := Submit(ctx, client, prepID, token)
 	if err != nil {
-		return "", err
+		return presult, err
 	}
 
 	log.Infof(ctx, "Submitted job: %v", jobID)
@@ -87,7 +89,71 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	// (4) Wait for completion.
 
 	if async {
-		return jobID, nil
+		return presult, nil
 	}
-	return jobID, WaitForCompletion(ctx, client, jobID)
+	err = WaitForCompletion(ctx, client, jobID)
+
+	res, err := newUniversalPipelineResult(ctx, jobID, client)
+	if err != nil {
+		return presult, err
+	}
+	presult = res
+
+	return presult, err
+}
+
+type UniversalPipelineResult struct {
+	JobID   string
+	metrics *UniversalMetrics
+}
+
+func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*UniversalPipelineResult, error) {
+	metrics, err := newUniversalMetrics(ctx, jobID, client)
+	if err != nil {
+		return &UniversalPipelineResult{jobID, nil}, err
+	}
+	return &UniversalPipelineResult{jobID, metrics}, err
+}
+
+func (pr UniversalPipelineResult) Metrics() metrics.MetricResults {
+	return pr.metrics
+}
+
+func newUniversalMetrics(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*UniversalMetrics, error) {
+	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
+	response, err := client.GetJobMetrics(ctx, request)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get metrics")
+	}
+	c, d, g := metrics.FromMonitoringInfos(response.GetMetrics())
+	return &UniversalMetrics{c, d, g}, err
+}
+
+type UniversalMetrics struct {
+	counters      []metrics.CounterResult
+	distributions []metrics.DistributionResult
+	gauges        []metrics.GaugeResult
+}
+
+func (um UniversalMetrics) Query() metrics.MetricQueryResults {
+	// TODO: Implement metrics filtering
+	return UniversalQueryResults{um.counters, um.distributions, um.gauges}
+}
+
+type UniversalQueryResults struct {
+	counters      []metrics.CounterResult
+	distributions []metrics.DistributionResult
+	gauges        []metrics.GaugeResult
+}
+
+func (qr UniversalQueryResults) GetCounters() []metrics.CounterResult {
+	return qr.counters
+}
+
+func (qr UniversalQueryResults) GetDistributions() []metrics.DistributionResult {
+	return qr.distributions
+}
+
+func (qr UniversalQueryResults) GetGauges() []metrics.GaugeResult {
+	return qr.gauges
 }

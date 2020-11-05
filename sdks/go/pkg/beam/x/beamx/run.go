@@ -40,5 +40,13 @@ var runner = flag.String("runner", "direct", "Pipeline runner.")
 // defaults to the direct runner, but all beam-distributed runners and textio
 // filesystems are implicitly registered.
 func Run(ctx context.Context, p *beam.Pipeline) error {
+	_, err := beam.Run(ctx, *runner, p)
+	return err
+}
+
+// RunPipelineWithMetrics invokes beam.Run with the runner supplied by the
+// flag "runner". Returns a beam.PipelineResult objects, which can be
+// accessed to query the pipeline's metrics.
+func RunPipelineWithMetrics(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	return beam.Run(ctx, *runner, p)
 }

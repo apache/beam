@@ -17,6 +17,7 @@ package beam
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 )
 
 // Scope is a hierarchical grouping for composite transforms. Scopes can be
@@ -84,4 +85,9 @@ func (p *Pipeline) Build() ([]*graph.MultiEdge, []*graph.Node, error) {
 
 func (p *Pipeline) String() string {
 	return p.real.String()
+}
+
+// PipelineResult is the result of beamx.RunPipelineWithMetrics.
+type PipelineResult interface {
+	Metrics() metrics.MetricResults
 }
