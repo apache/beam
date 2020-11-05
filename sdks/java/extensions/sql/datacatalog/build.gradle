@@ -31,7 +31,7 @@ dependencies {
   compile "com.google.api:gax:1.57.1"
   compile "com.google.auth:google-auth-library-credentials:0.19.0"
   compile "org.checkerframework:checker-qual:2.0.0"
-  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile library.java.vendored_guava_26_0_jre
   compile "org.slf4j:slf4j-api:1.7.30"
   compile project(path: ":sdks:java:core", configuration: "shadow")
   provided project(":sdks:java:extensions:sql")

@@ -40,7 +40,7 @@ dependencies {
   compile "com.google.zetasql:zetasql-client:$zetasql_version"
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
   compile "joda-time:joda-time:2.10.5"
-  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile library.java.vendored_guava_26_0_jre
   compile "org.checkerframework:checker-qual:2.0.0"
   permitUnusedDeclared library.java.protobuf_java_util
   compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"

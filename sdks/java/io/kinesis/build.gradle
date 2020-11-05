@@ -40,7 +40,7 @@ dependencies {
   compile "com.amazonaws:amazon-kinesis-client:1.13.0"
   compile "com.amazonaws:amazon-kinesis-producer:0.14.1"
   compile "commons-lang:commons-lang:2.6"
-  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile library.java.vendored_guava_26_0_jre
   compile "org.apache.commons:commons-lang3:3.9"
   compile "org.checkerframework:checker-qual:2.0.0"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")

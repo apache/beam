@@ -57,12 +57,12 @@ dependencies {
   compile "org.codehaus.janino:commons-compiler:3.0.11"
   compile "com.fasterxml.jackson.core:jackson-core:2.10.2"
   compile library.java.jsr305
-  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile library.java.vendored_guava_26_0_jre
   compile "org.mongodb:mongo-java-driver:3.9.1"
   compile "org.slf4j:slf4j-api:1.7.30"
   compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
   compile "joda-time:joda-time:2.10.5"
-  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile library.java.vendored_guava_26_0_jre
   compile "org.checkerframework:checker-qual:2.0.0"
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")

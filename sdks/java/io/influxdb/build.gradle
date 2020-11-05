@@ -28,7 +28,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.influxdb_library
   compile "com.squareup.okhttp3:okhttp:4.6.0"
-  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile library.java.vendored_guava_26_0_jre
   compile "org.slf4j:slf4j-api:1.7.30"
   testCompile library.java.junit
   testCompile library.java.powermock

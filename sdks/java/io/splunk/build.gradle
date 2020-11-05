@@ -32,7 +32,7 @@ dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile "com.google.http-client:google-http-client:1.34.0"
     compile "joda-time:joda-time:2.10.5"
-    compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+    compile library.java.vendored_guava_26_0_jre
     compile "org.apache.httpcomponents:httpclient:4.5.10"
     compile "org.apache.httpcomponents:httpcore:4.4.12"
     compile "org.checkerframework:checker-qual:2.0.0"
