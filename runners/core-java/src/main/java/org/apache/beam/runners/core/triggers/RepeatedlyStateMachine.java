@@ -31,7 +31,9 @@ import java.util.Arrays;
  * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite {@code
  * AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RepeatedlyStateMachine extends TriggerStateMachine {
 
   private static final int REPEATED = 0;

@@ -25,7 +25,9 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /** Output tag filter. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OutputTagFilter<OutputT, InputT>
     implements ComputeCollectorFunc<WindowedValue<OutputT>, Iterator<RawUnionValue>> {
 

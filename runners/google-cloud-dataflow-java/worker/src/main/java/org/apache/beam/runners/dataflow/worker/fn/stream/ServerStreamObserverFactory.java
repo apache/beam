@@ -40,7 +40,9 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
  *
  * <p>The specific implementation returned is dependent on {@link PipelineOptions} experiments.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class ServerStreamObserverFactory {
   public static ServerStreamObserverFactory fromOptions(PipelineOptions options) {
     DataflowPipelineDebugOptions dataflowOptions = options.as(DataflowPipelineDebugOptions.class);

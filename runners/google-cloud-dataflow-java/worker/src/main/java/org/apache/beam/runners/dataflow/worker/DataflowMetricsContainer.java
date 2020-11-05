@@ -34,7 +34,9 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 // not clear why the interface extends Serializable
 // https://issues.apache.org/jira/browse/BEAM-6573
 @SuppressFBWarnings("SE_BAD_FIELD")
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowMetricsContainer implements MetricsContainer {
 
   private final ExecutionStateTracker executionStateTracker;

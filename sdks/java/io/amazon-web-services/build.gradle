@@ -24,7 +24,6 @@ plugins {
 
 applyJavaNature(
   enableChecker: false,
-  ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdk.io.aws')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"

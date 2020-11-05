@@ -69,6 +69,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
  *   <li>CROSS JOIN is not supported.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class BeamCoGBKJoinRel extends BeamJoinRel {
 
   public BeamCoGBKJoinRel(

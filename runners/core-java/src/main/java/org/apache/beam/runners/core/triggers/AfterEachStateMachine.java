@@ -41,7 +41,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *       Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AfterEachStateMachine extends TriggerStateMachine {
 
   private AfterEachStateMachine(List<TriggerStateMachine> subTriggers) {

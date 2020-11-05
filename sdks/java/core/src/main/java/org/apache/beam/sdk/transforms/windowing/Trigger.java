@@ -71,7 +71,9 @@ import org.joda.time.Instant;
  * </ul>
  */
 @Experimental(Kind.TRIGGER)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class Trigger implements Serializable {
 
   protected final List<Trigger> subTriggers;

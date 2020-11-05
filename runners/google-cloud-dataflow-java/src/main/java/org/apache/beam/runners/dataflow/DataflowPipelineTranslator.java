@@ -120,7 +120,7 @@ import org.slf4j.LoggerFactory;
  * Dataflow Service API {@link Job}s.
  */
 @SuppressWarnings({
-  "rawtypes",
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "unchecked",
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

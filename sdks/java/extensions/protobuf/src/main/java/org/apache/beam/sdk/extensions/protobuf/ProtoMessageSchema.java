@@ -49,6 +49,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
@@ -121,7 +124,10 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   }
 
   // Other modules are not allowed to use non-vendored Message class
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
   public static <T> SimpleFunction<byte[], Row> getProtoBytesToRowFn(Class<T> clazz) {
     checkForMessageType(clazz);
     return new ProtoBytesToRowFn(clazz);
@@ -148,7 +154,10 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   }
 
   // Other modules are not allowed to use non-vendored Message class
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
   public static <T> SimpleFunction<Row, byte[]> getRowToProtoBytesFn(Class<T> clazz) {
     checkForMessageType(clazz);
     return new RowToProtoBytesFn(clazz);

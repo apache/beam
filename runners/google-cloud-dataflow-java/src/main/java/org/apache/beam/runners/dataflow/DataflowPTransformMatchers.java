@@ -31,7 +31,9 @@ import org.apache.beam.sdk.transforms.PTransform;
  * A set of {@link PTransformMatcher PTransformMatchers} that are used in the Dataflow Runner and
  * not general enough to be shared between runners.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class DataflowPTransformMatchers {
   private DataflowPTransformMatchers() {}
 

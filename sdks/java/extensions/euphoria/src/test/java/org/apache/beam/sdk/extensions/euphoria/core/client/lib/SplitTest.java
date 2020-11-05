@@ -33,6 +33,9 @@ import org.junit.runners.JUnit4;
 
 /** Test suite for {@link Split} library. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SplitTest {
 
   @Test

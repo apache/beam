@@ -24,7 +24,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /** Executor that blocks on execute() if its queue is full. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BoundedQueueExecutor extends ThreadPoolExecutor {
   private static class ReducableSemaphore extends Semaphore {
     ReducableSemaphore(int permits) {

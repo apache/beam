@@ -52,7 +52,10 @@ import org.apache.samza.table.descriptors.TableDescriptor;
  * provides other context data such as input and output of a {@link
  * org.apache.beam.model.pipeline.v1.RunnerApi.PTransform}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PortableTranslationContext {
   private final Map<String, MessageStream<?>> messsageStreams = new HashMap<>();
   private final StreamApplicationDescriptor appDescriptor;

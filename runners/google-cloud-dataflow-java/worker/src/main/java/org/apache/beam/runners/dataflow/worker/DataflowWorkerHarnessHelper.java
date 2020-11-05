@@ -37,7 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A helper class for initialization of the Dataflow worker harness. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class DataflowWorkerHarnessHelper {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkerHarnessHelper.class);
 

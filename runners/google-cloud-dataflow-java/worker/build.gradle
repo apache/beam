@@ -31,7 +31,6 @@ applyJavaNature(
   publish: false,
   exportJavadoc: false,
   enableChecker:false,
-  ignoreRawtypeErrors: true,
   enableSpotbugs: true,
   validateShadowJar: false,
   shadowClosure: {

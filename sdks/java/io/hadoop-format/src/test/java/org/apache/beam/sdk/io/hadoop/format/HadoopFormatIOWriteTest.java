@@ -51,7 +51,9 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 /** Unit tests for {@link HadoopFormatIO.Write}. */
 @RunWith(MockitoJUnitRunner.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFormatIOWriteTest {
 
   private static final int REDUCERS_COUNT = 2;

@@ -43,7 +43,9 @@ import org.apache.samza.system.SystemStreamPartition;
  * This is a trivial system for generating impulse event in Samza when translating IMPULSE transform
  * in portable api.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaImpulseSystemFactory implements SystemFactory {
   @Override
   public SystemConsumer getConsumer(

@@ -34,7 +34,9 @@ import org.joda.time.Duration;
  * timestamps.
  */
 @AutoValue
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class TVFSlidingWindowFn extends NonMergingWindowFn<Object, IntervalWindow> {
   /** Size of the generated windows. */
   public abstract Duration getSize();

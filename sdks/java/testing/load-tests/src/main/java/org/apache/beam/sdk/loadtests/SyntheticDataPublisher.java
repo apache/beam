@@ -71,7 +71,10 @@ import org.apache.kafka.common.serialization.StringSerializer;
  * <p>If parameters related to a specific sink are provided (Kafka, PubSub or Kinesis), the pipeline
  * writes to the sink. Writing to more than one sink is also acceptable.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SyntheticDataPublisher {
 
   private static final Coder RECORD_CODER = StringUtf8Coder.of();

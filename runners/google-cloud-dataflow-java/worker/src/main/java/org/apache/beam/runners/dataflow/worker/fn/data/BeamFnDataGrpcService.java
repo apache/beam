@@ -55,6 +55,9 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements} messages to the first client that
  * connects.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements BeamFnService {
 

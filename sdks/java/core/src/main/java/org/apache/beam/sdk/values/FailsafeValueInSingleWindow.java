@@ -38,7 +38,9 @@ import org.joda.time.Instant;
  */
 @AutoValue
 @Internal
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
   /** Returns the value of this {@code FailsafeValueInSingleWindow}. */
   public abstract @Nullable T getValue();

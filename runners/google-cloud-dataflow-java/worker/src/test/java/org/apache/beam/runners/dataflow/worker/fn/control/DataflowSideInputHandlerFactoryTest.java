@@ -50,7 +50,10 @@ import org.junit.runners.JUnit4;
 
 /** Test for {@link DataflowSideInputHandlerFactory} */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class DataflowSideInputHandlerFactoryTest {
 
   private static final String TRANSFORM_ID = "transformId";

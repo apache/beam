@@ -35,7 +35,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Thread-safe.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CounterSet extends CounterFactory {
   private static final Logger LOG = LoggerFactory.getLogger(CounterSet.class);
 
