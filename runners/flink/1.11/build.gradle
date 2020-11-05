@@ -17,10 +17,7 @@
  */
 
 def basePath = '..'
-def jackson_annotations_version = "2.10.2"
 def flink_clients_version = "1.11.1"
-def jackson_databind_verisioon = "2.10.2"
-def jsr305_version = "3.0.2"
 def flink_annotations_version = "1.11.1"
 def flink_optimizer_version = "1.11.1"
 def checker_qual_version = "2.0.0"
@@ -40,10 +37,10 @@ project.ext {
 apply from: "$basePath/flink_runner.gradle"
 
 dependencies {
-  permitUnusedDeclared "com.fasterxml.jackson.core:jackson-annotations:$jackson_annotations_version"
+  permitUnusedDeclared library.java.jackson_annotations
   permitUnusedDeclared "org.apache.flink:flink-clients_2.11:$flink_clients_version"
-  compile "com.fasterxml.jackson.core:jackson-databind:$jackson_databind_verisioon"
-  compile "com.google.code.findbugs:jsr305:$jsr305_version"
+  compile library.java.jackson_databind
+  compile library.java.jsr305
   compile "org.apache.flink:flink-annotations:$flink_annotations_version"
   compile "org.apache.flink:flink-optimizer_2.11:$flink_optimizer_version"
   compile "org.checkerframework:checker-qual:$checker_qual_version"
