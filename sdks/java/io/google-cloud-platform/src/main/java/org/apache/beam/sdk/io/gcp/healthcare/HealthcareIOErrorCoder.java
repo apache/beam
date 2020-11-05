@@ -28,7 +28,9 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.joda.time.Instant;
 
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>> {
   private final Coder<T> originalCoder;
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());

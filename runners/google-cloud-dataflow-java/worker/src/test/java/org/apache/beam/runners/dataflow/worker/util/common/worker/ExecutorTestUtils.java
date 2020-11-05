@@ -33,7 +33,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** Utilities for tests. */
 @SuppressWarnings({
-  "rawtypes",
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "unchecked",
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

@@ -35,7 +35,10 @@ import org.apache.beam.sdk.values.Row;
  * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
  * BeamMinusRel}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCollection<Row>> {
   /** Set operator type. */
   public enum OpType implements Serializable {

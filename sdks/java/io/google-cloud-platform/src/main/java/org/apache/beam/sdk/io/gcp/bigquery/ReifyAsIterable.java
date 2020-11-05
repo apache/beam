@@ -31,7 +31,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * This transforms turns a side input into a singleton PCollection that can be used as the main
  * input for another transform.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReifyAsIterable<T> extends PTransform<PCollection<T>, PCollection<Iterable<T>>> {
   @Override
   public PCollection<Iterable<T>> expand(PCollection<T> input) {

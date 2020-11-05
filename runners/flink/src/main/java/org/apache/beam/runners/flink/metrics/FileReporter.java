@@ -31,7 +31,9 @@ import org.apache.flink.metrics.reporter.AbstractReporter;
  * metrics to a file specified via the "metrics.reporter.file.path" config key (assuming an alias of
  * "file" for this reporter in the "metrics.reporters" setting).
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileReporter extends AbstractReporter {
   @Override
   public String filterCharacters(String input) {

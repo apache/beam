@@ -39,6 +39,9 @@ import org.junit.runners.JUnit4;
  * other rehydration. The two are tightly coupled, as they recursively invoke each other.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class RehydratedComponentsTest {
 
   @Test

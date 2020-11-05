@@ -46,7 +46,9 @@ import org.slf4j.LoggerFactory;
  * A {@link Source} that accommodates Spark's micro-batch oriented nature and wraps an {@link
  * UnboundedSource}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends Source<T> {
 

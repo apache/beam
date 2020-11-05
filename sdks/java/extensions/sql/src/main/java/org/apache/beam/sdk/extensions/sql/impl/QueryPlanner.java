@@ -31,6 +31,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
  * An interface that planners should implement to convert sql statement to {@link BeamRelNode} or
  * {@link SqlNode}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface QueryPlanner {
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)

@@ -43,7 +43,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 
 /** Parse tree for {@code CREATE EXTERNAL TABLE} statement. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableStatement {
   private final SqlIdentifier name;
   private final List<Schema.Field> columnList;

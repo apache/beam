@@ -23,7 +23,9 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SparkExecutableStageExtractionFunction<OutputT>
     implements FlatMapFunction<RawUnionValue, WindowedValue<OutputT>> {
   private final int unionTag;

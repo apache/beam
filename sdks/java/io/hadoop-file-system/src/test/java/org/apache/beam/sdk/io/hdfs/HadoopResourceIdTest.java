@@ -35,7 +35,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests for {@link HadoopResourceId}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopResourceIdTest {
 
   private MiniDFSCluster hdfsCluster;

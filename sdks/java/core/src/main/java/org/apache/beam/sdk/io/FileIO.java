@@ -308,7 +308,9 @@ import org.slf4j.LoggerFactory;
  *     .withNaming(type -> defaultNaming(type + "-transactions", ".csv"));
  * }</pre>
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileIO {
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
 

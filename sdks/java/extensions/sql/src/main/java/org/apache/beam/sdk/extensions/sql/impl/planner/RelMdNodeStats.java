@@ -32,6 +32,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.Re
  * This is the implementation of NodeStatsMetadata. Methods to estimate rate and row count for
  * Calcite's logical nodes be implemented here.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
 
   public static final RelMetadataProvider SOURCE =

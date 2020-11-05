@@ -98,7 +98,10 @@ import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 /** Supports translation between a Beam transform, and Spark's operations on DStreams. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class StreamingTransformTranslator {
 
   private StreamingTransformTranslator() {}

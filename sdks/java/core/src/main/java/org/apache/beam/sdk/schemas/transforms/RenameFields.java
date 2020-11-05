@@ -55,7 +55,9 @@ import org.apache.commons.compress.utils.Lists;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RenameFields {
   /** Create an instance of this transform. */
   public static <T> Inner<T> create() {

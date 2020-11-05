@@ -58,7 +58,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
  * <p>The ambiguous result means that executing the flatten in either the SDK or Runner is equally
  * inefficient, and thus it can execute in either one.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DeduceFlattenLocationsFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {
 

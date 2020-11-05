@@ -23,7 +23,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Translat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.impl.TableMacroImpl;
 
 /** Beam-customized facade behind {@link Function} to address BEAM-5921. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class UdfImpl {
 
   private UdfImpl() {}

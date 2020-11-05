@@ -38,7 +38,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Assign Windows function. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AssignWindowsFunction<T>
     implements ComputeCollectorFunc<WindowedValue<T>, Iterator<WindowedValue<T>>> {
   private static final Logger LOG = Logger.getLogger(AssignWindowsFunction.class.getName());

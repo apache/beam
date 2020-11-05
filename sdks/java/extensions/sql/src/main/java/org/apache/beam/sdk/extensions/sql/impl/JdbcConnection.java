@@ -37,7 +37,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link BeamCalciteSchema BeamCalciteSchemas} keep reference to this connection. Pipeline options
  * are stored here.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JdbcConnection extends CalciteConnectionWrapper {
   /**
    * Connection string parameters that begin with {@code "beam."} will be interpreted as {@link

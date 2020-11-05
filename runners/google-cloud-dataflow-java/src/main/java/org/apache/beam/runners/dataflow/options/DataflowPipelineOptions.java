@@ -39,7 +39,9 @@ import org.slf4j.LoggerFactory;
 
 /** Options that can be used to configure the {@link DataflowRunner}. */
 @Description("Options that configure the Dataflow pipeline.")
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface DataflowPipelineOptions
     extends PipelineOptions,
         GcpOptions,

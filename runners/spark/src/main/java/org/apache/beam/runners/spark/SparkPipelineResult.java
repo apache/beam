@@ -39,7 +39,10 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
 
 /** Represents a Spark pipeline execution result. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class SparkPipelineResult implements PipelineResult {
 
   final Future pipelineExecution;

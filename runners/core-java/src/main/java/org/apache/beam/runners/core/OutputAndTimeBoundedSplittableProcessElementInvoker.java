@@ -58,7 +58,11 @@ import org.joda.time.Instant;
  * DoFn.ProcessElement} call either outputs at least a given number of elements (in total over all
  * outputs), or runs for the given duration.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
     extends SplittableProcessElementInvoker<

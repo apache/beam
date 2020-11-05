@@ -41,7 +41,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link RepeatedlyStateMachine}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RepeatedlyStateMachineTest {
 
   @Mock private TriggerStateMachine mockTrigger;

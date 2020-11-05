@@ -24,7 +24,9 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.MimeTypes;
 
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class AvroRowWriter<AvroT, T> extends BigQueryRowWriter<T> {
   private final DataFileWriter<AvroT> writer;
   private final Schema schema;

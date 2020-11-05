@@ -20,7 +20,9 @@ package org.apache.beam.sdk.io.snowflake.data.text;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SnowflakeBinary implements SnowflakeDataType, Serializable {
 
   public static final Long MAX_SIZE = 8388608L;

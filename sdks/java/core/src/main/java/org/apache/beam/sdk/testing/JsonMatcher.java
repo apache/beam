@@ -35,7 +35,9 @@ import org.hamcrest.TypeSafeMatcher;
  *              jsonStringLike("{\"height\": 80, \"name\": \"person\"}"));
  * </pre>
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class JsonMatcher<T> extends TypeSafeMatcher<T> {
   private Matcher<Map<String, Object>> mapMatcher;
   private static final ObjectMapper MAPPER = new ObjectMapper();

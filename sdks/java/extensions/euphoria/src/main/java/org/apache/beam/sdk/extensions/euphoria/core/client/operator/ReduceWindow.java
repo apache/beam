@@ -77,7 +77,10 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReduceWindow<InputT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, Byte, OutputT>
     implements TypeAware.Value<ValueT>, CompositeOperator<InputT, OutputT> {

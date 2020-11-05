@@ -111,7 +111,10 @@ import org.slf4j.LoggerFactory;
  * default this is disabled and only one attempt will be made.
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SolrIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(SolrIO.class);

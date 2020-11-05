@@ -48,7 +48,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runtime context for the Samza runner. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaExecutionContext implements ApplicationContainerContext {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaExecutionContext.class);
   private static final String SAMZA_WORKER_ID = "samza_py_worker_id";

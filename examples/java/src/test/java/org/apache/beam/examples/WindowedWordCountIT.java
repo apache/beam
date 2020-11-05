@@ -62,7 +62,9 @@ import org.junit.runners.JUnit4;
 
 /** End-to-end integration test of {@link WindowedWordCount}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindowedWordCountIT {
 
   @Rule public TestName testName = new TestName();

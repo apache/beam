@@ -31,7 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * <p>A primitive value within Beam.
  */
 @Internal
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PValues {
 
   // Do not instantiate

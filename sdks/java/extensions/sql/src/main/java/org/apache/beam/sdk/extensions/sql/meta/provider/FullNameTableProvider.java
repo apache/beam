@@ -34,7 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * querying it by parts of the name separately.
  */
 @Experimental
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class FullNameTableProvider implements TableProvider, CustomTableResolver {
 
   private List<TableName> knownTables;

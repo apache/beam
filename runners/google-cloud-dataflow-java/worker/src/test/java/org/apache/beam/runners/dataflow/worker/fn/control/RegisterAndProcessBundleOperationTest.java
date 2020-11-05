@@ -97,6 +97,7 @@ import org.mockito.stubbing.Answer;
 /** Tests for {@link RegisterAndProcessBundleOperation}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "FutureReturnValueIgnored",
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

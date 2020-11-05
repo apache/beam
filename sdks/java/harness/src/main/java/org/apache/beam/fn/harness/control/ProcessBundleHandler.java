@@ -101,7 +101,11 @@ import org.slf4j.LoggerFactory;
  * perform a split request. See <a href="https://s.apache.org/beam-breaking-fusion">breaking the
  * fusion barrier</a> for further details.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
@@ -615,6 +619,8 @@ public class ProcessBundleHandler {
 
   /** A container for the reusable information used to process a bundle. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class BundleProcessor {
     public static BundleProcessor create(
         PTransformFunctionRegistry startFunctionRegistry,

@@ -53,7 +53,9 @@ import org.junit.Test;
 /**
  * Tests for serialization and deserialization of {@link PipelineOptions} in {@link DoFnOperator}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkPipelineOptionsTest {
 
   /** Pipeline options. */

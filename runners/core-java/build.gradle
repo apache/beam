@@ -19,7 +19,6 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   enableChecker: false,
-  ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.runners.core')
 
 description = "Apache Beam :: Runners :: Core Java"

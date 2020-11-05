@@ -53,7 +53,10 @@ import org.junit.Test;
  * A test suite that tests tracking of the streaming sources created an {@link
  * org.apache.beam.runners.spark.translation.streaming.UnboundedDataset}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TrackStreamingSourcesTest {
 
   @Rule public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();

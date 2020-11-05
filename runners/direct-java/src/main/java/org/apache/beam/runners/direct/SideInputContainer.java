@@ -56,7 +56,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * constructing {@link SideInputReader SideInputReaders} which block until a side input is available
  * and writing to a {@link PCollectionView}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SideInputContainer {
   private static final Set<String> SUPPORTED_MATERIALIZATIONS =
       ImmutableSet.of(

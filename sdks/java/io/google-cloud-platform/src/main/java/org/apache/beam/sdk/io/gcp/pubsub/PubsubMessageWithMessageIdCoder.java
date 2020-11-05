@@ -30,7 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * A coder for PubsubMessage treating the raw bytes being decoded as the message's payload, with the
  * message id from the PubSub server.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubMessageWithMessageIdCoder extends CustomCoder<PubsubMessage> {
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
   // A message's messageId cannot be null

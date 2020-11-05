@@ -36,7 +36,10 @@ import org.apache.beam.sdk.util.WindowedValue;
  * {@link ModelEnforcement} that enforces elements are not modified over the course of processing an
  * element.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
   public static ModelEnforcementFactory create() {
     return new ImmutabilityEnforcementFactory();

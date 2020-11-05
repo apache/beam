@@ -65,7 +65,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * to a Twister2 Plan and then executing them either locally or on a Twister2 cluster, depending on
  * the configuration.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Twister2Runner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = Logger.getLogger(Twister2Runner.class.getName());
