@@ -82,16 +82,16 @@ data as JSON, and receive base64-encoded bytes.
 ReadAllFromBigQuery
 -------------------
 Beam 2.27.0 introduces a new transform called `ReadAllFromBigQuery` which
-allows you to define table and query reads from BigQuery at pipeline runtime.
+allows you to define table and query reads from BigQuery at pipeline
+runtime.:::
 
   read_requests = p | beam.Create([
       ReadFromBigQueryRequest(query='SELECT * FROM mydataset.mytable'),
       ReadFromBigQueryRequest(table='myproject.mydataset.mytable')])
-
   results = read_requests | ReadAllFromBigQuery()
 
 A good application for this transform is in streaming pipelines to
-refresh a side input coming from BigQuery. This would work like so:
+refresh a side input coming from BigQuery. This would work like so:::
 
   side_input = (
       p
@@ -100,7 +100,6 @@ refresh a side input coming from BigQuery. This would work like so:
       | 'MapToReadRequest' >> beam.Map(
           lambda x: BigQueryReadRequest(table='dataset.table'))
       | beam.io.ReadAllFromBigQuery())
-
   main_input = (
       p
       | 'MpImpulse' >> beam.Create(sample_main_input_elements)
@@ -108,11 +107,12 @@ refresh a side input coming from BigQuery. This would work like so:
       'MapMpToTimestamped' >> beam.Map(lambda src: TimestampedValue(src, src))
       | 'WindowMpInto' >> beam.WindowInto(
           window.FixedWindows(main_input_windowing_interval)))
-
   result = (
       main_input
       | 'ApplyCrossJoin' >> beam.FlatMap(
           cross_join, rights=beam.pvalue.AsIter(side_input)))
+
+**Note**: This transform is supported on Portable runners only.
 
 Writing Data to BigQuery
 ========================
