@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -53,6 +54,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineContextFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -63,6 +65,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
@@ -90,12 +93,55 @@ public class FlinkStateInternals<K> implements StateInternals {
   private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
   private final Coder<K> keyCoder;
 
+  private static class StateAndNamespaceDescriptor<T> {
+    static <T> StateAndNamespaceDescriptor<T> of(
+        StateDescriptor<?, ?> stateDescriptor, T namespace, TypeSerializer<T> namespaceSerializer) {
+      return new StateAndNamespaceDescriptor<>(stateDescriptor, namespace, namespaceSerializer);
+    }
+
+    private final StateDescriptor<?, ?> stateDescriptor;
+    private final T namespace;
+    private final TypeSerializer<T> namespaceSerializer;
+
+    private StateAndNamespaceDescriptor(
+        StateDescriptor<?, ?> stateDescriptor, T namespace, TypeSerializer<T> namespaceSerializer) {
+      this.stateDescriptor = stateDescriptor;
+      this.namespace = namespace;
+      this.namespaceSerializer = namespaceSerializer;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      StateAndNamespaceDescriptor<?> other = (StateAndNamespaceDescriptor<?>) o;
+      return Objects.equals(stateDescriptor, other.stateDescriptor);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(stateDescriptor);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("stateDescriptor", stateDescriptor)
+          .add("namespace", namespace)
+          .add("namespaceSerializer", namespaceSerializer)
+          .toString();
+    }
+  }
+
   /**
    * A set which contains all state descriptors created in the global window. Used for cleanup on
    * final watermark.
    */
-  @SuppressWarnings("unchecked")
-  private final Set<StateDescriptor> globalWindowStateDescriptors = new HashSet<>();
+  private final Set<StateAndNamespaceDescriptor<?>> globalWindowStateDescriptors = new HashSet<>();
 
   // Watermark holds for all keys/windows of this partition, allows efficient lookup of the minimum
   private final TreeMultiset<Long> watermarkHolds = TreeMultiset.create();
@@ -148,13 +194,14 @@ public class FlinkStateInternals<K> implements StateInternals {
    * and cleanup timers. Instead, the cleanup code below should be run when we finally receive the
    * max watermark.
    */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public void clearGlobalState() {
     try {
-      for (StateDescriptor stateDescriptor : globalWindowStateDescriptors) {
+      for (StateAndNamespaceDescriptor stateAndNamespace : globalWindowStateDescriptors) {
         flinkStateBackend.applyToAllKeys(
-            globalWindowNamespace.stringKey(),
-            StringSerializer.INSTANCE,
-            stateDescriptor,
+            stateAndNamespace.namespace,
+            stateAndNamespace.namespaceSerializer,
+            stateAndNamespace.stateDescriptor,
             (key, state) -> state.clear());
       }
       // Clear set to avoid repeating the cleanup
@@ -179,7 +226,10 @@ public class FlinkStateInternals<K> implements StateInternals {
         String id, StateSpec<ValueState<T2>> spec, Coder<T2> coder) {
       FlinkValueState<T2> valueState =
           new FlinkValueState<>(flinkStateBackend, id, namespace, coder, pipelineOptions);
-      collectGlobalWindowStateDescriptor(valueState.flinkStateDescriptor);
+      collectGlobalWindowStateDescriptor(
+          valueState.flinkStateDescriptor,
+          valueState.namespace.stringKey(),
+          StringSerializer.INSTANCE);
       return valueState;
     }
 
@@ -187,7 +237,8 @@ public class FlinkStateInternals<K> implements StateInternals {
     public <T2> BagState<T2> bindBag(String id, StateSpec<BagState<T2>> spec, Coder<T2> elemCoder) {
       FlinkBagState<Object, T2> bagState =
           new FlinkBagState<>(flinkStateBackend, id, namespace, elemCoder, pipelineOptions);
-      collectGlobalWindowStateDescriptor(bagState.flinkStateDescriptor);
+      collectGlobalWindowStateDescriptor(
+          bagState.flinkStateDescriptor, bagState.namespace.stringKey(), StringSerializer.INSTANCE);
       return bagState;
     }
 
@@ -195,7 +246,8 @@ public class FlinkStateInternals<K> implements StateInternals {
     public <T2> SetState<T2> bindSet(String id, StateSpec<SetState<T2>> spec, Coder<T2> elemCoder) {
       FlinkSetState<T2> setState =
           new FlinkSetState<>(flinkStateBackend, id, namespace, elemCoder, pipelineOptions);
-      collectGlobalWindowStateDescriptor(setState.flinkStateDescriptor);
+      collectGlobalWindowStateDescriptor(
+          setState.flinkStateDescriptor, setState.namespace.stringKey(), StringSerializer.INSTANCE);
       return setState;
     }
 
@@ -208,7 +260,8 @@ public class FlinkStateInternals<K> implements StateInternals {
       FlinkMapState<KeyT, ValueT> mapState =
           new FlinkMapState<>(
               flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder, pipelineOptions);
-      collectGlobalWindowStateDescriptor(mapState.flinkStateDescriptor);
+      collectGlobalWindowStateDescriptor(
+          mapState.flinkStateDescriptor, mapState.namespace.stringKey(), StringSerializer.INSTANCE);
       return mapState;
     }
 
@@ -228,7 +281,10 @@ public class FlinkStateInternals<K> implements StateInternals {
       FlinkCombiningState<Object, InputT, AccumT, OutputT> combiningState =
           new FlinkCombiningState<>(
               flinkStateBackend, id, combineFn, namespace, accumCoder, pipelineOptions);
-      collectGlobalWindowStateDescriptor(combiningState.flinkStateDescriptor);
+      collectGlobalWindowStateDescriptor(
+          combiningState.flinkStateDescriptor,
+          combiningState.namespace.stringKey(),
+          StringSerializer.INSTANCE);
       return combiningState;
     }
 
@@ -248,22 +304,28 @@ public class FlinkStateInternals<K> implements StateInternals {
               accumCoder,
               CombineContextFactory.createFromStateContext(stateContext),
               pipelineOptions);
-      collectGlobalWindowStateDescriptor(combiningStateWithContext.flinkStateDescriptor);
+      collectGlobalWindowStateDescriptor(
+          combiningStateWithContext.flinkStateDescriptor,
+          combiningStateWithContext.namespace.stringKey(),
+          StringSerializer.INSTANCE);
       return combiningStateWithContext;
     }
 
     @Override
     public WatermarkHoldState bindWatermark(
         String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
-      collectGlobalWindowStateDescriptor(watermarkHoldStateDescriptor);
+      collectGlobalWindowStateDescriptor(
+          watermarkHoldStateDescriptor, VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
       return new FlinkWatermarkHoldState(
           flinkStateBackend, watermarkHoldStateDescriptor, id, namespace, timestampCombiner);
     }
 
     /** Take note of state bound to the global window for cleanup in clearGlobalState(). */
-    private void collectGlobalWindowStateDescriptor(StateDescriptor descriptor) {
-      if (globalWindowNamespace.equals(namespace)) {
-        globalWindowStateDescriptors.add(descriptor);
+    private <T> void collectGlobalWindowStateDescriptor(
+        StateDescriptor<?, ?> descriptor, T namespaceKey, TypeSerializer<T> keySerializer) {
+      if (globalWindowNamespace.equals(namespace) || StateNamespaces.global().equals(namespace)) {
+        globalWindowStateDescriptors.add(
+            StateAndNamespaceDescriptor.of(descriptor, namespaceKey, keySerializer));
       }
     }
   }
