@@ -433,9 +433,8 @@ class DataflowRunner(PipelineRunner):
 
       @staticmethod
       def _overrides_setup_or_teardown(combinefn):
-        return (
-            combinefn.__class__.setup is not core.CombineFn.setup or
-            combinefn.__class__.teardown is not core.CombineFn.teardown)
+        # TODO(BEAM-3736): provide an implementation for this method
+        return False
 
     return CombineFnVisitor()
 

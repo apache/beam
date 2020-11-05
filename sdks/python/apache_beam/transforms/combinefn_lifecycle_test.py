@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import unittest
+from functools import wraps
 
 from nose.plugins.attrib import attr
 from parameterized import parameterized_class
@@ -34,28 +35,10 @@ from apache_beam.transforms.combinefn_lifecycle_pipeline import run_combine
 from apache_beam.transforms.combinefn_lifecycle_pipeline import run_pardo
 
 
-@attr('ValidatesRunner')
-class CombineFnLifecycleTest(unittest.TestCase):
-  def setUp(self):
-    self.pipeline = TestPipeline(is_integration_test=True)
-
-  def run_combine(self, *args, **kwargs):
-    try:
-      run_combine(*args, **kwargs)
-    except ValueError as e:
-      msg = str(e)
-      if 'CombineFn.setup and CombineFn.teardown are not supported' in msg:
-        self.skipTest(msg)
-      else:
-        raise
-
-  def test_combine(self):
-    self.run_combine(self.pipeline)
-
-  def test_non_liftable_combine(self):
-    self.run_combine(self.pipeline, lift_combiners=False)
-
-  def test_combining_value_state(self):
+def skip_unless_v2(fn):
+  @wraps(fn)
+  def wrapped(*args, **kwargs):
+    self = args[0]
     options = self.pipeline.get_pipeline_options()
     standard_options = options.view_as(StandardOptions)
     experiments = options.view_as(DebugOptions).experiments or []
@@ -63,8 +46,29 @@ class CombineFnLifecycleTest(unittest.TestCase):
     if 'DataflowRunner' in standard_options.runner and \
        'use_runner_v2' not in experiments:
       self.skipTest(
-          'This test involves user states, which are supported only '
-          'by Dataflow Runner V2')
+          'CombineFn.setup and CombineFn.teardown are not supported. '
+          'Please use Dataflow Runner V2.')
+    else:
+      return fn(*args, **kwargs)
+
+  return wrapped
+
+
+@attr('ValidatesRunner')
+class CombineFnLifecycleTest(unittest.TestCase):
+  def setUp(self):
+    self.pipeline = TestPipeline(is_integration_test=True)
+
+  @skip_unless_v2
+  def test_combine(self):
+    run_combine(self.pipeline)
+
+  @skip_unless_v2
+  def test_non_liftable_combine(self):
+    run_combine(self.pipeline, lift_combiners=False)
+
+  @skip_unless_v2
+  def test_combining_value_state(self):
     run_pardo(self.pipeline)
 
 
