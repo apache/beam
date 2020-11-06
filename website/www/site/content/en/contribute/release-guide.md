@@ -1113,7 +1113,11 @@ git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```
 
-After the tag is uploaded, publish the release notes to Github, as follows:
+After pushing the tag, the tag should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
+
+### Publish release to Github
+
+Once the tag is uploaded, publish the release notes to Github, as follows:
 
 ```
 cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
@@ -1121,6 +1125,7 @@ cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
 
 Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
 
+After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do. Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
