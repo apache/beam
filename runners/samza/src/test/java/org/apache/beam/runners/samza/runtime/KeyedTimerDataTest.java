@@ -42,7 +42,12 @@ public class KeyedTimerDataTest {
   public void testCoder() throws Exception {
     final TimerInternals.TimerData td =
         TimerInternals.TimerData.of(
-            "timer", StateNamespaces.global(), TIMESTAMP, OUTPUT_TIMESTAMP, TimeDomain.EVENT_TIME);
+            "timer",
+            "timerFamily",
+            StateNamespaces.global(),
+            TIMESTAMP,
+            OUTPUT_TIMESTAMP,
+            TimeDomain.EVENT_TIME);
 
     final String key = "timer-key";
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();

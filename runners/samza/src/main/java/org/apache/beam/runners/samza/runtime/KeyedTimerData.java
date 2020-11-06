@@ -165,6 +165,8 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       if (keyCoder != null) {
         keyCoder.encode(value.key, outStream);
       }
+
+      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
     }
 
     @Override
@@ -176,7 +178,6 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       final StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       final TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      final TimerData timer = TimerData.of(timerId, namespace, timestamp, outputTimestamp, domain);
 
       byte[] keyBytes = null;
       K key = null;
@@ -192,7 +193,10 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
         keyBytes = baos.toByteArray();
       }
 
-      return new KeyedTimerData(keyBytes, key, timer);
+      final String timerFamilyId = inStream.available() > 0 ? STRING_CODER.decode(inStream) : "";
+      final TimerData timer =
+          TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
+      return new KeyedTimerData<>(keyBytes, key, timer);
     }
 
     @Override
