@@ -339,7 +339,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         **kwargs)
     self.success = 0
     self.skipped = 0
-    self._reasons = collections.defaultdict(lambda: [])
+    self._reasons = collections.defaultdict(list)
     self._skipped_set = set()
 
   def _is_wont_implement_ok(self, example, test):
@@ -427,7 +427,7 @@ class Summary(object):
     self.failures = failures
     self.tries = tries
     self.skipped = skipped
-    self.error_reasons = error_reasons or collections.defaultdict(lambda: [])
+    self.error_reasons = error_reasons or collections.defaultdict(list)
 
   def result(self):
     res = AugmentedTestResults(self.failures, self.tries)
@@ -436,7 +436,7 @@ class Summary(object):
 
   def __add__(self, other):
     merged_reasons = {
-        key: self.error_reasons[key] + other.error_reasons[key]
+        key: self.error_reasons.get(key, []) + other.error_reasons.get(key, [])
         for key in set(self.error_reasons.keys()).union(
             other.error_reasons.keys())
     }
