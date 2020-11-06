@@ -28,7 +28,7 @@ import (
 func Expand(
 	ctx context.Context,
 	comps *pipeline_v1.Components,
-	root *pipeline_v1.PTransform,
+	transform *pipeline_v1.PTransform,
 	namespace string,
 	expansionAddr string) (*jobpb.ExpansionResponse, error) {
 	// Querying Expansion Service
@@ -36,7 +36,7 @@ func Expand(
 	// Build expansion request proto.
 	req := &jobpb.ExpansionRequest{
 		Components: comps,
-		Transform:  root,
+		Transform:  transform,
 		Namespace:  namespace,
 	}
 

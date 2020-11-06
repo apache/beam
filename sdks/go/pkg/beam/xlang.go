@@ -20,6 +20,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
@@ -89,24 +90,37 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inboun
 	// Build the ExpansionRequest
 
 	// Obtaining the components and transform proto representing this transform
+	// TODO(BEAM-11188): Move proto handling code into xlangx or graphx package.
 	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to generate proto representation of %v", ext)
 	}
 
 	transforms := p.GetComponents().GetTransforms()
-	rootTransformID := p.GetRootTransformIds()[0] // External transform is the only root transform
-	rootTransform := transforms[rootTransformID]
+
+	// Transforms consist of only External transform and composites. Composites
+	// should be removed from proto before submitting expansion request.
+	extTransformID := p.GetRootTransformIds()[0]
+	extTransform := transforms[extTransformID]
+	for extTransform.UniqueName != "External" {
+		delete(transforms, extTransformID)
+		p, err := pipelinex.Normalize(p)
+		if err != nil {
+			return nil, err
+		}
+		extTransformID = p.GetRootTransformIds()[0]
+		extTransform = transforms[extTransformID]
+	}
 
 	// Scoping the ExternalTransform with respect to it's unique namespace, thus
 	// avoiding future collisions
-	xlangx.AddNamespace(rootTransform, p.GetComponents(), ext.Namespace)
+	xlangx.AddNamespace(extTransform, p.GetComponents(), ext.Namespace)
 
 	xlangx.AddFakeImpulses(p) // Inputs need to have sources
-	delete(transforms, rootTransformID)
+	delete(transforms, extTransformID)
 
 	// Querying the expansion service
-	res, err := xlangx.Expand(context.Background(), p.GetComponents(), rootTransform, ext.Namespace, ext.ExpansionAddr)
+	res, err := xlangx.Expand(context.Background(), p.GetComponents(), extTransform, ext.Namespace, ext.ExpansionAddr)
 	if err != nil {
 		return nil, err
 	}
