@@ -131,6 +131,11 @@ read_msgpack = to_msgpack = frame_base.wont_implement_method('deprecated')
 read_hdf = to_hdf = frame_base.wont_implement_method('random access files')
 
 
+for name in dir(pd):
+  if name.startswith('read_') and name not in globals():
+    globals()[name] = frame_base.not_implemented_method(name)
+
+
 def _prefix_range_index_with(prefix, df):
   if isinstance(df.index, pd.RangeIndex):
     return df.set_index(prefix + df.index.map(str).astype(str))
