@@ -128,14 +128,15 @@ func (fn *sourceFn) Setup() {
 // tracker received. Each element is a random byte slice key and value, in the
 // form of KV<[]byte, []byte>.
 func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, emit func([]byte, []byte)) error {
+	generator := rand.New(rand.NewSource(0))
 	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
 		key := make([]byte, config.KeySize)
 		val := make([]byte, config.ValueSize)
-		generator := rand.New(rand.NewSource(i))
+		generator.Seed(i)
 		randomSample := generator.Float64()
 		if randomSample < config.HotKeyFraction {
-			generatorHot := rand.New(rand.NewSource(i % int64(config.NumHotKeys)))
-			if _, err := generatorHot.Read(key); err != nil {
+			generator.Seed(i % int64(config.NumHotKeys))
+			if _, err := generator.Read(key); err != nil {
 				return err
 			}
 		} else {
