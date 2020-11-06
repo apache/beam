@@ -45,6 +45,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
@@ -227,13 +228,13 @@ public class TestPubsub implements TestRule {
   }
 
   private Iterable<String> listSubscriptions(TopicPath topicPath) {
-    assert topicAdmin != null;
+    Preconditions.checkNotNull(topicAdmin);
     return topicAdmin.listTopicSubscriptions(topicPath.getPath()).iterateAll();
   }
 
   /** Publish messages to {@link #topicPath()}. */
   public void publish(List<PubsubMessage> messages) {
-    assert eventsTopicPath != null;
+    Preconditions.checkNotNull(eventsTopicPath);
     Publisher eventPublisher;
     try {
       eventPublisher =
@@ -274,7 +275,7 @@ public class TestPubsub implements TestRule {
    */
   public List<PubsubMessage> waitForNMessages(int n, Duration timeoutDuration)
       throws IOException, InterruptedException {
-    assert subscriptionPath != null;
+    Preconditions.checkNotNull(subscriptionPath);
 
     BlockingQueue<com.google.pubsub.v1.PubsubMessage> receivedMessages =
         new LinkedBlockingDeque<>(n);
