@@ -1145,7 +1145,8 @@ Use reporter.apache.org to seed the information about the release into future pr
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 * Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 * Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
-* Release tagged in the source code repository
+* The release is tagged on Github's [Tags](https://github.com/apache/beam/tags) page.
+* The release notes are published on Github's [Releases](https://github.com/apache/beam/releases) page.
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org
 
