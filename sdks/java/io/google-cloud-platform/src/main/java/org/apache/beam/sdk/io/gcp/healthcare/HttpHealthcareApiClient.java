@@ -225,6 +225,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public Empty deleteDicomStore(String name) throws IOException {
+    return client.projects().locations().datasets().dicomStores().delete(name).execute();
+  }
+
+  @Override
   public DicomStore createDicomStore(String dataset, String name, @Nullable String pubsubTopic)
       throws IOException {
     DicomStore store = new DicomStore();

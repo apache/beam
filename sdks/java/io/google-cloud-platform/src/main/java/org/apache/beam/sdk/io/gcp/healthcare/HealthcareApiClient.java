@@ -209,4 +209,6 @@ public interface HealthcareApiClient {
   DicomStore createDicomStore(String dataset, String name) throws IOException;
 
   DicomStore createDicomStore(String dataset, String name, String pubsubTopic) throws IOException;
+
+  Empty deleteDicomStore(String name) throws IOException;
 }

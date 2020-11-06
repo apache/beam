@@ -39,22 +39,22 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *
  * <h3>Reading Study-Level Metadata</h3>
  *
- * The study-level metadata for a dicom instance can be read with {@link ReadDicomStudyMetadata}.
+ * The study-level metadata for a dicom instance can be read with {@link ReadStudyMetadata}.
  * Retrieve the metadata of a dicom instance given its store path as a string. This will return a
- * {@link ReadDicomStudyMetadata.Result}. You can fetch the successful calls using
- * getReadResponse(), and any failed reads using getFailedReads().
+ * {@link ReadStudyMetadata.Result}. You can fetch the successful calls using getReadResponse(), and
+ * any failed reads using getFailedReads().
  *
  * <h3>Example</h3>
  *
- * {@code Pipeline p = ... String webPath = ... DicomIO.ReadDicomStudyMetadata.Result
- * readMetadataResult = p .apply(Create.of(webPath)) PCollection<String> goodRead =
+ * {@code Pipeline p = ... String webPath = ... DicomIO.ReadStudyMetadata.Result readMetadataResult
+ * = p .apply(Create.of(webPath)) PCollection<String> goodRead =
  * readMetadataResult.getReadResponse() PCollection<String> failRead =
  * readMetadataResult.getFailedReads() }
  */
 public class DicomIO {
 
-  public static ReadDicomStudyMetadata readDicomStudyMetadata() {
-    return new ReadDicomStudyMetadata();
+  public static ReadStudyMetadata readStudyMetadata() {
+    return new ReadStudyMetadata();
   }
 
   /**
@@ -64,13 +64,12 @@ public class DicomIO {
    * path and get the metadata of the specified study. You can learn how to configure PubSub
    * messages to be published when an instance is stored by following:
    * https://cloud.google.com/healthcare/docs/how-tos/pubsub. The connector will output a {@link
-   * ReadDicomStudyMetadata.Result} which will contain metadata of the study encoded as a json
-   * array.
+   * ReadStudyMetadata.Result} which will contain metadata of the study encoded as a json array.
    */
-  public static class ReadDicomStudyMetadata
-      extends PTransform<PCollection<String>, DicomIO.ReadDicomStudyMetadata.Result> {
+  public static class ReadStudyMetadata
+      extends PTransform<PCollection<String>, ReadStudyMetadata.Result> {
 
-    private ReadDicomStudyMetadata() {}
+    private ReadStudyMetadata() {}
 
     /** TupleTag for the main output. */
     public static final TupleTag<String> METADATA = new TupleTag<String>() {};
@@ -86,23 +85,22 @@ public class DicomIO {
       PCollectionTuple pct;
 
       /**
-       * Create DicomIO.ReadDicomStudyMetadata.Result from PCollectionTuple which contains the
-       * response (with METADATA and ERROR_MESSAGE tags).
+       * Create DicomIO.ReadStudyMetadata.Result from PCollectionTuple which contains the response
+       * (with METADATA and ERROR_MESSAGE tags).
        *
        * @param pct the pct
        * @return the read result
        * @throws IllegalArgumentException the illegal argument exception
        */
-      static DicomIO.ReadDicomStudyMetadata.Result of(PCollectionTuple pct)
-          throws IllegalArgumentException {
+      static ReadStudyMetadata.Result of(PCollectionTuple pct) throws IllegalArgumentException {
         if (pct.getAll()
             .keySet()
             .containsAll((Collection<?>) TupleTagList.of(METADATA).and(ERROR_MESSAGE))) {
-          return new DicomIO.ReadDicomStudyMetadata.Result(pct);
+          return new ReadStudyMetadata.Result(pct);
         } else {
           throw new IllegalArgumentException(
-              "The PCollection tuple must have the DicomIO.ReadDicomStudyMetadata.METADATA "
-                  + "and DicomIO.ReadDicomStudyMetadata.ERROR_MESSAGE tuple tags");
+              "The PCollection tuple must have the DicomIO.ReadStudyMetadata.METADATA "
+                  + "and DicomIO.ReadStudyMetadata.ERROR_MESSAGE tuple tags");
         }
       }
 
@@ -171,6 +169,7 @@ public class DicomIO {
       public void processElement(ProcessContext context) {
         String dicomWebPath = context.element();
         try {
+          // TODO Change to non-blocking async calls
           String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
           context.output(METADATA, responseData);
         } catch (Exception e) {
@@ -180,13 +179,13 @@ public class DicomIO {
     }
 
     @Override
-    public DicomIO.ReadDicomStudyMetadata.Result expand(PCollection<String> input) {
+    public ReadStudyMetadata.Result expand(PCollection<String> input) {
       return new Result(
           input.apply(
               ParDo.of(new FetchStudyMetadataFn())
                   .withOutputTags(
-                      ReadDicomStudyMetadata.METADATA,
-                      TupleTagList.of(ReadDicomStudyMetadata.ERROR_MESSAGE))));
+                      ReadStudyMetadata.METADATA,
+                      TupleTagList.of(ReadStudyMetadata.ERROR_MESSAGE))));
     }
   }
 }

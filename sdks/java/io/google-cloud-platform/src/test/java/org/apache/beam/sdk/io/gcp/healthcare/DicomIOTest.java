@@ -35,11 +35,10 @@ public class DicomIOTest {
 
   @Test
   public void test_Dicom_failedMetadataRead() {
-    //    PubsubMessage badMessage = createPubSubMessage("foo");
     String badWebPath = "foo";
 
-    DicomIO.ReadDicomStudyMetadata.Result retrievedData;
-    retrievedData = pipeline.apply(Create.of(badWebPath)).apply(DicomIO.readDicomStudyMetadata());
+    DicomIO.ReadStudyMetadata.Result retrievedData;
+    retrievedData = pipeline.apply(Create.of(badWebPath)).apply(DicomIO.readStudyMetadata());
 
     PAssert.that(retrievedData.getReadResponse()).empty();
 
