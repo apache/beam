@@ -307,14 +307,14 @@ def _agg_method(func):
 
 
 def wont_implement_method(msg):
-  def wrapper(self, *args, **kwargs):
+  def wrapper(*args, **kwargs):
     raise WontImplementError(msg)
 
   return wrapper
 
 
 def not_implemented_method(op, jira='BEAM-9547'):
-  def wrapper(self, *args, **kwargs):
+  def wrapper(*args, **kwargs):
     raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
   return wrapper
