@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import collections
 import inspect
 import math
+import re
 
 import numpy as np
 import pandas as pd
@@ -1069,23 +1070,37 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
+  def _eval_or_query(self, name, expr, inplace, **kwargs):
+    if any(key in kwargs for key in ['local_dict', 'global_dict', 'level', 'target', 'resolvers']):
+      raise NotImplementedError(f"Setting '{kw}' is not yet supported")
 
-  # TODO(BEAM-XXXX): support @<local> in eval and query. Currently fails in
-  # proxy generation
-  eval = frame_base.maybe_inplace(
-      frame_base._elementwise_method('eval',
-                                     restrictions={'local_dict': None,
-                                                   'global_dict': None,
-                                                   'level': 0,
-                                                   'target': None,
-                                                   'resolvers': None}))
-  query = frame_base.maybe_inplace(
-      frame_base._elementwise_method('query',
-                                     restrictions={'local_dict': None,
-                                                   'global_dict': None,
-                                                   'level': 0,
-                                                   'target': None,
-                                                   'resolvers': None}))
+    # look for '@<py identifier>'
+    if re.search('\@[^\d\W]\w*', expr, re.UNICODE):
+      raise NotImplementedError("Accessing locals with @ is not yet supported (BEAM-11202)")
+
+    result_expr = expressions.ComputedExpression(
+        name,
+        lambda df: getattr(df, name)(expr, **kwargs),
+        [self._expr],
+        requires_partition_by=partitionings.Nothing(),
+        preserves_partition_by=partitionings.Singleton())
+
+    if inplace:
+      self._expr = result_expr
+    else:
+      return frame_base.DeferredFrame.wrap(result_expr)
+
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def eval(self, expr, inplace, **kwargs):
+    return self._eval_or_query('eval', expr, inplace, **kwargs)
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def query(self, expr, inplace, **kwargs):
+    return self._eval_or_query('query', expr, inplace, **kwargs)
+
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
@@ -1297,8 +1312,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             #TODO(robertwb): Approximate quantiles?
             requires_partition_by=partitionings.Singleton(),
             preserves_partition_by=partitionings.Singleton()))
-
-  query = frame_base._elementwise_method('query')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.maybe_inplace

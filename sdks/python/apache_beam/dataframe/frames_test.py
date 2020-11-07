@@ -210,8 +210,22 @@ class DeferredFrameTest(unittest.TestCase):
 
   def test_dataframe_eval_query(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
-    self._run_test(lambda df: df.eval('foo = a + b -c'), df, distributed=True)
+    self._run_test(lambda df: df.eval('foo = a + b - c'), df, distributed=True)
     self._run_test(lambda df: df.query('a > b + c'), df, distributed=True)
+
+    def eval_inplace(df):
+      df.eval('foo = a + b - c', inplace=True)
+      return df.foo
+
+    self._run_test(eval_inplace, df, distributed=True)
+
+    # Verify that attempting to access locals raises a useful error
+    deferred_df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(df, df[0:0]))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.eval('foo = a + @b - c'))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
 
 class AllowNonParallelTest(unittest.TestCase):
