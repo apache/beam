@@ -318,8 +318,8 @@ def copy_and_mutate(func):
 
 def maybe_inplace(func):
   @functools.wraps(func)
-  def wrapper(self, *args, inplace=False, **kwargs):
-    result = func(self, *args, **kwargs)
+  def wrapper(self, inplace=False, **kwargs):
+    result = func(self, **kwargs)
     if inplace:
       self._expr = result._expr
     else:

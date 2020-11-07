@@ -227,7 +227,6 @@ class DeferredFrameTest(unittest.TestCase):
     self.assertRaises(
         NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
-
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
     _ = frame_base.DeferredFrame.wrap(
