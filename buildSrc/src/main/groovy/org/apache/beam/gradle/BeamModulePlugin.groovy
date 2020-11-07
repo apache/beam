@@ -808,7 +808,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.value:auto-value-annotations",
+        "com.google.auto.value:auto-value-annotations:1.7",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
@@ -1399,10 +1399,6 @@ class BeamModulePlugin implements Plugin<Project> {
         // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
         // has different dependencies than our project.
         if (config.getName() != "errorprone" && !inDependencyUpdates) {
-          if (config.getName() != "kotlinCompilerClasspath") { // TODO
-            project.dependencies.add(config.name, project.dependencies.enforcedPlatform(project.ext.library.java.google_cloud_platform_libraries_bom))
-          }
-
           config.resolutionStrategy {
             // Resolve linkage error with guava jre vs android caused by Google Cloud libraries BOM
             // https://github.com/GoogleCloudPlatform/cloud-opensource-java/wiki/The-Google-Cloud-Platform-Libraries-BOM#guava-versions--jre-or--android
@@ -1417,6 +1413,11 @@ class BeamModulePlugin implements Plugin<Project> {
             def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
             force librariesWithVersion
           }
+        }
+
+        // Add Google Cloud Libraries BOM to all java projects
+        project.dependencies {
+          compile project.dependencies.enforcedPlatform(project.ext.library.java.google_cloud_platform_libraries_bom)
         }
       }
     }
