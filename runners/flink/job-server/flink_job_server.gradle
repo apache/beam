@@ -222,10 +222,20 @@ def cleanupTask = project.tasks.create(name: "flinkJobServerCleanup", type: Exec
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
-  jobEndpoint: "localhost:${jobPort}",
   classpath: configurations.validatesPortableRunner,
   numParallelTests: 1,
-  pipelineOpts: [
+  pythonPipelineOptions: [
+    "--runner=PortableRunner",
+    "--job_endpoint=localhost:${jobPort}",
+    "--environment_cache_millis=10000",
+    "--experiments=beam_fn_api",
+    "--parallelism=2",
+  ],
+  javaPipelineOptions: [
+    "--runner=PortableRunner",
+    "--jobEndpoint=localhost:${jobPort}",
+    "--environmentCacheMillis=10000",
+    "--experiments=beam_fn_api",
     "--parallelism=2",
   ]
 )
