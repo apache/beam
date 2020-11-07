@@ -20,15 +20,20 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/grpc"
 )
 
-// Expand queries the expansion service to resolve the ExpansionRequest
+// Expand submits an external transform to be expanded by the expansion service.
+// The given transform should be the external transform, and the components are
+// any additional components necessary for the pipeline snippet.
+//
+// Users should generally call beam.CrossLanguage to access foreign transforms
+// rather than calling this function directly.
 func Expand(
 	ctx context.Context,
-	comps *pipeline_v1.Components,
-	transform *pipeline_v1.PTransform,
+	comps *pipepb.Components,
+	transform *pipepb.PTransform,
 	namespace string,
 	expansionAddr string) (*jobpb.ExpansionResponse, error) {
 	// Querying Expansion Service
