@@ -315,6 +315,7 @@ limitations under the License.
 &lt;li>&lt;a href="#deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#merge-website-pull-requests">Merge Website pull requests&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#git-tag">Git tag&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#publish-release-to-github">Publish release to Github&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#pmc-only-finalization">PMC-Only Finalization&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/a>&lt;/li>
@@ -1367,9 +1368,12 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;pre>&lt;code>VERSION_TAG=&amp;quot;v${RELEASE}&amp;quot;
 git tag -s &amp;quot;$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
 git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
-&lt;/code>&lt;/pre>&lt;p>After the tag is uploaded, publish the release notes to Github, as follows:&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>After pushing the tag, the tag should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/tags">Tags&lt;/a> page.&lt;/p>
+&lt;h3 id="publish-release-to-github">Publish release to Github&lt;/h3>
+&lt;p>Once the tag is uploaded, publish the release notes to Github, as follows:&lt;/p>
 &lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./publish_github_release_notes.sh
 &lt;/code>&lt;/pre>&lt;p>Note this script reads the release notes from the blog post, so you should make sure to run this from master &lt;em>after&lt;/em> merging the blog post PR.&lt;/p>
+&lt;p>After running the script, the release notes should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/releases">Releases&lt;/a> page.&lt;/p>
 &lt;h3 id="pmc-only-finalization">PMC-Only Finalization&lt;/h3>
 &lt;p>There are a few release finalization tasks that only PMC members have permissions to do. Ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assistance if you need it.&lt;/p>
 &lt;h4 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/h4>
@@ -1385,7 +1389,8 @@ git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
 &lt;li>Source distribution available in the release repository of &lt;a href="https://dist.apache.org/repos/dist/release/beam/">dist.apache.org&lt;/a>&lt;/li>
 &lt;li>Source distribution removed from the dev repository of &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org&lt;/a>&lt;/li>
 &lt;li>Website pull request to &lt;a href="/get-started/downloads/">list the release&lt;/a> and publish the &lt;a href="https://beam.apache.org/releases/javadoc/">API reference manual&lt;/a> merged&lt;/li>
-&lt;li>Release tagged in the source code repository&lt;/li>
+&lt;li>The release is tagged on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/tags">Tags&lt;/a> page.&lt;/li>
+&lt;li>The release notes are published on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/releases">Releases&lt;/a> page.&lt;/li>
 &lt;li>Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)&lt;/li>
 &lt;li>Release version is listed at reporter.apache.org&lt;/li>
 &lt;/ul>
