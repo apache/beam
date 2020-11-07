@@ -47,6 +47,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
@@ -227,9 +228,12 @@ public class TestPubsub implements TestRule {
     return subscriptionPath;
   }
 
-  private Iterable<String> listSubscriptions(TopicPath topicPath) {
+  private List<String> listSubscriptions(TopicPath topicPath) {
     Preconditions.checkNotNull(topicAdmin);
-    return topicAdmin.listTopicSubscriptions(topicPath.getPath()).iterateAll();
+    // Exclude subscriptionPath, the subscription that we created
+    return Streams.stream(topicAdmin.listTopicSubscriptions(topicPath.getPath()).iterateAll())
+        .filter((path) -> !path.equals(subscriptionPath.getPath()))
+        .collect(Collectors.toList());
   }
 
   /** Publish messages to {@link #topicPath()}. */
