@@ -57,22 +57,19 @@
 {{ end }}
 
 {{ define "pillars-section" }}
-  <div class="pillars section">
-    <div class="pillars__title">
+  <div class="pillars">
+    <h2 class="pillars-title">
       {{ T "home-pillars-title" }}
-    </div>
-    <div class="pillars__cols">
+    </h2>
+    <div class="pillars-content">
       {{ $data := index $.Site.Data .Site.Language.Lang }}
       {{ range $pillar := $data.pillars }}
-      <div class="pillars__cols__col">
-        <div class="pillars__cols__col__title">
-          {{ $pillar.title }}
-        </div>
-        <div class="pillars__cols__col__body">
-          {{ $pillar.body }}
-        </div>
-      </div>
+          {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
       {{ end }}
+    </div>
+    <div class="pillars-social">
+      {{ $pillar_social_text := T "home-pillars-social-text" }}
+      {{ partial "pillars/pillars-social" (dict "github" "icons/github-icon.svg" "youtube" "icons/youtube-icon.svg" "twitter" "icons/twitter-icon.svg" "text" $pillar_social_text) }}
     </div>
   </div>
 {{ end }}
