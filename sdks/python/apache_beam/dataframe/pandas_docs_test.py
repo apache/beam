@@ -40,6 +40,9 @@ PANDAS_DIR = os.path.expanduser("~/.apache_beam/cache/pandas-" + PANDAS_VERSION)
 PANDAS_DOCS_SOURCE = os.path.join(PANDAS_DIR, 'doc', 'source')
 
 
+parallelism = None
+
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', '--parallel', type=int, default=0)
