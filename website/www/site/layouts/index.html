@@ -89,6 +89,66 @@
   </div>
 {{ end }}
 
+{{ define "calendar-section" }}
+  <div class="calendar">
+    <h2 class="calendar-title">
+      {{ T "home-calendar-title" }}
+    </h2>
+    <div class="calendar-content">
+      <a href="#">
+        <div class="calendar-card-big calendar-card-big-left">
+            <div class="calendar-category">
+              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-first" }}</p>
+              <p class="calendar-category-date">{{ T "home-calendar-category-date-first" }}</p>
+            </div>
+            <h4 class="calendar-card-big-title">
+              {{ T "home-calendar-card-title-first" }}
+            </h4>
+            <p class="calendar-card-author">{{ T "home-calendar-card-author-first" }}</p>
+        </div>
+      </a>
+      <div class="calendar-card-box">
+        <a href="#">
+          <div class="calendar-card-small">
+            <div class="calendar-category">
+              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-second" }}</p>
+              <p class="calendar-category-date">{{ T "home-calendar-category-date-second" }}</p>
+            </div>
+            <h4 class="calendar-card-small-title">
+              {{ T "home-calendar-card-title-second" }}
+            </h4>
+            <p class="calendar-card-author">{{ T "home-calendar-card-author-second" }}</p>
+          </div>
+        </a>
+        <a href="#">
+          <div class="calendar-card-small">
+            <div class="calendar-category">
+              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-third" }}</p>
+              <p class="calendar-category-date">{{ T "home-calendar-category-date-third" }}</p>
+            </div>
+            <h4 class="calendar-card-small-title">
+              {{ T "home-calendar-card-title-third" }}
+            </h4>
+            <p class="calendar-card-author">{{ T "home-calendar-card-author-third" }}</p>
+          </div>
+        </a>
+      </div>
+      <div class="calendar-card-big calendar-card-big-right">
+        <p class="calendar-card-event-title">{{ T "home-calendar-card-events-title" }}</p>
+        <div class="calendar-card-events">
+          {{ $data := index $.Site.Data .Site.Language.Lang }}
+          {{ range $event := $data.calendar_events }}
+              {{ partial "calendar/calendar-events" (dict "icon" $event.icon  "title" $event.title "place" $event.place "time" $event.time "url" $event.url) }}
+          {{ end }}
+        </div>
+        <a href="">
+          <button class="calendar-card-events-button"><span>{{ T "home-calendar-card-events-button" }}</span></button>
+        </a>
+      </div>
+    </div>
+  </div>
+{{ end }}
+
 {{ define "logos-section" }}
   <div class="logos section">
     <div class="logos__title">
