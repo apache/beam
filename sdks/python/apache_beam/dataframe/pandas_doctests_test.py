@@ -103,9 +103,6 @@ class DoctestTest(unittest.TestCase):
                 'df.dot(s2)',
             ],
 
-            # element-wise
-            'pandas.core.frame.DataFrame.eval': ['*'],
-
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
             # Difficult to determine proxy, need to inspect function
