@@ -1076,8 +1076,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         raise NotImplementedError(f"Setting '{key}' is not yet supported")
 
     # look for '@<py identifier>'
-    if re.search('\@[^\d\W]\w*', expr, re.UNICODE):
-      raise NotImplementedError("Accessing locals with @ is not yet supported (BEAM-11202)")
+    if re.search(r'\@[^\d\W]\w*', expr, re.UNICODE):
+      raise NotImplementedError("Accessing locals with @ is not yet supported "
+                                "(BEAM-11202)")
 
     result_expr = expressions.ComputedExpression(
         name,
