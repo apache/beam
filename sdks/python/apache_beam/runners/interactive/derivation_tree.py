@@ -33,27 +33,24 @@ class DerivationTree:
   pipeline can only have one parent user pipeline. A user pipeline can have many
   derived pipelines.
   """
-  class Node:
-    """Object to track the relationship between user to derived pipelines."""
-    def __init__(self):
-      self.user_pipeline = None
-      self.derived_pipelines = set()
-
   def __init__(self):
-    self._tree = {}
+    self._user_pipelines = set()
+    self._derived_pipelines = {}
     self._pid_to_pipelines = {}
 
   def __iter__(self):
     """Iterates through all the user pipelines."""
-    for n in self._tree.values():
-      yield n.user_pipeline
+    for p in self._user_pipelines:
+      yield p
 
   def _key(self, pipeline):
     return str(id(pipeline))
 
   def clear(self):
     """Clears the tree of all user and derived pipelines."""
-    self._tree.clear()
+    self._user_pipelines.clear()
+    self._derived_pipelines.clear()
+    self._pid_to_pipelines.clear()
 
   def get_pipeline(self, pid):
     """Returns the pipeline corresponding to the given pipeline id."""
@@ -69,9 +66,7 @@ class DerivationTree:
     user_pipeline = self.get_user_pipeline(p)
     if not user_pipeline:
       user_pipeline = p
-      node = DerivationTree.Node()
-      node.user_pipeline = p
-      self._tree[self._key(p)] = node
+      self._user_pipelines.add(p)
 
     return user_pipeline
 
@@ -104,14 +99,17 @@ class DerivationTree:
     self._memoize_pipieline(maybe_user_pipeline)
     self._memoize_pipieline(derived_pipeline)
 
+    # Cannot add a derived pipeline into the tree twice.
+    if derived_pipeline in self._derived_pipelines:
+      return
+
     # Get the "true" user pipeline. This allows for the user to derive a
     # pipeline from another derived pipeline, use both as arguments, and this
     # method will still get the correct user pipeline.
     user = self.add_user_pipeline(maybe_user_pipeline)
 
-    # Add the derived pipeline to the user pipeline.
-    node = self._tree[self._key(user)]
-    node.derived_pipelines.add(derived_pipeline)
+    # Map the derived pipeline to the user pipeline.
+    self._derived_pipelines[derived_pipeline] = user
 
   def get_user_pipeline(self, p):
     """Returns the user pipeline of the given pipeline.
@@ -123,14 +121,12 @@ class DerivationTree:
     """
 
     # If `p` is a user pipeline then return it.
-    pid = self._key(p)
-    if pid in self._tree:
+    if p in self._user_pipelines:
       return p
 
     # If `p` is in the tree then return its user pipeline.
-    for n in self._tree.values():
-      if p in n.derived_pipelines:
-        return n.user_pipeline
+    if p in self._derived_pipelines:
+      return self._derived_pipelines[p]
 
     # Otherwise, `p` is not in the tree.
     return None
