@@ -165,6 +165,7 @@ task javaPostCommit() {
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
   dependsOn ":sdks:java:io:kinesis:integrationTest"
   dependsOn ":javaHadoopVersionsTest"
+  dependsOn ":sdks:java:io:kafka:kafkaVersionsCompatibilityTest"
 }
 
 task javaHadoopVersionsTest() {
