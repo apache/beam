@@ -1071,8 +1071,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=requires_partition_by))
 
   def _eval_or_query(self, name, expr, inplace, **kwargs):
-    if any(key in kwargs for key in ['local_dict', 'global_dict', 'level', 'target', 'resolvers']):
-      raise NotImplementedError(f"Setting '{kw}' is not yet supported")
+    for key in ('local_dict', 'global_dict', 'level', 'target', 'resolvers'):
+      if key in kwargs:
+        raise NotImplementedError(f"Setting '{key}' is not yet supported")
 
     # look for '@<py identifier>'
     if re.search('\@[^\d\W]\w*', expr, re.UNICODE):
