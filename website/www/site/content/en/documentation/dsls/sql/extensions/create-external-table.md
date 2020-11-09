@@ -305,7 +305,7 @@ TBLPROPERTIES '{
     "bootstrap.servers":"localhost:9092",
     "topics": ["topic1", "topic2"],
     "format": "avro"
-    [, "protoClass": "com.example.ExampleMessage" ]*
+    [, "protoClass": "com.example.ExampleMessage" ]
 }'
 ```
 
