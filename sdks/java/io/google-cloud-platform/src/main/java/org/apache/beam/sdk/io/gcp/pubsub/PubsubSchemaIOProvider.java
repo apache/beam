@@ -90,7 +90,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubSchemaIOProvider implements SchemaIOProvider {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType TIMESTAMP = FieldType.DATETIME;

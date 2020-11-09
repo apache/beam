@@ -43,7 +43,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * Helper for keeping track of which {@link DataStream DataStreams} map to which {@link PTransform
  * PTransforms}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlinkStreamingTranslationContext {
 
   private final StreamExecutionEnvironment env;
@@ -115,7 +117,7 @@ class FlinkStreamingTranslationContext {
         WindowedValue.getFullCoder(
             valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
 
-    return new CoderTypeInformation<>(windowedValueCoder);
+    return new CoderTypeInformation<>(windowedValueCoder, options);
   }
 
   public AppliedPTransform<?, ?, ?> getCurrentTransform() {

@@ -24,7 +24,9 @@ import org.apache.beam.sdk.state.TimeDomain;
  * {@link RepeatedlyStateMachine#forever} and {@link AfterWatermarkStateMachine#pastEndOfWindow} for
  * more details.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DefaultTriggerStateMachine extends TriggerStateMachine {
 
   private DefaultTriggerStateMachine() {
@@ -37,6 +39,9 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {}
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     // If the end of the window has already been reached, then we are already ready to fire
     // and do not need to set a wake-up timer.
@@ -46,6 +51,9 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+  @Override
   public void onMerge(OnMergeContext c) throws Exception {
     // If the end of the window has already been reached, then we are already ready to fire
     // and do not need to set a wake-up timer.
@@ -53,6 +61,9 @@ public class DefaultTriggerStateMachine extends TriggerStateMachine {
       c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     }
   }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {}
 
   @Override
   public void clear(TriggerContext c) throws Exception {}

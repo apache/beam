@@ -73,7 +73,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link LengthPrefixUnknownCoders}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LengthPrefixUnknownCodersTest {
   private static final Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
       WindowedValue.getFullCoder(

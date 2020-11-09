@@ -39,7 +39,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** A fake implementation of BigQuery's query service.. */
 @Internal
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
   private DatasetService datasetService;

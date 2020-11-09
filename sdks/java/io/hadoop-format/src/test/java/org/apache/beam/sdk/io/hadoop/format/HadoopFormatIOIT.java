@@ -90,7 +90,9 @@ import org.postgresql.ds.PGSimpleDataSource;
  * performance testing framework.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFormatIOIT {
 
   private static final String NAMESPACE = HadoopFormatIOIT.class.getName();

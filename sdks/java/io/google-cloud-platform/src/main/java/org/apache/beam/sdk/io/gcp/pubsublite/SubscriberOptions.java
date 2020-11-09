@@ -41,7 +41,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options needed for a Pub/Sub Lite Subscriber. */
 @AutoValue
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class SubscriberOptions implements Serializable {
   private static final long serialVersionUID = 269598118L;
 

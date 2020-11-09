@@ -37,7 +37,9 @@ import org.slf4j.LoggerFactory;
  * be found, returns the empty string.
  */
 @VisibleForTesting
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultGcpRegionFactory.class);
 

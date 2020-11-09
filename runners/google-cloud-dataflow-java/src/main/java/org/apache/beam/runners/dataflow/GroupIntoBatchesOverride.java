@@ -34,6 +34,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class GroupIntoBatchesOverride {
 
   static class BatchGroupIntoBatchesOverrideFactory<K, V>

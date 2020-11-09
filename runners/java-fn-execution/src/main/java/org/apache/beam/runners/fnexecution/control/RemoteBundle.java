@@ -30,6 +30,9 @@ import org.apache.beam.sdk.values.KV;
  * <p>When a RemoteBundle is closed, it will block until bundle processing is finished on remote
  * resources, and throw an exception if bundle processing has failed.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface RemoteBundle extends AutoCloseable {
   /** Get an id used to represent this bundle. */
   String getId();

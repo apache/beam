@@ -293,7 +293,9 @@ import org.slf4j.LoggerFactory;
  * of configuration file</a>.
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class KinesisIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisIO.class);

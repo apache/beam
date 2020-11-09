@@ -48,7 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  *
  * @param <T> element type
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class ValueAndCoderLazySerializable<T> implements Serializable {
   private T value;
   // Re-use a field to save space in-memory. This is either a byte[] or a Coder, depending on

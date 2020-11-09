@@ -30,7 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * create a map of named aggregators and instantiate in the the spark context before the job is
  * launched. We can then add aggregators on the fly in Spark.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NamedAggregators implements Serializable {
   /** Map from aggregator name to current state. */
   private final Map<String, State<?, ?, ?>> mNamedAggregators = new TreeMap<>();

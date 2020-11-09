@@ -65,7 +65,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @see <a href= "http://docs.oracle.com/javase/tutorial/essential/io/pathOps.html" >Java Tutorials:
  *     Path Operations</a>
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GcsPath implements Path, Serializable {
 
   public static final String SCHEME = "gs";

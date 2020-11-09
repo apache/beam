@@ -43,7 +43,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Helper methods to select subrows out of rows. */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class SelectHelpers {
 
   private static Schema union(Iterable<Schema> schemas) {

@@ -56,6 +56,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Coder} {@link CloudObjectTranslator Cloud Object Translators}.
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DefaultCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
   private static final List<CloudObjectTranslator<? extends Coder>> DEFAULT_TRANSLATORS =

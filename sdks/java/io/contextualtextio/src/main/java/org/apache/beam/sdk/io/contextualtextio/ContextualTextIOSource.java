@@ -51,7 +51,9 @@ import org.slf4j.LoggerFactory;
  * representing the beginning of the first record to be decoded.
  */
 @VisibleForTesting
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ContextualTextIOSource extends FileBasedSource<Row> {
   byte[] delimiter;
 

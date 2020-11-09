@@ -53,7 +53,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Unit tests for {@link RowJson.RowJsonDeserializer} and {@link RowJson.RowJsonSerializer}. */
 @RunWith(Enclosed.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RowJsonTest {
   @RunWith(Parameterized.class)
   public static class ValueTests {

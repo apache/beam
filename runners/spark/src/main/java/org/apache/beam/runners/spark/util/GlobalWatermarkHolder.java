@@ -55,7 +55,10 @@ import scala.reflect.ClassTag;
  * <p>For each source, holds a queue for the watermarks of each micro-batch that was read, and
  * advances the watermarks according to the queue (first-in-first-out).
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GlobalWatermarkHolder {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlobalWatermarkHolder.class);

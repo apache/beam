@@ -35,7 +35,9 @@ import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam.runners.direct}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectRunnerApiSurfaceTest {
   @Test
   public void testDirectRunnerApiSurface() throws Exception {
@@ -63,6 +65,7 @@ public class DirectRunnerApiSurfaceTest {
                 WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");

@@ -31,7 +31,9 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link BigQuerySourceBase} for reading BigQuery tables. */
 @VisibleForTesting
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSource.class);
 

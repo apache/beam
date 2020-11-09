@@ -31,7 +31,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * videos found on GCS based on URIs from input PCollection.
  */
 @Experimental
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class AnnotateVideoFromURIFn extends AnnotateVideoFn<String> {
 
   public AnnotateVideoFromURIFn(

@@ -114,7 +114,11 @@ import org.slf4j.LoggerFactory;
  * href="http://www.oracle.com/technetwork/java/javase/documentation/spec-136004.html">JavaBeans
  * specification</a> for more details as to what constitutes a property.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "keyfor",
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class PipelineOptionsFactory {
   /**
    * Creates and returns an object that implements {@link PipelineOptions}. This sets the {@link
@@ -1899,7 +1903,10 @@ public class PipelineOptionsFactory {
 
       // Validate that the local view of the class is well formed.
       if (!interfaceCache.containsKey(iface)) {
-        @SuppressWarnings({"rawtypes", "unchecked"})
+        @SuppressWarnings({
+          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+          "unchecked"
+        })
         Class<T> proxyClass =
             (Class<T>)
                 Proxy.getProxyClass(ReflectHelpers.findClassLoader(iface), new Class[] {iface});

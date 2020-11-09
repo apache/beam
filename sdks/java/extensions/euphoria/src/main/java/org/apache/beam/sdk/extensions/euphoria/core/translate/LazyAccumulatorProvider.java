@@ -26,7 +26,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogra
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 
 /** Instantiate accumulator provider on the first usage. Thus {@link Serializable}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
 
   private final Factory factory;

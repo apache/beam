@@ -32,7 +32,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.impl.Ref
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ReflectUtil;
 
 /** Beam-customized version from {@link ReflectiveFunctionBase}, to address BEAM-5921. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class UdfImplReflectiveFunctionBase implements Function {
   /** Method that implements the function. */
   public final Method method;

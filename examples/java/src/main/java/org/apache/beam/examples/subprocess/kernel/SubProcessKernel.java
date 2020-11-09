@@ -33,7 +33,9 @@ import org.slf4j.LoggerFactory;
 /**
  * This is the process kernel which deals with exec of the subprocess. It also deals with all I/O.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SubProcessKernel {
 
   private static final Logger LOG = LoggerFactory.getLogger(SubProcessKernel.class);

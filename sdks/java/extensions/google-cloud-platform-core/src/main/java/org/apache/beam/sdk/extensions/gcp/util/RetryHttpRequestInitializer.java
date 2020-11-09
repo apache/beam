@@ -44,7 +44,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Also can take an HttpResponseInterceptor to be applied to the responses.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private static final Logger LOG = LoggerFactory.getLogger(RetryHttpRequestInitializer.class);

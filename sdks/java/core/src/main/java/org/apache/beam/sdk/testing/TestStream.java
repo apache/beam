@@ -66,6 +66,9 @@ import org.joda.time.Instant;
  * the {@link Pipeline}. A {@link PipelineRunner} must ensure that no more progress can be made in
  * the {@link Pipeline} before advancing the state of the {@link TestStream}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final List<Event<T>> events;
   private final Coder<T> coder;

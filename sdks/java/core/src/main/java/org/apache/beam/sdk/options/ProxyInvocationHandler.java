@@ -89,7 +89,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * PipelineOptions#as(Class)}.
  */
 @ThreadSafe
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ProxyInvocationHandler implements InvocationHandler, Serializable {
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code.

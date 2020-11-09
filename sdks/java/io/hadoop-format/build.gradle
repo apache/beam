@@ -20,17 +20,21 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker:false,
-  ignoreRawtypeErrors:true,
-  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format')
+  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
 
+configurations {
+  hadoopVersion285
+}
+
 def log4j_version = "2.6.2"
 def elastic_search_version = "7.9.2"
+def hadoop_285_version = '2.8.5'
 
 configurations.create("sparkRunner")
 configurations.sparkRunner {
@@ -95,6 +99,18 @@ dependencies {
   sparkRunner project(":sdks:java:io:hadoop-file-system")
   sparkRunner library.java.spark_streaming
   sparkRunner library.java.spark_core
+
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+  hadoopVersion285 "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+  hadoopVersion285 "org.apache.hadoop:hadoop-hdfs:$hadoop_285_version"
+}
+
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+    force "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+    force "org.apache.hadoop:hadoop-hdfs:$hadoop_285_version"
+  }
 }
 
 // The cassandra.yaml file currently assumes "target/..." exists.
@@ -140,4 +156,11 @@ task hadoopFormatIOElasticTest(type: Test) {
   testClassesDirs = sourceSets.test.output.classesDirs
   include '**/HadoopFormatIOElasticIT.class'
   useJUnit { }
+}
+
+task hadoopVersion285Test(type: Test) {
+  dependsOn createTargetDirectoryForCassandra
+  description = "Runs Hadoop format tests with Hadoop version $hadoop_285_version"
+  outputs.upToDateWhen { false }
+  include '**/*Test.class'
 }

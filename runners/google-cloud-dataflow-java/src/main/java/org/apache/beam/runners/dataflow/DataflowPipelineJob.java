@@ -53,7 +53,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A DataflowPipelineJob represents a job submitted to Dataflow using {@link DataflowRunner}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowPipelineJob implements PipelineResult {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineJob.class);

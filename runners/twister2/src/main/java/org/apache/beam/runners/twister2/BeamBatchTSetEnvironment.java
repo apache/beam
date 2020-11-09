@@ -26,7 +26,9 @@ import edu.iu.dsc.tws.tset.env.BatchTSetEnvironment;
  * expects. This will be used to develop the TSet graph corresponding to the Beam Pipeline which
  * will later be injected into the correct TSetEnvironment one submitted.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamBatchTSetEnvironment extends BatchTSetEnvironment {
 
   public BeamBatchTSetEnvironment() {

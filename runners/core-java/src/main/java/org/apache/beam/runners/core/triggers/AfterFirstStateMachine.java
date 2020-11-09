@@ -28,7 +28,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Create a composite {@link TriggerStateMachine} that fires once after at least one of its
  * sub-triggers have fired.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AfterFirstStateMachine extends TriggerStateMachine {
 
   AfterFirstStateMachine(List<TriggerStateMachine> subTriggers) {
@@ -47,9 +49,23 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnElement(c.forTrigger(subTrigger));
+    }
+  }
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
       subTrigger.invokeOnElement(c);
+    }
+  }
+
+  @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnMerge(c.forTrigger(subTrigger));
     }
   }
 
@@ -59,6 +75,13 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
       subTrigger.invokeOnMerge(c);
     }
     updateFinishedStatus(c);
+  }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchShouldFire(c.forTrigger(subTrigger));
+    }
   }
 
   @Override

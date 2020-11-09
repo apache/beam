@@ -32,7 +32,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result of {@link WinningBids} transform. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AuctionBid implements KnownSize, Serializable {
   public static final Coder<AuctionBid> CODER =
       new CustomCoder<AuctionBid>() {

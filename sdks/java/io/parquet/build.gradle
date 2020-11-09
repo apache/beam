@@ -18,13 +18,17 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker: false,
-  ignoreRawtypeErrors:true,
-  automaticModuleName: 'org.apache.beam.sdk.io.parquet')
+  automaticModuleName: 'org.apache.beam.sdk.io.parquet',
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
 ext.summary = "IO to read and write on Parquet storage format."
 
+configurations {
+  hadoopVersion285
+}
+
+def hadoop_285_version = '2.8.5'
 def parquet_version = "1.10.0"
 
 dependencies {
@@ -43,4 +47,16 @@ dependencies {
   testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersion285 "org.apache.hadoop:hadoop-client:$hadoop_285_version"
+}
+
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-client:$hadoop_285_version"
+  }
+}
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs Parquet tests with Hadoop version $hadoop_285_version"
+  include '**/*Test.class'
 }

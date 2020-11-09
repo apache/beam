@@ -78,6 +78,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link ParDoTranslation}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ParDoTranslationTest {
 
   /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */

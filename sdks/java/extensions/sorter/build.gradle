@@ -18,10 +18,15 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  ignoreRawtypeErrors:true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sorter')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
+
+configurations {
+  hadoopVersion285
+}
+
+def hadoop_285_version = '2.8.5'
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -33,4 +38,18 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+  hadoopVersion285 "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+}
+
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+    force "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+  }
+}
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs Sorter tests with Hadoop version $hadoop_285_version"
+  include '**/*Test.class'
 }

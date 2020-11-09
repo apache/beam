@@ -41,7 +41,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for PipelineResources. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PipelineResourcesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();

@@ -33,7 +33,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * key instead of only a name+namespace. This is useful when defining system defined metrics with a
  * specific urn via a {@code CounterContainer}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MonitoringInfoMetricName extends MetricName {
 
   private String urn;

@@ -31,7 +31,9 @@ import org.junit.runners.JUnit4;
 
 /** A set of unit tests for {@link MutationSizeEstimator}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MutationSizeEstimatorTest {
 
   @Test

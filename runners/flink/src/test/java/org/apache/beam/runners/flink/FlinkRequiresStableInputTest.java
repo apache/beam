@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -56,7 +55,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests {@link DoFn.RequiresStableInput} with Flink. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkRequiresStableInputTest {
 
   @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -123,7 +124,7 @@ public class FlinkRequiresStableInputTest {
    */
   @Test(timeout = 30_000)
   public void testParDoRequiresStableInput() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setParallelism(1);
     // We only want to trigger external savepoints but we require
     // checkpointing to be enabled for @RequiresStableInput

@@ -32,7 +32,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /** Utilities for working with NEXmark data stream. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NexmarkQueryUtil {
   // Do not instantiate
   private NexmarkQueryUtil() {}

@@ -53,7 +53,9 @@ import org.joda.time.Instant;
 @Internal
 @Experimental
 @AutoValue
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>, PCollectionTuple>
     implements Serializable {
   static final String TIMESTAMP_FIELD = "event_timestamp";

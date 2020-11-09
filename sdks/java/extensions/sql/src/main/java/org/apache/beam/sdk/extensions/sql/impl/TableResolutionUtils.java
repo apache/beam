@@ -35,7 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utils to wire up the custom table resolution into Calcite's planner. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class TableResolutionUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TableResolutionUtils.class);

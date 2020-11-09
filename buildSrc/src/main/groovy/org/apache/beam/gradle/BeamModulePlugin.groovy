@@ -89,11 +89,17 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
-    /** Controls whether the checker framework plugin is enabled and configured. */
-    boolean enableChecker = true
+    /** Regexes matching generated classes which should not receive extended type checking. */
+    List<String> generatedClassPatterns = []
 
-    /** Controls whether legacy rawtype usage is allowed. */
-    boolean ignoreRawtypeErrors = false
+    /** Classes triggering Checker failures. A map from class name to the bug filed against checkerframework. */
+    Map<String, String> classesTriggerCheckerBugs = [:]
+
+    /**
+     Some module's tests take a very long time to compile with checkerframework.
+     Until that is solved, set this flag to skip checking for those tests.
+     */
+    boolean checkerTooSlowOnTests = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
@@ -171,6 +177,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
+
+    /**
+     * Regexes matching generated Java classes which should not receive extended type checking.
+     *
+     * By default, skips anything in the `org.apache.beam.model` namespace.
+     */
+    List<String> generatedClassPatterns = [
+      "^org\\.apache\\.beam\\.model.*"
+    ]
 
     /**
      * Automatic-Module-Name Header value to be set in MANFIEST.MF file.
@@ -327,7 +342,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.26.0'
+    project.version = '2.27.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -396,13 +411,14 @@ class BeamModulePlugin implements Plugin<Project> {
     def classgraph_version = "4.8.65"
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.5"
+    def google_cloud_pubsub_version = "1.108.6"
     def google_cloud_pubsublite_version = "0.4.1"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.32.2"
     def guava_version = "30.0-jre"
-    def hadoop_version = "2.8.5"
+    def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def jackson_version = "2.10.2"
@@ -488,6 +504,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
+        google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub:$google_cloud_pubsub_version",
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite:$google_cloud_pubsublite_version",
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
         // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/12.0.0/artifact_details.html
@@ -718,15 +735,13 @@ class BeamModulePlugin implements Plugin<Project> {
         'varargs',
       ]
 
-      if (configuration.ignoreRawtypeErrors) {
-        defaultLintSuppressions.add("rawtypes")
-      }
-
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
-        options.compilerArgs -= ["-Xlint:deprecation"]
+        options.compilerArgs -= [
+          "-Xlint:deprecation",
+        ]
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
@@ -769,23 +784,31 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
-      // Most of our modules have null errors. Once they are fixed, we can
-      // set enableChecker=true in the build.gradle. Until then, we can pass -PenableChecker to
-      // find a few errors and fix them.
-      if (configuration.enableChecker) {
-        project.apply plugin: 'org.checkerframework'
+      List<String> skipDefRegexes = []
+      skipDefRegexes << "AutoValue_.*"
+      skipDefRegexes << "AutoOneOf_.*"
+      skipDefRegexes += configuration.generatedClassPatterns
+      skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
+      String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
-        project.checkerFramework {
-          checkers = [
-            'org.checkerframework.checker.nullness.NullnessChecker'
-          ]
-          extraJavacArgs = [
-            '-AskipDefs=AutoValue_.*'
-          ]
-        }
+      project.apply plugin: 'org.checkerframework'
+      project.checkerFramework {
+        checkers = [
+          'org.checkerframework.checker.nullness.NullnessChecker'
+        ]
+
+        excludeTests = configuration.checkerTooSlowOnTests
+
+        extraJavacArgs = [
+          "-AskipDefs=${skipDefCombinedRegex}",
+          "-AsuppressWarnings=annotation.not.completed",
+        ]
 
         project.dependencies {
           checkerFramework("org.checkerframework:checker:$checkerframework_version")
+        }
+        project.configurations.all {
+          it.exclude(group:"org.checkerframework", module:"jdk8")
         }
       }
 
@@ -1700,8 +1723,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.applyJavaNature(
           exportJavadoc: false,
           enableSpotbugs: false,
-          enableChecker: false,
           publish: configuration.publish,
+          generatedClassPatterns: configuration.generatedClassPatterns,
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,

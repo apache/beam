@@ -60,7 +60,9 @@ import org.slf4j.LoggerFactory;
  * Base class for all load tests. Provides common operations such as initializing source/step
  * options, creating a pipeline, etc.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LoadTest.class);

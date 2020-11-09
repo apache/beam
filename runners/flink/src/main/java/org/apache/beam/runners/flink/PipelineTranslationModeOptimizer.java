@@ -31,7 +31,10 @@ import org.slf4j.LoggerFactory;
  * Traverses the Pipeline to determine the translation mode (i.e. streaming or batch) for this
  * pipeline.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationModeOptimizer.class);

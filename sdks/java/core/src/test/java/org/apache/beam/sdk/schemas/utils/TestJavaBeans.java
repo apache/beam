@@ -35,7 +35,9 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** Various Java Beans and associated schemas used in tests. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestJavaBeans {
   /** A Bean containing one nullable and one non-nullable type. */
   @DefaultSchema(JavaBeanSchema.class)

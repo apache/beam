@@ -23,11 +23,16 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
+  generatedClassPatterns: [
+    /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
+    /^org\.apache\.beam\.sdk\.extensions\.sql\.meta\.provider\.kafka\.KafkaMessages/,
+  ],
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann'])
+  disableLintWarnings: ['dep-ann', 'rawtypes'],
+)
+
+applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
@@ -38,7 +43,10 @@ configurations {
   // TODO: Migrate to a FMPP plugin once one exists
   fmppTask
   fmppTemplates
+  hadoopVersion285
 }
+
+def hadoop_285_version = '2.8.5'
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -74,6 +82,13 @@ dependencies {
   testCompile library.java.testcontainers_kafka
   testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
   testRuntimeClasspath library.java.slf4j_jdk14
+  hadoopVersion285 "org.apache.hadoop:hadoop-client:$hadoop_285_version"
+}
+
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-client:$hadoop_285_version"
+  }
 }
 
 // Copy Calcite templates and our own template into the build directory
@@ -150,8 +165,17 @@ task runPojoExample(type: JavaExec) {
   args = ["--runner=DirectRunner"]
 }
 
+// These tests become flaky when run in parallel at more than 3 threads so run them in a separate task
+task runKafkaTableProviderIT(type: Test) {
+  outputs.upToDateWhen { false }
+  include '**/KafkaTableProvider*IT.class'
+  maxParallelForks 2
+  classpath = project(":sdks:java:extensions:sql").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task integrationTest(type: Test) {
-  group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
@@ -166,6 +190,7 @@ task integrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
+  exclude '**/KafkaTableProvider*IT.class'
 
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
@@ -179,5 +204,11 @@ task integrationTest(type: Test) {
 task postCommit {
   group = "Verification"
   description = "Various integration tests"
+  dependsOn runKafkaTableProviderIT
   dependsOn integrationTest
+}
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs SQL tests with Hadoop version $hadoop_285_version"
+  include '**/*Test.class'
 }

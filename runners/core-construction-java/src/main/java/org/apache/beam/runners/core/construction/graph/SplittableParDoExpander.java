@@ -42,7 +42,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * href="https://github.com/apache/beam/blob/cb15994d5228f729dda922419b08520c8be8804e/model/pipeline/src/main/proto/beam_runner_api.proto#L279"
  * />
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SplittableParDoExpander {
 
   /**
