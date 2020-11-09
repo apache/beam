@@ -87,7 +87,7 @@ func (p *Pipeline) String() string {
 	return p.real.String()
 }
 
-// PipelineResult is the result of beamx.RunPipelineWithMetrics.
+// PipelineResult is the result of beamx.RunWithMetrics.
 type PipelineResult interface {
 	Metrics() metrics.MetricResults
 }

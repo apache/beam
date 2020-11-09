@@ -44,9 +44,9 @@ func Run(ctx context.Context, p *beam.Pipeline) error {
 	return err
 }
 
-// RunPipelineWithMetrics invokes beam.Run with the runner supplied by the
+// RunWithMetrics invokes beam.Run with the runner supplied by the
 // flag "runner". Returns a beam.PipelineResult objects, which can be
 // accessed to query the pipeline's metrics.
-func RunPipelineWithMetrics(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
+func RunWithMetrics(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	return beam.Run(ctx, *runner, p)
 }

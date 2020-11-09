@@ -82,7 +82,7 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 		r := bytes.NewReader(minfo.GetPayload())
 
 		if IsCounter(minfo) {
-			value, err := extractCounterResult(r)
+			value, err := extractCounterValue(r)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -113,11 +113,11 @@ func mergeCounters(attempted map[MetricKey]int64, committed map[MetricKey]int64)
 	res := make([]CounterResult, 0)
 
 	for k := range attempted {
-		if v, ok := committed[k]; ok {
-			res = append(res, CounterResult{Attempted: attempted[k], Committed: v, Key: k})
-		} else {
-			res = append(res, CounterResult{Attempted: attempted[k], Committed: -1, Key: k})
+		v, ok := committed[k]
+		if !ok {
+			v = -1
 		}
+		res = append(res, CounterResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
 	return res
 }
@@ -126,11 +126,11 @@ func mergeDistributions(attempted map[MetricKey]DistributionValue, committed map
 	res := make([]DistributionResult, 0)
 
 	for k := range attempted {
-		if v, ok := committed[k]; ok {
-			res = append(res, DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
-		} else {
-			res = append(res, DistributionResult{Attempted: attempted[k], Committed: DistributionValue{}, Key: k})
+		v, ok := committed[k]
+		if !ok {
+			v = DistributionValue{}
 		}
+		res = append(res, DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
 	return res
 }
@@ -139,11 +139,11 @@ func mergeGauges(attempted map[MetricKey]GaugeValue, committed map[MetricKey]Gau
 	res := make([]GaugeResult, 0)
 
 	for k := range attempted {
-		if v, ok := committed[k]; ok {
-			res = append(res, GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
-		} else {
-			res = append(res, GaugeResult{Attempted: attempted[k], Committed: GaugeValue{}, Key: k})
+		v, ok := committed[k]
+		if !ok {
+			v = GaugeValue{}
 		}
+		res = append(res, GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
 	return res
 }
@@ -157,7 +157,7 @@ func extractKey(mi *pipepb.MonitoringInfo) (MetricKey, error) {
 	return MetricKey{stepName, labels.Name(), labels.Namespace()}, nil
 }
 
-func extractCounterResult(reader *bytes.Reader) (int64, error) {
+func extractCounterValue(reader *bytes.Reader) (int64, error) {
 	value, err := coder.DecodeVarInt(reader)
 	if err != nil {
 		return -1, err
@@ -178,11 +178,7 @@ func extractGaugeValue(reader *bytes.Reader) (GaugeValue, error) {
 	if err != nil {
 		return GaugeValue{}, err
 	}
-	var (
-		sec int64 = values[0] / 1000
-		ns  int64 = (values[0] % 1000) * 1000
-	)
-	return GaugeValue{Timestamp: time.Unix(sec, ns), Value: values[1]}, nil
+	return GaugeValue{Timestamp: time.Unix(0, values[0]*int64(time.Millisecond)), Value: values[1]}, nil
 }
 
 func newLabels(miLabels map[string]string) *Labels {
