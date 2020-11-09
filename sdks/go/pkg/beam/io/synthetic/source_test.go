@@ -16,6 +16,7 @@
 package synthetic
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 )
@@ -157,6 +158,52 @@ func TestSourceConfig_BuildFromJSON(t *testing.T) {
 			got := DefaultSourceConfig().BuildFromJSON([]byte(test.jsonData))
 			if got != test.want {
 				t.Errorf("Invalid SourceConfig: got: %#v, want: %#v", got, test.want)
+			}
+		})
+	}
+}
+
+// TestSourceConfig_NumHotKeys tests that setting the number of hot keys
+// for a synthetic source works correctly.
+func TestSourceConfigBuilder_NumHotKeys(t *testing.T) {
+	tests := []struct {
+		elms    int
+		hotKeys int
+	}{
+		{elms: 15, hotKeys: 2},
+		{elms: 30, hotKeys: 10},
+		{elms: 50, hotKeys: 25},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(fmt.Sprintf("(elm = %v)", test.hotKeys), func(t *testing.T) {
+			dfn := sourceFn{}
+			cfg := DefaultSourceConfig()
+			cfg.NumElements(test.elms)
+			cfg.HotKeyFraction(1.0)
+			cfg.NumHotKeys(test.hotKeys)
+
+			keys, _, err := simulateSourceFn(t, &dfn, cfg.Build())
+			if err != nil {
+				t.Errorf("Failure processing sourceFn: %v", err)
+			}
+
+			m := make(map[string]int)
+			for _, key := range keys {
+				encoded := hex.EncodeToString(key)
+				m[encoded]++
+			}
+
+			numOfHotKeys := 0
+			for _, element := range m {
+				if element > 1 {
+					numOfHotKeys += 1
+				}
+			}
+
+			if numOfHotKeys != test.hotKeys {
+				t.Errorf("SourceFn emitted wrong number of hot keys: got: %v, want: %v",
+					numOfHotKeys, test.hotKeys)
 			}
 		})
 	}
