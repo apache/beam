@@ -18,8 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker:false,
-  automaticModuleName: 'org.apache.beam.sdk.io.jdbc')
+  automaticModuleName: 'org.apache.beam.sdk.io.jdbc',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

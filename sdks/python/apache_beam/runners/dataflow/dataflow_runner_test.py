@@ -758,7 +758,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
 
   @unittest.skip('BEAM-3736: enable once CombineFnVisitor is fixed')
-  def test_unsupported_combinefn_fail(self):
+  def test_unsupported_combinefn_detection(self):
     class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
       def setup(self, *args, **kwargs):
         pass
@@ -775,6 +775,17 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         _ = (
             p | beam.Create([1])
             | beam.CombineGlobally(CombinerWithNonDefaultSetupTeardown()))
+
+    try:
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(
+                combiners.SingleInputTupleCombineFn(
+                    combiners.CountCombineFn(), combiners.CountCombineFn())))
+    except ValueError:
+      self.fail('ValueError raised unexpectedly')
 
 
 class CustomMergingWindowFn(window.WindowFn):

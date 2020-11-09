@@ -50,7 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
   private final boolean useTimestampAttribute;
   private final PayloadFormat payloadFormat;
-  @Nullable private final Schema payloadSchema;
+  private final @Nullable Schema payloadSchema;
 
   private RowToPubsubMessage(
       boolean useTimestampAttribute, PayloadFormat payloadFormat, @Nullable Schema schema) {

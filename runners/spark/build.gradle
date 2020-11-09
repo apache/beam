@@ -21,8 +21,12 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.spark',
-  enableChecker: false,
-  )
+  classesTriggerCheckerBugs: [
+    'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
+    'SparkCombineFn': 'https://github.com/typetools/checker-framework/issues/3793',
+    'WindowingHelpers': 'https://github.com/typetools/checker-framework/issues/3793',
+  ],
+)
 
 description = "Apache Beam :: Runners :: Spark"
 

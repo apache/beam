@@ -18,8 +18,22 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker: false,
-  automaticModuleName: 'org.apache.beam.runners.core.construction')
+  classesTriggerCheckerBugs: [
+    'WindowIntoTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'FlattenTranslator': 'https://github.com/typetools/checker-framework/issues/3791',
+    'WriteFilesTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'CreatePCollectionViewTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ReshuffleTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'TestStreamTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ImpulseTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'CombineTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'SplittableParDo': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ReadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'GroupByKeyTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ParDoTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
+  automaticModuleName: 'org.apache.beam.runners.core.construction',
+)
 
 description = "Apache Beam :: Runners :: Core Construction Java"
 ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline

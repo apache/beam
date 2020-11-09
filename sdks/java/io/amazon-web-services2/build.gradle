@@ -20,8 +20,8 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker: false,
-  automaticModuleName: 'org.apache.beam.sdk.io.aws2')
+  automaticModuleName: 'org.apache.beam.sdk.io.aws2',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

@@ -294,6 +294,22 @@ message StandardPTransforms {
     //
     // Payload: WindowingStrategy#window_fn FunctionSpec
     MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
+
+    // A transform that translates a given element to its human-readable
+    // representation.
+    // 
+    // Input: KV<nonce, element>
+    // Output: KV<nonce, string>
+    // 
+    // For each given element, the implementation returns the best-effort
+    // human-readable representation. When possible, the implementation could
+    // call a user-overridable method on the type. For example, Java could
+    // call `toString()`, Python could call `str()`, Golang could call
+    // `String()`.  The nonce is used by a runner to associate each input with
+    // its output. The nonce is represented as an opaque set of bytes.
+    //
+    // Payload: none
+    TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.

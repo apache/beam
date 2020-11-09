@@ -23,10 +23,15 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
-  enableChecker: false,
+  generatedClassPatterns: [
+    /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
+    /^org\.apache\.beam\.sdk\.extensions\.sql\.meta\.provider\.kafka\.KafkaMessages/,
+  ],
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann', 'rawtypes'])
+  disableLintWarnings: ['dep-ann', 'rawtypes'],
+)
+
 applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
