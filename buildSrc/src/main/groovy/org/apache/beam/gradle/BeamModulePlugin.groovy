@@ -1327,6 +1327,13 @@ class BeamModulePlugin implements Plugin<Project> {
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')
                   def dependencyManagementDependencies = dependencyManagementNode.appendNode('dependencies')
+                  // Resolve linkage error with guava jre vs android caused by Google Cloud libraries BOM
+                  // https://github.com/GoogleCloudPlatform/cloud-opensource-java/wiki/The-Google-Cloud-Platform-Libraries-BOM#guava-versions--jre-or--android
+                  def guavaDependencyNode = dependencyManagementDependencies.appendNode('dependency')
+                  guavaDependencyNode.appendNode('groupId', 'com.google.guava')
+                  guavaDependencyNode.appendNode('artifactId', 'guava')
+                  guavaDependencyNode.appendNode('version', "$guava_version")
+
                   boms.each {
                     def dependencyNode = dependencyManagementDependencies.appendNode('dependency')
                     dependencyNode.appendNode('groupId', it.group)
