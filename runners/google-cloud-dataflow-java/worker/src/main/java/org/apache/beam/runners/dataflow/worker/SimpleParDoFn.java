@@ -71,6 +71,10 @@ import org.slf4j.LoggerFactory;
  * <p>Subclasses override just a method to provide a {@link DoFnInfo} for the wrapped {@link
  * GroupAlsoByWindowFn}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   // TODO: Remove once Distributions has shipped.
   @VisibleForTesting
@@ -518,8 +522,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
    * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
    * finished.
    */
-  @Nullable
   @VisibleForTesting
+  @Nullable
   DoFnInfo<?, ?> getDoFnInfo() {
     return fnInfo;
   }

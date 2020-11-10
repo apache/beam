@@ -21,7 +21,10 @@ import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.PreparedExpression;
 import com.google.zetasql.Value;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.IntFunction;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
@@ -51,12 +54,16 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
   private static final SqlDialect DIALECT = BeamBigQuerySqlDialect.DEFAULT;
@@ -144,6 +151,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final String defaultTimezone;
     private final boolean verifyRowValues;
     private transient PreparedExpression exp;
+    private transient List<Integer> referencedColumns;
+    private transient PreparedExpression.Stream stream;
 
     CalcFn(
         String sql,
@@ -172,20 +181,34 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
       exp = new PreparedExpression(sql);
       exp.prepare(options);
+
+      ImmutableList.Builder<Integer> columns = new ImmutableList.Builder<>();
+      for (String c : exp.getReferencedColumns()) {
+        columns.add(Integer.parseInt(c.substring(1)));
+      }
+      referencedColumns = columns.build();
+
+      stream = exp.stream();
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) throws InterruptedException {
       Map<String, Value> columns = new HashMap<>();
       Row row = c.element();
-      for (int i = 0; i < inputSchema.getFieldCount(); i++) {
+      for (int i : referencedColumns) {
         columns.put(
             columnName(i),
             ZetaSqlBeamTranslationUtils.toZetaSqlValue(
                 row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
-      Value v = exp.execute(columns, nullParams);
+      final Future<Value> vf = stream.execute(columns, nullParams);
+      final Value v;
+      try {
+        v = vf.get();
+      } catch (ExecutionException e) {
+        throw (RuntimeException) e.getCause();
+      }
       if (!v.isNull()) {
         Row outputRow = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
         c.output(outputRow);
@@ -194,6 +217,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
     @Teardown
     public void teardown() {
+      stream.close();
       exp.close();
     }
   }

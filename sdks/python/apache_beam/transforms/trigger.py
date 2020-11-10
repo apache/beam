@@ -128,11 +128,13 @@ class _CombiningValueStateTag(_StateTag):
 
   def without_extraction(self):
     class NoExtractionCombineFn(core.CombineFn):
+      setup = self.combine_fn.setup
       create_accumulator = self.combine_fn.create_accumulator
       add_input = self.combine_fn.add_input
       merge_accumulators = self.combine_fn.merge_accumulators
       compact = self.combine_fn.compact
       extract_output = staticmethod(lambda x: x)
+      teardown = self.combine_fn.teardown
 
     return _CombiningValueStateTag(self.tag, NoExtractionCombineFn())
 
@@ -661,8 +663,7 @@ class Repeatedly(TriggerFn):
     return self.underlying.has_ontime_pane()
 
 
-class _ParallelTriggerFn(with_metaclass(ABCMeta,
-                                        TriggerFn)):  # type: ignore[misc]
+class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # type: ignore[misc]
   def __init__(self, *triggers):
     self.triggers = triggers
 

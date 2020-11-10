@@ -134,6 +134,10 @@ import org.joda.time.Duration;
  * <p>See {@link Trigger} for details on the available triggers.
  */
 @AutoValue
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /**

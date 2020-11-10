@@ -117,6 +117,10 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  * </ul>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SnsIO {
 
   // Write data to SNS (synchronous)

@@ -61,6 +61,7 @@ from past.builtins import long
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.utils import windowed_value
+from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
@@ -975,12 +976,13 @@ class SequenceCoderImpl(StreamCoderImpl):
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self,
-               elem_coder,  # type: CoderImpl
-               read_state=None,  # type: Optional[IterableStateReader]
-               write_state=None,  # type: Optional[IterableStateWriter]
-               write_state_threshold=0  # type: int
-              ):
+  def __init__(
+      self,
+      elem_coder,  # type: CoderImpl
+      read_state=None,  # type: Optional[IterableStateReader]
+      write_state=None,  # type: Optional[IterableStateWriter]
+      write_state_threshold=0  # type: int
+  ):
     self._elem_coder = elem_coder
     self._read_state = read_state
     self._write_state = write_state
@@ -1268,8 +1270,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(
         value,
-        # Avoid creation of Timestamp object.
-        timestamp,
+        timestamp,  # Avoid creation of Timestamp object.
         windows,
         pane_info)
 
@@ -1365,3 +1366,37 @@ class LengthPrefixCoderImpl(StreamCoderImpl):
     # type: (Any, bool) -> int
     value_size = self._value_coder.estimate_size(value)
     return get_varint_size(value_size) + value_size
+
+
+class ShardedKeyCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for sharded user keys.
+
+  The encoding and decoding should follow the order:
+      shard id byte string
+      encoded user key
+  """
+  def __init__(self, key_coder_impl):
+    self._shard_id_coder_impl = BytesCoderImpl()
+    self._key_coder_impl = key_coder_impl
+
+  def encode_to_stream(self, value, out, nested):
+    # type: (ShardedKey, create_OutputStream, bool) -> None
+    self._shard_id_coder_impl.encode_to_stream(value._shard_id, out, True)
+    self._key_coder_impl.encode_to_stream(value.key, out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> ShardedKey
+    shard_id = self._shard_id_coder_impl.decode_from_stream(in_stream, True)
+    key = self._key_coder_impl.decode_from_stream(in_stream, True)
+    return ShardedKey(key=key, shard_id=shard_id)
+
+  def estimate_size(self, value, nested=False):
+    # type: (Any, bool) -> int
+    estimated_size = 0
+    estimated_size += (
+        self._shard_id_coder_impl.estimate_size(value._shard_id, nested=True))
+    estimated_size += (
+        self._key_coder_impl.estimate_size(value.key, nested=True))
+    return estimated_size

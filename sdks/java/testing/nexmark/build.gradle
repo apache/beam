@@ -18,11 +18,9 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-    enableChecker:false,
-    ignoreRawtypeErrors: true,
     automaticModuleName: 'org.apache.beam.sdk.nexmark',
     exportJavadoc: false,
-    archivesBaseName: 'beam-sdks-java-nexmark'
+    archivesBaseName: 'beam-sdks-java-nexmark',
 )
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"

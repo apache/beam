@@ -35,6 +35,9 @@ import org.slf4j.LoggerFactory;
  * minute expiration timeout and the reader will be closed if it is not used within this period.
  */
 @ThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReaderCache.class);

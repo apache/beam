@@ -62,6 +62,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BatchSideInputHandlerFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BatchSideInputHandlerFactoryTest {
 
   private static final String TRANSFORM_ID = "transform-id";

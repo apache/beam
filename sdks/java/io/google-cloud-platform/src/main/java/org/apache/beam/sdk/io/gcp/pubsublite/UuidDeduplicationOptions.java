@@ -30,6 +30,9 @@ import org.joda.time.Duration;
 
 /** Options for deduplicating Pub/Sub Lite messages based on the UUID they were published with. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class UuidDeduplicationOptions implements Serializable {
   private static final long serialVersionUID = 9837489720893L;
 

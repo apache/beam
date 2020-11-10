@@ -96,7 +96,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		descriptors: make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
 		plans:       make(map[bundleDescriptorID][]*exec.Plan),
 		active:      make(map[instructionID]*exec.Plan),
-		inactive:    make(map[instructionID]struct{}),
+		inactive:    newCircleBuffer(),
 		failed:      make(map[instructionID]error),
 		data:        &DataChannelManager{},
 		state:       &StateChannelManager{},
@@ -144,7 +144,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			// to be processed. This prevents race conditions with split
 			// or progress requests for this instruction.
 			ctrl.mu.Lock()
-			ctrl.inactive[instructionID(req.GetInstructionId())] = struct{}{}
+			ctrl.inactive.Add(instructionID(req.GetInstructionId()))
 			ctrl.mu.Unlock()
 			// Only process bundles in a goroutine. We at least need to process instructions for
 			// each plan serially. Perhaps just invoke plan.Execute async?
@@ -158,6 +158,58 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 type bundleDescriptorID string
 type instructionID string
 
+const circleBufferCap = 1000
+
+// circleBuffer is an ordered eviction buffer
+type circleBuffer struct {
+	buf map[instructionID]struct{}
+	// order that instructions should be removed from the buf map.
+	// treated like a circular buffer with nextRemove as the pointer.
+	removeQueue [circleBufferCap]instructionID
+	nextRemove  int
+}
+
+func newCircleBuffer() circleBuffer {
+	return circleBuffer{buf: map[instructionID]struct{}{}}
+}
+
+// Add the instruction to the buffer without including it in the remove queue.
+func (c *circleBuffer) Add(instID instructionID) {
+	c.buf[instID] = struct{}{}
+}
+
+// Remove deletes the value from the map.
+func (c *circleBuffer) Remove(instID instructionID) {
+	delete(c.buf, instID)
+}
+
+// Insert adds an instruction to the buffer, and removes one if necessary.
+// If one is removed, it's returned so the instruction can be GCd from other
+// maps.
+func (c *circleBuffer) Insert(instID instructionID) (removed instructionID, ok bool) {
+	// check if we need to evict something, and then do so.
+	if len(c.buf) >= len(c.removeQueue) {
+		removed = c.removeQueue[c.nextRemove]
+		delete(c.buf, removed)
+		ok = true
+	}
+	// nextRemove is now free, add the current instruction to the set.
+	c.removeQueue[c.nextRemove] = instID
+	c.buf[instID] = struct{}{}
+	// increment and wrap around.
+	c.nextRemove++
+	if c.nextRemove >= len(c.removeQueue) {
+		c.nextRemove = 0
+	}
+	return removed, ok
+}
+
+// Contains returns whether the buffer contains the given instruction.
+func (c *circleBuffer) Contains(instID instructionID) bool {
+	_, ok := c.buf[instID]
+	return ok
+}
+
 type control struct {
 	lookupDesc  func(bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error)
 	descriptors map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor // protected by mu
@@ -168,11 +220,7 @@ type control struct {
 	active map[instructionID]*exec.Plan // protected by mu
 	// a plan that's either about to start or has finished recently
 	// instructions in this queue should return empty responses to control messages.
-	inactive map[instructionID]struct{} // protected by mu
-	// order that instructions should be removed from the inactive map.
-	// treated like a circular buffer with nextRemove as the pointer.
-	removeQueue [1000]instructionID // protected by mu
-	nextRemove  int                 // protected by mu
+	inactive circleBuffer // protected by mu
 	// plans that have failed during execution
 	failed map[instructionID]error // protected by mu
 	mu     sync.Mutex
@@ -243,7 +291,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		// Make the plan active.
 		c.mu.Lock()
-		delete(c.inactive, instID)
+		c.inactive.Remove(instID)
 		c.active[instID] = plan
 		c.mu.Unlock()
 
@@ -267,19 +315,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.plans[bdID] = append(c.plans[bdID], plan)
 		delete(c.active, instID)
 
-		// check if we need to evict something, and then do so.
-		if len(c.inactive) >= len(c.removeQueue) {
-			toRemove := c.removeQueue[c.nextRemove]
-			delete(c.inactive, toRemove)
-			delete(c.failed, toRemove) // Also GC old failed bundles.
-		}
-		// nextRemove is now free, add the current instruction to the set.
-		c.removeQueue[c.nextRemove] = instID
-		c.inactive[instID] = struct{}{}
-		// increment and wrap around.
-		c.nextRemove++
-		if c.nextRemove > len(c.removeQueue) {
-			c.nextRemove = 0
+		if removed, ok := c.inactive.Insert(instID); ok {
+			delete(c.failed, removed) // Also GC old failed bundles.
 		}
 		c.mu.Unlock()
 
@@ -398,12 +435,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				},
 			},
 		}
-	case req.GetProcessBundleProgressMetadata() != nil:
-		msg := req.GetProcessBundleProgressMetadata()
+	case req.GetMonitoringInfos() != nil:
+		msg := req.GetMonitoringInfos()
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
-			Response: &fnpb.InstructionResponse_ProcessBundleProgressMetadata{
-				ProcessBundleProgressMetadata: &fnpb.ProcessBundleProgressMetadataResponse{
+			Response: &fnpb.InstructionResponse_MonitoringInfos{
+				MonitoringInfos: &fnpb.MonitoringInfosMetadataResponse{
 					MonitoringInfo: shortIdsToInfos(msg.GetMonitoringInfoId()),
 				},
 			},
@@ -432,7 +469,7 @@ func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, re
 		return nil, fail(ctx, instID, "failed to return %v: instruction %v failed: %v", kind, ref, err)
 	}
 	if !ok {
-		if _, ok := c.inactive[ref]; ok {
+		if c.inactive.Contains(ref) {
 			return nil, nil
 		}
 		return nil, fail(ctx, instID, "failed to return %v: instruction %v not active", kind, ref)

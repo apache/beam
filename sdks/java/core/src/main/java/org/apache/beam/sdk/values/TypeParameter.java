@@ -34,6 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * }
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class TypeParameter<T> {
   final TypeVariable<?> typeVariable;
 

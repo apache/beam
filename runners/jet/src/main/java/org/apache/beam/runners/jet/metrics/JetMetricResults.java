@@ -38,6 +38,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Jet specific {@link MetricResults}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JetMetricResults extends MetricResults {
 
   @GuardedBy("this")

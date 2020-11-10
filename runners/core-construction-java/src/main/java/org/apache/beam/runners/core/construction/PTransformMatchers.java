@@ -48,6 +48,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Once {@link PTransform PTransforms} have URNs, this will be removed and replaced with a
  * UrnPTransformMatcher.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class PTransformMatchers {
 
   private PTransformMatchers() {}

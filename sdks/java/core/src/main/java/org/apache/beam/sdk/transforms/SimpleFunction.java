@@ -26,6 +26,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * allow us to infer type information, which in turn aids {@link org.apache.beam.sdk.coders.Coder
  * Coder} inference.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class SimpleFunction<InputT, OutputT> extends InferableFunction<InputT, OutputT>
     implements SerializableFunction<InputT, OutputT> {
 

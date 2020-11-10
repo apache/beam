@@ -74,6 +74,10 @@ import org.slf4j.LoggerFactory;
  * coder. The coder's tags are determined by the output coder map. The resulting data set should be
  * further processed by a {@link FlinkExecutableStagePruningFunction}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     implements MapPartitionFunction<WindowedValue<InputT>, RawUnionValue>,
         GroupReduceFunction<WindowedValue<InputT>, RawUnionValue> {

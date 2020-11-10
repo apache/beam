@@ -31,6 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard
  * serialization mechanisms.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SerializableConfiguration implements Externalizable {
   private static final long serialVersionUID = 0L;
 

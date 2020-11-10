@@ -52,6 +52,14 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
 
 
+class DummyCoder(coders.Coder):
+  def encode(self, x):
+    raise ValueError
+
+  def decode(self, x):
+    return (x * 2).decode('utf-8')
+
+
 class EOL(object):
   LF = 1
   CRLF = 2
@@ -537,12 +545,6 @@ class TextSourceTest(unittest.TestCase):
       assert_that(pcoll, equal_to(expected_data))
 
   def test_read_from_text_single_file_with_coder(self):
-    class DummyCoder(coders.Coder):
-      def encode(self, x):
-        raise ValueError
-
-      def decode(self, x):
-        return (x * 2).decode('utf-8')
 
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5

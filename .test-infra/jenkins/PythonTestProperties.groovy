@@ -15,14 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.proto.SequencedMessage;
-import io.grpc.StatusException;
-import java.util.List;
-
-/** A PullSubscriber exposes a "pull" mechanism for retrieving messages. */
-interface PullSubscriber extends AutoCloseable {
-  /** Pull currently available messages from this subscriber. Does not block. */
-  List<SequencedMessage> pull() throws StatusException;
+class PythonTestProperties {
+  final static String LOAD_TEST_PYTHON_VERSION = '3.7'
 }

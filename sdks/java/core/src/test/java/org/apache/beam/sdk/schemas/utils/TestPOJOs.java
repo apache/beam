@@ -36,6 +36,9 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** Various Java POJOs and associated schemas used in tests. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestPOJOs {
   /** A POJO containing one nullable and one non-nullable type. */
   @DefaultSchema(JavaFieldSchema.class)
@@ -910,7 +913,7 @@ public class TestPOJOs {
   /** A simple POJO containing nullable basic types. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NullablePOJO {
-    @Nullable public String str;
+    public @Nullable String str;
     public @Nullable Byte aByte;
     public @Nullable Short aShort;
     public @Nullable Integer anInt;

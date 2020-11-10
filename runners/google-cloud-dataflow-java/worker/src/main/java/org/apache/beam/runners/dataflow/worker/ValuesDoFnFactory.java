@@ -35,6 +35,9 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link ParDoFnFactory} which returns a {@link ParDoFn} with similar behavior to {@link
  * org.apache.beam.sdk.transforms.Values#create()}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ValuesDoFnFactory implements ParDoFnFactory {
 
   @Override

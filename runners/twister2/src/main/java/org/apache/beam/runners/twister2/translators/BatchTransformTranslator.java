@@ -21,6 +21,9 @@ import org.apache.beam.runners.twister2.Twister2BatchTranslationContext;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /** Batch TransformTranslator interface. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface BatchTransformTranslator<TransformT extends PTransform> {
   void translateNode(TransformT transform, Twister2BatchTranslationContext context);
 }

@@ -18,9 +18,13 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker: false,
-  ignoreRawtypeErrors:true,
-  automaticModuleName: 'org.apache.beam.sdk.io.kudu')
+  classesTriggerCheckerBugs: [
+    'KuduTestUtils': 'TODO: file a bug report',
+    'KuduIOIT': 'TODO: file a bug report',
+  ],
+  automaticModuleName: 'org.apache.beam.sdk.io.kudu'
+)
+
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

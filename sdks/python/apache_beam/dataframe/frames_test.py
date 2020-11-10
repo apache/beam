@@ -77,6 +77,17 @@ class DeferredFrameTest(unittest.TestCase):
     })
     self._run_test(new_column, df)
 
+  def test_set_column_from_index(self):
+    def new_column(df):
+      df['NewCol'] = df.index
+      return df
+
+    df = pd.DataFrame({
+        'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
+        'Speed': [380., 370., 24., 26.]
+    })
+    self._run_test(new_column, df)
+
   def test_groupby(self):
     df = pd.DataFrame({'group': ['a', 'a', 'a', 'b'], 'value': [1, 2, 3, 5]})
     self._run_test(lambda df: df.groupby('group').agg(sum), df)
@@ -110,6 +121,27 @@ class DeferredFrameTest(unittest.TestCase):
           sort_values(['value_left', 'value_right']),
           df1,
           df2)
+
+  def test_series_getitem(self):
+    s = pd.Series([x**2 for x in range(10)])
+    self._run_test(lambda s: s[...], s, distributed=True)
+    self._run_test(lambda s: s[:], s, distributed=True)
+    self._run_test(lambda s: s[s < 10], s, distributed=True)
+    self._run_test(lambda s: s[lambda s: s < 10], s, distributed=True)
+
+    s.index = s.index.map(float)
+    self._run_test(lambda s: s[1.5:6], s, distributed=True)
+
+  def test_dataframe_getitem(self):
+    df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
+    self._run_test(lambda df: df['A'], df, distributed=True)
+    self._run_test(lambda df: df[['A', 'B']], df, distributed=True)
+
+    self._run_test(lambda df: df[:], df, distributed=True)
+    self._run_test(lambda df: df[df.A < 10], df, distributed=True)
+
+    df.index = df.index.map(float)
+    self._run_test(lambda df: df[1.5:4], df, distributed=True)
 
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
@@ -170,6 +202,41 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.corr(min_periods=12).round(8), df, distributed=True)
     self._run_test(
         lambda df: df.cov(min_periods=12).round(8), df, distributed=True)
+    self._run_test(lambda df: df.corrwith(df.a).round(8), df, distributed=True)
+    self._run_test(
+        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8),
+        df,
+        distributed=True)
+
+  def test_categorical_groupby(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+    df['B'] = df['B'].astype(pd.CategoricalDtype(list('cab')))
+    df = df.set_index('B')
+    # TODO(BEAM-11190): These aggregations can be done in index partitions, but
+    # it will require a little more complex logic
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.groupby(level=0).sum(), df, distributed=True)
+      self._run_test(
+          lambda df: df.groupby(level=0).mean(), df, distributed=True)
+
+  def test_dataframe_eval_query(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df: df.eval('foo = a + b - c'), df, distributed=True)
+    self._run_test(lambda df: df.query('a > b + c'), df, distributed=True)
+
+    def eval_inplace(df):
+      df.eval('foo = a + b - c', inplace=True)
+      return df.foo
+
+    self._run_test(eval_inplace, df, distributed=True)
+
+    # Verify that attempting to access locals raises a useful error
+    deferred_df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(df, df[0:0]))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.eval('foo = a + @b - c'))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
 
 class AllowNonParallelTest(unittest.TestCase):

@@ -17,11 +17,16 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
 
+configurations {
+  hadoopVersion285
+}
+
+def hadoop_285_version = '2.8.5'
 def hive_version = "2.1.0"
 
 test {
@@ -68,5 +73,16 @@ dependencies {
   testCompile "org.apache.hive:hive-common:$hive_version"
   testCompile "org.apache.hive:hive-cli:$hive_version"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$hadoop_285_version"
 }
 
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+  }
+}
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs HCatalog tests with Hadoop version $hadoop_285_version"
+  include '**/*Test.class'
+}

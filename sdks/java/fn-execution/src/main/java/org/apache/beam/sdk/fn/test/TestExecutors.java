@@ -29,6 +29,9 @@ import org.junit.runners.model.Statement;
  * A {@link TestRule} that validates that all submitted tasks finished and were completed. This
  * allows for testing that tasks have exercised the appropriate shutdown logic.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestExecutors {
   public static TestExecutorService from(final ExecutorService staticExecutorService) {
     return from(() -> staticExecutorService);

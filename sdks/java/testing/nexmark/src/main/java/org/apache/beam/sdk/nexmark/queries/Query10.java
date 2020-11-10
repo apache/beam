@@ -59,6 +59,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Every windowSizeSec, save all events from the last period into 2*maxWorkers log files.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Query10 extends NexmarkQueryTransform<Done> {
   private static final Logger LOG = LoggerFactory.getLogger(Query10.class);
   private static final int NUM_SHARDS_PER_WORKER = 5;

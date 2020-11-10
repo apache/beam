@@ -36,6 +36,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** UnitTest for {@link InMemoryMetaStore}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InMemoryMetaStoreTest {
   private InMemoryMetaStore store;
 

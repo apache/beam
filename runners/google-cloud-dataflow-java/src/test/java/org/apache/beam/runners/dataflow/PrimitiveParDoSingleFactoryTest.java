@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
@@ -70,8 +71,8 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         application =
             AppliedPTransform.of(
                 "original",
-                input.expand(),
-                input.apply(originalTransform).expand(),
+                PValues.expandInput(input),
+                PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
                 pipeline);
 
@@ -107,8 +108,8 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         application =
             AppliedPTransform.of(
                 "original",
-                input.expand(),
-                input.apply(originalTransform).expand(),
+                PValues.expandInput(input),
+                PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
                 pipeline);
 
@@ -129,8 +130,8 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         application =
             AppliedPTransform.of(
                 "original",
-                input.expand(),
-                input.apply(originalTransform).expand(),
+                PValues.expandInput(input),
+                PValues.expandOutput(input.apply(originalTransform)),
                 originalTransform,
                 pipeline);
 

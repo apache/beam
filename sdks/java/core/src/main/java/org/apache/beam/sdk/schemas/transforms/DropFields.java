@@ -62,6 +62,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DropFields {
   public static <T> Inner<T> fields(String... fields) {
     return fields(FieldAccessDescriptor.withFieldNames(fields));

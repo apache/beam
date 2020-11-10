@@ -42,6 +42,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Executes flatten PTransforms. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class FlattenRunner<InputT> {
   /** A registrar which provides a factory to handle flatten PTransforms. */
   @AutoService(PTransformRunnerFactory.Registrar.class)

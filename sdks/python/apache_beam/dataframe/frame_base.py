@@ -60,9 +60,21 @@ class DeferredBase(object):
     return wrapper
 
   @classmethod
-  def wrap(cls, expr):
+  def wrap(cls, expr, split_tuples=True):
     proxy_type = type(expr.proxy())
-    if proxy_type in cls._pandas_type_map:
+    if proxy_type is tuple and split_tuples:
+
+      def get(ix):
+        return expressions.ComputedExpression(
+            # yapf: disable
+            'get_%d' % ix,
+            lambda t: t[ix],
+            [expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Singleton())
+
+      return tuple([cls.wrap(get(ix)) for ix in range(len(expr.proxy()))])
+    elif proxy_type in cls._pandas_type_map:
       wrapper_type = cls._pandas_type_map[proxy_type]
     else:
       if expr.requires_partition_by() != partitionings.Singleton():
@@ -206,15 +218,44 @@ def _proxy_function(
     deferred_arg_indices = []
     deferred_arg_exprs = []
     constant_args = [None] * len(args)
+    from apache_beam.dataframe.frames import _DeferredIndex
     for ix, arg in enumerate(args):
       if isinstance(arg, DeferredBase):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(arg._expr)
+      elif isinstance(arg, _DeferredIndex):
+        # TODO(robertwb): Consider letting indices pass through as indices.
+        # This would require updating the partitioning code, as indices don't
+        # have indices.
+        deferred_arg_indices.append(ix)
+        deferred_arg_exprs.append(
+            expressions.ComputedExpression(
+                'index_as_series',
+                lambda ix: ix.index.to_series(),  # yapf break
+                [arg._frame._expr],
+                preserves_partition_by=partitionings.Singleton(),
+                requires_partition_by=partitionings.Nothing()))
       elif isinstance(arg, pd.core.generic.NDFrame):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(expressions.ConstantExpression(arg, arg[0:0]))
       else:
         constant_args[ix] = arg
+
+    deferred_kwarg_keys = []
+    deferred_kwarg_exprs = []
+    constant_kwargs = {key: None for key in kwargs}
+    for key, arg in kwargs.items():
+      if isinstance(arg, DeferredBase):
+        deferred_kwarg_keys.append(key)
+        deferred_kwarg_exprs.append(arg._expr)
+      elif isinstance(arg, pd.core.generic.NDFrame):
+        deferred_kwarg_keys.append(key)
+        deferred_kwarg_exprs.append(
+            expressions.ConstantExpression(arg, arg[0:0]))
+      else:
+        constant_kwargs[key] = arg
+
+    deferred_exprs = deferred_arg_exprs + deferred_kwarg_exprs
 
     if inplace:
       actual_func = copy_and_mutate(func)
@@ -222,14 +263,21 @@ def _proxy_function(
       actual_func = func
 
     def apply(*actual_args):
+      actual_args, actual_kwargs = (actual_args[:len(deferred_arg_exprs)],
+                                    actual_args[len(deferred_arg_exprs):])
+
       full_args = list(constant_args)
       for ix, arg in zip(deferred_arg_indices, actual_args):
         full_args[ix] = arg
-      return actual_func(*full_args, **kwargs)
 
-    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame)
-           for arg in deferred_arg_exprs
-           ) and not requires_partition_by.is_subpartitioning_of(
+      full_kwargs = dict(constant_kwargs)
+      for key, arg in zip(deferred_kwarg_keys, actual_kwargs):
+        full_kwargs[key] = arg
+
+      return actual_func(*full_args, **full_kwargs)
+
+    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame) for arg in
+           deferred_exprs) and not requires_partition_by.is_subpartitioning_of(
                partitionings.Index()):
       # Implicit join on index.
       actual_requires_partition_by = partitionings.Index()
@@ -239,7 +287,7 @@ def _proxy_function(
     result_expr = expressions.ComputedExpression(
         name,
         apply,
-        deferred_arg_exprs,
+        deferred_exprs,
         requires_partition_by=actual_requires_partition_by,
         preserves_partition_by=preserves_partition_by)
     if inplace:

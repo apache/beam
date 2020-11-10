@@ -312,16 +312,15 @@ class TestPubSubSource(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
-    sink = _PubSubSink(
+    sink = WriteToPubSub(
         'projects/fakeprj/topics/a_topic',
         id_label='id',
-        with_attributes=False,
         timestamp_attribute='time')
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher('topic', 'projects/fakeprj/topics/a_topic'),
         DisplayDataItemMatcher('id_label', 'id'),
-        DisplayDataItemMatcher('with_attributes', False),
+        DisplayDataItemMatcher('with_attributes', True),
         DisplayDataItemMatcher('timestamp_attribute', 'time'),
     ]
 
@@ -622,6 +621,31 @@ class TestReadFromPubSub(unittest.TestCase):
         transform_from_proto.source.full_topic)
     self.assertTrue(transform_from_proto.source.with_attributes)
 
+  def test_runner_api_transformation_properties_none(self, unused_mock_pubsub):
+    # Confirming that properties stay None after a runner API transformation.
+    source = _PubSubSource(
+        topic='projects/fakeprj/topics/a_topic', with_attributes=True)
+    transform = Read(source)
+
+    context = pipeline_context.PipelineContext()
+    proto_transform_spec = transform.to_runner_api(context)
+    self.assertEqual(
+        common_urns.composites.PUBSUB_READ.urn, proto_transform_spec.urn)
+
+    pubsub_read_payload = (
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubReadPayload))
+
+    proto_transform = beam_runner_api_pb2.PTransform(
+        unique_name="dummy_label", spec=proto_transform_spec)
+
+    transform_from_proto = Read.from_runner_api_parameter(
+        proto_transform, pubsub_read_payload, None)
+    self.assertIsNone(transform_from_proto.source.full_subscription)
+    self.assertIsNone(transform_from_proto.source.id_label)
+    self.assertIsNone(transform_from_proto.source.timestamp_attribute)
+
   def test_runner_api_transformation_with_subscription(
       self, unused_mock_pubsub):
     source = _PubSubSource(
@@ -757,7 +781,6 @@ class TestWriteToPubSub(unittest.TestCase):
     sink = _PubSubSink(
         topic='projects/fakeprj/topics/a_topic',
         id_label=None,
-        with_attributes=True,
         # We expect encoded PubSub write transform to always return attributes.
         timestamp_attribute=None)
     transform = Write(sink)
@@ -774,7 +797,6 @@ class TestWriteToPubSub(unittest.TestCase):
 
     self.assertEqual(
         'projects/fakeprj/topics/a_topic', pubsub_write_payload.topic)
-    self.assertTrue(pubsub_write_payload.with_attributes)
 
     proto_transform = beam_runner_api_pb2.PTransform(
         unique_name="dummy_label", spec=proto_transform_spec)
@@ -783,9 +805,36 @@ class TestWriteToPubSub(unittest.TestCase):
         proto_transform, pubsub_write_payload, None)
     self.assertTrue(isinstance(transform_from_proto, Write))
     self.assertTrue(isinstance(transform_from_proto.sink, _PubSubSink))
-    self.assertTrue(transform_from_proto.sink.with_attributes)
     self.assertEqual(
         'projects/fakeprj/topics/a_topic', transform_from_proto.sink.full_topic)
+
+  def test_runner_api_transformation_properties_none(self, unused_mock_pubsub):
+    # Confirming that properties stay None after a runner API transformation.
+    sink = _PubSubSink(
+        topic='projects/fakeprj/topics/a_topic',
+        id_label=None,
+        # We expect encoded PubSub write transform to always return attributes.
+        timestamp_attribute=None)
+    transform = Write(sink)
+
+    context = pipeline_context.PipelineContext()
+    proto_transform_spec = transform.to_runner_api(context)
+    self.assertEqual(
+        common_urns.composites.PUBSUB_WRITE.urn, proto_transform_spec.urn)
+
+    pubsub_write_payload = (
+        proto_utils.parse_Bytes(
+            proto_transform_spec.payload,
+            beam_runner_api_pb2.PubSubWritePayload))
+    proto_transform = beam_runner_api_pb2.PTransform(
+        unique_name="dummy_label", spec=proto_transform_spec)
+    transform_from_proto = Write.from_runner_api_parameter(
+        proto_transform, pubsub_write_payload, None)
+
+    self.assertTrue(isinstance(transform_from_proto, Write))
+    self.assertTrue(isinstance(transform_from_proto.sink, _PubSubSink))
+    self.assertIsNone(transform_from_proto.sink.id_label)
+    self.assertIsNone(transform_from_proto.sink.timestamp_attribute)
 
 
 if __name__ == '__main__':

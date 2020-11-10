@@ -38,6 +38,10 @@ import org.mockito.Mockito;
 
 /** Tests for {@link StreamingPCollectionViewWriterDoFnFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingPCollectionViewWriterDoFnFactoryTest {
   @Test
   public void testConstruction() throws Exception {

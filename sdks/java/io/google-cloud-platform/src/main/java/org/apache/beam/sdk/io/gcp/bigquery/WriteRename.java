@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
  * Copies temporary tables to destination table. The input element is an {@link Iterable} that
  * provides the list of all temporary tables created for a given {@link TableDestination}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 

@@ -386,6 +386,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @see <a href= "https://beam.apache.org/documentation/programming-guide/#pardo"> the web
  *     documentation for ParDo</a>
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class ParDo {
 
   /**
