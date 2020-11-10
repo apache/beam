@@ -150,6 +150,14 @@ public class DicomIO {
 
       private HealthcareApiClient dicomStore;
 
+      private FetchStudyMetadataFn() {
+        try {
+          dicomStore = new HttpHealthcareApiClient();
+        } catch (IOException e) {
+          // noop
+        }
+      }
+
       /**
        * Instantiate the healthcare client.
        *
@@ -157,7 +165,9 @@ public class DicomIO {
        */
       @Setup
       public void instantiateHealthcareClient() throws IOException {
-        this.dicomStore = new HttpHealthcareApiClient();
+        if (dicomStore == null) {
+          this.dicomStore = new HttpHealthcareApiClient();
+        }
       }
 
       /**
@@ -173,7 +183,8 @@ public class DicomIO {
           String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
           context.output(METADATA, responseData);
         } catch (Exception e) {
-          context.output(ERROR_MESSAGE, e.getMessage());
+          String errorMessage = e.getMessage();
+          context.output(ERROR_MESSAGE, errorMessage);
         }
       }
     }
