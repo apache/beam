@@ -28,7 +28,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-// @RunWith(Parameterized.class)
+@SuppressWarnings({"nullness", "rawtypes", "uninitialized"})
 public class DicomIOReadIT {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
