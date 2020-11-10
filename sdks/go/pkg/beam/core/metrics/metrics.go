@@ -473,7 +473,7 @@ func (mr Results) AllMetrics() QueryResults {
 	return QueryResults{mr.counters, mr.distributions, mr.gauges}
 }
 
-// TODO: Implement Query(Filter) and metrics filtering
+// TODO(BEAM-11217): Implement Query(Filter) and metrics filtering
 
 // QueryResults is the result of a query. Allows accessing all of the
 // metrics that matched the filter.
