@@ -150,14 +150,6 @@ public class DicomIO {
 
       private HealthcareApiClient dicomStore;
 
-      private FetchStudyMetadataFn() {
-        try {
-          dicomStore = new HttpHealthcareApiClient();
-        } catch (IOException e) {
-          // noop
-        }
-      }
-
       /**
        * Instantiate the healthcare client.
        *
