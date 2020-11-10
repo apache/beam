@@ -26,8 +26,8 @@ that derived pipelines can link back to the parent user pipeline.
 # pytype: skip-file
 
 
-class DerivationTree:
-  """Tracks which pipelines are derived from user pipelines.
+class UserPipelineTracker:
+  """Tracks user pipelines from derived pipelines.
 
   This data structure is similar to a disjoint set data structure. A derived
   pipeline can only have one parent user pipeline. A user pipeline can have many
@@ -47,7 +47,7 @@ class DerivationTree:
     return str(id(pipeline))
 
   def clear(self):
-    """Clears the tree of all user and derived pipelines."""
+    """Clears the tracker of all user and derived pipelines."""
     self._user_pipelines.clear()
     self._derived_pipelines.clear()
     self._pid_to_pipelines.clear()
@@ -77,7 +77,7 @@ class DerivationTree:
       self._pid_to_pipelines[pid] = p
 
   def add_derived_pipeline(self, maybe_user_pipeline, derived_pipeline):
-    """Adds a derived pipeline to the tree.
+    """Adds a derived pipeline with the user pipeline.
 
     If the `maybe_user_pipeline` is a user pipeline, then the derived pipeline
     will be added to its set. Otherwise, the derived pipeline will be added to
@@ -89,17 +89,17 @@ class DerivationTree:
     derived1 = beam.Pipeline()
     derived2 = beam.Pipeline()
 
-    dt = DerivationTree()
-    dt.add_derived_pipeline(p, derived1)
-    dt.add_derived_pipeline(derived1, derived2)
+    ut = UserPipelineTracker()
+    ut.add_derived_pipeline(p, derived1)
+    ut.add_derived_pipeline(derived1, derived2)
 
     # Returns p.
-    dt.get_user_pipeline(derived2)
+    ut.get_user_pipeline(derived2)
     """
     self._memoize_pipieline(maybe_user_pipeline)
     self._memoize_pipieline(derived_pipeline)
 
-    # Cannot add a derived pipeline into the tree twice.
+    # Cannot add a derived pipeline twice.
     if derived_pipeline in self._derived_pipelines:
       return
 
@@ -114,7 +114,7 @@ class DerivationTree:
   def get_user_pipeline(self, p):
     """Returns the user pipeline of the given pipeline.
 
-    If the given pipeline has no user pipeline, i.e. not added to this tree,
+    If the given pipeline has no user pipeline, i.e. not added to this tracker,
     then this returns None. If the given pipeline is a user pipeline then this
     returns the same pipeline. If the given pipeline is a derived pipeline then
     this returns the user pipeline.
@@ -124,9 +124,9 @@ class DerivationTree:
     if p in self._user_pipelines:
       return p
 
-    # If `p` is in the tree then return its user pipeline.
+    # If `p` exists then return its user pipeline.
     if p in self._derived_pipelines:
       return self._derived_pipelines[p]
 
-    # Otherwise, `p` is not in the tree.
+    # Otherwise, `p` is not in this tracker.
     return None
