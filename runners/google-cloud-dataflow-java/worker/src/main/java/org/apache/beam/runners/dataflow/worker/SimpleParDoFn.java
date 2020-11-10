@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
@@ -52,6 +51,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -59,6 +59,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +71,10 @@ import org.slf4j.LoggerFactory;
  * <p>Subclasses override just a method to provide a {@link DoFnInfo} for the wrapped {@link
  * GroupAlsoByWindowFn}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   // TODO: Remove once Distributions has shipped.
   @VisibleForTesting
@@ -97,13 +102,13 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private final Map<String, PCollectionView<?>> sideInputMapping;
 
   // Various DoFn helpers, null between bundles
-  @Nullable private DoFnRunner<InputT, OutputT> fnRunner;
+  private @Nullable DoFnRunner<InputT, OutputT> fnRunner;
   @Nullable DoFnInfo<InputT, OutputT> fnInfo;
-  @Nullable private Receiver[] receivers;
+  private Receiver @Nullable [] receivers;
 
   // This may additionally be null if it is not a real DoFn but an OldDoFn or
   // GroupAlsoByWindowViaWindowSetDoFn
-  @Nullable private DoFnSignature fnSignature;
+  private @Nullable DoFnSignature fnSignature;
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
   SimpleParDoFn(
@@ -243,8 +248,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
         new OutputManager() {
           final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
-          @Nullable
-          private Receiver getReceiverOrNull(TupleTag<?> tag) {
+          private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
             Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
             if (receiverIndex != null) {
               return receivers[receiverIndex];
@@ -397,6 +401,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           window,
           targetTime);
 
+      fnRunner.onWindowExpiration(
+          window, timer.getOutputTimestamp(), this.stepContext.stateInternals().getKey());
+
       // This is for a timer for a window that is expired, so clean it up.
       for (StateDeclaration stateDecl : fnSignature.stateDeclarations().values()) {
         StateTag<?> tag;
@@ -484,12 +491,23 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     for (W window : windowsToCleanup) {
       // The stepContext is the thing that know if it is batch or streaming, hence
       // whether state needs to be cleaned up or will simply be discarded so the
-      // timer can be ignored
-      stepContext.setStateCleanupTimer(
-          CLEANUP_TIMER_ID,
-          window,
-          windowCoder,
-          earliestAllowableCleanupTime(window, windowingStrategy));
+      // timer can be ignored.
+      Instant cleanupTime = earliestAllowableCleanupTime(window, windowingStrategy);
+      // Set a cleanup timer for state at the end of the window to trigger onWindowExpiration and
+      // garbage collect state. We avoid doing this for the global window if there is no window
+      // expiration set as the state will be up when the pipeline terminates. Setting the timer
+      // leads to a unbounded growth of timers for pipelines with many unique keys in the global
+      // window.
+      if (cleanupTime.isBefore(GlobalWindow.INSTANCE.maxTimestamp())
+          || fnSignature.onWindowExpiration() != null) {
+        // If the DoFn has OnWindowExpiration, then set the watermark hold so that the watermark
+        // does
+        // not advance until OnWindowExpiration completes.
+        Instant cleanupOutputTimestamp =
+            fnSignature.onWindowExpiration() == null ? cleanupTime : cleanupTime.minus(1L);
+        stepContext.setStateCleanupTimer(
+            CLEANUP_TIMER_ID, window, windowCoder, cleanupTime, cleanupOutputTimestamp);
+      }
     }
   }
 
@@ -504,8 +522,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
    * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
    * finished.
    */
-  @Nullable
   @VisibleForTesting
+  @Nullable
   DoFnInfo<?, ?> getDoFnInfo() {
     return fnInfo;
   }

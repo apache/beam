@@ -25,7 +25,6 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -62,6 +62,9 @@ import org.joda.time.Instant;
  * @param <T> The type to read from the compressed file.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
@@ -334,9 +337,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     @GuardedBy("progressLock")
     private long numRecordsRead;
 
-    @Nullable // Initialized in startReading
+    // Initialized in startReading
     @GuardedBy("progressLock")
-    private CountingChannel channel;
+    private @Nullable CountingChannel channel;
 
     private DecompressingChannelFactory channelFactory;
 

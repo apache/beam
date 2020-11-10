@@ -32,6 +32,9 @@ import org.slf4j.LoggerFactory;
  * Reads data from multiple kinesis shards in a single thread. It uses simple round robin algorithm
  * when fetching data from shards.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisReader.class);

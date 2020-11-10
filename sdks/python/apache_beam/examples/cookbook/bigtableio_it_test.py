@@ -188,22 +188,19 @@ class BigtableIOWriteTest(unittest.TestCase):
           pipeline
           | 'Generate Direct Rows' >> GenerateTestRows(number, **config_data))
 
-      result = pipeline.run()
-      result.wait_until_finish()
+    assert pipeline.result.state == PipelineState.DONE
 
-      assert result.state == PipelineState.DONE
+    read_rows = self.table.read_rows()
+    assert len([_ for _ in read_rows]) == number
 
-      read_rows = self.table.read_rows()
-      assert len([_ for _ in read_rows]) == number
+    if not hasattr(pipeline.result, 'has_job') or pipeline.result.has_job:
+      read_filter = MetricsFilter().with_name('Written Row')
+      query_result = pipeline.result.metrics().query(read_filter)
+      if query_result['counters']:
+        read_counter = query_result['counters'][0]
 
-      if not hasattr(result, 'has_job') or result.has_job:
-        read_filter = MetricsFilter().with_name('Written Row')
-        query_result = result.metrics().query(read_filter)
-        if query_result['counters']:
-          read_counter = query_result['counters'][0]
-
-          logging.info('Number of Rows: %d', read_counter.committed)
-          assert read_counter.committed == number
+        logging.info('Number of Rows: %d', read_counter.committed)
+        assert read_counter.committed == number
 
 
 if __name__ == '__main__':

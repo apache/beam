@@ -66,6 +66,6 @@ result.apply(ParDo.of(new DoFn<KV<K, CoGbkResult>, /* some result */>() {
 }));
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [GroupByKey](/documentation/transforms/java/aggregation/groupbykey)
   takes one input collection.

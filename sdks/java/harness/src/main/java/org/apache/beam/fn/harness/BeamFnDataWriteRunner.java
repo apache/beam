@@ -30,6 +30,7 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -59,6 +60,10 @@ import org.slf4j.LoggerFactory;
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
  * {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataWriteRunner<InputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataWriteRunner.class);
@@ -91,6 +96,7 @@ public class BeamFnDataWriteRunner<InputT> {
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> addResetFunction,
         Consumer<ThrowingRunnable> tearDownFunctions,
         Consumer<ProgressRequestCallback> addProgressRequestCallback,
         BundleSplitListener splitListener,
@@ -99,7 +105,12 @@ public class BeamFnDataWriteRunner<InputT> {
 
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransformId, pTransform, processBundleInstructionId, coders, beamFnDataClient);
+              pTransformId,
+              pTransform,
+              processBundleInstructionId,
+              coders,
+              beamFnDataClient,
+              beamFnStateClient);
       startFunctionRegistry.register(pTransformId, runner::registerForOutput);
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
@@ -124,7 +135,8 @@ public class BeamFnDataWriteRunner<InputT> {
       RunnerApi.PTransform remoteWriteNode,
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
-      BeamFnDataClient beamFnDataClientFactory)
+      BeamFnDataClient beamFnDataClientFactory,
+      BeamFnStateClient beamFnStateClient)
       throws IOException {
     this.pTransformId = pTransformId;
     RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort();
@@ -136,7 +148,20 @@ public class BeamFnDataWriteRunner<InputT> {
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
     this.coder =
         (Coder<WindowedValue<InputT>>)
-            CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
+            CoderTranslation.fromProto(
+                coders.get(port.getCoderId()),
+                components,
+                new StateBackedIterableTranslationContext() {
+                  @Override
+                  public BeamFnStateClient getStateClient() {
+                    return beamFnStateClient;
+                  }
+
+                  @Override
+                  public Supplier<String> getCurrentInstructionId() {
+                    return processBundleInstructionIdSupplier;
+                  }
+                });
   }
 
   public void registerForOutput() {

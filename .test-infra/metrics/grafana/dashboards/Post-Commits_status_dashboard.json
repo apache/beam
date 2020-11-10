@@ -80,7 +80,7 @@
           "decimals": 2,
           "link": true,
           "linkTargetBlank": true,
-          "linkUrl": "https://builds.apache.org/job/${__cell}",
+          "linkUrl": "https://ci-beam.apache.org/job/${__cell}",
           "mappingType": 1,
           "pattern": "job_name",
           "thresholds": [],

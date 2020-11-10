@@ -42,7 +42,7 @@ The global window side input triggers on processing time, so the main pipeline n
 For instance, the following code sample uses a `Map` to create a `DoFn`. The `Map` becomes a `View.asSingleton` side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -61,7 +61,7 @@ version of side input data.
 
 To read side input data periodically into distinct PColleciton windows:
 
-1. Use the PeriodicImpulse or PeriodicSequence PTransform to: 
+1. Use the PeriodicImpulse or PeriodicSequence PTransform to:
     * Generate an infinite sequence of elements at required processing time
     intervals
     * Assign them to separate windows.
@@ -70,9 +70,9 @@ PCollection element.
 1. Apply the side input.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" PeriodicallyUpdatingSideInputs >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" PeriodicallyUpdatingSideInputs >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" SideInputSlowUpdateSnip1 >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SideInputSlowUpdateSnip1 >}}
 {{< /highlight >}}

@@ -103,11 +103,11 @@ To specify a table with a string, use the format
 table name.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpec >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpec >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec >}}
 {{< /highlight >}}
 
 You can also omit `project_id` and use the `[dataset_id].[table_id]` format. If
@@ -120,11 +120,11 @@ you omit the project ID, Beam uses the default project ID from your
 </span>
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecWithoutProject >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecWithoutProject >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_without_project >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_without_project >}}
 {{< /highlight >}}
 
 #### Using a TableReference
@@ -133,11 +133,11 @@ To specify a table with a `TableReference`, create a new `TableReference` using
 the three parts of the BigQuery table name.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecObject >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecObject >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_object >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_object >}}
 {{< /highlight >}}
 
 <!-- Java specific -->
@@ -173,11 +173,11 @@ shows the correct format for data types used when reading from and writing to
 BigQuery:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryDataTypes >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryTableRowCreate.java" bigquery_table_row_create >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_data_types >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_data_types >}}
 {{< /highlight >}}
 
 <!-- Java specific -->
@@ -206,14 +206,14 @@ returned as base64-encoded bytes.
 
 ## Reading from BigQuery
 
-BigQueryIO allows you to read from a BigQuery table, or read the results of an
-arbitrary SQL query string. By default, Beam invokes a [BigQuery export
+BigQueryIO allows you to read from a BigQuery table, or to execute a SQL query
+and read the results. By default, Beam invokes a [BigQuery export
 request](https://cloud.google.com/bigquery/docs/exporting-data) when you apply a
-BigQueryIO read transform. However, the Beam SDK for Java (version 2.11.0 and
-later) adds support for the beta release of the [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
-as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
-See [Using the BigQuery Storage API](#storage-api) for more information and a
-list of limitations.
+BigQueryIO read transform. However, the Beam SDK for Java also supports using
+the [BigQuery Storage
+API](https://cloud.google.com/bigquery/docs/reference/storage) to read directly
+from BigQuery storage. See [Using the BigQuery Storage API](#storage-api) for
+more information.
 
 > Beam’s use of BigQuery APIs is subject to BigQuery's
 > [Quota](https://cloud.google.com/bigquery/quota-policy)
@@ -276,11 +276,11 @@ The following code reads an entire table that contains weather station data and
 then extracts the `max_temperature` column.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadTable >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromTable.java" bigquery_read_from_table >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table >}}
 {{< /highlight >}}
 
 
@@ -288,8 +288,7 @@ then extracts the `max_temperature` column.
 
 {{< paragraph class="language-java" >}}
 If you don't want to read an entire table, you can supply a query string with
-the `fromQuery` method. This example uses
-`read(SerializableFunction)`.
+the `fromQuery` method.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -297,45 +296,44 @@ If you don't want to read an entire table, you can supply a query string to
 `BigQuerySource` by specifying the `query` parameter.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
 The following code uses a SQL query to only read the `max_temperature` column.
+{{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQuery >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromQuery.java" bigquery_read_from_query >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query >}}
 {{< /highlight >}}
 
 You can also use BigQuery's standard SQL dialect with a query string, as shown
 in the following example:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQueryStdSQL >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQueryStdSQL >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
 {{< /highlight >}}
 
 ### Using the BigQuery Storage API {#storage-api}
 
 The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
-allows you to directly access tables in BigQuery storage. As a result, your
-pipeline can read from BigQuery storage faster than previously possible.
+allows you to directly access tables in BigQuery storage, and supports features
+such as column selection and predicate filter push-down which can allow more
+efficient pipeline execution.
 
-The Beam SDK for Java (version 2.11.0 and later) adds support for the beta
-release of the BigQuery Storage API as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
-Beam's support for the BigQuery Storage API has the following limitations:
+The Beam SDK for Java supports using the BigQuery Storage API when reading from
+BigQuery. SDK versions before 2.24.0 support the BigQuery Storage API as an
+[experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html)
+and use the pre-GA BigQuery Storage API surface. Callers should migrate
+pipelines which use the BigQuery Storage API to use SDK version 2.24.0 or later.
 
-* The SDK for Python does not support the BigQuery Storage API.
-* SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
-  can only read from a table.
-* SDK versions before 2.15.0 do not support dynamic work rebalancing. As a
-  result, reads might be less efficient in the presence of stragglers.
-
-Because this is currently a Beam experimental feature, export based reads are
-recommended for production jobs.
+The Beam SDK for Python does not support the BigQuery Storage API. See
+[BEAM-10917](https://issues.apache.org/jira/browse/BEAM-10917)).
 
 #### Updating your code
 
@@ -352,12 +350,7 @@ data from a BigQuery table. You can view the [full source code on
 GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
 
 {{< highlight java >}}
-   rowsFromBigQuery =
-       p.apply(
-            BigQueryIO.readTableRows()
-               .from(options.getInput())
-               .withMethod(Method.DIRECT_READ)
-               .withSelectedFields(Lists.newArrayList("month", "tornado"));
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromTableWithBigQueryStorageAPI.java" bigquery_read_from_table_with_bigquery_storage_api >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -546,11 +539,11 @@ The following example code shows how to create a `TableSchema` for a table with
 two fields (source and quote) of type string.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaObject >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQuerySchemaCreate.java" bigquery_schema_create >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema_object >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema_object >}}
 {{< /highlight >}}
 
 
@@ -591,20 +584,15 @@ The following example shows how to use a string to specify the same table schema
 as the previous example.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaJson >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaJson >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema >}}
 {{< /highlight >}}
 
 
 ### Setting the insertion method
-
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support specifying the insertion
-method.
-{{< /paragraph >}}
 
 BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
 streaming inserts. Each insertion method provides different tradeoffs of cost,
@@ -677,25 +665,27 @@ another transform, such as `ParDo`, to format your output data into a
 collection.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
 The following examples use this `PCollection` that contains quotes.
-
-{{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteInput >}}
-{{< /highlight >}}
-
-{{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_input >}}
-{{< /highlight >}}
-
-<!-- writeTableRows and WriteToBigQuery -->
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 The `writeTableRows` method writes a `PCollection` of BigQuery `TableRow`
 objects to a BigQuery table. Each element in the `PCollection` represents a
-single row in the table. This example uses `writeTableRows` to write quotes to a
+single row in the table. This example uses `writeTableRows` to write elements to a
 `PCollection<TableRow>`.  The write operation creates a table if needed; if the
 table already exists, it will be replaced.
 {{< /paragraph >}}
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryWriteToTable.java" bigquery_write_to_table >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_input >}}
+{{< /highlight >}}
+
+<!-- WriteToBigQuery (python-only) -->
 
 {{< paragraph class="language-py" >}}
 The following example code shows how to apply a `WriteToBigQuery` transform to
@@ -703,15 +693,11 @@ write a `PCollection` of dictionaries to a BigQuery table. The write operation
 creates a table if needed; if the table already exists, it will be replaced.
 {{< /paragraph >}}
 
-{{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteTable >}}
-{{< /highlight >}}
-
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write >}}
 {{< /highlight >}}
 
-<!-- write -->
+<!-- write (java-only) -->
 
 {{< paragraph class="language-java" >}}
 The `write` transform writes a `PCollection` of custom typed objects to a BigQuery
@@ -723,7 +709,7 @@ be replaced.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteFunction >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteFunction >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -733,10 +719,6 @@ You can either keep retrying, or return the failed records in a separate
 {{< /paragraph >}}
 
 ### Using dynamic destinations
-
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support dynamic destinations.
-{{< /paragraph >}}
 
 You can use the dynamic destinations feature to write elements in a
 `PCollection` to different BigQuery tables, possibly with different schemas.
@@ -774,18 +756,14 @@ different table for each year.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The Beam SDK for Python does not currently support dynamic destinations.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_dynamic_destinations>}}
 {{< /highlight >}}
 
 ### Using time partitioning
-
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support time partitioning.
-{{< /paragraph >}}
 
 BigQuery time partitioning divides your table into smaller partitions, which is
 called a [partitioned table](https://cloud.google.com/bigquery/docs/partitioned-tables).
@@ -810,11 +788,11 @@ This example generates one partition per day.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTimePartitioning >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTimePartitioning >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The Beam SDK for Python does not currently support time partitioning.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_time_partitioning>}}
 {{< /highlight >}}
 
 

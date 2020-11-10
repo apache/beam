@@ -44,9 +44,9 @@ A Beam runner needs to implement the translation from the Beam model to the unde
 
 In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See [quickstart](/get-started/quickstart/) on how to run the Beam examples with the Apex runner.
 
-Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found [here](https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount) and support for direct launch in the runner is currently being worked on. 
+Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found [here](https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount) and support for direct launch in the runner is currently being worked on.
 
-The Beam project has a strong focus on development process and tooling, including testing. For the runners, there is a comprehensive test suite with more than 200 integration tests that are executed against each runner to ensure they don’t break as changes are made. The tests cover the capabilities of the matrix and thus are a measure of completeness and correctness of the runner implementations. The suite was very helpful when developing the Apex runner. 
+The Beam project has a strong focus on development process and tooling, including testing. For the runners, there is a comprehensive test suite with more than 200 integration tests that are executed against each runner to ensure they don’t break as changes are made. The tests cover the capabilities of the matrix and thus are a measure of completeness and correctness of the runner implementations. The suite was very helpful when developing the Apex runner.
 
 ## Outlook
 

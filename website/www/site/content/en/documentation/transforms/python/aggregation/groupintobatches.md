@@ -17,7 +17,37 @@ limitations under the License.
 
 # GroupIntoBatches
 
+{{< localstorage language language-py >}}
+
+{{< button-pydoc path="apache_beam.transforms.util" class="GroupIntoBatches" >}}
+
+Batches the input into desired batch size.
+
 ## Examples
-See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
+
+In the following example, we create a pipeline with a `PCollection` of produce by season.
+
+We use `GroupIntoBatches` to get fixed-sized batches for every key, which outputs a list of elements for every key.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py" groupintobatches >}}
+{{< /highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches_test.py" batches_with_keys >}}
+{{< /highlight >}}
+
+{{< buttons-code-snippet
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py" >}}
 
 ## Related transforms
+
+<!-- TODO(BEAM-10889): Create a page for BatchElements and link to it here. //-->
+For unkeyed data and dynamic batch sizes, one may want to use
+[BatchElements](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements).
+
+{{< button-pydoc path="apache_beam.transforms.util" class="GroupIntoBatches" >}}

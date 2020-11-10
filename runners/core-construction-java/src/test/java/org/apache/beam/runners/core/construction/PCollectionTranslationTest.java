@@ -63,6 +63,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PCollectionTranslation}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PCollectionTranslationTest {
   // Each spec activates tests of all subsets of its fields
   @Parameters(name = "{index}: {0}")
@@ -123,7 +126,11 @@ public class PCollectionTranslationTest {
     assertThat(decodedCollection.getCoder(), equalTo(testCollection.getCoder()));
     assertThat(
         decodedCollection.getWindowingStrategy(),
-        equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+        equalTo(
+            testCollection
+                .getWindowingStrategy()
+                .withEnvironmentId(sdkComponents.getOnlyEnvironmentId())
+                .fixDefaults()));
     assertThat(decodedCollection.isBounded(), equalTo(testCollection.isBounded()));
   }
 
@@ -141,7 +148,13 @@ public class PCollectionTranslationTest {
     IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
     assertThat(decodedCoder, equalTo(testCollection.getCoder()));
-    assertThat(decodedStrategy, equalTo(testCollection.getWindowingStrategy().fixDefaults()));
+    assertThat(
+        decodedStrategy,
+        equalTo(
+            testCollection
+                .getWindowingStrategy()
+                .withEnvironmentId(sdkComponents.getOnlyEnvironmentId())
+                .fixDefaults()));
     assertThat(decodedIsBounded, equalTo(testCollection.isBounded()));
   }
 

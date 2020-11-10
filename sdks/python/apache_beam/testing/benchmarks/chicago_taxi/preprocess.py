@@ -134,6 +134,7 @@ def transform_data(
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
+        namespace=namespace,
         filters=MetricsFilter().with_namespace(namespace))
   schema = taxi.read_schema(schema_file)
   raw_feature_spec = taxi.get_raw_feature_spec(schema)

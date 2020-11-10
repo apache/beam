@@ -75,6 +75,9 @@ import org.junit.Test;
  * This test ensures that we are reordering joins and get a plan similar to Join(large,Join(small,
  * medium)) instead of Join(small, Join(medium,large).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JoinReorderingTest {
   private final PipelineOptions defaultPipelineOptions = PipelineOptionsFactory.create();
 
@@ -232,7 +235,7 @@ public class JoinReorderingTest {
     TestTableProvider tableProvider = new TestTableProvider();
     createThreeTables(tableProvider);
     List<RelOptRule> ruleSet =
-        Arrays.stream(BeamRuleSets.getRuleSets())
+        BeamRuleSets.getRuleSets().stream()
             .flatMap(rules -> StreamSupport.stream(rules.spliterator(), false))
             .filter(rule -> !(rule instanceof BeamJoinPushThroughJoinRule))
             .filter(rule -> !(rule instanceof BeamJoinAssociateRule))
@@ -242,7 +245,7 @@ public class JoinReorderingTest {
     BeamSqlEnv env =
         BeamSqlEnv.builder(tableProvider)
             .setPipelineOptions(PipelineOptionsFactory.create())
-            .setRuleSets(new RuleSet[] {RuleSets.ofList(ruleSet)})
+            .setRuleSets(ImmutableList.of(RuleSets.ofList(ruleSet)))
             .build();
 
     // This is Join(Join(medium, large), small) which should be converted to a join that large table
@@ -364,6 +367,9 @@ public class JoinReorderingTest {
   }
 }
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class ThreeTablesSchema extends AbstractSchema {
 
   private final ImmutableMap<String, Table> tables;

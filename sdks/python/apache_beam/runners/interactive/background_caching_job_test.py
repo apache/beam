@@ -71,9 +71,9 @@ def _build_an_empty_stream_pipeline():
   return p
 
 
-def _setup_test_streaming_cache():
+def _setup_test_streaming_cache(pipeline):
   cache_manager = StreamingCache(cache_dir=None)
-  ie.current_env().set_cache_manager(cache_manager)
+  ie.current_env().set_cache_manager(cache_manager, pipeline)
   builder = FileRecordsBuilder(tag=_TEST_CACHE_KEY)
   (builder
       .advance_watermark(watermark_secs=0)
@@ -91,8 +91,6 @@ def _setup_test_streaming_cache():
     sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class BackgroundCachingJobTest(unittest.TestCase):
   def tearDown(self):
-    for _, job in ie.current_env()._background_caching_jobs.items():
-      job.cancel()
     ie.new_env()
 
   # TODO(BEAM-8335): remove the patches when there are appropriate test sources
@@ -108,7 +106,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
       lambda x: None)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
-    _setup_test_streaming_cache()
+    _setup_test_streaming_cache(p)
     p.run()
     self.assertIsNotNone(ie.current_env().get_background_caching_job(p))
     expected_cached_source_signature = bcj.extract_source_to_cache_signature(p)
@@ -138,7 +136,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
       lambda x: None)
   def test_background_caching_job_not_start_when_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
-    _setup_test_streaming_cache()
+    _setup_test_streaming_cache(p)
     a_running_background_caching_job = bcj.BackgroundCachingJob(
         runner.PipelineResult(runner.PipelineState.RUNNING), limiters=[])
     ie.current_env().set_background_caching_job(
@@ -162,7 +160,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
       lambda x: None)
   def test_background_caching_job_not_start_when_such_job_is_done(self):
     p = _build_a_test_stream_pipeline()
-    _setup_test_streaming_cache()
+    _setup_test_streaming_cache(p)
     a_done_background_caching_job = bcj.BackgroundCachingJob(
         runner.PipelineResult(runner.PipelineState.DONE), limiters=[])
     ie.current_env().set_background_caching_job(
@@ -199,11 +197,14 @@ class BackgroundCachingJobTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(
         pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
+    self.assertFalse(bcj.is_cache_complete(str(id(pipeline))))
+
     with cell:  # Cell 2
       read_bar = pipeline | 'Read' >> beam.io.ReadFromPubSub(
           subscription=_BAR_PUBSUB_SUB)
       ib.watch({'read_bar': read_bar})
 
+    self.assertTrue(bcj.is_cache_complete(str(id(pipeline))))
     self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
@@ -302,9 +303,11 @@ class BackgroundCachingJobTest(unittest.TestCase):
   def test_determine_a_test_stream_service_running(self):
     pipeline = _build_an_empty_stream_pipeline()
     test_stream_service = TestStreamServiceController(reader=None)
+    test_stream_service.start()
     ie.current_env().set_test_stream_service_controller(
         pipeline, test_stream_service)
     self.assertTrue(bcj.is_a_test_stream_service_running(pipeline))
+    # the test_stream_service will be cleaned up on teardown.
 
   def test_stop_a_running_test_stream_service(self):
     pipeline = _build_an_empty_stream_pipeline()

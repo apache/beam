@@ -29,14 +29,14 @@ from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
-from apache_beam.coders import StrUtf8Coder
+from apache_beam.coders import RowCoder
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners.portability import expansion_service
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 # This script provides an expansion service and example ptransforms for running
 # external transform test cases. See external_test.py for details.
@@ -274,12 +274,8 @@ class FibTransform(ptransform.PTransform):
 def parse_string_payload(input_byte):
   payload = ExternalConfigurationPayload()
   payload.ParseFromString(input_byte)
-  coder = StrUtf8Coder()
-  return {
-      k: coder.decode_nested(v.payload)
-      for k,
-      v in payload.configuration.items()
-  }
+
+  return RowCoder(payload.schema).decode(payload.payload)._asdict()
 
 
 server = None
@@ -296,7 +292,7 @@ def main(unused_argv):
       '-p', '--port', type=int, help='port on which to serve the job api')
   options = parser.parse_args()
   global server
-  server = grpc.server(UnboundedThreadPoolExecutor())
+  server = grpc.server(thread_pool_executor.shared_unbounded_instance())
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
       expansion_service.ExpansionServiceServicer(
           PipelineOptions(

@@ -36,15 +36,15 @@ We use the function `str.strip` which takes a single `str` element and outputs a
 It strips the input element's whitespaces, including newlines and tabs.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_simple >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_simple >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -56,15 +56,15 @@ Output `PCollection` after `Map`:
 We define a function `strip_header_and_newline` which strips any `'#'`, `' '`, and `'\n'` characters from each element.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_function >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -76,15 +76,15 @@ Output `PCollection` after `Map`:
 We can also use lambda functions to simplify **Example 2**.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_lambda >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -99,15 +99,15 @@ They are passed as additional positional arguments or keyword arguments to the f
 In this example, `strip` takes `text` and `chars` as arguments.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_multiple_arguments >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -120,15 +120,15 @@ If your `PCollection` consists of `(key, value)` pairs,
 you can use `MapTuple` to unpack them into different function arguments.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_tuple >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_tuple >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `MapTuple`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -144,15 +144,15 @@ In this example, we pass a `PCollection` the value `'# \n'` as a singleton.
 We then use that value as the characters for the `str.strip` method.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_singleton >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_singleton >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -166,15 +166,15 @@ This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_iter >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_iter >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -192,15 +192,15 @@ Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_dict >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_dict >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plant_details >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plant_details >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet

@@ -46,6 +46,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link Row}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RowTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -761,5 +765,18 @@ public class RowTest {
     byte[] byteArray = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     Row row = Row.withSchema(schema).withFieldValue("char", byteArray).build();
     assertTrue(Arrays.equals(byteArray, row.getLogicalTypeValue("char", byte[].class)));
+  }
+
+  @Test
+  public void testWithFieldValues() {
+    EnumerationType enumerationType = EnumerationType.create("zero", "one", "two");
+    Schema schema = Schema.builder().addLogicalTypeField("f1_enum", enumerationType).build();
+    Row row =
+        Row.withSchema(schema)
+            .withFieldValues(ImmutableMap.of("f1_enum", enumerationType.valueOf("zero")))
+            .build();
+    assertEquals(enumerationType.valueOf(0), row.getValue(0));
+    assertEquals(
+        enumerationType.valueOf("zero"), row.getLogicalTypeValue(0, EnumerationType.Value.class));
   }
 }

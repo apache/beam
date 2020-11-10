@@ -56,6 +56,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link CombineRunners}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CombineRunnersTest {
   // CombineFn that converts strings to ints and sums them up to an accumulator, and negates the
   // value of the accumulator when extracting outputs. These operations are chosen to avoid
@@ -157,7 +160,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -235,7 +239,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -301,7 +306,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -367,7 +373,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -432,7 +439,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);

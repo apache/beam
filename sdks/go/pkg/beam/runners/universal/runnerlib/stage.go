@@ -83,7 +83,8 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 			switch typeUrn := request.GetArtifact.Artifact.TypeUrn; typeUrn {
 			case graphx.URNArtifactGoWorker:
 				StageFile(binary, stream)
-
+			case "beam:artifact:type:file:v1":
+				StageFile(binary, stream)
 			default:
 				return errors.Errorf("request has unexpected artifact type %s", typeUrn)
 			}

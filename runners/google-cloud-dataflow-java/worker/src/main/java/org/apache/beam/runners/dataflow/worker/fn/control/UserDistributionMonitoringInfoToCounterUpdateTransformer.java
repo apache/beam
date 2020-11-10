@@ -26,7 +26,6 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -37,6 +36,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,10 +44,14 @@ import org.slf4j.LoggerFactory;
  * Class for transforming MonitoringInfo's containing User counter values, to relevant CounterUpdate
  * proto.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class UserDistributionMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(UserDistributionMonitoringInfoToCounterUpdateTransformer.class);
 
   private final Map<String, DataflowStepContext> transformIdMapping;
 
@@ -99,8 +103,7 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
    * @return Relevant CounterUpdate or null if transformation failed.
    */
   @Override
-  @Nullable
-  public CounterUpdate transform(MonitoringInfo monitoringInfo) {
+  public @Nullable CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
       LOG.debug(validationResult.get());

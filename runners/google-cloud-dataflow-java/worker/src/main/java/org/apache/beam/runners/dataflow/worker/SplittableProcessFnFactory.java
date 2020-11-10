@@ -63,6 +63,9 @@ import org.joda.time.Instant;
  * A {@link ParDoFnFactory} to create instances of user {@link ProcessFn} according to
  * specifications from the Dataflow service.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class SplittableProcessFnFactory {
   static final ParDoFnFactory createDefault() {
     return new UserParDoFnFactory(new ProcessFnExtractor(), new SplittableDoFnRunnerFactory());
@@ -162,7 +165,11 @@ class SplittableProcessFnFactory {
               // advancing smoothly, and ensures that not too much work will have to be reprocessed
               // in the event of a crash.
               10000,
-              Duration.standardSeconds(10)));
+              Duration.standardSeconds(10),
+              () -> {
+                throw new UnsupportedOperationException(
+                    "BundleFinalizer unsupported by non-portable Dataflow.");
+              }));
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
           new SimpleDoFnRunner<>(
               options,

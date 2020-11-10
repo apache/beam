@@ -33,22 +33,22 @@ that will reach the Beam PMC.
 
 [CVE-2020-1929] Apache Beam MongoDB IO connector disables certificate trust verification
 
-Severity: Major  
-Vendor: The Apache Software Foundation   
+Severity: Major
+Vendor: The Apache Software Foundation
 
-Versions Affected:  
+Versions Affected:
 Apache Beam 2.10.0 to 2.16.0
 
-Description:  
+Description:
 The Apache Beam MongoDB connector in versions 2.10.0 to 2.16.0 has an option to
 disable SSL trust verification. However this configuration is not respected and
 the certificate verification disables trust verification in every case. This
 exclusion also gets registered globally which disables trust checking for any
 code running in the same JVM.
 
-Mitigation:  
+Mitigation:
 Users of the affected versions should apply one of the following mitigations:
 - Upgrade to Apache Beam 2.17.0 or later
 
-Acknowledgements:  
+Acknowledgements:
 This issue was reported (and fixed) by Colm Ó hÉigeartaigh.

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform that performs equijoins across two schema {@link PCollection}s.
@@ -53,6 +53,10 @@ import org.apache.beam.sdk.values.Row;
  * <p>Full outer joins, left outer joins, and right outer joins are also supported.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class Join {
   public static final String LHS_TAG = "lhs";
   public static final String RHS_TAG = "rhs";
@@ -168,7 +172,7 @@ public class Join {
   public static class Impl<LhsT, RhsT> extends PTransform<PCollection<LhsT>, PCollection<Row>> {
     private final JoinType joinType;
     private final transient PCollection<RhsT> rhs;
-    @Nullable private final FieldsEqual.Impl predicate;
+    private final FieldsEqual.@Nullable Impl predicate;
 
     private Impl(JoinType joinType, PCollection<RhsT> rhs) {
       this(joinType, rhs, null);

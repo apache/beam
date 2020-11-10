@@ -21,7 +21,7 @@ Apache Beam is not governed or steered by any one commercial entity, but by its
 Project Management Committee (PMC), so we do not have a roadmap in the sense of
 a plan with a specific timeline.
 Instead, we share our vision for the future and major initiatives receiving
-and attention and contribution that users can look forward to. 
+and attention and contribution that users can look forward to.
 
 The major components of Beam each have their own roadmap which you can find
 via the menu.
@@ -30,7 +30,7 @@ Below are some highlights for the project as a whole.
 ## Portability Framework
 
 Portability is the primary Beam vision: running pipelines authored with _any SDK_
-on _any runner_. This is a cross-cutting effort across Java, Python, and Go, 
+on _any runner_. This is a cross-cutting effort across Java, Python, and Go,
 and every Beam runner. Portability is currently supported on the
 [Flink](/documentation/runners/flink/)
 and [Spark](/documentation/runners/spark/) runners.
@@ -54,20 +54,20 @@ interest.
 
 Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We continue to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and plan to phase out Python 2 support ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)):
 
-See details on 
+See details on
 the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
 
 ## Java 11 support
 
 The Java SDK is eager to add support for Java's first new LTS (Long Term Support)
-version. See details on 
+version. See details on
 the [Java SDK's Roadmap](/roadmap/java-sdk).
 
 ## SQL
 
 Beam's SQL module is rapidly maturing to allow users to author batch and
 streaming pipelines using only SQL, but also to allow Beam Java developers
-to use SQL in components of their pipeline for added efficiency. See the 
+to use SQL in components of their pipeline for added efficiency. See the
 [Beam SQL Roadmap](/roadmap/sql/)
 
 ## Portable schemas

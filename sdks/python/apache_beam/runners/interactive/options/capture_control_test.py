@@ -103,7 +103,7 @@ class CaptureControlTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(p, 'a signature')
     ie.current_env().mark_pcollection_computed(['fake_pcoll'])
     capture_control.evict_captured_data()
-    mocked_background_caching_job_cancel.assert_called_once()
+    mocked_background_caching_job_cancel.assert_called()
     mocked_test_stream_service_stop.assert_called_once()
     # Neither timer nor capture size limit is reached, thus, the cancelling
     # main job's background caching job is not considered as done.
@@ -113,14 +113,14 @@ class CaptureControlTest(unittest.TestCase):
     self.assertTrue(ie.current_env().get_cached_source_signature(p) == set())
 
   def test_capture_size_limit_not_reached_when_no_cache(self):
-    self.assertIsNone(ie.current_env().cache_manager())
+    self.assertEqual(len(ie.current_env()._cache_managers), 0)
     limiter = capture_limiters.SizeLimiter(1)
     self.assertFalse(limiter.is_triggered())
 
   def test_capture_size_limit_not_reached_when_no_file(self):
     cache = StreamingCache(cache_dir=None)
     self.assertFalse(cache.exists('my_label'))
-    ie.current_env().set_cache_manager(cache)
+    ie.current_env().set_cache_manager(cache, 'dummy pipeline')
 
     limiter = capture_limiters.SizeLimiter(1)
     self.assertFalse(limiter.is_triggered())
@@ -132,7 +132,7 @@ class CaptureControlTest(unittest.TestCase):
     cache.sink(['my_label'], is_capture=True)
     cache.write([TestStreamFileRecord()], 'my_label')
     self.assertTrue(cache.exists('my_label'))
-    ie.current_env().set_cache_manager(cache)
+    ie.current_env().set_cache_manager(cache, 'dummy pipeline')
 
     limiter = capture_limiters.SizeLimiter(ib.options.capture_size_limit)
     self.assertFalse(limiter.is_triggered())
@@ -154,7 +154,8 @@ class CaptureControlTest(unittest.TestCase):
     ],
                 'my_label')
     self.assertTrue(cache.exists('my_label'))
-    ie.current_env().set_cache_manager(cache)
+    p = _build_an_empty_streaming_pipeline()
+    ie.current_env().set_cache_manager(cache, p)
 
     limiter = capture_limiters.SizeLimiter(1)
     self.assertTrue(limiter.is_triggered())
@@ -171,7 +172,7 @@ class CaptureControlTest(unittest.TestCase):
 
     limiter = FakeLimiter()
     background_caching_job = bcj.BackgroundCachingJob(
-        runner.PipelineResult(runner.PipelineState.CANCELLED),
+        runner.PipelineResult(runner.PipelineState.CANCELLING),
         limiters=[limiter])
     ie.current_env().set_background_caching_job(p, background_caching_job)
 

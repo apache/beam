@@ -205,8 +205,9 @@ public class AssignWindowsRunnerTest implements Serializable {
             null /* windowingStrategies */,
             pCollectionConsumerRegistry,
             null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null, /* tearDownRegistry */
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);

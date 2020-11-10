@@ -54,6 +54,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BigQueryHelpers}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryHelpersTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
@@ -212,7 +215,7 @@ public class BigQueryHelpersTest {
     String projectId = "this-is-my-project";
     String jobUuid = "this-is-my-job";
     TableReference noDataset =
-        BigQueryHelpers.createTempTableReference(projectId, jobUuid, Optional.empty());
+        BigQueryResourceNaming.createTempTableReference(projectId, jobUuid, Optional.empty());
 
     assertEquals(noDataset.getProjectId(), projectId);
     assertEquals(noDataset.getDatasetId(), "temp_dataset_" + jobUuid);
@@ -220,7 +223,7 @@ public class BigQueryHelpersTest {
 
     Optional<String> dataset = Optional.ofNullable("my-tmp-dataset");
     TableReference tempTableReference =
-        BigQueryHelpers.createTempTableReference(projectId, jobUuid, dataset);
+        BigQueryResourceNaming.createTempTableReference(projectId, jobUuid, dataset);
 
     assertEquals(tempTableReference.getProjectId(), noDataset.getProjectId());
     assertEquals(tempTableReference.getDatasetId(), dataset.get());

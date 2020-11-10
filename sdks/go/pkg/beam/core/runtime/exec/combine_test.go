@@ -355,7 +355,7 @@ func intCoder(t reflect.Type) *coder.Coder {
 	if err != nil {
 		panic(errors.Wrapf(err, "Couldn't get VarInt coder for %v", t))
 	}
-	return &coder.Coder{Kind: coder.Custom, T: typex.New(t), Custom: c}
+	return coder.CoderFrom(c)
 }
 
 // simpleGBK buffers all input and continues on FinishBundle. Use with small single-bundle data only.

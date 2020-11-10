@@ -30,15 +30,15 @@ In the following example, we create a pipeline with a `PCollection` of key-value
 Then, we apply `KvSwap` to swap the keys and values.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py" kvswap >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py" kvswap >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `KvSwap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet

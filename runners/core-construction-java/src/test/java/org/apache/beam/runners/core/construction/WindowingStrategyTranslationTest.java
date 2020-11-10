@@ -42,10 +42,16 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Unit tests for {@link WindowingStrategy}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindowingStrategyTranslationTest {
 
   // Each spec activates tests of all subsets of its fields
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class ToProtoAndBackSpec {
     abstract WindowingStrategy getWindowingStrategy();
   }
@@ -109,7 +115,11 @@ public class WindowingStrategyTranslationTest {
 
     assertThat(
         toProtoAndBackWindowingStrategy,
-        equalTo((WindowingStrategy) windowingStrategy.fixDefaults()));
+        equalTo(
+            (WindowingStrategy)
+                windowingStrategy
+                    .withEnvironmentId(components.getOnlyEnvironmentId())
+                    .fixDefaults()));
   }
 
   @Test
@@ -124,7 +134,8 @@ public class WindowingStrategyTranslationTest {
 
     assertThat(
         WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
-        equalTo(windowingStrategy.fixDefaults()));
+        equalTo(
+            windowingStrategy.withEnvironmentId(components.getOnlyEnvironmentId()).fixDefaults()));
 
     protoComponents.getCoder(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));

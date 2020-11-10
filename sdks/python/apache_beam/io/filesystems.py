@@ -58,6 +58,11 @@ try:
 except ImportError:
   pass
 
+try:
+  from apache_beam.io.azure.blobstoragefilesystem import BlobStorageFileSystem
+except ImportError:
+  pass
+
 # pylint: enable=wrong-import-position, unused-import
 
 __all__ = ['FileSystems']

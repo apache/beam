@@ -41,14 +41,21 @@ import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.utility.DockerImageName;
 
 /** Base setup for ClickHouse containers. */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BaseClickHouseTest {
 
   public static Network network;
   public static GenericContainer zookeeper;
   public static ClickHouseContainer clickHouse;
+
+  private static final String ZOOKEEPER_VERSION = "3.4.13";
 
   // yandex/clickhouse-server:19.1.6
   // use SHA256 not to pull docker hub for tag if image already exists locally
@@ -64,7 +71,7 @@ public class BaseClickHouseTest {
     network = Network.newNetwork();
 
     zookeeper =
-        new GenericContainer<>("zookeeper:3.4.13")
+        new GenericContainer<>(DockerImageName.parse("zookeeper").withTag(ZOOKEEPER_VERSION))
             .withStartupAttempts(10)
             .withExposedPorts(2181)
             .withNetwork(network)
@@ -144,7 +151,7 @@ public class BaseClickHouseTest {
 
   ResultSet executeQuery(String sql) throws SQLException {
     try (Connection connection = clickHouse.createConnection("");
-        Statement statement = connection.createStatement(); ) {
+        Statement statement = connection.createStatement()) {
       return statement.executeQuery(sql);
     }
   }

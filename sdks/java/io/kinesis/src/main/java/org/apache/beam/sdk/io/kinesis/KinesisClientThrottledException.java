@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.kinesis;
 import com.amazonaws.AmazonClientException;
 
 /** Thrown when the Kinesis client was throttled due to rate limits. */
-class KinesisClientThrottledException extends TransientKinesisException {
+public class KinesisClientThrottledException extends TransientKinesisException {
 
   public KinesisClientThrottledException(String s, AmazonClientException e) {
     super(s, e);

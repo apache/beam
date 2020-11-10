@@ -80,6 +80,9 @@ import org.mockito.ArgumentMatcher;
 
 /** Test case for {@link S3FileSystem}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class S3FileSystemTest {
   private static S3Mock api;
   private static AmazonS3 client;
@@ -103,22 +106,6 @@ public class S3FileSystemTest {
   @AfterClass
   public static void afterClass() {
     api.stop();
-  }
-
-  @Test
-  public void testGlobTranslation() {
-    assertEquals("foo", S3FileSystem.wildcardToRegexp("foo"));
-    assertEquals("fo[^/]*o", S3FileSystem.wildcardToRegexp("fo*o"));
-    assertEquals("f[^/]*o\\.[^/]", S3FileSystem.wildcardToRegexp("f*o.?"));
-    assertEquals("foo-[0-9][^/]*", S3FileSystem.wildcardToRegexp("foo-[0-9]*"));
-    assertEquals("foo-[0-9].*", S3FileSystem.wildcardToRegexp("foo-[0-9]**"));
-    assertEquals(".*foo", S3FileSystem.wildcardToRegexp("**/*foo"));
-    assertEquals(".*foo", S3FileSystem.wildcardToRegexp("**foo"));
-    assertEquals("foo/[^/]*", S3FileSystem.wildcardToRegexp("foo/*"));
-    assertEquals("foo[^/]*", S3FileSystem.wildcardToRegexp("foo*"));
-    assertEquals("foo/[^/]*/[^/]*/[^/]*", S3FileSystem.wildcardToRegexp("foo/*/*/*"));
-    assertEquals("foo/[^/]*/.*", S3FileSystem.wildcardToRegexp("foo/*/**"));
-    assertEquals("foo.*baz", S3FileSystem.wildcardToRegexp("foo**baz"));
   }
 
   @Test

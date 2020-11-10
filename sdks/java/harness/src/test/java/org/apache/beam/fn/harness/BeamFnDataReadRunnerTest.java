@@ -42,7 +42,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -96,6 +95,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnDataReadRunner}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataReadRunnerTest {
   private static final Coder<String> ELEMENT_CODER = StringUtf8Coder.of();
   private static final String ELEMENT_CODER_SPEC_ID = "string-coder-id";
@@ -164,6 +166,7 @@ public class BeamFnDataReadRunnerTest {
       PTransformFunctionRegistry finishFunctionRegistry =
           new PTransformFunctionRegistry(
               mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+      List<ThrowingRunnable> resetFunctions = new ArrayList<>();
       List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
       RunnerApi.PTransform pTransform =
@@ -186,6 +189,7 @@ public class BeamFnDataReadRunnerTest {
               consumers,
               startFunctionRegistry,
               finishFunctionRegistry,
+              resetFunctions::add,
               teardownFunctions::add,
               (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
               null /* splitListener */,
@@ -235,6 +239,7 @@ public class BeamFnDataReadRunnerTest {
               bundleId::get,
               COMPONENTS.getCodersMap(),
               mockBeamFnDataClient,
+              null /* beamFnStateClient */,
               (PTransformRunnerFactory.ProgressRequestCallback callback) -> {
                 progressCallbacks.add(callback);
               },
@@ -286,16 +291,18 @@ public class BeamFnDataReadRunnerTest {
               Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
       assertThat(values, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
-      // Process for bundle id 1
-      bundleId.set("1");
+      readRunner.reset();
       values.clear();
-      readRunner.registerInputLocation();
       // Ensure that when we reuse the BeamFnDataReadRunner the read index is reset to -1
+      // before registerInputLocation.
       assertEquals(
           createReadIndexMonitoringInfoAt(-1),
           Iterables.getOnlyElement(
               Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
 
+      // Process for bundle id 1
+      bundleId.set("1");
+      readRunner.registerInputLocation();
       verify(mockBeamFnDataClient)
           .receive(
               eq(PORT_SPEC.getApiServiceDescriptor()),
@@ -348,6 +355,35 @@ public class BeamFnDataReadRunnerTest {
         }
       }
       fail("Expected registrar not found.");
+    }
+
+    @Test
+    public void testSplittingBeforeStartBundle() throws Exception {
+      List<WindowedValue<String>> outputValues = new ArrayList<>();
+      BeamFnDataReadRunner<String> readRunner =
+          createReadRunner(outputValues::add, PTRANSFORM_ID, mockBeamFnDataClient);
+      // The split should happen at 5 since the allowedSplitPoints is empty.
+      assertEquals(
+          channelSplitResult(5),
+          executeSplit(readRunner, PTRANSFORM_ID, -1L, 0.5, 10, Collections.EMPTY_LIST));
+
+      readRunner.registerInputLocation();
+      // Ensure that we process the correct number of elements after splitting.
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("D"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("E"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("F"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("G"));
+      assertThat(
+          outputValues,
+          contains(
+              valueInGlobalWindow("A"),
+              valueInGlobalWindow("B"),
+              valueInGlobalWindow("C"),
+              valueInGlobalWindow("D"),
+              valueInGlobalWindow("E")));
     }
 
     @Test
@@ -663,15 +699,17 @@ public class BeamFnDataReadRunnerTest {
     @Override
     public SplitResult trySplit(double fractionOfRemainder) {
       return SplitResult.of(
-          BundleApplication.newBuilder()
-              .setInputId(String.format("primary%.1f", fractionOfRemainder))
-              .build(),
-          DelayedBundleApplication.newBuilder()
-              .setApplication(
-                  BundleApplication.newBuilder()
-                      .setInputId(String.format("residual%.1f", 1 - fractionOfRemainder))
-                      .build())
-              .build());
+          Collections.singletonList(
+              BundleApplication.newBuilder()
+                  .setInputId(String.format("primary%.1f", fractionOfRemainder))
+                  .build()),
+          Collections.singletonList(
+              DelayedBundleApplication.newBuilder()
+                  .setApplication(
+                      BundleApplication.newBuilder()
+                          .setInputId(String.format("residual%.1f", 1 - fractionOfRemainder))
+                          .build())
+                  .build()));
     }
   }
 
@@ -694,6 +732,7 @@ public class BeamFnDataReadRunnerTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> resetFunctions = new ArrayList<>();
     List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     RunnerApi.PTransform pTransform =
@@ -716,6 +755,7 @@ public class BeamFnDataReadRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            resetFunctions::add,
             teardownFunctions::add,
             (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
             null /* splitListener */,

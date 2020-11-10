@@ -32,7 +32,6 @@ import os
 import pkg_resources
 import re
 import sys
-import tempfile
 import time
 import warnings
 from copy import copy
@@ -74,6 +73,8 @@ _LEGACY_ENVIRONMENT_MAJOR_VERSION = '8'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
+
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8']
 
 
 class Step(object):
@@ -197,16 +198,6 @@ class Environment(object):
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
 
-      # TODO(BEAM-9707) : Remove hardcoding runner_harness_container for
-      #  Unified worker.
-      if _use_unified_worker(
-          options) and not self.debug_options.lookup_experiment(
-              'runner_harness_container_image'
-          ) and 'dev' in beam_version.__version__:
-        self.debug_options.add_experiment(
-            'runner_harness_container_image='
-            'gcr.io/cloud-dataflow/v1beta3/unified-harness:20200409-rc00')
-
       if self.debug_options.lookup_experiment(
           'runner_harness_container_image') or _use_unified_worker(options):
         # Default image is not used if user provides a runner harness image.
@@ -288,17 +279,16 @@ class Environment(object):
 
     # Setting worker pool sdk_harness_container_images option for supported
     # Dataflow workers.
-    # TODO: change the condition to just _use_unified_worker(options)
-    # when corresponding API change for Dataflow is
-    # rollback-safe.
     environments_to_use = self._get_environments_from_tranforms()
-    if _use_unified_worker(options) and len(environments_to_use) > 1:
+    if _use_unified_worker(options):
       # Adding a SDK container image for the pipeline SDKs
       container_image = dataflow.SdkHarnessContainerImage()
       pipeline_sdk_container_image = get_container_image_from_options(options)
       container_image.containerImage = pipeline_sdk_container_image
       container_image.useSingleCorePerContainer = True  # True for Python SDK.
       pool.sdkHarnessContainerImages.append(container_image)
+
+      already_added_containers = [pipeline_sdk_container_image]
 
       # Adding container images for other SDKs that may be needed for
       # cross-language pipelines.
@@ -310,15 +300,22 @@ class Environment(object):
         environment_payload = proto_utils.parse_Bytes(
             environment.payload, beam_runner_api_pb2.DockerPayload)
         container_image_url = environment_payload.container_image
-        if container_image_url == pipeline_sdk_container_image:
-          # This was already added
-          continue
-        container_image = dataflow.SdkHarnessContainerImage()
+        if container_image_url in already_added_containers:
+          # Do not add the pipeline environment again.
 
-        # Not updating here if the image was already overriden by the user.
-        if container_image_url not in list(self._sdk_image_overrides.values()):
-          container_image_url = get_container_image_from_options(
-              options, container_image_url)
+          # Currently, Dataflow uses Docker container images to uniquely
+          # identify execution environments. Hence Dataflow executes all
+          # transforms that specify the the same Docker container image in a
+          # single container instance. Dependencies of all environments that
+          # specify a given container image will be staged in the container
+          # instance for that particular container image.
+          # TODO(BEAM-9455): loosen this restriction to support multiple
+          # environments with the same container image when Dataflow supports
+          # environment specific artifact provisioning.
+          continue
+        already_added_containers.append(container_image_url)
+
+        container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
         # Currently we only set following to True for Python SDK.
         # TODO: set this correctly for remote environments that might be Python.
@@ -574,19 +571,42 @@ class DataflowApplicationClient(object):
     with open(from_path, 'rb') as f:
       self.stage_file(to_folder, to_name, f, total_size=total_size)
 
-  def _stage_resources(self, options):
+  def _stage_resources(self, pipeline, options):
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.staging_location is None:
       raise RuntimeError('The --staging_location option must be specified.')
     if google_cloud_options.temp_location is None:
       raise RuntimeError('The --temp_location option must be specified.')
 
+    resources = []
+    hashs = {}
+    for _, env in sorted(pipeline.components.environments.items(),
+                         key=lambda kv: kv[0]):
+      for dep in env.dependencies:
+        if dep.type_urn != common_urns.artifact_types.FILE.urn:
+          raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
+        if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
+          raise RuntimeError('unsupported role type %s' % dep.role_urn)
+        type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+            dep.type_payload)
+        role_payload = (
+            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                dep.role_payload))
+        if type_payload.sha256 and type_payload.sha256 in hashs:
+          _LOGGER.info(
+              'Found duplicated artifact: %s (%s)',
+              type_payload.path,
+              type_payload.sha256)
+          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=hashs[type_payload.sha256]).SerializeToString()
+        else:
+          resources.append((type_payload.path, role_payload.staged_name))
+          hashs[type_payload.sha256] = role_payload.staged_name
+
     resource_stager = _LegacyDataflowStager(self)
-    _, resources = resource_stager.create_and_stage_job_resources(
-        options,
-        temp_dir=tempfile.mkdtemp(),
-        staging_location=google_cloud_options.staging_location)
-    return resources
+    staged_resources = resource_stager.stage_job_resources(
+        resources, staging_location=google_cloud_options.staging_location)
+    return staged_resources
 
   def stage_file(
       self,
@@ -688,7 +708,7 @@ class DataflowApplicationClient(object):
         io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
-    resources = self._stage_resources(job.options)
+    resources = self._stage_resources(job.proto_pipeline, job.options)
 
     job.proto.environment = Environment(
         proto_pipeline_staged_url=FileSystems.join(
@@ -902,8 +922,10 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState ==
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING):
+        if (job.name == job_name and job.currentState in [
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
+        ]):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -1026,6 +1048,14 @@ def _use_unified_worker(pipeline_options):
   return debug_options.lookup_experiment(use_unified_worker_flag)
 
 
+def _use_unified_worker_portable_job(pipeline_options):
+  portable_job_flag = 'use_portable_job_submission'
+  debug_options = pipeline_options.view_as(DebugOptions)
+  return (
+      _use_unified_worker(pipeline_options) and
+      debug_options.lookup_experiment(portable_job_flag))
+
+
 def _get_container_image_tag():
   base_version = pkg_resources.parse_version(
       beam_version.__version__).base_version
@@ -1038,13 +1068,11 @@ def _get_container_image_tag():
   return base_version
 
 
-def get_container_image_from_options(
-    pipeline_options, external_image_to_override=None):
+def get_container_image_from_options(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
       pipeline_options (PipelineOptions): A container for pipeline options.
-      external_image_to_override: container image for an external SDK
 
     Returns:
       str: Container image for remote execution.
@@ -1052,24 +1080,6 @@ def get_container_image_from_options(
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.worker_harness_container_image:
     return worker_options.worker_harness_container_image
-  elif external_image_to_override:
-    _LOGGER.warning(
-        'Add support for determining container images for external SDKs '
-        'without user overrides')
-    return external_image_to_override
-
-  if sys.version_info[0] == 2:
-    version_suffix = ''
-  elif sys.version_info[0:2] == (3, 5):
-    version_suffix = '3'
-  elif sys.version_info[0:2] == (3, 6):
-    version_suffix = '36'
-  elif sys.version_info[0:2] == (3, 7):
-    version_suffix = '37'
-  else:
-    raise Exception(
-        'Dataflow only supports Python versions 2 and 3.5+, got: %s' %
-        str(sys.version_info[0:2]))
 
   use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
@@ -1078,6 +1088,7 @@ def get_container_image_from_options(
   else:
     fnapi_suffix = ''
 
+  version_suffix = '%s%s' % (sys.version_info[0:2])
   image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
       repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
       version_suffix=version_suffix,
@@ -1130,19 +1141,25 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+  if ('%s.%s' %
+      (sys.version_info[0],
+       sys.version_info[1]) in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
+    return
+
+  if 'dev' in beam_version.__version__:
     return
 
   debug_options = pipeline_options.view_as(DebugOptions)
   if (debug_options.experiments and
-      'ignore_py3_minor_version' in debug_options.experiments):
+      'use_unsupported_python_version' in debug_options.experiments):
     return
 
   raise Exception(
-      'Dataflow runner currently supports Python versions '
-      '2.7, 3.5, 3.6, and 3.7. To ignore this requirement and start a job '
-      'using a different version of Python 3 interpreter, pass '
-      '--experiment ignore_py3_minor_version pipeline option.')
+      'Dataflow runner currently supports Python versions %s, got %s.\n'
+      'To ignore this requirement and start a job '
+      'using an unsupported version of Python interpreter, pass '
+      '--experiment use_unsupported_python_version pipeline option.' %
+      (_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW, sys.version))
 
 
 # To enable a counter on the service, add it to this dictionary.

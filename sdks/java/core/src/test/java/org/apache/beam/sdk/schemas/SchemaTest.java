@@ -32,6 +32,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link Schema}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SchemaTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -350,5 +353,25 @@ public class SchemaTest {
 
     Schema schema4 = Schema.builder().addInt32Field("foo").build();
     assertFalse(schema1.typesEqual(schema4)); // schema1 and schema4 differ by types
+  }
+
+  @Test
+  public void testIllegalIndexOf() {
+    Schema schema = Schema.builder().addStringField("foo").build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot find field bar in schema " + schema);
+
+    schema.indexOf("bar");
+  }
+
+  @Test
+  public void testIllegalNameOf() {
+    Schema schema = Schema.builder().addStringField("foo").build();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot find field 1");
+
+    schema.nameOf(1);
   }
 }

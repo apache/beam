@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Validation.Required;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options common to all portable runners. */
 @Experimental(Kind.PORTABILITY)
@@ -103,18 +103,4 @@ public interface PortablePipelineOptions extends PipelineOptions {
   String getOutputExecutablePath();
 
   void setOutputExecutablePath(String outputExecutablePath);
-
-  /** Enumeration of the different implementations of the artifact retrieval service. */
-  enum RetrievalServiceType {
-    /** Artifacts are to be retrieved from a {@link org.apache.beam.sdk.io.FileSystem}. */
-    FILE_SYSTEM,
-    /** Artifacts are to be retrieved from the runtime {@link ClassLoader}. */
-    CLASSLOADER,
-  }
-
-  @Description("The artifact retrieval service to be used.")
-  @Default.Enum("FILE_SYSTEM")
-  RetrievalServiceType getRetrievalServiceType();
-
-  void setRetrievalServiceType(RetrievalServiceType retrievalServiceType);
 }

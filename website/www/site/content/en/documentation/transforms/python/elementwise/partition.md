@@ -47,15 +47,15 @@ In the following example, we have a known list of durations.
 We partition the `PCollection` into one `PCollection` for every duration type.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection`s:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -67,15 +67,15 @@ Output `PCollection`s:
 We can also use lambda functions to simplify **Example 1**.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection`s:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -115,15 +115,15 @@ This `split_dataset` function is generic enough to support any number of partiti
 You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection`s:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" train_test >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" train_test >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet

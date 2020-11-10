@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
@@ -51,6 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Used inside of a {@link org.apache.beam.sdk.transforms.DoFn} to describe which fields in a schema
@@ -60,6 +60,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  */
 @Experimental(Kind.SCHEMAS)
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class FieldAccessDescriptor implements Serializable {
   /** Description of a single field. */
   @AutoValue
@@ -76,6 +79,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
     /** OneOf union for a collection selector. */
     @AutoOneOf(Qualifier.Kind.class)
+    @SuppressWarnings("nullness")
     public abstract static class Qualifier implements Serializable {
       /** The kind of qualifier. */
       public enum Kind {
@@ -98,14 +102,11 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
     }
 
-    @Nullable
-    public abstract String getFieldName();
+    public abstract @Nullable String getFieldName();
 
-    @Nullable
-    public abstract Integer getFieldId();
+    public abstract @Nullable Integer getFieldId();
 
-    @Nullable
-    public abstract String getFieldRename();
+    public abstract @Nullable String getFieldRename();
 
     public abstract List<Qualifier> getQualifiers();
 

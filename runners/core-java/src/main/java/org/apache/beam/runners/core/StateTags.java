@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateBinder;
@@ -38,8 +39,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static utility methods for creating {@link StateTag} instances. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class StateTags {
 
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
@@ -83,6 +88,12 @@ public class StateTags {
           Coder<KeyT> mapKeyCoder,
           Coder<ValueT> mapValueCoder) {
         return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
+      }
+
+      @Override
+      public <T> OrderedListState<T> bindOrderedList(
+          String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+        return binder.bindOrderedList(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
@@ -195,6 +206,10 @@ public class StateTags {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
   }
 
+  public static <T> StateTag<OrderedListState<T>> orderedList(String id, Coder<T> elemCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.orderedList(elemCoder));
+  }
+
   /** Create a state tag for holding the watermark. */
   public static <W extends BoundedWindow> StateTag<WatermarkHoldState> watermarkStateInternal(
       String id, TimestampCombiner timestampCombiner) {
@@ -255,7 +270,7 @@ public class StateTags {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj == this) {
         return true;
       }
@@ -319,7 +334,7 @@ public class StateTags {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof SimpleStateTag)) {
         return false;
       }

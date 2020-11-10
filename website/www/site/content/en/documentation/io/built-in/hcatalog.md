@@ -27,7 +27,7 @@ For example:
 
 {{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
-configProperties.put("hive.metastore.uris","thrift://metastore-host:port"); 
+configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
 pipeline
   .apply(HCatalogIO.read()
   .withConfigProperties(configProperties)
@@ -67,12 +67,12 @@ pipeline
 
 ### Using older versions of HCatalog (1.x)
 
-`HCatalogIO` is built for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog. 
+`HCatalogIO` is built for Apache HCatalog versions 2 and up and will not work out of the box for older versions of HCatalog.
 The following illustrates a workaround to work with Hive 1.1.
 
-Include the following Hive 1.2 jars in the über jar you build. 
+Include the following Hive 1.2 jars in the über jar you build.
 The 1.2 jars provide the necessary methods for Beam while remain compatible with Hive 1.1.
- 
+
 ```
 <dependency>
     <groupId>org.apache.beam</groupId>
@@ -100,7 +100,7 @@ The 1.2 jars provide the necessary methods for Beam while remain compatible with
     <version>1.2</version>
 </dependency>
 ```
- 
+
 Relocate _only_ the following hive packages:
 
 ```
@@ -154,5 +154,5 @@ Relocate _only_ the following hive packages:
 </plugin>
 ```
 
-This has been testing to read SequenceFile and ORCFile file backed tables running with 
+This has been testing to read SequenceFile and ORCFile file backed tables running with
 Beam 2.4.0 on Spark 2.3 / YARN in a Cloudera CDH 5.12.2 managed environment.

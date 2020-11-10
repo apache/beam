@@ -42,7 +42,8 @@ class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
 
   Implementations should support random access reads.
   """
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def size(self):
     """Size of file to download."""
 
@@ -255,7 +256,7 @@ class PipeStream(object):
     """
     data_list = []
     bytes_read = 0
-    self.last_block_position = self.position
+    last_block_position = self.position
 
     while bytes_read < size:
       bytes_from_remaining = min(size - bytes_read, len(self.remaining))
@@ -268,8 +269,12 @@ class PipeStream(object):
           self.remaining = self.conn.recv_bytes()
         except EOFError:
           break
-    self.last_block = b''.join(data_list)
-    return self.last_block
+
+    last_block = b''.join(data_list)
+    if last_block:
+      self.last_block_position = last_block_position
+      self.last_block = last_block
+    return last_block
 
   def tell(self):
     """Tell the file's current offset.

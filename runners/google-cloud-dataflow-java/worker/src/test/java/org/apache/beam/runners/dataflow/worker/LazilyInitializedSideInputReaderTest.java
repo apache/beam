@@ -40,6 +40,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link LazilyInitializedSideInputReader}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LazilyInitializedSideInputReaderTest {
   private static final String TEST_TAG = "test_tag";
 

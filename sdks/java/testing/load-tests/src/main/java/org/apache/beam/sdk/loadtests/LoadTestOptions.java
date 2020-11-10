@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -25,6 +24,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Common interface for all load test options. */
 public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions, StreamingOptions {

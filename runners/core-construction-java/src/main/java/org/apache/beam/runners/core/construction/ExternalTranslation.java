@@ -23,15 +23,18 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Translating External transforms to proto. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ExternalTranslation {
   public static final String EXTERNAL_TRANSFORM_URN = "beam:transform:external:v1";
 
@@ -42,9 +45,8 @@ public class ExternalTranslation {
       return new ExternalTranslator();
     }
 
-    @Nullable
     @Override
-    public String getUrn(External.ExpandableTransform transform) {
+    public @Nullable String getUrn(External.ExpandableTransform transform) {
       return EXTERNAL_TRANSFORM_URN;
     }
 

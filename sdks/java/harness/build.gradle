@@ -27,6 +27,10 @@ def dependOnProjects = [":sdks:java:fn-execution",
                         ":runners:core-java", ":runners:core-construction-java"]
 
 applyJavaNature(
+  classesTriggerCheckerBugs: [
+    'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+    'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+  ],
   automaticModuleName: 'org.apache.beam.fn.harness',
   validateShadowJar: false,
   testShadowJar: true,
@@ -44,7 +48,8 @@ applyJavaNature(
       // Include all dependencies and transitive dependencies
       include(dependency(".*:.*"))
     }
-  })
+  },
+)
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"

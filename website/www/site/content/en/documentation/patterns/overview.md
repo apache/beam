@@ -35,6 +35,16 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 **Custom window patterns** - Patterns for windowing functions
 * [Using data to dynamically set session window gaps](/documentation/patterns/custom-windows/#using-data-to-dynamically-set-session-window-gaps)
 
+**BigQuery patterns** - Patterns for BigQueryIO
+* [Google BigQuery patterns](/documentation/patterns/bigqueryio/#google-bigquery-patterns)
+
+**AI Platform integration patterns** - Patterns for using Google Cloud AI Platform transforms
+* [Analysing the structure and meaning of text](/documentation/patterns/ai-platform/#analysing-the-structure-and-meaning-of-text)
+* [Getting predictions](/documentation/patterns/ai-platform/#getting-predictions)
+
+**Schema patterns** - Patterns for using Schemas
+* [Using Joins](/documentation/patterns/schema/#using-joins)
+
 ## Contributing a pattern
 
 To contribute a new pipeline pattern, create an issue with the [`pipeline-patterns` label](https://issues.apache.org/jira/browse/BEAM-7449?jql=labels%20%3D%20pipeline-patterns) and add details to the issue description. See [Get started contributing](/contribute/) for more information.

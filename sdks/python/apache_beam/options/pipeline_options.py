@@ -34,6 +34,7 @@ from typing import Optional
 from typing import Type
 from typing import TypeVar
 
+import apache_beam as beam
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
@@ -51,6 +52,7 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
+    'S3Options'
 ]
 
 PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
@@ -245,6 +247,8 @@ class PipelineOptions(HasDisplayData):
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
+      elif isinstance(v, dict):
+        flags.append('--%s=%s' % (k, json.dumps(v)))
       else:
         flags.append('--%s=%s' % (k, v))
 
@@ -443,6 +447,22 @@ class CrossLanguageOptions(PipelineOptions):
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
 
 
+def additional_option_ptransform_fn():
+  beam.transforms.ptransform.ptransform_fn_typehints_enabled = True
+
+
+# Optional type checks that aren't enabled by default.
+additional_type_checks = {
+    'ptransform_fn': additional_option_ptransform_fn,
+}  # type: Dict[str, Callable[[], None]]
+
+
+def enable_all_additional_type_checks():
+  """Same as passing --type_check_additional=all."""
+  for f in additional_type_checks.values():
+    f()
+
+
 class TypeOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -453,6 +473,12 @@ class TypeOptions(PipelineOptions):
         choices=['ALL_REQUIRED', 'DEFAULT_TO_ANY'],
         help='The level of exhaustive manual type-hint '
         'annotation required')
+    parser.add_argument(
+        '--type_check_additional',
+        default='',
+        help='Comma separated list of additional type checking features to '
+        'enable. Options: all, ptransform_fn. For details see:'
+        'https://beam.apache.org/documentation/sdks/python-type-safety/')
     parser.add_argument(
         '--no_pipeline_type_check',
         dest='pipeline_type_check',
@@ -466,6 +492,33 @@ class TypeOptions(PipelineOptions):
         help='Enable type checking at pipeline execution '
         'time. NOTE: only supported with the '
         'DirectRunner')
+    parser.add_argument(
+        '--performance_runtime_type_check',
+        default=False,
+        action='store_true',
+        help='Enable faster type checking via sampling at pipeline execution '
+        'time. NOTE: only supported with portable runners '
+        '(including the DirectRunner)')
+
+  def validate(self, unused_validator):
+    errors = []
+    if beam.version.__version__ >= '3':
+      errors.append(
+          'Update --type_check_additional default to include all '
+          'available additional checks at Beam 3.0 release time.')
+    keys = self.type_check_additional.split(',')
+
+    for key in keys:
+      if not key:
+        continue
+      elif key == 'all':
+        enable_all_additional_type_checks()
+      elif key in additional_type_checks:
+        additional_type_checks[key]()
+      else:
+        errors.append('Unrecognized --type_check_additional feature: %s' % key)
+
+    return errors
 
 
 class DirectOptions(PipelineOptions):
@@ -600,11 +653,32 @@ class GoogleCloudOptions(PipelineOptions):
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
 
+  def _create_default_gcs_bucket(self):
+    try:
+      from apache_beam.io.gcp import gcsio
+    except ImportError:
+      _LOGGER.warning('Unable to create default GCS bucket.')
+      return None
+    bucket = gcsio.get_or_create_default_gcs_bucket(self)
+    if bucket:
+      return 'gs://%s' % bucket.id
+    else:
+      return None
+
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
-      errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+
+      # Validating temp_location, or adding a default if there are issues
+      temp_location_errors = validator.validate_gcs_path(self, 'temp_location')
+      if temp_location_errors:
+        default_bucket = self._create_default_gcs_bucket()
+        if default_bucket is None:
+          errors.extend(temp_location_errors)
+        else:
+          setattr(self, 'temp_location', default_bucket)
+
       if getattr(self, 'staging_location',
                  None) or getattr(self, 'temp_location', None) is None:
         errors.extend(validator.validate_gcs_path(self, 'staging_location'))
@@ -943,6 +1017,33 @@ class SetupOptions(PipelineOptions):
             'staged in the staging area (--staging_location option) and the '
             'workers will install them in same order they were specified on '
             'the command line.'))
+    parser.add_argument(
+        '--prebuild_sdk_container_engine',
+        choices=['local_docker', 'cloud_build'],
+        help=(
+            'Prebuild sdk worker container image before job submission. If '
+            'enabled, SDK invokes the boot sequence in SDK worker '
+            'containers to install all pipeline dependencies in the '
+            'container, and uses the prebuilt image in the pipeline '
+            'environment. This may speed up pipeline execution. To enable, '
+            'select the Docker build engine: local_docker using '
+            'locally-installed Docker or cloud_build for using Google Cloud '
+            'Build (requires a GCP project with Cloud Build API enabled).'))
+    parser.add_argument(
+        '--prebuild_sdk_container_base_image',
+        default=None,
+        help=(
+            'The base image to use when pre-building the sdk container image '
+            'with dependencies, if not specified, by default the released '
+            'public apache beam python sdk container image corresponding to '
+            'the sdk version will be used, if a dev sdk is used the base '
+            'image will default to the latest released sdk image.'))
+    parser.add_argument(
+        '--docker_registry_push_url',
+        default=None,
+        help=(
+            'Docker registry url to use for tagging and pushing the prebuilt '
+            'sdk worker container image.'))
 
 
 class PortableOptions(PipelineOptions):
@@ -993,7 +1094,20 @@ class PortableOptions(PipelineOptions):
             'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
             '"<process to execute>", "env":{"<Environment variables 1>": '
             '"<ENV_VAL>"} }. All fields in the json are optional except '
-            'command.'))
+            'command.\n\nPrefer using --environment_options instead.'))
+    parser.add_argument(
+        '--environment_option',
+        '--environment_options',
+        dest='environment_options',
+        action='append',
+        default=None,
+        help=(
+            'Environment configuration for running the user code. '
+            'Recognized options depend on --environment_type.\n '
+            'For DOCKER: docker_container_image (optional)\n '
+            'For PROCESS: process_command (required), process_variables '
+            '(optional, comma-separated)\n '
+            'For EXTERNAL: external_service_address (required)'))
     parser.add_argument(
         '--sdk_worker_parallelism',
         default=1,
@@ -1013,6 +1127,26 @@ class PortableOptions(PipelineOptions):
         help=(
             'Create an executable jar at this path rather than running '
             'the pipeline.'))
+
+  def validate(self, validator):
+    return validator.validate_environment_options(self)
+
+  def add_environment_option(self, option):
+    # pylint: disable=access-member-before-definition
+    if self.environment_options is None:
+      self.environment_options = []
+    if option not in self.environment_options:
+      self.environment_options.append(option)
+
+  def lookup_environment_option(self, key, default=None):
+    if not self.environment_options:
+      return default
+    elif key in self.environment_options:
+      return True
+    for option in self.environment_options:
+      if option.startswith(key + '='):
+        return option.split('=', 1)[1]
+    return default
 
 
 class JobServerOptions(PipelineOptions):
@@ -1188,3 +1322,44 @@ class OptionsContext(object):
       for name, value in override.items():
         setattr(options, name, value)
     return options
+
+
+class S3Options(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # These options are passed to the S3 IO Client
+    parser.add_argument(
+        '--s3_access_key_id',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_secret_access_key',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_session_token',
+        default=None,
+        help='The session token to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_endpoint_url',
+        default=None,
+        help='The complete URL to use for the constructed s3 client.')
+    parser.add_argument(
+        '--s3_region_name',
+        default=None,
+        help='The name of the region associated with the s3 client.')
+    parser.add_argument(
+        '--s3_api_version',
+        default=None,
+        help='The API version to use with the s3 client.')
+    parser.add_argument(
+        '--s3_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the s3 client.')
+    parser.add_argument(
+        '--s3_disable_ssl',
+        default=False,
+        action='store_true',
+        help=(
+            'Whether or not to use SSL with the s3 client. '
+            'By default, SSL is used.'))

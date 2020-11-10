@@ -52,6 +52,9 @@ import org.junit.runners.JUnit4;
  * (or higher) in the backend Elasticsearch server for this test to run.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ElasticsearchIOIT {
   private static RestClient restClient;
   private static ElasticsearchPipelineOptions options;
@@ -143,5 +146,39 @@ public class ElasticsearchIOIT {
         new ElasticsearchIOTestCommon(updateConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonUpdate.setPipeline(pipeline);
     elasticsearchIOTestCommonUpdate.testWritePartialUpdate();
+  }
+
+  /**
+   * This test verifies volume deletes of Elasticsearch. The test dataset index is cloned and then
+   * around half of the documents are deleted and the other half is partially updated using bulk
+   * delete request. The test then asserts the documents were deleted successfully.
+   */
+  @Test
+  public void testWriteWithIsDeletedFnWithPartialUpdates() throws Exception {
+    ElasticsearchIOTestUtils.copyIndex(
+        restClient,
+        readConnectionConfiguration.getIndex(),
+        updateConnectionConfiguration.getIndex());
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonDeleteFn =
+        new ElasticsearchIOTestCommon(updateConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonDeleteFn.setPipeline(pipeline);
+    elasticsearchIOTestCommonDeleteFn.testWriteWithIsDeletedFnWithPartialUpdates();
+  }
+
+  /**
+   * This test verifies volume deletes of Elasticsearch. The test dataset index is cloned and then
+   * around half of the documents are deleted using bulk delete request. The test then asserts the
+   * documents were deleted successfully.
+   */
+  @Test
+  public void testWriteWithIsDeletedFnWithoutPartialUpdate() throws Exception {
+    ElasticsearchIOTestUtils.copyIndex(
+        restClient,
+        readConnectionConfiguration.getIndex(),
+        updateConnectionConfiguration.getIndex());
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonDeleteFn =
+        new ElasticsearchIOTestCommon(updateConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonDeleteFn.setPipeline(pipeline);
+    elasticsearchIOTestCommonDeleteFn.testWriteWithIsDeletedFnWithoutPartialUpdate();
   }
 }

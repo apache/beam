@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -96,6 +97,9 @@ public class ReadAllViaFileBasedSource<T>
     }
 
     @ProcessElement
+    @SuppressFBWarnings(
+        value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE",
+        justification = "https://github.com/spotbugs/spotbugs/issues/756")
     public void process(ProcessContext c) throws IOException {
       ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();

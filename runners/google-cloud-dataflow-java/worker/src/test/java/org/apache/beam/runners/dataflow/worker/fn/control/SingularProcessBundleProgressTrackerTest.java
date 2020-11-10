@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor.
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,6 +37,10 @@ import org.mockito.Mockito;
 
 /** Tests for {@link BeamFnMapTaskExecutor.SingularProcessBundleProgressTracker}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SingularProcessBundleProgressTrackerTest {
 
   private static class TestProgress implements Progress {
@@ -46,7 +51,7 @@ public class SingularProcessBundleProgressTrackerTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return o instanceof TestProgress && this.name.equals(((TestProgress) o).name);
     }
 

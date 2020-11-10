@@ -14,19 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from test_helper import failed, passed, \
-    get_answer_placeholders, get_file_output, test_is_not_empty, \
-    test_answer_placeholders_text_deleted
-
-
-def test_filter():
-    placeholders = get_answer_placeholders()
-    placeholder = placeholders[0]
-
-    if 'beam.WithKeys' in placeholder:
-        passed()
-    else:
-        failed('Use beam.WithKeys')
+from test_helper import failed, passed, get_file_output, test_is_not_empty
 
 
 def test_output():
@@ -44,6 +32,4 @@ def test_output():
 
 if __name__ == '__main__':
     test_is_not_empty()
-    test_answer_placeholders_text_deleted()
-    test_filter()
     test_output()

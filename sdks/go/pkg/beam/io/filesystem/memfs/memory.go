@@ -41,7 +41,7 @@ type fs struct {
 }
 
 // New returns the global memory filesystem.
-func New(ctx context.Context) filesystem.Interface {
+func New(_ context.Context) filesystem.Interface {
 	return instance
 }
 
@@ -49,7 +49,7 @@ func (f *fs) Close() error {
 	return nil
 }
 
-func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
+func (f *fs) List(_ context.Context, _ string) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -61,7 +61,7 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 	return ret, nil
 }
 
-func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, error) {
+func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -71,8 +71,18 @@ func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, erro
 	return nil, os.ErrNotExist
 }
 
-func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
+func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
 	return &commitWriter{key: filename}, nil
+}
+
+func (f *fs) Size(_ context.Context, filename string) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if v, ok := f.m[normalize(filename)]; ok {
+		return int64(len(v)), nil
+	}
+	return -1, os.ErrNotExist
 }
 
 // Write stores the given key and value in the global store.

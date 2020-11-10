@@ -19,15 +19,22 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
 
+configurations {
+  hadoopVersion285
+}
+
 def log4j_version = "2.6.2"
-def elastic_search_version = "5.0.0"
+def elastic_search_version = "7.9.2"
+def hadoop_285_version = '2.8.5'
 
 configurations.create("sparkRunner")
 configurations.sparkRunner {
@@ -56,10 +63,8 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile project(":sdks:java:io:jdbc")
   testCompile project(path: ":examples:java", configuration: "testRuntime")
-
-  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile "org.elasticsearch.client:transport:$elastic_search_version"
-  testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
+  testCompile library.java.testcontainers_elasticsearch
+  testCompile "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
   testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
     // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
@@ -73,12 +78,11 @@ dependencies {
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
     exclude group: "org.apache.storm", module: "storm-core"
   }
-  // elasticsearch-hadoop 5.0.0 uses commons-httpclient's URIException
-  testCompile "commons-httpclient:commons-httpclient:3.1"
+  testCompile library.java.commons_lang3
   testCompile library.java.commons_io
   testCompile library.java.cassandra_driver_core
   testCompile library.java.cassandra_driver_mapping
-  testCompile "org.apache.cassandra:cassandra-all:3.11.5"
+  testCompile "org.apache.cassandra:cassandra-all:3.11.8"
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
@@ -95,6 +99,18 @@ dependencies {
   sparkRunner project(":sdks:java:io:hadoop-file-system")
   sparkRunner library.java.spark_streaming
   sparkRunner library.java.spark_core
+
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+  hadoopVersion285 "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+  hadoopVersion285 "org.apache.hadoop:hadoop-hdfs:$hadoop_285_version"
+}
+
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+    force "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+    force "org.apache.hadoop:hadoop-hdfs:$hadoop_285_version"
+  }
 }
 
 // The cassandra.yaml file currently assumes "target/..." exists.
@@ -104,7 +120,7 @@ dependencies {
 task createTargetDirectoryForCassandra() {
   doLast {
     if (!project.file("target").exists()) {
-      project.file("target").mkdirs();
+      project.file("target").mkdirs()
     }
   }
 }
@@ -131,4 +147,20 @@ task sparkRunner(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
   systemProperty "beam.spark.test.reuseSparkContext", "true"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+}
+
+task hadoopFormatIOElasticTest(type: Test) {
+  group = "Verification"
+  description = 'Runs HadoopFormatIO integration test with ElasticSearchContainer'
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  include '**/HadoopFormatIOElasticIT.class'
+  useJUnit { }
+}
+
+task hadoopVersion285Test(type: Test) {
+  dependsOn createTargetDirectoryForCassandra
+  description = "Runs Hadoop format tests with Hadoop version $hadoop_285_version"
+  outputs.upToDateWhen { false }
+  include '**/*Test.class'
 }

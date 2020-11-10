@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -61,12 +60,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link DataflowExecutionContext} for use in streaming mode. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
@@ -80,7 +83,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * <p>This key should not be mistaken for the sharding key of the computation, which is always
    * present.
    */
-  @Nullable private Object key = null;
+  private @Nullable Object key = null;
 
   private final String computationId;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
@@ -90,6 +93,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final WindmillStateCache.ForComputation stateCache;
 
   private Windmill.WorkItem work;
+  private WindmillComputationKey computationKey;
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
@@ -166,9 +170,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
      * <p>Final updates should never be requested from a Streaming job since the work unit never
      * completes.
      */
-    @Nullable
     @Override
-    public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+    public @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate) {
       // Streaming reports deltas, so isFinalUpdate doesn't matter, and should never be true.
       long sum = totalMillisInState.getAndSet(0);
       return sum == 0 ? null : createUpdate(false, sum);
@@ -180,6 +183,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * ExecutionState.
    */
   public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
+
     private final StreamingDataflowWorker worker;
 
     public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {
@@ -215,6 +219,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
     this.work = work;
+    this.computationKey =
+        WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
     this.stateFetcher = stateFetcher;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
@@ -274,8 +280,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * <p>If the side input was ready and null, returns {@literal Optional.absent()}. If the side
    * input was ready and non-null returns {@literal Optional.present(...)}.
    */
-  @Nullable
-  private <T> Optional<T> fetchSideInput(
+  private @Nullable <T> Optional<T> fetchSideInput(
       PCollectionView<T> view,
       BoundedWindow sideInputWindow,
       String stateFamily,
@@ -314,9 +319,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return work.getTimers().getTimersList();
   }
 
-  @Nullable
-  public ByteString getSerializedKey() {
+  public @Nullable ByteString getSerializedKey() {
     return work == null ? null : work.getKey();
+  }
+
+  public WindmillComputationKey getComputationKey() {
+    return computationKey;
   }
 
   public long getWorkToken() {
@@ -336,7 +344,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * The caller is responsible for the reader and should appropriately close it as required.
    */
   public UnboundedSource.UnboundedReader<?> getCachedReader() {
-    return readerCache.acquireReader(computationId, getSerializedKey(), getWork().getCacheToken());
+    return readerCache.acquireReader(getComputationKey(), getWork().getCacheToken());
   }
 
   public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
@@ -348,7 +356,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   public void invalidateCache() {
     ByteString key = getSerializedKey();
     if (key != null) {
-      readerCache.invalidateReader(computationId, key);
+      readerCache.invalidateReader(getComputationKey());
       if (activeReader != null) {
         try {
           activeReader.close();
@@ -357,7 +365,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         }
       }
       activeReader = null;
-      stateCache.invalidate(key);
+      stateCache.invalidate(key, getWork().getShardingKey());
     }
   }
 
@@ -421,14 +429,14 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       }
       outputBuilder.setSourceBacklogBytes(backlogBytes);
 
-      readerCache.cacheReader(
-          computationId, getSerializedKey(), getWork().getCacheToken(), activeReader);
+      readerCache.cacheReader(getComputationKey(), getWork().getCacheToken(), activeReader);
       activeReader = null;
     }
     return callbacks;
   }
 
   interface StreamingModeStepContext {
+
     boolean issueSideInputFetch(
         PCollectionView<?> view, BoundedWindow w, StateFetcher.SideInputState s);
 
@@ -499,7 +507,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateReader,
               work.getIsNewKey(),
               stateCache.forKey(
-                  getSerializedKey(), stateFamily, getWork().getCacheToken(), getWorkToken()),
+                  getComputationKey(), stateFamily, getWork().getCacheToken(), getWorkToken()),
               scopedReadStateSupplier);
 
       this.systemTimerInternals =
@@ -552,7 +560,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       if (!cachedFiredTimers.hasNext()) {
         return null;
       }
-      return cachedFiredTimers.next();
+      TimerData nextTimer = cachedFiredTimers.next();
+      // system timers ( GC timer) must be explicitly deleted if only there is a hold.
+      // if timestamp is not equals to outputTimestamp then there should be a hold
+      if (!nextTimer.getTimestamp().equals(nextTimer.getOutputTimestamp())) {
+        systemTimerInternals.deleteTimer(nextTimer);
+      }
+      return nextTimer;
     }
 
     // Lazily initialized
@@ -584,14 +598,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       timerInternals()
           .setTimer(
               StateNamespaces.window(windowCoder, window),
               timerId,
               "",
               cleanupTime,
-              cleanupTime,
+              cleanupOutputTimestamp,
               TimeDomain.EVENT_TIME);
     }
 
@@ -755,7 +773,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       throw new UnsupportedOperationException(
           String.format(
               "setStateCleanupTimer should not be called on %s, only on a system %s",
@@ -771,6 +793,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   /** A {@link SideInputReader} that fetches side inputs from the streaming worker's cache. */
   public static class StreamingModeSideInputReader implements SideInputReader {
+
     private StreamingModeExecutionContext context;
     private Set<PCollectionView<?>> viewSet;
 

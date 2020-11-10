@@ -21,24 +21,29 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import javax.annotation.Nullable;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,6 +52,9 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for building {@link PubsubIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubIOExternalTest {
   @Test
   public void testConstructPubsubRead() throws Exception {
@@ -55,26 +63,16 @@ public class PubsubIOExternalTest {
     Boolean needsAttributes = true;
 
     ExternalTransforms.ExternalConfigurationPayload payload =
-        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .putConfiguration(
-                "topic",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(topic)))
-                    .build())
-            .putConfiguration(
-                "id_label",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(idAttribute)))
-                    .build())
-            .putConfiguration(
-                "with_attributes",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bool:v1")
-                    .setPayload(ByteString.copyFrom(encodeBoolean(needsAttributes)))
-                    .build())
-            .build();
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.of("topic", FieldType.STRING),
+                        Field.of("id_label", FieldType.STRING),
+                        Field.of("with_attributes", FieldType.BOOLEAN)))
+                .withFieldValue("topic", topic)
+                .withFieldValue("id_label", idAttribute)
+                .withFieldValue("with_attributes", needsAttributes)
+                .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();
     ExpansionApi.ExpansionRequest request =
@@ -102,22 +100,6 @@ public class PubsubIOExternalTest {
             "test_namespacetest/PubsubUnboundedSource", "test_namespacetest/MapElements"));
     assertThat(transform.getInputsCount(), Matchers.is(0));
     assertThat(transform.getOutputsCount(), Matchers.is(1));
-
-    RunnerApi.PTransform pubsubComposite =
-        result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform pubsubRead =
-        result.getComponents().getTransformsOrThrow(pubsubComposite.getSubtransforms(0));
-    RunnerApi.ReadPayload readPayload =
-        RunnerApi.ReadPayload.parseFrom(pubsubRead.getSpec().getPayload());
-    PubsubUnboundedSource.PubsubSource source =
-        (PubsubUnboundedSource.PubsubSource) ReadTranslation.unboundedSourceFromProto(readPayload);
-    PubsubUnboundedSource spec = source.outer;
-
-    assertThat(
-        spec.getTopicProvider() == null ? null : String.valueOf(spec.getTopicProvider()),
-        Matchers.is(topic));
-    assertThat(spec.getIdAttribute(), Matchers.is(idAttribute));
-    assertThat(spec.getNeedsAttributes(), Matchers.is(true));
   }
 
   @Test
@@ -126,23 +108,20 @@ public class PubsubIOExternalTest {
     String idAttribute = "id_foo";
 
     ExternalTransforms.ExternalConfigurationPayload payload =
-        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .putConfiguration(
-                "topic",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(topic)))
-                    .build())
-            .putConfiguration(
-                "id_label",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(idAttribute)))
-                    .build())
-            .build();
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.of("topic", FieldType.STRING),
+                        Field.of("id_label", FieldType.STRING)))
+                .withFieldValue("topic", topic)
+                .withFieldValue("id_label", idAttribute)
+                .build());
 
+    // Requirements are not passed as part of the expansion service so the validation
+    // fails because of how we construct the pipeline to expand the transform since it now
+    // has a transform with a requirement.
     Pipeline p = Pipeline.create();
-    p.apply("unbounded", Create.of(1, 2, 3)).setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+    p.apply("unbounded", Impulse.create()).setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     String inputPCollection =
@@ -193,7 +172,7 @@ public class PubsubIOExternalTest {
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
-    DoFn pubsubWriter = ParDoTranslation.getDoFn(parDoPayload);
+    DoFn<?, ?> pubsubWriter = ParDoTranslation.getDoFn(parDoPayload);
 
     String idAttributeActual = (String) Whitebox.getInternalState(pubsubWriter, "idAttribute");
 
@@ -239,5 +218,19 @@ public class PubsubIOExternalTest {
 
     @Override
     public void onCompleted() {}
+  }
+
+  private static ExternalTransforms.ExternalConfigurationPayload encodeRow(Row row) {
+    ByteString.Output outputStream = ByteString.newOutput();
+    try {
+      SchemaCoder.of(row.getSchema()).encode(row, outputStream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+        .setSchema(SchemaTranslation.schemaToProto(row.getSchema(), true))
+        .setPayload(outputStream.toByteString())
+        .build();
   }
 }

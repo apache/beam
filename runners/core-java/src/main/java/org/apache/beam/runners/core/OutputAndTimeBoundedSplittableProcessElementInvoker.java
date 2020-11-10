@@ -24,12 +24,13 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
 import org.apache.beam.sdk.fn.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -56,6 +58,11 @@ import org.joda.time.Instant;
  * DoFn.ProcessElement} call either outputs at least a given number of elements (in total over all
  * outputs), or runs for the given duration.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
     extends SplittableProcessElementInvoker<
@@ -67,6 +74,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
   private final ScheduledExecutorService executor;
   private final int maxNumOutputs;
   private final Duration maxDuration;
+  private final Supplier<BundleFinalizer> bundleFinalizer;
 
   /**
    * Creates a new invoker from components.
@@ -91,7 +99,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       SideInputReader sideInputReader,
       ScheduledExecutorService executor,
       int maxNumOutputs,
-      Duration maxDuration) {
+      Duration maxDuration,
+      Supplier<BundleFinalizer> bundleFinalizer) {
     this.fn = fn;
     this.pipelineOptions = pipelineOptions;
     this.output = output;
@@ -99,6 +108,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     this.executor = executor;
     this.maxNumOutputs = maxNumOutputs;
     this.maxDuration = maxDuration;
+    this.bundleFinalizer = bundleFinalizer;
   }
 
   @Override
@@ -178,6 +188,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               @Override
               public PipelineOptions pipelineOptions() {
                 return pipelineOptions;
+              }
+
+              @Override
+              public BundleFinalizer bundleFinalizer() {
+                return bundleFinalizer.get();
               }
 
               // Unsupported methods below.

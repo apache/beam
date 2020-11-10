@@ -121,6 +121,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -138,6 +139,9 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link BigQueryIO#write}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryIOWriteTest implements Serializable {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -540,8 +544,7 @@ public class BigQueryIOWriteTest implements Serializable {
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
-  @Test
-  public void testTriggeredFileLoadsWithTempTables() throws Exception {
+  public void testTriggeredFileLoadsWithTempTables(String tableRef) throws Exception {
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
@@ -562,7 +565,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(testStream)
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(tableRef)
                 .withSchema(
                     new TableSchema()
                         .setFields(
@@ -580,6 +583,16 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithTempTables() throws Exception {
+    testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
+    testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
   }
 
   @Test
@@ -1012,7 +1025,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof PartitionedGlobalWindow) {
         return value.equals(((PartitionedGlobalWindow) other).value);
       }
@@ -1555,7 +1568,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION,
             multiPartitionsTag,
             singlePartitionTag,
-            RowWriterFactory.tableRows(SerializableFunctions.identity()));
+            RowWriterFactory.tableRows(
+                SerializableFunctions.identity(), SerializableFunctions.identity()));
 
     DoFnTester<
             Iterable<WriteBundlesToFiles.Result<TableDestination>>,
@@ -1630,7 +1644,8 @@ public class BigQueryIOWriteTest implements Serializable {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
       for (int j = 0; j < numPartitions; ++j) {
-        String tempTableId = BigQueryHelpers.createJobId(jobIdToken, tableDestination, j, 0);
+        String tempTableId =
+            BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j, 0);
         List<String> filesPerPartition = Lists.newArrayList();
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename =
@@ -1640,7 +1655,7 @@ public class BigQueryIOWriteTest implements Serializable {
                   .toString();
           TableRowWriter<TableRow> writer =
               new TableRowWriter<>(filename, SerializableFunctions.identity());
-          try (TableRowWriter ignored = writer) {
+          try (TableRowWriter<TableRow> ignored = writer) {
             TableRow tableRow = new TableRow().set("name", tableName);
             writer.write(tableRow);
           }
@@ -1991,7 +2006,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     List<String> expectedOptions =
-        schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+        schemaUpdateOptions.stream().map(SchemaUpdateOption::name).collect(Collectors.toList());
 
     for (Job job : fakeJobService.getAllJobs()) {
       JobConfigurationLoad configuration = job.getConfiguration().getLoad();

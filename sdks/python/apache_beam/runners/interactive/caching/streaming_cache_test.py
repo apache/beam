@@ -22,7 +22,6 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam import coders
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
@@ -64,6 +63,26 @@ class StreamingCacheTest(unittest.TestCase):
 
     # Assert that an empty reader returns an empty list.
     self.assertFalse([e for e in reader])
+
+  def test_size(self):
+    cache = StreamingCache(cache_dir=None)
+    cache.write([TestStreamFileRecord()], 'my_label')
+    coder = cache.load_pcoder('my_label')
+
+    # Add one because of the new-line character that is also written.
+    size = len(coder.encode(TestStreamFileRecord().SerializeToString())) + 1
+    self.assertEqual(cache.size('my_label'), size)
+
+  def test_clear(self):
+    cache = StreamingCache(cache_dir=None)
+    self.assertFalse(cache.exists('my_label'))
+    cache.sink(['my_label'], is_capture=True)
+    cache.write([TestStreamFileRecord()], 'my_label')
+    self.assertTrue(cache.exists('my_label'))
+    self.assertEqual(cache.capture_keys, set(['my_label']))
+    self.assertTrue(cache.clear('my_label'))
+    self.assertFalse(cache.exists('my_label'))
+    self.assertFalse(cache.capture_keys)
 
   def test_single_reader(self):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
@@ -250,7 +269,8 @@ class StreamingCacheTest(unittest.TestCase):
     CACHED_RECORDS = repr(CacheKey('records', '', '', ''))
 
     # Units here are in seconds.
-    test_stream = (TestStream()
+    test_stream = (
+        TestStream(output_tags=(CACHED_RECORDS))
                    .advance_watermark_to(0, tag=CACHED_RECORDS)
                    .advance_processing_time(5)
                    .add_elements(['a', 'b', 'c'], tag=CACHED_RECORDS)
@@ -267,15 +287,21 @@ class StreamingCacheTest(unittest.TestCase):
     coder = SafeFastPrimitivesCoder()
     cache = StreamingCache(cache_dir=None, sample_resolution_sec=1.0)
 
+    # Assert that there are no capture keys at first.
+    self.assertEqual(cache.capture_keys, set())
+
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
+      records = (p | test_stream)[CACHED_RECORDS]
+
       # pylint: disable=expression-not-assigned
-      p | test_stream | cache.sink([CACHED_RECORDS])
+      records | cache.sink([CACHED_RECORDS], is_capture=True)
 
     reader, _ = cache.read(CACHED_RECORDS)
     actual_events = list(reader)
+
+    # Assert that the capture keys are forwarded correctly.
+    self.assertEqual(cache.capture_keys, set([CACHED_RECORDS]))
 
     # Units here are in microseconds.
     expected_events = [
@@ -348,8 +374,6 @@ class StreamingCacheTest(unittest.TestCase):
     coder = SafeFastPrimitivesCoder()
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
       # pylint: disable=expression-not-assigned
       events = p | test_stream

@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import concurrent.futures
+import itertools
 import logging
 import os
 import queue
@@ -37,7 +38,6 @@ import grpc
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.metrics import monitoring_infos
-from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
@@ -48,7 +48,7 @@ from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
@@ -79,8 +79,6 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     super(LocalJobServicer, self).__init__()
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
-    self._legacy_artifact_service = (
-        artifact_service.BeamFilesystemArtifactService(self._staging_dir))
     self._artifact_service = artifact_service.ArtifactStagingService(
         artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
     self._artifact_staging_endpoint = None  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
@@ -92,15 +90,6 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
                       options  # type: struct_pb2.Struct
                      ):
     # type: (...) -> BeamJob
-    # TODO(angoenka): Pass an appropriate staging_session_token. The token can
-    # be obtained in PutArtifactResponse from JobService
-    if not self._artifact_staging_endpoint:
-      # The front-end didn't try to stage anything, but the worker may
-      # request what's here so we should at least store an empty manifest.
-      self._legacy_artifact_service.CommitManifest(
-          beam_artifact_api_pb2.CommitManifestRequest(
-              staging_session_token=preparation_id,
-              manifest=beam_artifact_api_pb2.Manifest()))
     self._artifact_service.register_job(
         staging_token=preparation_id,
         dependency_sets={
@@ -108,10 +97,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
             for (id, env) in pipeline.components.environments.items()
         })
     provision_info = fn_runner.ExtendedProvisionInfo(
-        beam_provision_api_pb2.ProvisionInfo(
-            pipeline_options=options,
-            retrieval_token=self._legacy_artifact_service.retrieval_token(
-                preparation_id)),
+        beam_provision_api_pb2.ProvisionInfo(pipeline_options=options),
         self._staging_dir,
         job_name=job_name)
     return BeamJob(
@@ -141,12 +127,14 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     return 'localhost'
 
   def start_grpc_server(self, port=0):
-    self._server = grpc.server(UnboundedThreadPoolExecutor())
+    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
+                            ("grpc.max_send_message_length", -1)]
+    self._server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(),
+        options=no_max_message_sizes)
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
-    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
-        self._legacy_artifact_service, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
     hostname = self.get_service_address()
@@ -167,8 +155,9 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
 
     result = self._jobs[request.job_id].result
     monitoring_info_list = []
-    for mi in result._monitoring_infos_by_stage.values():
-      monitoring_info_list.extend(mi)
+    if result is not None:
+      for mi in result._monitoring_infos_by_stage.values():
+        monitoring_info_list.extend(mi)
 
     # Filter out system metrics
     user_monitoring_info_list = [
@@ -194,7 +183,8 @@ class SubprocessSdkWorker(object):
     self._worker_id = worker_id
 
   def run(self):
-    logging_server = grpc.server(UnboundedThreadPoolExecutor())
+    logging_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance())
     logging_port = logging_server.add_insecure_port('[::]:0')
     logging_server.start()
     logging_servicer = BeamFnLoggingServicer()
@@ -247,7 +237,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._artifact_service = artifact_service
     self._state_queues = []  # type: List[queue.Queue]
-    self._log_queues = []  # type: List[queue.Queue]
+    self._log_queues = JobLogQueues()
     self.daemon = True
     self.result = None
 
@@ -272,18 +262,25 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
   def _run_job(self):
     self.set_state(beam_job_api_pb2.JobState.RUNNING)
-    with JobLogHandler(self._log_queues):
+    with JobLogHandler(self._log_queues) as log_handler:
       self._update_dependencies()
       try:
+        start = time.time()
         result = fn_runner.FnApiRunner(
             provision_info=self._provision_info).run_via_runner_api(
                 self._pipeline_proto)
-        _LOGGER.info('Successfully completed job.')
+        _LOGGER.info(
+            'Successfully completed job in %s seconds.', time.time() - start)
         self.set_state(beam_job_api_pb2.JobState.DONE)
         self.result = result
       except:  # pylint: disable=bare-except
+        self._log_queues.put(
+            beam_job_api_pb2.JobMessage(
+                message_id=log_handler._next_id(),
+                time=time.strftime('%Y-%m-%d %H:%M:%S.'),
+                importance=beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
+                message_text=traceback.format_exc()))
         _LOGGER.exception('Error running pipeline.')
-        _LOGGER.exception(traceback)
         self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
 
@@ -321,7 +318,8 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    for msg in self.with_state_history(_iter_queue(log_queue)):
+    for msg in itertools.chain(self._log_queues.cache(),
+                               self.with_state_history(_iter_queue(log_queue))):
       if isinstance(msg, tuple):
         assert len(msg) == 2 and isinstance(msg[0], int)
         current_state = msg[0]
@@ -338,6 +336,38 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
       for log_entry in log_bundle.log_entries:
         _LOGGER.info('Worker: %s', str(log_entry).replace('\n', ' '))
     return iter([])
+
+
+class JobLogQueues(object):
+  def __init__(self):
+    self._queues = []  # type: List[queue.Queue]
+    self._cache = []
+    self._cache_size = 10
+    self._lock = threading.Lock()
+
+  def cache(self):
+    with self._lock:
+      return list(self._cache)
+
+  def append(self, queue):
+    with self._lock:
+      self._queues.append(queue)
+
+  def put(self, msg):
+    with self._lock:
+      if len(self._cache) < self._cache_size:
+        self._cache.append(msg)
+      else:
+        min_level = min(m.importance for m in self._cache)
+        if msg.importance >= min_level:
+          self._cache.append(msg)
+          for ix, m in enumerate(self._cache):
+            if m.importance == min_level:
+              del self._cache[ix]
+              break
+
+      for queue in self._queues:
+        queue.put(msg)
 
 
 class JobLogHandler(logging.Handler):
@@ -366,6 +396,7 @@ class JobLogHandler(logging.Handler):
     # running pipelines (as Python log handlers are global).
     self._logged_thread = threading.current_thread()
     logging.getLogger().addHandler(self)
+    return self
 
   def __exit__(self, *args):
     self._logged_thread = None
@@ -385,5 +416,4 @@ class JobLogHandler(logging.Handler):
           message_text=self.format(record))
 
       # Inform all message consumers.
-      for queue in self._log_queues:
-        queue.put(msg)
+      self._log_queues.put(msg)

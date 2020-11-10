@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -56,6 +55,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.Visi
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Text table provider.
@@ -74,6 +74,9 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  */
 @AutoService(TableProvider.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TextTableProvider extends InMemoryMetaTableProvider {
 
   @Override
@@ -171,8 +174,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     public abstract Schema schema();
 
-    @Nullable
-    public abstract String deadLetterFile();
+    public abstract @Nullable String deadLetterFile();
 
     public static JsonToRow create(Schema schema, @Nullable String deadLetterFile) {
       return new AutoValue_TextTableProvider_JsonToRow(schema, deadLetterFile);

@@ -22,20 +22,20 @@ import PostcommitJobBuilder
 
 // This job builds and publishes the website into the asf-site branch of the beam repo.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', '',
-  'Website Publish', this) {
+    'Website Publish', this) {
 
-  description('Publish generated website content into asf-site branch for hosting.')
+      description('Publish generated website content into asf-site branch for hosting.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 30, true, 'git-websites')
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 30, true, 'git-websites')
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':website:clean')
-      tasks(':website:publishWebsite')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':website:clean')
+          tasks(':website:publishWebsite')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

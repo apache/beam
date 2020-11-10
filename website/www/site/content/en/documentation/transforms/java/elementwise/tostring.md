@@ -31,5 +31,5 @@ on every element in the input collection.
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
-## Related transforms 
+## Related transforms
 * [MapElements](/documentation/transforms/java/elementwise/mapelements)

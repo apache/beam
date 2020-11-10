@@ -27,24 +27,24 @@ You can modify the [`assignWindows`](https://beam.apache.org/releases/javadoc/cu
 Access the `assignWindows` function through `WindowFn.AssignContext.element()`. The original, fixed-duration `assignWindows` function is:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow1 >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow1 >}}
 {{< /highlight >}}
 
 ### Creating data-driven gaps
 To create data-driven gaps, add the following snippets to the `assignWindows` function:
-- A default value for when the custom gap is not present in the data 
+- A default value for when the custom gap is not present in the data
 - A way to set the attribute from the main pipeline as a method of the custom windows
 
 For example, the following function assigns each element to a window between the timestamp and `gapDuration`:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow3 >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow3 >}}
 {{< /highlight >}}
 
 Then, set the `gapDuration` field in a windowing function:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow2 >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow2 >}}
 {{< /highlight >}}
 
 ### Windowing messages into sessions
@@ -53,13 +53,13 @@ After creating data-driven gaps, you can window incoming data into the new, cust
 First, set the session length to the gap duration:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow4 >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow4 >}}
 {{< /highlight >}}
 
 Lastly, window data into sessions in your pipeline:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow6 >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow6 >}}
 {{< /highlight >}}
 
 ### Example data and windows

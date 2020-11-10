@@ -27,7 +27,6 @@ import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -68,6 +67,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -326,6 +326,9 @@ import org.joda.time.Duration;
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroIO {
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
@@ -587,16 +590,14 @@ public class AvroIO {
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getMatchConfiguration();
 
-    @Nullable
-    abstract Class<T> getRecordClass();
+    abstract @Nullable Class<T> getRecordClass();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
     abstract boolean getInferBeamSchema();
 
@@ -736,7 +737,7 @@ public class AvroIO {
         EmptyMatchTreatment emptyMatchTreatment,
         Class<T> recordClass,
         Schema schema,
-        @Nullable AvroSource.DatumReaderFactory<T> readerFactory) {
+        AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
       AvroSource<?> source =
           AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
 
@@ -755,18 +756,16 @@ public class AvroIO {
   @AutoValue
   public abstract static class ReadFiles<T>
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
-    @Nullable
-    abstract Class<T> getRecordClass();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Class<T> getRecordClass();
+
+    abstract @Nullable Schema getSchema();
 
     abstract long getDesiredBundleSizeBytes();
 
     abstract boolean getInferBeamSchema();
 
-    @Nullable
-    abstract AvroSource.DatumReaderFactory<T> getDatumReaderFactory();
+    abstract AvroSource.@Nullable DatumReaderFactory<T> getDatumReaderFactory();
 
     abstract Builder<T> toBuilder();
 
@@ -842,11 +841,9 @@ public class AvroIO {
   public abstract static class ReadAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
 
-    @Nullable
-    abstract Class<T> getRecordClass();
+    abstract @Nullable Class<T> getRecordClass();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -963,15 +960,14 @@ public class AvroIO {
   /** Implementation of {@link #parseGenericRecords}. */
   @AutoValue
   public abstract static class Parse<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getMatchConfiguration();
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract boolean getHintMatchesManyFiles();
 
@@ -1087,8 +1083,7 @@ public class AvroIO {
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1164,8 +1159,7 @@ public class AvroIO {
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1241,37 +1235,32 @@ public class AvroIO {
     static final SerializableAvroCodecFactory DEFAULT_SERIALIZABLE_CODEC =
         new SerializableAvroCodecFactory(DEFAULT_CODEC);
 
-    @Nullable
-    abstract SerializableFunction<UserT, OutputT> getFormatFunction();
+    abstract @Nullable SerializableFunction<UserT, OutputT> getFormatFunction();
 
-    @Nullable
-    abstract ValueProvider<ResourceId> getFilenamePrefix();
+    abstract @Nullable ValueProvider<ResourceId> getFilenamePrefix();
 
-    @Nullable
-    abstract String getShardTemplate();
+    abstract @Nullable String getShardTemplate();
 
-    @Nullable
-    abstract String getFilenameSuffix();
+    abstract @Nullable String getFilenameSuffix();
 
-    @Nullable
-    abstract ValueProvider<ResourceId> getTempDirectory();
+    abstract @Nullable ValueProvider<ResourceId> getTempDirectory();
 
     abstract int getNumShards();
 
     abstract boolean getGenericRecords();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
     abstract boolean getWindowedWrites();
 
     abstract boolean getNoSpilling();
 
-    @Nullable
-    abstract FilenamePolicy getFilenamePolicy();
+    abstract @Nullable FilenamePolicy getFilenamePolicy();
 
-    @Nullable
-    abstract DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
+    abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT>
+        getDynamicDestinations();
+
+    abstract AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory();
 
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
@@ -1320,6 +1309,9 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setDynamicDestinations(
           DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations);
+
+      abstract Builder<UserT, DestinationT, OutputT> setDatumWriterFactory(
+          AvroSink.DatumWriterFactory<OutputT> datumWriterFactory);
 
       abstract TypedWrite<UserT, DestinationT, OutputT> build();
     }
@@ -1515,6 +1507,15 @@ public class AvroIO {
     }
 
     /**
+     * Specifies a {@link AvroSink.DatumWriterFactory} to use for creating {@link
+     * org.apache.avro.io.DatumWriter} instances.
+     */
+    public TypedWrite<UserT, DestinationT, OutputT> withDatumWriterFactory(
+        AvroSink.DatumWriterFactory<OutputT> datumWriterFactory) {
+      return toBuilder().setDatumWriterFactory(datumWriterFactory).build();
+    }
+
+    /**
      * Writes to Avro file(s) with the specified metadata.
      *
      * <p>Supported value types are String, Long, and byte[].
@@ -1555,7 +1556,8 @@ public class AvroIO {
                     getSchema(),
                     getMetadata(),
                     getCodec().getCodec(),
-                    getFormatFunction());
+                    getFormatFunction(),
+                    getDatumWriterFactory());
       }
       return dynamicDestinations;
     }
@@ -1716,6 +1718,11 @@ public class AvroIO {
       return new Write<>(inner.withCodec(codec));
     }
 
+    /** See {@link TypedWrite#withDatumWriterFactory}. */
+    public Write<T> withDatumWriterFactory(AvroSink.DatumWriterFactory<T> datumWriterFactory) {
+      return new Write<>(inner.withDatumWriterFactory(datumWriterFactory));
+    }
+
     /**
      * Specify that output filenames are wanted.
      *
@@ -1758,7 +1765,22 @@ public class AvroIO {
       Map<String, Object> metadata,
       CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction) {
-    return new ConstantAvroDestination<>(filenamePolicy, schema, metadata, codec, formatFunction);
+    return constantDestinations(filenamePolicy, schema, metadata, codec, formatFunction, null);
+  }
+
+  /**
+   * Returns a {@link DynamicAvroDestinations} that always returns the same {@link FilenamePolicy},
+   * schema, metadata, and codec.
+   */
+  public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantDestinations(
+      FilenamePolicy filenamePolicy,
+      Schema schema,
+      Map<String, Object> metadata,
+      CodecFactory codec,
+      SerializableFunction<UserT, OutputT> formatFunction,
+      AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory) {
+    return new ConstantAvroDestination<>(
+        filenamePolicy, schema, metadata, codec, formatFunction, datumWriterFactory);
   }
   /////////////////////////////////////////////////////////////////////////////
 
@@ -1829,12 +1851,10 @@ public class AvroIO {
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
     /** @deprecated RecordFormatter will be removed in future versions. */
-    @Nullable
     @Deprecated
-    abstract RecordFormatter<ElementT> getRecordFormatter();
+    abstract @Nullable RecordFormatter<ElementT> getRecordFormatter();
 
-    @Nullable
-    abstract String getJsonSchema();
+    abstract @Nullable String getJsonSchema();
 
     abstract Map<String, Object> getMetadata();
 
@@ -1870,9 +1890,9 @@ public class AvroIO {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
     }
 
-    @Nullable private transient Schema schema;
-    @Nullable private transient DataFileWriter<ElementT> reflectWriter;
-    @Nullable private transient DataFileWriter<GenericRecord> genericWriter;
+    private transient @Nullable Schema schema;
+    private transient @Nullable DataFileWriter<ElementT> reflectWriter;
+    private transient @Nullable DataFileWriter<GenericRecord> genericWriter;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {

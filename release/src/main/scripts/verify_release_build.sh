@@ -27,9 +27,9 @@
 #      Instructions: https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line
 #   2. Please set RELEASE_BUILD_CONFIGS in script.config before running this
 #      script.
-#   3. Please manually comment trigger phrases to created PR to start Gradle
-#      release build and all PostCommit jobs. Phrases are listed in
-#      JOB_TRIGGER_PHRASES below.
+#   3. Please manually comment trigger phrases to the created PR to start
+#      Gradle release build and all PostCommit jobs, or run mass_comment.py
+#      to do so. Phrases are listed in COMMENTS_TO_ADD in mass_comment.py.
 
 
 . script.config
@@ -39,40 +39,6 @@ set -e
 BEAM_REPO_URL=https://github.com/apache/beam.git
 RELEASE_BRANCH=release-${RELEASE_VER}
 WORKING_BRANCH=postcommit_validation_pr
-
-JOB_TRIGGER_PHRASES=(
-  # To verify Gradle release build
-  "**Run Release Gradle Build**"
-  # To run all PostCommit jobs
-  "Run Go PostCommit"
-  "Run Java PostCommit"
-  "Run Java PortabilityApi PostCommit"
-  "Run Java Flink PortableValidatesRunner Batch"
-  "Run Java Flink PortableValidatesRunner Streaming"
-  "Run Apex ValidatesRunner"
-  "Run Dataflow ValidatesRunner"
-  "Run Flink ValidatesRunner"
-  "Run Gearpump ValidatesRunner"
-  "Run Dataflow PortabilityApi ValidatesRunner"
-  "Run Samza ValidatesRunner"
-  "Run Spark ValidatesRunner"
-  "Run Python Dataflow ValidatesContainer"
-  "Run Python Dataflow ValidatesRunner"
-  "Run Python 3.5 Flink ValidatesRunner"
-  # Python versions match those in run_rc_validation.sh.
-  "Run Python 2 PostCommit"
-  "Run Python 3.5 PostCommit"
-  "Run SQL PostCommit"
-  "Run Go PreCommit"
-  "Run Java PreCommit"
-  "Run Java_Examples_Dataflow PreCommit"
-  "Run JavaPortabilityApi PreCommit"
-  "Run Portable_Python PreCommit"
-  "Run PythonLint PreCommit"
-  "Run Python PreCommit"
-  "Run Python DockerBuild PreCommit"
-)
-
 
 function clean_up(){
   echo ""
@@ -164,12 +130,9 @@ if [[ ! -z `which hub` ]]; then
   git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
   git push -f ${GITHUB_USERNAME} --quiet
 
-  trigger_phrases=$(IFS=$'\n'; echo "${JOB_TRIGGER_PHRASES[*]}")
   hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
 
-  Please comment as instructions below, one phrase per comment:
-
-  ${trigger_phrases}"
+  You can run many tests automatically using release/src/main/scripts/mass_comment.py."
 
   echo ""
   echo "[NOTE]: Please make sure all test targets have been invoked."

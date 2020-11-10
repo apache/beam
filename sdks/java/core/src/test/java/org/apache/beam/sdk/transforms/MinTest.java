@@ -57,6 +57,22 @@ public class MinTest {
   }
 
   @Test
+  public void testMinDoubleFnInfinity() {
+    testCombineFn(
+        Min.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.NEGATIVE_INFINITY);
+  }
+
+  @Test
+  public void testMinDoubleFnNan() {
+    testCombineFn(
+        Min.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, Double.NaN),
+        Double.NaN);
+  }
+
+  @Test
   public void testDisplayData() {
     Top.Reversed<Integer> comparer = new Top.Reversed<>();
 

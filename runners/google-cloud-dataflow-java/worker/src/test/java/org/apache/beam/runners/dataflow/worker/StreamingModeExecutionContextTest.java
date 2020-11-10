@@ -80,6 +80,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StreamingModeExecutionContext}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingModeExecutionContextTest {
 
   @Mock private StateFetcher stateFetcher;
@@ -143,7 +146,11 @@ public class StreamingModeExecutionContextTest {
     TimerInternals timerInternals = stepContext.timerInternals();
 
     timerInternals.setTimer(
-        TimerData.of(new StateNamespaceForTest("key"), new Instant(5000), TimeDomain.EVENT_TIME));
+        TimerData.of(
+            new StateNamespaceForTest("key"),
+            new Instant(5000),
+            new Instant(5000),
+            TimeDomain.EVENT_TIME));
     executionContext.flushState();
 
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);

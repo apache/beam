@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -36,13 +36,16 @@ import org.joda.time.Duration;
  *
  * @param <T> type of windowed element
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WindowBuilder<T>
     implements Builders.WindowBy<WindowBuilder<T>>,
         Builders.TriggeredBy<WindowBuilder<T>>,
         Builders.AccumulationMode<WindowBuilder<T>>,
         Builders.WindowedOutput<WindowBuilder<T>> {
 
-  @Nullable private Window<T> window;
+  private @Nullable Window<T> window;
 
   /**
    * Get underlying window.

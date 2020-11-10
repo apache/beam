@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -31,8 +30,12 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link PCollectionView} created from the components of a {@link SideInput}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> {
   private final TupleTag<Iterable<WindowedValue<?>>> tag;
   private final ViewFn<Iterable<WindowedValue<?>>, T> viewFn;
@@ -94,7 +97,7 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof PCollectionView)) {
       return false;
     }

@@ -24,31 +24,31 @@ limitations under the License.
 -->
 
 
-We are happy to announce 
-[Apache Beam Katas](https://github.com/apache/beam/tree/master/learning/katas), a set of 
-interactive Beam coding exercises (i.e. [code katas](http://codekata.com/)) that can help you in 
+We are happy to announce
+[Apache Beam Katas](https://github.com/apache/beam/tree/master/learning/katas), a set of
+interactive Beam coding exercises (i.e. [code katas](http://codekata.com/)) that can help you in
 learning Apache Beam concepts and programming model hands-on.
 
 <!--more-->
 
-Beam Katas objective is to provide a series of structured hands-on learning experiences for learners 
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
-complexity. It is built based on 
-[JetBrains Educational Products](https://www.jetbrains.com/education/). Beam Katas is available for 
-both Java and Python SDKs. Currently we have about 20 lessons that cover Apache Beam fundamentals, 
-such as core transforms, common transforms, and simple use case (word count), with more katas to 
+Beam Katas objective is to provide a series of structured hands-on learning experiences for learners
+to understand about Apache Beam and its SDKs by solving exercises with gradually increasing
+complexity. It is built based on
+[JetBrains Educational Products](https://www.jetbrains.com/education/). Beam Katas is available for
+both Java and Python SDKs. Currently we have about 20 lessons that cover Apache Beam fundamentals,
+such as core transforms, common transforms, and simple use case (word count), with more katas to
 be added in the coming future.
 
 
-To start with the courses, you can simply download 
-[IntelliJ Edu](https://www.jetbrains.com/education/download/#section=idea) or 
-[PyCharm Edu](https://www.jetbrains.com/education/download/#section=pycharm-edu) and then browse 
-the integrated Stepik courses from the menu. Search for “Beam Katas” and once the course is loaded 
+To start with the courses, you can simply download
+[IntelliJ Edu](https://www.jetbrains.com/education/download/#section=idea) or
+[PyCharm Edu](https://www.jetbrains.com/education/download/#section=pycharm-edu) and then browse
+the integrated Stepik courses from the menu. Search for “Beam Katas” and once the course is loaded
 on the IDE, you’re good to go.
 
-We have plans to add more katas covering more topics including some of the intermediate and 
-advanced ones in the coming future, such as windowing, streaming, and use case patterns. We would 
-also like to welcome you to [contribute](https://github.com/apache/beam) by building and adding more katas that you think would be 
+We have plans to add more katas covering more topics including some of the intermediate and
+advanced ones in the coming future, such as windowing, streaming, and use case patterns. We would
+also like to welcome you to [contribute](https://github.com/apache/beam) by building and adding more katas that you think would be
 useful for people to learn more about Apache Beam, and eventually become Beam Masters!
 
 <br/>

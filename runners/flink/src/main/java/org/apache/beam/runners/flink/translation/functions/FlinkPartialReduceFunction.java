@@ -52,16 +52,28 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
   // TODO: Remove side input functionality since liftable Combines no longer have side inputs.
   protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
+  /** WindowedValues has been exploded and pre-grouped by window. */
+  private final boolean groupedByWindow;
+
   public FlinkPartialReduceFunction(
       CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
       WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
+    this(combineFn, windowingStrategy, sideInputs, pipelineOptions, false);
+  }
 
+  public FlinkPartialReduceFunction(
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
+      WindowingStrategy<Object, W> windowingStrategy,
+      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
+      PipelineOptions pipelineOptions,
+      boolean groupedByWindow) {
     this.combineFn = combineFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
+    this.groupedByWindow = groupedByWindow;
   }
 
   @Override
@@ -83,11 +95,15 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
     AbstractFlinkCombineRunner<K, InputT, AccumT, AccumT, W> reduceRunner;
 
-    if (!windowingStrategy.getWindowFn().isNonMerging()
-        && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-      reduceRunner = new HashingFlinkCombineRunner<>();
+    if (groupedByWindow) {
+      reduceRunner = new SingleWindowFlinkCombineRunner<>();
     } else {
-      reduceRunner = new SortingFlinkCombineRunner<>();
+      if (!windowingStrategy.getWindowFn().isNonMerging()
+          && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
+        reduceRunner = new HashingFlinkCombineRunner<>();
+      } else {
+        reduceRunner = new SortingFlinkCombineRunner<>();
+      }
     }
 
     reduceRunner.combine(

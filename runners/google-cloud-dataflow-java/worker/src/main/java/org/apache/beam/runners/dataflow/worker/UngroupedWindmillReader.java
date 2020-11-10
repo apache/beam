@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -37,11 +36,16 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
  * A Reader that receives input data from a Windmill server, and returns it as individual elements.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -69,19 +73,15 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   }
 
   static class Factory implements ReaderFactory {
-    // Findbugs does not correctly understand inheritance + nullability.
-    //
-    // coder may be null due to parent class signature, and must be checked,
-    // despite not being nullable here
     @Override
     public NativeReader<?> create(
         CloudObject spec,
-        Coder<?> coder,
+        @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
         @Nullable DataflowExecutionContext executionContext,
         DataflowOperationContext operationContext)
         throws Exception {
-      checkArgument(coder != null, "coder must not be null");
+      coder = checkArgumentNotNull(coder);
       @SuppressWarnings("unchecked")
       Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
       return new UngroupedWindmillReader<>(

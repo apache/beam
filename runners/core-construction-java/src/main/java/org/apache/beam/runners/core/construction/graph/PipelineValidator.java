@@ -83,9 +83,6 @@ public class PipelineValidator {
           .put(
               PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
               PipelineValidator::validateParDo)
-          .put(
-              PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN,
-              PipelineValidator::validateParDo)
           .put(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, PipelineValidator::validateParDo)
           .put(ExecutableStage.URN, PipelineValidator::validateExecutableStage)
           .build();
@@ -276,6 +273,7 @@ public class PipelineValidator {
     checkArgument(
         components.containsCoders(payload.getAccumulatorCoderId()),
         "Transform %s uses unknown accumulator coder id %s",
+        id,
         payload.getAccumulatorCoderId());
   }
 

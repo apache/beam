@@ -16,16 +16,10 @@ limitations under the License.
 -->
 
 # CoGroupByKey
-<table align="left">
-    <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.CoGroupByKey">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
-           alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<br><br>
 
+{{< localstorage language language-py >}}
+
+{{< button-pydoc path="apache_beam.transforms.util" class="CoGroupByKey" >}}
 
 Aggregates all input elements by their key and allows downstream processing
 to consume all values associated with the key. While `GroupByKey` performs
@@ -37,8 +31,31 @@ each input collection.
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#cogroupbykey).
 
 ## Examples
-See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
+
+In the following example, we create a pipeline with two `PCollection`s of produce, one with icons and one with durations, both with a common key of the produce name.
+Then, we apply `CoGroupByKey` to join both `PCollection`s using their keys.
+
+`CoGroupByKey` expects a dictionary of named keyed `PCollection`s, and produces elements joined by their keys.
+The values of each output element are dictionaries where the names correspond to the input dictionary, with lists of all the values found for that key.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/cogroupbykey.py" cogroupbykey >}}
+{{< /highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/cogroupbykey_test.py" plants >}}
+{{< /highlight >}}
+
+{{< buttons-code-snippet
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/cogroupbykey.py" >}}
 
 ## Related transforms
+
 * [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) to combine elements.
 * [GroupByKey](/documentation/transforms/python/aggregation/groupbykey) takes one input collection.
+
+{{< button-pydoc path="apache_beam.transforms.util" class="CoGroupByKey" >}}

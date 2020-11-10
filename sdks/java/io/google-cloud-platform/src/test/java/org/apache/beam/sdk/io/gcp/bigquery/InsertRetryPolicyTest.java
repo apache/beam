@@ -59,6 +59,32 @@ public class InsertRetryPolicyTest {
         policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
   }
 
+  static class RetryAllExceptInvalidQuery extends InsertRetryPolicy {
+    @Override
+    public boolean shouldRetry(Context context) {
+      if (context.getInsertErrors().getErrors() != null) {
+        for (ErrorProto error : context.getInsertErrors().getErrors()) {
+          if (error.getReason() != null && error.getReason().equals("invalidQuery")) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+  }
+
+  @Test
+  public void testCustomRetryPolicy() {
+    InsertRetryPolicy policy = new RetryAllExceptInvalidQuery();
+    assertTrue(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "unavailable"))));
+    assertTrue(policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalid"))));
+    assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalidQuery"))));
+    assertTrue(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
+  }
+
   private TableDataInsertAllResponse.InsertErrors generateErrorAmongMany(
       int numErrors, String baseReason, String exceptionalReason) {
     // The retry policies are expected to search through the entire list of ErrorProtos to determine

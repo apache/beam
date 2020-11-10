@@ -34,6 +34,7 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
@@ -69,6 +70,10 @@ import org.slf4j.LoggerFactory;
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
  * {@link #registerInputLocation()} to start and call {@link #blockTillReadFinishes()} to finish.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataReadRunner<OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
@@ -101,6 +106,7 @@ public class BeamFnDataReadRunner<OutputT> {
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> addResetFunction,
         Consumer<ThrowingRunnable> tearDownFunctions,
         Consumer<ProgressRequestCallback> addProgressRequestCallback,
         BundleSplitListener splitListener,
@@ -120,10 +126,12 @@ public class BeamFnDataReadRunner<OutputT> {
               processBundleInstructionId,
               coders,
               beamFnDataClient,
+              beamFnStateClient,
               addProgressRequestCallback,
               consumer);
       startFunctionRegistry.register(pTransformId, runner::registerInputLocation);
       finishFunctionRegistry.register(pTransformId, runner::blockTillReadFinishes);
+      addResetFunction.accept(runner::reset);
       return runner;
     }
   }
@@ -136,8 +144,8 @@ public class BeamFnDataReadRunner<OutputT> {
   private final Coder<WindowedValue<OutputT>> coder;
 
   private final Object splittingLock = new Object();
-  private boolean started = false;
-  // 0-based index of the current element being processed
+  // 0-based index of the current element being processed. -1 if we have yet to process an element.
+  // stopIndex if we are done processing.
   private long index;
   // 0-based index of the first element to not process, aka the first element of the residual
   private long stopIndex;
@@ -149,6 +157,7 @@ public class BeamFnDataReadRunner<OutputT> {
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
+      BeamFnStateClient beamFnStateClient,
       Consumer<PTransformRunnerFactory.ProgressRequestCallback> addProgressRequestCallback,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
@@ -163,12 +172,23 @@ public class BeamFnDataReadRunner<OutputT> {
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
     this.coder =
         (Coder<WindowedValue<OutputT>>)
-            CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
+            CoderTranslation.fromProto(
+                coders.get(port.getCoderId()),
+                components,
+                new StateBackedIterableTranslationContext() {
+                  @Override
+                  public BeamFnStateClient getStateClient() {
+                    return beamFnStateClient;
+                  }
+
+                  @Override
+                  public Supplier<String> getCurrentInstructionId() {
+                    return processBundleInstructionIdSupplier;
+                  }
+                });
 
     addProgressRequestCallback.accept(
         () -> {
-          // TODO(BEAM-9979): Fix race condition where reused BeamFnDataReadRunner reports
-          // read index from last bundle since registerInputLocation may have not yet been called.
           synchronized (splittingLock) {
             return ImmutableList.of(
                 new SimpleMonitoringInfoBuilder()
@@ -178,14 +198,10 @@ public class BeamFnDataReadRunner<OutputT> {
                     .build());
           }
         });
+    reset();
   }
 
   public void registerInputLocation() {
-    synchronized (splittingLock) {
-      started = true;
-      index = -1;
-      stopIndex = Long.MAX_VALUE;
-    }
     this.readFuture =
         beamFnDataClient.receive(
             apiServiceDescriptor,
@@ -220,8 +236,9 @@ public class BeamFnDataReadRunner<OutputT> {
     }
 
     synchronized (splittingLock) {
-      // Don't attempt to split if we haven't started.
-      if (!started) {
+      // Don't attempt to split if we are already done since there isn't a meaningful split we can
+      // provide.
+      if (index == stopIndex) {
         return;
       }
       // Since we hold the splittingLock, we guarantee that we will not pass the next element
@@ -276,8 +293,8 @@ public class BeamFnDataReadRunner<OutputT> {
           if (splitResult != null) {
             stopIndex = index + 1;
             response
-                .addPrimaryRoots(splitResult.getPrimaryRoot())
-                .addResidualRoots(splitResult.getResidualRoot())
+                .addAllPrimaryRoots(splitResult.getPrimaryRoots())
+                .addAllResidualRoots(splitResult.getResidualRoots())
                 .addChannelSplitsBuilder()
                 .setLastPrimaryElement(index - 1)
                 .setFirstResidualElement(stopIndex);
@@ -325,9 +342,14 @@ public class BeamFnDataReadRunner<OutputT> {
         pTransformId);
     readFuture.awaitCompletion();
     synchronized (splittingLock) {
-      started = false;
       index += 1;
+      stopIndex = index;
     }
+  }
+
+  public void reset() {
+    index = -1;
+    stopIndex = Long.MAX_VALUE;
   }
 
   private boolean isValidSplitPoint(List<Long> allowedSplitPoints, long index) {

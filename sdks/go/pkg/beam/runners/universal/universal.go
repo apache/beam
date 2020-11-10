@@ -23,11 +23,14 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
+
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/extworker"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
 	"github.com/golang/protobuf/proto"
@@ -61,11 +64,36 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
-		ctx, jobopts.GetEnvironmentUrn(ctx), jobopts.GetEnvironmentConfig)})
+	envUrn := jobopts.GetEnvironmentUrn(ctx)
+	getEnvCfg := jobopts.GetEnvironmentConfig
+
+	if jobopts.IsLoopback() {
+		// TODO(BEAM-10610): Allow user configuration of this port, rather than kernel selected.
+		srv, err := extworker.StartLoopback(ctx, 0)
+		if err != nil {
+			return err
+		}
+		defer srv.Stop(ctx)
+		getEnvCfg = srv.EnvironmentConfig
+	}
+
+	enviroment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
 	if err != nil {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
+	if err != nil {
+		return errors.WithContextf(err, "generating model pipeline")
+	}
+
+	// Fetch all dependencies for cross-language transforms
+	xlangx.ResolveArtifacts(ctx, edges, pipeline)
+
+	// Remap outputs of expanded transforms to be the inputs for all downstream consumers
+	xlangx.PurgeOutputInput(edges, pipeline)
+
+	// Merge the expanded components into the existing pipeline
+	xlangx.MergeExpandedWithPipeline(edges, pipeline)
 
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 

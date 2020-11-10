@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A sub-class of SchemaCoder that can only encode {@link Row} instances. */
 @Experimental(Kind.SCHEMAS)
@@ -42,7 +43,7 @@ public class RowCoder extends SchemaCoder<Row> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

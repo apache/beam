@@ -275,6 +275,7 @@ class EvaluationContext(object):
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
+    self.shutdown_requested = False
 
   def _initialize_keyed_states(self, root_transforms, value_to_consumers):
     """Initialize user state dicts.
@@ -452,6 +453,9 @@ class EvaluationContext(object):
     assert isinstance(task, TransformExecutor)
     return self._side_inputs_container.get_value_or_block_until_ready(
         side_input, task, block_until)
+
+  def shutdown(self):
+    self.shutdown_requested = True
 
 
 class DirectUnmergedState(InMemoryUnmergedState):

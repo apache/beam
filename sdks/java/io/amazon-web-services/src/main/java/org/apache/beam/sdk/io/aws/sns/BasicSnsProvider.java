@@ -28,7 +28,7 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSClientBuilder;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Basic implementation of {@link AwsClientsProvider} used by default in {@link SnsIO}. */
 class BasicSnsProvider implements AwsClientsProvider {
@@ -36,7 +36,7 @@ class BasicSnsProvider implements AwsClientsProvider {
   private final String accessKey;
   private final String secretKey;
   private final Regions region;
-  @Nullable private final String serviceEndpoint;
+  private final @Nullable String serviceEndpoint;
 
   BasicSnsProvider(
       String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {

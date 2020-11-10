@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -29,7 +30,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -72,6 +72,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements globally and per-key.
@@ -80,6 +81,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * href="https://beam.apache.org/documentation/programming-guide/#transforms-combine">documentation</a>
  * for how to use the operations in this class.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Combine {
   private Combine() {
     // do not instantiate
@@ -313,7 +317,7 @@ public class Combine {
    *     int count = 0;
    *
    *    {@literal @Override}
-   *     public boolean equals(Object other) {
+   *     public boolean equals(@Nullable Object other) {
    *       if (other == null) return false;
    *       if (other == this) return true;
    *       if (!(other instanceof Accum))return false;
@@ -384,7 +388,10 @@ public class Combine {
    * @param <AccumT> type of mutable accumulator values
    * @param <OutputT> type of output values
    */
-  public abstract static class CombineFn<InputT, AccumT, OutputT>
+  public abstract static class CombineFn<
+          InputT extends @Nullable Object,
+          AccumT extends @Nullable Object,
+          OutputT extends @Nullable Object>
       extends AbstractGlobalCombineFn<InputT, AccumT, OutputT> {
 
     /**
@@ -506,8 +513,7 @@ public class Combine {
     public abstract V apply(V left, V right);
 
     /** Returns the value that should be used for the combine of the empty set. */
-    @Nullable
-    public V identity() {
+    public @Nullable V identity() {
       return null;
     }
 
@@ -573,7 +579,7 @@ public class Combine {
    * <p>Used only as a private accumulator class.
    */
   public static class Holder<V> {
-    @Nullable private V value;
+    private @Nullable V value;
     private boolean present;
 
     private Holder() {}
@@ -715,7 +721,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToIntegerCodingFunction;
       }
 
@@ -733,7 +739,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromIntegerCodingFunction;
       }
 
@@ -812,7 +818,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToLongCodingFunction;
       }
 
@@ -830,7 +836,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromLongCodingFunction;
       }
 
@@ -911,7 +917,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToDoubleCodingFunction;
       }
 
@@ -929,7 +935,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromDoubleCodingFunction;
       }
 
@@ -1302,13 +1308,35 @@ public class Combine {
 
     @Override
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
+      // TODO(BEAM-10097): Make this the default expansion for all portable runners.
+      if (hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && (hasExperiment(input.getPipeline().getOptions(), "use_runner_v2")
+              || hasExperiment(input.getPipeline().getOptions(), "use_unified_worker"))) {
+        PCollection<OutputT> combined =
+            input.apply(
+                "CombineValues",
+                Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
+        Coder<OutputT> outputCoder = combined.getCoder();
+        PCollectionView<OutputT> view =
+            PCollectionViews.singletonView(
+                combined,
+                (TypeDescriptorSupplier<OutputT>)
+                    () -> outputCoder != null ? outputCoder.getEncodedTypeDescriptor() : null,
+                input.getWindowingStrategy(),
+                insertDefault,
+                insertDefault ? fn.defaultValue() : null,
+                combined.getCoder());
+        combined.apply("CreatePCollectionView", CreatePCollectionView.of(view));
+        return view;
+      }
+
       PCollection<OutputT> combined =
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       PCollection<KV<Void, OutputT>> materializationInput =
           combined.apply(new VoidKeyToMultimapMaterialization<>());
       Coder<OutputT> outputCoder = combined.getCoder();
       PCollectionView<OutputT> view =
-          PCollectionViews.singletonView(
+          PCollectionViews.singletonViewUsingVoidKey(
               materializationInput,
               (TypeDescriptorSupplier<OutputT>)
                   () -> outputCoder != null ? outputCoder.getEncodedTypeDescriptor() : null,
@@ -1970,8 +1998,8 @@ public class Combine {
      * paths.
      */
     private static class InputOrAccum<InputT, AccumT> {
-      @Nullable public final InputT input;
-      @Nullable public final AccumT accum;
+      public final @Nullable InputT input;
+      public final @Nullable AccumT accum;
 
       private InputOrAccum(@Nullable InputT input, @Nullable AccumT aggr) {
         this.input = input;

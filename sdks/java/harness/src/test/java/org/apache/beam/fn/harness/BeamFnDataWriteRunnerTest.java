@@ -73,6 +73,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnDataWriteRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataWriteRunnerTest {
 
   private static final String ELEM_CODER_ID = "string-coder-id";
@@ -149,6 +152,7 @@ public class BeamFnDataWriteRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null /* addResetFunction */,
             teardownFunctions::add,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
@@ -213,7 +217,8 @@ public class BeamFnDataWriteRunnerTest {
             RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
             bundleId::get,
             COMPONENTS.getCodersMap(),
-            mockBeamFnDataClient);
+            mockBeamFnDataClient,
+            null /* beamFnStateClient */);
 
     // Process for bundle id 0
     writeRunner.registerForOutput();

@@ -30,12 +30,12 @@ limitations under the License.
 
 Merges multiple `PCollection` objects into a single logical
 `PCollection`. A transform for `PCollection` objects
-that store the same data type. 
+that store the same data type.
 
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#flatten).
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
+See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates.
 
 ## Related transforms
 * [FlatMap](/documentation/transforms/python/elementwise/flatmap) applies a simple 1-to-many mapping

@@ -31,7 +31,7 @@ values in a collection, either globally or for each key.
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [Max](/documentation/transforms/java/aggregation/max)
   for computing maximum values in a collection
 * [Mean](/documentation/transforms/java/aggregation/mean)

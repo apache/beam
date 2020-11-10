@@ -103,7 +103,7 @@ rebalancing](/blog/2016/05/18/splitAtFraction-method.html)
 [`UnboundedSource`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/UnboundedSource.html) supports
 reporting the source's watermark and backlog *(until SDF, we believed that
 "batch" and "streaming" data sources are fundamentally different and thus
-require fundamentally different APIs)*. 
+require fundamentally different APIs)*.
 
 Unfortunately, these features come at a price. Coding against the Source API
 involves a lot of boilerplate and is error-prone, and it does not compose well
@@ -241,8 +241,8 @@ runs, a runner can split the restriction into a *finite* primary *[100, 150)*
 inf)* to be processed later, effectively checkpointing and resuming the call;
 this can be repeated forever.
 
-<img class="center-block" 
-    src="/images/blog/splittable-do-fn/kafka-splitting.png" 
+<img class="center-block"
+    src="/images/blog/splittable-do-fn/kafka-splitting.png"
     alt="Splitting an infinite restriction into a finite primary and infinite residual"
     width="400">
 
@@ -257,8 +257,8 @@ Logically, the execution of an SDF on an element works according to the
 following diagram, where "magic" stands for the runner-specific ability to split
 the restrictions and schedule processing of residuals.
 
-<img class="center-block" 
-    src="/images/blog/splittable-do-fn/transform-expansion.png" 
+<img class="center-block"
+    src="/images/blog/splittable-do-fn/transform-expansion.png"
     alt="Execution of an SDF - pairing with a restriction, splitting
     restrictions, processing element/restriction pairs"
     width="600">
@@ -372,7 +372,7 @@ class CountFn(DoFn):
       if not tracker.try_claim(i):
         return
       yield element[0], i
-        
+
   def get_initial_restriction(element):
     return (0, element[1])
 {{< /highlight >}}
@@ -442,7 +442,7 @@ class AvroReader(DoFn):
         for record in block.records():
           yield record
         block = AvroUtils.get_next_block(file)
-        
+
   def get_initial_restriction(self, filename):
     return (0, fileio.ChannelFactory.size_in_bytes(filename))
 {{< /highlight >}}

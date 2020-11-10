@@ -48,7 +48,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           boolean: bool,
           string_example: str,
           list_of_strings: typing.List[str],
-          optional_kv: typing.Optional[typing.Tuple[str, float]] = None,
+          mapping: typing.Mapping[str, float],
           optional_integer: typing.Optional[int] = None,
           expansion_service=None):
         super(AnnotatedTransform, self).__init__(
@@ -59,7 +59,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
                 boolean=boolean,
                 string_example=string_example,
                 list_of_strings=list_of_strings,
-                optional_kv=optional_kv,
+                mapping=mapping,
                 optional_integer=optional_integer,
             ),
             expansion_service)
@@ -76,7 +76,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           boolean: bool,
           string_example: str,
           list_of_strings: typehints.List[str],
-          optional_kv: typehints.Optional[typehints.KV[str, float]] = None,
+          mapping: typehints.Dict[str, float],
           optional_integer: typehints.Optional[int] = None,
           expansion_service=None):
         super(AnnotatedTransform, self).__init__(
@@ -87,7 +87,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
                 boolean=boolean,
                 string_example=string_example,
                 list_of_strings=list_of_strings,
-                optional_kv=optional_kv,
+                mapping=mapping,
                 optional_integer=optional_integer,
             ),
             expansion_service)

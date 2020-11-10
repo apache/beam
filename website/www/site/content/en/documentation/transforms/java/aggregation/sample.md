@@ -31,7 +31,7 @@ samples of the values associated with each key in a collection of key-value pair
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [Top](/documentation/transforms/java/aggregation/top)
   finds the largest (or smallest) set of elements in a collection
 * [Latest](/documentation/transforms/java/aggregation/latest)

@@ -32,10 +32,10 @@ are the recommended steps to get started:
 1. Read this overview and choose your implementation. You can email the
    [Beam dev mailing list](/get-started/support) with any
    questions you might have. In addition, you can check if anyone else is
-   working on the same I/O connector.  
+   working on the same I/O connector.
 
 1. If you plan to contribute your I/O connector to the Beam community, see the
-   [Apache Beam contribution guide](/contribute/contribution-guide/).  
+   [Apache Beam contribution guide](/contribute/contribution-guide/).
 
 1. Read the [PTransform style guide](/contribute/ptransform-style-guide/)
    for additional style guide recommendations.
@@ -46,7 +46,7 @@ are the recommended steps to get started:
 For **bounded (batch) sources**, there are currently two options for creating a
 Beam source:
 
-1. Use `ParDo` and `GroupByKey`.  
+1. Use `ParDo` and `GroupByKey`.
 
 1. Use the `Source` interface and extend the `BoundedSource` abstract subclass.
 
@@ -76,19 +76,19 @@ performance:
 
 * **Unbounded sources:** `ParDo` does not work for reading from unbounded
   sources.  `ParDo` does not support checkpointing or mechanisms like de-duping
-  that are useful for streaming data sources.  
+  that are useful for streaming data sources.
 
 * **Progress and size estimation:** `ParDo` can't provide hints to runners about
   progress or the size of data they are reading. Without size estimation of the
   data or progress on your read, the runner doesn't have any way to guess how
   large your read will be. Therefore, if the runner attempts to dynamically
   allocate workers, it does not have any clues as to how many workers you might
-  need for your pipeline.  
+  need for your pipeline.
 
 * **Dynamic work rebalancing:** `ParDo` does not support dynamic work
   rebalancing, which is used by some readers to improve the processing speed of
   jobs. Depending on your data source, dynamic work rebalancing might not be
-  possible.  
+  possible.
 
 * **Splitting into parts of particular size recommended by the runner:** `ParDo`
   does not receive `desired_bundle_size` as a hint from runners when performing
@@ -100,10 +100,10 @@ read operations in sorted key order.
 
 ### Source lifecycle {#source}
 Here is a sequence diagram that shows the lifecycle of the Source during
- the execution of the Read transform of an IO. The comments give useful 
- information to IO developers such as the constraints that 
+ the execution of the Read transform of an IO. The comments give useful
+ information to IO developers such as the constraints that
  apply to the objects or particular cases such as streaming mode.
- 
+
  <!-- The source for the sequence diagram can be found in the the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the Source](/images/source-sequence-diagram.svg)
 
@@ -112,7 +112,7 @@ Here is a sequence diagram that shows the lifecycle of the Source during
 For data stores or file types where the data can be read in parallel, you can
 think of the process as a mini-pipeline. This often consists of two steps:
 
-1. Splitting the data into parts to be read in parallel  
+1. Splitting the data into parts to be read in parallel
 
 2. Reading from each of those parts
 
@@ -120,7 +120,7 @@ Each of those steps will be a `ParDo`, with a `GroupByKey` in between. The
 `GroupByKey` is an implementation detail, but for most runners `GroupByKey`
 allows the runner to use different numbers of workers in some situations:
 
-* Determining how to split up the data to be read into chunks  
+* Determining how to split up the data to be read into chunks
 
 * Reading data, which often benefits from more workers
 

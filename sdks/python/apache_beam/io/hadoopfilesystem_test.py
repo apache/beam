@@ -190,12 +190,15 @@ class FakeHdfs(object):
     if self.status(path1, strict=False) is None:
       raise FakeHdfsError('Path1 not found: %s' % path1)
 
-    for fullpath in self.files.keys():  # pylint: disable=consider-iterating-dictionary
-      if fullpath == path1 or fullpath.startswith(path1 + '/'):
-        f = self.files.pop(fullpath)
-        newpath = path2 + fullpath[len(path1):]
-        f.stat['path'] = newpath
-        self.files[newpath] = f
+    files_to_rename = [
+        path for path in self.files
+        if path == path1 or path.startswith(path1 + '/')
+    ]
+    for fullpath in files_to_rename:
+      f = self.files.pop(fullpath)
+      newpath = path2 + fullpath[len(path1):]
+      f.stat['path'] = newpath
+      self.files[newpath] = f
 
   def checksum(self, path):
     f = self.files.get(path, None)

@@ -38,6 +38,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This class knows all the translators from a primitive BEAM transform to a Samza operator. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaPipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineTranslator.class);
 
@@ -184,6 +188,9 @@ public class SamzaPipelineTranslator {
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
           .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
           .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+          .put(
+              PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
+              new SplittableParDoTranslators.ProcessKeyedElements<>())
           .put(ExecutableStage.URN, new ParDoBoundMultiTranslator())
           .build();
     }

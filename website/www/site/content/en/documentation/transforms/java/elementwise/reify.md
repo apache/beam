@@ -30,7 +30,7 @@ Transforms for converting between explicit and implicit form of various Beam val
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
-## Related transforms 
+## Related transforms
 * [WithTimestamps](/documentation/transforms/java/elementwise/withtimestamps)
   assigns timestamps to all the elements of a collection
 * [Window](/documentation/transforms/java/other/window/) divides up or

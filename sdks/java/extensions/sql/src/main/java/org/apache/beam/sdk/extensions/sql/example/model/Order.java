@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Describes an order. */
 @DefaultSchema(JavaBeanSchema.class)
@@ -52,7 +53,7 @@ public class Order implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

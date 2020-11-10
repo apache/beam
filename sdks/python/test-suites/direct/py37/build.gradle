@@ -22,14 +22,3 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.7'
 apply from: '../common.gradle'
-
-def pythonDir = "${rootDir}/sdks/python"
-
-task hdfsIntegrationTest {
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', "${pythonDir}/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:3.7"
-    }
-  }
-}

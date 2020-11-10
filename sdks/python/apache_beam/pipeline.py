@@ -58,6 +58,7 @@ import sys
 import tempfile
 from builtins import object
 from builtins import zip
+from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
@@ -221,6 +222,13 @@ class Pipeline(object):
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()  # type: Set[str]
 
+    # Create a ComponentIdMap for assigning IDs to components. Ensures that any
+    # components that receive an ID during pipeline construction (for example in
+    # ExternalTransform), will receive the same component ID when generating the
+    # full pipeline proto.
+    self.component_id_map = ComponentIdMap()
+
+
   @property  # type: ignore[misc]  # decorated property not supported
   @deprecated(
       since='First stable release',
@@ -272,10 +280,13 @@ class Pipeline(object):
         # type: (AppliedPTransform) -> None
         if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
-          replacement_transform = override.get_replacement_transform(
-              original_transform_node.transform)
+          replacement_transform = (
+              override.get_replacement_transform_for_applied_ptransform(
+                  original_transform_node))
           if replacement_transform is original_transform_node.transform:
             return
+          replacement_transform.side_inputs = tuple(
+              original_transform_node.transform.side_inputs)
 
           replacement_transform_node = AppliedPTransform(
               original_transform_node.parent,
@@ -299,19 +310,13 @@ class Pipeline(object):
             roots[roots.index(original_transform_node)] = (
                 replacement_transform_node)
 
-          inputs = replacement_transform_node.inputs
-          # TODO:  Support replacing PTransforms with multiple inputs.
+          inputs = override.get_replacement_inputs(original_transform_node)
           if len(inputs) > 1:
-            raise NotImplementedError(
-                'PTransform overriding is only supported for PTransforms that '
-                'have a single input. Tried to replace input of '
-                'AppliedPTransform %r that has %d inputs' %
-                (original_transform_node, len(inputs)))
+            transform_input = inputs
           elif len(inputs) == 1:
-            input_node = inputs[0]
+            transform_input = inputs[0]
           elif len(inputs) == 0:
-            input_node = pvalue.PBegin(self.pipeline)
-
+            transform_input = pvalue.PBegin(self.pipeline)
           try:
             # We have to add the new AppliedTransform to the stack before
             # expand() and pop it out later to make sure that parts get added
@@ -325,7 +330,7 @@ class Pipeline(object):
             # conflicts with labels of the children of the original.
             self.pipeline._remove_labels_recursively(original_transform_node)
 
-            new_output = replacement_transform.expand(input_node)
+            new_output = replacement_transform.expand(transform_input)
             assert isinstance(
                 new_output, (dict, pvalue.PValue, pvalue.DoOutputsTuple))
 
@@ -509,11 +514,28 @@ class Pipeline(object):
         return Pipeline.from_runner_api(
             self.to_runner_api(use_fake_coders=True),
             self.runner,
-            self._options).run(False)
+            self._options,
+            allow_proto_holders=True).run(False)
+
+      if (self._options.view_as(TypeOptions).runtime_type_check and
+          self._options.view_as(TypeOptions).performance_runtime_type_check):
+        raise RuntimeError(
+            'You cannot turn on runtime_type_check '
+            'and performance_runtime_type_check simultaneously. '
+            'Pick one or the other.')
 
       if self._options.view_as(TypeOptions).runtime_type_check:
         from apache_beam.typehints import typecheck
         self.visit(typecheck.TypeCheckVisitor())
+
+      if self._options.view_as(TypeOptions).performance_runtime_type_check:
+        if sys.version_info < (3, ):
+          raise RuntimeError(
+              'You cannot turn on performance_runtime_type_check '
+              'in Python 2. This is a Python 3 feature.')
+        else:
+          from apache_beam.typehints import typecheck
+          self.visit(typecheck.PerformanceTypeCheckVisitor())
 
       if self._options.view_as(SetupOptions).save_main_session:
         # If this option is chosen, verify we can pickle the main session early.
@@ -543,7 +565,8 @@ class Pipeline(object):
 
     try:
       if not exc_type:
-        self.run().wait_until_finish()
+        self.result = self.run()
+        self.result.wait_until_finish()
     finally:
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
@@ -674,30 +697,14 @@ class Pipeline(object):
           current.add_output(result, result._main_tag)
           continue
 
-        # TODO(BEAM-9322): Remove the experiment check and have this
-        # conditional be the default.
-        if self._options.view_as(DebugOptions).lookup_experiment(
-            'passthrough_pcollection_output_ids', default=False):
-          # Passthrough the PCollection output_ids from the PCollection tag.
-          # Only generate a tag if there are multiple PCollections that have a
-          # None tag. This happens when returning multiple PCollections from a
-          # composite.
-          if result.tag is None and None in current.outputs:
-            tag = len(current.outputs)
-          else:
-            tag = result.tag
-          current.add_output(result, tag)
-          continue
-
-        if self._options.view_as(DebugOptions).lookup_experiment(
-            'force_generated_pcollection_output_ids', default=False):
-          tag = len(current.outputs) if None in current.outputs else None
-        else:
-          base = tag
-          counter = 0
-          while tag in current.outputs:
-            counter += 1
-            tag = '%s_%d' % (base, counter)
+        # If there is already a tag with the same name, increase a counter for
+        # the name. This can happen, for example, when a composite outputs a
+        # list of PCollections where all the tags are None.
+        base = tag
+        counter = 0
+        while tag in current.outputs:
+          counter += 1
+          tag = '%s_%d' % (base, counter)
 
         current.add_output(result, tag)
 
@@ -810,6 +817,7 @@ class Pipeline(object):
     if context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
+          component_id_map=self.component_id_map,
           default_environment=default_environment)
     elif default_environment is not None:
       raise ValueError(
@@ -880,8 +888,11 @@ class Pipeline(object):
         proto.components,
         allow_proto_holders=allow_proto_holders,
         requirements=proto.requirements)
-    root_transform_id, = proto.root_transform_ids
-    p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+    if proto.root_transform_ids:
+      root_transform_id, = proto.root_transform_ids
+      p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+    else:
+      p.transforms_stack = [AppliedPTransform(None, None, '', None)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
     p.applied_labels = {
         t.unique_name
@@ -1322,7 +1333,25 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     raise NotImplementedError
 
-  @abc.abstractmethod
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    # type: (AppliedPTransform) -> ptransform.PTransform
+
+    """Provides a runner specific override for a given `AppliedPTransform`.
+
+    Args:
+      applied_ptransform: `AppliedPTransform` containing the `PTransform` to be
+        replaced.
+
+    Returns:
+      A `PTransform` that will be the replacement for the `PTransform` inside
+      the `AppliedPTransform` given as an argument.
+    """
+    # Returns a PTransformReplacement
+    return self.get_replacement_transform(applied_ptransform.transform)
+
+  @deprecated(
+      since='2.24', current='get_replacement_transform_for_applied_ptransform')
   def get_replacement_transform(self, ptransform):
     # type: (Optional[ptransform.PTransform]) -> ptransform.PTransform
 
@@ -1337,6 +1366,48 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     # Returns a PTransformReplacement
     raise NotImplementedError
+
+  def get_replacement_inputs(self, applied_ptransform):
+    # type: (AppliedPTransform) -> Iterable[pvalue.PValue]
+
+    """Provides inputs that will be passed to the replacement PTransform.
+
+    Args:
+      applied_ptransform: Original AppliedPTransform containing the PTransform
+        to be replaced.
+
+    Returns:
+      An iterable of PValues that will be passed to the expand() method of the
+      replacement PTransform.
+    """
+    return tuple(applied_ptransform.inputs) + tuple(
+        side_input.pvalue for side_input in applied_ptransform.side_inputs)
+
+
+class ComponentIdMap(object):
+  """A utility for assigning unique component ids to Beam components.
+
+  Component ID assignments are only guaranteed to be unique and consistent
+  within the scope of a ComponentIdMap instance.
+  """
+  def __init__(self, namespace="ref"):
+    self.namespace = namespace
+    self._counters = defaultdict(lambda: 0)  # type: Dict[type, int]
+    self._obj_to_id = {}  # type: Dict[Any, str]
+
+  def get_or_assign(self, obj=None, obj_type=None, label=None):
+    if obj not in self._obj_to_id:
+      self._obj_to_id[obj] = self._unique_ref(obj, obj_type, label)
+
+    return self._obj_to_id[obj]
+
+  def _unique_ref(self, obj=None, obj_type=None, label=None):
+    self._counters[obj_type] += 1
+    return "%s_%s_%s_%d" % (
+        self.namespace,
+        obj_type.__name__,
+        label or type(obj).__name__,
+        self._counters[obj_type])
 
 
 if sys.version_info >= (3, ):

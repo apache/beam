@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utilities to do future programming with Java 8.
@@ -44,6 +44,9 @@ import javax.annotation.Nullable;
  *   <li>Return {@link CompletableFuture} only to the <i>producer</i> of a future value.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class MoreFutures {
 
   /**

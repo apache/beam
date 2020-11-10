@@ -186,6 +186,32 @@ var sdfNames = []string{
 	createTrackerName,
 }
 
+var combineFnNames = []string{
+	createAccumulatorName,
+	addInputName,
+	mergeAccumulatorsName,
+	extractOutputName,
+	compactName,
+}
+
+var lifecycleMethods map[string]struct{}
+
+func init() {
+	lifecycleMethods = make(map[string]struct{})
+	methods := append(doFnNames, combineFnNames...)
+	for _, name := range methods {
+		lifecycleMethods[name] = struct{}{}
+	}
+}
+
+// lifecycleMethodName returns if the passed in string is one of the lifecycle
+// method names used by the Go SDK as DoFn or CombineFn lifecycle methods. These
+// are the only methods that need shims generated for them.
+func IsLifecycleMethod(n string) bool {
+	_, ok := lifecycleMethods[n]
+	return ok
+}
+
 // DoFn represents a DoFn.
 type DoFn Fn
 
@@ -294,6 +320,19 @@ func defaultConfig() *config {
 func NumMainInputs(num mainInputs) func(*config) {
 	return func(cfg *config) {
 		cfg.numMainIn = num
+	}
+}
+
+// CoGBKMainInput is an optional config to NewDoFn which specifies the number
+// of components of a CoGBK input to the DoFn being created, allowing for more complete
+// validation.
+//
+// Example usage:
+//   var col beam.PCollection
+//   graph.NewDoFn(fn, graph.CoGBKMainInput(len(col.Type().Components())))
+func CoGBKMainInput(components int) func(*config) {
+	return func(cfg *config) {
+		cfg.numMainIn = mainInputs(components)
 	}
 }
 
@@ -586,14 +625,9 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 
 	// Handle cases where method has no inputs.
 	if !ok {
-		if numProcessIn <= int(MainKv) {
-			return nil // We're good, possible for there to be no side inputs.
-		}
-		err := errors.Errorf("side inputs expected in method %v", methodName)
-		return errors.SetTopLevelMsgf(err,
-			"Missing side inputs in the %v method of a DoFn. "+
-				"If side inputs are present in %v those side inputs must also be present in %v.",
-			methodName, processElementName, methodName)
+		// If there's no inputs, this is fine, as the ProcessElement method could be a
+		// CoGBK, and not have side inputs.
+		return nil
 	}
 
 	// Error if number of side inputs doesn't match any of the possible numbers of side inputs,

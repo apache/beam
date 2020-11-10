@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 import datetime
-import time
+import pytz
 
 import apache_beam as beam
 from apache_beam.transforms import window
@@ -24,32 +24,31 @@ from log_elements import LogElements
 
 
 class Event:
-    def __init__(self, id, event, date):
+    def __init__(self, id, event, timestamp):
         self.id = id
         self.event = event
-        self.date = date
+        self.timestamp = timestamp
 
     def __str__(self) -> str:
-        return f'Event({self.id}, {self.event}, {self.date})'
+        return f'Event({self.id}, {self.event}, {self.timestamp})'
 
 
 class AddTimestampDoFn(beam.DoFn):
 
     def process(self, element, **kwargs):
-        unix_timestamp = time.mktime(element.date.timetuple())
+        unix_timestamp = element.timestamp.timestamp()
         yield window.TimestampedValue(element, unix_timestamp)
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create([
-        Event('1', 'book-order', datetime.date(2020, 3, 4)),
-        Event('2', 'pencil-order', datetime.date(2020, 3, 5)),
-        Event('3', 'paper-order', datetime.date(2020, 3, 6)),
-        Event('4', 'pencil-order', datetime.date(2020, 3, 7)),
-        Event('5', 'book-order', datetime.date(2020, 3, 8)),
-     ])
-   | beam.ParDo(AddTimestampDoFn())
-   | LogElements(with_timestamp=True))
+  (p | beam.Create([
+          Event('1', 'book-order', datetime.datetime(2020, 3, 4, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('2', 'pencil-order', datetime.datetime(2020, 3, 5, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('3', 'paper-order', datetime.datetime(2020, 3, 6, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('4', 'pencil-order', datetime.datetime(2020, 3, 7, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('5', 'book-order', datetime.datetime(2020, 3, 8, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+       ])
+     | beam.ParDo(AddTimestampDoFn())
+     | LogElements(with_timestamp=True))
 
-p.run()

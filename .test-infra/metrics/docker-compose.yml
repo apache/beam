@@ -41,13 +41,15 @@ services:
     volumes:
       - beam-influxdb-storage:/var/lib/influxdb
     environment:
-      - INFLUXDB_DB=beam_test_metrics
-      - INFLUXDB_HTTP_AUTH_ENABLED=true
       - INFLUXDB_BIND_ADDRESS=:8088
-      - INFLUXDB_USER=worker
-      - INFLUXDB_USER_PASSWORD=<UserPasswordHere>
-      - INFLUXDB_ADMIN_USER=admin
-      - INFLUXDB_ADMIN_PASSWORD=<AdminPasswordHere>
+  influxdb-restore:
+    build: ./influxdb
+    depends_on:
+      - influxdb
+    container_name: restore-backup
+    entrypoint: "sh"
+    command: ["-c", "./wait-for-it.sh influxdb:8086 -t 60 && \
+              influxd restore -portable -host influxdb:8088 /backup"]
   grafana:
     image: beamgrafana
     build: ./grafana
@@ -70,8 +72,6 @@ services:
       - INFLUX_DB_HOST=influxdb
       - INFLUX_DB_PORT=8086
       - INFLUX_DB_DBNAME=beam_test_metrics
-      - INFLUX_DB_USER=worker
-      - INFLUX_DB_PASSWORD=<UserPasswordHere>
   syncgithub:
     image: syncgithub
     container_name: beamsyncgithub

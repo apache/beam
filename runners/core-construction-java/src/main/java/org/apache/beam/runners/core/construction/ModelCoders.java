@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
@@ -59,6 +60,16 @@ public class ModelCoders {
 
   public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
 
+  public static final String STATE_BACKED_ITERABLE_CODER_URN =
+      "beam:coder:state_backed_iterable:v1";
+
+  public static final String SHARDED_KEY_CODER_URN = getUrn(StandardCoders.Enum.SHARDED_KEY);
+
+  static {
+    checkState(
+        STATE_BACKED_ITERABLE_CODER_URN.equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE)));
+  }
+
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
           BYTES_CODER_URN,
@@ -74,7 +85,9 @@ public class ModelCoders {
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
           ROW_CODER_URN,
-          PARAM_WINDOWED_VALUE_CODER_URN);
+          PARAM_WINDOWED_VALUE_CODER_URN,
+          STATE_BACKED_ITERABLE_CODER_URN,
+          SHARDED_KEY_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

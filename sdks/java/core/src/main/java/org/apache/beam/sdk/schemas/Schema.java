@@ -35,7 +35,6 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -47,9 +46,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "keyfor",
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class Schema implements Serializable {
   // This is the metadata field used to store the logical type identifier.
   private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";
@@ -69,7 +75,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof ByteArrayWrapper)) {
         return false;
       }
@@ -96,7 +102,7 @@ public class Schema implements Serializable {
   private final int hashCode;
   // Every SchemaCoder has a UUID. The schemas created with the same UUID are guaranteed to be
   // equal, so we can short circuit comparison.
-  @Nullable private UUID uuid = null;
+  private @Nullable UUID uuid = null;
 
   private final Options options;
 
@@ -286,14 +292,13 @@ public class Schema implements Serializable {
   }
 
   /** Get this schema's UUID. */
-  @Nullable
-  public UUID getUUID() {
+  public @Nullable UUID getUUID() {
     return this.uuid;
   }
 
   /** Returns true if two Schemas have the same fields in the same order. */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -522,6 +527,8 @@ public class Schema implements Serializable {
    * allowed to have LogicalTypes reference each other recursively via getBaseType. The {@link
    * #toBaseType} and {@link #toInputType} should convert back and forth between the Java type for
    * the LogicalType (InputT) and the Java type appropriate for the underlying base type (BaseT).
+   * Note for nullable types, null checking is always done externally. {@link #toBaseType} and
+   * {@link #toInputType} may assume their inputs are never null.
    *
    * <p>{@link #getIdentifier} must define a globally unique identifier for this LogicalType. A
    * LogicalType can optionally provide an identifying argument as well using {@link #getArgument}.
@@ -540,22 +547,29 @@ public class Schema implements Serializable {
     /** The unique identifier for this type. */
     String getIdentifier();
 
-    /** A schema type representing how to interpret the argument. */
+    /**
+     * A schema type representing how to interpret the argument. {@code null} indicates this logical
+     * type is not parameterized by an argument.
+     */
+    @Nullable
     FieldType getArgumentType();
 
     /** An optional argument to configure the type. */
     @SuppressWarnings("TypeParameterUnusedInFormals")
-    default <T> T getArgument() {
+    default <T> @Nullable T getArgument() {
       return null;
     }
 
     /** The base {@link FieldType} used to store values of this type. */
     FieldType getBaseType();
 
-    BaseT toBaseType(InputT input);
+    /** Convert the input type to the type Java type used by the base {@link FieldType}. */
+    @NonNull
+    BaseT toBaseType(@NonNull InputT input);
 
     /** Convert the Java type used by the base {@link FieldType} to the input type. */
-    InputT toInputType(BaseT base);
+    @NonNull
+    InputT toInputType(@NonNull BaseT base);
   }
 
   /**
@@ -572,24 +586,24 @@ public class Schema implements Serializable {
     public abstract Boolean getNullable();
 
     // For logical types, return the implementing class.
-    @Nullable
-    public abstract LogicalType getLogicalType();
+
+    public abstract @Nullable LogicalType getLogicalType();
 
     // For container types (e.g. ARRAY or ITERABLE), returns the type of the contained element.
-    @Nullable
-    public abstract FieldType getCollectionElementType();
+
+    public abstract @Nullable FieldType getCollectionElementType();
 
     // For MAP type, returns the type of the key element, it must be a primitive type;
-    @Nullable
-    public abstract FieldType getMapKeyType();
+
+    public abstract @Nullable FieldType getMapKeyType();
 
     // For MAP type, returns the type of the value element, it can be a nested type;
-    @Nullable
-    public abstract FieldType getMapValueType();
+
+    public abstract @Nullable FieldType getMapValueType();
 
     // For ROW types, returns the schema for the row.
-    @Nullable
-    public abstract Schema getRowSchema();
+
+    public abstract @Nullable Schema getRowSchema();
 
     /**
      * Returns optional extra metadata.
@@ -773,8 +787,7 @@ public class Schema implements Serializable {
 
     /** @deprecated use schema options instead. */
     @Deprecated
-    @Nullable
-    public byte[] getMetadata(String key) {
+    public byte @Nullable [] getMetadata(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       return (metadata != null) ? metadata.array : null;
     }
@@ -795,7 +808,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof FieldType)) {
         return false;
       }
@@ -809,14 +822,24 @@ public class Schema implements Serializable {
             getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
           return false;
         }
-        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
-          return false;
-        }
-        if (!Row.Equals.deepEquals(
-            getLogicalType().getArgument(),
-            other.getLogicalType().getArgument(),
-            getLogicalType().getArgumentType())) {
-          return false;
+        if (getLogicalType().getArgument() == null) {
+          if (other.getLogicalType().getArgument() != null) {
+            return false;
+          }
+        } else {
+          if (!getLogicalType()
+              .getArgumentType()
+              .equals(other.getLogicalType().getArgumentType())) {
+            return false;
+          }
+          // Only check argument equality if argument type is non-null. null indicates argument is
+          // ignored.
+          if (!Row.Equals.deepEquals(
+              getLogicalType().getArgument(),
+              other.getLogicalType().getArgument(),
+              getLogicalType().getArgumentType())) {
+            return false;
+          }
         }
       }
       return Objects.equals(getTypeName(), other.getTypeName())
@@ -1015,7 +1038,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Field)) {
         return false;
       }
@@ -1068,7 +1091,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1118,7 +1141,7 @@ public class Schema implements Serializable {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         if (this == o) {
           return true;
         }
@@ -1275,7 +1298,7 @@ public class Schema implements Serializable {
   public int indexOf(String fieldName) {
     Integer index = fieldIndices.get(fieldName);
     Preconditions.checkArgument(
-        index != null, String.format("Cannot find field %s in schema %s", fieldName, this));
+        index != null, "Cannot find field %s in schema %s", fieldName, this);
     return index;
   }
 
@@ -1287,7 +1310,7 @@ public class Schema implements Serializable {
   /** Return the name of field by index. */
   public String nameOf(int fieldIndex) {
     String name = fieldIndices.inverse().get(fieldIndex);
-    Preconditions.checkArgument(name != null, String.format("Cannot find field %d", fieldIndex));
+    Preconditions.checkArgument(name != null, "Cannot find field %s", fieldIndex);
     return name;
   }
 

@@ -21,7 +21,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -58,6 +58,9 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator}.
  */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PortableStateExecutionTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableStateExecutionTest.class);
@@ -202,7 +205,7 @@ public class PortableStateExecutionTest implements Serializable {
 
     jobInvocation.start();
 
-    while (jobInvocation.getState() != Enum.DONE) {
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
       Thread.sleep(1000);
     }
   }

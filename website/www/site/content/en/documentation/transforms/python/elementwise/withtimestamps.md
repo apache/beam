@@ -34,15 +34,15 @@ The elements themselves often already contain a timestamp field.
 in the form of seconds.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_event_time >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_event_time >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after getting the timestamps:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_timestamps >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_timestamps >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -57,7 +57,7 @@ For more information on time formatting options, see
 [`time.strftime`](https://docs.python.org/3/library/time.html#time.strftime).
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" time_tuple2unix_time >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" time_tuple2unix_time >}}
 {{< /highlight >}}
 
 To convert from a
@@ -66,7 +66,7 @@ to `unix_time` you can use convert it to a `time.struct_time` first with
 [`datetime.timetuple`](https://docs.python.org/3/library/datetime.html#datetime.datetime.timetuple).
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" datetime2unix_time >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" datetime2unix_time >}}
 {{< /highlight >}}
 
 ### Example 2: Timestamp by logical clock
@@ -76,15 +76,15 @@ If each element has a chronological number, these numbers can be used as a
 These numbers have to be converted to a *"seconds"* equivalent, which can be especially important depending on your windowing and late data rules.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_logical_clock >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_logical_clock >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after getting the timestamps:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_events >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_events >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -100,15 +100,15 @@ Workers might have time deltas, so using this method is not a reliable way to do
 By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element *enters* into the pipeline.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_processing_time >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_processing_time >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after getting the timestamps:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_processing_times >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_processing_times >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet

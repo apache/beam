@@ -66,51 +66,57 @@ if [ ! -z "$(git diff)" ]; then
   exit 1
 fi
 
+ACCUMULATED_RESULT=0
+
 function runLinkageCheck () {
   COMMIT=$1
   BRANCH=$2
-  # An empty invocation so that the subsequent checkJavaLinkage does not
-  # contain garbage
-  echo "`date`:" "Installing artifacts of ${BRANCH}(${COMMIT}) to Maven local repository."
-  ./gradlew -Ppublishing -PjavaLinkageArtifactIds=beam-sdks-java-core :checkJavaLinkage > /dev/null 2>&1
+  MODE=$3 # "baseline" or "validate"
   for ARTIFACT in $ARTIFACTS; do
-    echo "`date`:" "Running linkage check for ${ARTIFACT} in ${BRANCH}"
-    # Removing time taken to have clean diff
-    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=$ARTIFACT :checkJavaLinkage |grep -v 'BUILD SUCCESSFUL in' | grep -v 'dependency paths' > ${OUTPUT_DIR}/${COMMIT}-${ARTIFACT}
-    echo "`date`:" "Done: ${OUTPUT_DIR}/${COMMIT}-${ARTIFACT}"
+    echo "`date`:" "Running linkage check (${MODE}) for ${ARTIFACT} in ${BRANCH}"
+
+    BASELINE_FILE=${OUTPUT_DIR}/baseline-${ARTIFACT}.xml
+    if [ "$MODE" = "baseline" ]; then
+      BASELINE_OPTION="-PjavaLinkageWriteBaseline=${BASELINE_FILE}"
+      echo "`date`:" "to create a baseline (existing errors before change) $BASELINE_FILE"
+    elif [ "$MODE" = "validate" ]; then
+      BASELINE_OPTION="-PjavaLinkageReadBaseline=${BASELINE_FILE}"
+      echo "`date`:" "using baseline $BASELINE_FILE"
+    else
+      BASELINE_OPTION=""
+      echo "`date`:" "Unexpected mode: ${MODE}. Not using baseline file."
+    fi
+
+    set +e
+    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=$ARTIFACT ${BASELINE_OPTION} :checkJavaLinkage
+    RESULT=$?
+    set -e
+    if [ "$MODE" = "validate" ]; then
+      echo "`date`:" "Done: ${RESULT}"
+      ACCUMULATED_RESULT=$((ACCUMULATED_RESULT | RESULT))
+    fi
   done
 }
 
+
 BRANCH_NAME=`git rev-parse --abbrev-ref HEAD`
 BRANCH_COMMIT=`git rev-parse --short=8 HEAD`
-runLinkageCheck $BRANCH_COMMIT $BRANCH_NAME
 
 git fetch
 MASTER_COMMIT=`git rev-parse --short=8 origin/master`
 git -c advice.detachedHead=false checkout $MASTER_COMMIT
-runLinkageCheck $MASTER_COMMIT master
+runLinkageCheck $MASTER_COMMIT master baseline
+
 
 # Restore original branch
 git checkout $BRANCH_NAME
+runLinkageCheck $BRANCH_COMMIT $BRANCH_NAME validate
 
-# Diff command can return non-zero status
-set +e
-
-FOUND_DIFFERENCE=false
-for ARTIFACT in $ARTIFACTS; do
-  echo; echo
-  echo "Linkage Check difference on $ARTIFACT between master(${MASTER_COMMIT}) and ${BRANCH_NAME}(${BRANCH_COMMIT}):"
-  DIFF=$(diff ${OUTPUT_DIR}/${MASTER_COMMIT}-${ARTIFACT} ${OUTPUT_DIR}/${BRANCH_COMMIT}-${ARTIFACT})
-  if [ -z "$DIFF" ]; then
-   echo "(no difference)"
-  else
-    FOUND_DIFFERENCE=true
-    echo "Lines starting with '<' mean the branch remedies the errors (good)"
-    echo "Lines starting with '>' mean the branch introduces new errors (bad)"
-    diff ${OUTPUT_DIR}/${MASTER_COMMIT}-${ARTIFACT} ${OUTPUT_DIR}/${BRANCH_COMMIT}-${ARTIFACT}
-  fi
-done
-
-if [ "$FOUND_DIFFERENCE" == true ]; then
-  exit 1
+if [ "${ACCUMULATED_RESULT}" = "0" ]; then
+  echo "No new linkage errors"
+else
+  echo "There's new linkage errors. See above for details."
 fi
+
+# CI-friendly way to tell the result
+exit $ACCUMULATED_RESULT

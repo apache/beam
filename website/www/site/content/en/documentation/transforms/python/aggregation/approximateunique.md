@@ -17,6 +17,6 @@ limitations under the License.
 # ApproximateUnique
 
 ## Examples
-See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
+See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates.
 
-## Related transforms 
+## Related transforms

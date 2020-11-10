@@ -44,9 +44,9 @@ First, a quick recap: In Beam, a big data processing _pipeline_ is a directed,
 acyclic graph of parallel operations called _`PTransforms`_ processing data
 from _`PCollections`_. I'll expand on that by walking through this illustration:
 
-<img class="center-block" 
-    src="/images/blog/stateful-processing/pipeline.png" 
-    alt="A Beam Pipeline - PTransforms are boxes - PCollections are arrows" 
+<img class="center-block"
+    src="/images/blog/stateful-processing/pipeline.png"
+    alt="A Beam Pipeline - PTransforms are boxes - PCollections are arrows"
     width="300">
 
 The boxes are `PTransforms` and the edges represent the data in `PCollections`
@@ -66,9 +66,9 @@ picture below (featured in many of our presentations) the color indicates the
 key of the element. Thus the `GroupByKey`/`CombinePerKey` transform gathers all the
 green squares to produce a single output element.
 
-<img class="center-block" 
+<img class="center-block"
     src="/images/blog/stateful-processing/pardo-and-gbk.png"
-    alt="ParDo and GroupByKey/CombinePerKey: 
+    alt="ParDo and GroupByKey/CombinePerKey:
         Elementwise versus aggregating computations"
     width="400">
 
@@ -77,7 +77,7 @@ But not all use cases are easily expressed as pipelines of simple `ParDo`/`Map` 
 extension to the Beam programming model: **per-element operation augmented with
 mutable state**.
 
-<img class="center-block" 
+<img class="center-block"
     src="/images/blog/stateful-processing/stateful-pardo.png"
     alt="Stateful ParDo - sequential per-key processing with persistent state"
     width="300">
@@ -85,9 +85,9 @@ mutable state**.
 In the illustration above, ParDo now has a bit of durable, consistent state on
 the side, which can be read and written during the processing of each element.
 The state is partitioned by key, so it is drawn as having disjoint sections for
-each color. It is also partitioned per window, but I thought plaid 
+each color. It is also partitioned per window, but I thought plaid
 <img src="/images/blog/stateful-processing/plaid.png"
-    alt="A plaid storage cylinder" width="20"> 
+    alt="A plaid storage cylinder" width="20">
 would be a bit much  :-). I'll talk about
 why state is partitioned this way a bit later, via my first example.
 
@@ -95,7 +95,7 @@ For the rest of this post, I will describe this new feature of Beam in detail -
 how it works at a high level, how it differs from existing features, how to
 make sure it is still massively scalable. After that introduction at the model
 level, I'll walk through a simple example of how you use it in the Beam Java
-SDK.  
+SDK.
 
 ## How does stateful processing in Beam work?
 
@@ -106,9 +106,9 @@ Mapper in a MapReduce.  With state, a `DoFn` has the ability to access
 persistent mutable state while processing each input element. Consider this
 illustration:
 
-<img class="center-block" 
+<img class="center-block"
     src="/images/blog/stateful-processing/stateful-dofn.png"
-    alt="Stateful DoFn - 
+    alt="Stateful DoFn -
         the runner controls input but the DoFn controls storage and output"
     width="300">
 
@@ -130,7 +130,7 @@ experience, you have probably at some point written a loop over elements that
 updates some mutable variables while performing other actions. The interesting
 question is how does this fit into the Beam model: how does it relate with
 other features? How does it scale, since state implies some synchronization?
-When should it be used versus other features?  
+When should it be used versus other features?
 
 ## How does stateful processing fit into the Beam model?
 
@@ -178,7 +178,7 @@ This unlocks some huge optimizations: the runner can invoke multiple instances
 of a `CombineFn` on a number of inputs and later combine them in a classic
 divide-and-conquer architecture, as in this picture:
 
-<img class="center-block" 
+<img class="center-block"
     src="/images/blog/stateful-processing/combiner-lifting.png"
     alt="Divide-and-conquer aggregation with a CombineFn"
     width="600">
@@ -210,7 +210,7 @@ unique and consistent. Before diving into the code for how to do this in a Beam
 SDK, I'll go over this example from the level of the model. In pictures, you
 want to write a transform that maps input to output like this:
 
-<img class="center-block" 
+<img class="center-block"
     src="/images/blog/stateful-processing/assign-indices.png"
     alt="Assigning arbitrary but unique indices to each element"
     width="180">
@@ -424,7 +424,7 @@ PCollection<KV<UserId, Prediction>> predictions = events
         Model model = ctx.sideinput(userModels).get(userId);
 
         // Perhaps some logic around when to output a new prediction
-        … c.output(KV.of(userId, model.prediction(event))) … 
+        … c.output(KV.of(userId, model.prediction(event))) …
       }
     }));
 {{< /highlight >}}
@@ -535,7 +535,7 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
     Prediction newPrediction = model.prediction(event);
     model.add(event);
     modelState.write(model);
-    if (previousPrediction == null 
+    if (previousPrediction == null
         || shouldOutputNewPrediction(previousPrediction, newPrediction)) {
       c.output(KV.of(userId, newPrediction));
       previousPredictionState.write(newPrediction);
@@ -580,7 +580,7 @@ Let's walk through it,
  - Access to the two state cells by annotation in the `@ProcessElement` method
    is as before.
  - You read the current model via `modelState.read()`.
-   per-key-and-window, this is a model just for the UserId of the Event 
+   per-key-and-window, this is a model just for the UserId of the Event
    currently being processed.
  - You derive a new prediction `model.prediction(event)` and compare it against
    the last one you output, accessed via
@@ -631,7 +631,7 @@ hope this new addition to the model unlocks new use cases for you.  Do check
 the [capability
 matrix](/documentation/runners/capability-matrix/) to
 see the level of support for this new model feature on your favorite
-backend(s). 
+backend(s).
 
 And please do join the community at
 [user@beam.apache.org](/get-started/support). We'd love to

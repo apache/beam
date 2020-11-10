@@ -25,14 +25,12 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
 import "endpoints.proto";
-import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/timestamp.proto";
 
 message BeamConstants {
   enum Constants {
@@ -296,6 +294,22 @@ message StandardPTransforms {
     //
     // Payload: WindowingStrategy#window_fn FunctionSpec
     MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
+
+    // A transform that translates a given element to its human-readable
+    // representation.
+    // 
+    // Input: KV<nonce, element>
+    // Output: KV<nonce, string>
+    // 
+    // For each given element, the implementation returns the best-effort
+    // human-readable representation. When possible, the implementation could
+    // call a user-overridable method on the type. For example, Java could
+    // call `toString()`, Python could call `str()`, Golang could call
+    // `String()`.  The nonce is used by a runner to associate each input with
+    // its output. The nonce is represented as an opaque set of bytes.
+    //
+    // Payload: none
+    TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
@@ -324,6 +338,12 @@ message StandardPTransforms {
 
     // Less well-known. Payload: WriteFilesPayload.
     WRITE_FILES = 3 [(beam_urn) = "beam:transform:write_files:v1"];
+
+    // Payload: PubSubReadPayload.
+    PUBSUB_READ = 4 [(beam_urn) = "beam:transform:pubsub_read:v1"];
+
+    // Payload: PubSubWritePayload.
+    PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -365,38 +385,34 @@ message StandardPTransforms {
     // Input: element; output: KV(element, restriction).
     PAIR_WITH_RESTRICTION = 0 [(beam_urn) = "beam:transform:sdf_pair_with_restriction:v1"];
 
-    // Splits the restriction inside an element/restriction pair.
-    // Input: KV(element, restriction); output: KV(element, restriction).
-    SPLIT_RESTRICTION = 1 [(beam_urn) = "beam:transform:sdf_split_restriction:v1"];
-
-    // Applies the DoFn to every element/restriction pair in a uniquely keyed
-    // collection, in a splittable fashion.
-    // Input: KV(bytes, KV(element, restriction)); output: DoFn's output.
-    // The first "bytes" is an opaque unique key using the standard bytes coder.
-    // Typically a runner would rewrite this into a runner-specific grouping
-    // operation supporting state and timers, followed by PROCESS_ELEMENTS,
-    // with some runner-specific glue code in between.
-    PROCESS_KEYED_ELEMENTS = 2 [(beam_urn) = "beam:transform:sdf_process_keyed_elements:v1"];
-
-    // Like PROCESS_KEYED_ELEMENTS, but without the unique key - just elements
-    // and restrictions.
-    // Input: KV(element, restriction); output: DoFn's output.
-    PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
-
     // Splits the restriction of each element/restriction pair and returns the
-    // resulting splits, with a corresponding floating point size estimations
+    // resulting splits, with a corresponding floating point size estimation
     // for each.
+    //
     // A reasonable value for size is the number of bytes expected to be
     // produced by this (element, restriction) pair.
+    //
     // Input: KV(element, restriction)
     // Output: KV(KV(element, restriction), size))
-    SPLIT_AND_SIZE_RESTRICTIONS = 4 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
+    SPLIT_AND_SIZE_RESTRICTIONS = 1 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
 
-    // Like PROCESS_ELEMENTS, but accepts the sized output produced by
-    // SPLIT_RESTRICTION_WITH_SIZING.
+    // Applies the DoFn to every element and restriction.
+    //
+    // All primary and residuals returned from checkpointing or splitting must
+    // have the same type as the input to this transform.
+    //
     // Input: KV(KV(element, restriction), size); output: DoFn's output.
-    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 5 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
+    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 2 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
 
+    // Truncates the restriction of each element/restriction pair and returns
+    // the finite restriction which will be processed when a pipeline is
+    // drained. See
+    // https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#.
+    // for additional details about drain.
+    //
+    // Input: KV(KV(element, restriction), size);
+    // Output: KV(KV(element, restriction), size).
+    TRUNCATE_SIZED_RESTRICTION = 3 [(beam_urn) = "beam:transform:sdf_truncate_sized_restrictions:v1"];
   }
 }
 
@@ -493,6 +509,7 @@ message StateSpec {
     CombiningStateSpec combining_spec = 3;
     MapStateSpec map_spec = 4;
     SetStateSpec set_spec = 5;
+    OrderedListStateSpec ordered_list_spec = 6;
   }
 }
 
@@ -501,6 +518,10 @@ message ReadModifyWriteStateSpec {
 }
 
 message BagStateSpec {
+  string element_coder_id = 1;
+}
+
+message OrderedListStateSpec {
   string element_coder_id = 1;
 }
 
@@ -647,6 +668,42 @@ message WriteFilesPayload {
   bool runner_determined_sharding = 4;
 
   map<string, SideInput> side_inputs = 5;
+}
+
+// Payload used by Google Cloud Pub/Sub read transform.
+// This can be used by runners that wish to override Beam Pub/Sub read transform
+// with a native implementation.
+message PubSubReadPayload {
+
+  // Topic to read from. Exactly one of topic or subscription should be set.
+  string topic = 1;
+
+  // Subscription to read from. Exactly one of topic or subscription should be set.
+  string subscription = 2;
+
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 3;
+
+  // Attribute to be used for uniquely identifying messages.
+  string id_attribute = 4;
+
+  // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
+  bool with_attributes = 5;
+}
+
+// Payload used by Google Cloud Pub/Sub write transform.
+// This can be used by runners that wish to override Beam Pub/Sub write transform
+// with a native implementation.
+message PubSubWritePayload {
+
+  // Topic to write to.
+  string topic = 1;
+
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 2;
+
+  // Attribute that uniquely identify messages.
+  string id_attribute = 3;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -859,14 +916,53 @@ message StandardCoders {
     //     BOOLEAN:   beam:coder:bool:v1
     //     BYTES:     beam:coder:bytes:v1
     //   ArrayType:   beam:coder:iterable:v1 (always has a known length)
-    //   MapType:     not yet a standard coder (BEAM-7996)
+    //   MapType:     not a standard coder, specification defined below.
     //   RowType:     beam:coder:row:v1
     //   LogicalType: Uses the coder for its representation.
     //
+    // The MapType is encoded by:
+    //   - An INT32 representing the size of the map (N)
+    //   - Followed by N interleaved keys and values, encoded with their
+    //     corresponding coder.
+    //
+    // Nullable types in container types (ArrayType, MapType) are encoded by:
+    //   - A one byte null indicator, 0x00 for null values, or 0x01 for present
+    //     values.
+    //   - For present values the null indicator is followed by the value
+    //     encoded with it's corresponding coder.
+    // 
+    // Well known logical types:
+    //   beam:logical_type:micros_instant:v1
+    //   - Representation type: ROW<seconds: INT64, micros: INT64>
+    //   - A timestamp without a timezone where seconds + micros represents the
+    //     amount of time since the epoch.
+    // 
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
     ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
+
+    // Encodes a user key and a shard id which is an opaque byte string.
+    //
+    // The encoding for a sharded key consists of a shard id byte string and the
+    // encoded user key in the following order:
+    //
+    //     - shard id using beam:coder:bytes:v1
+    //     - encoded user key
+    //
+    // Examples:
+    // user key with an empty shard id
+    //     0x00
+    //     encode(user_key)
+    //
+    // user key with a shard id taking up two bytes.
+    //     0x02
+    //     0x11 0x22
+    //     encode(user_key)
+    //
+    // Components: the user key coder.
+    // Experimental.
+    SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
   }
 }
 

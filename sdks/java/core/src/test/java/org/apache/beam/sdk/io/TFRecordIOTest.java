@@ -23,13 +23,14 @@ import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.in;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.io.ByteArrayInputStream;
@@ -70,6 +71,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -80,6 +82,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for TFRecordIO Read and Write transforms. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TFRecordIOTest {
 
   /*
@@ -121,14 +126,12 @@ public class TFRecordIOTest {
   public void testReadNamed() {
     readPipeline.enableAbandonedNodeEnforcement(false);
 
-    assertEquals(
-        "TFRecordIO.Read/Read.out",
-        readPipeline.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName());
-    assertEquals(
-        "MyRead/Read.out",
-        readPipeline
-            .apply("MyRead", TFRecordIO.read().from("foo.*").withoutValidation())
-            .getName());
+    assertThat(
+        readPipeline.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName(),
+        startsWith("TFRecordIO.Read/Read"));
+    assertThat(
+        readPipeline.apply("MyRead", TFRecordIO.read().from("foo.*").withoutValidation()).getName(),
+        startsWith("MyRead/Read"));
   }
 
   @Test
@@ -165,6 +168,8 @@ public class TFRecordIOTest {
 
   @Test
   public void testWriteDisplayData() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10739
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TFRecordIO.Write write =
         TFRecordIO.write()
             .to("/foo")
@@ -209,7 +214,6 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidRecord() throws Exception {
-    expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("Not a valid TFRecord. Fewer than 12 bytes.");
     runTestRead("bar".getBytes(Charsets.UTF_8), new String[0]);
   }
@@ -217,7 +221,6 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidLengthMask() throws Exception {
-    expectedException.expectCause(instanceOf(IOException.class));
     expectedException.expectCause(hasMessage(containsString("Mismatch of length mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[9] += (byte) 1;
@@ -227,7 +230,6 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidDataMask() throws Exception {
-    expectedException.expectCause(instanceOf(IOException.class));
     expectedException.expectCause(hasMessage(containsString("Mismatch of data mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[16] += (byte) 1;

@@ -25,7 +25,6 @@ import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.K
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,10 +43,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Use getSupportedUrns to get all urns this class supports.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ExecutionTimeMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ExecutionTimeMonitoringInfoToCounterUpdateTransformer.class);
 
   private SpecMonitoringInfoValidator specValidator;
   private Map<String, DataflowStepContext> transformIdMapping;
@@ -109,8 +111,7 @@ public class ExecutionTimeMonitoringInfoToCounterUpdateTransformer
   }
 
   @Override
-  @Nullable
-  public CounterUpdate transform(MonitoringInfo monitoringInfo) {
+  public @Nullable CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
       LOG.debug(validationResult.get());

@@ -16,9 +16,10 @@
 package graphx_test
 
 import (
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -27,7 +28,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 )
@@ -155,12 +156,12 @@ func TestMarshal(t *testing.T) {
 				t.Fatal("expected a single edge")
 			}
 
-			payload, err := proto.Marshal(&pb.DockerPayload{ContainerImage: "foo"})
+			payload, err := proto.Marshal(&pipepb.DockerPayload{ContainerImage: "foo"})
 			if err != nil {
 				t.Fatal(err)
 			}
 			p, err := graphx.Marshal(edges,
-				&graphx.Options{Environment: &pb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
+				&graphx.Options{Environment: &pipepb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -182,11 +183,12 @@ func TestMarshal(t *testing.T) {
 type testRT struct {
 }
 
-func (rt *testRT) TryClaim(interface{}) bool       { return false }
+func (rt *testRT) TryClaim(_ interface{}) bool     { return false }
 func (rt *testRT) GetError() error                 { return nil }
 func (rt *testRT) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *testRT) IsDone() bool                    { return true }
-func (rt *testRT) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *testRT) GetRestriction() interface{}     { return nil }
+func (rt *testRT) TrySplit(_ float64) (interface{}, interface{}, error) {
 	return nil, nil, nil
 }
 
@@ -195,12 +197,12 @@ func (rt *testRT) TrySplit(fraction float64) (interface{}, interface{}, error) {
 type splitPickFn struct {
 }
 
-func (fn *splitPickFn) CreateInitialRestriction(i int) int      { return 0 }
-func (fn *splitPickFn) SplitRestriction(i int, rest int) []int  { return []int{0} }
-func (fn *splitPickFn) RestrictionSize(i int, rest int) float64 { return 0.0 }
-func (fn *splitPickFn) CreateTracker(rest int) *testRT          { return &testRT{} }
+func (fn *splitPickFn) CreateInitialRestriction(_ int) int   { return 0 }
+func (fn *splitPickFn) SplitRestriction(_ int, _ int) []int  { return []int{0} }
+func (fn *splitPickFn) RestrictionSize(_ int, _ int) float64 { return 0.0 }
+func (fn *splitPickFn) CreateTracker(_ int) *testRT          { return &testRT{} }
 
 // ProcessElement calls pickFn.
-func (fn *splitPickFn) ProcessElement(rt *testRT, a int, small, big func(int)) {
+func (fn *splitPickFn) ProcessElement(_ *testRT, a int, small, big func(int)) {
 	pickFn(a, small, big)
 }

@@ -23,21 +23,21 @@ import PostcommitJobBuilder
 // This job runs the suite of ValidatesRunner tests against the Direct
 // runner compiled with Java 8.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct',
-        'Run Direct ValidatesRunner', 'Direct Runner ValidatesRunner Tests for Java', this) {
+    'Run Direct ValidatesRunner', 'Direct Runner ValidatesRunner Tests for Java', this) {
 
-    description('Builds the Direct Runner and runs ValidatesRunner test suite in Java.')
+      description('Builds the Direct Runner and runs ValidatesRunner test suite in Java.')
 
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
-    publishers {
+      publishers {
         archiveJunit('**/build/test-results/**/*.xml')
-    }
+      }
 
-    steps {
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:direct-java:validatesRunner')
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:direct-java:validatesRunner')
         }
-    }
+      }
 
-}
+    }

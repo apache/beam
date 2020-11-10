@@ -71,11 +71,12 @@ task createDockerContainer(type: Exec) {
       extraOptions = "--publish 127.0.0.1:1313:1313"
     }
 
-    // Jenkins websites node: run as root. Files written to /repo will get
-    // "jenkins" user ownership. BEAM-9737
-    // Otherwise: run as current user, so as to not require sudo to clean up
-    // build/ directory.
-    if (System.getenv('NODE_NAME') != 'websites') {
+    if (System.getenv().getOrDefault('NODE_NAME', '').startsWith('websites')) {
+      // Jenkins websites node: run as root. Files written to /repo will get
+      // "jenkins" user ownership. BEAM-9737
+    } else {
+      // Otherwise: run as current user, so as to not require sudo to clean up
+      // build/ directory.
       extraOptions += " -u \$(id -u):\$(id -g)"
     }
     commandLine '/bin/bash', '-c',
@@ -104,22 +105,22 @@ task installDependencies(type: Exec) {
                 "${->startDockerContainer.containerId()}", 'yarn', 'install'
 }
 
-// Run build_github_samples.sh to fetch github content
-// which is used by github_sample shortcodes to inject snippets into codeblocks
-task buildGithubSamples(type: Exec) {
+// Run build_code_samples.sh to fetch Beam project content
+// which is used by code_sample shortcodes to inject snippets into codeblocks
+task buildCodeSamples(type: Exec) {
   commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
-              "${->startDockerContainer.containerId()}", 'yarn', 'build_github_samples'
+              "${->startDockerContainer.containerId()}", 'yarn', 'build_code_samples'
 }
 
 task setupDockerContainer(type: Exec) {
   dependsOn startDockerContainer
-  finalizedBy initGitSubmodules, installDependencies, buildGithubSamples
+  finalizedBy initGitSubmodules, installDependencies, buildCodeSamples
   ext.containerId = {
     return startDockerContainer.containerId()
   }
 
   // Create the config to point to a GitHub or Colab blob in the repo, e.g. apache/beam/blob/master
-  commandLine 'docker', 'exec', '-u', 'root',
+  commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """echo '[params]\n  branch_repo = "${getBranchRepo()}"' > /tmp/_config_branch_repo.toml"""
 }
@@ -266,7 +267,7 @@ task commitWebsite {
     assert !file("${buildContentDir('apache')}/documentation/sdks/javadoc").exists()
     assert !file("${buildContentDir('apache')}/documentation/sdks/pydoc").exists()
 
-    def git = grgit.open()
+    def git = grgit.open(currentDir: project.rootDir)
     // get the latest commit on master
     def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
 
@@ -319,7 +320,7 @@ task publishWebsite {
   doLast {
     assert grgit : "Cannot publish website outside of git repository"
 
-    def git = grgit.open()
+    def git = grgit.open(currentDir: project.rootDir)
     git.checkout(branch: 'asf-site')
     if (!commitedChanges) {
       println 'No changes to push'

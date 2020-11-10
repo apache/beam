@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PTransform} for selecting a subset of fields from a schema type.
@@ -86,6 +86,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Select {
   public static <T> Fields<T> create() {
     return fieldAccess(FieldAccessDescriptor.create());
@@ -155,8 +158,7 @@ public class Select {
   public abstract static class Fields<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
-    @Nullable
-    abstract Schema getOutputSchema();
+    abstract @Nullable Schema getOutputSchema();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
@@ -247,8 +249,7 @@ public class Select {
 
     abstract Map<String, String> getNameOverrides();
 
-    @Nullable
-    abstract Schema getOutputSchema();
+    abstract @Nullable Schema getOutputSchema();
 
     @AutoValue.Builder
     abstract static class Builder<T> {

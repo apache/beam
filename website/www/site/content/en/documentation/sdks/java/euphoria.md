@@ -301,7 +301,7 @@ PCollection<KV<Integer, String>> joined =
 // KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),
 // KV(3, "3+rat"), KV(1, "1+X")]
 {{< /highlight >}}
-Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `LeftJoin` right dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#translation) section. 
+Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `LeftJoin` right dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#translation) section.
 
 ### `RightJoin`
 Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
@@ -320,7 +320,7 @@ PCollection<KV<Integer, String>> joined =
     // KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X"),
     // KV(8, "null+elephant"), KV(5, "null+mouse")]
 {{< /highlight >}}
-Euphoria support performance optimization called 'BroadcastHashJoin' for the `RightJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `RightJoin` left dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#translation) section. 
+Euphoria support performance optimization called 'BroadcastHashJoin' for the `RightJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `RightJoin` left dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#translation) section.
 
 ### `FullJoin`
 Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
@@ -529,16 +529,16 @@ PCollection<SomeEventObject> timeStampedEvents =
 Euphoria API is built on top of Beam Java SDK. The API is transparently translated into Beam's `PTransforms` in background.
 
 The fact that Euphoria API is translated to Beam Java SDK give us option to fine tune the translation itself. Translation of an `Operator` is realized through implementations of `OperatorTranslator`.
-Euphoria uses `TranslationProvider` to decide which translator should be used. User of Euphoria API can supply its own `OperatorTranslator` through `TranslationProvider` by extending `EuphoriaOptions`. 
+Euphoria uses `TranslationProvider` to decide which translator should be used. User of Euphoria API can supply its own `OperatorTranslator` through `TranslationProvider` by extending `EuphoriaOptions`.
 Euphoria already contains some useful implementations.
- 
+
 ### TranslationProviders
 #### `GenericTranslatorProvider`
 General `TranslationProvider`. Allows for registration of `OperatorTranslator` three different ways:
-* Registration of operator specific translator by operator class. 
+* Registration of operator specific translator by operator class.
 * Registration operator specific translator by operator class and additional user defined predicate.
-* Registration of general (not specific to one operator type) translator with user defined predicate. 
-Order of registration is important since `GenericTranslatorProvider` returns first suitable translator.  
+* Registration of general (not specific to one operator type) translator with user defined predicate.
+Order of registration is important since `GenericTranslatorProvider` returns first suitable translator.
 
 {{< highlight java >}}
 GenericTranslatorProvider.newBuilder()
@@ -568,14 +568,14 @@ CompositeProvider.of(
 {{< /highlight >}}
 
 ### Operator Translators
-Each `Operator` needs to be translated to Java Beam SDK. That is done by implementations of `OperatorTranslator`. Euphoria API contains translator for every `Operator` implementation supplied with it. 
-Some operators may have an alternative translations suitable in some cases. `Join` typically may have many implementations. We are describing only the most interesting here.     
+Each `Operator` needs to be translated to Java Beam SDK. That is done by implementations of `OperatorTranslator`. Euphoria API contains translator for every `Operator` implementation supplied with it.
+Some operators may have an alternative translations suitable in some cases. `Join` typically may have many implementations. We are describing only the most interesting here.
 
 #### `BroadcastHashJoinTranslator`
 Is able to translate `LeftJoin` and `RightJoin` when whole dataset of one side fits in memory of target executor. So it can be distributed using Beam's side inputs. Resulting in better performance.
 
 #### `CompositeOperatorTranslator`
-Some operators are composite. Meaning that they are in fact wrapped chain of other operators. `CompositeOperatorTranslator` ensures that they are decomposed to elemental operators during translation process. 
+Some operators are composite. Meaning that they are in fact wrapped chain of other operators. `CompositeOperatorTranslator` ensures that they are decomposed to elemental operators during translation process.
 
 ### Details
 Most of the translation happens in `org.apache.beam.sdk.extensions.euphoria.core.translate` package. Where the most interesting classes are:
@@ -586,7 +586,7 @@ Most of the translation happens in `org.apache.beam.sdk.extensions.euphoria.core
 
 The package also contains implementation of `OperatorTranslator` for each supported operator type (`JoinTranslator`, `FlatMapTranslator`, `ReduceByKeyTranslator`). Not every operator needs to have translator of its own. Some of them can be composed from other operators. That is why operators may implement `CompositeOperator` which give them option to be expanded to set of other Euphoria operators.
 
-The translation process was designed with flexibility in mind. We wanted to allow different ways of translating higher-level Euphoria operators to Beam's SDK's primitives. It allows for further performance optimizations based on user choices or some knowledge about data obtained automatically.  
+The translation process was designed with flexibility in mind. We wanted to allow different ways of translating higher-level Euphoria operators to Beam's SDK's primitives. It allows for further performance optimizations based on user choices or some knowledge about data obtained automatically.
 
 ## Unsupported Features
 [Original Euphoria](https://github.com/seznam/euphoria) contained some features and operators not jet supported in Beam port. List of not yet supported features follows:

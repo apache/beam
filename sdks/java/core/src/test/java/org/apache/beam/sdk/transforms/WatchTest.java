@@ -39,7 +39,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -69,6 +68,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -81,6 +81,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link Watch}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WatchTest implements Serializable {
 
   @Rule public transient TestPipeline p = TestPipeline.create();
@@ -334,17 +337,15 @@ public class WatchTest implements Serializable {
             outputs -> {
               Function<TimestampedValue<Integer>, Integer> extractValueFn =
                   new Function<TimestampedValue<Integer>, Integer>() {
-                    @Nullable
                     @Override
-                    public Integer apply(@Nullable TimestampedValue<Integer> input) {
+                    public @Nullable Integer apply(@Nullable TimestampedValue<Integer> input) {
                       return input.getValue();
                     }
                   };
               Function<TimestampedValue<Integer>, Instant> extractTimestampFn =
                   new Function<TimestampedValue<Integer>, Instant>() {
-                    @Nullable
                     @Override
-                    public Instant apply(@Nullable TimestampedValue<Integer> input) {
+                    public @Nullable Instant apply(@Nullable TimestampedValue<Integer> input) {
                       return input.getTimestamp();
                     }
                   };

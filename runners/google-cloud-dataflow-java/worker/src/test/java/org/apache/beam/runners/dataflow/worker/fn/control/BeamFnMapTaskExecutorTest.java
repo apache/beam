@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -62,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,6 +72,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnMapTaskExecutor}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnMapTaskExecutorTest {
 
   @Mock private OperationContext mockContext;
@@ -218,41 +222,41 @@ public class BeamFnMapTaskExecutorTest {
   private DataflowStepContext generateDataflowStepContext(String valuesPrefix) {
     NameContext nc =
         new NameContext() {
-          @Nullable
           @Override
-          public String stageName() {
+          public @Nullable String stageName() {
             return valuesPrefix + "Stage";
           }
 
-          @Nullable
           @Override
-          public String originalName() {
+          public @Nullable String originalName() {
             return valuesPrefix + "OriginalName";
           }
 
-          @Nullable
           @Override
-          public String systemName() {
+          public @Nullable String systemName() {
             return valuesPrefix + "SystemName";
           }
 
-          @Nullable
           @Override
-          public String userName() {
+          public @Nullable String userName() {
             return valuesPrefix + "UserName";
           }
         };
     DataflowStepContext dsc =
         new DataflowStepContext(nc) {
-          @Nullable
           @Override
-          public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+          public <W extends BoundedWindow> @Nullable TimerData getNextFiredTimer(
+              Coder<W> windowCoder) {
             return null;
           }
 
           @Override
           public <W extends BoundedWindow> void setStateCleanupTimer(
-              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
+              String timerId,
+              W window,
+              Coder<W> windowCoder,
+              Instant cleanupTime,
+              Instant cleanupOutputTimestamp) {}
 
           @Override
           public DataflowStepContext namespacedToUser() {

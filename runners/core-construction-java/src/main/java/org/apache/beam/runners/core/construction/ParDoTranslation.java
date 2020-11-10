@@ -23,7 +23,7 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.SP
 import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -84,6 +84,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ParDoTranslation {
   /**
    * This requirement indicates the state_spec and time_spec fields of ParDo transform payloads must
@@ -491,8 +494,8 @@ public class ParDoTranslation {
     checkArgument(
         PAR_DO_TRANSFORM_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_PAIR_WITH_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
-            || SPLITTABLE_SPLIT_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_PROCESS_ELEMENTS_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
                 ptransform.getSpec().getUrn()),
@@ -508,8 +511,8 @@ public class ParDoTranslation {
     checkArgument(
         PAR_DO_TRANSFORM_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_PAIR_WITH_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
-            || SPLITTABLE_SPLIT_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_PROCESS_ELEMENTS_URN.equals(ptransform.getSpec().getUrn())
             || SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
                 ptransform.getSpec().getUrn()),
@@ -550,6 +553,15 @@ public class ParDoTranslation {
             return builder
                 .setBagSpec(
                     RunnerApi.BagStateSpec.newBuilder()
+                        .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                .build();
+          }
+
+          @Override
+          public RunnerApi.StateSpec dispatchOrderedList(Coder<?> elementCoder) {
+            return builder
+                .setOrderedListSpec(
+                    RunnerApi.OrderedListStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
                 .build();
           }

@@ -35,7 +35,7 @@ would use `ApproximateQuantiles.globally(5)`. This will produce a list
 containing 5 values: the minimum value, Quartile 1 value, Quartile 2
 value, Quartile 3 value, and the maximum value.
 
-## Related transforms 
+## Related transforms
 * [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)
   estimates the number of distinct elements or distinct values in key-value pairs
 * [Combine](/documentation/transforms/java/aggregation/combine)

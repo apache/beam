@@ -57,11 +57,11 @@ public class HadoopFileSystemOptionsTest {
     assertThat(
         options.getHdfsConfiguration().get(0),
         Matchers.<Map.Entry<String, String>>contains(
-            new AbstractMap.SimpleEntry("propertyA", "A")));
+            new AbstractMap.SimpleEntry<>("propertyA", "A")));
     assertThat(
         options.getHdfsConfiguration().get(1),
         Matchers.<Map.Entry<String, String>>contains(
-            new AbstractMap.SimpleEntry("propertyB", "B")));
+            new AbstractMap.SimpleEntry<>("propertyB", "B")));
   }
 
   @Test

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import com.google.api.services.dataflow.model.Source;
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
@@ -39,6 +39,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ReaderFactory. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReaderFactoryTest {
 
   static class TestReaderFactory implements ReaderFactory {

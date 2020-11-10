@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.rules.TestRule;
@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses a random temporary Pubsub topic for synchronization.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestPubsubSignal implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(TestPubsubSignal.class);
   private static final String RESULT_TOPIC_NAME = "result";
@@ -223,6 +226,12 @@ public class TestPubsubSignal implements TestRule {
             return null;
           } catch (IOException e) {
             throw new RuntimeException(e);
+          } finally {
+            try {
+              pubsub.deleteSubscription(startSubscriptionPath);
+            } catch (IOException e) {
+              LOG.error(String.format("Leaked PubSub subscription '%s'", startSubscriptionPath));
+            }
           }
         });
   }
@@ -239,6 +248,12 @@ public class TestPubsubSignal implements TestRule {
 
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
 
+    try {
+      pubsub.deleteSubscription(resultSubscriptionPath);
+    } catch (IOException e) {
+      LOG.error(String.format("Leaked PubSub subscription '%s'", resultSubscriptionPath));
+    }
+
     if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
       throw new AssertionError(result);
     }
@@ -253,6 +268,9 @@ public class TestPubsubSignal implements TestRule {
     do {
       try {
         signal = pubsub.pull(DateTime.now().getMillis(), signalSubscriptionPath, 1, false);
+        if (signal.isEmpty()) {
+          continue;
+        }
         pubsub.acknowledge(
             signalSubscriptionPath, signal.stream().map(IncomingMessage::ackId).collect(toList()));
         break;
@@ -267,7 +285,7 @@ public class TestPubsubSignal implements TestRule {
       }
     } while (DateTime.now().isBefore(endPolling));
 
-    if (signal == null) {
+    if (signal == null || signal.isEmpty()) {
       throw new AssertionError(
           String.format(
               "Did not receive signal on %s in %ss",

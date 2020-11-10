@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -129,8 +129,8 @@ public final class Deduplicate {
   public static final class WithRepresentativeValues<T, IdT>
       extends PTransform<PCollection<T>, PCollection<T>> {
     private final SerializableFunction<T, IdT> fn;
-    @Nullable private final TypeDescriptor<IdT> type;
-    @Nullable private final Coder<IdT> coder;
+    private final @Nullable TypeDescriptor<IdT> type;
+    private final @Nullable Coder<IdT> coder;
     private final TimeDomain timeDomain;
     private final Duration duration;
 

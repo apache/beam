@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -53,7 +54,6 @@ var (
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	region               = flag.String("region", "", "GCP Region (required)")
 	network              = flag.String("network", "", "GCP network (optional)")
 	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
@@ -61,6 +61,8 @@ var (
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
 	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
+	workerRegion         = flag.String("worker_region", "", "Dataflow worker region (optional)")
+	workerZone           = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 
 	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
@@ -89,14 +91,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if project == "" {
 		return errors.New("no Google Cloud project specified. Use --project=<project>")
 	}
-	if *stagingLocation == "" {
-		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
-	}
-	if *region == "" {
+	region := gcpopts.GetRegion(ctx)
+	if region == "" {
 		return errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
 	}
-	if *image == "" {
-		*image = getContainerImage(ctx)
+	if *stagingLocation == "" {
+		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	var jobLabels map[string]string
 	if *labels != "" {
@@ -127,6 +127,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	hooks.SerializeHooksToOptions()
 
 	experiments := jobopts.GetExperiments()
+	// Always use runner v2, unless set already.
+	var v2set bool
+	for _, e := range experiments {
+		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
+			v2set = true
+			break
+		}
+	}
+	if !v2set {
+		experiments = append(experiments, "use_unified_worker")
+	}
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
@@ -136,7 +147,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Experiments:         experiments,
 		Options:             beam.PipelineOptions.Export(),
 		Project:             project,
-		Region:              *region,
+		Region:              region,
 		Zone:                *zone,
 		Network:             *network,
 		Subnetwork:          *subnetwork,
@@ -150,6 +161,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		TempLocation:        *tempLocation,
 		Worker:              *jobopts.WorkerBinary,
 		WorkerJar:           *workerJar,
+		WorkerRegion:        *workerRegion,
+		WorkerZone:          *workerZone,
 		TeardownPolicy:      *teardownPolicy,
 	}
 	if opts.TempLocation == "" {
@@ -162,8 +175,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
-		ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)})
+	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
+	if err != nil {
+		return errors.WithContext(err, "generating model pipeline")
+	}
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
 	if err != nil {
 		return errors.WithContext(err, "generating model pipeline")
 	}
@@ -179,7 +195,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, proto.MarshalTextString(model))
-		job, err := dataflowlib.Translate(model, opts, workerURL, jarURL, modelURL)
+		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, jarURL, modelURL)
 		if err != nil {
 			return err
 		}
@@ -208,6 +224,9 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 func getContainerImage(ctx context.Context) string {
 	urn := jobopts.GetEnvironmentUrn(ctx)
 	if urn == "" || urn == "beam:env:docker:v1" {
+		if *image != "" {
+			return *image
+		}
 		return jobopts.GetEnvironmentConfig(ctx)
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))

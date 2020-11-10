@@ -96,6 +96,11 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   }
 
   @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    delegate.onWindowExpiration(window, timestamp, key);
+  }
+
+  @Override
   public DoFn<InputT, OutputT> getFn() {
     return delegate.getFn();
   }

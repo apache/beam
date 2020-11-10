@@ -44,7 +44,7 @@ except ImportError:
 
 def extract_entities_descriptions(response):
   for result in response.annotation_results:
-    for segment in result.segment_label_annotations:
+    for segment in result.segment_presence_label_annotations:
       yield segment.entity.description
 
 
@@ -63,13 +63,15 @@ class VideoIntelligenceMlTestIT(unittest.TestCase):
               self.VIDEO_PATH,
               types.VideoContext(
                   label_detection_config=types.LabelDetectionConfig(
-                      label_detection_mode=enums.LabelDetectionMode.SHOT_MODE)))
-                         ])
+                      label_detection_mode=enums.LabelDetectionMode.SHOT_MODE,
+                      model='builtin/latest')))])
           | AnnotateVideoWithContext(features=[enums.Feature.LABEL_DETECTION])
           | beam.ParDo(extract_entities_descriptions)
           | beam.combiners.ToList())
 
-      assert_that(output, matches_all([hc.has_items('bicycle', 'dinosaur')]))
+      # Search for at least one entity that contains 'bicycle'.
+      assert_that(
+          output, matches_all([hc.has_item(hc.contains_string('bicycle'))]))
 
 
 if __name__ == '__main__':

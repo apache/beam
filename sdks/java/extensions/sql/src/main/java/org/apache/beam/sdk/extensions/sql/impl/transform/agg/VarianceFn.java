@@ -65,6 +65,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunc
  * samples.
  */
 @Internal
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceAccumulator, T> {
 
   static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);

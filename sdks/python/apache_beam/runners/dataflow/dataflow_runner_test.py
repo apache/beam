@@ -52,10 +52,10 @@ from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_a
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms import combiners
 from apache_beam.transforms import environments
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import typehints
 
@@ -103,7 +103,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--staging_location=ignored',
         '--temp_location=/dev/null',
         '--no_auth',
-        '--dry_run=True'
+        '--dry_run=True',
+        '--sdk_location=container'
     ]
 
   @mock.patch('time.sleep', return_value=None)
@@ -250,15 +251,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
     self.assertEqual(job_dict[u'steps'][2][u'kind'], u'ParallelDo')
 
-  def test_bigquery_read_streaming_fail(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append("--streaming")
-    with self.assertRaisesRegex(ValueError,
-                                r'source is not currently available'):
-      with Pipeline(remote_runner,
-                    PipelineOptions(self.default_properties)) as p:
-        _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-
   def test_biqquery_read_fn_api_fail(self):
     remote_runner = DataflowRunner()
     for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
@@ -269,7 +261,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
         with Pipeline(remote_runner,
                       PipelineOptions(self.default_properties)) as p:
-          _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
+          _ = p | beam.io.Read(
+              beam.io.BigQuerySource(
+                  'some.table', use_dataflow_native_source=True))
 
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
@@ -315,53 +309,48 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowRunner()
-    p = Pipeline(
-        remote_runner,
-        options=PipelineOptions([
-            '--dataflow_endpoint=ignored',
-            '--job_name=test-job',
-            '--project=test-project',
-            '--staging_location=ignored',
-            '--temp_location=/dev/null',
-            '--no_auth'
-        ]))
-    rows = p | beam.io.Read(beam.io.BigQuerySource('dataset.faketable'))
     with self.assertRaises(ValueError,
                            msg=('Coder for the GroupByKey operation'
                                 '"GroupByKey" is not a key-value coder: '
                                 'RowAsDictJsonCoder')):
-      unused_invalid = rows | beam.GroupByKey()
+      with beam.Pipeline(runner=remote_runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.io.Read(
+            beam.io.BigQuerySource(
+                'dataset.faketable',
+                use_dataflow_native_source=True)) | beam.GroupByKey()
 
   def test_group_by_key_input_visitor_with_valid_inputs(self):
     p = TestPipeline()
     pcoll1 = PCollection(p)
     pcoll2 = PCollection(p)
     pcoll3 = PCollection(p)
-    for transform in [_GroupByKeyOnly(), beam.GroupByKey()]:
-      pcoll1.element_type = None
-      pcoll2.element_type = typehints.Any
-      pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
-      for pcoll in [pcoll1, pcoll2, pcoll3]:
-        applied = AppliedPTransform(None, transform, "label", [pcoll])
-        applied.outputs[None] = PCollection(None)
-        DataflowRunner.group_by_key_input_visitor().visit_transform(applied)
-        self.assertEqual(
-            pcoll.element_type, typehints.KV[typehints.Any, typehints.Any])
+
+    pcoll1.element_type = None
+    pcoll2.element_type = typehints.Any
+    pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
+    for pcoll in [pcoll1, pcoll2, pcoll3]:
+      applied = AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll])
+      applied.outputs[None] = PCollection(None)
+      DataflowRunner.group_by_key_input_visitor().visit_transform(applied)
+      self.assertEqual(
+          pcoll.element_type, typehints.KV[typehints.Any, typehints.Any])
 
   def test_group_by_key_input_visitor_with_invalid_inputs(self):
     p = TestPipeline()
     pcoll1 = PCollection(p)
     pcoll2 = PCollection(p)
-    for transform in [_GroupByKeyOnly(), beam.GroupByKey()]:
-      pcoll1.element_type = str
-      pcoll2.element_type = typehints.Set
-      err_msg = (
-          r"Input to 'label' must be compatible with KV\[Any, Any\]. "
-          "Found .*")
-      for pcoll in [pcoll1, pcoll2]:
-        with self.assertRaisesRegex(ValueError, err_msg):
-          DataflowRunner.group_by_key_input_visitor().visit_transform(
-              AppliedPTransform(None, transform, "label", [pcoll]))
+
+    pcoll1.element_type = str
+    pcoll2.element_type = typehints.Set
+    err_msg = (
+        r"Input to 'label' must be compatible with KV\[Any, Any\]. "
+        "Found .*")
+    for pcoll in [pcoll1, pcoll2]:
+      with self.assertRaisesRegex(ValueError, err_msg):
+        DataflowRunner.group_by_key_input_visitor().visit_transform(
+            AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll]))
 
   def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
     p = TestPipeline()
@@ -424,7 +413,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(
         strategy,
         DataflowRunner.deserialize_windowing_strategy(
-            DataflowRunner.serialize_windowing_strategy(strategy)))
+            DataflowRunner.serialize_windowing_strategy(strategy, None)))
 
   def test_side_input_visitor(self):
     p = TestPipeline()
@@ -596,6 +585,15 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn(
         u'CombineValues', set(step[u'kind'] for step in job_dict[u'steps']))
 
+  def _find_step(self, job, step_name):
+    job_dict = json.loads(str(job))
+    maybe_step = [
+        s for s in job_dict[u'steps']
+        if s[u'properties'][u'user_name'] == step_name
+    ]
+    self.assertTrue(maybe_step, 'Could not find step {}'.format(step_name))
+    return maybe_step[0]
+
   def expect_correct_override(self, job, step_name, step_kind):
     """Expects that a transform was correctly overriden."""
 
@@ -615,14 +613,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "user_name": step_name + ".out"
     }]
 
-    job_dict = json.loads(str(job))
-    maybe_step = [
-        s for s in job_dict[u'steps']
-        if s[u'properties'][u'user_name'] == step_name
-    ]
-    self.assertTrue(maybe_step, 'Could not find step {}'.format(step_name))
-
-    step = maybe_step[0]
+    step = self._find_step(job, step_name)
     self.assertEqual(step[u'kind'], step_kind)
 
     # The display data here is forwarded because the replace transform is
@@ -646,7 +637,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
-      p | beam.io.Read(beam.io.BigQuerySource('some.table', coder=BytesCoder()))
+      p | beam.io.Read(
+          beam.io.BigQuerySource(
+              'some.table', coder=BytesCoder(),
+              use_dataflow_native_source=True))
 
     self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
 
@@ -662,6 +656,136 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.expect_correct_override(
         runner.job, u'ReadFromPubSub/Read', u'ParallelRead')
+
+  def test_gbk_translation(self):
+    runner = DataflowRunner()
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.Create([(1, 2)]) | beam.GroupByKey()
+
+    expected_output_info = [{
+        "encoding": {
+            "@type": "kind:windowed_value",
+            "component_encodings": [{
+                "@type": "kind:pair",
+                "component_encodings": [{
+                    "@type": "kind:varint"
+                },
+                {
+                    "@type": "kind:stream",
+                    "component_encodings": [{
+                        "@type": "kind:varint"
+                    }],
+                    "is_stream_like": True
+                }],
+                "is_pair_like": True
+            }, {
+                "@type": "kind:global_window"
+            }],
+            "is_wrapper": True
+        },
+        "output_name": "out",
+        "user_name": "GroupByKey.out"
+    }]  # yapf: disable
+
+    gbk_step = self._find_step(runner.job, u'GroupByKey')
+    self.assertEqual(gbk_step[u'kind'], u'GroupByKey')
+    self.assertEqual(
+        gbk_step[u'properties']['output_info'], expected_output_info)
+
+  def test_write_bigquery_translation(self):
+    runner = DataflowRunner()
+
+    self.default_properties.append('--experiments=use_legacy_bq_sink')
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
+
+    job_dict = json.loads(str(runner.job))
+
+    expected_step = {
+        "kind": "ParallelWrite",
+        "name": "s2",
+        "properties": {
+            "create_disposition": "CREATE_IF_NEEDED",
+            "dataset": "some",
+            "display_data": [],
+            "encoding": {
+                "@type": "kind:windowed_value",
+                "component_encodings": [{
+                    "component_encodings": [],
+                    "pipeline_proto_coder_id": "ref_Coder_RowAsDictJsonCoder_4"
+                }, {
+                    "@type": "kind:global_window"
+                }],
+                "is_wrapper": True
+            },
+            "format": "bigquery",
+            "parallel_input": {
+                "@type": "OutputReference",
+                "output_name": "out",
+                "step_name": "s1"
+            },
+            "table": "table",
+            "user_name": "WriteToBigQuery/Write/NativeWrite",
+            "write_disposition": "WRITE_APPEND"
+        }
+    }
+    job_dict = json.loads(str(runner.job))
+    write_step = [
+        s for s in job_dict[u'steps']
+        if s[u'properties'][u'user_name'].startswith('WriteToBigQuery')
+    ][0]
+
+    # Delete the @type field because in this case it is a hash which may change
+    # depending on the pickling version.
+    step_encoding = write_step[u'properties'][u'encoding']
+    del step_encoding[u'component_encodings'][0][u'@type']
+    self.assertEqual(expected_step, write_step)
+
+  def test_write_bigquery_failed_translation(self):
+    """Tests that WriteToBigQuery cannot have any consumers if replaced."""
+    runner = DataflowRunner()
+
+    self.default_properties.append('--experiments=use_legacy_bq_sink')
+    with self.assertRaises(Exception):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        # pylint: disable=expression-not-assigned
+        out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
+        out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
+
+  @unittest.skip('BEAM-3736: enable once CombineFnVisitor is fixed')
+  def test_unsupported_combinefn_detection(self):
+    class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
+      def setup(self, *args, **kwargs):
+        pass
+
+      def teardown(self, *args, **kwargs):
+        pass
+
+    runner = DataflowRunner()
+    with self.assertRaisesRegex(ValueError,
+                                'CombineFn.setup and CombineFn.'
+                                'teardown are not supported'):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(CombinerWithNonDefaultSetupTeardown()))
+
+    try:
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(
+                combiners.SingleInputTupleCombineFn(
+                    combiners.CountCombineFn(), combiners.CountCombineFn())))
+    except ValueError:
+      self.fail('ValueError raised unexpectedly')
 
 
 class CustomMergingWindowFn(window.WindowFn):

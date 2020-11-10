@@ -68,6 +68,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -82,6 +83,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WorkItemStatusClient}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WorkItemStatusClientTest {
 
   private static final String PROJECT_ID = "ProjectId";
@@ -547,7 +551,7 @@ public class WorkItemStatusClientTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       }

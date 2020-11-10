@@ -172,6 +172,19 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 			prop.NonParallelInputs[key] = newOutputReference(side.Name, "i0")
 		}
 
+		rcid := payload.GetRestrictionCoderId()
+		if rcid != "" {
+			rc, err := x.coders.Coder(rcid)
+			if err != nil {
+				return nil, err
+			}
+			enc, err := graphx.EncodeCoderRef(rc)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid splittable ParDoPayload, couldn't encode Restriction Coder %v", t)
+			}
+			prop.RestrictionEncoder = enc
+		}
+
 		in := stringx.SingleValue(rem)
 
 		prop.ParallelInput = x.pcollections[in]

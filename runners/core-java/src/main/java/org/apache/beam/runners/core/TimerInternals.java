@@ -23,7 +23,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -214,27 +214,6 @@ public interface TimerInternals {
     }
 
     /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is automatically
-     * generated. Construct a {@link TimerData} for the given parameters except for {@code
-     * outputTimestamp}. {@code outputTimestamp} is set to timer {@code timestamp}.
-     */
-    public static TimerData of(
-        String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      return new AutoValue_TimerInternals_TimerData(
-          timerId, "", namespace, timestamp, timestamp, domain);
-    }
-
-    public static TimerData of(
-        String timerId,
-        String timerFamilyId,
-        StateNamespace namespace,
-        Instant timestamp,
-        TimeDomain domain) {
-      return new AutoValue_TimerInternals_TimerData(
-          timerId, timerFamilyId, namespace, timestamp, timestamp, domain);
-    }
-
-    /**
      * Construct a {@link TimerData} for the given parameters except for timer ID. Timer ID is
      * deterministically generated from the {@code timestamp} and {@code domain}.
      */
@@ -247,15 +226,6 @@ public interface TimerInternals {
               .append(timestamp.getMillis())
               .toString();
       return of(timerId, namespace, timestamp, outputTimestamp, domain);
-    }
-
-    /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is
-     * deterministically generated from the {@code timestamp} and {@code domain}. Also, output
-     * timestamp is set to the timer timestamp by default.
-     */
-    public static TimerData of(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      return of(namespace, timestamp, timestamp, domain);
     }
 
     /**
@@ -364,7 +334,7 @@ public interface TimerInternals {
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, domain);
+      return TimerData.of(timerId, namespace, timestamp, timestamp, domain);
     }
 
     @Override

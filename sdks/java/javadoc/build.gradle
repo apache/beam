@@ -65,7 +65,6 @@ task aggregateJavadoc(type: Javadoc) {
 
   exclude "org/apache/beam/examples/*"
   exclude "org/apache/beam/fn/harness/*"
-  exclude "org/apache/beam/runners/apex/translation/*"
   exclude "org/apache/beam/runners/core/*"
   exclude "org/apache/beam/runners/dataflow/internal/*"
   exclude "org/apache/beam/runners/flink/examples/*"

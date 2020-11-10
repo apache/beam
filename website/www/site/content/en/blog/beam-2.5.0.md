@@ -41,7 +41,7 @@ Support for Apache Parquet format was added. It uses Parquet 1.10 release which,
 * Scaled up Kubernetes cluster from 1 to 3 nodes.
 * Added metrics in Spark streaming.
 
-## Internal Build System: Migrated to Gradle 
+## Internal Build System: Migrated to Gradle
 After a months-long community effort, the internal Beam build has been migrated from Maven to Gradle. The new build system was chosen because of dependency-driven build support, incremental build/test, and support for non-Java languages.
 
 
@@ -49,7 +49,7 @@ After a months-long community effort, the internal Beam build has been migrated 
 * Kafka support as a source/sink for events and results.
 * Translation of some queries to Beam SQL.
 
-## Beam SQL 
+## Beam SQL
 * Support for MAP, ROW, ARRAY data types
 * Support UNNEST on array fields
 * Improved optimizations

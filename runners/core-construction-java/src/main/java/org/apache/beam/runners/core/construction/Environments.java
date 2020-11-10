@@ -17,16 +17,17 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
@@ -38,6 +39,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardArtifacts;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardProtocols;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -50,14 +52,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Environments {
   private static final Logger LOG = LoggerFactory.getLogger(Environments.class);
 
@@ -70,6 +75,38 @@ public class Environments {
   public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
   public static final String ENVIRONMENT_LOOPBACK = "LOOPBACK"; // Non Public urn for testing
 
+  public enum JavaVersion {
+    v8("java8", "1.8"),
+    v11("java11", "11");
+
+    private final String name;
+    private final String specification;
+
+    JavaVersion(final String name, final String specification) {
+      this.name = name;
+      this.specification = specification;
+    }
+
+    @Override
+    public String toString() {
+      return this.name;
+    }
+
+    public String specification() {
+      return this.specification;
+    }
+
+    public static JavaVersion forSpecification(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+      throw new UnsupportedOperationException(
+          String.format("unsupported Java version: %s", specification));
+    }
+  }
+
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
    * container during a release.
@@ -77,12 +114,9 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
+
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot()
-          + "/"
-          + ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix()
-          + "java_sdk:"
-          + ReleaseInfo.getReleaseInfo().getSdkVersion();
+      getDefaultJavaSdkHarnessContainerUrl();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
@@ -210,56 +244,63 @@ public class Environments {
     }
   }
 
-  private static List<ArtifactInformation> getArtifacts(List<String> stagingFiles) {
-    Set<String> pathsToStage = Sets.newHashSet(stagingFiles);
+  public static List<ArtifactInformation> getArtifacts(List<String> stagingFiles) {
     ImmutableList.Builder<ArtifactInformation> artifactsBuilder = ImmutableList.builder();
-    for (String path : pathsToStage) {
-      File file = new File(path);
+    Set<String> deduplicatedStagingFiles = new LinkedHashSet<>(stagingFiles);
+    for (String path : deduplicatedStagingFiles) {
+      File file;
+      String stagedName = null;
+      if (path.contains("=")) {
+        String[] components = path.split("=", 2);
+        file = new File(components[1]);
+        stagedName = components[0];
+      } else {
+        file = new File(path);
+      }
       // Spurious items get added to the classpath. Filter by just those that exist.
       if (file.exists()) {
         ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
         artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
         artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
-        artifactBuilder.setRolePayload(
-            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
-                .setStagedName(createStagingFileName(file))
-                .build()
-                .toByteString());
+        HashCode hashCode;
         if (file.isDirectory()) {
           File zippedFile;
-          HashCode hashCode;
           try {
             zippedFile = zipDirectory(file);
             hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
-          artifactsBuilder.add(
-              artifactBuilder
-                  .setTypePayload(
-                      RunnerApi.ArtifactFilePayload.newBuilder()
-                          .setPath(zippedFile.getPath())
-                          .setSha256(hashCode.toString())
-                          .build()
-                          .toByteString())
-                  .build());
+
+          artifactBuilder.setTypePayload(
+              RunnerApi.ArtifactFilePayload.newBuilder()
+                  .setPath(zippedFile.getPath())
+                  .setSha256(hashCode.toString())
+                  .build()
+                  .toByteString());
+
         } else {
-          HashCode hashCode;
           try {
             hashCode = Files.asByteSource(file).hash(Hashing.sha256());
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
-          artifactsBuilder.add(
-              artifactBuilder
-                  .setTypePayload(
-                      RunnerApi.ArtifactFilePayload.newBuilder()
-                          .setPath(file.getPath())
-                          .setSha256(hashCode.toString())
-                          .build()
-                          .toByteString())
-                  .build());
+          artifactBuilder.setTypePayload(
+              RunnerApi.ArtifactFilePayload.newBuilder()
+                  .setPath(file.getPath())
+                  .setSha256(hashCode.toString())
+                  .build()
+                  .toByteString());
         }
+        if (stagedName == null) {
+          stagedName = createStagingFileName(file, hashCode);
+        }
+        artifactBuilder.setRolePayload(
+            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                .setStagedName(stagedName)
+                .build()
+                .toByteString());
+        artifactsBuilder.add(artifactBuilder.build());
       }
     }
     return artifactsBuilder.build();
@@ -306,18 +347,20 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
     capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
+    capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     return capabilities.build();
   }
 
-  private static String createStagingFileName(File file) {
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4109 Support arbitrary names in the staging
-    // service itself.
-    // HACK: Encode the path name ourselves because the local artifact staging service currently
-    // assumes artifact names correspond to a flat directory. Artifact staging services should
-    // generally accept arbitrary artifact names.
-    // NOTE: Base64 url encoding does not work here because the stage artifact names tend to be long
-    // and exceed file length limits on the artifact stager.
-    return UUID.randomUUID().toString();
+  public static JavaVersion getJavaVersion() {
+    return JavaVersion.forSpecification(System.getProperty("java.specification.version"));
+  }
+
+  public static String createStagingFileName(File path, HashCode hash) {
+    String encodedHash = Base64Variants.MODIFIED_FOR_URL.encode(hash.asBytes());
+    String fileName = Files.getNameWithoutExtension(path.getAbsolutePath());
+    String ext = path.isDirectory() ? "jar" : Files.getFileExtension(path.getAbsolutePath());
+    String suffix = Strings.isNullOrEmpty(ext) ? "" : "." + ext;
+    return String.format("%s-%s%s", fileName, encodedHash, suffix);
   }
 
   private static File zipDirectory(File directory) throws IOException {
@@ -329,29 +372,34 @@ public class Environments {
   }
 
   private static class ProcessPayloadReferenceJSON {
-    @Nullable private String os;
-    @Nullable private String arch;
-    @Nullable private String command;
-    @Nullable private Map<String, String> env;
+    private @Nullable String os;
+    private @Nullable String arch;
+    private @Nullable String command;
+    private @Nullable Map<String, String> env;
 
-    @Nullable
-    public String getOs() {
+    public @Nullable String getOs() {
       return os;
     }
 
-    @Nullable
-    public String getArch() {
+    public @Nullable String getArch() {
       return arch;
     }
 
-    @Nullable
-    public String getCommand() {
+    public @Nullable String getCommand() {
       return command;
     }
 
-    @Nullable
-    public Map<String, String> getEnv() {
+    public @Nullable Map<String, String> getEnv() {
       return env;
     }
+  }
+
+  private static String getDefaultJavaSdkHarnessContainerUrl() {
+    return String.format(
+        "%s/%s%s_sdk:%s",
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
+        getJavaVersion().toString(),
+        ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }

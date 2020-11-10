@@ -19,20 +19,20 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator.base;
 
 import java.io.Serializable;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An operator base class. All operators extends this class. */
 @Audience(Audience.Type.INTERNAL)
 public abstract class Operator<OutputT> implements Serializable, TypeAware.Output<OutputT> {
 
   /** Name of the operator. */
-  @Nullable private final String name;
+  private final @Nullable String name;
 
   /** The type of output elements. */
-  @Nullable private final TypeDescriptor<OutputT> outputType;
+  private final transient @Nullable TypeDescriptor<OutputT> outputType;
 
   protected Operator(@Nullable String name, @Nullable TypeDescriptor<OutputT> outputType) {
     this.name = name;

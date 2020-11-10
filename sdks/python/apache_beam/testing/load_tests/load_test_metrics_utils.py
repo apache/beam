@@ -46,6 +46,8 @@ from requests.auth import HTTPBasicAuth
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils.timestamp import Timestamp
 
 try:
   from google.cloud import bigquery
@@ -147,10 +149,15 @@ def get_all_distributions_by_type(dist, metric_id):
   """
   submit_timestamp = time.time()
   dist_types = ['count', 'max', 'min', 'sum']
-  return [
-      get_distribution_dict(dist_type, submit_timestamp, dist, metric_id)
-      for dist_type in dist_types
-  ]
+  distribution_dicts = []
+  for dist_type in dist_types:
+    try:
+      distribution_dicts.append(
+          get_distribution_dict(dist_type, submit_timestamp, dist, metric_id))
+    except ValueError:
+      # Ignore metrics with 'None' values.
+      continue
+  return distribution_dicts
 
 
 def get_distribution_dict(metric_type, submit_timestamp, dist, metric_id):
@@ -184,6 +191,7 @@ class MetricsReader(object):
       bq_dataset=None,
       publish_to_bq=False,
       influxdb_options=None,  # type: Optional[InfluxDBMetricsPublisherOptions]
+      namespace=None,
       filters=None):
     """Initializes :class:`MetricsReader` .
 
@@ -191,9 +199,10 @@ class MetricsReader(object):
       project_name (str): project with BigQuery where metrics will be saved
       bq_table (str): BigQuery table where metrics will be saved
       bq_dataset (str): BigQuery dataset where metrics will be saved
+      namespace (str): Namespace of the metrics
       filters: MetricFilter to query only filtered metrics
     """
-    self._namespace = bq_table
+    self._namespace = namespace
     self.publishers.append(ConsoleMetricsPublisher())
 
     check = project_name and bq_table and bq_dataset and publish_to_bq
@@ -221,6 +230,21 @@ class MetricsReader(object):
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
+
+  def publish_values(self, labeled_values):
+    """The method to publish simple labeled values.
+
+    Args:
+      labeled_values (List[Tuple(str, int)]): list of (label, value)
+    """
+    metric_dicts = [
+        Metric(time.time(), uuid.uuid4().hex, value, label=label).as_dict()
+        for label,
+        value in labeled_values
+    ]
+
+    for publisher in self.publishers:
+      publisher.publish(metric_dicts)
 
   def _prepare_all_metrics(self, metrics):
     metric_id = uuid.uuid4().hex
@@ -306,6 +330,11 @@ class DistributionMetric(Metric):
                    '_' + metric_type + \
                    '_' + dist_metric.key.metric.name
     value = getattr(dist_metric.result, metric_type)
+    if value is None:
+      msg = '%s: the result is expected to be an integer, ' \
+            'not None.' % custom_label
+      _LOGGER.debug(msg)
+      raise ValueError(msg)
     super(DistributionMetric, self) \
       .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
@@ -542,3 +571,36 @@ class CountMessages(beam.DoFn):
   def process(self, element):
     self.counter.inc(1)
     yield element
+
+
+class MeasureLatency(beam.DoFn):
+  """A distribution metric which captures the latency based on the timestamps
+  of the processed elements."""
+  LABEL = 'latency'
+
+  def __init__(self, namespace):
+    """Initializes :class:`MeasureLatency`.
+
+      namespace(str): namespace of  metric
+    """
+    self.namespace = namespace
+    self.latency_ms = Metrics.distribution(self.namespace, self.LABEL)
+    self.time_fn = time.time
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    self.latency_ms.update(
+        int(self.time_fn() * 1000) - (timestamp.micros // 1000))
+    yield element
+
+
+class AssignTimestamps(beam.DoFn):
+  """DoFn to assigned timestamps to elements."""
+  def __init__(self):
+    # Avoid having to use save_main_session
+    self.time_fn = time.time
+    self.timestamp_val_fn = TimestampedValue
+    self.timestamp_fn = Timestamp
+
+  def process(self, element):
+    yield self.timestamp_val_fn(
+        element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))

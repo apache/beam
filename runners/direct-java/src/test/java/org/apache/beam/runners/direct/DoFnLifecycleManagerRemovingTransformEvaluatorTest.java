@@ -42,6 +42,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DoFnLifecycleManagerRemovingTransformEvaluator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   private DoFnLifecycleManager lifecycleManager;
 
@@ -104,7 +107,12 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
     try {
       evaluator.onTimer(
-          TimerData.of("foo", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME),
+          TimerData.of(
+              "foo",
+              StateNamespaces.global(),
+              new Instant(0),
+              new Instant(0),
+              TimeDomain.EVENT_TIME),
           "",
           GlobalWindow.INSTANCE);
     } catch (Exception e) {

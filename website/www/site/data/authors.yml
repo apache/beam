@@ -30,6 +30,9 @@ anton:
 ccy:
   name: Charles Chen
   email: ccy@apache.org
+chadrik:
+  name: Chad Dombrova
+  email: chadrik@apache.org
 chamikara:
   name: Chamikara Jayalath
   email: chamikara@apache.org
@@ -154,3 +157,11 @@ pedro:
   name: Pedro Galvan
   email: pedro@sg.com.mx
   twitter: pedrogk
+rionmonster:
+  name: Rion Williams
+  email: rionmonster@gmail.com
+  twitter: rionmonster
+saavannanavati:
+  name: Saavan Nanavati
+  email: saavan.nanavati@utexas.edu
+  twitter:

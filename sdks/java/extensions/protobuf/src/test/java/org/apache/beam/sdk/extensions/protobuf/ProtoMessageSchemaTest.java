@@ -54,6 +54,7 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SHUFFLED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withFieldNumber;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withTypeName;
 import static org.junit.Assert.assertEquals;
@@ -61,7 +62,6 @@ import static org.junit.Assert.assertEquals;
 import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.OptionalPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage;
-import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage.Enum;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
@@ -73,6 +73,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -81,6 +82,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ProtoMessageSchemaTest {
 
   @Test
@@ -287,7 +291,8 @@ public class ProtoMessageSchemaTest {
           .build();
   private static final Row ENUM_ROW =
       Row.withSchema(ENUM_SCHEMA).addValues(ENUM_TYPE.valueOf("TWO")).build();
-  private static final EnumMessage ENUM_PROTO = EnumMessage.newBuilder().setEnum(Enum.TWO).build();
+  private static final EnumMessage ENUM_PROTO =
+      EnumMessage.newBuilder().setEnum(EnumMessage.Enum.TWO).build();
 
   @Test
   public void testEnumSchema() {
@@ -327,5 +332,24 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, WktMessage> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(WktMessage.class));
     assertEquals(WKT_MESSAGE_PROTO, fromRow.apply(WKT_MESSAGE_ROW));
+  }
+
+  @Test
+  public void testRowToBytesAndBytesToRowFn() {
+    assertEquals(WKT_MESSAGE_ROW, convertRow(WKT_MESSAGE_ROW));
+  }
+
+  @Test
+  public void testRowToBytesAndBytesToRowFnWithShuffledFields() {
+    assertEquals(WKT_MESSAGE_ROW, convertRow(WKT_MESSAGE_SHUFFLED_ROW));
+  }
+
+  private Row convertRow(Row row) {
+    SimpleFunction<Row, byte[]> rowToBytes =
+        ProtoMessageSchema.getRowToProtoBytesFn(WktMessage.class);
+    SimpleFunction<byte[], Row> bytesToRow =
+        ProtoMessageSchema.getProtoBytesToRowFn(WktMessage.class);
+    byte[] rowInProtoBytes = rowToBytes.apply(row);
+    return bytesToRow.apply(rowInProtoBytes);
   }
 }

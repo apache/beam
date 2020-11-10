@@ -17,7 +17,61 @@ limitations under the License.
 
 # Max
 
+{{< localstorage language language-py >}}
+
+{{< button-pydoc path="apache_beam.transforms.core" class="CombineGlobally" >}}
+
+Gets the element with the maximum value within each aggregation.
+
 ## Examples
-See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
+
+In the following example, we create a pipeline with a `PCollection`.
+Then, we get the element with the maximum value in different ways.
+
+### Example 1: Maximum element in a PCollection
+
+We use `Combine.Globally()` to get the maximum element from the *entire* `PCollection`.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" max_globally >}}
+{{< /highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max_test.py" max_element >}}
+{{< /highlight >}}
+
+{{< buttons-code-snippet
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
+
+### Example 2: Maximum elements for each key
+
+We use `Combine.PerKey()` to get the maximum element for each unique key in a `PCollection` of key-values.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" max_per_key >}}
+{{< /highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max_test.py" elements_with_max_value_per_key >}}
+{{< /highlight >}}
+
+{{< buttons-code-snippet
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
 
 ## Related transforms
+
+* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
+* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
+* [Mean](/documentation/transforms/python/aggregation/mean)
+* [Min](/documentation/transforms/python/aggregation/min)
+* [Sum](/documentation/transforms/python/aggregation/sum)
+
+{{< button-pydoc path="apache_beam.transforms.core" class="CombineGlobally" >}}

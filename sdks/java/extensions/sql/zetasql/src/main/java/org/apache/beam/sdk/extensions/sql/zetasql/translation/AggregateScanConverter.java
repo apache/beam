@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CAST;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_COLUMN_REF;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_GET_STRUCT_FIELD;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils.toSimpleRelDataType;
 
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -34,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
@@ -45,11 +44,15 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlAggFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts aggregate calls. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
   private static final String AVG_ILLEGAL_LONG_INPUT_TYPE =
-      "AVG(LONG) is not supported. You might want to use AVG(CAST(expression AS DOUBLE).";
+      "AVG(INT64) is not supported. You might want to use AVG(CAST(expression AS FLOAT64).";
 
   AggregateScanConverter(ConversionContext context) {
     super(context);
@@ -131,7 +134,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
               .convertRexNodeFromResolvedExpr(
                   computedColumn.getExpr(),
                   node.getInputScan().getColumnList(),
-                  input.getRowType().getFieldList()));
+                  input.getRowType().getFieldList(),
+                  ImmutableMap.of()));
       fieldNames.add(getTrait().resolveAlias(computedColumn.getColumn()));
     }
 
@@ -156,7 +160,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
                 .convertRexNodeFromResolvedExpr(
                     resolvedExpr,
                     node.getInputScan().getColumnList(),
-                    input.getRowType().getFieldList()));
+                    input.getRowType().getFieldList(),
+                    ImmutableMap.of()));
         fieldNames.add(getTrait().resolveAlias(resolvedComputedColumn.getColumn()));
       } else if (aggregateFunctionCall.getArgumentList() != null
           && aggregateFunctionCall.getArgumentList().size() > 1) {
@@ -197,7 +202,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
 
     SqlAggFunction sqlAggFunction =
         (SqlAggFunction)
-            SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
+            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
                 aggregateFunctionCall.getFunction().getName());
     if (sqlAggFunction == null) {
       throw new UnsupportedOperationException(
@@ -222,8 +227,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     }
 
     RelDataType returnType =
-        toSimpleRelDataType(
-            computedColumn.getColumn().getType().getKind(), getCluster().getRexBuilder(), nullable);
+        ZetaSqlCalciteTranslationUtils.toCalciteType(
+            computedColumn.getColumn().getType(), nullable, getCluster().getRexBuilder());
 
     String aggName = getTrait().resolveAlias(computedColumn.getColumn());
     return AggregateCall.create(

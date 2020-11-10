@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.aws2.sns;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.OptionalInt;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 @AutoValue

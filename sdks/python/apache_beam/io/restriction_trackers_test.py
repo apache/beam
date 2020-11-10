@@ -117,9 +117,8 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(160))
     self.assertFalse(tracker.try_claim(240))
 
-    _, checkpoint = tracker.try_split(0)
-    self.assertTrue(OffsetRange(100, 161), tracker.current_restriction())
-    self.assertTrue(OffsetRange(161, 200), checkpoint)
+    self.assertIsNone(tracker.try_split(0))
+    self.assertTrue(OffsetRange(100, 200), tracker.current_restriction())
 
   def test_non_monotonic_claim(self):
     with self.assertRaises(ValueError):
@@ -155,6 +154,12 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       tracker.check_done()
 
+  def test_check_done_with_no_claims(self):
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
+
+    with self.assertRaises(ValueError):
+      tracker.check_done()
+
   def test_try_split(self):
     tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     tracker.try_claim(100)
@@ -162,6 +167,27 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
     self.assertEqual(OffsetRange(100, 150), cur)
     self.assertEqual(OffsetRange(150, 200), residual)
     self.assertEqual(cur, tracker.current_restriction())
+
+  def test_try_split_when_restriction_is_done(self):
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
+    tracker.try_claim(199)
+    self.assertIsNone(tracker.try_split(0.5))
+    tracker.try_claim(200)
+    self.assertIsNone(tracker.try_split(0.5))
+
+  def test_check_done_empty_range(self):
+    tracker = OffsetRestrictionTracker(OffsetRange(0, 0))
+    tracker.check_done()
+
+  def test_try_claim_empty_range(self):
+    tracker = OffsetRestrictionTracker(OffsetRange(0, 0))
+    self.assertFalse(tracker.try_claim(0))
+
+  def test_checkpoint_empty_range(self):
+    tracker = OffsetRestrictionTracker(OffsetRange(0, 0))
+    self.assertIsNone(tracker.try_split(0))
+    self.assertFalse(tracker.try_claim(0))
+    self.assertIsNone(tracker.try_split(0))
 
 
 if __name__ == '__main__':

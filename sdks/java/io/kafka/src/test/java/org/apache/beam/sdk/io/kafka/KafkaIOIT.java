@@ -68,6 +68,9 @@ import org.junit.runners.JUnit4;
  * topic so that we could read them back after writing.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaIOIT {
 
   private static final String READ_TIME_METRIC_NAME = "read_time";

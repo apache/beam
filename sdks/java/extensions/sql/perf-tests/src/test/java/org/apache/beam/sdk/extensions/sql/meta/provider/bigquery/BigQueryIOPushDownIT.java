@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -87,11 +88,22 @@ public class BigQueryIOPushDownIT {
   private static final String SELECT_STATEMENT =
       "SELECT `by` as author, type, title, score from HACKER_NEWS where (type='story' or type='job') and score>2";
 
+  //  https://github.com/typetools/checker-framework/issues/1525
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static SQLBigQueryPerfTestOptions options;
+
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static String metricsBigQueryDataset;
+
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static String metricsBigQueryTable;
+
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static InfluxDBSettings settings;
+
   private Pipeline pipeline = Pipeline.create(options);
+
+  @SuppressWarnings("initialization.fields.uninitialized")
   private BeamSqlEnv sqlEnv;
 
   @BeforeClass
@@ -141,7 +153,7 @@ public class BigQueryIOPushDownIT {
     sqlEnv =
         BeamSqlEnv.builder(inMemoryMetaStore)
             .setPipelineOptions(PipelineOptionsFactory.create())
-            .setRuleSets(new RuleSet[] {RuleSets.ofList(ruleList)})
+            .setRuleSets(ImmutableList.of(RuleSets.ofList(ruleList)))
             .build();
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 

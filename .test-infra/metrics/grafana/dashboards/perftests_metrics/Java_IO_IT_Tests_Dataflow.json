@@ -2161,7 +2161,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"value\") FROM \"kafkaioit_results\" WHERE \"metric\" =~ /time/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "query": "SELECT mean(\"value\") FROM \"kafkaioit_results\" WHERE (\"metric\" = 'write_time' OR \"metric\" = 'read_time') AND $timeFilter GROUP BY time($__interval), \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",

@@ -39,7 +39,6 @@ class StateCacheTest(unittest.TestCase):
         {
             'get': 1,
             'put': 0,
-            'extend': 0,
             'miss': 1,
             'hit': 0,
             'clear': 0,
@@ -61,7 +60,6 @@ class StateCacheTest(unittest.TestCase):
         {
             'get': 2,
             'put': 1,
-            'extend': 0,
             'miss': 1,
             'hit': 1,
             'clear': 0,
@@ -69,40 +67,6 @@ class StateCacheTest(unittest.TestCase):
             'size': 1,
             'capacity': 5
         })
-
-  def test_extend(self):
-    cache = self.get_cache(3)
-    cache.put("key", "cache_token", ['val'])
-    # test extend for existing key
-    cache.extend("key", "cache_token", ['yet', 'another', 'val'])
-    self.assertEqual(cache.size(), 1)
-    self.assertEqual(
-        cache.get("key", "cache_token"), ['val', 'yet', 'another', 'val'])
-    # test extend without existing key
-    cache.extend("key2", "cache_token", ['another', 'val'])
-    self.assertEqual(cache.size(), 2)
-    self.assertEqual(cache.get("key2", "cache_token"), ['another', 'val'])
-    self.verify_metrics(
-        cache,
-        {
-            'get': 2,
-            'put': 1,
-            'extend': 2,
-            'miss': 0,
-            'hit': 2,
-            'clear': 0,
-            'evict': 0,
-            'size': 2,
-            'capacity': 3
-        })
-
-  def test_extend_non_list(self):
-    cache = self.get_cache(3)
-    cache.put("key", "cache_token", tuple(['val']))
-    cache.extend("key", "cache_token", ['yet', 'another', 'val'])
-    self.assertEqual(cache.size(), 1)
-    self.assertEqual(
-        list(cache.get("key", "cache_token")), ['val', 'yet', 'another', 'val'])
 
   def test_clear(self):
     cache = self.get_cache(5)
@@ -120,7 +84,6 @@ class StateCacheTest(unittest.TestCase):
         {
             'get': 3,
             'put': 1,
-            'extend': 0,
             'miss': 1,
             'hit': 2,
             'clear': 2,
@@ -143,7 +106,6 @@ class StateCacheTest(unittest.TestCase):
         {
             'get': 0,
             'put': 4,
-            'extend': 0,
             'miss': 0,
             'hit': 0,
             'clear': 0,
@@ -166,7 +128,6 @@ class StateCacheTest(unittest.TestCase):
         {
             'get': 2,
             'put': 2,
-            'extend': 0,
             'miss': 2,
             'hit': 0,
             'clear': 0,
@@ -210,16 +171,15 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(cache.size(), 5)
     # least recently used key should be gone ("key4")
     self.assertEqual(cache.get("key4", "cache_token"), None)
-    # make "key5" used by appending to it
-    cache.extend("key5", "cache_token", ["another"])
+    # make "key5" used by writing to it
+    cache.put("key5", "cache_token", "val")
     # least recently used key should be gone ("key6")
     self.assertEqual(cache.get("key6", "cache_token"), None)
     self.verify_metrics(
         cache,
         {
             'get': 10,
-            'put': 11,
-            'extend': 1,
+            'put': 12,
             'miss': 4,
             'hit': 6,
             'clear': 0,

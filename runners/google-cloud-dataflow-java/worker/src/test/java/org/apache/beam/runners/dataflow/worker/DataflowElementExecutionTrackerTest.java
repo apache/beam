@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
@@ -34,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,6 +43,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataflowElementExecutionTracker}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowElementExecutionTrackerTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
@@ -229,8 +232,7 @@ public class DataflowElementExecutionTrackerTest {
    * Retrieve the per-element-processing-time counter for the given step, or null if the counter has
    * not been written.
    */
-  @Nullable
-  private Counter<Long, CounterDistribution> getCounter(NameContext step) {
+  private @Nullable Counter<Long, CounterDistribution> getCounter(NameContext step) {
     CounterName counterName =
         CounterName.named("per-element-processing-time").withOriginalName(step);
     return (Counter<Long, CounterDistribution>) counters.getExistingCounter(counterName);

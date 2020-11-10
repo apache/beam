@@ -33,31 +33,31 @@ This section covers the use of SQL extensions to directly apply windowing.
 
 Beam SQL supports windowing functions specified in `GROUP BY` clause.
 `TIMESTAMP` field is required in this case. It is used as event timestamp for
-rows. 
+rows.
 
 Supported windowing functions:
 * `TUMBLE`, or fixed windows. Example of how define a fixed window with duration of 1 hour:
-``` 
-    SELECT f_int, COUNT(*) 
-    FROM PCOLLECTION 
-    GROUP BY 
+```
+    SELECT f_int, COUNT(*)
+    FROM PCOLLECTION
+    GROUP BY
       f_int,
       TUMBLE(f_timestamp, INTERVAL '1' HOUR)
 ```
 * `HOP`, or sliding windows. Example of how to define a sliding windows for every 30 minutes with 1 hour duration:
 ```
     SELECT f_int, COUNT(*)
-    FROM PCOLLECTION 
-    GROUP BY 
-      f_int, 
+    FROM PCOLLECTION
+    GROUP BY
+      f_int,
       HOP(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR)
 ```
 * `SESSION`, session windows. Example of how to define a session window with 5 minutes gap duration:
 ```
-    SELECT f_int, COUNT(*) 
-    FROM PCOLLECTION 
-    GROUP BY 
-      f_int, 
+    SELECT f_int, COUNT(*)
+    FROM PCOLLECTION
+    GROUP BY
+      f_int,
       SESSION(f_timestamp, INTERVAL '5' MINUTE)
 ```
 

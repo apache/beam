@@ -41,7 +41,7 @@ transform has three varieties:
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)
   estimates the number of distinct elements or distinct values in key-value pairs
 * [Sum](/documentation/transforms/java/aggregation/sum) computes

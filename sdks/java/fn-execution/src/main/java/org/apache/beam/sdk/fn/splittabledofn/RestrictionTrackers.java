@@ -23,6 +23,9 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgr
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RestrictionTrackers {
 
   /** Interface allowing a runner to observe the calls to {@link RestrictionTracker#tryClaim}. */
@@ -75,6 +78,11 @@ public class RestrictionTrackers {
     @Override
     public synchronized void checkDone() throws IllegalStateException {
       delegate.checkDone();
+    }
+
+    @Override
+    public IsBounded isBounded() {
+      return delegate.isBounded();
     }
   }
 

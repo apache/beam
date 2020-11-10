@@ -91,6 +91,44 @@ class FileBasedCacheManagerTest(object):
     self.mock_write_cache(cache_version_one, prefix, cache_label)
     self.assertTrue(self.cache_manager.exists(prefix, cache_label))
 
+  def test_size(self):
+    """Test getting the size of some cache label."""
+
+    # The Beam API for writing doesn't return the number of bytes that was
+    # written to disk. So this test is only possible when the coder encodes the
+    # bytes that will be written directly to disk, which only the WriteToText
+    # transform does (with respect to the WriteToTFRecord transform).
+    if self.cache_manager.cache_format != 'text':
+      return
+
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+
+    # Test that if nothing is written the size is 0.
+    self.assertEqual(self.cache_manager.size(prefix, cache_label), 0)
+
+    value = 'a'
+    self.mock_write_cache([value], prefix, cache_label)
+    coder = self.cache_manager.load_pcoder(prefix, cache_label)
+    encoded = coder.encode(value)
+
+    # Add one to the size on disk because of the extra new-line character when
+    # writing to file.
+    self.assertEqual(
+        self.cache_manager.size(prefix, cache_label), len(encoded) + 1)
+
+  def test_clear(self):
+    """Test that CacheManager can correctly tell if the cache exists or not."""
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+    cache_version_one = ['cache', 'version', 'one']
+
+    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
+    self.mock_write_cache(cache_version_one, prefix, cache_label)
+    self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+    self.assertTrue(self.cache_manager.clear(prefix, cache_label))
+    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
+
   def test_read_basic(self):
     """Test the condition where the cache is read once after written once."""
     prefix = 'full'

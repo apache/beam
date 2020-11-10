@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,6 +49,9 @@ import org.junit.runners.JUnit4;
  * boilerplate that is identical to each is considered thoroughly tested.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SerializableMatchersTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
@@ -134,7 +138,7 @@ public class SerializableMatchersTest implements Serializable {
 
   private static class NotSerializableClass {
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof NotSerializableClass;
     }
 

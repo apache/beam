@@ -22,7 +22,6 @@ import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -30,10 +29,14 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A naive version of Spanner read that doesn't use the Batch API. */
 @VisibleForTesting
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 abstract class NaiveSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
 
@@ -46,8 +49,7 @@ abstract class NaiveSpannerRead
 
   abstract SpannerConfig getSpannerConfig();
 
-  @Nullable
-  abstract PCollectionView<Transaction> getTxView();
+  abstract @Nullable PCollectionView<Transaction> getTxView();
 
   abstract TimestampBound getTimestampBound();
 
@@ -71,7 +73,7 @@ abstract class NaiveSpannerRead
   private static class NaiveSpannerReadFn extends DoFn<ReadOperation, Struct> {
 
     private final SpannerConfig config;
-    @Nullable private final PCollectionView<Transaction> txView;
+    private final @Nullable PCollectionView<Transaction> txView;
     private transient SpannerAccessor spannerAccessor;
 
     NaiveSpannerReadFn(SpannerConfig config, @Nullable PCollectionView<Transaction> transaction) {
@@ -81,7 +83,7 @@ abstract class NaiveSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = SpannerAccessor.create(config);
+      spannerAccessor = SpannerAccessor.getOrCreate(config);
     }
 
     @Teardown

@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.fn.data;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A logical endpoint is a pair of an instruction ID corresponding to the {@link
@@ -33,8 +33,7 @@ public abstract class LogicalEndpoint {
 
   public abstract String getTransformId();
 
-  @Nullable
-  public abstract String getTimerFamilyId();
+  public abstract @Nullable String getTimerFamilyId();
 
   public boolean isTimer() {
     return getTimerFamilyId() != null;

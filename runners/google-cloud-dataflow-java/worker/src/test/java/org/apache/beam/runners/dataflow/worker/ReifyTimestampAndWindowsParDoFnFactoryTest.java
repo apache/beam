@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import org.apache.avro.reflect.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -29,10 +28,14 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for {@link ReifyTimestampAndWindowsParDoFnFactory} */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReifyTimestampAndWindowsParDoFnFactoryTest {
 
   private <K, V> void verifyReifiedIsInTheSameWindows(WindowedValue<KV<K, V>> elem)
@@ -82,7 +85,7 @@ public class ReifyTimestampAndWindowsParDoFnFactoryTest {
 
   private static class SingleValueReceiver<T> implements Receiver {
 
-    @Nullable public T reified = null;
+    public @Nullable T reified = null;
 
     @Override
     public void process(Object outputElem) throws Exception {

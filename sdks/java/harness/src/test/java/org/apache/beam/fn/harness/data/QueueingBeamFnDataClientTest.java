@@ -106,7 +106,8 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_A.getInstructionId())
-                      .setTransformId(ENDPOINT_A.getTransformId()))
+                      .setTransformId(ENDPOINT_A.getTransformId())
+                      .setIsLast(true))
               .build();
       ELEMENTS_B_1 =
           BeamFnApi.Elements.newBuilder()
@@ -122,7 +123,8 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_B.getInstructionId())
-                      .setTransformId(ENDPOINT_B.getTransformId()))
+                      .setTransformId(ENDPOINT_B.getTransformId())
+                      .setIsLast(true))
               .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);

@@ -50,6 +50,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   @Rule public transient ExpectedException e = ExpectedException.none();
 
@@ -95,14 +99,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
       int totalNumOutputs,
       Duration sleepBeforeFirstClaim,
       int numOutputsPerProcessCall,
-      Duration sleepBeforeEachOutput) {
+      Duration sleepBeforeEachOutput)
+      throws Exception {
     SomeFn fn = new SomeFn(sleepBeforeFirstClaim, numOutputsPerProcessCall, sleepBeforeEachOutput);
     OffsetRange initialRestriction = new OffsetRange(0, totalNumOutputs);
     return runTest(fn, initialRestriction);
   }
 
   private SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result runTest(
-      DoFn<Void, String> fn, OffsetRange initialRestriction) {
+      DoFn<Void, String> fn, OffsetRange initialRestriction) throws Exception {
     SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void> invoker =
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             fn,
@@ -126,23 +131,28 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
             NullSideInputReader.empty(),
             Executors.newSingleThreadScheduledExecutor(),
             1000,
-            Duration.standardSeconds(3));
+            Duration.standardSeconds(3),
+            () -> {
+              throw new UnsupportedOperationException("BundleFinalizer not configured for test.");
+            });
 
-    return invoker.invokeProcessElement(
-        DoFnInvokers.invokerFor(fn),
-        WindowedValue.of(null, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
-        new OffsetRangeTracker(initialRestriction),
-        new WatermarkEstimator<Void>() {
-          @Override
-          public Instant currentWatermark() {
-            return GlobalWindow.TIMESTAMP_MIN_VALUE;
-          }
+    SplittableProcessElementInvoker.Result rval =
+        invoker.invokeProcessElement(
+            DoFnInvokers.invokerFor(fn),
+            WindowedValue.of(null, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            new OffsetRangeTracker(initialRestriction),
+            new WatermarkEstimator<Void>() {
+              @Override
+              public Instant currentWatermark() {
+                return GlobalWindow.TIMESTAMP_MIN_VALUE;
+              }
 
-          @Override
-          public Void getState() {
-            return null;
-          }
-        });
+              @Override
+              public Void getState() {
+                return null;
+              }
+            });
+    return rval;
   }
 
   @Test

@@ -110,10 +110,13 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
 				p.status = Broken
-				return err
+				return errors.Wrapf(err, "while executing Up for %v", p)
 			}
 		}
 		p.status = Up
+	}
+	if p.source != nil {
+		p.source.InitSplittable()
 	}
 
 	if p.status != Up {
@@ -126,19 +129,19 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, func(ctx context.Context) error { return root.StartBundle(ctx, id, manager) }); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing StartBundle for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.Process); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.FinishBundle); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing FinishBundle for %v", p)
 		}
 	}
 
@@ -198,15 +201,34 @@ type SplitPoints struct {
 	// Splits is a list of desired split indices.
 	Splits []int64
 	Frac   float64
+
+	// Estimated total number of elements (including unsent) for the source.
+	// A zero value indicates unknown, instead use locally known size.
+	BufSize int64
+}
+
+// SplitResult contains the result of performing a split on a Plan.
+type SplitResult struct {
+	// Indices are always included, for both channel and sub-element splits.
+	PI int64 // Primary index, last element of the primary.
+	RI int64 // Residual index, first element of the residual.
+
+	// Extra information included for sub-element splits. If PS and RS are
+	// present then a sub-element split occurred.
+	PS   [][]byte // Primary splits. If an element is split, these are the encoded primaries.
+	RS   [][]byte // Residual splits. If an element is split, these are the encoded residuals.
+	TId  string   // Transform ID of the transform receiving the split elements.
+	InId string   // Input ID of the input the split elements are received from.
 }
 
 // Split takes a set of potential split indexes, and if successful returns
-// the split index of the first element of the residual, on which processing
-// will be halted.
+// the split result.
 // Returns an error when unable to split.
-func (p *Plan) Split(s SplitPoints) (int64, error) {
+func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
+	// TODO: When bundles with multiple sources, are supported, perform splits
+	// on all sources.
 	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac)
+		return p.source.Split(s.Splits, s.Frac, s.BufSize)
 	}
-	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }

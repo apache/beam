@@ -61,6 +61,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SimpleDoFnRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimpleDoFnRunnerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -441,6 +445,7 @@ public class SimpleDoFnRunnerTest {
           TimerData.of(
               DoFnWithTimers.TIMER_ID,
               StateNamespaces.window(windowCoder, (W) context.window()),
+              context.fireTimestamp(),
               context.timestamp(),
               context.timeDomain()));
     }

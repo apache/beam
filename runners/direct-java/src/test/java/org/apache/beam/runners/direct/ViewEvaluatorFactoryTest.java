@@ -45,6 +45,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ViewEvaluatorFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ViewEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
@@ -61,7 +64,7 @@ public class ViewEvaluatorFactoryTest {
             .apply(GroupByKey.create())
             .apply(Values.create());
     PCollection<Iterable<String>> view =
-        concat.apply(new ViewOverrideFactory.WriteView<>(pCollectionView));
+        concat.apply(new DirectWriteViewVisitor.WriteView<>(pCollectionView));
 
     EvaluationContext context = mock(EvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();

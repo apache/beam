@@ -92,7 +92,7 @@ class LoadTest(object):
   If using InfluxDB with Basic HTTP authentication enabled, provide the
   following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
   """
-  def __init__(self):
+  def __init__(self, metrics_namespace=None):
     # Be sure to set blocking to false for timeout_ms to work properly
     self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
     assert not self.pipeline.blocking
@@ -100,7 +100,13 @@ class LoadTest(object):
     options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)
     self.timeout_ms = options.timeout_ms
     self.input_options = options.input_options
-    self.metrics_namespace = options.metrics_table or 'default'
+
+    if metrics_namespace:
+      self.metrics_namespace = metrics_namespace
+    else:
+      self.metrics_namespace = options.metrics_table \
+        if options.metrics_table else 'default'
+
     publish_to_bq = options.publish_to_big_query
     if publish_to_bq is None:
       logging.info(
@@ -119,6 +125,7 @@ class LoadTest(object):
         project_name=self.project_id,
         bq_table=options.metrics_table,
         bq_dataset=options.metrics_dataset,
+        namespace=self.metrics_namespace,
         influxdb_options=InfluxDBMetricsPublisherOptions(
             options.influx_measurement,
             options.influx_db_name,

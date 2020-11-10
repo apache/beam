@@ -34,6 +34,7 @@ from __future__ import print_function
 import argparse
 import logging
 import os
+import pathlib
 import signal
 import subprocess
 import sys
@@ -65,6 +66,11 @@ def run(argv):
       action='store_true',
       help='Start the server up as a background process.'
       ' Will fail if pid_file already exists, unless --stop is also specified.')
+  parser.add_argument(
+      '--stderr_file',
+      help='Where to write stderr (if not specified, merged with stdout).')
+  parser.add_argument(
+      '--stdout_file', help='Where to write stdout for background job service.')
   parser.add_argument(
       '--stop',
       action='store_true',
@@ -99,11 +105,25 @@ def run(argv):
       options.port_file = os.path.splitext(options.pid_file)[0] + '.port'
       argv.append('--port_file')
       argv.append(options.port_file)
+
+    if not options.stdout_file:
+      raise RuntimeError('--stdout_file must be specified with --background')
+    os.makedirs(pathlib.PurePath(options.stdout_file).parent, exist_ok=True)
+    stdout_dest = open(options.stdout_file, mode='w')
+
+    if options.stderr_file:
+      os.makedirs(pathlib.PurePath(options.stderr_file).parent, exist_ok=True)
+      stderr_dest = open(options.stderr_file, mode='w')
+    else:
+      stderr_dest = subprocess.STDOUT
+
     subprocess.Popen([
         sys.executable,
         '-m',
         'apache_beam.runners.portability.local_job_service_main'
-    ] + argv)
+    ] + argv,
+                     stderr=stderr_dest,
+                     stdout=stdout_dest)
     print('Waiting for server to start up...')
     while not os.path.exists(options.port_file):
       time.sleep(.1)
@@ -114,6 +134,7 @@ def run(argv):
 
   if options.pid_file:
     print('Writing process id to', options.pid_file)
+    os.makedirs(pathlib.PurePath(options.pid_file).parent, exist_ok=True)
     fd = os.open(options.pid_file, os.O_CREAT | os.O_EXCL | os.O_RDWR)
     with os.fdopen(fd, 'w') as fout:
       fout.write(str(os.getpid()))
@@ -123,6 +144,7 @@ def run(argv):
     try:
       if options.port_file:
         print('Writing port to', options.port_file)
+        os.makedirs(pathlib.PurePath(options.port_file).parent, exist_ok=True)
         with open(options.port_file + '.tmp', 'w') as fout:
           fout.write(str(port))
         os.rename(options.port_file + '.tmp', options.port_file)

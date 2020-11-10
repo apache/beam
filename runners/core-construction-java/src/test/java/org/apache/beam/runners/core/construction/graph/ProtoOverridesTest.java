@@ -25,7 +25,7 @@ import static org.junit.Assert.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode.Enum;
+import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ComponentsOrBuilder;
@@ -80,7 +80,9 @@ public class ProtoOverridesTest {
                         ByteString.copyFrom("foo-bar-baz".getBytes(StandardCharsets.UTF_8))))
             .build();
     WindowingStrategy introducedWS =
-        WindowingStrategy.newBuilder().setAccumulationMode(Enum.ACCUMULATING).build();
+        WindowingStrategy.newBuilder()
+            .setAccumulationMode(AccumulationMode.Enum.ACCUMULATING)
+            .build();
     RunnerApi.Components extraComponents =
         Components.newBuilder()
             .putPcollections(

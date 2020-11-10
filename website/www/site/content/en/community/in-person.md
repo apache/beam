@@ -21,7 +21,7 @@ limitations under the License.
 
 # We are nice, find us in person
 
-While the official communication happens on the mailing list, and you can find us online (see: [contact-us](https://beam.apache.org/community/contact-us/)), we also get together in person at Meetups and Conferences.    
+While the official communication happens on the mailing list, and you can find us online (see: [contact-us](https://beam.apache.org/community/contact-us/)), we also get together in person at Meetups and Conferences.
 
 ## Meetups
 

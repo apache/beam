@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.io.Serializable;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -61,9 +60,14 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Aggreg
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private @Nullable WindowFn<Row, IntervalWindow> windowFn;
   private final int windowFieldIndex;
@@ -257,10 +261,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
           // Combining over a single field, so extract just that field.
           combined =
               (combined == null)
-                  ? byFields.aggregateFieldBaseValue(
-                      inputs.get(0), combineFn, fieldAggregation.outputField)
-                  : combined.aggregateFieldBaseValue(
-                      inputs.get(0), combineFn, fieldAggregation.outputField);
+                  ? byFields.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
+                  : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
         }
       }
 
@@ -342,9 +344,9 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                   + (!ignoreValues ? kvRow.getRow(1).getFieldCount() : 0);
           List<Object> fieldValues = Lists.newArrayListWithCapacity(capacity);
 
-          fieldValues.addAll(kvRow.getRow(0).getBaseValues());
+          fieldValues.addAll(kvRow.getRow(0).getValues());
           if (!ignoreValues) {
-            fieldValues.addAll(kvRow.getRow(1).getBaseValues());
+            fieldValues.addAll(kvRow.getRow(1).getValues());
           }
 
           if (windowStartFieldIndex != -1) {

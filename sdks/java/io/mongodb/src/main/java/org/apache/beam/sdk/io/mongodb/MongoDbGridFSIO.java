@@ -24,8 +24,8 @@ import com.google.auto.value.AutoValue;
 import com.mongodb.DB;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
-import com.mongodb.Mongo;
-import com.mongodb.MongoURI;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
@@ -40,7 +40,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -56,6 +55,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.bson.types.ObjectId;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -114,6 +114,9 @@ import org.joda.time.Instant;
  * separated with line feeds.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MongoDbGridFSIO {
 
   /** Callback for the parser to use to submit data. */
@@ -178,14 +181,12 @@ public class MongoDbGridFSIO {
   /** Encapsulate the MongoDB GridFS connection logic. */
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
-    @Nullable
-    abstract String uri();
 
-    @Nullable
-    abstract String database();
+    abstract @Nullable String uri();
 
-    @Nullable
-    abstract String bucket();
+    abstract @Nullable String database();
+
+    abstract @Nullable String bucket();
 
     static ConnectionConfiguration create() {
       return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(null, null, null);
@@ -195,11 +196,11 @@ public class MongoDbGridFSIO {
       return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(uri, database, bucket);
     }
 
-    Mongo setupMongo() {
-      return uri() == null ? new Mongo() : new Mongo(new MongoURI(uri()));
+    MongoClient setupMongo() {
+      return uri() == null ? new MongoClient() : new MongoClient(new MongoClientURI(uri()));
     }
 
-    GridFS setupGridFS(Mongo mongo) {
+    GridFS setupGridFS(MongoClient mongo) {
       DB db = database() == null ? mongo.getDB("gridfs") : mongo.getDB(database());
       return bucket() == null ? new GridFS(db) : new GridFS(db, bucket());
     }
@@ -211,17 +212,13 @@ public class MongoDbGridFSIO {
 
     abstract ConnectionConfiguration connectionConfiguration();
 
-    @Nullable
-    abstract Parser<T> parser();
+    abstract @Nullable Parser<T> parser();
 
-    @Nullable
-    abstract Coder<T> coder();
+    abstract @Nullable Coder<T> coder();
 
-    @Nullable
-    abstract Duration skew();
+    abstract @Nullable Duration skew();
 
-    @Nullable
-    abstract String filter();
+    abstract @Nullable String filter();
 
     abstract Builder<T> toBuilder();
 
@@ -307,7 +304,7 @@ public class MongoDbGridFSIO {
               .apply(
                   ParDo.of(
                       new DoFn<ObjectId, T>() {
-                        Mongo mongo;
+                        MongoClient mongo;
                         GridFS gridfs;
 
                         @Setup
@@ -358,7 +355,7 @@ public class MongoDbGridFSIO {
 
       private Read<?> spec;
 
-      @Nullable private List<ObjectId> objectIds;
+      private @Nullable List<ObjectId> objectIds;
 
       BoundedGridFSSource(Read<?> spec, List<ObjectId> objectIds) {
         this.spec = spec;
@@ -376,7 +373,7 @@ public class MongoDbGridFSIO {
       @Override
       public List<? extends BoundedSource<ObjectId>> split(
           long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-        Mongo mongo = spec.connectionConfiguration().setupMongo();
+        MongoClient mongo = spec.connectionConfiguration().setupMongo();
         try {
           GridFS gridfs = spec.connectionConfiguration().setupGridFS(mongo);
           DBCursor cursor = createCursor(gridfs);
@@ -405,18 +402,14 @@ public class MongoDbGridFSIO {
 
       @Override
       public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-        Mongo mongo = spec.connectionConfiguration().setupMongo();
-        try {
-          GridFS gridfs = spec.connectionConfiguration().setupGridFS(mongo);
-          DBCursor cursor = createCursor(gridfs);
+        try (MongoClient mongo = spec.connectionConfiguration().setupMongo();
+            DBCursor cursor = createCursor(spec.connectionConfiguration().setupGridFS(mongo))) {
           long size = 0;
           while (cursor.hasNext()) {
             GridFSDBFile file = (GridFSDBFile) cursor.next();
             size += file.getLength();
           }
           return size;
-        } finally {
-          mongo.close();
         }
       }
 
@@ -444,9 +437,9 @@ public class MongoDbGridFSIO {
          * files is used directly to avoid having the ObjectId's queried and
          * loaded ahead of time saving time and memory.
          */
-        @Nullable final List<ObjectId> objects;
+        final @Nullable List<ObjectId> objects;
 
-        Mongo mongo;
+        MongoClient mongo;
         DBCursor cursor;
         Iterator<ObjectId> iterator;
         ObjectId current;
@@ -531,13 +524,11 @@ public class MongoDbGridFSIO {
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     abstract ConnectionConfiguration connectionConfiguration();
 
-    @Nullable
-    abstract Long chunkSize();
+    abstract @Nullable Long chunkSize();
 
     abstract WriteFn<T> writeFn();
 
-    @Nullable
-    abstract String filename();
+    abstract @Nullable String filename();
 
     abstract Builder<T> toBuilder();
 
@@ -615,7 +606,7 @@ public class MongoDbGridFSIO {
 
     private final Write<T> spec;
 
-    private transient Mongo mongo;
+    private transient MongoClient mongo;
     private transient GridFS gridfs;
 
     private transient GridFSInputFile gridFsFile;

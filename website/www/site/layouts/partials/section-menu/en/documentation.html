@@ -67,6 +67,19 @@
         <li><a href="/documentation/io/built-in/">Built-in I/O connectors</a></li>
 
         <li class="section-nav-item--collapsible">
+          <span class="section-nav-list-title">Built-in I/O connector guides</span>
+          <ul class="section-nav-list">
+            <li><a href="/documentation/io/built-in/parquet/">Apache Parquet I/O connector
+            </a></li>
+            <li><a href="/documentation/io/built-in/hadoop/">Hadoop Input/Output Format IO</a></li>
+            <li><a href="/documentation/io/built-in/hcatalog/">HCatalog IO</a></li>
+            <li><a href="/documentation/io/built-in/google-bigquery/">Google BigQuery I/O connector</a></li>
+            <li><a href="/documentation/io/built-in/snowflake/">Snowflake I/O connector</a></li>
+          </ul>
+       </li>
+
+
+        <li class="section-nav-item--collapsible">
            <span class="section-nav-list-title">Developing new I/O connectors</span>
 
           <ul class="section-nav-list">
@@ -145,6 +158,20 @@
         <li><a href="/documentation/programming-guide/#state-timers-examples">State and timers examples</a></li>
       </ul>
     </li>
+
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Splittable DoFns</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#sdf-basics">Basics</a></li>
+        <li><a href="/documentation/programming-guide/#sizing-and-progress">Sizing and progress</a></li>
+        <li><a href="/documentation/programming-guide/#user-initiated-checkpoint">User-initiated checkpoint</a></li>
+        <li><a href="/documentation/programming-guide/#runner-initiated-split">Runner initiated split</a></li>
+        <li><a href="/documentation/programming-guide/#watermark-estimation">Watermark estimation</a></li>
+        <li><a href="/documentation/programming-guide/#truncating-during-drain">Truncating during drain</a></li>
+        <li><a href="/documentation/programming-guide/#bundle-finalization">Bundle finalization</a></li>
+      </ul>
+    </li>
   </ul>
 </li>
 
@@ -162,17 +189,17 @@
 
         <ul class="section-nav-list">
           <li><a href="/documentation/transforms/python/elementwise/filter/">Filter</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/flatmap/">FlatMap</a></li>  
+          <li><a href="/documentation/transforms/python/elementwise/flatmap/">FlatMap</a></li>
           <li><a href="/documentation/transforms/python/elementwise/keys/">Keys</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/kvswap/">KvSwap</a></li> 
+          <li><a href="/documentation/transforms/python/elementwise/kvswap/">KvSwap</a></li>
           <li><a href="/documentation/transforms/python/elementwise/map/">Map</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/pardo/">ParDo</a></li>   
+          <li><a href="/documentation/transforms/python/elementwise/pardo/">ParDo</a></li>
           <li><a href="/documentation/transforms/python/elementwise/partition/">Partition</a></li>
           <li><a href="/documentation/transforms/python/elementwise/regex/">Regex</a></li>
           <li><a href="/documentation/transforms/python/elementwise/reify/">Reify</a></li>
           <li><a href="/documentation/transforms/python/elementwise/tostring/">ToString</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/values/">Values</a></li>          
-          <li><a href="/documentation/transforms/python/elementwise/withtimestamps/">WithTimestamps</a></li>                                              
+          <li><a href="/documentation/transforms/python/elementwise/values/">Values</a></li>
+          <li><a href="/documentation/transforms/python/elementwise/withtimestamps/">WithTimestamps</a></li>
         </ul>
       </li>
       <li class="section-nav-item--collapsible">
@@ -181,11 +208,19 @@
         <ul class="section-nav-list">
           <li><a href="/documentation/transforms/python/aggregation/cogroupbykey/">CoGroupByKey</a></li>
           <li><a href="/documentation/transforms/python/aggregation/combineglobally/">CombineGlobally</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/combineperkey/">CombinePerKey</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/combinevalues/">CombineValues</a></li>
           <li><a href="/documentation/transforms/python/aggregation/count/">Count</a></li>
           <li><a href="/documentation/transforms/python/aggregation/distinct/">Distinct</a></li>
           <li><a href="/documentation/transforms/python/aggregation/groupbykey/">GroupByKey</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/groupby/">GroupBy</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/groupintobatches/">GroupIntoBatches</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/latest/">Latest</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/max/">Max</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/min/">Min</a></li>
           <li><a href="/documentation/transforms/python/aggregation/mean/">Mean</a></li>
           <li><a href="/documentation/transforms/python/aggregation/sample/">Sample</a></li>
+          <li><a href="/documentation/transforms/python/aggregation/sum/">Sum</a></li>
           <li><a href="/documentation/transforms/python/aggregation/top/">Top</a></li>
         </ul>
       </li>
@@ -200,7 +235,7 @@
         </ul>
       </li>
     </ul>
-  </li>   
+  </li>
 
   <li class="section-nav-item--collapsible">
     <span class="section-nav-list-title">Java</span>
@@ -212,18 +247,18 @@
 
         <ul class="section-nav-list">
           <li><a href="/documentation/transforms/java/elementwise/filter/">Filter</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/flatmapelements/">FlatMapElements</a></li>  
+          <li><a href="/documentation/transforms/java/elementwise/flatmapelements/">FlatMapElements</a></li>
           <li><a href="/documentation/transforms/java/elementwise/keys/">Keys</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/kvswap/">KvSwap</a></li> 
+          <li><a href="/documentation/transforms/java/elementwise/kvswap/">KvSwap</a></li>
           <li><a href="/documentation/transforms/java/elementwise/mapelements/">MapElements</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/pardo/">ParDo</a></li>   
+          <li><a href="/documentation/transforms/java/elementwise/pardo/">ParDo</a></li>
           <li><a href="/documentation/transforms/java/elementwise/partition/">Partition</a></li>
           <li><a href="/documentation/transforms/java/elementwise/regex/">Regex</a></li>
           <li><a href="/documentation/transforms/java/elementwise/reify/">Reify</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/values/">Values</a></li>           
+          <li><a href="/documentation/transforms/java/elementwise/values/">Values</a></li>
           <li><a href="/documentation/transforms/java/elementwise/tostring/">ToString</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/withkeys/">WithKeys</a></li> 
-          <li><a href="/documentation/transforms/java/elementwise/withtimestamps/">WithTimestamps</a></li>                                             
+          <li><a href="/documentation/transforms/java/elementwise/withkeys/">WithKeys</a></li>
+          <li><a href="/documentation/transforms/java/elementwise/withtimestamps/">WithTimestamps</a></li>
         </ul>
       </li>
       <li class="section-nav-item--collapsible">
@@ -261,7 +296,7 @@
         </ul>
       </li>
     </ul>
-  </li>   
+  </li>
   </ul>
 
 </li>
@@ -276,6 +311,9 @@
     <li><a href="/documentation/patterns/pipeline-options/">Pipeline options</a></li>
     <li><a href="/documentation/patterns/custom-io/">Custom I/O</a></li>
     <li><a href="/documentation/patterns/custom-windows/">Custom windows</a></li>
+    <li><a href="/documentation/patterns/bigqueryio/">BigQueryIO</a></li>
+    <li><a href="/documentation/patterns/ai-platform/">AI Platform</a></li>
+    <li><a href="/documentation/patterns/schema/">Schema</a></li>
   </ul>
 </li>
 

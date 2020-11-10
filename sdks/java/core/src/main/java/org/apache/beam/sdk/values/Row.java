@@ -34,7 +34,6 @@ import java.util.Objects;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
 import org.joda.time.ReadableInstant;
@@ -86,6 +86,10 @@ import org.joda.time.ReadableInstant;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public abstract class Row implements Serializable {
   private final Schema schema;
 
@@ -96,9 +100,8 @@ public abstract class Row implements Serializable {
   // Abstract methods to be implemented by subclasses that handle object access.
 
   /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public abstract <T> T getValue(int fieldIdx);
+  public abstract <T> @Nullable T getValue(int fieldIdx);
 
   /** Return the size of data fields. */
   public abstract int getFieldCount();
@@ -114,9 +117,8 @@ public abstract class Row implements Serializable {
   }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getValue(String fieldName) {
+  public <T> @Nullable T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
   }
 
@@ -124,8 +126,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTE} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Byte getByte(String fieldName) {
+  public @Nullable Byte getByte(String fieldName) {
     return getByte(getSchema().indexOf(fieldName));
   }
 
@@ -133,8 +134,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTES} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public byte[] getBytes(String fieldName) {
+  public byte @Nullable [] getBytes(String fieldName) {
     return getBytes(getSchema().indexOf(fieldName));
   }
 
@@ -142,8 +142,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Short getInt16(String fieldName) {
+  public @Nullable Short getInt16(String fieldName) {
     return getInt16(getSchema().indexOf(fieldName));
   }
 
@@ -151,8 +150,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT32} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Integer getInt32(String fieldName) {
+  public @Nullable Integer getInt32(String fieldName) {
     return getInt32(getSchema().indexOf(fieldName));
   }
 
@@ -160,8 +158,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT64} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Long getInt64(String fieldName) {
+  public @Nullable Long getInt64(String fieldName) {
     return getInt64(getSchema().indexOf(fieldName));
   }
 
@@ -169,8 +166,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DECIMAL} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public BigDecimal getDecimal(String fieldName) {
+  public @Nullable BigDecimal getDecimal(String fieldName) {
     return getDecimal(getSchema().indexOf(fieldName));
   }
 
@@ -178,8 +174,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#FLOAT} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Float getFloat(String fieldName) {
+  public @Nullable Float getFloat(String fieldName) {
     return getFloat(getSchema().indexOf(fieldName));
   }
 
@@ -187,8 +182,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DOUBLE} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Double getDouble(String fieldName) {
+  public @Nullable Double getDouble(String fieldName) {
     return getDouble(getSchema().indexOf(fieldName));
   }
 
@@ -196,8 +190,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#STRING} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public String getString(String fieldName) {
+  public @Nullable String getString(String fieldName) {
     return getString(getSchema().indexOf(fieldName));
   }
 
@@ -205,8 +198,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DATETIME} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public ReadableDateTime getDateTime(String fieldName) {
+  public @Nullable ReadableDateTime getDateTime(String fieldName) {
     return getDateTime(getSchema().indexOf(fieldName));
   }
 
@@ -214,8 +206,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BOOLEAN} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Boolean getBoolean(String fieldName) {
+  public @Nullable Boolean getBoolean(String fieldName) {
     return getBoolean(getSchema().indexOf(fieldName));
   }
 
@@ -223,8 +214,7 @@ public abstract class Row implements Serializable {
    * Get an array value by field name, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Collection<T> getArray(String fieldName) {
+  public @Nullable <T> Collection<T> getArray(String fieldName) {
     return getArray(getSchema().indexOf(fieldName));
   }
 
@@ -232,24 +222,22 @@ public abstract class Row implements Serializable {
    * Get an iterable value by field name, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Iterable<T> getIterable(String fieldName) {
+  public @Nullable <T> Iterable<T> getIterable(String fieldName) {
     return getIterable(getSchema().indexOf(fieldName));
   }
 
   /**
    * Get a MAP value by field name, {@link IllegalStateException} is thrown if schema doesn't match.
    */
-  @Nullable
-  public <T1, T2> Map<T1, T2> getMap(String fieldName) {
+  public @Nullable <T1, T2> Map<T1, T2> getMap(String fieldName) {
     return getMap(getSchema().indexOf(fieldName));
   }
 
   /* Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public <T> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
+
+  public @Nullable <T> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
     return getLogicalTypeValue(getSchema().indexOf(fieldName), clazz);
   }
 
@@ -257,8 +245,7 @@ public abstract class Row implements Serializable {
    * Returns the base type for this field. If this is a logical type, we convert to the base value.
    * Otherwise the field itself is returned.
    */
-  @Nullable
-  public <T> T getBaseValue(String fieldName, Class<T> clazz) {
+  public @Nullable <T> T getBaseValue(String fieldName, Class<T> clazz) {
     return getBaseValue(getSchema().indexOf(fieldName), clazz);
   }
 
@@ -266,8 +253,7 @@ public abstract class Row implements Serializable {
    * Returns the base type for this field. If this is a logical type, we convert to the base value.
    * Otherwise the field itself is returned.
    */
-  @Nullable
-  public Object getBaseValue(String fieldName) {
+  public @Nullable Object getBaseValue(String fieldName) {
     return getBaseValue(fieldName, Object.class);
   }
 
@@ -275,8 +261,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#ROW} value by field name, {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Row getRow(String fieldName) {
+  public @Nullable Row getRow(String fieldName) {
     return getRow(getSchema().indexOf(fieldName));
   }
 
@@ -284,8 +269,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTE} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Byte getByte(int idx) {
+  public @Nullable Byte getByte(int idx) {
     return getValue(idx);
   }
 
@@ -293,8 +277,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#BYTES} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public byte[] getBytes(int idx) {
+  public byte @Nullable [] getBytes(int idx) {
     return getValue(idx);
   }
 
@@ -302,8 +285,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT16} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Short getInt16(int idx) {
+  public @Nullable Short getInt16(int idx) {
     return getValue(idx);
   }
 
@@ -311,8 +293,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT32} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Integer getInt32(int idx) {
+  public @Nullable Integer getInt32(int idx) {
     return getValue(idx);
   }
 
@@ -320,8 +301,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#FLOAT} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Float getFloat(int idx) {
+  public @Nullable Float getFloat(int idx) {
     return getValue(idx);
   }
 
@@ -329,8 +309,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DOUBLE} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Double getDouble(int idx) {
+  public @Nullable Double getDouble(int idx) {
     return getValue(idx);
   }
 
@@ -338,8 +317,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#INT64} value by field index, {@link ClassCastException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public Long getInt64(int idx) {
+  public @Nullable Long getInt64(int idx) {
     return getValue(idx);
   }
 
@@ -347,8 +325,7 @@ public abstract class Row implements Serializable {
    * Get a {@link String} value by field index, {@link ClassCastException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public String getString(int idx) {
+  public @Nullable String getString(int idx) {
     return getValue(idx);
   }
 
@@ -356,8 +333,7 @@ public abstract class Row implements Serializable {
    * Get a {@link TypeName#DATETIME} value by field index, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
-  @Nullable
-  public ReadableDateTime getDateTime(int idx) {
+  public @Nullable ReadableDateTime getDateTime(int idx) {
     ReadableInstant instant = getValue(idx);
     return instant == null ? null : new DateTime(instant).withZone(instant.getZone());
   }
@@ -366,8 +342,7 @@ public abstract class Row implements Serializable {
    * Get a {@link BigDecimal} value by field index, {@link ClassCastException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public BigDecimal getDecimal(int idx) {
+  public @Nullable BigDecimal getDecimal(int idx) {
     return getValue(idx);
   }
 
@@ -375,8 +350,7 @@ public abstract class Row implements Serializable {
    * Get a {@link Boolean} value by field index, {@link ClassCastException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public Boolean getBoolean(int idx) {
+  public @Nullable Boolean getBoolean(int idx) {
     return getValue(idx);
   }
 
@@ -384,8 +358,7 @@ public abstract class Row implements Serializable {
    * Get an array value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Collection<T> getArray(int idx) {
+  public @Nullable <T> Collection<T> getArray(int idx) {
     return getValue(idx);
   }
 
@@ -393,8 +366,7 @@ public abstract class Row implements Serializable {
    * Get an iterable value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T> Iterable<T> getIterable(int idx) {
+  public @Nullable <T> Iterable<T> getIterable(int idx) {
     return getValue(idx);
   }
 
@@ -402,8 +374,7 @@ public abstract class Row implements Serializable {
    * Get a MAP value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  @Nullable
-  public <T1, T2> Map<T1, T2> getMap(int idx) {
+  public @Nullable <T1, T2> Map<T1, T2> getMap(int idx) {
     return getValue(idx);
   }
 
@@ -411,8 +382,7 @@ public abstract class Row implements Serializable {
    * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  @Nullable
-  public <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
+  public @Nullable <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
     return (T) getValue(idx);
   }
 
@@ -420,8 +390,7 @@ public abstract class Row implements Serializable {
    * Returns the base type for this field. If this is a logical type, we convert to the base value.
    * Otherwise the field itself is returned.
    */
-  @Nullable
-  public <T> T getBaseValue(int idx, Class<T> clazz) {
+  public @Nullable <T> T getBaseValue(int idx, Class<T> clazz) {
     Object value = getValue(idx);
     FieldType fieldType = getSchema().getField(idx).getType();
     if (fieldType.getTypeName().isLogicalType() && value != null) {
@@ -437,8 +406,7 @@ public abstract class Row implements Serializable {
    * Returns the base type for this field. If this is a logical type, we convert to the base value.
    * Otherwise the field itself is returned.
    */
-  @Nullable
-  public Object getBaseValue(int idx) {
+  public @Nullable Object getBaseValue(int idx) {
     return getBaseValue(idx, Object.class);
   }
 
@@ -446,8 +414,7 @@ public abstract class Row implements Serializable {
    * Get a {@link Row} value by field index, {@link IllegalStateException} is thrown if schema
    * doesn't match.
    */
-  @Nullable
-  public Row getRow(int idx) {
+  public @Nullable Row getRow(int idx) {
     return getValue(idx);
   }
 
@@ -457,7 +424,7 @@ public abstract class Row implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -681,7 +648,7 @@ public abstract class Row implements Serializable {
           .forEach(
               e ->
                   fieldOverrides.addOverride(
-                      FieldAccessDescriptor.withFieldNames(e.getKey()),
+                      FieldAccessDescriptor.withFieldNames(e.getKey()).resolve(getSchema()),
                       new FieldOverride(e.getValue())));
       return this;
     }
@@ -750,7 +717,7 @@ public abstract class Row implements Serializable {
      * syntax.
      */
     public FieldValueBuilder withFieldValues(Map<String, Object> values) {
-      checkState(values.isEmpty());
+      checkState(this.values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValues(values);
     }
 

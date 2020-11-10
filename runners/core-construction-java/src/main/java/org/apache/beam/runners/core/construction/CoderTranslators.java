@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
@@ -139,7 +141,7 @@ class CoderTranslators {
 
       @Override
       public WindowedValue.ParamWindowedValueCoder<?> fromComponents(
-          List<Coder<?>> components, byte[] payload) {
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
         return WindowedValue.ParamWindowedValueCoder.fromComponents(components, payload);
       }
     };
@@ -158,7 +160,8 @@ class CoderTranslators {
       }
 
       @Override
-      public RowCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+      public RowCoder fromComponents(
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: " + components);
         Schema schema;
@@ -172,10 +175,25 @@ class CoderTranslators {
     };
   }
 
+  static CoderTranslator<ShardedKey.Coder<?>> shardedKey() {
+    return new SimpleStructuredCoderTranslator<ShardedKey.Coder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(ShardedKey.Coder<?> from) {
+        return Collections.singletonList(from.getKeyCoder());
+      }
+
+      @Override
+      public ShardedKey.Coder<?> fromComponents(List<Coder<?>> components) {
+        return ShardedKey.Coder.of(components.get(0));
+      }
+    };
+  }
+
   public abstract static class SimpleStructuredCoderTranslator<T extends Coder<?>>
       implements CoderTranslator<T> {
     @Override
-    public final T fromComponents(List<Coder<?>> components, byte[] payload) {
+    public final T fromComponents(
+        List<Coder<?>> components, byte[] payload, TranslationContext context) {
       return fromComponents(components);
     }
 

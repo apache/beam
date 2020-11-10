@@ -31,7 +31,7 @@ windows according to a function.
 ## Examples
 See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
 
-## Related transforms 
+## Related transforms
 * [Reify](/documentation/transforms/java/elementwise/reify)
   converts between explicit and implicit form of various Beam values.
 * [WithTimestamps](/documentation/transforms/java/elementwise/withtimestamps)

@@ -24,7 +24,7 @@ limitations under the License.
 -->
 
 
-The Apache Beam community is thrilled to announce its application to the first edition of  Season of Docs 2019! 
+The Apache Beam community is thrilled to announce its application to the first edition of  Season of Docs 2019!
 
 <!--more-->
 
@@ -34,7 +34,7 @@ The Apache Beam community is thrilled to announce its application to the first e
 
 Apache Beam does have help from excellent technical writers, but the documentation needs of the project often exceed their bandwidth. This is why we are excited about this program.
 
-After discussing ideas in the community, we have been able to find mentors, and frame two ideas that we think would be a great fit for an incoming tech writer to tackle. We hope you will find this opportunity interesting - and if you do, please get in touch by emailing the Apache Beam mailing list at [dev@beam.apache.org](mailto:dev@beam.apache.org) (you will need to subscribe first by emailing to [dev-subscribe@beam.apache.org](mailto:dev-subscribe@beam.apache.org)).  
+After discussing ideas in the community, we have been able to find mentors, and frame two ideas that we think would be a great fit for an incoming tech writer to tackle. We hope you will find this opportunity interesting - and if you do, please get in touch by emailing the Apache Beam mailing list at [dev@beam.apache.org](mailto:dev@beam.apache.org) (you will need to subscribe first by emailing to [dev-subscribe@beam.apache.org](mailto:dev-subscribe@beam.apache.org)).
 
 The project ideas available in Apache Beam are described below. Please take a look and ask any questions that you may have. We will be very happy to help you get onboarded with the project.
 

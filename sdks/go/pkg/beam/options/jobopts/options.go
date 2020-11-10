@@ -40,7 +40,7 @@ var (
 
 	// EnvironmentType is the environment type to run the user code.
 	EnvironmentType = flag.String("environment_type", "DOCKER",
-		"Environment Type. Possible options are DOCKER and PROCESS.")
+		"Environment Type. Possible options are DOCKER, and LOOPBACK.")
 
 	// EnvironmentConfig is the environment configuration for running the user code.
 	EnvironmentConfig = flag.String("environment_config",
@@ -99,12 +99,19 @@ func GetEnvironmentUrn(ctx context.Context) string {
 	switch env := strings.ToLower(*EnvironmentType); env {
 	case "process":
 		return "beam:env:process:v1"
+	case "loopback", "external":
+		return "beam:env:external:v1"
 	case "docker":
 		return "beam:env:docker:v1"
 	default:
 		log.Infof(ctx, "No environment type specified. Using default environment: '%v'", *EnvironmentType)
 		return "beam:env:docker:v1"
 	}
+}
+
+// IsLoopback returns whether the EnvironmentType is loopback.
+func IsLoopback() bool {
+	return strings.ToLower(*EnvironmentType) == "loopback"
 }
 
 // GetEnvironmentConfig returns the specified configuration for specified SDK Harness,

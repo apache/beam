@@ -171,7 +171,7 @@ side-input into the FanOut DoFn.
 
 So how do timers help? Well let's have a look at a new transform:
 
-Edit: Looping Timer State changed from Boolean to Long to allow for min value check.  
+Edit: Looping Timer State changed from Boolean to Long to allow for min value check.
 
 {{< highlight java >}}
 public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<String, Integer>> {

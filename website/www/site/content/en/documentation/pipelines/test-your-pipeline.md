@@ -28,129 +28,31 @@ After you test your pipeline using the `DirectRunner`, you can use the runner of
 
 The Beam SDKs provide a number of ways to unit test your pipeline code, from the lowest to the highest levels. From the lowest to the highest level, these are:
 
-*   You can test the individual function objects, such as [DoFn](/documentation/programming-guide/#pardo)s, inside your pipeline's core transforms.
-*   You can test an entire [Composite Transform](/documentation/programming-guide/#composite-transforms) as a unit.
+*   You can test the individual functions used in your pipeline.
+*   You can test an entire [Transform](/documentation/programming-guide/#composite-transforms) as a unit.
 *   You can perform an end-to-end test for an entire pipeline.
 
 To support unit testing, the Beam SDK for Java provides a number of test classes in the [testing package](https://github.com/apache/beam/tree/master/sdks/java/core/src/test/java/org/apache/beam/sdk). You can use these tests as references and guides.
 
-## Testing Individual DoFn Objects
+## Testing Transforms
 
-The code in your pipeline's `DoFn` functions runs often, and often across multiple Compute Engine instances. Unit-testing your `DoFn` objects before running them using a runner service can save a great deal of debugging time and energy.
-
-The Beam SDK for Java provides a convenient way to test an individual `DoFn` called [DoFnTester](https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/DoFnTesterTest.java), which is included in the SDK `Transforms` package.
-
-`DoFnTester`uses the [JUnit](https://junit.org) framework. To use `DoFnTester`, you'll need to do the following:
-
-1.  Create a `DoFnTester`. You'll need to pass an instance of the `DoFn` you want to test to the static factory method for `DoFnTester`.
-2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces [multiple outputs](/documentation/programming-guide#additional-outputs), you should also create the side inputs and the output tags.
-3.  Call `DoFnTester.processBundle` to process the main inputs.
-4.  Use JUnit's `Assert.assertThat` method to ensure the test outputs returned from `processBundle` match your expected values.
-
-### Creating a DoFnTester
-
-To create a `DoFnTester`, first create an instance of the `DoFn` you want to test. You then use that instance when you create a `DoFnTester` using the `.of()` static factory method:
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-  MyDoFn myDoFn = ...;
-
-  DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-{{< /highlight >}}
-
-### Creating Test Inputs
-
-You'll need to create one or more test inputs for `DoFnTester` to send to your `DoFn`. To create test inputs, simply create one or more input variables of the same input type that your `DoFn` accepts. In the case above:
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-String testInput = "test1";
-{{< /highlight >}}
-
-#### Side Inputs
-
-If your `DoFn` accepts side inputs, you can create those side inputs by using the method `DoFnTester.setSideInputs`.
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-PCollectionView<List<Integer>> sideInput = ...;
-Iterable<Integer> value = ...;
-fnTester.setSideInputInGlobalWindow(sideInput, value);
-{{< /highlight >}}
-
-See the `ParDo` documentation on [side inputs](/documentation/programming-guide/#side-inputs) for more information.
-
-#### Additional Outputs
-
-If your `DoFn` produces multiple output `PCollection`s, you'll need to set the
-appropriate `TupleTag` objects that you'll use to access each output. A `DoFn`
-with multiple outputs produces a `PCollectionTuple` for each output; you'll need
-to provide a `TupleTagList` that corresponds to each output in that tuple.
-
-Suppose your `DoFn` produces outputs of type `String` and `Integer`. You create
-`TupleTag` objects for each, and bundle them into a `TupleTagList`, then set it
-for the `DoFnTester` as follows:
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-TupleTag<String> tag1 = ...;
-TupleTag<Integer> tag2 = ...;
-TupleTagList tags = TupleTagList.of(tag1).and(tag2);
-
-fnTester.setOutputTags(tags);
-{{< /highlight >}}
-
-See the `ParDo` documentation on [additional outputs](/documentation/programming-guide/#additional-outputs) for more information.
-
-### Processing Test Inputs and Checking Results
-
-To process the inputs (and thus run the test on your `DoFn`), you call the method `DoFnTester.processBundle`. When you call `processBundle`, you pass one or more main test input values for your `DoFn`. If you set side inputs, the side inputs are available to each batch of main inputs that you provide.
-
-`DoFnTester.processBundle` returns a `List` of outputs—that is, objects of the same type as the `DoFn`'s specified output type. For a `DoFn<String, Integer>`, `processBundle` returns a `List<Integer>`:
-
-{{< highlight java >}}  
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-String testInput = "test1";
-List<Integer> testOutputs = fnTester.processBundle(testInput);
-{{< /highlight >}}
-
-To check the results of `processBundle`, you use JUnit's `Assert.assertThat` method to test if the `List` of outputs contains the values you expect:
-
-{{< highlight java >}}  
-String testInput = "test1";
-List<Integer> testOutputs = fnTester.processBundle(testInput);
-
-Assert.assertThat(testOutputs, Matchers.hasItems(...));
-
-// Process a larger batch in a single step.
-Assert.assertThat(fnTester.processBundle("input1", "input2", "input3"), Matchers.hasItems(...));
-{{< /highlight >}}
-
-## Testing Composite Transforms
-
-To test a composite transform you've created, you can use the following pattern:
+To test a transform you've created, you can use the following pattern:
 
 *   Create a `TestPipeline`.
 *   Create some static, known test input data.
 *   Use the `Create` transform to create a `PCollection` of your input data.
-*   `Apply` your composite transform to the input `PCollection` and save the resulting output `PCollection`.
+*   `Apply` your transform to the input `PCollection` and save the resulting output `PCollection`.
 *   Use `PAssert` and its subclasses to verify that the output `PCollection` contains the elements that you expect.
 
 ### TestPipeline
 
-[TestPipeline](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java) is a class included in the Beam Java SDK specifically for testing transforms. For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
+{{< paragraph class="language-java" >}}
+[TestPipeline](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java) is a class included in the Beam Java SDK specifically for testing transforms.
+{{< /paragraph >}}
+{{< paragraph class="language-py" >}}
+[TestPipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/testing/test_pipeline.py) is a class included in the Beam Python SDK specifically for testing transforms.
+{{< /paragraph >}}
+For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
 
 You create a `TestPipeline` as follows:
 
@@ -158,11 +60,16 @@ You create a `TestPipeline` as follows:
 Pipeline p = TestPipeline.create();
 {{< /highlight >}}
 
+{{< highlight py >}}
+with TestPipeline as p:
+    ...
+{{< /highlight >}}
+
 > **Note:** Read about testing unbounded pipelines in Beam in [this blog post](/blog/2016/10/20/test-stream.html).
 
 ### Using the Create Transform
 
-You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java `List`. See [Creating a PCollection](/documentation/programming-guide/#creating-a-pcollection) for more information.
+You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java or Python `List`. See [Creating a PCollection](/documentation/programming-guide/#creating-a-pcollection) for more information.
 
 ### PAssert
 
@@ -170,7 +77,7 @@ You can use the `Create` transform to create a `PCollection` out of a standard i
 
 For a given `PCollection`, you can use `PAssert` to verify the contents as follows:
 
-{{< highlight java >}}  
+{{< highlight java >}}
 PCollection<String> output = ...;
 
 // Check whether a PCollection contains some elements in any order.
@@ -181,7 +88,21 @@ PAssert.that(output)
   "elem2");
 {{< /highlight >}}
 
-Any code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're using Maven, you can link in `Hamcrest` by adding the following dependency to your project's `pom.xml` file:
+{{< highlight py >}}
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+output = ...
+
+# Check whether a PCollection contains some elements in any order.
+assert_that(
+    output,
+    equal_to(["elem1", "elem3", "elem2"]))
+{{< /highlight >}}
+
+{{< paragraph class="language-java" >}}
+Any Java code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're using Maven, you can link in `Hamcrest` by adding the following dependency to your project's `pom.xml` file:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 <dependency>
@@ -196,42 +117,79 @@ For more information on how these classes work, see the [org.apache.beam.sdk.tes
 
 ### An Example Test for a Composite Transform
 
-The following code shows a complete test for a composite transform. The test applies the `Count` transform to an input `PCollection` of `String` elements. The test uses the `Create` transform to create the input `PCollection` from a Java `List<String>`.
+The following code shows a complete test for a composite transform. The test applies the `Count` transform to an input `PCollection` of `String` elements. The test uses the `Create` transform to create the input `PCollection` from a `List<String>`.
 
-{{< highlight java >}}  
+{{< highlight java >}}
 public class CountTest {
 
-// Our static input data, which will make up the initial PCollection.
-static final String[] WORDS_ARRAY = new String[] {
-"hi", "there", "hi", "hi", "sue", "bob",
-"hi", "sue", "", "", "ZOW", "bob", ""};
+  // Our static input data, which will make up the initial PCollection.
+  static final String[] WORDS_ARRAY = new String[] {
+  "hi", "there", "hi", "hi", "sue", "bob",
+  "hi", "sue", "", "", "ZOW", "bob", ""};
 
-static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
+  static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
-public void testCount() {
-  // Create a test pipeline.
-  Pipeline p = TestPipeline.create();
+  public void testCount() {
+    // Create a test pipeline.
+    Pipeline p = TestPipeline.create();
 
-  // Create an input PCollection.
-  PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+    // Create an input PCollection.
+    PCollection<String> input = p.apply(Create.of(WORDS));
 
-  // Apply the Count transform under test.
-  PCollection<KV<String, Long>> output =
-    input.apply(Count.<String>perElement());
+    // Apply the Count transform under test.
+    PCollection<KV<String, Long>> output =
+      input.apply(Count.<String>perElement());
 
-  // Assert on the results.
-  PAssert.that(output)
-    .containsInAnyOrder(
-        KV.of("hi", 4L),
-        KV.of("there", 1L),
-        KV.of("sue", 2L),
-        KV.of("bob", 2L),
-        KV.of("", 3L),
-        KV.of("ZOW", 1L));
+    // Assert on the results.
+    PAssert.that(output)
+      .containsInAnyOrder(
+          KV.of("hi", 4L),
+          KV.of("there", 1L),
+          KV.of("sue", 2L),
+          KV.of("bob", 2L),
+          KV.of("", 3L),
+          KV.of("ZOW", 1L));
 
-  // Run the pipeline.
-  p.run();
+    // Run the pipeline.
+    p.run();
+  }
 }
+{{< /highlight >}}
+
+{{< highlight py >}}
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+class CountTest(unittest.TestCase):
+
+  # Our static input data, which will make up the initial PCollection.
+  WORDS = [
+      "hi", "there", "hi", "hi", "sue", "bob",
+      "hi", "sue", "", "", "ZOW", "bob", ""
+  ]
+
+  def test_count(self):
+    # Create a test pipeline.
+    with beam.TestPipeline as p:
+
+      # Create an input PCollection.
+      input = p | beam.Create(WORDS);
+
+      # Apply the Count transform under test.
+      output = input | beam.combiners.Count.PerElement();
+
+      # Assert on the results.
+      assert_that(
+        output,
+        equal_to([
+            ("hi", 4),
+            ("there", 1),
+            ("sue", 2),
+            ("bob", 2),
+            ("", 3),
+            ("ZOW", 1)])
+
+      # The pipeline will run and verify the results.
 {{< /highlight >}}
 
 ## Testing a Pipeline End-to-End
@@ -247,7 +205,7 @@ You can use the test classes in the Beam SDKs (such as `TestPipeline` and `PAsse
 
 ### Testing the WordCount Pipeline
 
-The following example code shows how one might test the [WordCount example pipeline](/get-started/wordcount-example/). `WordCount` usually reads lines from a text file for input data; instead, the test creates a Java `List<String>` containing some text lines and uses a `Create` transform to create an initial `PCollection`.
+The following example code shows how one might test the [WordCount example pipeline](/get-started/wordcount-example/). `WordCount` usually reads lines from a text file for input data; instead, the test creates a `List<String>` containing some text lines and uses a `Create` transform to create an initial `PCollection`.
 
 `WordCount`'s final transform (from the composite transform `CountWords`) produces a `PCollection<String>` of formatted word counts suitable for printing. Rather than write that `PCollection` to an output text file, our test pipeline uses `PAssert` to verify that the elements of the `PCollection` match those of a static `String` array containing our expected output data.
 
@@ -271,7 +229,7 @@ public class WordCountTest {
       Pipeline p = TestPipeline.create();
 
       // Create a PCollection from the WORDS static input data.
-      PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+      PCollection<String> input = p.apply(Create.of(WORDS));
 
       // Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
       PCollection<String> output = input.apply(new CountWords());
@@ -283,4 +241,33 @@ public class WordCountTest {
       p.run();
     }
 }
+{{< /highlight >}}
+
+{{< highlight py >}}
+class WordCountTest(unittest.TestCase):
+
+  # Our input data, which will make up the initial PCollection.
+  WORDS = [
+      "hi", "there", "hi", "hi", "sue", "bob",
+      "hi", "sue", "", "", "ZOW", "bob", ""
+  ]
+
+  # Our output data, which is the expected data that the final PCollection must match.
+  EXPECTED_COUNTS = ["hi: 5", "there: 1", "sue: 2", "bob: 2"]
+
+  # Example test that tests the pipeline's transforms.
+
+  def test_count_words(self):
+    with TestPipeline() as p:
+
+      # Create a PCollection from the WORDS static input data.
+      input = p | beam.Create(WORDS)
+
+      # Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
+      output = input | CountWords()
+
+      # Assert that the output PCollection matches the EXPECTED_COUNTS data.
+      assert_that(output, equal_to(EXPECTED_COUNTS), label='CheckOutput')
+
+    # The pipeline will run and verify the results.
 {{< /highlight >}}

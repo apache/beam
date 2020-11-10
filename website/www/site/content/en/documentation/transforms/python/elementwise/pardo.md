@@ -19,7 +19,7 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.core" class="Pardo" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="ParDo" >}}
 
 A transform for generic parallel processing.
 A `ParDo` transform considers each element in the input `PCollection`,
@@ -42,15 +42,15 @@ The `process` method is called once per element,
 and it can yield zero or more output elements.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `ParDo`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -71,15 +71,15 @@ In this example, we add new parameters to the `process` method to bind parameter
   object.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-`stdout` output:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
@@ -132,15 +132,15 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   For example, if the worker crashes, `teardown` might not be called.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-`stdout` output:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet

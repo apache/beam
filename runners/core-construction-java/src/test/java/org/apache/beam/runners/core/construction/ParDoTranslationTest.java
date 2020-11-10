@@ -29,6 +29,7 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -49,8 +50,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineLongFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -63,11 +62,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -78,6 +78,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link ParDoTranslation}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ParDoTranslationTest {
 
   /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
@@ -150,9 +153,9 @@ public class ParDoTranslationTest {
 
     @Test
     public void toTransformProto() throws Exception {
-      Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+      Map<TupleTag<?>, PCollection<?>> inputs = new HashMap<>();
       inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
-      inputs.putAll(parDo.getAdditionalInputs());
+      inputs.putAll(PValues.fullyExpand(parDo.getAdditionalInputs()));
       PCollectionTuple output = mainInput.apply(parDo);
 
       SdkComponents sdkComponents = SdkComponents.create();
@@ -162,7 +165,7 @@ public class ParDoTranslationTest {
       RunnerApi.PTransform protoTransform =
           PTransformTranslation.toProto(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
-                  "foo", inputs, output.expand(), parDo, p),
+                  "foo", inputs, PValues.expandOutput(output), parDo, p),
               sdkComponents);
       RunnerApi.Components components = sdkComponents.toComponents();
       RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
@@ -200,7 +203,8 @@ public class ParDoTranslationTest {
         Coder<?> timerCoder =
             CoderTranslation.fromProto(
                 components.getCodersOrThrow(timerFamilySpec.getTimerFamilyCoderId()),
-                rehydratedComponents);
+                rehydratedComponents,
+                TranslationContext.DEFAULT);
         assertEquals(
             org.apache.beam.runners.core.construction.Timer.Coder.of(
                 VarLongCoder.of(), GlobalWindow.Coder.INSTANCE),
@@ -249,7 +253,7 @@ public class ParDoTranslationTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof DropElementsFn;
     }
 
@@ -276,7 +280,7 @@ public class ParDoTranslationTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof SplittableDropElementsFn;
     }
 
@@ -335,7 +339,7 @@ public class ParDoTranslationTest {
     public void onProcessingTime(OnTimerContext context) {}
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof StateTimerDropElementsFn;
     }
 

@@ -1,0 +1,7 @@
+{"schema": [
+  {"name":"hd_demo_sk","type":"identifier"},
+  {"name":"hd_income_band_sk","type":"identifier"},
+  {"name":"hd_buy_potential","type":"char(15)"},
+  {"name":"hd_dep_count","type":"integer"},
+  {"name":"hd_vehicle_count","type":"integer"}
+]}

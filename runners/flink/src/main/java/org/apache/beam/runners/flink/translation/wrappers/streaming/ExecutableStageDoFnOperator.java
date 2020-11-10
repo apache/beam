@@ -33,8 +33,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -42,7 +40,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
@@ -57,12 +54,16 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandlers;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandlers.InMemoryFinalizer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -75,7 +76,6 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -85,6 +85,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -93,7 +94,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
@@ -106,6 +106,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +121,10 @@ import org.slf4j.LoggerFactory;
  */
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutableStageDoFnOperator.class);
@@ -132,11 +137,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   /** A lock which has to be acquired when concurrently accessing state and timers. */
   private final ReentrantLock stateBackendLock;
 
+  private final SerializablePipelineOptions pipelineOptions;
+
   private final boolean isStateful;
 
   private transient ExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient BundleProgressHandler progressHandler;
+  private transient InMemoryFinalizer finalizationHandler;
   private transient StageBundleFactory stageBundleFactory;
   private transient ExecutableStage executableStage;
   private transient SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner;
@@ -195,6 +203,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.outputMap = outputMap;
     this.sideInputIds = sideInputIds;
     this.stateBackendLock = new ReentrantLock();
+    this.pipelineOptions = new SerializablePipelineOptions(options);
   }
 
   @Override
@@ -205,7 +214,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @Override
   public void open() throws Exception {
     executableStage = ExecutableStage.fromPayload(payload);
-    initializeUserState(executableStage, getKeyedStateBackend());
+    initializeUserState(executableStage, getKeyedStateBackend(), pipelineOptions);
     // TODO: Wire this into the distributed cache and make it pluggable.
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
@@ -231,6 +240,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             }
           }
         };
+    finalizationHandler =
+        BundleFinalizationHandlers.inMemoryFinalizer(
+            stageBundleFactory.getInstructionRequestHandler());
 
     minEventTimeTimerTimestampInCurrentBundle = Long.MAX_VALUE;
     minEventTimeTimerTimestampInLastBundle = Long.MAX_VALUE;
@@ -239,6 +251,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     // This will call {@code createWrappingDoFnRunner} which needs the above dependencies.
     super.open();
+  }
+
+  @Override
+  public final void notifyCheckpointComplete(long checkpointId) throws Exception {
+    finalizationHandler.finalizeAllOutstandingBundles();
+    super.notifyCheckpointComplete(checkpointId);
   }
 
   private StateRequestHandler getStateRequestHandler(ExecutableStage executableStage) {
@@ -270,11 +288,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           StateRequestHandlers.forBagUserStateHandlerFactory(
               stageBundleFactory.getProcessBundleDescriptor(),
               new BagUserStateFactory(
-                  () -> UUID.randomUUID().toString(),
-                  keyedStateInternals,
-                  getKeyedStateBackend(),
-                  stateBackendLock,
-                  keyCoder));
+                  keyedStateInternals, getKeyedStateBackend(), stateBackendLock, keyCoder));
     } else {
       userStateRequestHandler = StateRequestHandler.unsupported();
     }
@@ -296,14 +310,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     /** Lock to hold whenever accessing the state backend. */
     private final Lock stateBackendLock;
     /** For debugging: The key coder used by the Runner. */
-    @Nullable private final Coder runnerKeyCoder;
+    private final @Nullable Coder runnerKeyCoder;
     /** For debugging: Same as keyedStateBackend but upcasted, to access key group meta info. */
-    @Nullable private final AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
-    /** Holds the valid cache token for user state for this operator. */
-    private final ByteString cacheToken;
+    private final @Nullable AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
 
     BagUserStateFactory(
-        IdGenerator cacheTokenGenerator,
         StateInternals stateInternals,
         KeyedStateBackend<ByteBuffer> keyedStateBackend,
         Lock stateBackendLock,
@@ -320,7 +331,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         this.keyStateBackendWithKeyGroupInfo = null;
       }
       this.runnerKeyCoder = runnerKeyCoder;
-      this.cacheToken = ByteString.copyFrom(cacheTokenGenerator.getId().getBytes(Charsets.UTF_8));
     }
 
     @Override
@@ -392,12 +402,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             bagState.clear();
           }
-        }
-
-        @Override
-        public Optional<ByteString> getCacheToken() {
-          // Cache tokens remains valid for the life time of the operator
-          return Optional.of(cacheToken);
         }
 
         private void prepareStateBackend(ByteString key) {
@@ -544,6 +548,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             stageBundleFactory,
             stateRequestHandler,
             progressHandler,
+            finalizationHandler,
             outputManager,
             outputMap,
             (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(),
@@ -652,6 +657,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final StageBundleFactory stageBundleFactory;
     private final StateRequestHandler stateRequestHandler;
     private final BundleProgressHandler progressHandler;
+    private final BundleFinalizationHandler finalizationHandler;
     private final BufferedOutputManager<OutputT> outputManager;
     private final Map<String, TupleTag<?>> outputMap;
 
@@ -675,6 +681,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         StageBundleFactory stageBundleFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler,
         BufferedOutputManager<OutputT> outputManager,
         Map<String, TupleTag<?>> outputMap,
         Coder<BoundedWindow> windowCoder,
@@ -685,6 +692,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       this.stageBundleFactory = stageBundleFactory;
       this.stateRequestHandler = stateRequestHandler;
       this.progressHandler = progressHandler;
+      this.finalizationHandler = finalizationHandler;
       this.outputManager = outputManager;
       this.outputMap = outputMap;
       this.timerRegistration = timerRegistration;
@@ -711,7 +719,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       try {
         remoteBundle =
             stageBundleFactory.getBundle(
-                receiverFactory, timerReceiverFactory, stateRequestHandler, progressHandler);
+                receiverFactory,
+                timerReceiverFactory,
+                stateRequestHandler,
+                progressHandler,
+                finalizationHandler);
         mainInputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
       } catch (Exception e) {
         throw new RuntimeException("Failed to start remote bundle", e);
@@ -789,6 +801,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         remoteBundle = null;
       }
     }
+
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
     boolean isBundleInProgress() {
       return remoteBundle != null;
@@ -917,6 +932,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     @Override
     public void setForWindow(InputT input, BoundedWindow window) {
       Preconditions.checkNotNull(input, "Null input passed to CleanupTimer");
+      if (window.equals(GlobalWindow.INSTANCE)) {
+        // Skip setting a cleanup timer for the global window as these timers
+        // lead to potentially unbounded state growth in the runner, depending on key cardinality.
+        // Cleanup for global window will be performed upon arrival of the final watermark.
+        return;
+      }
       // needs to match the encoding in prepareStateBackend for state request handler
       final ByteBuffer key = FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder);
       // Ensure the state backend is not concurrently accessed by the state requests
@@ -1008,7 +1029,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
    * Eagerly create the user state to work around https://jira.apache.org/jira/browse/FLINK-12653.
    */
   private static void initializeUserState(
-      ExecutableStage executableStage, @Nullable KeyedStateBackend keyedStateBackend) {
+      ExecutableStage executableStage,
+      @Nullable KeyedStateBackend keyedStateBackend,
+      SerializablePipelineOptions pipelineOptions) {
     executableStage
         .getUserStates()
         .forEach(
@@ -1017,7 +1040,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 keyedStateBackend.getOrCreateKeyedState(
                     StringSerializer.INSTANCE,
                     new ListStateDescriptor<>(
-                        ref.localName(), new CoderTypeSerializer<>(ByteStringCoder.of())));
+                        ref.localName(),
+                        new CoderTypeSerializer<>(ByteStringCoder.of(), pipelineOptions)));
               } catch (Exception e) {
                 throw new RuntimeException("Couldn't initialize user states.", e);
               }

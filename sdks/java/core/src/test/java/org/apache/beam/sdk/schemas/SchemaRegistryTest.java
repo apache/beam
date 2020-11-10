@@ -37,6 +37,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link SchemaRegistry}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SchemaRegistryTest {
   static final Schema EMPTY_SCHEMA = Schema.builder().build();
   static final Schema STRING_SCHEMA = Schema.builder().addStringField("string").build();

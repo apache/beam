@@ -31,8 +31,12 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Custom Function for Hashing. The combiner is combineUnordered, and accumulator is a HashCode. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
 
   /** Serializable Class to store the HashCode of input String. */
@@ -52,7 +56,7 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

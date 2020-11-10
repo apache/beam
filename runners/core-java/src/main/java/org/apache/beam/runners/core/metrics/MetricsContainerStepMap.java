@@ -37,6 +37,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Metrics containers by step.
@@ -97,7 +98,7 @@ public class MetricsContainerStepMap implements Serializable {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsContainerStepMap) {
       MetricsContainerStepMap metricsContainerStepMap = (MetricsContainerStepMap) object;
       return Objects.equals(metricsContainers, metricsContainerStepMap.metricsContainers)

@@ -61,6 +61,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /**
  * An {@link org.apache.beam.runners.core.construction.expansion.ExpansionService} useful for tests.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestExpansionService {
 
   private static final String TEST_PREFIX_URN = "beam:transforms:xlang:test:prefix";
@@ -164,8 +168,8 @@ public class TestExpansionService {
     private static Schema schema = new Schema.Parser().parse(rawSchema);
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder>> builder =
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> builder =
           ImmutableMap.builder();
       builder.put(TEST_PREFIX_URN, PrefixBuilder.class);
       builder.put(TEST_MULTI_URN, MultiBuilder.class);

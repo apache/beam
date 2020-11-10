@@ -22,11 +22,6 @@ import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery5;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -101,18 +96,6 @@ public class QueryTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void sqlQuery1MatchesModelBatch() {
-    queryMatchesModel("SqlQuery1TestBatch", new SqlQuery1(), new Query1Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void sqlQuery1MatchesModelStreaming() {
-    queryMatchesModel("SqlQuery1TestStreaming", new SqlQuery1(), new Query1Model(CONFIG), true);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
   public void query2MatchesModelBatch() {
     queryMatchesModel("Query2TestBatch", new Query2(CONFIG), new Query2Model(CONFIG), false);
   }
@@ -121,20 +104,6 @@ public class QueryTest {
   @Category(NeedsRunner.class)
   public void query2MatchesModelStreaming() {
     queryMatchesModel("Query2TestStreaming", new Query2(CONFIG), new Query2Model(CONFIG), true);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void sqlQuery2MatchesModelBatch() {
-    queryMatchesModel(
-        "SqlQuery2TestBatch", new SqlQuery2(CONFIG.auctionSkip), new Query2Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void sqlQuery2MatchesModelStreaming() {
-    queryMatchesModel(
-        "SqlQuery2TestStreaming", new SqlQuery2(CONFIG.auctionSkip), new Query2Model(CONFIG), true);
   }
 
   @Test
@@ -147,19 +116,6 @@ public class QueryTest {
   @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
   public void query3MatchesModelStreaming() {
     queryMatchesModel("Query3TestStreaming", new Query3(CONFIG), new Query3Model(CONFIG), true);
-  }
-
-  @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
-  public void sqlQuery3MatchesModelBatch() {
-    queryMatchesModel("SqlQuery3TestBatch", new SqlQuery3(CONFIG), new Query3Model(CONFIG), false);
-  }
-
-  @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
-  public void sqlQuery3MatchesModelStreaming() {
-    queryMatchesModel(
-        "SqlQuery3TestStreaming", new SqlQuery3(CONFIG), new Query3Model(CONFIG), true);
   }
 
   @Test
@@ -186,21 +142,6 @@ public class QueryTest {
     queryMatchesModel("Query5TestStreaming", new Query5(CONFIG), new Query5Model(CONFIG), true);
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
-  public void sqlQuery5MatchesModelBatch() {
-    queryMatchesModel("SqlQuery5TestBatch", new SqlQuery5(CONFIG), new Query5Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
-  public void sqlQuery5MatchesModelStreaming() {
-    queryMatchesModel(
-        "SqlQuery5TestStreaming", new SqlQuery5(CONFIG), new Query5Model(CONFIG), true);
-  }
-
   @Ignore("https://issues.apache.org/jira/browse/BEAM-3816")
   @Test
   @Category(NeedsRunner.class)
@@ -225,19 +166,6 @@ public class QueryTest {
   @Category(NeedsRunner.class)
   public void query7MatchesModelStreaming() {
     queryMatchesModel("Query7TestStreaming", new Query7(CONFIG), new Query7Model(CONFIG), true);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void sqlQuery7MatchesModelBatch() {
-    queryMatchesModel("SqlQuery7TestBatch", new SqlQuery7(CONFIG), new Query7Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void sqlQuery7MatchesModelStreaming() {
-    queryMatchesModel(
-        "SqlQuery7TestStreaming", new SqlQuery7(CONFIG), new Query7Model(CONFIG), true);
   }
 
   @Test

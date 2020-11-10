@@ -20,7 +20,7 @@
 # Go SDK (experimental)
 
 The Go SDK is currently an experimental feature of Apache Beam and
-not suitable for production use. It is based on the following initial 
+not suitable for production use. It is based on the following initial
 [design](https://s.apache.org/beam-go-sdk-design-rfc).
 
 ## How to run the examples
@@ -71,7 +71,7 @@ The debugging output is currently quite verbose and likely to change. The output
 file in this case:
 
 ```
-$ head /tmp/result.txt 
+$ head /tmp/result.txt
 while: 2
 darkling: 1
 rail'd: 1
@@ -119,11 +119,11 @@ Please use the [`sdk-go`](https://issues.apache.org/jira/issues/?jql=project%20%
 ### New to developing Go?
 https://tour.golang.org : The Go Tour gives you the basics of the language, interactively no installation required.
 
-https://github.com/campoy/go-tooling-workshop is a great start on learning good (optional) development tools for Go. 
+https://github.com/campoy/go-tooling-workshop is a great start on learning good (optional) development tools for Go.
 
 ### Developing Go Beam SDK on Github
 
-To make and test changes when working with Go, it's neecessary to clone your repository 
+To make and test changes when working with Go, it's neecessary to clone your repository
 in a subdirectory of your GOPATH. This permits existing gradle tools to use your in progress changes.
 
 ```
@@ -152,7 +152,7 @@ Follow the [contribution guide](https://beam.apache.org/contribute/contribution-
 ### Dependency management
 Until [BEAM-5379](https://issues.apache.org/jira/browse/BEAM-5379) is resolved,
 Beam locks versions of packages with the gogradle plugin. If new dependencies
-are added in a PR then the lock file needs to be updated. 
+are added in a PR then the lock file needs to be updated.
 From the `$GOPATH/src/github.com/apache/beam` directory run
 
 ```
@@ -163,7 +163,7 @@ $ ./gradlew :sdks:go:goLock
  to update the lock file, and test your code under the locked versions. gogradle
 will add vendor directories with the locked versions of the code.
 
-You can sanity check a PR on Jenkins by commenting `Run Go PostCommit` to trigger 
+You can sanity check a PR on Jenkins by commenting `Run Go PostCommit` to trigger
 the integration tests. This is important so that the Beam testing done on the
 jenkins cluster can produce consistent results, and have the packages available.
 

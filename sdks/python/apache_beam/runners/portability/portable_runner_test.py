@@ -21,14 +21,10 @@ from __future__ import print_function
 
 import inspect
 import logging
-import platform
-import signal
 import socket
 import subprocess
 import sys
-import threading
 import time
-import traceback
 import unittest
 
 import grpc
@@ -56,37 +52,10 @@ from apache_beam.transforms import userstate
 _LOGGER = logging.getLogger(__name__)
 
 
-# Disable timeout since this test implements its own.
-# TODO(BEAM-9011): Consider using pytest-timeout's mechanism instead.
-@pytest.mark.timeout(0)
 class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
-
-  TIMEOUT_SECS = 60
 
   # Controls job service interaction, not sdk harness interaction.
   _use_subprocesses = False
-
-  def setUp(self):
-    if platform.system() != 'Windows':
-
-      def handler(signum, frame):
-        msg = 'Timed out after %s seconds.' % self.TIMEOUT_SECS
-        print('=' * 20, msg, '=' * 20)
-        traceback.print_stack(frame)
-        threads_by_id = {th.ident: th for th in threading.enumerate()}
-        for thread_id, stack in sys._current_frames().items():
-          th = threads_by_id.get(thread_id)
-          print()
-          print('# Thread:', th or thread_id)
-          traceback.print_stack(stack)
-        raise BaseException(msg)
-
-      signal.signal(signal.SIGALRM, handler)
-      signal.alarm(self.TIMEOUT_SECS)
-
-  def tearDown(self):
-    if platform.system() != 'Windows':
-      signal.alarm(0)
 
   @classmethod
   def _pick_unused_port(cls):
@@ -197,7 +166,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         'data_buffer_time_limit_ms=1000')
     return options
 
-  def create_pipeline(self):
+  def create_pipeline(self, is_drain=False):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
   def test_pardo_state_with_custom_key_coder(self):
@@ -242,6 +211,18 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
 
   # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
+  def test_sdf_default_truncate_when_bounded(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
+
+  def test_sdf_default_truncate_when_unbounded(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
+
+  def test_sdf_with_truncate(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
+
+  def test_draining_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
+
 
 @unittest.skip("BEAM-7248")
 class PortableRunnerOptimized(PortableRunnerTest):
@@ -272,6 +253,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="[BEAM-10625]")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 

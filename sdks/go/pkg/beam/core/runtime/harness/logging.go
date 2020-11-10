@@ -18,6 +18,7 @@ package harness
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"time"
@@ -112,6 +113,10 @@ type remoteWriter struct {
 func (w *remoteWriter) Run(ctx context.Context) error {
 	for {
 		err := w.connect(ctx)
+		if err == io.EOF {
+			fmt.Fprintf(os.Stderr, "Remote logging shutting down.")
+			return nil
+		}
 
 		fmt.Fprintf(os.Stderr, "Remote logging failed: %v. Retrying in 5 sec ...\n", err)
 		time.Sleep(5 * time.Second)
@@ -143,7 +148,11 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 		recordLogEntries(list)
 
 		if err := client.Send(list); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to send message: %v\n%v", err, msg)
+			if err == io.EOF {
+				(&log.Standard{}).Log(ctx, log.SevInfo, 0, msg.GetMessage())
+				return io.EOF
+			}
+			fmt.Fprintf(os.Stderr, "Failed to send message: %v\n %v", err, msg.GetMessage())
 			return err
 		}
 

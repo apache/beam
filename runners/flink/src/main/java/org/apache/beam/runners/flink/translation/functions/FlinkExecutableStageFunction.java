@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -73,6 +74,10 @@ import org.slf4j.LoggerFactory;
  * coder. The coder's tags are determined by the output coder map. The resulting data set should be
  * further processed by a {@link FlinkExecutableStagePruningFunction}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     implements MapPartitionFunction<WindowedValue<InputT>, RawUnionValue>,
         GroupReduceFunction<WindowedValue<InputT>, RawUnionValue> {
@@ -101,6 +106,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
+  private transient BundleFinalizationHandler finalizationHandler;
   // Only initialized when the ExecutableStage is stateful
   private transient InMemoryBagUserStateFactory bagUserStateHandlerFactory;
   private transient ExecutableStage executableStage;
@@ -153,6 +159,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
             metricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
           }
         };
+    // TODO(BEAM-11021): Support bundle finalization in portable batch.
+    finalizationHandler =
+        bundleId -> {
+          throw new UnsupportedOperationException(
+              "Portable Flink runner doesn't support bundle finalization in batch mode. For more details, please refer to https://issues.apache.org/jira/browse/BEAM-11021.");
+        };
   }
 
   private StateRequestHandler getStateRequestHandler(
@@ -173,7 +185,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
     final StateRequestHandler userStateHandler;
     if (executableStage.getUserStates().size() > 0) {
-      bagUserStateHandlerFactory = new InMemoryBagUserStateFactory();
+      bagUserStateHandlerFactory = new InMemoryBagUserStateFactory<>();
       userStateHandler =
           StateRequestHandlers.forBagUserStateHandlerFactory(
               processBundleDescriptor, bagUserStateHandlerFactory);
@@ -199,7 +211,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
     ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
     try (RemoteBundle bundle =
-        stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
+        stageBundleFactory.getBundle(
+            receiverFactory, stateRequestHandler, progressHandler, finalizationHandler)) {
       processElements(iterable, bundle);
     }
   }

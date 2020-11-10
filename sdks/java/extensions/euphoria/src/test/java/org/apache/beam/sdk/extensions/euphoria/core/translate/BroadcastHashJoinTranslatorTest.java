@@ -32,8 +32,11 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests of {@link BroadcastHashJoinTranslator}. */
+@RunWith(JUnit4.class)
 public class BroadcastHashJoinTranslatorTest {
 
   @Rule public TestPipeline p = TestPipeline.create();

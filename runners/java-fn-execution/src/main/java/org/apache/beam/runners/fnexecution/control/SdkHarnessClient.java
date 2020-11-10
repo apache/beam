@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -62,6 +64,10 @@ import org.slf4j.LoggerFactory;
  * <p>This provides a Java-friendly wrapper around {@link InstructionRequestHandler} and {@link
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
 
@@ -177,14 +183,16 @@ public class SdkHarnessClient implements AutoCloseable {
      * }
      * }</pre>
      *
-     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization or
-     * attempts to checkpoint by returning a {@link BeamFnApi.DelayedBundleApplication}.
+     * <p>An exception during {@link #close()} will be thrown if the bundle requests finalization if
+     * {@link BundleFinalizationHandler} is {@code null} or attempts to checkpoint by returning a
+     * {@link BeamFnApi.DelayedBundleApplication} .
      */
     public ActiveBundle newBundle(
         Map<String, RemoteOutputReceiver<?>> outputReceivers,
         Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler) {
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler) {
       return newBundle(
           outputReceivers,
           timerReceivers,
@@ -197,12 +205,14 @@ public class SdkHarnessClient implements AutoCloseable {
                     "The %s does not have a registered bundle checkpoint handler.",
                     ActiveBundle.class.getSimpleName()));
           },
-          bundleId -> {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "The %s does not have a registered bundle finalization handler.",
-                    ActiveBundle.class.getSimpleName()));
-          });
+          finalizationHandler == null
+              ? bundleId -> {
+                throw new UnsupportedOperationException(
+                    String.format(
+                        "The %s does not have a registered bundle finalization handler.",
+                        ActiveBundle.class.getSimpleName()));
+              }
+              : finalizationHandler);
     }
 
     /**
@@ -310,6 +320,9 @@ public class SdkHarnessClient implements AutoCloseable {
       private final BundleSplitHandler splitHandler;
       private final BundleCheckpointHandler checkpointHandler;
       private final BundleFinalizationHandler finalizationHandler;
+      private final Phaser outstandingRequests;
+      private final AtomicBoolean isClosed;
+      private boolean bundleIsCompleted;
 
       private ActiveBundle(
           String bundleId,
@@ -330,6 +343,16 @@ public class SdkHarnessClient implements AutoCloseable {
         this.splitHandler = splitHandler;
         this.checkpointHandler = checkpointHandler;
         this.finalizationHandler = finalizationHandler;
+        this.outstandingRequests = new Phaser(1);
+        this.isClosed = new AtomicBoolean(false);
+
+        // Ensure that we mark when the bundle is completed
+        this.response.whenComplete(
+            (processBundleResponse, throwable) -> {
+              synchronized (ActiveBundle.this) {
+                this.bundleIsCompleted = true;
+              }
+            });
       }
 
       /** Returns an id used to represent this bundle. */
@@ -371,6 +394,12 @@ public class SdkHarnessClient implements AutoCloseable {
 
       @Override
       public void requestProgress() {
+        synchronized (this) {
+          if (bundleIsCompleted) {
+            return;
+          }
+          outstandingRequests.register();
+        }
         InstructionRequest request =
             InstructionRequest.newBuilder()
                 .setInstructionId(idGenerator.getId())
@@ -378,19 +407,27 @@ public class SdkHarnessClient implements AutoCloseable {
                     ProcessBundleProgressRequest.newBuilder().setInstructionId(bundleId).build())
                 .build();
         CompletionStage<InstructionResponse> response = fnApiControlClient.handle(request);
-        response.thenAccept(
-            instructionResponse -> {
-              // Don't forward empty responses.
-              if (ProcessBundleProgressResponse.getDefaultInstance()
-                  .equals(instructionResponse.getProcessBundleProgress())) {
-                return;
-              }
-              progressHandler.onProgress(instructionResponse.getProcessBundleProgress());
-            });
+        response
+            .whenComplete(
+                (instructionResponse, throwable) -> {
+                  // Don't forward empty responses.
+                  if (ProcessBundleProgressResponse.getDefaultInstance()
+                      .equals(instructionResponse.getProcessBundleProgress())) {
+                    return;
+                  }
+                  progressHandler.onProgress(instructionResponse.getProcessBundleProgress());
+                })
+            .whenComplete((instructionResponse, throwable) -> outstandingRequests.arrive());
       }
 
       @Override
       public void split(double fractionOfRemainder) {
+        synchronized (this) {
+          if (bundleIsCompleted) {
+            return;
+          }
+          outstandingRequests.register();
+        }
         Map<String, DesiredSplit> splits = new HashMap<>();
         for (Map.Entry<LogicalEndpoint, CloseableFnDataReceiver> ptransformToInput :
             inputReceivers.entrySet()) {
@@ -414,15 +451,17 @@ public class SdkHarnessClient implements AutoCloseable {
                         .build())
                 .build();
         CompletionStage<InstructionResponse> response = fnApiControlClient.handle(request);
-        response.thenAccept(
-            instructionResponse -> {
-              // Don't forward empty responses representing the failure to split.
-              if (ProcessBundleSplitResponse.getDefaultInstance()
-                  .equals(instructionResponse.getProcessBundleSplit())) {
-                return;
-              }
-              splitHandler.split(instructionResponse.getProcessBundleSplit());
-            });
+        response
+            .whenComplete(
+                (instructionResponse, throwable) -> {
+                  // Don't forward empty responses representing the failure to split.
+                  if (ProcessBundleSplitResponse.getDefaultInstance()
+                      .equals(instructionResponse.getProcessBundleSplit())) {
+                    return;
+                  }
+                  splitHandler.split(instructionResponse.getProcessBundleSplit());
+                })
+            .whenComplete((instructionResponse, throwable) -> outstandingRequests.arrive());
       }
 
       /**
@@ -440,6 +479,10 @@ public class SdkHarnessClient implements AutoCloseable {
        */
       @Override
       public void close() throws Exception {
+        if (isClosed.getAndSet(true)) {
+          return;
+        }
+
         Exception exception = null;
         for (CloseableFnDataReceiver<?> inputReceiver : inputReceivers.values()) {
           try {
@@ -456,6 +499,8 @@ public class SdkHarnessClient implements AutoCloseable {
           // We don't have to worry about the completion stage.
           if (exception == null) {
             BeamFnApi.ProcessBundleResponse completedResponse = MoreFutures.get(response);
+            outstandingRequests.arriveAndAwaitAdvance();
+
             progressHandler.onCompleted(completedResponse);
             if (completedResponse.getResidualRootsCount() > 0) {
               checkpointHandler.onCheckpoint(completedResponse);
@@ -524,6 +569,10 @@ public class SdkHarnessClient implements AutoCloseable {
     this.idGenerator = idGenerator;
     this.fnApiControlClient = fnApiControlClient;
     this.clientProcessors = new ConcurrentHashMap<>();
+  }
+
+  public InstructionRequestHandler getInstructionRequestHandler() {
+    return fnApiControlClient;
   }
 
   /**
@@ -663,8 +712,8 @@ public class SdkHarnessClient implements AutoCloseable {
 
     @Override
     public void accept(T input) throws Exception {
-      count += 1;
       delegate.accept(input);
+      count += 1;
     }
 
     @Override

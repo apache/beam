@@ -32,6 +32,7 @@ def mainClass = project.findProperty(mainClassProperty)
 def loadTestArgsProperty = "loadTest.args"
 
 def runnerProperty = "runner"
+def withDataflowWorkerJarProperty = "withDataflowWorkerJar"
 
 task run(type: Exec, dependsOn: installGcpTest) {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
@@ -40,6 +41,12 @@ task run(type: Exec, dependsOn: installGcpTest) {
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
         dependsOn ':sdks:python:sdist'
         loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+    }
+
+    String withDataflowWorkerJarArg = project.findProperty(withDataflowWorkerJarProperty).toString() ?: ""
+    if (withDataflowWorkerJarArg.toLowerCase() == 'true') {
+        dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
+        loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
     }
 
     setWorkingDir "${project.rootDir}/sdks/python"

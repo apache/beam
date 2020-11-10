@@ -25,9 +25,9 @@ import CommonJobProperties as commonJobProperties
  * for pre- and post- commit test jobs and unify them across the project.
  */
 class PostcommitJobBuilder {
-  private def scope;
-  private def jobDefinition;
-  private def job;
+  private def scope
+  private def jobDefinition
+  private def job
 
   PostcommitJobBuilder(scope, jobDefinition = {}) {
     this.scope = scope
@@ -45,10 +45,10 @@ class PostcommitJobBuilder {
    * @param jobDefinition Closure for the job.
    */
   static void postCommitJob(nameBase,
-                            triggerPhrase,
-                            githubUiHint,
-                            scope,
-                            jobDefinition = {}) {
+      triggerPhrase,
+      githubUiHint,
+      scope,
+      jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
     if (triggerPhrase) {
@@ -74,10 +74,10 @@ class PostcommitJobBuilder {
       }
 
       commonJobProperties.setPullRequestBuildTrigger(
-        delegate,
-        githubUiHint,
-        triggerPhrase,
-        !triggerOnPrCommit)
+          delegate,
+          githubUiHint,
+          triggerPhrase,
+          !triggerOnPrCommit)
     }
     ghprbBuilds.with(jobDefinition)
   }

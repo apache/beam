@@ -16,11 +16,15 @@
 
 from __future__ import absolute_import
 
+import contextlib
+import threading
 from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Optional
 from typing import TypeVar
+
+from apache_beam.dataframe import partitionings
 
 
 class Session(object):
@@ -38,6 +42,54 @@ class Session(object):
     return self._bindings[expr]
 
   def lookup(self, expr):  #  type: (Expression) -> Any
+    return self._bindings[expr]
+
+
+class PartitioningSession(Session):
+  """An extension of Session that enforces actual partitioning of inputs.
+
+  When evaluating an expression, inputs are partitioned according to its
+  `requires_partition_by` specifications, the expression is evaluated on each
+  partition separately, and the final result concatinated, as if this were
+  actually executed in a parallel manner.
+
+  For testing only.
+  """
+  def evaluate(self, expr):
+    import pandas as pd
+    import collections
+
+    def is_scalar(expr):
+      return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
+
+    if expr not in self._bindings:
+      if is_scalar(expr) or not expr.args():
+        result = super(PartitioningSession, self).evaluate(expr)
+      else:
+        scaler_args = [arg for arg in expr.args() if is_scalar(arg)]
+        parts = collections.defaultdict(
+            lambda: Session({arg: self.evaluate(arg)
+                             for arg in scaler_args}))
+        for arg in expr.args():
+          if not is_scalar(arg):
+            input = self.evaluate(arg)
+            for key, part in expr.requires_partition_by().test_partition_fn(
+                input):
+              parts[key]._bindings[arg] = part
+        if not parts:
+          parts[None]  # Create at least one entry.
+
+        results = []
+        for session in parts.values():
+          if any(len(session.lookup(arg)) for arg in expr.args()
+                 if not is_scalar(arg)):
+            results.append(session.evaluate(expr))
+        if results:
+          result = pd.concat(results)
+        else:
+          # Choose any single session.
+          result = next(iter(parts.values())).evaluate(expr)
+        self._bindings[expr] = result
     return self._bindings[expr]
 
 
@@ -60,7 +112,7 @@ class Expression(object):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
-    self._id = _id or '%s_%s' % (name, id(self))
+    self._id = _id or '%s_%s_%s' % (name, type(proxy).__name__, id(self))
 
   def proxy(self):  # type: () -> T
     return self._proxy
@@ -85,16 +137,20 @@ class Expression(object):
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
 
-  def requires_partition_by_index(self):  # type: () -> bool
-    """Whether this expression requires its argument(s) to be partitioned
-    by index."""
-    # TODO: It might be necessary to support partitioning by part of the index,
-    # for some args, which would require returning more than a boolean here.
+  def requires_partition_by(self):  # type: () -> partitionings.Partitioning
+    """Returns the partitioning, if any, require to evaluate this expression.
+
+    Returns partitioning.Nothing() to require no partitioning is required.
+    """
     raise NotImplementedError(type(self))
 
-  def preserves_partition_by_index(self):  # type: () -> bool
-    """Whether the result of this expression will be partitioned by index
-    whenever all of its inputs are partitioned by index."""
+  def preserves_partition_by(self):  # type: () -> partitionings.Partitioning
+    """Returns the partitioning, if any, preserved by this expression.
+
+    This gives an upper bound on the partitioning of its ouput.  The actual
+    partitioning of the output may be less strict (e.g. if the input was
+    less partitioned).
+    """
     raise NotImplementedError(type(self))
 
 
@@ -123,11 +179,11 @@ class PlaceholderExpression(Expression):
   def evaluate_at(self, session):
     return session.lookup(self)
 
-  def requires_partition_by_index(self):
-    return False
+  def requires_partition_by(self):
+    return partitionings.Nothing()
 
-  def preserves_partition_by_index(self):
-    return False
+  def preserves_partition_by(self):
+    return partitionings.Nothing()
 
 
 class ConstantExpression(Expression):
@@ -159,11 +215,11 @@ class ConstantExpression(Expression):
   def evaluate_at(self, session):
     return self._value
 
-  def requires_partition_by_index(self):
-    return False
+  def requires_partition_by(self):
+    return partitionings.Nothing()
 
-  def preserves_partition_by_index(self):
-    return False
+  def preserves_partition_by(self):
+    return partitionings.Nothing()
 
 
 class ComputedExpression(Expression):
@@ -175,8 +231,8 @@ class ComputedExpression(Expression):
       args,  # type: Iterable[Expression]
       proxy=None,  # type: Optional[T]
       _id=None,  # type: Optional[str]
-      requires_partition_by_index=True,  # type: bool
-      preserves_partition_by_index=False,  # type: bool
+      requires_partition_by=partitionings.Index(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
   ):
     """Initialize a computed expression.
 
@@ -191,20 +247,22 @@ class ComputedExpression(Expression):
         ComputedExpression will produce at execution time. If not provided, a
         proxy will be generated using `func` and the proxies of `args`.
       _id: (Optional) a string to uniquely identify this expression.
-      requires_partition_by_index: Whether this expression requires its
-        argument(s) to be partitioned by index.
-      preserves_partition_by_index: Whether the result of this expression will
-        be partitioned by index whenever all of its inputs are partitioned by
-        index.
+      requires_partition_by: The required (common) partitioning of the args.
+      preserves_partition_by: The level of partitioning preserved.
     """
+    if (not _get_allow_non_parallel() and
+        requires_partition_by == partitionings.Singleton()):
+      raise NonParallelOperation(
+          "Using non-parallel form of %s "
+          "outside of allow_non_parallel_operations block." % name)
     args = tuple(args)
     if proxy is None:
       proxy = func(*(arg.proxy() for arg in args))
     super(ComputedExpression, self).__init__(name, proxy, _id)
     self._func = func
     self._args = args
-    self._requires_partition_by_index = requires_partition_by_index
-    self._preserves_partition_by_index = preserves_partition_by_index
+    self._requires_partition_by = requires_partition_by
+    self._preserves_partition_by = preserves_partition_by
 
   def placeholders(self):
     return frozenset.union(
@@ -216,11 +274,11 @@ class ComputedExpression(Expression):
   def evaluate_at(self, session):
     return self._func(*(session.evaluate(arg) for arg in self._args))
 
-  def requires_partition_by_index(self):
-    return self._requires_partition_by_index
+  def requires_partition_by(self):
+    return self._requires_partition_by
 
-  def preserves_partition_by_index(self):
-    return self._preserves_partition_by_index
+  def preserves_partition_by(self):
+    return self._preserves_partition_by
 
 
 def elementwise_expression(name, func, args):
@@ -228,5 +286,27 @@ def elementwise_expression(name, func, args):
       name,
       func,
       args,
-      requires_partition_by_index=False,
-      preserves_partition_by_index=True)
+      requires_partition_by=partitionings.Nothing(),
+      preserves_partition_by=partitionings.Singleton())
+
+
+_ALLOW_NON_PARALLEL = threading.local()
+_ALLOW_NON_PARALLEL.value = False
+
+
+def _get_allow_non_parallel():
+  return _ALLOW_NON_PARALLEL.value
+
+
+@contextlib.contextmanager
+def allow_non_parallel_operations(allow=True):
+  if allow is None:
+    yield
+  else:
+    old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
+    yield
+    _ALLOW_NON_PARALLEL.value = old_value
+
+
+class NonParallelOperation(Exception):
+  pass

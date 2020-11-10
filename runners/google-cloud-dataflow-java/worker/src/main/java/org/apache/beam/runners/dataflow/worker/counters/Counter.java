@@ -19,10 +19,10 @@ package org.apache.beam.runners.dataflow.worker.counters;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A Counter enables the aggregation of a stream of values over time. The cumulative aggregate value
@@ -243,7 +243,7 @@ public class Counter<InputT, AccumT> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     } else if (o instanceof Counter) {

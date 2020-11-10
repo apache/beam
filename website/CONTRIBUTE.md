@@ -66,7 +66,7 @@ www/
 │   │   └── js
 │   └── themes
 │       └── docsy
-├── build_github_samples.sh
+├── build_code_samples.sh
 ├── check-links.sh                        # links checker
 └── package.json
 ```
@@ -119,9 +119,9 @@ That will create a markdown file `/www/site/content/en/blog/my-new-blogpost.md` 
 ---
 title: "My New Blogpost"
 date: "2020-04-20T14:02:57+02:00"
-categories: 
+categories:
   - blog
-authors: 
+authors:
   - "Your Name"
 ---
 ```
@@ -252,20 +252,20 @@ A table markdown here.
 {{< /table >}}
 ```
 
-### Github sample
+### Code sample
 
-To retrieve a piece of code in github.
+To retrieve a piece of code from Beam project.
 
 Usage:
 
 ```
-{{< github_sample "/path/to/file" selected_tag >}}
+{{< code_sample "path/to/file" selected_tag >}}
 ```
 
 Example:
 
 ```
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/user_score.py" extract_and_sum_score >}}
+{{< code_sample "sdks/python/apache_beam/examples/complete/game/user_score.py" extract_and_sum_score >}}
 ```
 
 ### Others
@@ -346,7 +346,7 @@ In order to add a new language into Apache Beam website, please follow this guid
 For more details of syntax, please refer to the [Hugo documentation](https://gohugo.io/content-management/multilingual/). Below is a step-by-step instructions of translating our website to Polish as an example.
 
 1. Configuring a new language
-  
+
 Firstly, we add the following params to our config file `/www/site/config.toml`.
 
 ```

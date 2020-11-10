@@ -26,7 +26,6 @@ import static org.powermock.api.mockito.PowerMockito.when;
 
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.DefaultGcpRegionFactory;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -44,6 +43,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link DataflowPipelineOptions}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowPipelineOptionsTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public ResetDateTimeProvider resetDateTimeProviderRule = new ResetDateTimeProvider();

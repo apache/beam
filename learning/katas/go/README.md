@@ -25,5 +25,5 @@ Please follow the below steps in order to setup the project properly:
 * Open the "Project" tool window, and select the "Course" view
 * Your project is ready
 
-For further instructions on how the GoLand Education works, you can refer 
+For further instructions on how the GoLand Education works, you can refer
 [here](https://www.jetbrains.com/help/education/educator-start-guide.html?section=Go).

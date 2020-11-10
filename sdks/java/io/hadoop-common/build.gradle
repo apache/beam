@@ -22,6 +22,12 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hadoop.common')
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
 ext.summary = "Library to add shared Hadoop classes among Beam IOs."
 
+configurations {
+  hadoopVersion285
+}
+
+def version285 = '2.8.5'
+
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   provided library.java.hadoop_client
@@ -30,4 +36,20 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
+  hadoopVersion285 "org.apache.hadoop:hadoop-client:$version285"
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$version285"
+  hadoopVersion285 "org.apache.hadoop:hadoop-mapreduce-client-core:$version285"
+}
+
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-client:$version285"
+    force "org.apache.hadoop:hadoop-common:$version285"
+    force "org.apache.hadoop:hadoop-mapreduce-client-core:$version285"
+  }
+}
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs Hadoop common tests with Hadoop version $version285"
+  include '**/*Test.class'
 }

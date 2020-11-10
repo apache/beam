@@ -35,9 +35,6 @@ lint.dependsOn lintPy37
 toxTask "mypyPy37", "py37-mypy"
 lint.dependsOn mypyPy37
 
-toxTask "formatter", "py3-yapf-check"
-check.dependsOn formatter
-
 apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.

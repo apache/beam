@@ -45,6 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
  * again.
  */
 @Internal
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class ZipFiles {
   private ZipFiles() {}
 
@@ -176,7 +177,7 @@ public final class ZipFiles {
    * @param zipFile the zip-file to write to.
    * @throws IOException the zipping failed, e.g. because the input was not readable.
    */
-  static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
+  public static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
     checkNotNull(sourceDirectory);
     checkNotNull(zipFile);
     checkArgument(

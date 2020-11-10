@@ -51,7 +51,7 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
        include "**/WindowedWordCountIT.class"
        forkEvery 1
        maxParallelForks 4
-   
+
        def preCommitBeamTestPipelineOptions = [
                "--project=${gcpProject}",
                "--region=${gcpRegion}",

@@ -151,6 +151,9 @@ class ThreadsafeRestrictionTracker(object):
       return self._deferred_residual, self._deferred_timestamp
     return None
 
+  def is_bounded(self):
+    return self._restriction_tracker.is_bounded()
+
 
 class RestrictionTrackerView(object):
   """A DoFn view of thread-safe RestrictionTracker.
@@ -177,6 +180,9 @@ class RestrictionTrackerView(object):
 
   def defer_remainder(self, deferred_time=None):
     self._threadsafe_restriction_tracker.defer_remainder(deferred_time)
+
+  def is_bounded(self):
+    self._threadsafe_restriction_tracker.is_bounded()
 
 
 class ThreadsafeWatermarkEstimator(object):

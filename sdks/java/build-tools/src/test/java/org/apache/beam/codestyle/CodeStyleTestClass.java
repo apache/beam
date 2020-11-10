@@ -18,11 +18,12 @@
 package org.apache.beam.codestyle;
 
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Class to be formatted using beam-codestyle.xml to test it is configured correctly. */
 public class CodeStyleTestClass {
 
-  public static MyClass withSideInputs(List<?>... sideInputs) {
+  public static @Nullable MyClass withSideInputs(List<?>... sideInputs) {
     return new MyClass().myMethod(sideInputs);
   }
 
@@ -33,7 +34,7 @@ public class CodeStyleTestClass {
 
     MyClass() {}
 
-    public MyClass myMethod(List<?>... sideInputs) {
+    public @Nullable MyClass myMethod(List<?>... sideInputs) {
       return null;
     }
   }

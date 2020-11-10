@@ -47,6 +47,9 @@ import org.slf4j.LoggerFactory;
  * <p>See <a href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
  * Finalize Bundles</a> for further details.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FinalizeBundleHandler {
 
   /** A {@link BundleFinalizer.Callback} and expiry time pair. */

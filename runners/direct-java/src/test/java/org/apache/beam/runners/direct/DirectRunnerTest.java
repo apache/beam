@@ -45,7 +45,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -94,6 +93,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -106,6 +106,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for basic {@link DirectRunner} functionality. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
@@ -328,8 +332,9 @@ public class DirectRunnerTest implements Serializable {
     // The pipeline should never complete;
     assertThat(result.getState(), is(State.RUNNING));
     // Must time out, otherwise this test will never complete
-    result.waitUntilFinish(Duration.millis(1L));
-    assertEquals(null, result.getState());
+    assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
+    // Ensure multiple calls complete
+    assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
   }
 
   private static final AtomicLong TEARDOWN_CALL = new AtomicLong(-1);
@@ -600,7 +605,6 @@ public class DirectRunnerTest implements Serializable {
     Pipeline p = getPipeline();
     p.apply(GenerateSequence.from(0)).setCoder(new LongNoDecodeCoder());
 
-    thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
     p.run();
   }

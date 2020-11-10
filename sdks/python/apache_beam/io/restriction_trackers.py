@@ -51,6 +51,9 @@ class OffsetRange(object):
   def __hash__(self):
     return hash((type(self), self.start, self.stop))
 
+  def __repr__(self):
+    return 'OffsetRange(start=%s, stop=%s)' % (self.start, self.stop)
+
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
     max_split_size = max(
@@ -92,7 +95,9 @@ class OffsetRestrictionTracker(RestrictionTracker):
     self._checkpointed = False
 
   def check_done(self):
-    if self._last_claim_attempt < self._range.stop - 1:
+    if (self._range.start != self._range.stop and
+        (self._last_claim_attempt is None or
+         self._last_claim_attempt < self._range.stop - 1)):
       raise ValueError(
           'OffsetRestrictionTracker is not done since work in range [%s, %s) '
           'has not been claimed.' % (
@@ -145,10 +150,10 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def try_split(self, fraction_of_remainder):
     if not self._checkpointed:
-      if self._current_position is None:
+      if self._last_claim_attempt is None:
         cur = self._range.start - 1
       else:
-        cur = self._current_position
+        cur = self._last_claim_attempt
       split_point = (
           cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
       if split_point < self._range.stop:
@@ -156,3 +161,6 @@ class OffsetRestrictionTracker(RestrictionTracker):
           self._checkpointed = True
         self._range, residual_range = self._range.split_at(split_point)
         return self._range, residual_range
+
+  def is_bounded(self):
+    return True

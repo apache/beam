@@ -17,6 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
+import com.google.auto.value.AutoValue;
+import java.util.Collections;
+import java.util.List;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -34,15 +43,6 @@ package org.apache.beam.sdk.extensions.sql.impl;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import static java.util.stream.Collectors.toList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
-import com.google.auto.value.AutoValue;
-import java.util.Collections;
-import java.util.List;
 
 /** Represents a parsed table name that is specified in a FROM clause (and other places). */
 @AutoValue

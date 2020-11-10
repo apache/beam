@@ -17,10 +17,18 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hdfs')
+applyJavaNature(
+
+  automaticModuleName: 'org.apache.beam.sdk.io.hdfs')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
+
+configurations {
+  hadoopVersion285
+}
+
+def hadoop_285_version = '2.8.5'
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
@@ -40,4 +48,20 @@ dependencies {
   testCompile library.java.hadoop_hdfs_tests
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersion285 "org.apache.hadoop:hadoop-client:$hadoop_285_version"
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+  hadoopVersion285 "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+}
+
+configurations.hadoopVersion285 {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-client:$hadoop_285_version"
+    force "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+    force "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_285_version"
+  }
+}
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs Hadoop file system tests with Hadoop version $hadoop_285_version"
+  include '**/*Test.class'
 }

@@ -25,13 +25,13 @@ Beam SQL has additional extensions leveraging Beam’s unified batch/streaming m
 ## Query syntax
 Query statements scan one or more tables or expressions and return the computed result rows. For more information about query statements in Beam Calcite SQL, see the [Query syntax](/documentation/dsls/sql/calcite/query-syntax) reference.
 
-## Lexical structure 
+## Lexical structure
 A Beam SQL statement comprises a series of tokens. For more information about tokens in Beam Calcite SQL, see the [Lexical structure](/documentation/dsls/sql/calcite/lexical) reference.
 
 ## Data types
 Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. For more information about scalar data in Beam Calcite SQL, see the [Data types](/documentation/dsls/sql/calcite/data-types) reference.
 
-## Functions and operators  
+## Functions and operators
 The following table summarizes the Apache Calcite functions and operators supported by Beam Calcite SQL.
 
 <table class="table-bordered table-striped">

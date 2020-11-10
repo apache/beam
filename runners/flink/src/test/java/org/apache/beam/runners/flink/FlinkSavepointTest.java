@@ -20,11 +20,9 @@ package org.apache.beam.runners.flink;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -35,7 +33,6 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -83,6 +80,10 @@ import org.slf4j.LoggerFactory;
  * running pipeline, shutting down the pipeline, and restarting the pipeline from the savepoint with
  * a different parallelism.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkSavepointTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSavepointTest.class);
@@ -97,7 +98,7 @@ public class FlinkSavepointTest implements Serializable {
   @ClassRule public static transient TemporaryFolder tempFolder = new TemporaryFolder();
 
   /** Each test has a timeout of 60 seconds (for safety). */
-  @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
+  @Rule public Timeout timeout = new Timeout(2, TimeUnit.MINUTES);
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -138,10 +139,7 @@ public class FlinkSavepointTest implements Serializable {
         flinkCluster.cancelJob(jobStatusMessage.getJobId()).get();
       }
     }
-    while (!flinkCluster.listJobs().get().stream()
-        .allMatch(job -> job.getJobState().isTerminalState())) {
-      Thread.sleep(50);
-    }
+    ensureNoJobRunning();
   }
 
   @Test
@@ -155,7 +153,7 @@ public class FlinkSavepointTest implements Serializable {
   }
 
   private void runSavepointAndRestore(boolean isPortablePipeline) throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
     // Initial parallelism
     options.setParallelism(2);
@@ -175,6 +173,7 @@ public class FlinkSavepointTest implements Serializable {
     }
     oneShotLatch.await();
     String savepointDir = takeSavepointAndCancelJob(jobID);
+    ensureNoJobRunning();
 
     oneShotLatch = new CountDownLatch(1);
     // Increase parallelism
@@ -228,19 +227,15 @@ public class FlinkSavepointTest implements Serializable {
   }
 
   private String getFlinkMaster() throws Exception {
-    final URI uri;
-    Method getRestAddress = flinkCluster.getClass().getMethod("getRestAddress");
-    if (getRestAddress.getReturnType().equals(URI.class)) {
-      // Flink 1.5 way
-      uri = (URI) getRestAddress.invoke(flinkCluster);
-    } else if (getRestAddress.getReturnType().equals(CompletableFuture.class)) {
-      @SuppressWarnings("unchecked")
-      CompletableFuture<URI> future = (CompletableFuture<URI>) getRestAddress.invoke(flinkCluster);
-      uri = future.get();
-    } else {
-      throw new RuntimeException("Could not determine Rest address for this Flink version.");
-    }
+    URI uri = flinkCluster.getRestAddress().get();
     return uri.getHost() + ":" + uri.getPort();
+  }
+
+  private void ensureNoJobRunning() throws Exception {
+    while (!flinkCluster.listJobs().get().stream()
+        .allMatch(job -> job.getJobState().isTerminalState())) {
+      Thread.sleep(50);
+    }
   }
 
   private JobID waitForJobToBeReady() throws InterruptedException, ExecutionException {

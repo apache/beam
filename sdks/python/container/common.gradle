@@ -1,0 +1,80 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
+
+description = "Apache Beam :: SDKs :: Python :: Container :: Python ${pythonVersionSuffix} Container"
+
+configurations {
+  sdkSourceTarball
+  sdkHarnessLauncher
+}
+
+dependencies {
+  sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
+  sdkHarnessLauncher project(path: ":sdks:python:container", configuration: "sdkHarnessLauncher")
+}
+
+task copyDockerfileDependencies(type: Copy) {
+  from configurations.sdkSourceTarball
+  from file("../base_image_requirements.txt")
+  into "build/target"
+  if(configurations.sdkSourceTarball.isEmpty()) {
+      throw new StopExecutionException();
+  }
+}
+
+task copyLicenseScripts(type: Copy){
+  from ("../license_scripts")
+  into "build/target/license_scripts"
+}
+
+task copyLauncherDependencies(type: Copy) {
+  from configurations.sdkHarnessLauncher
+  into "build/target/launcher"
+  if(configurations.sdkHarnessLauncher.isEmpty()) {
+      throw new StopExecutionException();
+  }
+}
+
+docker {
+  name containerImageName(
+          name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk",
+          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                  project.rootProject["docker-repository-root"] :
+                  project.docker_image_default_repo_root,
+          tag: project.rootProject.hasProperty(["docker-tag"]) ?
+                  project.rootProject["docker-tag"] : project.sdk_version)
+  files "../Dockerfile", "./build"
+  buildArgs(['py_version': "${project.ext.pythonVersion}",
+             'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+                     project.rootProject.hasProperty(["isRelease"])])
+}
+
+dockerPrepare.dependsOn copyLauncherDependencies
+dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn copyLicenseScripts
+
+if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+  task copyGolangLicenses(type: Copy) {
+    from "${project(':release:go-licenses:py').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:py:createLicenses'
+  }
+  dockerPrepare.dependsOn 'copyGolangLicenses'
+}

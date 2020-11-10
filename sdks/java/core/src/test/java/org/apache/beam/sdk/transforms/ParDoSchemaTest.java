@@ -43,7 +43,6 @@ import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -70,6 +69,9 @@ import org.junit.runners.JUnit4;
 /** Test {@link Schema} support. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ParDoSchemaTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -653,7 +655,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, DataflowPortabilityApiUnsupported.class})
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
   public void testRowBagState() {
     final String stateId = "foo";
 
@@ -719,7 +721,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, DataflowPortabilityApiUnsupported.class})
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
   public void tesBagStateSchemaInference() throws NoSuchSchemaException {
     final String stateId = "foo";
 
@@ -769,7 +771,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, DataflowPortabilityApiUnsupported.class})
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
   public void testSetStateSchemaInference() throws NoSuchSchemaException {
     final String stateId = "foo";
 

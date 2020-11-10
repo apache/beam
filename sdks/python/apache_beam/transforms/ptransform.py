@@ -40,6 +40,7 @@ from __future__ import absolute_import
 
 import copy
 import itertools
+import logging
 import operator
 import os
 import sys
@@ -53,6 +54,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -68,13 +70,16 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.portability import python_urns
+from apache_beam.pvalue import DoOutputsTuple
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
+from apache_beam.typehints.decorators import IOTypeHints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
+from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
@@ -93,10 +98,13 @@ __all__ = [
     'label_from_callable',
 ]
 
+_LOGGER = logging.getLogger(__name__)
+
 T = TypeVar('T')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
 ConstructorFn = Callable[
     ['beam_runner_api_pb2.PTransform', Optional[Any], 'PipelineContext'], Any]
+ptransform_fn_typehints_enabled = False
 
 
 class _PValueishTransform(object):
@@ -133,11 +141,13 @@ class _SetInputPValues(_PValueishTransform):
 # Caches to allow for materialization of values when executing a pipeline
 # in-process, in eager mode.  This cache allows the same _MaterializedResult
 # object to be accessed and used despite Runner API round-trip serialization.
-_pipeline_materialization_cache = {}
+_pipeline_materialization_cache = {
+}  # type: Dict[Tuple[int, int], Dict[int, _MaterializedResult]]
 _pipeline_materialization_lock = threading.Lock()
 
 
 def _allocate_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -145,6 +155,7 @@ def _allocate_materialized_pipeline(pipeline):
 
 
 def _allocate_materialized_result(pipeline):
+  # type: (Pipeline) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -159,6 +170,7 @@ def _allocate_materialized_result(pipeline):
 
 
 def _get_materialized_result(pipeline_id, result_id):
+  # type: (int, int) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     if (pid, pipeline_id) not in _pipeline_materialization_cache:
@@ -169,6 +181,7 @@ def _get_materialized_result(pipeline_id, result_id):
 
 
 def _release_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -177,9 +190,10 @@ def _release_materialized_pipeline(pipeline):
 
 class _MaterializedResult(object):
   def __init__(self, pipeline_id, result_id):
+    # type: (int, int) -> None
     self._pipeline_id = pipeline_id
     self._result_id = result_id
-    self.elements = []
+    self.elements = []  # type: List[Any]
 
   def __reduce__(self):
     # When unpickled (during Runner API roundtrip serailization), get the
@@ -240,20 +254,6 @@ class _FinalizeMaterialization(_PValueishTransform):
       return node
     else:
       return self.visit_nested(node)
-
-
-class _GetPValues(_PValueishTransform):
-  def visit(self, node, pvalues):
-    if isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
-      pvalues.append(node)
-    else:
-      self.visit_nested(node, pvalues)
-
-
-def get_nested_pvalues(pvalueish):
-  pvalues = []
-  _GetPValues().visit(pvalueish, pvalues)
-  return pvalues
 
 
 def get_named_nested_pvalues(pvalueish):
@@ -364,6 +364,14 @@ class PTransform(WithTypeHints, HasDisplayData):
     # type: () -> str
     return self.__class__.__name__
 
+  def default_type_hints(self):
+    fn_type_hints = IOTypeHints.from_callable(self.expand)
+    if fn_type_hints is not None:
+      fn_type_hints = fn_type_hints.strip_pcoll()
+
+    # Prefer class decorator type hints for backwards compatibility.
+    return get_type_hints(self.__class__).with_defaults(fn_type_hints)
+
   def with_input_types(self, input_type_hint):
     """Annotates the input type of a :class:`PTransform` with a type-hint.
 
@@ -433,6 +441,8 @@ class PTransform(WithTypeHints, HasDisplayData):
     root_hint = (
         arg_hints[0] if len(arg_hints) == 1 else arg_hints or kwarg_hints)
     for context, pvalue_, hint in _ZipPValues().visit(pvalueish, root_hint):
+      if isinstance(pvalue_, DoOutputsTuple):
+        continue
       if pvalue_.element_type is None:
         # TODO(robertwb): It's a bug that we ever get here. (typecheck)
         continue
@@ -666,7 +676,8 @@ class PTransform(WithTypeHints, HasDisplayData):
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
-    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
+    # typing: only ParDo supports extra_kwargs
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(BEAM-3812): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
@@ -715,6 +726,14 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def runner_api_requires_keyed_input(self):
     return False
+
+  def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
+    # type: (str, Tuple[str, Any]) -> None
+
+    """Adds a consumer transform's input type hints to our output type
+    constraints, which is used during performance runtime type-checking.
+    """
+    pass
 
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
@@ -932,8 +951,6 @@ class _PTransformFnPTransform(PTransform):
 def ptransform_fn(fn):
   """A decorator for a function-based PTransform.
 
-  Experimental; no backwards-compatibility guarantees.
-
   Args:
     fn: A function implementing a custom PTransform.
 
@@ -947,11 +964,15 @@ def ptransform_fn(fn):
   resulting PCollection. For example::
 
     @ptransform_fn
+    @beam.typehints.with_input_types(..)
+    @beam.typehints.with_output_types(..)
     def CustomMapper(pcoll, mapfn):
       return pcoll | ParDo(mapfn)
 
   The equivalent approach using PTransform subclassing::
 
+    @beam.typehints.with_input_types(..)
+    @beam.typehints.with_output_types(..)
     class CustomMapper(PTransform):
 
       def __init__(self, mapfn):
@@ -969,11 +990,28 @@ def ptransform_fn(fn):
   Note that for both solutions the underlying implementation of the pipe
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
+
+  Type hint support needs to be enabled via the
+  --type_check_additional=ptransform_fn flag in Beam 2.
+  If CustomMapper is a Cython function, you can still specify input and output
+  types provided the decorators appear before @ptransform_fn.
   """
   # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
   @wraps(fn)
   def callable_ptransform_factory(*args, **kwargs):
-    return _PTransformFnPTransform(fn, *args, **kwargs)
+    res = _PTransformFnPTransform(fn, *args, **kwargs)
+    if ptransform_fn_typehints_enabled:
+      # Apply type hints applied before or after the ptransform_fn decorator,
+      # falling back on PTransform defaults.
+      # If the @with_{input,output}_types decorator comes before ptransform_fn,
+      # the type hints get applied to this function. If it comes after they will
+      # get applied to fn, and @wraps will copy the _type_hints attribute to
+      # this function.
+      type_hints = get_type_hints(callable_ptransform_factory)
+      res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
+      _LOGGER.debug(
+          'type hints for %s: %s', res.default_label(), res.get_type_hints())
+    return res
 
   return callable_ptransform_factory
 

@@ -30,10 +30,8 @@ import logging
 
 import apache_beam as beam
 from apache_beam import runners
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.direct import direct_runner
-from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
@@ -56,8 +54,6 @@ class InteractiveRunner(runners.PipelineRunner):
   def __init__(
       self,
       underlying_runner=None,
-      cache_dir=None,
-      cache_format='text',
       render_option=None,
       skip_display=True,
       force_compute=True,
@@ -66,9 +62,6 @@ class InteractiveRunner(runners.PipelineRunner):
 
     Args:
       underlying_runner: (runner.PipelineRunner)
-      cache_dir: (str) the directory where PCollection caches are kept
-      cache_format: (str) the file format that should be used for saving
-          PCollection caches. Available options are 'text' and 'tfrecord'.
       render_option: (str) this parameter decides how the pipeline graph is
           rendered. See display.pipeline_graph_renderer for available options.
       skip_display: (bool) whether to skip display operations when running the
@@ -84,10 +77,6 @@ class InteractiveRunner(runners.PipelineRunner):
     """
     self._underlying_runner = (
         underlying_runner or direct_runner.DirectRunner())
-    if not ie.current_env().cache_manager():
-      ie.current_env().set_cache_manager(
-          cache.FileBasedCacheManager(cache_dir, cache_format))
-    self._cache_manager = ie.current_env().cache_manager()
     self._render_option = render_option
     self._in_session = False
     self._skip_display = skip_display
@@ -133,19 +122,12 @@ class InteractiveRunner(runners.PipelineRunner):
       _LOGGER.info('Ending session.')
       exit(None, None, None)
 
-  def cleanup(self):
-    self._cache_manager.cleanup()
-
   def apply(self, transform, pvalueish, options):
     # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
-    # TODO(BEAM-9322): Once nested PCollection naming schemes have been ironed
-    # out, this can be removed.
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
-    if not ie.current_env().options.enable_capture_replay:
+    if not ie.current_env().options.enable_recording_replay:
       capture_control.evict_captured_data()
     if self._force_compute:
       ie.current_env().evict_computed_pcollections()
@@ -168,8 +150,13 @@ class InteractiveRunner(runners.PipelineRunner):
       if (background_caching_job.has_source_to_cache(user_pipeline) and
           not background_caching_job.is_a_test_stream_service_running(
               user_pipeline)):
-        streaming_cache_manager = ie.current_env().cache_manager()
-        if streaming_cache_manager:
+        streaming_cache_manager = ie.current_env().get_cache_manager(
+            user_pipeline)
+
+        # Only make the server if it doesn't exist already.
+        if (streaming_cache_manager and
+            not ie.current_env().get_test_stream_service_controller(
+                user_pipeline)):
 
           def exception_handler(e):
             _LOGGER.error(str(e))
@@ -264,7 +251,8 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     WindowedValues. Otherwise, return the element as itself.
     """
     key = self._pipeline_instrument.cache_key(pcoll)
-    cache_manager = ie.current_env().cache_manager()
+    cache_manager = ie.current_env().get_cache_manager(
+        self._pipeline_instrument.user_pipeline)
     if cache_manager.exists('full', key):
       coder = cache_manager.load_pcoder('full', key)
       reader, _ = cache_manager.read('full', key)

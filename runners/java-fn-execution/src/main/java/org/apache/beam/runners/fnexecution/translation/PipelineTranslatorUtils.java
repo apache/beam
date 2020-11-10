@@ -47,10 +47,15 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 
 /** Utilities for pipeline translation. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class PipelineTranslatorUtils {
   private PipelineTranslatorUtils() {}
 
@@ -162,5 +167,33 @@ public final class PipelineTranslatorUtils {
       throw new RuntimeException(
           String.format(Locale.ENGLISH, "Failed to process timer: %s", timerValue));
     }
+  }
+
+  public static <T> WindowedValue.WindowedValueCoder<T> getWindowedValueCoder(
+      String pCollectionId, RunnerApi.Components components) {
+    RunnerApi.PCollection pCollection = components.getPcollectionsOrThrow(pCollectionId);
+    PipelineNode.PCollectionNode pCollectionNode =
+        PipelineNode.pCollection(pCollectionId, pCollection);
+    WindowedValue.WindowedValueCoder<T> coder;
+    try {
+      coder =
+          (WindowedValue.WindowedValueCoder)
+              WireCoders.instantiateRunnerWireCoder(pCollectionNode, components);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return coder;
+  }
+
+  public static String getInputId(PipelineNode.PTransformNode transformNode) {
+    return Iterables.getOnlyElement(transformNode.getTransform().getInputsMap().values());
+  }
+
+  public static String getOutputId(PipelineNode.PTransformNode transformNode) {
+    return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
+  }
+
+  public static String getExecutableStageIntermediateId(PipelineNode.PTransformNode transformNode) {
+    return transformNode.getId();
   }
 }

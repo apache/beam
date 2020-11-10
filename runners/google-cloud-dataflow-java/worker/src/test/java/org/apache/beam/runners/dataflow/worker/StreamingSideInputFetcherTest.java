@@ -64,6 +64,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StreamingSideInputFetcher}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingSideInputFetcherTest {
 
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
@@ -78,7 +81,10 @@ public class StreamingSideInputFetcherTest {
   // Suppressing the rawtype cast to StateInternals. Because Mockito causes a covariant ?
   // to become a contravariant ?, it is not possible to cast state to an appropriate type
   // without rawtypes.
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
@@ -202,6 +208,7 @@ public class StreamingSideInputFetcherTest {
   private TimerData createTimer(long timestamp) {
     return TimerData.of(
         StateNamespaces.window(IntervalWindow.getCoder(), createWindow(timestamp)),
+        new Instant(timestamp),
         new Instant(timestamp),
         TimeDomain.EVENT_TIME);
   }

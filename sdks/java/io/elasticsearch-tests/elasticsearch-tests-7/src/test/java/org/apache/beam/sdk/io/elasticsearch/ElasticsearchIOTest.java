@@ -47,6 +47,9 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 // use cluster of 1 node that has data + master roles
 @ESIntegTestCase.ClusterScope(scope = SUITE, numDataNodes = 1, supportsDedicatedMasters = false)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
@@ -219,5 +222,12 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testWriteRetryValidRequest() throws Throwable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetryValidRequest();
+  }
+
+  @Test
+  public void testWriteWithIsDeleteFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
   }
 }

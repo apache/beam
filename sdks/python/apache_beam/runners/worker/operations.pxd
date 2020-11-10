@@ -102,6 +102,8 @@ cdef class SdfProcessSizedElements(DoOperation):
   cdef object lock
   cdef object element_start_output_bytes
 
+cdef class SdfTruncateSizedRestrictions(DoOperation):
+  pass
 
 cdef class CombineOperation(Operation):
   cdef object phased_combine_fn

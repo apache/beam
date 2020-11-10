@@ -91,24 +91,11 @@ import org.mockito.Mockito;
 
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GcsUtilTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
-
-  @Test
-  public void testGlobTranslation() {
-    assertEquals("foo", GcsUtil.wildcardToRegexp("foo"));
-    assertEquals("fo[^/]*o", GcsUtil.wildcardToRegexp("fo*o"));
-    assertEquals("f[^/]*o\\.[^/]", GcsUtil.wildcardToRegexp("f*o.?"));
-    assertEquals("foo-[0-9][^/]*", GcsUtil.wildcardToRegexp("foo-[0-9]*"));
-    assertEquals("foo-[0-9].*", GcsUtil.wildcardToRegexp("foo-[0-9]**"));
-    assertEquals(".*foo", GcsUtil.wildcardToRegexp("**/*foo"));
-    assertEquals(".*foo", GcsUtil.wildcardToRegexp("**foo"));
-    assertEquals("foo/[^/]*", GcsUtil.wildcardToRegexp("foo/*"));
-    assertEquals("foo[^/]*", GcsUtil.wildcardToRegexp("foo*"));
-    assertEquals("foo/[^/]*/[^/]*/[^/]*", GcsUtil.wildcardToRegexp("foo/*/*/*"));
-    assertEquals("foo/[^/]*/.*", GcsUtil.wildcardToRegexp("foo/*/**"));
-    assertEquals("foo.*baz", GcsUtil.wildcardToRegexp("foo**baz"));
-  }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);

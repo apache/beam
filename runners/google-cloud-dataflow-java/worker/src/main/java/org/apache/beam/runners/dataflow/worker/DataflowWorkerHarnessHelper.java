@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.security.Security;
 import java.util.logging.Handler;
 import java.util.logging.LogManager;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -32,11 +31,15 @@ import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.conscrypt.OpenSSLProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A helper class for initialization of the Dataflow worker harness. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class DataflowWorkerHarnessHelper {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkerHarnessHelper.class);
 
@@ -77,6 +80,7 @@ public final class DataflowWorkerHarnessHelper {
     return pipelineOptions;
   }
 
+  @SuppressWarnings("Slf4jIllegalPassedClass")
   public static void initializeLogging(Class<?> workerHarnessClass) {
     /* Set up exception handling tied to the workerHarnessClass. */
     Thread.setDefaultUncaughtExceptionHandler(
@@ -115,8 +119,7 @@ public final class DataflowWorkerHarnessHelper {
     return parseApiServiceDescriptorFromText(System.getenv().get(CONTROL_API_SERVICE_DESCRIPTOR));
   }
 
-  @Nullable
-  public static Endpoints.ApiServiceDescriptor getStatusDescriptor()
+  public static Endpoints.@Nullable ApiServiceDescriptor getStatusDescriptor()
       throws TextFormat.ParseException {
     String statusApiDescriptor = System.getenv().get(STATUS_API_SERVICE_DESCRIPTOR);
     if (Strings.isNullOrEmpty(statusApiDescriptor)) {
@@ -128,7 +131,7 @@ public final class DataflowWorkerHarnessHelper {
   }
 
   // TODO: make env logic private to main() so it is never done outside of initializing the process
-  public static @Nullable RunnerApi.Pipeline getPipelineFromEnv() throws IOException {
+  public static RunnerApi.@Nullable Pipeline getPipelineFromEnv() throws IOException {
     String pipelinePath = System.getenv(PIPELINE_PATH);
     if (pipelinePath == null) {
       LOG.warn("Missing pipeline environment variable '{}'", PIPELINE_PATH);

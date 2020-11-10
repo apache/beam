@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static java.lang.Thread.sleep;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
@@ -50,11 +51,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -76,6 +80,7 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -86,13 +91,15 @@ import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesBundleFinalizer;
 import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
+import org.apache.beam.sdk.testing.UsesOrderedListState;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -140,7 +147,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
@@ -153,6 +162,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for ParDo. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -1496,6 +1509,146 @@ public class ParDoTest implements Serializable {
     }
   }
 
+  @RunWith(JUnit4.class)
+  public static class BundleFinalizationTests extends SharedTestBase implements Serializable {
+    private abstract static class BundleFinalizingDoFn extends DoFn<KV<String, Long>, String> {
+      private static final long MAX_ATTEMPTS = 3000;
+      // We use the UUID to uniquely identify this DoFn in case this test is run with
+      // other tests in the same JVM.
+      private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
+      private final UUID uuid = UUID.randomUUID();
+
+      public void testFinalization(BundleFinalizer bundleFinalizer, OutputReceiver<String> output)
+          throws Exception {
+        if (WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).get()) {
+          output.output("bundle was finalized");
+          return;
+        }
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(Duration.standardSeconds(MAX_ATTEMPTS)),
+            () -> WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).set(true));
+        // We sleep here to give time for the runner to perform any prior callbacks.
+        sleep(100L);
+      }
+    }
+
+    private static class BasicBundleFinalizingDoFn extends BundleFinalizingDoFn {
+      @ProcessElement
+      public void processElement(BundleFinalizer bundleFinalizer, OutputReceiver<String> output)
+          throws Exception {
+        testFinalization(bundleFinalizer, output);
+      }
+    }
+
+    private static class BundleFinalizerOutputChecker
+        implements SerializableFunction<Iterable<String>, Void> {
+      @Override
+      public Void apply(Iterable<String> input) {
+        assertTrue(
+            "Expected to have received at least one callback enabling output to be produced but received none.",
+            input.iterator().hasNext());
+        return null;
+      }
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTestStream.class, UsesBundleFinalizer.class})
+    public void testBundleFinalization() {
+      TestStream.Builder<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+        stream = stream.addElements(KV.of("key" + (i % 10), i));
+      }
+      PCollection<String> output =
+          pipeline
+              .apply(stream.advanceWatermarkToInfinity())
+              .apply(ParDo.of(new BasicBundleFinalizingDoFn()));
+      PAssert.that(output).satisfies(new BundleFinalizerOutputChecker());
+      pipeline.run();
+    }
+
+    public static class StatefulBundleFinalizingDoFn extends BundleFinalizingDoFn {
+      private static final String STATE_ID = "STATE_ID";
+
+      @StateId(STATE_ID)
+      private final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
+
+      @ProcessElement
+      public void processElement(
+          BundleFinalizer bundleFinalizer,
+          OutputReceiver<String> output,
+          @StateId(STATE_ID) ValueState<Integer> state)
+          throws Exception {
+        testFinalization(bundleFinalizer, output);
+      }
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTestStream.class,
+      UsesBundleFinalizer.class,
+      UsesStatefulParDo.class
+    })
+    public void testBundleFinalizationWithState() {
+      TestStream.Builder<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+        stream = stream.addElements(KV.of("key" + (i % 10), i));
+      }
+      PCollection<String> output =
+          pipeline
+              .apply(stream.advanceWatermarkToInfinity())
+              .apply(ParDo.of(new StatefulBundleFinalizingDoFn()));
+      PAssert.that(output).satisfies(new BundleFinalizerOutputChecker());
+      pipeline.run();
+    }
+
+    public static class SideInputBundleFinalizingDoFn extends BundleFinalizingDoFn {
+      private final PCollectionView<String> view;
+
+      public SideInputBundleFinalizingDoFn(PCollectionView<String> view) {
+        this.view = view;
+      }
+
+      @ProcessElement
+      public void processElement(
+          ProcessContext context,
+          @Element KV<String, Long> element,
+          BundleFinalizer bundleFinalizer,
+          OutputReceiver<String> output)
+          throws Exception {
+        // Access the side input
+        context.sideInput(view);
+        testFinalization(bundleFinalizer, output);
+      }
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTestStream.class,
+      UsesBundleFinalizer.class,
+      UsesSideInputs.class
+    })
+    public void testBundleFinalizationWithSideInputs() {
+      TestStream.Builder<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+        stream = stream.addElements(KV.of("key" + (i % 10), i));
+      }
+      PCollectionView<String> sideInput =
+          pipeline.apply(Create.of("sideInput value")).apply(View.asSingleton());
+      PCollection<String> output =
+          pipeline
+              .apply(stream.advanceWatermarkToInfinity())
+              .apply(
+                  ParDo.of(new SideInputBundleFinalizingDoFn(sideInput)).withSideInputs(sideInput));
+      PAssert.that(output).satisfies(new BundleFinalizerOutputChecker());
+      pipeline.run();
+    }
+  }
+
   /** Tests for ParDo lifecycle methods. */
   @RunWith(JUnit4.class)
   public static class LifecycleTests extends SharedTestBase implements Serializable {
@@ -1877,11 +2030,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testCoderInferenceOfList() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -1921,11 +2070,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateFixedWindows() {
       final String stateId = "foo";
 
@@ -2024,11 +2169,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateTaggedOutput() {
       final String stateId = "foo";
 
@@ -2079,11 +2220,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testBagState() {
       final String stateId = "foo";
 
@@ -2236,6 +2373,203 @@ public class ParDoTest implements Serializable {
               .apply(ParDo.of(fn));
 
       PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateBounded() {
+      testOrderedListStateImpl(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateUnbounded() {
+      testOrderedListStateImpl(true);
+    }
+
+    void testOrderedListStateImpl(boolean unbounded) {
+      final String stateId = "foo";
+
+      DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
+          new DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>>() {
+
+            @StateId(stateId)
+            private final StateSpec<OrderedListState<String>> orderedListState =
+                StateSpecs.orderedList(StringUtf8Coder.of());
+
+            @ProcessElement
+            public void processElement(
+                @Element KV<String, TimestampedValue<String>> element,
+                @StateId(stateId) OrderedListState<String> state) {
+              state.add(element.getValue());
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @StateId(stateId) OrderedListState<String> state,
+                OutputReceiver<Iterable<TimestampedValue<String>>> o) {
+              Iterable<TimestampedValue<String>> strings = state.read();
+              o.output(strings);
+            }
+          };
+
+      PCollection<Iterable<TimestampedValue<String>>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", TimestampedValue.of("a", Instant.ofEpochMilli(97))),
+                      KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
+                      KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
+                      KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
+              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+
+      List<TimestampedValue<String>> expected =
+          Lists.newArrayList(
+              TimestampedValue.of("c", Instant.ofEpochMilli(12)),
+              TimestampedValue.of("b", Instant.ofEpochMilli(42)),
+              TimestampedValue.of("b", Instant.ofEpochMilli(52)),
+              TimestampedValue.of("a", Instant.ofEpochMilli(97)));
+
+      PAssert.that(output).containsInAnyOrder(expected);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateRangeFetchBounded() {
+      testOrderedListStateRangeFetchImpl(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateRangeFetchUnbounded() {
+      testOrderedListStateRangeFetchImpl(true);
+    }
+
+    void testOrderedListStateRangeFetchImpl(boolean unbounded) {
+      final String stateId = "foo";
+
+      DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
+          new DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>>() {
+
+            @StateId(stateId)
+            private final StateSpec<OrderedListState<String>> orderedListState =
+                StateSpecs.orderedList(StringUtf8Coder.of());
+
+            @ProcessElement
+            public void processElement(
+                @Element KV<String, TimestampedValue<String>> element,
+                @StateId(stateId) OrderedListState<String> state) {
+              state.add(element.getValue());
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @StateId(stateId) OrderedListState<String> state,
+                OutputReceiver<Iterable<TimestampedValue<String>>> o) {
+              o.output(state.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(12)));
+              o.output(state.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(13)));
+              o.output(state.readRange(Instant.ofEpochMilli(13), Instant.ofEpochMilli(53)));
+              o.output(state.readRange(Instant.ofEpochMilli(52), Instant.ofEpochMilli(98)));
+            }
+          };
+
+      PCollection<Iterable<TimestampedValue<String>>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", TimestampedValue.of("a", Instant.ofEpochMilli(97))),
+                      KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
+                      KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
+                      KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
+              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+
+      List<TimestampedValue<String>> expected1 = Lists.newArrayList();
+
+      List<TimestampedValue<String>> expected2 =
+          Lists.newArrayList(TimestampedValue.of("c", Instant.ofEpochMilli(12)));
+
+      List<TimestampedValue<String>> expected3 =
+          Lists.newArrayList(
+              TimestampedValue.of("b", Instant.ofEpochMilli(42)),
+              TimestampedValue.of("b", Instant.ofEpochMilli(52)));
+
+      List<TimestampedValue<String>> expected4 =
+          Lists.newArrayList(
+              TimestampedValue.of("b", Instant.ofEpochMilli(52)),
+              TimestampedValue.of("a", Instant.ofEpochMilli(97)));
+
+      PAssert.that(output).containsInAnyOrder(expected1, expected2, expected3, expected4);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateRangeDeleteBounded() {
+      testOrderedListStateRangeDeleteImpl(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    public void testOrderedListStateRangeDeleteUnbounded() {
+      testOrderedListStateRangeDeleteImpl(true);
+    }
+
+    void testOrderedListStateRangeDeleteImpl(boolean unbounded) {
+      final String stateId = "foo";
+      DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>> fn =
+          new DoFn<KV<String, TimestampedValue<String>>, Iterable<TimestampedValue<String>>>() {
+
+            @StateId(stateId)
+            private final StateSpec<OrderedListState<String>> orderedListState =
+                StateSpecs.orderedList(StringUtf8Coder.of());
+
+            @TimerId("timer")
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @Element KV<String, TimestampedValue<String>> element,
+                @StateId(stateId) OrderedListState<String> state,
+                @TimerId("timer") Timer timer) {
+              state.add(element.getValue());
+              timer.set(Instant.ofEpochMilli(42));
+            }
+
+            @OnTimer("timer")
+            public void processTimer(
+                @StateId(stateId) OrderedListState<String> state, @Timestamp Instant ts) {
+              state.clearRange(Instant.EPOCH, ts.plus(1));
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @StateId(stateId) OrderedListState<String> state,
+                OutputReceiver<Iterable<TimestampedValue<String>>> o) {
+              o.output(state.read());
+            }
+          };
+
+      PCollection<Iterable<TimestampedValue<String>>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", TimestampedValue.of("a", Instant.ofEpochMilli(97))),
+                      KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
+                      KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
+                      KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
+              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+
+      List<TimestampedValue<String>> expected =
+          Lists.newArrayList(
+              TimestampedValue.of("b", Instant.ofEpochMilli(52)),
+              TimestampedValue.of("a", Instant.ofEpochMilli(97)));
+
+      PAssert.that(output).containsInAnyOrder(expected);
       pipeline.run();
     }
 
@@ -2411,7 +2745,7 @@ public class ParDoTest implements Serializable {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         return other instanceof TestSimpleStatefulDoFn;
       }
 
@@ -2646,11 +2980,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class StateCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testBagStateCoderInference() {
       final String stateId = "foo";
       Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -3132,11 +3462,7 @@ public class ParDoTest implements Serializable {
      * hooks and is only supported by the direct runner.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerBounded() throws Exception {
       final String timerId = "foo";
 
@@ -3170,11 +3496,7 @@ public class ParDoTest implements Serializable {
      * case where both GBK and the user code share a timer delivery bundle.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testGbkFollowedByUserTimers() throws Exception {
 
       DoFn<KV<String, Iterable<Integer>>, Integer> fn =
@@ -3209,11 +3531,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerAlignBounded() throws Exception {
       final String timerId = "foo";
 
@@ -3248,11 +3566,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testTimerReceivedInOriginalWindow() throws Exception {
       final String timerId = "foo";
 
@@ -3302,11 +3616,7 @@ public class ParDoTest implements Serializable {
      * #testEventTimeTimerBounded()}.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerAbsolute() throws Exception {
       final String timerId = "foo";
 
@@ -3386,11 +3696,7 @@ public class ParDoTest implements Serializable {
      * implementations that may GC in ways not simply governed by the watermark.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerMultipleKeys() throws Exception {
       final String timerId = "foo";
       final String stateId = "sizzle";
@@ -3451,11 +3757,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
       final String timerId = "foo";
 
@@ -3492,11 +3794,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsEventTimeTimer() throws Exception {
       final String timerId = "foo";
 
@@ -3536,11 +3834,51 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    public void testOutputTimestampDefaultBounded() throws Exception {
+      runTestOutputTimestampDefault(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesUnboundedPCollections.class, UsesTimersInParDo.class})
+    public void testOutputTimestampDefaultUnbounded() throws Exception {
+      runTestOutputTimestampDefault(true);
+    }
+
+    public void runTestOutputTimestampDefault(boolean useStreaming) throws Exception {
+      final String timerId = "foo";
+      DoFn<KV<String, Long>, Long> fn1 =
+          new DoFn<KV<String, Long>, Long>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer, @Timestamp Instant timestamp) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.millis(5)))
+                  .set(timestamp.plus(Duration.millis(10)));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<Long> o) {
+              o.output(timestamp.getMillis());
+            }
+          };
+
+      PCollection<Long> output =
+          pipeline
+              .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 1L), new Instant(3))))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply("first", ParDo.of(fn1));
+
+      PAssert.that(output).containsInAnyOrder(new Instant(8).getMillis()); // result output
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsEventTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -3582,11 +3920,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -3656,7 +3990,10 @@ public class ParDoTest implements Serializable {
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               .addElements(KV.of("hello", 37))
-              .advanceProcessingTime(Duration.standardSeconds(2))
+              .advanceProcessingTime(
+                  Duration.millis(
+                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+                      .plus(Duration.standardMinutes(2)))
               .advanceWatermarkToInfinity();
 
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
@@ -3715,7 +4052,10 @@ public class ParDoTest implements Serializable {
                 @TimerId(timerId) Timer timer,
                 @Timestamp Instant timestamp,
                 OutputReceiver<KV<Integer, Instant>> r) {
-              timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
+              timer
+                  .align(Duration.standardMinutes(1))
+                  .offset(Duration.standardSeconds(1))
+                  .setRelative();
               r.output(KV.of(3, timestamp));
             }
 
@@ -3728,16 +4068,19 @@ public class ParDoTest implements Serializable {
 
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(5))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(5)))
               .addElements(KV.of("hello", 37))
-              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1).plus(1)))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
               .advanceWatermarkToInfinity();
 
       PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output)
           .containsInAnyOrder(
-              KV.of(3, new Instant(5)),
-              KV.of(42, new Instant(Duration.standardSeconds(1).minus(1).getMillis())));
+              KV.of(3, new Instant(0).plus(Duration.standardSeconds(5))),
+              KV.of(
+                  42,
+                  new Instant(
+                      Duration.standardMinutes(1).minus(Duration.standardSeconds(1)).getMillis())));
       pipeline.run();
     }
 
@@ -3770,15 +4113,15 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               // See GlobalWindow,
               // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))
-              .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)))
+              .advanceWatermarkTo(GlobalWindow.INSTANCE.maxTimestamp())
               .addElements(KV.of("hello", 37))
               .advanceWatermarkToInfinity();
 
       PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output)
           .containsInAnyOrder(
-              KV.of(3, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))),
-              KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))));
+              KV.of(3, GlobalWindow.INSTANCE.maxTimestamp()),
+              KV.of(42, GlobalWindow.INSTANCE.maxTimestamp()));
       pipeline.run();
     }
 
@@ -3817,7 +4160,10 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
               .addElements(KV.of("key", "input1"))
               .addElements(KV.of("key", "input2"))
-              .advanceProcessingTime(Duration.standardSeconds(2))
+              .advanceProcessingTime(
+                  Duration.millis(
+                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+                      .plus(Duration.standardMinutes(2)))
               .advanceWatermarkToInfinity();
 
       PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
@@ -3885,8 +4231,11 @@ public class ParDoTest implements Serializable {
               .advanceWatermarkTo(new Instant(0));
 
       for (int i = 0; i < numTestElements; i++) {
-        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
-        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
+        builder =
+            builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+        if ((i + 1) % 10 == 0) {
+          builder = builder.advanceWatermarkTo(now.plus((i + 1) * 1000));
+        }
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
@@ -3907,7 +4256,7 @@ public class ParDoTest implements Serializable {
 
       List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
       for (int i = 0; i < numTestElements; i++) {
-        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
@@ -3924,7 +4273,7 @@ public class ParDoTest implements Serializable {
       final String timerIdGc = "gc";
       final String bag = "bag";
       final String minTimestamp = "minTs";
-      final Instant gcTimerStamp = now.plus(numTestElements + 1);
+      final Instant gcTimerStamp = now.plus((numTestElements + 1) * 1000);
 
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
@@ -3978,7 +4327,7 @@ public class ParDoTest implements Serializable {
               flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
               context.output(
                   Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
-              Instant newMinStamp = flushTime.plus(1);
+              Instant newMinStamp = flushTime.plus(1000);
               if (flush.size() < numTestElements) {
                 timer.set(newMinStamp);
               }
@@ -4021,11 +4370,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testPipelineOptionsParameterOnTimer() {
       final String timerId = "thisTimer";
 
@@ -4058,7 +4403,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTestStream.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void duplicateTimerSetting() {
       TestStream<KV<String, String>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
@@ -4103,7 +4448,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesTestStream.class,
+      UsesTestStream.class
     })
     public void testOutputTimestamp() {
       final String timerId = "bar";
@@ -4371,11 +4716,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class TimerCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateCoderInference() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -4441,11 +4782,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateCoderInferenceFromInputCoder() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -4572,7 +4909,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -5103,6 +5440,100 @@ public class ParDoTest implements Serializable {
           };
 
       pipeline.apply(Create.of("1")).apply(ParDo.of(fn));
+    }
+  }
+
+  /** Tests to validate OnWindowExpiration. */
+  @RunWith(JUnit4.class)
+  public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class
+    })
+    public void testOnWindowExpirationSimpleBounded() {
+      runOnWindowExpirationSimple(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class
+    })
+    public void testOnWindowExpirationSimpleUnbounded() {
+      runOnWindowExpirationSimple(true);
+    }
+
+    public void runOnWindowExpirationSimple(boolean useStreaming) {
+      final String stateId = "foo";
+      final String timerId = "bar";
+      IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+      IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(20));
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @StateId(stateId)
+            private final StateSpec<ValueState<Integer>> intState =
+                StateSpecs.value(VarIntCoder.of());
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, BoundedWindow window) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @Timestamp Instant timestamp,
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state) {
+              // To check if state is persisted until OnWindowExpiration
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              state.write(currentValue + 1);
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                @Key String key,
+                OutputReceiver<Integer> r) {
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              // verify state
+              assertEquals(1, (int) currentValue);
+              // To check output is received from OnWindowExpiration
+              r.output(currentValue);
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      // first window
+                      TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
+
+                      // second window
+                      TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
+              .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+
+      PAssert.that(output)
+          .inWindow(firstWindow)
+          // verify output
+          .containsInAnyOrder(1)
+          .inWindow(secondWindow)
+          // verify output
+          .containsInAnyOrder(1);
+      pipeline.run();
     }
   }
 }

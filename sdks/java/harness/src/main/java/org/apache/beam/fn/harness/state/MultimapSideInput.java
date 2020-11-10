@@ -29,6 +29,10 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
  *
  * <p>TODO: Support block level caching and prefetch.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
   private final BeamFnStateClient beamFnStateClient;
@@ -71,7 +75,8 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         new DataStreams.DataStreamDecoder(
             keyCoder,
             DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build()))));
+                StateFetchingIterators.readAllStartingFrom(
+                    beamFnStateClient, requestBuilder.build()))));
   }
 
   @Override
@@ -97,6 +102,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         new DataStreams.DataStreamDecoder(
             valueCoder,
             DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build()))));
+                StateFetchingIterators.readAllStartingFrom(
+                    beamFnStateClient, requestBuilder.build()))));
   }
 }

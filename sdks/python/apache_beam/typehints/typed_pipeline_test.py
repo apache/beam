@@ -156,27 +156,26 @@ class MainInputTest(unittest.TestCase):
         else:
           yield beam.pvalue.TaggedOutput('even', element)
 
-    p = TestPipeline()
-    res = (
-        p
-        | beam.Create([1, 2, 3])
-        | beam.ParDo(MyDoFn()).with_outputs('odd', 'even'))
-    self.assertIsNotNone(res[None].element_type)
-    self.assertIsNotNone(res['even'].element_type)
-    self.assertIsNotNone(res['odd'].element_type)
-    res_main = (
-        res[None]
-        | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_even = (
-        res['even']
-        | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_odd = (
-        res['odd']
-        | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    assert_that(res_main, equal_to([]), label='none_check')
-    assert_that(res_even, equal_to([2]), label='even_check')
-    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
-    p.run()
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 3])
+          | beam.ParDo(MyDoFn()).with_outputs('odd', 'even'))
+      self.assertIsNotNone(res[None].element_type)
+      self.assertIsNotNone(res['even'].element_type)
+      self.assertIsNotNone(res['odd'].element_type)
+      res_main = (
+          res[None]
+          | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_even = (
+          res['even']
+          | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_odd = (
+          res['odd']
+          | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      assert_that(res_main, equal_to([]), label='none_check')
+      assert_that(res_even, equal_to([2]), label='even_check')
+      assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
     with self.assertRaises(ValueError):
       _ = res['undeclared tag']
@@ -189,24 +188,81 @@ class MainInputTest(unittest.TestCase):
         else:
           yield beam.pvalue.TaggedOutput('even', element)
 
-    p = TestPipeline()
-    res = (p | beam.Create([1, 2, 3]) | beam.ParDo(MyDoFn()).with_outputs())
-    self.assertIsNotNone(res[None].element_type)
-    self.assertIsNotNone(res['even'].element_type)
-    self.assertIsNotNone(res['odd'].element_type)
-    res_main = (
-        res[None]
-        | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_even = (
-        res['even']
-        | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_odd = (
-        res['odd']
-        | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    assert_that(res_main, equal_to([]), label='none_check')
-    assert_that(res_even, equal_to([2]), label='even_check')
-    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
-    p.run()
+    with TestPipeline() as p:
+      res = (p | beam.Create([1, 2, 3]) | beam.ParDo(MyDoFn()).with_outputs())
+      self.assertIsNotNone(res[None].element_type)
+      self.assertIsNotNone(res['even'].element_type)
+      self.assertIsNotNone(res['odd'].element_type)
+      res_main = (
+          res[None]
+          | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_even = (
+          res['even']
+          | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_odd = (
+          res['odd']
+          | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      assert_that(res_main, equal_to([]), label='none_check')
+      assert_that(res_even, equal_to([2]), label='even_check')
+      assert_that(res_odd, equal_to([1, 3]), label='odd_check')
+
+  def test_typed_ptransform_fn_pre_hints(self):
+    # Test that type hints are propagated to the created PTransform.
+    # Decorator appears before type hints. This is the more common style.
+    @beam.ptransform_fn
+    @typehints.with_input_types(int)
+    def MyMap(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x])
+
+    self.assertListEqual([1, 2, 3], [1, 2, 3] | MyMap())
+    with self.assertRaises(typehints.TypeCheckError):
+      _ = ['a'] | MyMap()
+
+  def test_typed_ptransform_fn_post_hints(self):
+    # Test that type hints are propagated to the created PTransform.
+    # Decorator appears after type hints. This style is required for Cython
+    # functions, since they don't accept assigning attributes to them.
+    @typehints.with_input_types(int)
+    @beam.ptransform_fn
+    def MyMap(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x])
+
+    self.assertListEqual([1, 2, 3], [1, 2, 3] | MyMap())
+    with self.assertRaises(typehints.TypeCheckError):
+      _ = ['a'] | MyMap()
+
+  def test_typed_ptransform_fn_multi_input_types_pos(self):
+    @beam.ptransform_fn
+    @beam.typehints.with_input_types(str, int)
+    def multi_input(pcoll_tuple, additional_arg):
+      _, _ = pcoll_tuple
+      assert additional_arg == 'additional_arg'
+
+    with TestPipeline() as p:
+      pcoll1 = p | 'c1' >> beam.Create(['a'])
+      pcoll2 = p | 'c2' >> beam.Create([1])
+      _ = (pcoll1, pcoll2) | multi_input('additional_arg')
+      with self.assertRaises(typehints.TypeCheckError):
+        _ = (pcoll2, pcoll1) | 'fails' >> multi_input('additional_arg')
+
+  def test_typed_ptransform_fn_multi_input_types_kw(self):
+    @beam.ptransform_fn
+    @beam.typehints.with_input_types(strings=str, integers=int)
+    def multi_input(pcoll_dict, additional_arg):
+      _ = pcoll_dict['strings']
+      _ = pcoll_dict['integers']
+      assert additional_arg == 'additional_arg'
+
+    with TestPipeline() as p:
+      pcoll1 = p | 'c1' >> beam.Create(['a'])
+      pcoll2 = p | 'c2' >> beam.Create([1])
+      _ = {
+          'strings': pcoll1, 'integers': pcoll2
+      } | multi_input('additional_arg')
+      with self.assertRaises(typehints.TypeCheckError):
+        _ = {
+            'strings': pcoll2, 'integers': pcoll1
+        } | 'fails' >> multi_input('additional_arg')
 
 
 class NativeTypesTest(unittest.TestCase):
@@ -320,13 +376,7 @@ class SideInputTest(unittest.TestCase):
     #   with_output_types(...) when this bug is fixed.
     result = (['a', 'b', 'c']
               | beam.Map(lambda *args: args, 5).with_input_types(
-                  int, str).with_output_types(typehints.Tuple[str, int]))
-    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
-
-    # Type hint order doesn't matter for VAR_POSITIONAL.
-    result = (['a', 'b', 'c']
-              | beam.Map(lambda *args: args, 5).with_input_types(
-                  int, str).with_output_types(typehints.Tuple[str, int]))
+                  str, int).with_output_types(typehints.Tuple[str, int]))
     self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     if sys.version_info >= (3, ):

@@ -38,21 +38,21 @@ public interface BundleSplitListener {
    * are a decomposition of work that has been given away by the bundle, so the runner must delegate
    * it for someone else to execute.
    */
-  void split(BundleApplication primaryRoot, DelayedBundleApplication residualRoots);
+  void split(List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots);
 
   /** A {@link BundleSplitListener} which gathers all splits produced and stores them in memory. */
   @AutoValue
   @NotThreadSafe
   abstract class InMemory implements BundleSplitListener {
     public static InMemory create() {
-      return new AutoValue_BundleSplitListener_InMemory(
-          new ArrayList<BundleApplication>(), new ArrayList<DelayedBundleApplication>());
+      return new AutoValue_BundleSplitListener_InMemory(new ArrayList<>(), new ArrayList<>());
     }
 
     @Override
-    public void split(BundleApplication primaryRoot, DelayedBundleApplication residualRoot) {
-      getPrimaryRoots().add(primaryRoot);
-      getResidualRoots().add(residualRoot);
+    public void split(
+        List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots) {
+      getPrimaryRoots().addAll(primaryRoots);
+      getResidualRoots().addAll(residualRoots);
     }
 
     public void clear() {

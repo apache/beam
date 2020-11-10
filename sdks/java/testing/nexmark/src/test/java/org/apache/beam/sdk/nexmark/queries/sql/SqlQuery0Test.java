@@ -28,33 +28,57 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SqlQuery0}. */
+@RunWith(Enclosed.class)
 public class SqlQuery0Test {
 
   private static final Bid BID1 = new Bid(5L, 3L, 123123L, new Instant(43234234L), "extra1");
 
   private static final Bid BID2 = new Bid(6L, 4L, 134123L, new Instant(13234234L), "extra2");
 
-  @Rule public TestPipeline testPipeline = TestPipeline.create();
+  private abstract static class SqlQuery0TestCases {
+    protected abstract SqlQuery0 getQuery();
 
-  @Test
-  public void testPassesBidsThrough() throws Exception {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
+    @Rule public TestPipeline testPipeline = TestPipeline.create();
 
-    PCollection<Event> bids =
-        testPipeline.apply(
-            TestStream.create(
-                    registry.getSchema(Event.class),
-                    TypeDescriptor.of(Event.class),
-                    registry.getToRowFunction(Event.class),
-                    registry.getFromRowFunction(Event.class))
-                .addElements(new Event(BID1))
-                .addElements(new Event(BID2))
-                .advanceWatermarkToInfinity());
+    @Test
+    public void testPassesBidsThrough() throws Exception {
+      SchemaRegistry registry = SchemaRegistry.createDefault();
 
-    PAssert.that(bids.apply(new SqlQuery0())).containsInAnyOrder(BID1, BID2);
+      PCollection<Event> bids =
+          testPipeline.apply(
+              TestStream.create(
+                      registry.getSchema(Event.class),
+                      TypeDescriptor.of(Event.class),
+                      registry.getToRowFunction(Event.class),
+                      registry.getFromRowFunction(Event.class))
+                  .addElements(new Event(BID1))
+                  .addElements(new Event(BID2))
+                  .advanceWatermarkToInfinity());
 
-    testPipeline.run();
+      PAssert.that(bids.apply(getQuery())).containsInAnyOrder(BID1, BID2);
+
+      testPipeline.run();
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class SqlQuery0TestCalcite extends SqlQuery0TestCases {
+    @Override
+    protected SqlQuery0 getQuery() {
+      return SqlQuery0.calciteSqlQuery0();
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class SqlQuery0TestZetaSql extends SqlQuery0TestCases {
+    @Override
+    protected SqlQuery0 getQuery() {
+      return SqlQuery0.calciteSqlQuery0();
+    }
   }
 }

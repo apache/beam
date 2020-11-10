@@ -35,11 +35,15 @@ interface BigQuerySourceDef extends Serializable {
    * @param stepUuid Job UUID
    * @param coder Coder
    * @param parseFn Parse function
+   * @param useAvroLogicalTypes Use avro logical types i.e DATE, TIME
    * @param <T> Type of the resulting PCollection
    * @return An implementation of {@link BigQuerySourceBase}
    */
   <T> BigQuerySourceBase<T> toSource(
-      String stepUuid, Coder<T> coder, SerializableFunction<SchemaAndRecord, T> parseFn);
+      String stepUuid,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes);
 
   /**
    * Extract the Beam {@link Schema} corresponding to this source.

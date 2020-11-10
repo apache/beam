@@ -38,15 +38,15 @@ There are two additional concepts you need to know to use SQL in your pipeline:
  - [SqlTransform](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html): the interface for creating `PTransforms` from SQL queries.
  - [Row](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/values/Row.html):
    the type of elements that Beam SQL operates on. A `PCollection<Row>` plays the role of a table.
-{{< param release_latest >}}
+
 ## Walkthrough
 The [SQL pipeline walkthrough](/documentation/dsls/sql/walkthrough) works through how to use Beam SQL with example code.
 
 ## Shell
-The Beam SQL shell allows you to write pipelines as SQL queries without using the Java SDK. 
-The [Shell page](/documentation/dsls/sql/shell) describes how to work with the interactive Beam SQL shell. 
+The Beam SQL shell allows you to write pipelines as SQL queries without using the Java SDK.
+The [Shell page](/documentation/dsls/sql/shell) describes how to work with the interactive Beam SQL shell.
 
-## Apache Calcite dialect 
+## Apache Calcite dialect
 The [Beam Calcite SQL overview](/documentation/dsls/sql/calcite/overview) summarizes Apache Calcite operators,
 functions, syntax, and data types supported by Beam Calcite SQL.
 
@@ -55,8 +55,12 @@ For more information on the ZetaSQL features in Beam SQL, see the [Beam ZetaSQL 
 
 To switch to Beam ZetaSQL, configure the [pipeline options](https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html) as follows:
 ```
-setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner")
+PipelineOptions options = ...;
+options
+    .as(BeamSqlPipelineOptions.class)
+    .setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner");
 ```
+Note, Use of the `ZetaSQLQueryPlanner` requires an additional dependency on `beam-sdks-java-extensions-sql-zetasql` in addition to the `beam-sdks-java-extensions-sql` package required for `CalciteQueryPlanner`.
 
 ## Beam SQL extensions
 Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects.

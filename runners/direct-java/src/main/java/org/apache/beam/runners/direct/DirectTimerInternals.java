@@ -18,16 +18,19 @@
 package org.apache.beam.runners.direct;
 
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} where all relevant data exists in memory. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class DirectTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;
   private final TransformWatermarks watermarks;
@@ -102,8 +105,7 @@ class DirectTimerInternals implements TimerInternals {
   }
 
   @Override
-  @Nullable
-  public Instant currentSynchronizedProcessingTime() {
+  public @Nullable Instant currentSynchronizedProcessingTime() {
     return watermarks.getSynchronizedProcessingInputTime();
   }
 
@@ -113,8 +115,7 @@ class DirectTimerInternals implements TimerInternals {
   }
 
   @Override
-  @Nullable
-  public Instant currentOutputWatermarkTime() {
+  public @Nullable Instant currentOutputWatermarkTime() {
     return watermarks.getOutputWatermark();
   }
 

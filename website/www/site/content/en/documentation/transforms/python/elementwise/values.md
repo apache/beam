@@ -29,15 +29,15 @@ In the following example, we create a pipeline with a `PCollection` of key-value
 Then, we apply `Values` to extract the values and discard the keys.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py" values >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py" values >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Values`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/values_test.py" plants >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/values_test.py" plants >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet

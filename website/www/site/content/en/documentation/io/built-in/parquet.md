@@ -88,7 +88,7 @@ Include the Parquet artifact normally and ensure that it brings in the correct v
     <version>${beam.version}</version>
 </dependency>
 {{< /highlight >}}
- 
+
 {{< paragraph class="language-java" >}}
 Relocate the following packages:
 {{< /paragraph >}}

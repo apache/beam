@@ -673,8 +673,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS, reshuffle=False)
@@ -733,9 +732,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(state_matcher, bq_matcher),
-        experiments='use_beam_bq_sink',
-        streaming=True)
+        on_success_matcher=all_of(state_matcher, bq_matcher), streaming=True)
     with beam.Pipeline(argv=args) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(
@@ -790,8 +787,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
             data=[])
     ]
 
-    args = self.test_pipeline.get_full_options_as_args(
-        experiments='use_beam_bq_sink')
+    args = self.test_pipeline.get_full_options_as_args()
 
     with self.assertRaises(Exception):
       # The pipeline below fails because neither a schema nor SCHEMA_AUTODETECT

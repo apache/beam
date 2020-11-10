@@ -53,8 +53,8 @@ PCollection<Long> smallNumbers = numbers.apply(Filter.lessThanEq(3));
 {{< /highlight >}}
 Other variants include `Filter.greaterThanEq`, `Filter.lessThan` and `Filter.equal`.
 
-## Related transforms 
+## Related transforms
 * [FlatMapElements](/documentation/transforms/java/elementwise/flatmapelements) behaves the same as `Map`, but for
   each input it might produce zero or more outputs.
 * [ParDo](/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
-  operation, and includes other abilities such as multiple output collections and side-inputs. 
+  operation, and includes other abilities such as multiple output collections and side-inputs.

@@ -40,6 +40,9 @@ import org.slf4j.LoggerFactory;
 /**
  * A Fuser that constructs a fused pipeline by fusing as many PCollections into a stage as possible.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class GreedyPCollectionFusers {
   private static final Logger LOG = LoggerFactory.getLogger(GreedyPCollectionFusers.class);
 
@@ -48,9 +51,6 @@ class GreedyPCollectionFusers {
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, GreedyPCollectionFusers::canFuseParDo)
           .put(
               PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
-              GreedyPCollectionFusers::canFuseParDo)
-          .put(
-              PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN,
               GreedyPCollectionFusers::canFuseParDo)
           .put(
               PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
@@ -365,8 +365,7 @@ class GreedyPCollectionFusers {
         "Unknown {} {} will not fuse into an existing {}",
         PTransform.class.getSimpleName(),
         transform.getTransform(),
-        ExecutableStage.class.getSimpleName(),
-        PTransform.class.getSimpleName());
+        ExecutableStage.class.getSimpleName());
     return false;
   }
 

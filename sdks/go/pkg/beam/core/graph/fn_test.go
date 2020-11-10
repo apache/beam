@@ -26,22 +26,26 @@ import (
 func TestNewDoFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
-			main mainInputs
+			dfn interface{}
+			opt func(*config)
 		}{
-			{dfn: func(string) int { return 0 }, main: MainSingle},
-			{dfn: func(string, int) int { return 0 }, main: MainKv},
+			{dfn: func(string) int { return 0 }, opt: NumMainInputs(MainSingle)},
+			{dfn: func(string, int) int { return 0 }, opt: NumMainInputs(MainKv)},
 			{dfn: func(context.Context, typex.Window, typex.EventTime, reflect.Type, string, int, func(*int) bool, func() func(*int) bool, func(int)) (typex.EventTime, int, error) {
 				return 0, 0, nil
-			}, main: MainKv},
-			{dfn: &GoodDoFn{}, main: MainSingle},
-			{dfn: &GoodDoFnOmittedMethods{}, main: MainSingle},
-			{dfn: &GoodDoFnEmits{}, main: MainSingle},
-			{dfn: &GoodDoFnSideInputs{}, main: MainSingle},
-			{dfn: &GoodDoFnKv{}, main: MainKv},
-			{dfn: &GoodDoFnKvSideInputs{}, main: MainKv},
-			{dfn: &GoodDoFnAllExtras{}, main: MainKv},
-			{dfn: &GoodDoFnUnexportedExtraMethod{}, main: MainSingle},
+			}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodDoFn{}, opt: NumMainInputs(MainSingle)},
+			{dfn: &GoodDoFnOmittedMethods{}, opt: NumMainInputs(MainSingle)},
+			{dfn: &GoodDoFnEmits{}, opt: NumMainInputs(MainSingle)},
+			{dfn: &GoodDoFnSideInputs{}, opt: NumMainInputs(MainSingle)},
+			{dfn: &GoodDoFnKv{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodDoFnKvSideInputs{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodDoFnAllExtras{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodDoFnUnexportedExtraMethod{}, opt: NumMainInputs(MainSingle)},
+			{dfn: &GoodDoFnCoGbk1{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodDoFnCoGbk2{}, opt: CoGBKMainInput(3)},
+			{dfn: &GoodDoFnCoGbk7{}, opt: CoGBKMainInput(8)},
+			{dfn: &GoodDoFnCoGbk1wSide{}, opt: NumMainInputs(MainKv)},
 		}
 
 		for _, test := range tests {
@@ -50,8 +54,10 @@ func TestNewDoFn(t *testing.T) {
 				if _, err := NewDoFn(test.dfn); err != nil {
 					t.Fatalf("NewDoFn failed: %v", err)
 				}
-				if _, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
-					t.Fatalf("NewDoFn(NumMainInputs(%v)) failed: %v", test.main, err)
+				if _, err := NewDoFn(test.dfn, test.opt); err != nil {
+					cfg := defaultConfig()
+					test.opt(cfg)
+					t.Fatalf("NewDoFn(%#v) failed: %v", cfg, err)
 				}
 			})
 		}
@@ -72,10 +78,8 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &BadDoFnMismatchedEmitsStartBundle{}},
 			{dfn: &BadDoFnNoEmitsFinishBundle{}},
 			// Validate side inputs.
-			{dfn: &BadDoFnNoSideInputsStartBundle{}},
 			{dfn: &BadDoFnMissingSideInputsStartBundle{}},
 			{dfn: &BadDoFnMismatchedSideInputsStartBundle{}},
-			{dfn: &BadDoFnNoSideInputsFinishBundle{}},
 			// Validate setup/teardown.
 			{dfn: &BadDoFnParamsInSetup{}},
 			{dfn: &BadDoFnParamsInTeardown{}},
@@ -121,6 +125,11 @@ func TestNewDoFn(t *testing.T) {
 			}, main: MainKv},
 			{dfn: &BadDoFnAmbiguousMainInput{}, main: MainKv},
 			{dfn: &BadDoFnAmbiguousSideInput{}, main: MainSingle},
+			// These are ambiguous with CoGBKs, but should fail with known MainInputs.
+			{dfn: &BadDoFnNoSideInputsStartBundle{}, main: MainSingle},
+			{dfn: &BadDoFnNoSideInputsStartBundle{}, main: MainKv},
+			{dfn: &BadDoFnNoSideInputsFinishBundle{}, main: MainSingle},
+			{dfn: &BadDoFnNoSideInputsFinishBundle{}, main: MainKv},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -368,6 +377,54 @@ func (fn *GoodDoFnKvSideInputs) StartBundle(string, func(*int) bool, func() func
 func (fn *GoodDoFnKvSideInputs) FinishBundle(string, func(*int) bool, func() func(*int) bool) {
 }
 
+type GoodDoFnCoGbk1 struct{}
+
+func (fn *GoodDoFnCoGbk1) ProcessElement(int, func(*string) bool) int {
+	return 0
+}
+
+func (fn *GoodDoFnCoGbk1) StartBundle() {
+}
+
+func (fn *GoodDoFnCoGbk1) FinishBundle() {
+}
+
+type GoodDoFnCoGbk2 struct{}
+
+func (fn *GoodDoFnCoGbk2) ProcessElement(int, func(*int) bool, func(*string) bool) int {
+	return 0
+}
+
+func (fn *GoodDoFnCoGbk2) StartBundle() {
+}
+
+func (fn *GoodDoFnCoGbk2) FinishBundle() {
+}
+
+type GoodDoFnCoGbk7 struct{}
+
+func (fn *GoodDoFnCoGbk7) ProcessElement(k int, v1, v2, v3, v4, v5, v6, v7 func(*int) bool) int {
+	return 0
+}
+
+func (fn *GoodDoFnCoGbk7) StartBundle() {
+}
+
+func (fn *GoodDoFnCoGbk7) FinishBundle() {
+}
+
+type GoodDoFnCoGbk1wSide struct{}
+
+func (fn *GoodDoFnCoGbk1wSide) ProcessElement(int, func(*string) bool, func(*int) bool) int {
+	return 0
+}
+
+func (fn *GoodDoFnCoGbk1wSide) StartBundle(func(*int) bool) {
+}
+
+func (fn *GoodDoFnCoGbk1wSide) FinishBundle(func(*int) bool) {
+}
+
 type GoodDoFnAllExtras struct{}
 
 func (fn *GoodDoFnAllExtras) ProcessElement(context.Context, typex.Window, typex.EventTime, reflect.Type, string, int, func(*int) bool, func() func(*int) bool, func(int)) (typex.EventTime, int, error) {
@@ -577,6 +634,9 @@ func (rt *RTrackerT) GetProgress() (float64, float64) {
 }
 func (rt *RTrackerT) IsDone() bool {
 	return true
+}
+func (rt *RTrackerT) GetRestriction() interface{} {
+	return nil
 }
 
 type GoodSdf struct {

@@ -31,18 +31,11 @@ import tempfile
 import threading
 import time
 
+import grpc
 from future.moves.urllib.error import URLError
 from future.moves.urllib.request import urlopen
 
 from apache_beam.version import __version__ as beam_version
-
-# Protect against environments where grpc is not available.
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  import grpc
-except ImportError:
-  grpc = None
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +89,7 @@ class SubprocessServer(object):
         try:
           channel_ready.result(timeout=wait_secs)
           break
-        except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
+        except (grpc.FutureTimeoutError, grpc.RpcError):
           wait_secs *= 1.2
           logging.log(
               logging.WARNING if wait_secs > 1 else logging.DEBUG,
@@ -298,11 +291,20 @@ def pick_port(*ports):
     if port:
       return port
     else:
-      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      except OSError as e:
+        # [Errno 97] Address family not supported by protocol
+        # Likely indicates we are in an IPv6-only environment (BEAM-10618). Try
+        # again with AF_INET6.
+        if e.errno == 97:
+          s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        else:
+          raise e
+
       sockets.append(s)
       s.bind(('localhost', 0))
-      _, free_port = s.getsockname()
-      return free_port
+      return s.getsockname()[1]
 
   ports = list(map(find_free_port, ports))
   # Close sockets only now to avoid the same port to be chosen twice

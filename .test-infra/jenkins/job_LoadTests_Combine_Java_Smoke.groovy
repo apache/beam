@@ -25,65 +25,65 @@ import static LoadTestConfig.fromTemplate
 import static LoadTestConfig.templateConfig
 
 def smokeTestConfigurations = { datasetName ->
-    def template = templateConfig {
-        title 'CombineLoadTest load test Dataflow-1'
-        test 'org.apache.beam.sdk.loadtests.CombineLoadTest'
-        dataflow()
-        pipelineOptions {
-            java()
-            appName 'smoke-dsl-java'
-            project 'apache-beam-testing'
-            tempLocation 'gs://temp-storage-for-perf-tests/smoketests'
-            publishToBigQuery true
-            bigQueryDataset datasetName
-            bigQueryTable 'dataflow_combine'
-            numWorkers 5
-            autoscalingAlgorithm 'NONE'
-            sourceOptions {
-                numRecords 100000
-                splitPointFrequencyRecords 1
-            }
-            stepOptions {
-                outputRecordsPerInputRecord 1
-                preservesInputKeyDistribution true
-            }
-            specificParameters([
-                    fanout: 10,
-                    iterations: 1
-            ])
-        }
+  def template = templateConfig {
+    title 'CombineLoadTest load test Dataflow-1'
+    test 'org.apache.beam.sdk.loadtests.CombineLoadTest'
+    dataflow()
+    pipelineOptions {
+      java()
+      appName 'smoke-dsl-java'
+      project 'apache-beam-testing'
+      tempLocation 'gs://temp-storage-for-perf-tests/smoketests'
+      publishToBigQuery true
+      bigQueryDataset datasetName
+      bigQueryTable 'dataflow_combine'
+      numWorkers 5
+      autoscalingAlgorithm 'NONE'
+      sourceOptions {
+        numRecords 100000
+        splitPointFrequencyRecords 1
+      }
+      stepOptions {
+        outputRecordsPerInputRecord 1
+        preservesInputKeyDistribution true
+      }
+      specificParameters([
+        fanout: 10,
+        iterations: 1
+      ])
     }
-    [
-            fromTemplate(template),
-            fromTemplate(template) {
-                title 'CombineLoadTest load test Dataflow-2'
-                pipelineOptions {
-                    numWorkers 3
-                    specificParameters([
-                            fanout: 1
-                    ])
-                }
-            },
-            fromTemplate(template) {
-                title 'CombineLoadTest load test Dataflow-3'
-                pipelineOptions {
-                    sourceOptions {
-                        numRecords 20000
-                    }
-                }
-            },
-    ]
+  }
+  [
+    fromTemplate(template),
+    fromTemplate(template) {
+      title 'CombineLoadTest load test Dataflow-2'
+      pipelineOptions {
+        numWorkers 3
+        specificParameters([
+          fanout: 1
+        ])
+      }
+    },
+    fromTemplate(template) {
+      title 'CombineLoadTest load test Dataflow-3'
+      pipelineOptions {
+        sourceOptions {
+          numRecords 20000
+        }
+      }
+    },
+  ]
 }
 
 
 
 // Runs a tiny version load test suite to ensure nothing is broken.
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_Java_LoadTests_Combine_Smoke',
-        'Run Java Load Tests Combine Smoke',
-        'Java Load Tests Combine Smoke',
-        this
-) {
-    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
-    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, smokeTestConfigurations(datasetName), "Combine", "smoke")
-}
+    'beam_Java_LoadTests_Combine_Smoke',
+    'Run Java Load Tests Combine Smoke',
+    'Java Load Tests Combine Smoke',
+    this
+    ) {
+      def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
+      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, smokeTestConfigurations(datasetName), "Combine", "smoke")
+    }

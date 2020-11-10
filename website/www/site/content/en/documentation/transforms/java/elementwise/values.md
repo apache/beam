@@ -36,7 +36,7 @@ PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
 PCollection<Integer> values = keyValuePairs.apply(Values.create());
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
 * [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
 * [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

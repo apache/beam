@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,6 +118,9 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ClickHouseIO {
 
   public static final long DEFAULT_MAX_INSERT_BLOCK_SIZE = 1000000;
@@ -157,20 +160,23 @@ public class ClickHouseIO {
 
     public abstract Duration initialBackoff();
 
-    @Nullable
-    public abstract Boolean insertDistributedSync();
+    public abstract @Nullable TableSchema tableSchema();
 
-    @Nullable
-    public abstract Long insertQuorum();
+    public abstract @Nullable Boolean insertDistributedSync();
 
-    @Nullable
-    public abstract Boolean insertDeduplicate();
+    public abstract @Nullable Long insertQuorum();
+
+    public abstract @Nullable Boolean insertDeduplicate();
 
     abstract Builder<T> toBuilder();
 
     @Override
     public PDone expand(PCollection<T> input) {
-      TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
+      TableSchema tableSchema = tableSchema();
+      if (tableSchema == null) {
+        tableSchema = getTableSchema(jdbcUrl(), table());
+      }
+
       Properties properties = properties();
 
       set(properties, ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, maxInsertBlockSize());
@@ -283,6 +289,16 @@ public class ClickHouseIO {
       return toBuilder().initialBackoff(value).build();
     }
 
+    /**
+     * Set TableSchema. If not set, then TableSchema will be fetched from clickhouse server itself
+     *
+     * @param tableSchema schema of Table in which rows are going to be inserted
+     * @return a {@link PTransform} writing data to ClickHouse
+     */
+    public Write<T> withTableSchema(@Nullable TableSchema tableSchema) {
+      return toBuilder().tableSchema(tableSchema).build();
+    }
+
     /** Builder for {@link Write}. */
     @AutoValue.Builder
     abstract static class Builder<T> {
@@ -292,6 +308,8 @@ public class ClickHouseIO {
       public abstract Builder<T> table(String table);
 
       public abstract Builder<T> maxInsertBlockSize(long maxInsertBlockSize);
+
+      public abstract Builder<T> tableSchema(TableSchema tableSchema);
 
       public abstract Builder<T> insertDistributedSync(Boolean insertDistributedSync);
 

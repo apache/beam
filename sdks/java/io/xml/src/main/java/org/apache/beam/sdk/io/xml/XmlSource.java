@@ -48,6 +48,9 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.codehaus.stax2.XMLInputFactory2;
 
 /** Implementation of {@link XmlIO#read}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class XmlSource<T> extends FileBasedSource<T> {
 
   private static final String XML_VERSION = "1.1";

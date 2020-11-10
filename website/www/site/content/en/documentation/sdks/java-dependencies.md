@@ -33,14 +33,14 @@ Compile and runtime dependencies for your Beam SDK version are listed in `BeamMo
     ```
 
     Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy> will provide the dependencies for the {{< param release_latest >}} release.
-    
-2. Review the list under `project.ext.library`. 
+
+2. Review the list under `project.ext.library`.
 
     **Note:** Some dependencies in the list use version variables, such as `google_auth_version`. These variables are defined prior to the `project.ext.library` map definition.
 
 You can also retrieve this list by creating a new project through Maven and resolving the dependencies.
 
-1. Define the Beam SDK and Java versions for the new project. 
+1. Define the Beam SDK and Java versions for the new project.
 
     ```
     export BEAM_VERSION={{< param release_latest >}}

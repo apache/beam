@@ -21,6 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 
@@ -28,15 +29,22 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import FrozenSet
+from typing import Generic
 from typing import Iterable
 from typing import Mapping
 from typing import Optional
+from typing import Type
+from typing import TypeVar
 from typing import Union
+
+from typing_extensions import Protocol
 
 from apache_beam import coders
 from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.pipeline import ComponentIdMap
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
@@ -48,35 +56,39 @@ if TYPE_CHECKING:
   from apache_beam.coders.coder_impl import IterableStateReader
   from apache_beam.coders.coder_impl import IterableStateWriter
 
+PortableObjectT = TypeVar('PortableObjectT', bound='PortableObject')
 
-class _PipelineContextMap(object):
+
+class PortableObject(Protocol):
+  def to_runner_api(self, __context):
+    # type: (PipelineContext) -> Any
+    pass
+
+  @classmethod
+  def from_runner_api(cls, __proto, __context):
+    # type: (Any, PipelineContext) -> Any
+    pass
+
+
+class _PipelineContextMap(Generic[PortableObjectT]):
   """This is a bi-directional map between objects and ids.
 
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
   def __init__(self,
-               context,
-               obj_type,
+               context,  # type: PipelineContext
+               obj_type,  # type: Type[PortableObjectT]
                namespace,  # type: str
                proto_map=None  # type: Optional[Mapping[str, message.Message]]
               ):
+    # type: (...) -> None
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
     self._obj_to_id = {}  # type: Dict[Any, str]
     self._id_to_obj = {}  # type: Dict[str, Any]
     self._id_to_proto = dict(proto_map) if proto_map else {}
-    self._counter = 0
-
-  def _unique_ref(self, obj=None, label=None):
-    # type: (Optional[Any], Optional[str]) -> str
-    self._counter += 1
-    return "%s_%s_%s_%d" % (
-        self._namespace,
-        self._obj_type.__name__,
-        label or type(obj).__name__,
-        self._counter)
 
   def populate_map(self, proto_map):
     # type: (Mapping[str, message.Message]) -> None
@@ -84,20 +96,21 @@ class _PipelineContextMap(object):
       proto_map[id].CopyFrom(proto)
 
   def get_id(self, obj, label=None):
-    # type: (Any, Optional[str]) -> str
+    # type: (PortableObjectT, Optional[str]) -> str
     if obj not in self._obj_to_id:
-      id = self._unique_ref(obj, label)
+      id = self._pipeline_context.component_id_map.get_or_assign(
+          obj, self._obj_type, label)
       self._id_to_obj[id] = obj
       self._obj_to_id[obj] = id
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
     return self._obj_to_id[obj]
 
   def get_proto(self, obj, label=None):
-    # type: (Any, Optional[str]) -> message.Message
+    # type: (PortableObjectT, Optional[str]) -> message.Message
     return self._id_to_proto[self.get_id(obj, label)]
 
   def get_by_id(self, id):
-    # type: (str) -> Any
+    # type: (str) -> PortableObjectT
     if id not in self._id_to_obj:
       self._id_to_obj[id] = self._obj_type.from_runner_api(
           self._id_to_proto[id], self._pipeline_context)
@@ -109,13 +122,17 @@ class _PipelineContextMap(object):
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
           return id
-    return self.put_proto(self._unique_ref(label), maybe_new_proto)
+    return self.put_proto(
+        self._pipeline_context.component_id_map.get_or_assign(
+            label, obj_type=self._obj_type),
+        maybe_new_proto)
 
   def get_id_to_proto_map(self):
     # type: () -> Dict[str, message.Message]
     return self._id_to_proto
 
   def get_proto_from_id(self, id):
+    # type: (str) -> message.Message
     return self.get_id_to_proto_map()[id]
 
   def put_proto(self, id, proto, ignore_duplicates=False):
@@ -149,19 +166,24 @@ class PipelineContext(object):
 
   def __init__(self,
                proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]
+               component_id_map=None,  # type: Optional[pipeline.ComponentIdMap]
                default_environment=None,  # type: Optional[environments.Environment]
-               use_fake_coders=False,
+               use_fake_coders=False,  # type: bool
                iterable_state_read=None,  # type: Optional[IterableStateReader]
                iterable_state_write=None,  # type: Optional[IterableStateWriter]
-               namespace='ref',
-               allow_proto_holders=False,
+               namespace='ref',  # type: str
+               allow_proto_holders=False,  # type: bool
                requirements=(),  # type: Iterable[str]
               ):
+    # type: (...) -> None
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
+
+    self.component_id_map = component_id_map or ComponentIdMap(namespace)
+    assert self.component_id_map.namespace == namespace
 
     self.transforms = _PipelineContextMap(
         self,
@@ -202,9 +224,11 @@ class PipelineContext(object):
     self._requirements = set(requirements)
 
   def add_requirement(self, requirement):
+    # type: (str) -> None
     self._requirements.add(requirement)
 
   def requirements(self):
+    # type: () -> FrozenSet[str]
     return frozenset(self._requirements)
 
   # If fake coders are requested, return a pickled version of the element type

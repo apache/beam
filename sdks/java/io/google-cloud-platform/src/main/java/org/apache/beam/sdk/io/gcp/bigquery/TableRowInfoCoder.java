@@ -35,8 +35,8 @@ class TableRowInfoCoder<ElementT> extends AtomicCoder<TableRowInfo<ElementT>> {
     this.elementCoder = elementCoder;
   }
 
-  public static <ElementT> TableRowInfoCoder of(Coder<ElementT> elementCoder) {
-    return new TableRowInfoCoder(elementCoder);
+  public static <ElementT> TableRowInfoCoder<ElementT> of(Coder<ElementT> elementCoder) {
+    return new TableRowInfoCoder<>(elementCoder);
   }
 
   @Override

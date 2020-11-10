@@ -41,6 +41,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DirectTimerInternals}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectTimerInternalsTest {
   private MockClock clock;
   @Mock private TransformWatermarks watermarks;
@@ -62,12 +66,21 @@ public class DirectTimerInternalsTest {
   @Test
   public void setTimerAddsToBuilder() {
     TimerData eventTimer =
-        TimerData.of(StateNamespaces.global(), new Instant(20145L), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            StateNamespaces.global(),
+            new Instant(20145L),
+            new Instant(20145L),
+            TimeDomain.EVENT_TIME);
     TimerData processingTimer =
-        TimerData.of(StateNamespaces.global(), new Instant(125555555L), TimeDomain.PROCESSING_TIME);
+        TimerData.of(
+            StateNamespaces.global(),
+            new Instant(125555555L),
+            new Instant(125555555L),
+            TimeDomain.PROCESSING_TIME);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
+            new Instant(98745632189L),
             new Instant(98745632189L),
             TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     internals.setTimer(eventTimer);
@@ -82,12 +95,21 @@ public class DirectTimerInternalsTest {
   @Test
   public void deleteTimerDeletesOnBuilder() {
     TimerData eventTimer =
-        TimerData.of(StateNamespaces.global(), new Instant(20145L), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            StateNamespaces.global(),
+            new Instant(20145L),
+            new Instant(20145L),
+            TimeDomain.EVENT_TIME);
     TimerData processingTimer =
-        TimerData.of(StateNamespaces.global(), new Instant(125555555L), TimeDomain.PROCESSING_TIME);
+        TimerData.of(
+            StateNamespaces.global(),
+            new Instant(125555555L),
+            new Instant(125555555L),
+            TimeDomain.PROCESSING_TIME);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
+            new Instant(98745632189L),
             new Instant(98745632189L),
             TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     internals.deleteTimer(eventTimer);

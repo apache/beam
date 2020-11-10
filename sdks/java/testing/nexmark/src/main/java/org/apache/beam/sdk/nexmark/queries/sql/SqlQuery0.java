@@ -22,6 +22,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -36,7 +39,6 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -48,13 +50,24 @@ import org.apache.beam.sdk.values.Row;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous with default
  * configuration.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
 
-  private static final PTransform<PInput, PCollection<Row>> QUERY =
-      SqlTransform.query("SELECT * FROM PCOLLECTION");
+  private final Class<? extends QueryPlanner> plannerClass;
 
-  public SqlQuery0() {
+  private SqlQuery0(String name, Class<? extends QueryPlanner> plannerClass) {
     super("SqlQuery0");
+    this.plannerClass = plannerClass;
+  }
+
+  public static SqlQuery0 zetaSqlQuery0() {
+    return new SqlQuery0("ZetaSqlQuery0", ZetaSQLQueryPlanner.class);
+  }
+
+  public static SqlQuery0 calciteSqlQuery0() {
+    return new SqlQuery0("SqlQuery0", CalciteQueryPlanner.class);
   }
 
   @Override
@@ -66,7 +79,7 @@ public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
 
     return rows.apply(getName() + ".Serialize", logBytesMetric(rows.getCoder()))
         .setRowSchema(rows.getSchema())
-        .apply(QUERY)
+        .apply(SqlTransform.query("SELECT * FROM PCOLLECTION").withQueryPlannerClass(plannerClass))
         .apply(Convert.fromRows(Bid.class));
   }
 

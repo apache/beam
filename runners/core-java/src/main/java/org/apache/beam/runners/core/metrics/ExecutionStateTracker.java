@@ -25,12 +25,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
@@ -104,7 +107,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private final ExecutionStateSampler sampler;
 
   /** The thread being managed by this {@link ExecutionStateTracker}. */
-  @Nullable private Thread trackedThread = null;
+  private @Nullable Thread trackedThread = null;
 
   /**
    * The current state of the thread managed by this {@link ExecutionStateTracker}.
@@ -112,7 +115,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
-  @Nullable private volatile ExecutionState currentState;
+  private volatile @Nullable ExecutionState currentState;
 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.
@@ -176,8 +179,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * Return the current {@link ExecutionState} of the current thread, or {@code null} if there
    * either is no current state or if the current thread is not currently tracking the state.
    */
-  @Nullable
-  public static ExecutionState getCurrentExecutionState() {
+  public static @Nullable ExecutionState getCurrentExecutionState() {
     ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
     return tracker == null ? null : tracker.currentState;
   }

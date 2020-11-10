@@ -18,22 +18,21 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.ByteString;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubSubscription;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubTopic;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages.ParsePayloadAsPubsubMessageProto;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Exposes {@link PubsubIO.Read} as an external transform for cross-language usage. */
 @Experimental
@@ -44,16 +43,16 @@ public final class ExternalRead implements ExternalTransformRegistrar {
   public static final String URN = "beam:external:java:pubsub:read:v1";
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return ImmutableMap.of(URN, ReadBuilder.class);
   }
 
   /** Parameters class to expose the transform to an external SDK. */
   public static class Configuration {
-    @Nullable private String topic;
-    @Nullable private String subscription;
-    @Nullable private String idAttribute;
-    @Nullable private String timestampAttribute;
+    private @Nullable String topic;
+    private @Nullable String subscription;
+    private @Nullable String idAttribute;
+    private @Nullable String timestampAttribute;
     private boolean needsAttributes;
 
     public void setTopic(@Nullable String topic) {
@@ -109,23 +108,6 @@ public final class ExternalRead implements ExternalTransformRegistrar {
         readBuilder.setTimestampAttribute(config.timestampAttribute);
       }
       return readBuilder.build();
-    }
-  }
-
-  // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
-  private static class ParsePayloadAsPubsubMessageProto
-      implements SerializableFunction<PubsubMessage, byte[]> {
-    @Override
-    public byte[] apply(PubsubMessage input) {
-      Map<String, String> attributes = input.getAttributeMap();
-      com.google.pubsub.v1.PubsubMessage.Builder message =
-          com.google.pubsub.v1.PubsubMessage.newBuilder()
-              .setData(ByteString.copyFrom(input.getPayload()));
-      // TODO(BEAM-8085) this should not be null
-      if (attributes != null) {
-        message.putAllAttributes(attributes);
-      }
-      return message.build().toByteArray();
     }
   }
 }

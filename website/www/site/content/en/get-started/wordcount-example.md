@@ -123,7 +123,7 @@ sections, we will specify the pipeline's runner.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_options >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_options >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java language-py" >}}
@@ -143,7 +143,7 @@ Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_create >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_create >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -179,7 +179,7 @@ p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_read >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_read >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -204,7 +204,7 @@ lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
 
 {{< highlight py >}}
 # The Flatmap transform is a simplified version of ParDo.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_pardo >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_pardo >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -231,7 +231,7 @@ words := beam.ParDo(s, func(line string, emit func(string)) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_count >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_count >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -253,7 +253,7 @@ counted := stats.Count(s, words)
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_map >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_map >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -272,7 +272,7 @@ formatted := beam.ParDo(s, func(w string, c int) string {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_write >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_write >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -304,7 +304,7 @@ p.run().waitUntilFinish();
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_run >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_run >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -334,11 +334,6 @@ above section, [MinimalWordCount](#minimalwordcount-example).
 {{< highlight class="runner-direct" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -391,23 +386,21 @@ To view the full code in Java, see
 python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner FlinkRunner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/documentation/runners/flink/ for more information.
+# Running Beam Python on a distributed Flink cluster requires additional configuration.
+# See https://beam.apache.org/documentation/runners/flink/ for more information.
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
-Currently, running wordcount.py on Spark requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner SparkRunner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -441,10 +434,6 @@ To view the full code in Python, see
 {{< highlight class="runner-direct" >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -534,7 +523,7 @@ static class ExtractWordsFn extends DoFn<String, String> {
 {{< highlight py >}}
 # In this example, the DoFns are defined as classes:
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_dofn >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_dofn >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -603,7 +592,7 @@ public static void main(String[] args) throws IOException {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_composite >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_composite >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -652,7 +641,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_options >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_options >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -677,11 +666,6 @@ instrumenting your pipeline code.
 {{< highlight class="runner-direct" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--output=counts" -Pdirect-runner
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--output=counts --runner=ApexRunner" -Papex-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -734,10 +718,6 @@ To view the full code in Java, see
 python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
@@ -780,10 +760,6 @@ To view the full code in Python, see
 {{< highlight class="runner-direct" >}}
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 $ debugging_wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -862,7 +838,7 @@ public class DebuggingWordCount {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" example_wordcount_debugging_logging >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" example_wordcount_debugging_logging >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -928,16 +904,11 @@ or DEBUG significantly increases the amount of logs output.
 > **Note:** This section is yet to be added. There is an open issue for this
 > ([BEAM-791](https://issues.apache.org/jira/browse/BEAM-791)).
 
-#### Apache Apex Runner
-
-> **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-2285](https://issues.apache.org/jira/browse/BEAM-2285)).
-
 #### Apache Nemo Runner
 
-When executing your pipeline with the `NemoRunner`, most log messages are printed 
-directly to your local console. You should add `Slf4j` to your class path to make 
-full use of the logs. In order to observe the logs on each of the driver and the 
+When executing your pipeline with the `NemoRunner`, most log messages are printed
+directly to your local console. You should add `Slf4j` to your class path to make
+full use of the logs. In order to observe the logs on each of the driver and the
 executor sides, you should observe the folders created by Apache REEF. For example,
 when running your pipeline through the local runtime, a folder called `REEF_LOCAL_RUNTIME`
 will be created on your work directory, and the logs and the metric information can
@@ -1021,11 +992,6 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
@@ -1080,10 +1046,6 @@ parameter. using the format `PROJECT:DATASET.TABLE` or
 python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
@@ -1126,10 +1088,6 @@ To view the full code in Python, see
 {{< highlight class="runner-direct" >}}
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 $ windowed_wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -1249,7 +1207,7 @@ each element in the `PCollection`.
 {{< /highlight >}}
 
 {{< highlight py >}}
-beam.Map(AddTimestampFn(timestamp_seconds))
+beam.Map(AddTimestampFn(min_timestamp, max_timestamp))
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -1291,7 +1249,7 @@ static class AddTimestampFn extends DoFn<String, String> {
 
 {{< highlight py >}}
 class AddTimestampFn(beam.DoFn):
-  
+
   def __init__(self, min_timestamp, max_timestamp):
      self.min_timestamp = min_timestamp
      self.max_timestamp = max_timestamp
@@ -1388,10 +1346,6 @@ python -m apache_beam.examples.streaming_wordcount \
   --streaming
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
@@ -1442,7 +1396,7 @@ To view the full code in Python, see
 
 This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
-[`beam.io.ReadStringsFromPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
+[`beam.io.ReadFromPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadFromPubSub).
 
 {{< highlight java >}}
   // This example is not currently available for the Beam SDK for Java.
@@ -1451,10 +1405,11 @@ messages from a Pub/Sub subscription or topic using
 {{< highlight py >}}
   # Read from Pub/Sub into a PCollection.
   if known_args.input_subscription:
-    lines = p | beam.io.ReadStringsFromPubSub(
+    data = p | beam.io.ReadFromPubSub(
         subscription=known_args.input_subscription)
   else:
-    lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
+    data = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+  lines = data | 'DecodeString' >> beam.Map(lambda d: d.decode('utf-8'))
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -1470,7 +1425,7 @@ outputs.
 
 This example uses an unbounded `PCollection` and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
-using [`beam.io.WriteStringsToPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub).
+using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteToPubSub).
 
 {{< highlight java >}}
   // This example is not currently available for the Beam SDK for Java.
@@ -1478,7 +1433,9 @@ using [`beam.io.WriteStringsToPubSub`](https://beam.apache.org/releases/pydoc/{{
 
 {{< highlight py >}}
   # Write to Pub/Sub
-  output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+  _ = (output
+    | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
+    | beam.io.WriteToPubSub(known_args.output_topic))
 {{< /highlight >}}
 
 {{< highlight go >}}

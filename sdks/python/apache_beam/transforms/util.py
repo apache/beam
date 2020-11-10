@@ -631,8 +631,8 @@ class _IdentityWindowFn(NonMergingWindowFn):
 class ReshufflePerKey(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
@@ -657,10 +657,10 @@ class ReshufflePerKey(PTransform):
             window.GlobalWindows.windowed_value((key, value), timestamp)
             for (value, timestamp) in values
         ]
-
     else:
 
-      def reify_timestamps(
+      # typing: All conditional function variants must have identical signatures
+      def reify_timestamps(  # type: ignore[misc]
           element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
         key, value = element
         # Transport the window as part of the value and restore it later.
@@ -693,8 +693,8 @@ class ReshufflePerKey(PTransform):
 class Reshuffle(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
@@ -709,12 +709,11 @@ class Reshuffle(PTransform):
       KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(KeyedT)  # type: ignore[misc]
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
+            32), t)).with_input_types(T).with_output_types(KeyedT)
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-            KeyedT).with_output_types(T)  # type: ignore[misc]
-    )
+        | 'RemoveRandomKeys' >>
+        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
@@ -741,6 +740,7 @@ def WithKeys(pcoll, k):
 
 @experimental()
 @typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which
@@ -751,24 +751,42 @@ class GroupIntoBatches(PTransform):
   GroupIntoBatches is experimental. Its use case will depend on the runner if
   it has support of States and Timers.
   """
-  def __init__(self, batch_size):
+  def __init__(
+      self, batch_size, max_buffering_duration_secs=None, clock=time.time):
     """Create a new GroupIntoBatches with batch size.
 
     Arguments:
       batch_size: (required) How many elements should be in a batch
+      max_buffering_duration_secs: (optional) How long in seconds at most an
+        incomplete batch of elements is allowed to be buffered in the states.
+        The duration must be a positive second duration and should be given as
+        an int or float.
+      clock: (optional) an alternative to time.time (mostly for testing)
     """
     self.batch_size = batch_size
+
+    if max_buffering_duration_secs is not None:
+      assert max_buffering_duration_secs > 0, (
+          'max buffering duration should be a positive value')
+    self.max_buffering_duration_secs = max_buffering_duration_secs
+    self.clock = clock
 
   def expand(self, pcoll):
     input_coder = coders.registry.get_coder(pcoll)
     return pcoll | ParDo(
-        _pardo_group_into_batches(self.batch_size, input_coder))
+        _pardo_group_into_batches(
+            input_coder,
+            self.batch_size,
+            self.max_buffering_duration_secs,
+            self.clock))
 
 
-def _pardo_group_into_batches(batch_size, input_coder):
+def _pardo_group_into_batches(
+    input_coder, batch_size, max_buffering_duration_secs, clock=time.time):
   ELEMENT_STATE = BagStateSpec('values', input_coder)
   COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
-  EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+  BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
 
   class _GroupIntoBatchesDoFn(DoFn):
     def process(
@@ -777,29 +795,47 @@ def _pardo_group_into_batches(batch_size, input_coder):
         window=DoFn.WindowParam,
         element_state=DoFn.StateParam(ELEMENT_STATE),
         count_state=DoFn.StateParam(COUNT_STATE),
-        expiry_timer=DoFn.TimerParam(EXPIRY_TIMER)):
+        window_timer=DoFn.TimerParam(WINDOW_TIMER),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
       # Allowed lateness not supported in Python SDK
       # https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data
-      expiry_timer.set(window.end)
+      window_timer.set(window.end)
       element_state.add(element)
       count_state.add(1)
       count = count_state.read()
+      if count == 1 and max_buffering_duration_secs is not None:
+        # This is the first element in batch. Start counting buffering time if a
+        # limit was set.
+        buffering_timer.set(clock() + max_buffering_duration_secs)
       if count >= batch_size:
-        batch = [element for element in element_state.read()]
-        yield batch
-        element_state.clear()
-        count_state.clear()
+        return self.flush_batch(element_state, count_state, buffering_timer)
 
-    @on_timer(EXPIRY_TIMER)
-    def expiry(
+    @on_timer(WINDOW_TIMER)
+    def on_window_timer(
         self,
         element_state=DoFn.StateParam(ELEMENT_STATE),
-        count_state=DoFn.StateParam(COUNT_STATE)):
+        count_state=DoFn.StateParam(COUNT_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(element_state, count_state, buffering_timer)
+
+    @on_timer(BUFFERING_TIMER)
+    def on_buffering_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(element_state, count_state, buffering_timer)
+
+    def flush_batch(self, element_state, count_state, buffering_timer):
       batch = [element for element in element_state.read()]
-      if batch:
-        yield batch
-        element_state.clear()
-        count_state.clear()
+      if not batch:
+        return
+      key, _ = batch[0]
+      batch_values = [v for (k, v) in batch]
+      element_state.clear()
+      count_state.clear()
+      buffering_timer.clear()
+      yield key, batch_values
 
   return _GroupIntoBatchesDoFn()
 
@@ -809,53 +845,30 @@ class ToString(object):
   PTransform for converting a PCollection element, KV or PCollection Iterable
   to string.
   """
-  class Kvs(PTransform):
-    """
-    Transforms each element of the PCollection to a string on the key followed
-    by the specific delimiter and the value.
-    """
-    def __init__(self, delimiter=None):
-      self.delimiter = delimiter or ","
 
-    def expand(self, pcoll):
-      input_type = Tuple[Any, Any]
-      output_type = str
-      return (
-          pcoll | (
-              '%s:KeyVaueToString' % self.label >>
-              (Map(lambda x: "{}{}{}".format(x[0], self.delimiter, x[1]))
-               ).with_input_types(input_type)  # type: ignore[misc]
-              .with_output_types(output_type)))
-
-  class Element(PTransform):
+  # pylint: disable=invalid-name
+  @staticmethod
+  def Element():
     """
     Transforms each element of the PCollection to a string.
     """
-    def expand(self, pcoll):
-      input_type = T
-      output_type = str
-      return (
-          pcoll | (
-              '%s:ElementToString' % self.label >>
-              (Map(lambda x: str(x))
-               ).with_input_types(input_type).with_output_types(output_type)))
+    return 'ElementToString' >> Map(str)
 
-  class Iterables(PTransform):
+  @staticmethod
+  def Iterables(delimiter=None):
     """
     Transforms each item in the iterable of the input of PCollection to a
     string. There is no trailing delimiter.
     """
-    def __init__(self, delimiter=None):
-      self.delimiter = delimiter or ","
+    if delimiter is None:
+      delimiter = ','
+    return (
+        'IterablesToString' >>
+        Map(lambda xs: delimiter.join(str(x) for x in xs)).with_input_types(
+            Iterable[Any]).with_output_types(str))
 
-    def expand(self, pcoll):
-      input_type = Iterable[Any]
-      output_type = str
-      return (
-          pcoll | (
-              '%s:IterablesToString' % self.label >>
-              (Map(lambda x: self.delimiter.join(str(_x) for _x in x))
-               ).with_input_types(input_type).with_output_types(output_type)))
+  # An alias for Iterables.
+  Kvs = Iterables
 
 
 class Reify(object):
@@ -1028,7 +1041,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Union[List[str], Tuple[str, str]])
+  @typehints.with_output_types(Union[List[str], List[Tuple[str, str]]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """

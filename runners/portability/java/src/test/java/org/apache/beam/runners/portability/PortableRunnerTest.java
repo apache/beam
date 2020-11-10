@@ -27,13 +27,14 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.runners.core.construction.InMemoryArtifactStagerService;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.portability.testing.TestJobService;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -44,8 +45,12 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -80,46 +85,45 @@ public class PortableRunnerTest implements Serializable {
 
   private final PipelineOptions options = createPipelineOptions();
 
+  @Rule
+  public transient GrpcCleanupRule grpcCleanupRule =
+      new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);
+
   @Rule public transient TestPipeline p = TestPipeline.fromOptions(options);
 
   @Test
   public void stagesAndRunsJob() throws Exception {
-    try (CloseableResource<Server> server =
-        createJobServer(JobState.Enum.DONE, JobApi.MetricResults.getDefaultInstance())) {
-      PortableRunner runner =
-          PortableRunner.create(options, InProcessManagedChannelFactory.create());
-      State state = runner.run(p).waitUntilFinish();
-      assertThat(state, is(State.DONE));
-    }
+    createJobServer(JobState.Enum.DONE, JobApi.MetricResults.getDefaultInstance());
+    PortableRunner runner = PortableRunner.create(options, InProcessManagedChannelFactory.create());
+    State state = runner.run(p).waitUntilFinish();
+    assertThat(state, is(State.DONE));
   }
 
   @Test
   public void extractsMetrics() throws Exception {
     JobApi.MetricResults metricResults = generateMetricResults();
-    try (CloseableResource<Server> server = createJobServer(JobState.Enum.DONE, metricResults)) {
-      PortableRunner runner =
-          PortableRunner.create(options, InProcessManagedChannelFactory.create());
-      PipelineResult result = runner.run(p);
-      result.waitUntilFinish();
-      MetricQueryResults metricQueryResults = result.metrics().allMetrics();
-      assertThat(
-          metricQueryResults.getCounters().iterator().next().getAttempted(), is(COUNTER_VALUE));
-      assertThat(
-          metricQueryResults.getDistributions().iterator().next().getAttempted().getCount(),
-          is(DIST_COUNT));
-      assertThat(
-          metricQueryResults.getDistributions().iterator().next().getAttempted().getMax(),
-          is(DIST_MAX));
-      assertThat(
-          metricQueryResults.getDistributions().iterator().next().getAttempted().getMin(),
-          is(DIST_MIN));
-      assertThat(
-          metricQueryResults.getDistributions().iterator().next().getAttempted().getSum(),
-          is(DIST_SUM));
-      assertThat(
-          metricQueryResults.getGauges().iterator().next().getAttempted().getValue(),
-          is(GAUGE_VALUE));
-    }
+    createJobServer(JobState.Enum.DONE, metricResults);
+    PortableRunner runner = PortableRunner.create(options, InProcessManagedChannelFactory.create());
+    PipelineResult result = runner.run(p);
+    result.waitUntilFinish();
+    MetricQueryResults metricQueryResults = result.metrics().allMetrics();
+    assertThat(
+        metricQueryResults.getCounters().iterator().next().getAttempted(), is(COUNTER_VALUE));
+    assertThat(
+        metricQueryResults.getDistributions().iterator().next().getAttempted().getCount(),
+        is(DIST_COUNT));
+    assertThat(
+        metricQueryResults.getDistributions().iterator().next().getAttempted().getMax(),
+        is(DIST_MAX));
+    assertThat(
+        metricQueryResults.getDistributions().iterator().next().getAttempted().getMin(),
+        is(DIST_MIN));
+    assertThat(
+        metricQueryResults.getDistributions().iterator().next().getAttempted().getSum(),
+        is(DIST_SUM));
+    assertThat(
+        metricQueryResults.getGauges().iterator().next().getAttempted().getValue(),
+        is(GAUGE_VALUE));
   }
 
   private JobApi.MetricResults generateMetricResults() throws Exception {
@@ -158,19 +162,32 @@ public class PortableRunnerTest implements Serializable {
         .build();
   }
 
-  private static CloseableResource<Server> createJobServer(
-      JobState.Enum jobState, JobApi.MetricResults metricResults) throws IOException {
-    CloseableResource<Server> server =
-        CloseableResource.of(
+  private void createJobServer(JobState.Enum jobState, JobApi.MetricResults metricResults)
+      throws IOException {
+    ArtifactStagingService stagingService =
+        new ArtifactStagingService(
+            new ArtifactStagingService.ArtifactDestinationProvider() {
+
+              @Override
+              public ArtifactStagingService.ArtifactDestination getDestination(
+                  String stagingToken, String name) throws IOException {
+                return ArtifactStagingService.ArtifactDestination.create(
+                    "/dev/null", ByteString.EMPTY, ByteStreams.nullOutputStream());
+              }
+
+              @Override
+              public void removeStagedArtifacts(String stagingToken) {}
+            });
+    stagingService.registerJob("TestStagingToken", ImmutableMap.of());
+    Server server =
+        grpcCleanupRule.register(
             InProcessServerBuilder.forName(ENDPOINT_URL)
                 .addService(
                     new TestJobService(
                         ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState, metricResults))
-                .addService(new InMemoryArtifactStagerService())
-                .build(),
-            Server::shutdown);
-    server.get().start();
-    return server;
+                .addService(stagingService)
+                .build());
+    server.start();
   }
 
   private static PipelineOptions createPipelineOptions() {

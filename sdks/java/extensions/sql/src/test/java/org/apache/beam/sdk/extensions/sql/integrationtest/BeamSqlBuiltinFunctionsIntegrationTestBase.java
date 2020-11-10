@@ -29,7 +29,6 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
@@ -53,10 +52,14 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final double PRECISION_DOUBLE = 1e-7;
   private static final float PRECISION_FLOAT = 1e-7f;
@@ -203,8 +206,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
     abstract String sqlExpr();
 
-    @Nullable
-    abstract Object expectedResult();
+    abstract @Nullable Object expectedResult();
 
     abstract FieldType resultFieldType();
   }

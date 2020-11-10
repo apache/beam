@@ -42,6 +42,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FlattenRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlattenRunnerTest {
 
   /**
@@ -91,8 +94,9 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null, /* tearDownRegistry */
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -162,8 +166,9 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null, /* tearDownRegistry */
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);

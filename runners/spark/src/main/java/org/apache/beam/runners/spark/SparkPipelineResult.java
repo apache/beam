@@ -37,10 +37,12 @@ import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Represents a Spark pipeline execution result. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class SparkPipelineResult implements PipelineResult {
 
   final Future pipelineExecution;
@@ -148,8 +150,6 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   static class PortableBatchMode extends BatchMode implements PortablePipelineResult {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BatchMode.class);
-
     PortableBatchMode(Future<?> pipelineExecution, JavaSparkContext javaSparkContext) {
       super(pipelineExecution, javaSparkContext);
     }
@@ -210,6 +210,20 @@ public abstract class SparkPipelineResult implements PipelineResult {
           break;
       }
       return terminationState;
+    }
+  }
+
+  static class PortableStreamingMode extends StreamingMode implements PortablePipelineResult {
+
+    PortableStreamingMode(Future<?> pipelineExecution, JavaStreamingContext javaStreamingContext) {
+      super(pipelineExecution, javaStreamingContext);
+    }
+
+    @Override
+    public JobApi.MetricResults portableMetrics() {
+      return JobApi.MetricResults.newBuilder()
+          .addAllAttempted(MetricsAccumulator.getInstance().value().getMonitoringInfos())
+          .build();
     }
   }
 

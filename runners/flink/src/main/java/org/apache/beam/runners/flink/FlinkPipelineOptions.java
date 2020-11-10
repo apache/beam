@@ -22,6 +22,7 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
@@ -127,6 +128,15 @@ public interface FlinkPipelineOptions
   void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
 
   @Description(
+      "If set, finishes the current bundle and flushes all output before checkpointing the state of the operators. "
+          + "By default, starts checkpointing immediately and buffers any remaining bundle output as part of the checkpoint. "
+          + "The setting may affect the checkpoint alignment.")
+  @Default.Boolean(false)
+  boolean getFinishBundleBeforeCheckpointing();
+
+  void setFinishBundleBeforeCheckpointing(boolean finishBundleBeforeCheckpointing);
+
+  @Description(
       "Shuts down sources which have been idle for the configured time of milliseconds. Once a source has been "
           + "shut down, checkpointing is not possible anymore. Shutting down the sources eventually leads to pipeline "
           + "shutdown (=Flink job finishes) once all input has been processed. Unless explicitly set, this will "
@@ -175,7 +185,7 @@ public interface FlinkPipelineOptions
   @Default.Boolean(false)
   Boolean getDisableMetrics();
 
-  void setDisableMetrics(Boolean enableMetrics);
+  void setDisableMetrics(Boolean disableMetrics);
 
   /** Enables or disables externalized checkpoints. */
   @Description(
@@ -258,4 +268,22 @@ public interface FlinkPipelineOptions
   String getReportCheckpointDuration();
 
   void setReportCheckpointDuration(String metricNamespace);
+
+  @Description(
+      "Flag indicating whether result of GBK needs to be re-iterable. Re-iterable result implies that all values for a single key must fit in memory as we currently do not support spilling to disk.")
+  @Default.Boolean(false)
+  Boolean getReIterableGroupByKeyResult();
+
+  void setReIterableGroupByKeyResult(Boolean reIterableGroupByKeyResult);
+
+  @Description(
+      "Remove unneeded deep copy between operators. See https://issues.apache.org/jira/browse/BEAM-11146")
+  @Default.Boolean(false)
+  Boolean getFasterCopy();
+
+  void setFasterCopy(Boolean fasterCopy);
+
+  static FlinkPipelineOptions defaults() {
+    return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+  }
 }

@@ -64,6 +64,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ArtifactStagingService
     extends ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase implements FnService {
 
@@ -329,6 +332,13 @@ public class ArtifactStagingService
             stagingToken = responseWrapper.getStagingToken();
             LOG.info("Staging artifacts for {}.", stagingToken);
             toResolve = toStage.get(stagingToken);
+            if (toResolve == null) {
+              responseObserver.onError(
+                  new StatusException(
+                      Status.INVALID_ARGUMENT.withDescription(
+                          "Unknown staging token " + stagingToken)));
+              return;
+            }
             stagedFutures = new ConcurrentHashMap<>();
             pendingResolves = new ArrayDeque<>();
             pendingResolves.addAll(toResolve.keySet());

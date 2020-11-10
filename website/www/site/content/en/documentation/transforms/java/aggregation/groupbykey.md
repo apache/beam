@@ -41,7 +41,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 **Example 2**: Given a collection of customer orders keyed by postal code,
 you could use `GroupByKey` to get the collection of all orders in each postal code.
 
-## Related transforms 
+## Related transforms
 * [CoGroupByKey](/documentation/transforms/java/aggregation/cogroupbykey)
   for multiple input collections
 * [Combine](/documentation/transforms/java/aggregation/combine)

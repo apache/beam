@@ -23,7 +23,7 @@ A `HadoopFormatIO` is a transform for reading data from any source or writing da
 
 `HadoopFormatIO` allows you to connect to many data sources/sinks that do not yet have a Beam IO transform. However, `HadoopFormatIO` has to make several performance trade-offs in connecting to `InputFormat` or `OutputFormat`. So, if there is another Beam IO transform for connecting specifically to your data source/sink of choice, we recommend you use that one.
 
-  
+
 
 ### Reading using HadoopFormatIO
 
@@ -287,7 +287,7 @@ PCollection<Text, DynamoDBItemWritable> dynamoDBData =
 
 To read data from an HBase table snapshot, use `org.apache.hadoop.hbase.mapreduce.TableSnapshotInputFormat`.
 Reading from a table snapshot bypasses the HBase region servers, instead reading HBase data files directly from the filesystem.
-This is useful for cases such as reading historical data or offloading of work from the HBase cluster. 
+This is useful for cases such as reading historical data or offloading of work from the HBase cluster.
 There are scenarios when this may prove faster than accessing content through the region servers using the `HBaseIO`.
 
 A table snapshot can be taken using the HBase shell or programmatically:
@@ -300,7 +300,7 @@ try (
     "my_snaphshot",
     TableName.valueOf("my_table"),
     HBaseProtos.SnapshotDescription.Type.FLUSH);
-}  
+}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -353,7 +353,7 @@ PCollection<ImmutableBytesWritable, Result> hbaseSnapshotData =
 ### Writing using HadoopFormatIO
 
 You will need to pass a Hadoop `Configuration` with parameters specifying how the write will occur. Many properties of the `Configuration` are optional, and some are required for certain `OutputFormat` classes, but the following properties must be set for all `OutputFormat`s:
- 
+
 - `mapreduce.job.id` - The identifier of the write job. E.g.: end timestamp of window.
 - `mapreduce.job.outputformat.class` - The `OutputFormat` class used to connect to your data sink of choice.
 - `mapreduce.job.output.key.class` - The key class passed to the `OutputFormat` in `mapreduce.job.outputformat.class`.

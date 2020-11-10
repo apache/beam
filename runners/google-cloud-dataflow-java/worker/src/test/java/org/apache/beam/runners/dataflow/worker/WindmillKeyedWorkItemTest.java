@@ -52,6 +52,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WindmillKeyedWorkItem}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindmillKeyedWorkItemTest {
 
   private static final String STATE_FAMILY = "state";
@@ -166,6 +169,7 @@ public class WindmillKeyedWorkItemTest {
                 TimerData.of(
                     ns,
                     new Instant(timestamp),
+                    new Instant(timestamp),
                     WindmillTimerInternals.timerTypeToTimeDomain(type))))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
@@ -174,7 +178,7 @@ public class WindmillKeyedWorkItemTest {
   }
 
   private static TimerData makeTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
-    return TimerData.of(ns, new Instant(timestamp), domain);
+    return TimerData.of(ns, new Instant(timestamp), new Instant(timestamp), domain);
   }
 
   @Test

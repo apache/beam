@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -40,9 +39,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collecti
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
   private final GetterBasedSchemaProvider schemaProvider;
@@ -93,8 +97,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
-  @Nullable
-  private <ValueT> ValueT fromValue(
+  private @Nullable <ValueT> ValueT fromValue(
       FieldType type,
       ValueT value,
       Type fieldType,
@@ -227,7 +230,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

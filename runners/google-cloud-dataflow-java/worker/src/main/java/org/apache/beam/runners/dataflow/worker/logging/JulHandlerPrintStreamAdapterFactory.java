@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -37,11 +36,15 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 
 /**
  * A {@link PrintStream} factory that creates {@link PrintStream}s which output to the specified JUL
  * {@link Handler} at the specified {@link Level}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class JulHandlerPrintStreamAdapterFactory {
   private static final AtomicBoolean outputWarning = new AtomicBoolean(false);
 
@@ -66,14 +69,17 @@ class JulHandlerPrintStreamAdapterFactory {
     private int carryOverBytes;
     private byte[] carryOverByteArray;
 
-    private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel) {
+    private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel)
+        throws UnsupportedEncodingException {
       super(
           new OutputStream() {
             @Override
             public void write(int i) throws IOException {
               throw new RuntimeException("All methods should be overwritten so this is unused");
             }
-          });
+          },
+          false,
+          Charsets.UTF_8.name());
       this.handler = handler;
       this.loggerName = loggerName;
       this.messageLevel = logLevel;
@@ -91,10 +97,10 @@ class JulHandlerPrintStreamAdapterFactory {
 
     @Override
     public void flush() {
-      publishIfNonEmpty(flushToString());
+      publishIfNonEmpty(flushBufferToString());
     }
 
-    private synchronized String flushToString() {
+    private synchronized String flushBufferToString() {
       if (buffer.length() > 0 && buffer.charAt(buffer.length() - 1) == '\n') {
         buffer.setLength(buffer.length() - 1);
       }
@@ -162,7 +168,7 @@ class JulHandlerPrintStreamAdapterFactory {
           int startLength = buffer.length();
           buffer.append(decoded);
           if (flush || buffer.indexOf("\n", startLength) >= 0) {
-            msg = flushToString();
+            msg = flushBufferToString();
           }
         }
       }
@@ -213,7 +219,7 @@ class JulHandlerPrintStreamAdapterFactory {
         if (!flush) {
           return;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -227,7 +233,7 @@ class JulHandlerPrintStreamAdapterFactory {
         if (!flush) {
           return;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -247,7 +253,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(b);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -257,7 +263,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(c);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -267,7 +273,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(i);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -277,7 +283,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(l);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -287,7 +293,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(f);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -297,7 +303,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(d);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -307,7 +313,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(a);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -317,7 +323,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(s);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -327,7 +333,7 @@ class JulHandlerPrintStreamAdapterFactory {
       String msg;
       synchronized (this) {
         buffer.append(o);
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
     }
@@ -347,7 +353,7 @@ class JulHandlerPrintStreamAdapterFactory {
         if (buffer.indexOf("\n", startLength) < 0) {
           return this;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
       return this;
@@ -369,17 +375,13 @@ class JulHandlerPrintStreamAdapterFactory {
         if (!flush) {
           return this;
         }
-        msg = flushToString();
+        msg = flushBufferToString();
       }
       publishIfNonEmpty(msg);
       return this;
     }
 
-    // Note to avoid a deadlock, publish may never be called synchronized. See BEAM-9399.
     private void publishIfNonEmpty(String message) {
-      checkState(
-          !Thread.holdsLock(this),
-          "BEAM-9399: publish should not be called with the lock as it may cause deadlock");
       if (message == null || message.isEmpty()) {
         return;
       }
@@ -401,7 +403,11 @@ class JulHandlerPrintStreamAdapterFactory {
    * specified {@code loggerName} and {@code level}.
    */
   static PrintStream create(Handler handler, String loggerName, Level messageLevel) {
-    return new JulHandlerPrintStream(handler, loggerName, messageLevel);
+    try {
+      return new JulHandlerPrintStream(handler, loggerName, messageLevel);
+    } catch (UnsupportedEncodingException exc) {
+      throw new RuntimeException("Encoding not supported: " + Charsets.UTF_8.name(), exc);
+    }
   }
 
   @VisibleForTesting

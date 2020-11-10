@@ -54,7 +54,9 @@ task sdist {
     copy { from collection.singleFile; into buildDir; rename { tarball } }
     logger.info('Create distribution tar file {} in {}', tarball, buildDir)
   }
-  inputs.files pythonSdkDeps
+  inputs.files(pythonSdkDeps)
+      .withPropertyName('pythonSdkDeps')
+      .withPathSensitivity(PathSensitivity.RELATIVE)
   outputs.file "${buildDir}/${tarball}"
 }
 
@@ -89,14 +91,7 @@ task depSnapshot {
 
 task dependencyUpdates {
   dependsOn ':dependencyUpdates'
-  dependsOn setupVirtualenv
-
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_dependency_check.sh"
-    }
-  }
+  dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
 }
 
 task buildSnapshot() {

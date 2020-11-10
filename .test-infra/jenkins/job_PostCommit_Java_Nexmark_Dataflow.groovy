@@ -20,126 +20,192 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
-import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
+
+import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
+import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',
-        'Dataflow Runner Nexmark Tests', this) {
-  description('Runs the Nexmark suite on the Dataflow runner.')
+    'Dataflow Runner Nexmark Tests', this) {
+      description('Runs the Nexmark suite on the Dataflow runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      InfluxDBCredentialsHelper.useCredentials(delegate)
 
-  // Gradle goals for this job.
-  steps {
-    shell('echo "*** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+      // Gradle goals for this job.
+      steps {
+        shell('echo "*** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:nexmark:run')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DataflowRunner',
-              '--region=us-central1',
-              '--numWorkers=4',
-              '--maxNumWorkers=4',
-              '--autoscalingAlgorithm=NONE',
-              '--nexmarkParallel=16',
-              '--streaming=false',
-              '--suite=STRESS',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
-    }
-    shell('echo "*** RUN NEXMARK IN STREAMING MODE USING DATAFLOW RUNNER ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+              [
+                commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+                commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+                '--runner=DataflowRunner',
+                '--region=us-central1',
+                '--numWorkers=4',
+                '--maxNumWorkers=4',
+                '--autoscalingAlgorithm=NONE',
+                '--nexmarkParallel=16',
+                '--streaming=false',
+                '--suite=STRESS',
+                '--manageResources=false',
+                '--monitorJobs=true',
+                '--enforceEncodability=true',
+                '--enforceImmutability=true"'
+              ].join(' '))
+        }
+        shell('echo "*** RUN NEXMARK IN STREAMING MODE USING DATAFLOW RUNNER ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:nexmark:run')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DataflowRunner',
-              '--region=us-central1',
-              '--numWorkers=4',
-              '--maxNumWorkers=4',
-              '--autoscalingAlgorithm=NONE',
-              '--nexmarkParallel=16',
-              '--streaming=true',
-              '--suite=STRESS',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
-    }
-    shell('echo "*** RUN NEXMARK IN SQL BATCH MODE USING DATAFLOW RUNNER ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+              [
+                commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+                commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+                '--runner=DataflowRunner',
+                '--region=us-central1',
+                '--numWorkers=4',
+                '--maxNumWorkers=4',
+                '--autoscalingAlgorithm=NONE',
+                '--nexmarkParallel=16',
+                '--streaming=true',
+                '--suite=STRESS',
+                '--manageResources=false',
+                '--monitorJobs=true',
+                '--enforceEncodability=true',
+                '--enforceImmutability=true"'
+              ].join(' '))
+        }
+        shell('echo "*** RUN NEXMARK IN SQL BATCH MODE USING DATAFLOW RUNNER ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:nexmark:run')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DataflowRunner',
-              '--region=us-central1',
-              '--numWorkers=4',
-              '--maxNumWorkers=4',
-              '--autoscalingAlgorithm=NONE',
-              '--nexmarkParallel=16',
-              '--queryLanguage=sql',
-              '--streaming=false',
-              '--suite=STRESS',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
-    }
-    shell('echo "*** RUN NEXMARK IN SQL STREAMING MODE USING DATAFLOW RUNNER ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:java:testing:nexmark:run')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+              [
+                commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+                commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+                '--runner=DataflowRunner',
+                '--region=us-central1',
+                '--numWorkers=4',
+                '--maxNumWorkers=4',
+                '--autoscalingAlgorithm=NONE',
+                '--nexmarkParallel=16',
+                '--queryLanguage=sql',
+                '--streaming=false',
+                '--suite=STRESS',
+                '--manageResources=false',
+                '--monitorJobs=true',
+                '--enforceEncodability=true',
+                '--enforceImmutability=true"'
+              ].join(' '))
+        }
+        shell('echo "*** RUN NEXMARK IN SQL STREAMING MODE USING DATAFLOW RUNNER ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:nexmark:run')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=DataflowRunner',
-              '--region=us-central1',
-              '--numWorkers=4',
-              '--maxNumWorkers=4',
-              '--autoscalingAlgorithm=NONE',
-              '--nexmarkParallel=16',
-              '--queryLanguage=sql',
-              '--streaming=true',
-              '--suite=STRESS',
-              '--manageResources=false',
-              '--monitorJobs=true',
-              '--enforceEncodability=true',
-              '--enforceImmutability=true"'].join(' '))
+              [
+                commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+                commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+                '--runner=DataflowRunner',
+                '--region=us-central1',
+                '--numWorkers=4',
+                '--maxNumWorkers=4',
+                '--autoscalingAlgorithm=NONE',
+                '--nexmarkParallel=16',
+                '--queryLanguage=sql',
+                '--streaming=true',
+                '--suite=STRESS',
+                '--manageResources=false',
+                '--monitorJobs=true',
+                '--enforceEncodability=true',
+                '--enforceImmutability=true"'
+              ].join(' '))
+        }
+        shell('echo "*** RUN NEXMARK IN ZETASQL BATCH MODE USING DATAFLOW RUNNER ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:nexmark:run')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+              ' -Pnexmark.args="' +
+              [
+                commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+                commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+                '--runner=DataflowRunner',
+                '--region=us-central1',
+                '--numWorkers=4',
+                '--maxNumWorkers=4',
+                '--autoscalingAlgorithm=NONE',
+                '--nexmarkParallel=16',
+                '--queryLanguage=zetasql',
+                '--streaming=false',
+                '--suite=STRESS',
+                '--manageResources=false',
+                '--monitorJobs=true',
+                '--enforceEncodability=true',
+                '--enforceImmutability=true"'
+              ].join(' '))
+        }
+        shell('echo "*** RUN NEXMARK IN ZETASQL STREAMING MODE USING DATAFLOW RUNNER ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:nexmark:run')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+              ' -Pnexmark.args="' +
+              [
+                commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+                commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+                '--runner=DataflowRunner',
+                '--region=us-central1',
+                '--numWorkers=4',
+                '--maxNumWorkers=4',
+                '--autoscalingAlgorithm=NONE',
+                '--nexmarkParallel=16',
+                '--queryLanguage=zetasql',
+                '--streaming=true',
+                '--suite=STRESS',
+                '--manageResources=false',
+                '--monitorJobs=true',
+                '--enforceEncodability=true',
+                '--enforceImmutability=true"'
+              ].join(' '))
+        }
+      }
     }
-  }
-}
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',
-        'Run Dataflow Runner Nexmark Tests', 'Dataflow Runner Nexmark Tests', this) {
+    'Run Dataflow Runner Nexmark Tests', 'Dataflow Runner Nexmark Tests', this) {
 
-  description('Runs the Nexmark suite on the Dataflow runner against a Pull Request, on demand.')
+      description('Runs the Nexmark suite on the Dataflow runner against a Pull Request, on demand.')
 
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-  def final JOB_SPECIFIC_OPTIONS = [
-          'region' : 'us-central1',
-          'suite' : 'STRESS',
-          'numWorkers' : 4,
-          'maxNumWorkers' : 4,
-          'autoscalingAlgorithm' : 'NONE',
-          'nexmarkParallel' : 16,
-          'enforceEncodability' : true,
-          'enforceImmutability' : true
-  ]
-  Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
-}
+      def final JOB_SPECIFIC_OPTIONS = [
+        'region' : 'us-central1',
+        'suite' : 'STRESS',
+        'numWorkers' : 4,
+        'maxNumWorkers' : 4,
+        'autoscalingAlgorithm' : 'NONE',
+        'nexmarkParallel' : 16,
+        'enforceEncodability' : true,
+        'enforceImmutability' : true
+      ]
+      Nexmark.standardJob(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+    }

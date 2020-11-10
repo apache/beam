@@ -48,6 +48,8 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+# TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
+from apache_beam.utils.subprocess_server_test import TemporaryDirectory
 
 try:
   import pyarrow as pa
@@ -296,8 +298,8 @@ class TestParquet(unittest.TestCase):
               path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS) \
@@ -312,8 +314,8 @@ class TestParquet(unittest.TestCase):
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
   def test_batched_read(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS, reshuffle=False) \
@@ -334,8 +336,8 @@ class TestParquet(unittest.TestCase):
       param(compression_type='zstd')
   ])
   def test_sink_transform_compressed(self, compression_type):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS) \
@@ -450,8 +452,8 @@ class TestParquet(unittest.TestCase):
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
   def test_sink_transform_multiple_row_group(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:
         # writing 623200 bytes of data
         _ = p \

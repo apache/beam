@@ -19,7 +19,14 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.spark')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.spark',
+  classesTriggerCheckerBugs: [
+    'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
+    'SparkCombineFn': 'https://github.com/typetools/checker-framework/issues/3793',
+    'WindowingHelpers': 'https://github.com/typetools/checker-framework/issues/3793',
+  ],
+)
 
 description = "Apache Beam :: Runners :: Spark"
 
@@ -34,7 +41,10 @@ evaluationDependsOn(":runners:core-java")
 
 configurations {
   validatesRunner
+  hadoopVersion285
 }
+
+def hadoop_285_version = '2.8.5'
 
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
@@ -98,6 +108,7 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "testRuntime")
   validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "provided")
+  hadoopVersion285 "org.apache.hadoop:hadoop-common:$hadoop_285_version"
 }
 
 configurations.testRuntimeClasspath {
@@ -108,6 +119,14 @@ configurations.testRuntimeClasspath {
 configurations.validatesRunner {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
   exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+configurations.hadoopVersion285 {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-common:$hadoop_285_version"
+  }
 }
 
 task validatesRunnerBatch(type: Test) {
@@ -129,8 +148,7 @@ task validatesRunnerBatch(type: Test) {
         )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
-
-          // Only one SparkContext may be running in a JVM (SPARK-2243)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
@@ -138,7 +156,8 @@ task validatesRunnerBatch(type: Test) {
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -148,7 +167,6 @@ task validatesRunnerBatch(type: Test) {
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
@@ -206,18 +224,20 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
+    // multiple coders bug BEAM-8894
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
-    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   filter {
@@ -230,9 +250,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext'
     // multiple coders bug BEAM-8894
     excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
-    //SDF
+    // SDF
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedBounded'
   }
 }
 
@@ -248,3 +267,24 @@ task validatesRunner {
 
 // Generates :runners:spark:runQuickstartJavaSpark
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
+
+task hadoopVersion285Test(type: Test) {
+  description = "Runs Spark tests with Hadoop version $hadoop_285_version"
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.sql.shuffle.partitions", "4"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beamTestPipelineOptions", """[
+                    "--runner=TestSparkRunner",
+                    "--streaming=false",
+                    "--enableSparkMetricSinks=true"
+                  ]"""
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  include "**/*Test.class"
+  useJUnit {
+    excludeCategories "org.apache.beam.runners.spark.StreamingTest"
+    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
+  }
+}

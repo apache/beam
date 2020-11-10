@@ -33,9 +33,11 @@ string. The tags can contain only letters, digits and _.
 
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import argparse
 import base64
+import json
 from builtins import object
 from builtins import range
 from decimal import Decimal
@@ -49,6 +51,13 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import PTransform
+
+# Protect against environments where Google Cloud Natural Language client is
+# not available.
+try:
+  from apache_beam.ml.gcp import naturallanguageml as nlp
+except ImportError:
+  nlp = None
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -208,15 +217,16 @@ def model_pcollection(argv):
 def pipeline_options_remote(argv):
   """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
-  from apache_beam import Pipeline
+  # [START pipeline_options_create]
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  # [START pipeline_options_create]
   options = PipelineOptions(flags=argv)
 
   # [END pipeline_options_create]
 
   # [START pipeline_options_define_custom]
+  from apache_beam.options.pipeline_options import PipelineOptions
+
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
@@ -225,35 +235,33 @@ def pipeline_options_remote(argv):
 
   # [END pipeline_options_define_custom]
 
-  from apache_beam.options.pipeline_options import GoogleCloudOptions
-  from apache_beam.options.pipeline_options import StandardOptions
-
   # [START pipeline_options_dataflow_service]
-  # Create and set your PipelineOptions.
-  options = PipelineOptions(flags=argv)
+  import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
 
+  # Create and set your PipelineOptions.
   # For Cloud execution, specify DataflowRunner and set the Cloud Platform
-  # project, job name, staging file location, temp file location, and region.
-  options.view_as(StandardOptions).runner = 'DataflowRunner'
-  google_cloud_options = options.view_as(GoogleCloudOptions)
-  google_cloud_options.project = 'my-project-id'
-  google_cloud_options.job_name = 'myjob'
-  google_cloud_options.staging_location = 'gs://my-bucket/binaries'
-  google_cloud_options.temp_location = 'gs://my-bucket/temp'
-  google_cloud_options.region = 'us-central1'
+  # project, job name, temporary files location, and region.
+  # For more information about regions, check:
+  # https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+  options = PipelineOptions(
+      flags=argv,
+      runner='DataflowRunner',
+      project='my-project-id',
+      job_name='unique-job-name',
+      temp_location='gs://my-bucket/temp',
+      region='us-central1')
 
   # Create the Pipeline with the specified options.
-  p = Pipeline(options=options)
+  # with beam.Pipeline(options=options) as pipeline:
+  #   pass  # build your pipeline here.
   # [END pipeline_options_dataflow_service]
 
   my_options = options.view_as(MyOptions)
-  my_input = my_options.input
-  my_output = my_options.output
 
   with TestPipeline() as p:  # Use TestPipeline for testing.
-
-    lines = p | beam.io.ReadFromText(my_input)
-    lines | beam.io.WriteToText(my_output)
+    lines = p | beam.io.ReadFromText(my_options.input)
+    lines | beam.io.WriteToText(my_options.output)
 
 
 def pipeline_options_local(argv):
@@ -262,9 +270,9 @@ def pipeline_options_local(argv):
   from apache_beam import Pipeline
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  options = PipelineOptions(flags=argv)
-
   # [START pipeline_options_define_custom_with_help_and_default]
+  from apache_beam.options.pipeline_options import PipelineOptions
+
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
@@ -279,20 +287,18 @@ def pipeline_options_local(argv):
 
   # [END pipeline_options_define_custom_with_help_and_default]
 
-  my_options = options.view_as(MyOptions)
-
-  my_input = my_options.input
-  my_output = my_options.output
-
   # [START pipeline_options_local]
   # Create and set your Pipeline Options.
-  options = PipelineOptions()
-  with Pipeline(options=options) as p:
+  options = PipelineOptions(flags=argv)
+  my_options = options.view_as(MyOptions)
+
+  with Pipeline(options=options) as pipeline:
+    pass  # build your pipeline here.
     # [END pipeline_options_local]
 
     with TestPipeline() as p:  # Use TestPipeline for testing.
-      lines = p | beam.io.ReadFromText(my_input)
-      lines | beam.io.WriteToText(my_output)
+      lines = p | beam.io.ReadFromText(my_options.input)
+      lines | beam.io.WriteToText(my_options.output)
 
 
 def pipeline_options_command_line(argv):
@@ -302,15 +308,17 @@ def pipeline_options_command_line(argv):
   # Use Python argparse module to parse custom arguments
   import argparse
 
+  import apache_beam as beam
+
   parser = argparse.ArgumentParser()
   parser.add_argument('--input')
   parser.add_argument('--output')
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  args, beam_args = parser.parse_known_args(argv)
 
   # Create the Pipeline with remaining arguments.
-  with beam.Pipeline(argv=pipeline_args) as p:
-    lines = p | 'ReadFromText' >> beam.io.ReadFromText(known_args.input)
-    lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
+  with beam.Pipeline(argv=beam_args) as pipeline:
+    lines = pipeline | 'Read files' >> beam.io.ReadFromText(args.input)
+    lines | 'Write files' >> beam.io.WriteToText(args.output)
     # [END pipeline_options_command_line]
 
 
@@ -681,8 +689,7 @@ def examples_wordcount_streaming(argv):
 
     output = (
         lines
-        | 'DecodeUnicode' >>
-        beam.FlatMap(lambda encoded: encoded.decode('utf-8'))
+        | 'DecodeUnicode' >> beam.Map(lambda encoded: encoded.decode('utf-8'))
         | 'ExtractWords' >>
         beam.FlatMap(lambda x: __import__('re').findall(r'[A-Za-z\']+', x))
         | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
@@ -1173,6 +1180,36 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
+  # [START model_bigqueryio_write_dynamic_destinations]
+  fictional_characters_view = beam.pvalue.AsDict(
+      p | 'CreateCharacters' >> beam.Create([('Yoda', True),
+                                             ('Obi Wan Kenobi', True)]))
+
+  def table_fn(element, fictional_characters):
+    if element in fictional_characters:
+      return 'my_dataset.fictional_quotes'
+    else:
+      return 'my_dataset.real_quotes'
+
+  quotes | 'WriteWithDynamicDestination' >> beam.io.WriteToBigQuery(
+      table_fn,
+      schema=table_schema,
+      table_side_inputs=(fictional_characters_view, ),
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+  # [END model_bigqueryio_write_dynamic_destinations]
+
+  # [START model_bigqueryio_time_partitioning]
+  quotes | 'WriteWithTimePartitioning' >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+      additional_bq_parameters={'timePartitioning': {
+          'type': 'HOUR'
+      }})
+  # [END model_bigqueryio_time_partitioning]
+
 
 def model_composite_transform_example(contents, output_path):
   """Example of a composite transform.
@@ -1492,3 +1529,320 @@ def side_input_slow_update(
   # [END SideInputSlowUpdateSnip1]
 
   return p, result
+
+
+def bigqueryio_deadletter():
+  # [START BigQueryIODeadLetter]
+
+  # Create pipeline.
+  schema = ({'fields': [{'name': 'a', 'type': 'STRING', 'mode': 'REQUIRED'}]})
+
+  p = beam.Pipeline()
+
+  errors = (
+      p | 'Data' >> beam.Create([1, 2])
+      | 'CreateBrokenData' >>
+      beam.Map(lambda src: {'a': src} if src == 2 else {'a': None})
+      | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
+          "<Your Project:Test.dummy_a_table",
+          schema=schema,
+          insert_retry_strategy='RETRY_ON_TRANSIENT_ERROR',
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND'))
+  result = (
+      errors['FailedRows']
+      | 'PrintErrors' >>
+      beam.FlatMap(lambda err: print("Error Found {}".format(err))))
+  # [END BigQueryIODeadLetter]
+
+  return result
+
+
+def extract_sentiments(response):
+  # [START nlp_extract_sentiments]
+  return {
+      'sentences': [{
+          sentence.text.content: sentence.sentiment.score
+      } for sentence in response.sentences],
+      'document_sentiment': response.document_sentiment.score,
+  }
+  # [END nlp_extract_sentiments]
+
+
+def extract_entities(response):
+  # [START nlp_extract_entities]
+  return [{
+      'name': entity.name,
+      'type': nlp.enums.Entity.Type(entity.type).name,
+  } for entity in response.entities]
+  # [END nlp_extract_entities]
+
+
+def analyze_dependency_tree(response):
+  # [START analyze_dependency_tree]
+  from collections import defaultdict
+  adjacency_lists = []
+
+  index = 0
+  for sentence in response.sentences:
+    adjacency_list = defaultdict(list)
+    sentence_begin = sentence.text.begin_offset
+    sentence_end = sentence_begin + len(sentence.text.content) - 1
+
+    while index < len(response.tokens) and \
+        response.tokens[index].text.begin_offset <= sentence_end:
+      token = response.tokens[index]
+      head_token_index = token.dependency_edge.head_token_index
+      head_token_text = response.tokens[head_token_index].text.content
+      adjacency_list[head_token_text].append(token.text.content)
+      index += 1
+    adjacency_lists.append(adjacency_list)
+  # [END analyze_dependency_tree]
+
+  return adjacency_lists
+
+
+def nlp_analyze_text():
+  # [START nlp_analyze_text]
+  features = nlp.types.AnnotateTextRequest.Features(
+      extract_entities=True,
+      extract_document_sentiment=True,
+      extract_entity_sentiment=True,
+      extract_syntax=True,
+  )
+
+  with beam.Pipeline() as p:
+    responses = (
+        p
+        | beam.Create([
+            'My experience so far has been fantastic! '
+            'I\'d really recommend this product.'
+        ])
+        | beam.Map(lambda x: nlp.Document(x, type='PLAIN_TEXT'))
+        | nlp.AnnotateText(features))
+
+    _ = (
+        responses
+        | beam.Map(extract_sentiments)
+        | 'Parse sentiments to JSON' >> beam.Map(json.dumps)
+        | 'Write sentiments' >> beam.io.WriteToText('sentiments.txt'))
+
+    _ = (
+        responses
+        | beam.Map(extract_entities)
+        | 'Parse entities to JSON' >> beam.Map(json.dumps)
+        | 'Write entities' >> beam.io.WriteToText('entities.txt'))
+
+    _ = (
+        responses
+        | beam.Map(analyze_dependency_tree)
+        | 'Parse adjacency list to JSON' >> beam.Map(json.dumps)
+        | 'Write adjacency list' >> beam.io.WriteToText('adjancency_list.txt'))
+  # [END nlp_analyze_text]
+
+
+def sdf_basic_example():
+  import os
+  from apache_beam.io.restriction_trackers import OffsetRange
+  read_next_record = None
+
+  # [START SDF_BasicExample]
+  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+    def initial_restriction(self, file_name):
+      return OffsetRange(0, os.stat(file_name).st_size)
+
+    def create_tracker(self, restriction):
+      return beam.io.restriction_trackers.OffsetRestrictionTracker()
+
+  class FileToWordsFn(beam.DoFn):
+    def process(
+        self,
+        file_name,
+        tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
+      with open(file_name) as file_handle:
+        file_handle.seek(tracker.current_restriction.start())
+        while tracker.try_claim(file_handle.tell()):
+          yield read_next_record(file_handle)
+
+    # Providing the coder is only necessary if it can not be inferred at
+    # runtime.
+    def restriction_coder(self):
+      return ...
+
+  # [END SDF_BasicExample]
+
+
+def sdf_basic_example_with_splitting():
+  from apache_beam.io.restriction_trackers import OffsetRange
+
+  # [START SDF_BasicExampleWithSplitting]
+  class FileToWordsRestrictionProvider(beam.io.RestrictionProvider):
+    def split(self, file_name, restriction):
+      # Compute and output 64 MiB size ranges to process in parallel
+      split_size = 64 * (1 << 20)
+      i = restriction.start
+      while i < restriction.end - split_size:
+        yield OffsetRange(i, i + split_size)
+        i += split_size
+      yield OffsetRange(i, restriction.end)
+
+  # [END SDF_BasicExampleWithSplitting]
+
+
+def sdf_sdk_initiated_checkpointing():
+  timestamp = None
+  external_service = None
+
+  class MyRestrictionProvider(object):
+    pass
+
+  # [START SDF_UserInitiatedCheckpoint]
+  class MySplittableDoFn(beam.DoFn):
+    def process(
+        self,
+        element,
+        restriction_tracker=beam.DoFn.RestrictionParam(
+            MyRestrictionProvider())):
+      current_position = restriction_tracker.current_restriction.start()
+      while True:
+        # Pull records from an external service.
+        try:
+          records = external_service.fetch(current_position)
+          if records.empty():
+            # Set a shorter delay in case we are being throttled.
+            restriction_tracker.defer_remainder(timestamp.Duration(second=10))
+            return
+          for record in records:
+            if restriction_tracker.try_claim(record.position):
+              current_position = record.position
+              yield record
+            else:
+              return
+        except TimeoutError:
+          # Set a longer delay in case we are being throttled.
+          restriction_tracker.defer_remainder(timestamp.Duration(seconds=60))
+          return
+
+  # [END SDF_UserInitiatedCheckpoint]
+
+
+def sdf_get_size():
+  # [START SDF_GetSize]
+  # The RestrictionProvider is responsible for calculating the size of given
+  # restriction.
+  class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
+    def restriction_size(self, file_name, restriction):
+      weight = 2 if "expensiveRecords" in file_name else 1
+      return restriction.size() * weight
+
+  # [END SDF_GetSize]
+
+
+def sdf_bad_try_claim_loop():
+  class FileToWordsRestrictionProvider(object):
+    pass
+
+  read_next_record = None
+
+  # [START SDF_BadTryClaimLoop]
+  class BadTryClaimLoop(beam.DoFn):
+    def process(
+        self,
+        file_name,
+        tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
+      with open(file_name) as file_handle:
+        file_handle.seek(tracker.current_restriction.start())
+        # The restriction tracker can be modified by another thread in parallel
+        # so storing state locally is ill advised.
+        end = tracker.current_restriction.end()
+        while file_handle.tell() < end:
+          # Only after successfully claiming should we produce any output and/or
+          # perform side effects.
+          tracker.try_claim(file_handle.tell())
+          yield read_next_record(file_handle)
+
+  # [END SDF_BadTryClaimLoop]
+
+
+def sdf_custom_watermark_estimator():
+  from apache_beam.io.iobase import WatermarkEstimator
+  from apache_beam.transforms.core import WatermarkEstimatorProvider
+  current_watermark = None
+
+  class MyRestrictionProvider(object):
+    pass
+
+  # [START SDF_CustomWatermarkEstimator]
+  # (Optional) Define a custom watermark state type to save information between
+  # bundle processing rounds.
+  class MyCustomerWatermarkEstimatorState(object):
+    def __init__(self, element, restriction):
+      # Store data necessary for future watermark computations
+      pass
+
+  # Define a WatermarkEstimator
+  class MyCustomWatermarkEstimator(WatermarkEstimator):
+    def __init__(self, estimator_state):
+      self.state = estimator_state
+
+    def observe_timestamp(self, timestamp):
+      # Will be invoked on each output from the SDF
+      pass
+
+    def current_watermark(self):
+      # Return a monotonically increasing value
+      return current_watermark
+
+    def get_estimator_state(self):
+      # Return state to resume future watermark estimation after a
+      # checkpoint/split
+      return self.state
+
+  # Then, a WatermarkEstimatorProvider needs to be created for this
+  # WatermarkEstimator
+  class MyWatermarkEstimatorProvider(WatermarkEstimatorProvider):
+    def initial_estimator_state(self, element, restriction):
+      return MyCustomerWatermarkEstimatorState(element, restriction)
+
+    def create_watermark_estimator(self, estimator_state):
+      return MyCustomWatermarkEstimator(estimator_state)
+
+  # Finally, define the SDF using your estimator.
+  class MySplittableDoFn(beam.DoFn):
+    def process(
+        self,
+        element,
+        restriction_tracker=beam.DoFn.RestrictionParam(MyRestrictionProvider()),
+        watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+            MyWatermarkEstimatorProvider())):
+      # The current watermark can be inspected.
+      watermark_estimator.current_watermark()
+
+  # [END SDF_CustomWatermarkEstimator]
+
+
+def sdf_truncate():
+  # [START SDF_Truncate]
+  class MyRestrictionProvider(beam.transforms.core.RestrictionProvider):
+    def truncate(self, file_name, restriction):
+      if "optional" in file_name:
+        # Skip optional files
+        return None
+      return restriction
+
+  # [END SDF_Truncate]
+
+
+def bundle_finalize():
+  my_callback_func = None
+
+  # [START BundleFinalize]
+  class MySplittableDoFn(beam.DoFn):
+    def process(self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+      # ... produce output ...
+
+      # Register callback function for this bundle that performs the side
+      # effect.
+      bundle_finalizer.register(my_callback_func)
+
+  # [END BundleFinalize]

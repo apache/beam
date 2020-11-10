@@ -15,6 +15,7 @@
 #   limitations under the License.
 
 from datetime import datetime
+import pytz
 
 import apache_beam as beam
 from apache_beam.transforms import window
@@ -22,22 +23,21 @@ from apache_beam.transforms import window
 from log_elements import LogElements
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create([
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-01T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-01T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-01T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-01T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-05T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-05T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-08T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-08T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-08T00:00:00+00:00').timestamp()),
-        window.TimestampedValue("event", datetime.fromisoformat('2020-03-10T00:00:00+00:00').timestamp()),
-     ])
-   | beam.WindowInto(window.FixedWindows(24*60*60))
-   | beam.combiners.Count.PerElement()
-   | LogElements(with_window=True))
+  (p | beam.Create([
+          window.TimestampedValue("event", datetime(2020, 3, 1, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 1, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 1, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 1, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 5, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 5, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 8, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 8, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 8, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+          window.TimestampedValue("event", datetime(2020, 3, 10, 0, 0, 0, 0, tzinfo=pytz.UTC).timestamp()),
+       ])
+     | beam.WindowInto(window.FixedWindows(24*60*60))
+     | beam.combiners.Count.PerElement()
+     | LogElements(with_window=True))
 
-p.run()

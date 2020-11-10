@@ -59,7 +59,7 @@ public class PubsubReadIT {
     PipelineResult job = pipeline.run();
     start.get();
 
-    signal.waitForSuccess(Duration.standardSeconds(30));
+    signal.waitForSuccess(Duration.standardMinutes(5));
     // A runner may not support cancel
     try {
       job.cancel();
@@ -87,7 +87,7 @@ public class PubsubReadIT {
     PipelineResult job = pipeline.run();
     start.get();
 
-    signal.waitForSuccess(Duration.standardMinutes(1));
+    signal.waitForSuccess(Duration.standardMinutes(5));
     // A runner may not support cancel
     try {
       job.cancel();

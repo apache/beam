@@ -22,14 +22,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A map from {@code K} to {@code T} that supports getting or creating values associated with a key
  * in a thread-safe manner.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsMap<K, T> implements Serializable {
 
   /** Interface for creating instances to populate the {@link MetricsMap}. */
@@ -60,8 +63,7 @@ public class MetricsMap<K, T> implements Serializable {
   }
 
   /** Get the value associated with the given key, if it exists. */
-  @Nullable
-  public T tryGet(K key) {
+  public @Nullable T tryGet(K key) {
     return metrics.get(key);
   }
 
@@ -76,7 +78,7 @@ public class MetricsMap<K, T> implements Serializable {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsMap) {
       MetricsMap<?, ?> metricsMap = (MetricsMap<?, ?>) object;
       return Objects.equals(metrics, metricsMap.metrics);

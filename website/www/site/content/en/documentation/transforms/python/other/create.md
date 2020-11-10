@@ -32,6 +32,6 @@ in parallel. For example, a single element to execute a one-time
 `ParDo` or a list of filenames to be read.
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
+See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates.
 
 ## Related transforms

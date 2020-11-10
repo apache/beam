@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -72,14 +72,18 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BatchLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
 
   // The maximum number of file writers to keep open in a single bundle at a time, since file
   // writers default to 64mb buffers. This comes into play when writing dynamic table destinations.
@@ -243,7 +247,9 @@ class BatchLoads<DestinationT, ElementT>
     }
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),
-        "BigQueryIO.Write needs a GCS temp location to store temp files.");
+        "BigQueryIO.Write needs a GCS temp location to store temp files."
+            + "This can be set by withCustomGcsTempLocation() in the Builder"
+            + "or through the fallback pipeline option --tempLocation.");
     if (bigQueryServices == null) {
       try {
         GcsPath.fromUri(tempLocation);
@@ -261,7 +267,8 @@ class BatchLoads<DestinationT, ElementT>
   private WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
     checkArgument(numFileShards > 0);
     Pipeline p = input.getPipeline();
-    final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
+    final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
+    final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
     // The user-supplied triggeringDuration is often chosen to control how many BigQuery load
@@ -340,12 +347,12 @@ class BatchLoads<DestinationT, ElementT>
             ParDo.of(
                     new WriteRename(
                         bigQueryServices,
-                        loadJobIdPrefixView,
+                        copyJobIdPrefixView,
                         writeDisposition,
                         createDisposition,
                         maxRetryJobs,
                         kmsKey))
-                .withSideInputs(loadJobIdPrefixView));
+                .withSideInputs(copyJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
   }
@@ -353,7 +360,7 @@ class BatchLoads<DestinationT, ElementT>
   // Expand the pipeline when the user has not requested periodically-triggered file writes.
   public WriteResult expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
     Pipeline p = input.getPipeline();
-    final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
+    final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
@@ -414,24 +421,24 @@ class BatchLoads<DestinationT, ElementT>
   }
 
   // Generate the base job id string.
-  private PCollectionView<String> createLoadJobIdPrefixView(Pipeline p) {
+  private PCollectionView<String> createJobIdPrefixView(Pipeline p, final JobType type) {
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transform.
-    return p.apply("JobIdCreationRoot", Create.of((Void) null))
+    return p.apply("JobIdCreationRoot_" + type.toString(), Create.of((Void) null))
         .apply(
-            "CreateJobId",
+            "CreateJobId_" + type.toString(),
             ParDo.of(
                 new DoFn<Void, String>() {
                   @ProcessElement
                   public void process(ProcessContext c) {
                     c.output(
-                        String.format(
-                            "beam_load_%s_%s",
-                            c.getPipelineOptions().getJobName().replaceAll("-", ""),
-                            BigQueryHelpers.randomUUIDString()));
+                        BigQueryResourceNaming.createJobIdPrefix(
+                            c.getPipelineOptions().getJobName(),
+                            BigQueryHelpers.randomUUIDString(),
+                            type));
                   }
                 }))
-        .apply(View.asSingleton());
+        .apply("JobIdSideInput_" + type.toString(), View.asSingleton());
   }
 
   // Generate the temporary-file prefix.

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static junit.framework.TestCase.assertNull;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.METHOD_PROPERTY;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.WRITE_DISPOSITION_PROPERTY;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTE;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -290,6 +292,255 @@ public class BigQueryReadWriteIT implements Serializable {
                 Arrays.asList("123", "456")));
     PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertThat(state, equalTo(State.DONE));
+  }
+
+  @Test
+  public void testSQLWriteAndRead_WithWriteDispositionEmpty() throws IOException {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_bigint BIGINT, \n"
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_char CHAR, \n"
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQueryTestingTypes.tableSpec()
+            + "'"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + WRITE_DISPOSITION_PROPERTY
+            + ": \""
+            + WriteDisposition.WRITE_EMPTY.toString()
+            + "\" }'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "TIMESTAMP '2018-05-28 20:17:40.123', "
+            + "'varchar', "
+            + "'char', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    bigQueryTestingTypes
+        .assertThatAllRows(SOURCE_SCHEMA_TWO)
+        .now(
+            containsInAnyOrder(
+                row(
+                    SOURCE_SCHEMA_TWO,
+                    9223372036854775807L,
+                    (byte) 127,
+                    (short) 32767,
+                    2147483647,
+                    (float) 1.0,
+                    1.0,
+                    true,
+                    parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+                    "varchar",
+                    "char",
+                    Arrays.asList("123", "456"))));
+  }
+
+  @Test
+  public void testSQLWriteAndRead_WithWriteDispositionTruncate() throws IOException {
+    bigQueryTestingTypes.insertRows(
+        SOURCE_SCHEMA_TWO,
+        row(
+            SOURCE_SCHEMA_TWO,
+            8223372036854775807L,
+            (byte) 256,
+            (short) 26892,
+            1462973245,
+            (float) 2.0,
+            2.0,
+            true,
+            parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+            "varchar",
+            "char",
+            Arrays.asList("123", "456")));
+
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_bigint BIGINT, \n"
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_char CHAR, \n"
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQueryTestingTypes.tableSpec()
+            + "'"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + WRITE_DISPOSITION_PROPERTY
+            + ": \""
+            + WriteDisposition.WRITE_TRUNCATE.toString()
+            + "\" }'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "TIMESTAMP '2018-05-28 20:17:40.123', "
+            + "'varchar', "
+            + "'char', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    bigQueryTestingTypes
+        .assertThatAllRows(SOURCE_SCHEMA_TWO)
+        .now(
+            containsInAnyOrder(
+                row(
+                    SOURCE_SCHEMA_TWO,
+                    9223372036854775807L,
+                    (byte) 127,
+                    (short) 32767,
+                    2147483647,
+                    (float) 1.0,
+                    1.0,
+                    true,
+                    parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+                    "varchar",
+                    "char",
+                    Arrays.asList("123", "456"))));
+  }
+
+  @Test
+  public void testSQLWriteAndRead_WithWriteDispositionAppend() throws IOException {
+    bigQueryTestingTypes.insertRows(
+        SOURCE_SCHEMA_TWO,
+        row(
+            SOURCE_SCHEMA_TWO,
+            8223372036854775807L,
+            (byte) 256,
+            (short) 26892,
+            1462973245,
+            (float) 2.0,
+            2.0,
+            true,
+            parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+            "varchar",
+            "char",
+            Arrays.asList("123", "456")));
+
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigQueryTableProvider());
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_bigint BIGINT, \n"
+            + "   c_tinyint TINYINT, \n"
+            + "   c_smallint SMALLINT, \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_double DOUBLE, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR, \n "
+            + "   c_char CHAR, \n"
+            + "   c_arr ARRAY<VARCHAR> \n"
+            + ") \n"
+            + "TYPE 'bigquery' \n"
+            + "LOCATION '"
+            + bigQueryTestingTypes.tableSpec()
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + WRITE_DISPOSITION_PROPERTY
+            + ": \""
+            + WriteDisposition.WRITE_APPEND.toString()
+            + "\" }'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES ("
+            + "9223372036854775807, "
+            + "127, "
+            + "32767, "
+            + "2147483647, "
+            + "1.0, "
+            + "1.0, "
+            + "TRUE, "
+            + "TIMESTAMP '2018-05-28 20:17:40.123', "
+            + "'varchar', "
+            + "'char', "
+            + "ARRAY['123', '456']"
+            + ")";
+
+    sqlEnv.parseQuery(insertStatement);
+    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    bigQueryTestingTypes
+        .assertThatAllRows(SOURCE_SCHEMA_TWO)
+        .now(
+            containsInAnyOrder(
+                row(
+                    SOURCE_SCHEMA_TWO,
+                    9223372036854775807L,
+                    (byte) 127,
+                    (short) 32767,
+                    2147483647,
+                    (float) 1.0,
+                    1.0,
+                    true,
+                    parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+                    "varchar",
+                    "char",
+                    Arrays.asList("123", "456")),
+                row(
+                    SOURCE_SCHEMA_TWO,
+                    8223372036854775807L,
+                    (byte) 256,
+                    (short) 26892,
+                    1462973245,
+                    (float) 2.0,
+                    2.0,
+                    true,
+                    parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
+                    "varchar",
+                    "char",
+                    Arrays.asList("123", "456"))));
   }
 
   @Test

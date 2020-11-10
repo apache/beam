@@ -29,11 +29,11 @@ into useful data elements is normally very hard to do.
 To solve this problem in an easy way a library was created that works in combination with Apache Beam
 and is capable of doing this for both the Apache HTTPD and NGINX.
 
-The basic idea is that the logformat specification is the schema used to create the line. 
+The basic idea is that the logformat specification is the schema used to create the line.
 This parser is simply initialized with this schema and the list of fields you want to extract.
 
 ### Project page
-[https://github.com/nielsbasjes/logparser](https://github.com/nielsbasjes/logparser) 
+[https://github.com/nielsbasjes/logparser](https://github.com/nielsbasjes/logparser)
 
 ### License
 Apache License 2.0
@@ -53,16 +53,16 @@ Assuming a WebEvent class that has a the setters setIP, setQueryImg and setQuery
       .apply("Extract Elements from logline",
         ParDo.of(new DoFn<String, WebEvent>() {
           private Parser<WebEvent> parser;
-    
+
           @Setup
           public void setup() throws NoSuchMethodException {
-            parser = new HttpdLoglineParser<>(WebEvent.class, 
+            parser = new HttpdLoglineParser<>(WebEvent.class,
                 "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" \"%{Cookie}i\"");
             parser.addParseTarget("setIP",                  "IP:connection.client.host");
             parser.addParseTarget("setQueryImg",            "STRING:request.firstline.uri.query.img");
             parser.addParseTarget("setQueryStringValues",   "STRING:request.firstline.uri.query.*");
           }
-    
+
           @ProcessElement
           public void processElement(ProcessContext c) throws InvalidDissectorException, MissingDissectorsException, DissectionFailure {
             c.output(parser.parse(c.element()));
@@ -77,7 +77,7 @@ Assuming a WebEvent class that has a the setters setIP, setQueryImg and setQuery
 Parse and analyze the useragent string and extract as many relevant attributes as possible.
 
 ### Project page
-[https://github.com/nielsbasjes/yauaa](https://github.com/nielsbasjes/yauaa) 
+[https://github.com/nielsbasjes/yauaa](https://github.com/nielsbasjes/yauaa)
 
 ### License
 Apache License 2.0
@@ -97,12 +97,12 @@ Apache License 2.0
             public String getUserAgentString(WebEvent record) {
               return record.useragent;
             }
-    
+
             @YauaaField("DeviceClass")
             public void setDC(WebEvent record, String value) {
               record.deviceClass = value;
             }
-    
+
             @YauaaField("AgentNameVersion")
             public void setANV(WebEvent record, String value) {
               record.agentNameVersion = value;

@@ -21,6 +21,7 @@ import java.util.Objects;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A (Step, Key) pair. This is useful as a map key or cache key for things that are available
@@ -54,7 +55,7 @@ final class StepAndKey {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     } else if (!(other instanceof StepAndKey)) {

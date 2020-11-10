@@ -220,6 +220,8 @@ def _find_protoc_gen_mypy():
   # NOTE: this shouldn't be necessary if the virtualenv's environment
   #  is passed to tasks below it, since protoc will search the PATH itself
   fname = 'protoc-gen-mypy'
+  if platform.system() == 'Windows':
+    fname += ".exe"
 
   pathstr = os.environ.get('PATH')
   search_paths = pathstr.split(os.pathsep) if pathstr else []

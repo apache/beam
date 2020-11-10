@@ -31,6 +31,7 @@ pipeline configuration::
   --project YOUR_PROJECT_ID
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
+  --region GCE_REGION
   --job_name YOUR_JOB_NAME
   --runner DataflowRunner
 

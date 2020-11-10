@@ -19,7 +19,7 @@ limitations under the License.
 Transforms for converting between explicit and implicit form of various Beam values.
 
 ## Examples
-See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
+See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates.
 
-## Related transforms 
+## Related transforms
 * [WithTimestamps](/documentation/transforms/python/elementwise/withtimestamps) assigns timestamps to all the elements of a collection.
