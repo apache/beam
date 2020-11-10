@@ -24,6 +24,7 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -52,7 +53,7 @@ def loadTestConfigurations = { mode, datasetName ->
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         top_count           : 20,
       ]
     ],
@@ -74,7 +75,7 @@ def loadTestConfigurations = { mode, datasetName ->
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         fanout              : 4,
         top_count           : 20,
       ]
@@ -97,7 +98,7 @@ def loadTestConfigurations = { mode, datasetName ->
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
-        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         fanout              : 8,
         top_count           : 20,
       ]
@@ -128,18 +129,18 @@ def loadTestJob = { scope, triggeringContext, mode ->
   def flink = new Flink(scope, "beam_LoadTests_Python_Combine_Flink_${mode.capitalize()}")
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+        "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       initialParallelism,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, initialScenarios, 'Combine', mode)
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, initialScenarios, 'Combine', mode)
 
   // Execute the rest of scenarios.
   testScenariosByParallelism.each { parallelism, scenarios ->
     flink.scaleCluster(parallelism)
-    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, scenarios, 'Combine', mode)
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, scenarios, 'Combine', mode)
   }
 }
 

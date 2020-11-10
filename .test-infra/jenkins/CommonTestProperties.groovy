@@ -21,7 +21,6 @@
 class CommonTestProperties {
   enum SDK {
     PYTHON,
-    PYTHON_37,
     JAVA
   }
 
@@ -44,12 +43,6 @@ class CommonTestProperties {
         DIRECT: ":runners:direct-java"
       ],
       PYTHON: [
-        DATAFLOW: "DataflowRunner",
-        TEST_DATAFLOW: "TestDataflowRunner",
-        DIRECT: "DirectRunner",
-        PORTABLE: "PortableRunner"
-      ],
-      PYTHON_37: [
         DATAFLOW: "DataflowRunner",
         TEST_DATAFLOW: "TestDataflowRunner",
         DIRECT: "DirectRunner",
