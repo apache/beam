@@ -161,25 +161,24 @@ task javaPostCommit() {
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
   dependsOn ":sdks:java:io:kinesis:integrationTest"
-  dependsOn ":sdks:java:io:hadoop-format:hadoopFormatIOElasticTest"
-  dependsOn ":javaHadoop285Tests"
+  dependsOn ":javaHadoopVersionsTest"
 }
 
-task javaHadoop285Tests() {
-  dependsOn ":sdks:java:io:hadoop-common:hadoopVersion285Test"
-  dependsOn ":sdks:java:io:hadoop-file-system:hadoopVersion285Test"
-  dependsOn ":sdks:java:io:hadoop-format:hadoopVersion285Test"
-  dependsOn ":sdks:java:io:hcatalog:hadoopVersion285Test"
-  dependsOn ":sdks:java:io:parquet:hadoopVersion285Test"
-  dependsOn ":sdks:java:extensions:sorter:hadoopVersion285Test"
-  dependsOn ":runners:spark:hadoopVersion285Test"
+task javaHadoopVersionsTest() {
+  dependsOn ":sdks:java:io:hadoop-common:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hadoop-file-system:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hadoop-format:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hcatalog:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:parquet:hadoopVersionsTest"
+  dependsOn ":sdks:java:extensions:sorter:hadoopVersionsTest"
+  dependsOn ":runners:spark:hadoopVersionsTest"
 }
 
 task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
   dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
-  dependsOn ":sdks:java:extensions:sql:hadoopVersion285Test"
+  dependsOn ":sdks:java:extensions:sql:hadoopVersionsTest"
 }
 
 task goPreCommit() {
