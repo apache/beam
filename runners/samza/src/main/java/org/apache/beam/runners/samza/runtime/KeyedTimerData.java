@@ -197,7 +197,8 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       }
 
       final String timerFamilyId = inStream.available() > 0 ? STRING_CODER.decode(inStream) : "";
-      final Instant outputTimestamp = inStream.available() > 0 ? INSTANT_CODER.decode(inStream) : timestamp;
+      final Instant outputTimestamp =
+          inStream.available() > 0 ? INSTANT_CODER.decode(inStream) : timestamp;
       final TimerData timer =
           TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
       return new KeyedTimerData<>(keyBytes, key, timer);
