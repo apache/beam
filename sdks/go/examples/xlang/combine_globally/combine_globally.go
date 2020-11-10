@@ -28,9 +28,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/apache/beam/sdks/go/examples/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
@@ -67,8 +66,7 @@ func main() {
 	in := beam.CreateList(s, []int64{1, 2, 3})
 
 	// Using the cross-language transform
-	outputType := typex.New(reflectx.Int64)
-	c := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:comgl", nil, *expansionAddr, in, outputType)
+	c := xlang.CombineGlobally(s, *expansionAddr, in)
 
 	formatted := beam.ParDo(s, formatFn, c)
 	passert.Equals(s, formatted, "6")

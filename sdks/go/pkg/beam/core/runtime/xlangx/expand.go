@@ -20,17 +20,36 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/grpc"
 )
 
-// Expand queries the expansion service to resolve the ExpansionRequest
-func Expand(ctx context.Context, req *jobpb.ExpansionRequest, expansionAddr string) (*jobpb.ExpansionResponse, error) {
+// Expand submits an external transform to be expanded by the expansion service.
+// The given transform should be the external transform, and the components are
+// any additional components necessary for the pipeline snippet.
+//
+// Users should generally call beam.CrossLanguage to access foreign transforms
+// rather than calling this function directly.
+func Expand(
+	ctx context.Context,
+	comps *pipepb.Components,
+	transform *pipepb.PTransform,
+	namespace string,
+	expansionAddr string) (*jobpb.ExpansionResponse, error) {
 	// Querying Expansion Service
+
+	// Build expansion request proto.
+	req := &jobpb.ExpansionRequest{
+		Components: comps,
+		Transform:  transform,
+		Namespace:  namespace,
+	}
 
 	// Setting grpc client
 	conn, err := grpc.Dial(expansionAddr, grpc.WithInsecure())
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to connect to expansion service at %v", expansionAddr)
+		err = errors.Wrapf(err, "unable to connect to expansion service at %v", expansionAddr)
+		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}
 	defer conn.Close()
 	client := jobpb.NewExpansionServiceClient(conn)
@@ -38,7 +57,8 @@ func Expand(ctx context.Context, req *jobpb.ExpansionRequest, expansionAddr stri
 	// Handling ExpansionResponse
 	res, err := client.Expand(ctx, req)
 	if err != nil {
-		return nil, errors.Wrapf(err, "expansion failed")
+		err = errors.Wrapf(err, "expansion failed")
+		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}
 	return res, nil
 }

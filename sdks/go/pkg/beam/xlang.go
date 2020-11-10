@@ -20,16 +20,33 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 )
 
 // xlang exposes an API to execute cross-language transforms within the Go SDK.
 // It is experimental and likely to change. It exposes convenient wrappers
 // around the core functions to pass in any combination of named/unnamed
 // inputs/outputs.
+
+// UnnamedInput is a helper function for passing single unnamed inputs to
+// `beam.CrossLanguage`.
+//
+// Example:
+//    beam.CrossLanguage(s, urn, payload, addr, UnnamedInput(input), outputs);
+func UnnamedInput(col PCollection) map[string]PCollection {
+	return map[string]PCollection{graph.UnnamedInputTag: col}
+}
+
+// UnnamedOutput is a helper function for passing single unnamed output types to
+// `beam.CrossLanguage`.
+//
+// Example:
+//    beam.CrossLanguage(s, urn, payload, addr, inputs, UnnamedOutput(output));
+func UnnamedOutput(t FullType) map[string]FullType {
+	return map[string]FullType{graph.UnnamedOutputTag: t}
+}
 
 // CrossLanguage executes a cross-language transform that uses named inputs and
 // returns named outputs.
@@ -61,107 +78,6 @@ func CrossLanguage(
 	return mapNodeToPCollection(namedOutputs)
 }
 
-// CrossLanguageWithSingleInputOutput executes a cross-language transform that
-// uses a single unnamed input and returns a single unnamed output.
-func CrossLanguageWithSingleInputOutput(
-	s Scope,
-	urn string,
-	payload []byte,
-	expansionAddr string,
-	input PCollection,
-	outputType FullType,
-) PCollection {
-	if !s.IsValid() {
-		panic(errors.New("invalid scope"))
-	}
-
-	// Adding dummy SourceInputTag to process it as a named input
-	namedInput := mapPCollectionToNode(map[string]PCollection{graph.SourceInputTag: input})
-	// Adding dummy SinkOutputTag to process it as a named output
-	namedOutputType := map[string]typex.FullType{graph.SinkOutputTag: outputType}
-
-	inputsMap, inboundLinks := graph.NamedInboundLinks(namedInput)
-	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputType)
-
-	ext := graph.ExternalTransform{
-		Urn:           urn,
-		Payload:       payload,
-		ExpansionAddr: expansionAddr,
-	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
-
-	namedOutput, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
-	if err != nil {
-		panic(errors.WithContextf(err, "tried cross-language and failed"))
-	}
-	return nodeToPCollection(namedOutput[graph.SinkOutputTag])
-}
-
-// CrossLanguageWithSink executes a cross-language transform that uses named
-// inputs and returns a single unnamed output.
-func CrossLanguageWithSink(
-	s Scope,
-	urn string,
-	payload []byte,
-	expansionAddr string,
-	namedInputs map[string]PCollection,
-	outputType FullType,
-) PCollection {
-	if !s.IsValid() {
-		panic(errors.New("invalid scope"))
-	}
-
-	// Adding dummy SinkOutputTag to process it as a named output
-	namedOutputType := map[string]typex.FullType{graph.SinkOutputTag: outputType}
-
-	inputsMap, inboundLinks := graph.NamedInboundLinks(mapPCollectionToNode(namedInputs))
-	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputType)
-
-	ext := graph.ExternalTransform{
-		Urn:           urn,
-		Payload:       payload,
-		ExpansionAddr: expansionAddr,
-	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
-
-	namedOutput, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
-	if err != nil {
-		panic(errors.WithContextf(err, "tried cross-language and failed"))
-	}
-	return nodeToPCollection(namedOutput[graph.SinkOutputTag])
-}
-
-// CrossLanguageWithSource executes a cross-language transform that uses a
-// single unnamed input and returns named outputs
-func CrossLanguageWithSource(
-	s Scope,
-	urn string,
-	payload []byte,
-	expansionAddr string,
-	input PCollection,
-	namedOutputTypes map[string]FullType,
-) map[string]PCollection {
-	if !s.IsValid() {
-		panic(errors.New("invalid scope"))
-	}
-
-	// Adding dummy SourceInputTag to process it as a named input
-	namedInput := mapPCollectionToNode(map[string]PCollection{graph.SourceInputTag: input})
-
-	inputsMap, inboundLinks := graph.NamedInboundLinks(namedInput)
-	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputTypes)
-
-	ext := graph.ExternalTransform{
-		Urn:           urn,
-		Payload:       payload,
-		ExpansionAddr: expansionAddr,
-	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
-
-	namedOutputs, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
-	if err != nil {
-		panic(errors.WithContextf(err, "tried cross-language and failed"))
-	}
-	return mapNodeToPCollection(namedOutputs)
-}
-
 // TryCrossLanguage coordinates the core functions required to execute the cross-language transform
 func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inbound, outs []*graph.Outbound) (map[string]*graph.Node, error) {
 	// Adding an edge in the graph corresponding to the ExternalTransform
@@ -174,33 +90,39 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inboun
 	// Build the ExpansionRequest
 
 	// Obtaining the components and transform proto representing this transform
+	// TODO(BEAM-11188): Move proto handling code into xlangx or graphx package.
 	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to generate proto representation of %v", ext)
 	}
 
-	// Assembling ExpansionRequest proto
 	transforms := p.GetComponents().GetTransforms()
-	rootTransformID := p.GetRootTransformIds()[0] // External transform is the only root transform
-	rootTransform := transforms[rootTransformID]
+
+	// Transforms consist of only External transform and composites. Composites
+	// should be removed from proto before submitting expansion request.
+	extTransformID := p.GetRootTransformIds()[0]
+	extTransform := transforms[extTransformID]
+	for extTransform.UniqueName != "External" {
+		delete(transforms, extTransformID)
+		p, err := pipelinex.Normalize(p)
+		if err != nil {
+			return nil, err
+		}
+		extTransformID = p.GetRootTransformIds()[0]
+		extTransform = transforms[extTransformID]
+	}
 
 	// Scoping the ExternalTransform with respect to it's unique namespace, thus
 	// avoiding future collisions
-	xlangx.AddNamespace(rootTransform, p.GetComponents(), ext.Namespace)
+	xlangx.AddNamespace(extTransform, p.GetComponents(), ext.Namespace)
 
 	xlangx.AddFakeImpulses(p) // Inputs need to have sources
-	delete(transforms, rootTransformID)
-
-	req := &jobpb.ExpansionRequest{
-		Components: p.GetComponents(),
-		Transform:  rootTransform,
-		Namespace:  ext.Namespace,
-	}
+	delete(transforms, extTransformID)
 
 	// Querying the expansion service
-	res, err := xlangx.Expand(context.Background(), req, ext.ExpansionAddr)
+	res, err := xlangx.Expand(context.Background(), p.GetComponents(), extTransform, ext.Namespace, ext.ExpansionAddr)
 	if err != nil {
-		return nil, errors.WithContextf(err, "failed to expand external transform with error [%v] for ExpansionRequest: %v", res.GetError(), req)
+		return nil, err
 	}
 
 	// Handling ExpansionResponse
