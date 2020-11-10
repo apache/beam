@@ -22,8 +22,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -91,31 +89,23 @@ public class HadoopFormatIOElasticIT implements Serializable {
 
   private static final String TRUE = "true";
   private static final String ELASTIC_INDEX_NAME = "test_data";
-  private static HadoopFormatElasticIOTestOptions options;
+  private static HadoopFormatIOTestOptions options;
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   private static ElasticsearchContainer elasticsearch;
 
-  public interface HadoopFormatElasticIOTestOptions extends HadoopFormatIOTestOptions {
-    @Description("Whether to use automatic ElasticSearch container")
-    @Default.Boolean(true)
-    Boolean isWithESContainer();
-
-    void setWithESContainer(Boolean withESContainer);
-  }
-
   @BeforeClass
   public static void setUp() throws IOException {
-    PipelineOptionsFactory.register(HadoopFormatElasticIOTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(HadoopFormatElasticIOTestOptions.class);
-    if (options.isWithESContainer()) {
+    PipelineOptionsFactory.register(HadoopFormatIOTestOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(HadoopFormatIOTestOptions.class);
+    if (options.isWithTestcontainers()) {
       setElasticsearchContainer();
     }
   }
 
   @AfterClass
   public static void afterClass() {
-    if (options.isWithESContainer()) {
+    if (elasticsearch != null) {
       elasticsearch.stop();
     }
   }
