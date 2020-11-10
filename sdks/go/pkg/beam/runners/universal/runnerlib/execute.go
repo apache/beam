@@ -104,11 +104,11 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 
 type UniversalPipelineResult struct {
 	JobID   string
-	metrics *UniversalMetrics
+	metrics *metrics.MetricResults
 }
 
 func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*UniversalPipelineResult, error) {
-	metrics, err := newUniversalMetrics(ctx, jobID, client)
+	metrics, err := getMetrics(ctx, jobID, client)
 	if err != nil {
 		return &UniversalPipelineResult{jobID, nil}, err
 	}
@@ -116,44 +116,16 @@ func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.
 }
 
 func (pr UniversalPipelineResult) Metrics() metrics.MetricResults {
-	return pr.metrics
+	return *pr.metrics
 }
 
-func newUniversalMetrics(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*UniversalMetrics, error) {
+func getMetrics(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*metrics.MetricResults, error) {
 	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
 	response, err := client.GetJobMetrics(ctx, request)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
-	c, d, g := metrics.FromMonitoringInfos(response.GetMetrics())
-	return &UniversalMetrics{c, d, g}, err
-}
-
-type UniversalMetrics struct {
-	counters      []metrics.CounterResult
-	distributions []metrics.DistributionResult
-	gauges        []metrics.GaugeResult
-}
-
-func (um UniversalMetrics) Query() metrics.MetricQueryResults {
-	// TODO: Implement metrics filtering
-	return UniversalQueryResults{um.counters, um.distributions, um.gauges}
-}
-
-type UniversalQueryResults struct {
-	counters      []metrics.CounterResult
-	distributions []metrics.DistributionResult
-	gauges        []metrics.GaugeResult
-}
-
-func (qr UniversalQueryResults) GetCounters() []metrics.CounterResult {
-	return qr.counters
-}
-
-func (qr UniversalQueryResults) GetDistributions() []metrics.DistributionResult {
-	return qr.distributions
-}
-
-func (qr UniversalQueryResults) GetGauges() []metrics.GaugeResult {
-	return qr.gauges
+	m := response.GetMetrics()
+	c, d, g := metrics.FromMonitoringInfos(m.Attempted, m.Committed)
+	return &metrics.MetricResults{c, d, g}, err
 }

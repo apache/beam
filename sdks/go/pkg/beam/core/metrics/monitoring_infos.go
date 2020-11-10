@@ -22,18 +22,17 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 // FromMonitoringInfos extracts metrics from GetJobMetrics's response and
 // groups them into counters, distributions and gauges.
-func FromMonitoringInfos(resultsProto *jobpb.MetricResults) (
+func FromMonitoringInfos(attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) (
 	[]CounterResult,
 	[]DistributionResult,
 	[]GaugeResult) {
-	ac, ad, ag := groupByType(resultsProto.Attempted)
-	cc, cd, cg := groupByType(resultsProto.Committed)
+	ac, ad, ag := groupByType(attempted)
+	cc, cd, cg := groupByType(committed)
 
 	c := mergeCounters(ac, cc)
 	d := mergeDistributions(ad, cd)

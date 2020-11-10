@@ -461,17 +461,40 @@ type GaugeValue struct {
 }
 
 // MetricResults queries for all metric values that match a given filter.
-type MetricResults interface {
-	// TODO: Implement metrics filtering
-	Query() MetricQueryResults
+type MetricResults struct {
+	Counters      []CounterResult
+	Distributions []DistributionResult
+	Gauges        []GaugeResult
 }
+
+// AllMetrics returns all metrics from a MetricResults instance.
+func (mr MetricResults) AllMetrics() MetricQueryResults {
+	return MetricQueryResults{mr.Counters, mr.Distributions, mr.Gauges}
+}
+
+// TODO: Implement Query(MetricsFilter) and metrics filtering
 
 // MetricQueryResults is the results of a query. Allows accessing all of the
 // metrics that matched the filter.
-type MetricQueryResults interface {
-	GetCounters() []CounterResult
-	GetDistributions() []DistributionResult
-	GetGauges() []GaugeResult
+type MetricQueryResults struct {
+	counters      []CounterResult
+	distributions []DistributionResult
+	gauges        []GaugeResult
+}
+
+// GetCounters returns an array of counter metrics.
+func (qr MetricQueryResults) GetCounters() []CounterResult {
+	return qr.counters
+}
+
+// GetDistributions returns an array of distribution metrics.
+func (qr MetricQueryResults) GetDistributions() []DistributionResult {
+	return qr.distributions
+}
+
+// GetGauges returns an array of gauges metrics.
+func (qr MetricQueryResults) GetGauges() []GaugeResult {
+	return qr.gauges
 }
 
 // CounterResult is an attempted and a commited value of a Counter metric plus
