@@ -468,8 +468,8 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 		if _, err := m.addNode(n); err != nil {
 			return "", errors.Wrapf(err, "failed to expand cross language transform for edge: %v", namedEdge)
 		}
-		// Ignore tag if it is a dummy SourceInputTag
-		if tag == graph.SourceInputTag {
+		// Ignore tag if it is a dummy UnnamedInputTag
+		if tag == graph.UnnamedInputTag {
 			tag = fmt.Sprintf("i%v", edge.External.InputsMap[tag])
 		}
 		inputs[tag] = nodeID(n)
