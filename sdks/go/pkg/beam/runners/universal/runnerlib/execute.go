@@ -30,9 +30,9 @@ import (
 
 // Execute executes a pipeline on the universal runner serving the given endpoint.
 // Convenience function.
-func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobOptions, async bool) (*UniversalPipelineResult, error) {
+func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobOptions, async bool) (*universalPipelineResult, error) {
 	// (1) Prepare job to obtain artifact staging instructions.
-	presult := &UniversalPipelineResult{JobID: ""}
+	presult := &universalPipelineResult{JobID: ""}
 
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
@@ -102,30 +102,29 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	return presult, err
 }
 
-type UniversalPipelineResult struct {
+type universalPipelineResult struct {
 	JobID   string
-	metrics *metrics.MetricResults
+	metrics *metrics.Results
 }
 
-func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*UniversalPipelineResult, error) {
+func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*universalPipelineResult, error) {
 	metrics, err := getMetrics(ctx, jobID, client)
 	if err != nil {
-		return &UniversalPipelineResult{jobID, nil}, err
+		return &universalPipelineResult{jobID, nil}, err
 	}
-	return &UniversalPipelineResult{jobID, metrics}, err
+	return &universalPipelineResult{jobID, metrics}, err
 }
 
-func (pr UniversalPipelineResult) Metrics() metrics.MetricResults {
+func (pr universalPipelineResult) Metrics() metrics.Results {
 	return *pr.metrics
 }
 
-func getMetrics(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*metrics.MetricResults, error) {
+func getMetrics(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*metrics.Results, error) {
 	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
 	response, err := client.GetJobMetrics(ctx, request)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
 	m := response.GetMetrics()
-	c, d, g := metrics.FromMonitoringInfos(m.Attempted, m.Committed)
-	return &metrics.MetricResults{c, d, g}, err
+	return metrics.FromMonitoringInfos(m.Attempted, m.Committed), err
 }

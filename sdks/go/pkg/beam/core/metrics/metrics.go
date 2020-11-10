@@ -460,66 +460,66 @@ type GaugeValue struct {
 	Timestamp time.Time
 }
 
-// MetricResults queries for all metric values that match a given filter.
-type MetricResults struct {
-	Counters      []CounterResult
-	Distributions []DistributionResult
-	Gauges        []GaugeResult
+// Results represents all metrics gathered during the job's execution.
+// It allows for querying metrics using a provided filter.
+type Results struct {
+	counters      []CounterResult
+	distributions []DistributionResult
+	gauges        []GaugeResult
 }
 
-// AllMetrics returns all metrics from a MetricResults instance.
-func (mr MetricResults) AllMetrics() MetricQueryResults {
-	return MetricQueryResults{mr.Counters, mr.Distributions, mr.Gauges}
+// AllMetrics returns all metrics from a Results instance.
+func (mr Results) AllMetrics() QueryResults {
+	return QueryResults{mr.counters, mr.distributions, mr.gauges}
 }
 
-// TODO: Implement Query(MetricsFilter) and metrics filtering
+// TODO: Implement Query(Filter) and metrics filtering
 
-// MetricQueryResults is the results of a query. Allows accessing all of the
+// QueryResults is the result of a query. Allows accessing all of the
 // metrics that matched the filter.
-type MetricQueryResults struct {
+type QueryResults struct {
 	counters      []CounterResult
 	distributions []DistributionResult
 	gauges        []GaugeResult
 }
 
 // GetCounters returns an array of counter metrics.
-func (qr MetricQueryResults) GetCounters() []CounterResult {
+func (qr QueryResults) GetCounters() []CounterResult {
 	return qr.counters
 }
 
 // GetDistributions returns an array of distribution metrics.
-func (qr MetricQueryResults) GetDistributions() []DistributionResult {
+func (qr QueryResults) GetDistributions() []DistributionResult {
 	return qr.distributions
 }
 
-// GetGauges returns an array of gauges metrics.
-func (qr MetricQueryResults) GetGauges() []GaugeResult {
+// GetGauges returns an array of gauge metrics.
+func (qr QueryResults) GetGauges() []GaugeResult {
 	return qr.gauges
 }
 
-// CounterResult is an attempted and a commited value of a Counter metric plus
+// CounterResult is an attempted and a commited value of a counter metric plus
 // key.
 type CounterResult struct {
 	Attempted, Committed int64
-	Key                  MetricKey
+	Key                  StepKey
 }
 
-// DistributionResult is an attempted and a commited value of a Distribution
+// DistributionResult is an attempted and a commited value of a distribution
 // metric plus key.
 type DistributionResult struct {
 	Attempted, Committed DistributionValue
-	Key                  MetricKey
+	Key                  StepKey
 }
 
-// GaugeResult is an attempted and a commited value of a Gauge metric plus
+// GaugeResult is an attempted and a commited value of a gauge metric plus
 // key.
 type GaugeResult struct {
 	Attempted, Committed GaugeValue
-	Key                  MetricKey
+	Key                  StepKey
 }
 
-// MetricKey includes the namespace and the name of the metric, as well as
-// the step that reported the metric.
-type MetricKey struct {
+// StepKey uniquely identifies a metric.
+type StepKey struct {
 	Step, Name, Namespace string
 }

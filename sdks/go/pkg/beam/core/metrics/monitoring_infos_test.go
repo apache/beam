@@ -28,7 +28,7 @@ func TestCounterExtraction(t *testing.T) {
 	want := CounterResult{
 		Attempted: 15,
 		Committed: -1,
-		Key: MetricKey{
+		Key: StepKey{
 			Step:      "main.customDoFn",
 			Name:      "customCounter",
 			Namespace: "customDoFn",
@@ -55,7 +55,7 @@ func TestCounterExtraction(t *testing.T) {
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
 
-	got, _, _ := FromMonitoringInfos(attempted, committed)
+	got := FromMonitoringInfos(attempted, committed).AllMetrics().GetCounters()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
@@ -77,7 +77,7 @@ func TestDistributionExtraction(t *testing.T) {
 			Max:   30,
 		},
 		Committed: DistributionValue{},
-		Key: MetricKey{
+		Key: StepKey{
 			Step:      "main.customDoFn",
 			Name:      "customDist",
 			Namespace: "customDoFn",
@@ -104,7 +104,7 @@ func TestDistributionExtraction(t *testing.T) {
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
 
-	_, got, _ := FromMonitoringInfos(attempted, committed)
+	got := FromMonitoringInfos(attempted, committed).AllMetrics().GetDistributions()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
@@ -126,7 +126,7 @@ func TestGaugeExtraction(t *testing.T) {
 			Timestamp: tm,
 		},
 		Committed: GaugeValue{},
-		Key: MetricKey{
+		Key: StepKey{
 			Step:      "main.customDoFn",
 			Name:      "customGauge",
 			Namespace: "customDoFn",
@@ -153,7 +153,7 @@ func TestGaugeExtraction(t *testing.T) {
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
 
-	_, _, got := FromMonitoringInfos(attempted, committed)
+	got := FromMonitoringInfos(attempted, committed).AllMetrics().GetGauges()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
