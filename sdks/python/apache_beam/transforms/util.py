@@ -25,9 +25,11 @@ from __future__ import division
 
 import collections
 import contextlib
+import os
 import random
 import re
 import sys
+import threading
 import time
 from builtins import filter
 from builtins import object
@@ -73,6 +75,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
+from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
   from apache_beam import pvalue
@@ -753,7 +756,7 @@ class GroupIntoBatches(PTransform):
   """
   def __init__(
       self, batch_size, max_buffering_duration_secs=None, clock=time.time):
-    """Create a new GroupIntoBatches with batch size.
+    """Create a new GroupIntoBatches.
 
     Arguments:
       batch_size: (required) How many elements should be in a batch
@@ -779,6 +782,48 @@ class GroupIntoBatches(PTransform):
             self.batch_size,
             self.max_buffering_duration_secs,
             self.clock))
+
+  @typehints.with_input_types(Tuple[K, V])
+  @typehints.with_output_types(Tuple[K, Iterable[V]])
+  class WithShardedKey(PTransform):
+    """A GroupIntoBatches transform that outputs batched elements associated
+    with sharded input keys.
+
+    The sharding is determined by the runner to balance the load during the
+    execution time. By default, it spreads the input elements with the same key
+    to all available threads executing the transform.
+    """
+    def __init__(self, batch_size, max_buffering_duration_secs=None):
+      """Create a new GroupIntoBatches.WithShardedKey.
+
+      Arguments:
+        batch_size: (required) How many elements should be in a batch
+        max_buffering_duration_secs: (optional) How long in seconds at most an
+          incomplete batch of elements is allowed to be buffered in the states.
+          The duration must be a positive second duration and should be given as
+          an int or float.
+      """
+      self.batch_size = batch_size
+
+      if max_buffering_duration_secs is not None:
+        assert max_buffering_duration_secs > 0, (
+            'max buffering duration should be a positive value')
+      self.max_buffering_duration_secs = max_buffering_duration_secs
+
+    _pid = os.getpid()
+
+    def expand(self, pcoll):
+      sharded_pcoll = pcoll | Map(
+          lambda x: (
+              ShardedKey(
+                  x[0],
+                  # Use [process id, thread id] as the shard id.
+                  bytes(GroupIntoBatches.WithShardedKey._pid) + bytes(
+                      threading.get_ident().to_bytes(8, 'big'))),
+              x[1]))
+      return (
+          sharded_pcoll
+          | GroupIntoBatches(self.batch_size, self.max_buffering_duration_secs))
 
 
 def _pardo_group_into_batches(
