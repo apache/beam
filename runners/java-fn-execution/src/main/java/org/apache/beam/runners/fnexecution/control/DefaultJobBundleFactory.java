@@ -459,7 +459,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
-        BundleFinalizationHandler finalizationHandler)
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler)
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
@@ -520,7 +521,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
               getTimerReceivers(currentClient.processBundleDescriptor, timerReceiverFactory),
               stateRequestHandler,
               progressHandler,
-              finalizationHandler);
+              finalizationHandler,
+              checkpointHandler);
       return new RemoteBundle() {
         @Override
         public String getId() {

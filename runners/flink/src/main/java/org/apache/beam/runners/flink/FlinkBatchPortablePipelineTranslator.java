@@ -342,7 +342,8 @@ public class FlinkBatchPortablePipelineTranslator
             context.getJobInfo(),
             outputMap,
             FlinkExecutableStageContextFactory.getInstance(),
-            getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder());
+            getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder(),
+            windowedInputCoder);
 
     final String operatorName = generateNameFromStagePayload(stagePayload);
 
