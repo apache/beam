@@ -372,6 +372,11 @@ class FakeWindmillServer extends WindmillServerStub {
     return commitsReceived;
   }
 
+  public void clearCommitsReceived() {
+    commitsRequested = 0;
+    commitsReceived.clear();
+  }
+
   public void waitForDroppedCommits(int droppedCommits) {
     LOG.debug("waitForDroppedCommits: {}", droppedCommits);
     int maxTries = 10;
