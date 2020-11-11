@@ -1586,8 +1586,11 @@ class SDFBoundedSourceReader(PTransform):
 
   def _create_sdf_bounded_source_dofn(self):
     class SDFBoundedSourceDoFn(core.DoFn):
-      def __init__(self):
-        pass
+      def __init__(self, dd):
+        self._dd
+
+      def display_data(self):
+        return self._dd
 
       def process(
           self,
@@ -1601,7 +1604,7 @@ class SDFBoundedSourceReader(PTransform):
             current_restriction.range_tracker())
         return result
 
-    return SDFBoundedSourceDoFn()
+    return SDFBoundedSourceDoFn(self._data_to_display)
 
   def expand(self, pvalue):
     return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
@@ -1609,5 +1612,3 @@ class SDFBoundedSourceReader(PTransform):
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
 
-  def display_data(self):
-    return self._data_to_display
