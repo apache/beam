@@ -1219,8 +1219,8 @@ def _parent_for_fused_stages(stages, context):
   '''Returns the name of the new parent for the fused stages.
 
   The new parent is the lowest common ancestor of the fused stages that is not
-  contained in the set of fused stages. The provided context is used to compute
-  ancestors of stages.
+  contained in the set of stages to be fused. The provided context is used to
+  compute ancestors of stages.
   '''
   result = functools.reduce(
       lambda a, b: _lowest_common_ancestor(a, b, context), stages)
