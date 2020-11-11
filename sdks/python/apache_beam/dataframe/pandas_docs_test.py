@@ -39,7 +39,6 @@ PANDAS_VERSION = '1.1.1'
 PANDAS_DIR = os.path.expanduser("~/.apache_beam/cache/pandas-" + PANDAS_VERSION)
 PANDAS_DOCS_SOURCE = os.path.join(PANDAS_DIR, 'doc', 'source')
 
-
 parallelism = None
 
 
