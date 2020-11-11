@@ -310,7 +310,7 @@ class ApproximateQuantiles(object):
         'reverse': DisplayDataItem(str(reverse), label='Is Reversed'),
         'weighted': DisplayDataItem(str(weighted), label='Is Weighted'),
         'batch_input': DisplayDataItem(
-            str(batch_input), label='Is Input Batched')
+            str(batch_input), label='Is Input Batched'),
     }
 
   @typehints.with_input_types(
