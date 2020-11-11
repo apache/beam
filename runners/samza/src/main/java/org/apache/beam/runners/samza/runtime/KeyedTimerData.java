@@ -41,6 +41,10 @@ import org.joda.time.Instant;
  * {@link TimerInternals.TimerData} with key, used by {@link SamzaTimerInternalsFactory}. Implements
  * {@link Comparable} by first comparing the wrapped TimerData then the key.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   private final byte[] keyBytes;
   private final K key;
@@ -155,40 +159,28 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
 
       final TimerData timer = value.getTimerData();
       // encode the timestamps first
+      // all new fields should be encoded at last
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
-      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
       STRING_CODER.encode(timer.getTimerId(), outStream);
-      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
 
       if (keyCoder != null) {
         keyCoder.encode(value.key, outStream);
       }
+
+      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
     }
 
     @Override
     public KeyedTimerData<K> decode(InputStream inStream) throws CoderException, IOException {
       // decode the timestamp first
       final Instant timestamp = INSTANT_CODER.decode(inStream);
-      final Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       final String timerId = STRING_CODER.decode(inStream);
-      final String timerFamilyOrNamespace = STRING_CODER.decode(inStream);
-
-      // Timer family id was not encoded before this change, inorder to correctly decode timer data
-      // without timer family id encoded as well, need to add the following logic.
-      // If timerFamilyOrNamespace starts with "/" and ends with "/", then it's the name space field
-      // of the timer data, otherwise, it's the timer family id field.
-      // TODO: LISAMZA-18899 clean up the code once all jobs encode the timer family id.
-      final boolean hasTimerFamilyId =
-          !timerFamilyOrNamespace.startsWith("/") || !timerFamilyOrNamespace.endsWith("/");
-      final String timerFamilyId = hasTimerFamilyId ? timerFamilyOrNamespace : "";
-      final String nameSpaceStr =
-          hasTimerFamilyId ? STRING_CODER.decode(inStream) : timerFamilyOrNamespace;
-      final StateNamespace namespace = StateNamespaces.fromString(nameSpaceStr, windowCoder);
+      final StateNamespace namespace =
+          StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       final TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      final TimerData timer =
-          TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
 
       byte[] keyBytes = null;
       K key = null;
@@ -204,7 +196,12 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
         keyBytes = baos.toByteArray();
       }
 
-      return new KeyedTimerData(keyBytes, key, timer);
+      final String timerFamilyId = inStream.available() > 0 ? STRING_CODER.decode(inStream) : "";
+      final Instant outputTimestamp =
+          inStream.available() > 0 ? INSTANT_CODER.decode(inStream) : timestamp;
+      final TimerData timer =
+          TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
+      return new KeyedTimerData<>(keyBytes, key, timer);
     }
 
     @Override
