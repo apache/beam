@@ -121,10 +121,12 @@ if [[ $confirmation = "y" ]]; then
     echo "Delete the tag and create a new tag commit (y) or skip this step (n)? [y/N]"
     read confirmation
     if [[ $confirmation = "y" ]]; then
+      # Delete tag with the git push <from>:<to> format, as shown here:
+      # https://git-scm.com/docs/git-push#Documentation/git-push.txt-codegitpushoriginexperimentalcode
       git push origin :refs/tags/v${RELEASE}-RC${RC_NUM}
     fi
   fi
-  if [[ $confirmation = "y" ]]; then # Expected to only be "n" if user chose to skip creating tag.
+  if [[ $confirmation = "y" ]]; then # Expected to be "y" unless user chose to skip creating tag.
     ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
                   -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
                   -Prelease.useAutomaticVersion=true --info --no-daemon
