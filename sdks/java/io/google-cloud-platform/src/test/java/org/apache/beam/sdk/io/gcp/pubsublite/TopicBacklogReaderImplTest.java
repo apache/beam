@@ -47,6 +47,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+@SuppressWarnings("uninitialized")
 @RunWith(JUnit4.class)
 public final class TopicBacklogReaderImplTest {
 
@@ -68,6 +69,7 @@ public final class TopicBacklogReaderImplTest {
     this.reader = new TopicBacklogReaderImpl(mockClient, topicPath);
   }
 
+  @SuppressWarnings("incompatible")
   @Test
   public void computeMessageStats_partialFailure() throws Exception {
     ComputeMessageStatsResponse partition1 = ComputeMessageStatsResponse.getDefaultInstance();

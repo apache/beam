@@ -49,6 +49,7 @@ final class TopicBacklogReaderImpl implements TopicBacklogReader {
   }
 
   @Override
+  @SuppressWarnings("dereference.of.nullable")
   public ApiFuture<ComputeMessageStatsResponse> computeMessageStats(
       Map<Partition, Offset> subscriptionState) {
     List<ApiFuture<ComputeMessageStatsResponse>> perPartitionFutures =

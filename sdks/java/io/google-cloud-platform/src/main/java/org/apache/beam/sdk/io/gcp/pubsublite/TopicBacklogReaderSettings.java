@@ -54,6 +54,7 @@ public abstract class TopicBacklogReaderSettings implements Serializable {
     // Required parameters.
     public abstract Builder setTopicPath(TopicPath topicPath);
 
+    @SuppressWarnings("argument.type.incompatible")
     public Builder setTopicPathFromSubscriptionPath(SubscriptionPath subscriptionPath)
         throws StatusException {
       try (AdminClient adminClient =
@@ -78,8 +79,9 @@ public abstract class TopicBacklogReaderSettings implements Serializable {
   @SuppressWarnings("CheckReturnValue")
   TopicBacklogReader instantiate() throws StatusException {
     TopicStatsClientSettings.Builder builder = TopicStatsClientSettings.newBuilder();
-    if (stub() != null) {
-      builder.setStub(stub().get());
+    SerializableSupplier<TopicStatsServiceBlockingStub> stub = stub();
+    if (stub != null) {
+      builder.setStub(stub.get());
     }
     builder.setRegion(topicPath().location().region());
     return new TopicBacklogReaderImpl(TopicStatsClient.create(builder.build()), topicPath());
