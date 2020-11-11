@@ -26,6 +26,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
@@ -608,7 +609,7 @@ public class ExpressionConverter {
     SqlOperator op = SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
     List<RexNode> operands = new ArrayList<>();
 
-    if (funGroup.equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
+    if (PRE_DEFINED_WINDOW_FUNCTIONS.equals(funGroup)) {
       switch (funName) {
         case FIXED_WINDOW:
         case SESSION_WINDOW:
@@ -646,7 +647,7 @@ public class ExpressionConverter {
           throw new UnsupportedOperationException(
               "Unsupported function: " + funName + ". Only support TUMBLE, HOP, and SESSION now.");
       }
-    } else if (funGroup.equals("ZetaSQL")) {
+    } else if (ZETASQL_FUNCTION_GROUP_NAME.equals(funGroup)) {
       if (op == null) {
         Type returnType = functionCall.getSignature().getResultType().getType();
         if (returnType != null) {
@@ -664,7 +665,7 @@ public class ExpressionConverter {
         operands.add(
             convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
-    } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
+    } else if (USER_DEFINED_FUNCTIONS.equals(funGroup)) {
       ResolvedCreateFunctionStmt createFunctionStmt =
           userFunctionDefinitions.sqlScalarFunctions.get(functionCall.getFunction().getNamePath());
       ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
