@@ -471,7 +471,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldFailOnUnknownStateBackend() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
     options.setStateBackend("unknown");
     options.setStateBackendStoragePath("/path");
@@ -486,7 +486,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldFailOnNoStoragePathProvided() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
     options.setStateBackend("unknown");
 
@@ -500,7 +500,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldCreateFileSystemStateBackend() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
     options.setStateBackend("fileSystem");
     options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());
@@ -514,7 +514,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   @Test
   public void shouldCreateRocksDbStateBackend() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
     options.setStateBackend("rocksDB");
     options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());
