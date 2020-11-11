@@ -192,19 +192,22 @@ public class SdkHarnessClient implements AutoCloseable {
         Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
-        BundleFinalizationHandler finalizationHandler) {
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler) {
       return newBundle(
           outputReceivers,
           timerReceivers,
           stateRequestHandler,
           progressHandler,
           BundleSplitHandler.unsupported(),
-          request -> {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "The %s does not have a registered bundle checkpoint handler.",
-                    ActiveBundle.class.getSimpleName()));
-          },
+          checkpointHandler == null
+              ? request -> {
+                throw new UnsupportedOperationException(
+                    String.format(
+                        "The %s does not have a registered bundle checkpoint handler.",
+                        ActiveBundle.class.getSimpleName()));
+              }
+              : checkpointHandler,
           finalizationHandler == null
               ? bundleId -> {
                 throw new UnsupportedOperationException(

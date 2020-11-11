@@ -162,7 +162,8 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
         TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
-        BundleFinalizationHandler finalizationHandler) {
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler) {
       Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
       for (Map.Entry<String, Coder> remoteOutputCoder :
           descriptor.getRemoteOutputCoders().entrySet()) {
@@ -195,7 +196,8 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
           timerReceivers,
           stateRequestHandler,
           progressHandler,
-          finalizationHandler);
+          finalizationHandler,
+          checkpointHandler);
     }
 
     @Override
