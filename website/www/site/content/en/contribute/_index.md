@@ -94,6 +94,15 @@ $ go get github.com/linkedin/goavro
 
 gLinux users should configure their machines for sudoless Docker.
 
+Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
+into a container meeting the requirements above.
+
+You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh)
+script which is part of the Beam repo:
+```
+./start-build-env.sh
+```
+
 ### Connect With the Beam community
 
 1. Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
