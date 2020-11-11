@@ -1587,7 +1587,7 @@ class SDFBoundedSourceReader(PTransform):
   def _create_sdf_bounded_source_dofn(self):
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, dd):
-        self._dd
+        self._dd = dd
 
       def display_data(self):
         return self._dd
@@ -1611,4 +1611,3 @@ class SDFBoundedSourceReader(PTransform):
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
-
