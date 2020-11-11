@@ -51,5 +51,12 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Dataflow',
           commonJobProperties.setGradleSwitches(delegate)
           switches('-PpythonVersion=3.8')
         }
+        shell('echo "*** RUN CROSS-LANGUAGE DATAFLOW PYTHON WITH JAVA SQL TRANSFORMS USING PYTHON 3.8 ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingSql')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-PpythonVersion=3.8')
+        }
       }
     }
