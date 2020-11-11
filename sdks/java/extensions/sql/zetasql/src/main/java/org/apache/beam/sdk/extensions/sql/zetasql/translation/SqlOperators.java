@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.CastFunctionImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -82,36 +83,57 @@ public class SqlOperators {
           new UdafImpl<>(new StringAgg.StringAggString()));
 
   public static final SqlOperator START_WITHS =
-      createUdfOperator("STARTS_WITH", BeamBuiltinMethods.STARTS_WITH_METHOD);
+      createUdfOperator(
+          "STARTS_WITH",
+          BeamBuiltinMethods.STARTS_WITH_METHOD,
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator CONCAT =
-      createUdfOperator("CONCAT", BeamBuiltinMethods.CONCAT_METHOD);
+      createUdfOperator(
+          "CONCAT", BeamBuiltinMethods.CONCAT_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator REPLACE =
-      createUdfOperator("REPLACE", BeamBuiltinMethods.REPLACE_METHOD);
+      createUdfOperator(
+          "REPLACE", BeamBuiltinMethods.REPLACE_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
-  public static final SqlOperator TRIM = createUdfOperator("TRIM", BeamBuiltinMethods.TRIM_METHOD);
+  public static final SqlOperator TRIM =
+      createUdfOperator(
+          "TRIM", BeamBuiltinMethods.TRIM_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator LTRIM =
-      createUdfOperator("LTRIM", BeamBuiltinMethods.LTRIM_METHOD);
+      createUdfOperator(
+          "LTRIM", BeamBuiltinMethods.LTRIM_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator RTRIM =
-      createUdfOperator("RTRIM", BeamBuiltinMethods.RTRIM_METHOD);
+      createUdfOperator(
+          "RTRIM", BeamBuiltinMethods.RTRIM_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator SUBSTR =
-      createUdfOperator("SUBSTR", BeamBuiltinMethods.SUBSTR_METHOD);
+      createUdfOperator(
+          "SUBSTR", BeamBuiltinMethods.SUBSTR_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator REVERSE =
-      createUdfOperator("REVERSE", BeamBuiltinMethods.REVERSE_METHOD);
+      createUdfOperator(
+          "REVERSE", BeamBuiltinMethods.REVERSE_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator CHAR_LENGTH =
-      createUdfOperator("CHAR_LENGTH", BeamBuiltinMethods.CHAR_LENGTH_METHOD);
+      createUdfOperator(
+          "CHAR_LENGTH",
+          BeamBuiltinMethods.CHAR_LENGTH_METHOD,
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator ENDS_WITH =
-      createUdfOperator("ENDS_WITH", BeamBuiltinMethods.ENDS_WITH_METHOD);
+      createUdfOperator(
+          "ENDS_WITH",
+          BeamBuiltinMethods.ENDS_WITH_METHOD,
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator LIKE =
-      createUdfOperator("LIKE", BeamBuiltinMethods.LIKE_METHOD, SqlSyntax.BINARY);
+      createUdfOperator(
+          "LIKE",
+          BeamBuiltinMethods.LIKE_METHOD,
+          SqlSyntax.BINARY,
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator VALIDATE_TIMESTAMP =
       createUdfOperator(
@@ -119,7 +141,8 @@ public class SqlOperators {
           DateTimeUtils.class,
           "validateTimestamp",
           x -> NULLABLE_TIMESTAMP,
-          ImmutableList.of(TIMESTAMP));
+          ImmutableList.of(TIMESTAMP),
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator VALIDATE_TIME_INTERVAL =
       createUdfOperator(
@@ -127,13 +150,18 @@ public class SqlOperators {
           DateTimeUtils.class,
           "validateTimeInterval",
           x -> NULLABLE_BIGINT,
-          ImmutableList.of(BIGINT, OTHER));
+          ImmutableList.of(BIGINT, OTHER),
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator TIMESTAMP_OP =
-      createUdfOperator("TIMESTAMP", BeamBuiltinMethods.TIMESTAMP_METHOD);
+      createUdfOperator(
+          "TIMESTAMP",
+          BeamBuiltinMethods.TIMESTAMP_METHOD,
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlOperator DATE_OP =
-      createUdfOperator("DATE", BeamBuiltinMethods.DATE_METHOD);
+      createUdfOperator(
+          "DATE", BeamBuiltinMethods.DATE_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
 
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
@@ -158,7 +186,7 @@ public class SqlOperators {
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
   }
 
-  private static SqlUserDefinedAggFunction createUdafOperator(
+  public static SqlUserDefinedAggFunction createUdafOperator(
       String name, SqlReturnTypeInference returnTypeInference, AggregateFunction function) {
     return new SqlUserDefinedAggFunction(
         new SqlIdentifier(name, SqlParserPos.ZERO),
@@ -177,26 +205,25 @@ public class SqlOperators {
       Class<?> methodClass,
       String methodName,
       SqlReturnTypeInference returnTypeInference,
-      List<RelDataType> paramTypes) {
+      List<RelDataType> paramTypes,
+      String funGroup) {
     return new SqlUserDefinedFunction(
         new SqlIdentifier(name, SqlParserPos.ZERO),
         returnTypeInference,
         null,
         null,
         paramTypes,
-        ScalarFunctionImpl.create(methodClass, methodName));
+        ZetaSqlScalarFunctionImpl.create(methodClass, methodName, funGroup));
   }
 
-  // Helper function to create SqlUserDefinedFunction based on a function name and a method.
-  // SqlUserDefinedFunction will be able to pass through Calcite codegen and get proper function
-  // called.
-  private static SqlUserDefinedFunction createUdfOperator(String name, Method method) {
-    return createUdfOperator(name, method, SqlSyntax.FUNCTION);
+  public static SqlUserDefinedFunction createUdfOperator(
+      String name, Method method, String funGroup) {
+    return createUdfOperator(name, method, SqlSyntax.FUNCTION, funGroup);
   }
 
   private static SqlUserDefinedFunction createUdfOperator(
-      String name, Method method, final SqlSyntax syntax) {
-    Function function = ScalarFunctionImpl.create(method);
+      String name, Method method, final SqlSyntax syntax, String funGroup) {
+    Function function = ZetaSqlScalarFunctionImpl.create(method, funGroup);
     final RelDataTypeFactory typeFactory = createTypeFactory();
 
     List<RelDataType> argTypes = new ArrayList<>();
