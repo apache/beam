@@ -8,7 +8,7 @@ import java.io.InputStream;
 
 public class FileReaderUtil {
 
-    private static final String FILE_PATH = "configuration.yaml";
+    private static final String FILE_PATH = "/configuration.yaml";
 
     public static Configuration readConfiguration() {
         try {
