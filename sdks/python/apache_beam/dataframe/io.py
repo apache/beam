@@ -48,7 +48,7 @@ def _as_pc(df):
 
 def to_csv(df, path, *args, **kwargs):
   return _as_pc(df) | _WriteToPandas(
-      pd.DataFrame.to_csv, path, args, kwargs, incremental=True, binary=False)
+      'to_csv', path, args, kwargs, incremental=True, binary=False)
 
 
 def read_fwf(path, *args, **kwargs):
@@ -75,7 +75,7 @@ def to_json(df, path, orient=None, *args, **kwargs):
       raise frame_base.WontImplementError('not dataframes or series')
   kwargs['orient'] = orient
   return _as_pc(df) | _WriteToPandas(
-      pd.DataFrame.to_json,
+      'to_json',
       path,
       args,
       kwargs,
@@ -94,7 +94,7 @@ def read_html(path, *args, **kwargs):
 
 def to_html(df, path, *args, **kwargs):
   return _as_pc(df) | _WriteToPandas(
-      pd.DataFrame.to_html,
+      'to_html',
       path,
       args,
       kwargs,
@@ -110,12 +110,11 @@ def _binary_reader(format):
 
 
 def _binary_writer(format):
-  func = getattr(pd.DataFrame, 'to_%s' % format)
   return (
       lambda df,
       path,
       *args,
-      **kwargs: _as_pc(df) | _WriteToPandas(func, path, args, kwargs))
+      **kwargs: _as_pc(df) | _WriteToPandas(f'to_{format}', path, args, kwargs))
 
 
 for format in ('excel', 'feather', 'parquet', 'stata'):
@@ -261,7 +260,7 @@ class _WriteToPandasFileSink(fileio.FileSink):
 
   def write_to(self, df, file_handle=None):
     non_none_handle = file_handle or self.StringOrBytesIO()
-    self.writer(df, non_none_handle, *self.args, **self.kwargs)
+    getattr(df, self.writer)(non_none_handle, *self.args, **self.kwargs)
     if file_handle is None:
       return non_none_handle.getvalue()
 
