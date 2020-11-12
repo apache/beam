@@ -1,11 +1,11 @@
 package org.apache.beam.validate.runner.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import model.Configuration;
-import model.TestResult;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import utils.FileReaderUtil;
+import org.apache.beam.validate.runner.model.Configuration;
+import org.apache.beam.validate.runner.model.TestResult;
+import org.apache.beam.validate.runner.util.FileReaderUtil;
 
 import java.net.URISyntaxException;
 import java.util.Map;
