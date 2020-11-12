@@ -101,6 +101,7 @@
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * BigQuery's DATETIME type now maps to Beam logical type org.apache.beam.sdk.schemas.logicaltypes.SqlTypes.DATETIME
+* Pandas 1.x is now required for dataframe operations.
 
 ## Deprecations
 
