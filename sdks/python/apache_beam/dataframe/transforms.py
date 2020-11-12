@@ -434,7 +434,7 @@ class _ReBatch(beam.DoFn):
         self._running_size += _total_memory_usage(part)
       self._parts[window, timestamp][tag].extend(parts)
     if self._running_size >= self._target_size:
-      self.finish_bundle()
+      yield from self.finish_bundle()
 
   def finish_bundle(self):
     for (window, timestamp), tagged_parts in self._parts.items():
