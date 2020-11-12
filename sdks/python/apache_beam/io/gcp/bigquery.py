@@ -327,8 +327,10 @@ from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 
 try:
+  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
+  DatasetReference = None
   TableReference = None
 
 __all__ = [
@@ -1934,7 +1936,7 @@ class ReadAllFromBigQuery(PTransform):
       gcs_location: Union[str, ValueProvider] = None,
       validate: bool = False,
       kms_key: str = None,
-      temp_dataset: Union[str, bigquery.DatasetReference] = None,
+      temp_dataset: Union[str, DatasetReference] = None,
       bigquery_job_labels: Dict[str, str] = None):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):
