@@ -892,7 +892,7 @@ class Read(ptransform.PTransform):
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
       display_data = self.source.display_data() or {}
-      display_data[source] = self.source.__class__
+      display_data['source'] = self.source.__class__
       return (
           pbegin
           | Impulse()
