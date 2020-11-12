@@ -41,7 +41,7 @@ dependencies {
     compile group: 'org.jenkins-ci.plugins', name: 'junit', version: '1.34'
     compile group: 'org.yaml', name: 'snakeyaml', version: '1.8'
     compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.11.3'
-    compile group: 'com.opencsv', name: 'opencsv', version: '4.1'
+    compile 'org.slf4j:slf4j-simple:1.7.9'
 }
 
 
