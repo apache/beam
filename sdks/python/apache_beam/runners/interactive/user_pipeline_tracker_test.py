@@ -103,7 +103,9 @@ class UserPipelineTrackerTest(unittest.TestCase):
     derived = beam.Pipeline()
 
     ut.add_derived_pipeline(user1, derived)
-    ut.add_derived_pipeline(user2, derived)
+
+    with self.assertRaises(AssertionError):
+      ut.add_derived_pipeline(user2, derived)
 
     self.assertIs(ut.get_user_pipeline(derived), user1)
 
