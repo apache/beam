@@ -45,6 +45,7 @@ TARGET_PARTITION_SIZE = 1 << 23  # 8M
 MAX_PARTITIONS = 1000
 DEFAULT_PARTITIONS = 100
 MIN_PARTITIONS = 10
+PER_COL_OVERHEAD = 1000
 
 
 class DataframeTransform(transforms.PTransform):
@@ -400,7 +401,9 @@ def _total_memory_usage(frame):
   try:
     size = frame.memory_usage()
     if not isinstance(size, int):
-      size = size.sum()
+      size = size.sum() + PER_COL_OVERHEAD * len(size)
+    else:
+      size += PER_COL_OVERHEAD
     return size
   except AttributeError:
     # Don't know, assume it's really big.
