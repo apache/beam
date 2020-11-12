@@ -891,11 +891,13 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
+      display_data = self.source.display_data() or {}
+      display_data['source'] = self.source.__class__
       return (
           pbegin
           | Impulse()
           | core.Map(lambda _: self.source)
-          | SDFBoundedSourceReader(self.source.display_data()))
+          | SDFBoundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
@@ -1586,8 +1588,11 @@ class SDFBoundedSourceReader(PTransform):
 
   def _create_sdf_bounded_source_dofn(self):
     class SDFBoundedSourceDoFn(core.DoFn):
-      def __init__(self):
-        pass
+      def __init__(self, dd):
+        self._dd = dd
+
+      def display_data(self):
+        return self._dd
 
       def process(
           self,
@@ -1601,13 +1606,10 @@ class SDFBoundedSourceReader(PTransform):
             current_restriction.range_tracker())
         return result
 
-    return SDFBoundedSourceDoFn()
+    return SDFBoundedSourceDoFn(self._data_to_display)
 
   def expand(self, pvalue):
     return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
-
-  def display_data(self):
-    return self._data_to_display
