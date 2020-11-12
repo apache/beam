@@ -1227,7 +1227,7 @@ def _parent_for_fused_stages(stages, context):
     if a is None or b is None:
       return None
     return _lowest_common_ancestor(a, b, context)
-      
+    
   result = functools.reduce(reduce_fn, stages)
   if result in stages:
     result = context.parents_map().get(result)
