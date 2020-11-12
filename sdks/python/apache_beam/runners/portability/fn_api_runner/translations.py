@@ -1222,8 +1222,13 @@ def _parent_for_fused_stages(stages, context):
   contained in the set of stages to be fused. The provided context is used to
   compute ancestors of stages.
   '''
-  result = functools.reduce(
-      lambda a, b: _lowest_common_ancestor(a, b, context), stages)
+  def reduce_fn(a, b):
+    # type: (Optional[str], Optional[str]) -> Optional[str]
+    if a is None or b is None:
+      return None
+    return _lowest_common_ancestor(a, b, context)
+      
+  result = functools.reduce(reduce_fn, stages)
   if result in stages:
     result = context.parents_map().get(result)
   return result
