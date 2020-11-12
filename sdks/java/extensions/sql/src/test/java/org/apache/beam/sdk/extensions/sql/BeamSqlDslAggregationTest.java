@@ -401,9 +401,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * When inputs contain both null and non-null values, the output should be null.
-   */
+  /** When inputs contain both null and non-null values, the output should be null. */
   @Test
   @Ignore("Null values are ignored when mixed with non-null values. (BEAM-10379)")
   public void testBitAndFunctionWithNullInputAndValueInput() throws Exception {
