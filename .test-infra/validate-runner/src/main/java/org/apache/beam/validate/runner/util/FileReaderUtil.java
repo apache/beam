@@ -8,13 +8,13 @@ import java.io.InputStream;
 
 public class FileReaderUtil {
 
-    private static final String FILE_PATH = "/configuration.yaml";
+    private static final String FILE_PATH = "configuration.yaml";
 
     public static Configuration readConfiguration() {
         try {
             ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
             InputStream inputStream = FileReaderUtil.class.getResourceAsStream(FILE_PATH);
-            return mapper.readValue(inputStream,Configuration.class);
+            return mapper.readValue(inputStream, Configuration.class);
         } catch (Exception ex) {
             ex.printStackTrace();
         }
