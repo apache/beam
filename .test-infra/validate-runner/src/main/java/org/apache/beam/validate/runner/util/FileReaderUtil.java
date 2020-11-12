@@ -2,7 +2,7 @@ package org.apache.beam.validate.runner.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import model.Configuration;
+import org.apache.beam.validate.runner.model.Configuration;
 
 import java.io.InputStream;
 

@@ -1,16 +1,28 @@
 package org.apache.beam.validate.runner.model;
 
+import java.util.List;
+import java.util.Map;
+
 public class Configuration {
-    private String[] jobs;
+    private List<Map<String, String>> batch;
+    private List<Map<String, String>> stream;
     private String server;
     private String jsonapi;
 
-    public String[] getJobs() {
-        return jobs;
+    public List<Map<String, String>> getBatch() {
+        return batch;
     }
 
-    public void setJobs(String[] jobs) {
-        this.jobs = jobs;
+    public void setBatch(List<Map<String, String>> batch) {
+        this.batch = batch;
+    }
+
+    public List<Map<String, String>> getStream() {
+        return stream;
+    }
+
+    public void setStream(List<Map<String, String>> stream) {
+        this.stream = stream;
     }
 
     public String getServer() {
