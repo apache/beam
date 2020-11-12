@@ -3,11 +3,11 @@ package org.apache.beam.validate.runner.service;
 import com.offbytwo.jenkins.JenkinsServer;
 import com.offbytwo.jenkins.model.Job;
 import com.offbytwo.jenkins.model.JobWithDetails;
-import model.CaseResult;
-import model.Configuration;
-import model.TestResult;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.apache.beam.validate.runner.model.CaseResult;
+import org.apache.beam.validate.runner.model.Configuration;
+import org.apache.beam.validate.runner.model.TestResult;
 
 import java.io.IOException;
 import java.net.URI;
