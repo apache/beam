@@ -1,7 +1,7 @@
 batch:
-  - beam_PostCommit_Java_PVR_Flink_Batch
-  - beam_PostCommit_Java_PVR_Spark_Batch
+  - flink: beam_PostCommit_Java_PVR_Flink_Batch
+  - spark: beam_PostCommit_Java_PVR_Spark_Batch
 stream:
-  - beam_PostCommit_Java_PVR_Flink_Streaming
+  - flink: beam_PostCommit_Java_PVR_Flink_Streaming
 server: https://ci-beam.apache.org/
 jsonapi: testReport/api/json
