@@ -670,7 +670,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       representation of work. See {@link GetSize} and {@link RestrictionTracker.HasProgress}
    *       for further details.
    *   <li>It <i>should</i> define a {@link SplitRestriction} method. This method enables runners to
-   *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
+   *       perform bulk splitting initially allowing for a rapid increase in parallelism. If it is
+   *       not defined, there is no initial split happening by default. Note that initial split is a
+   *       different concept from the split during element processing time. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and
    *       restriction are actively being processed.
    *   <li>It <i>may</i> define a {@link TruncateRestriction} method to choose how to truncate a
