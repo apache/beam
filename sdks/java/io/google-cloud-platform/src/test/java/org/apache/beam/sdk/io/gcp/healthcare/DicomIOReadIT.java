@@ -20,7 +20,9 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
@@ -30,6 +32,8 @@ import org.junit.Test;
 
 @SuppressWarnings({"nullness", "rawtypes", "uninitialized"})
 public class DicomIOReadIT {
+  private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
+  private static final String TEST_FILE_STUDY_ID = "study_000000000";
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private String healthcareDataset;
@@ -38,7 +42,7 @@ public class DicomIOReadIT {
   private String storeName = "foo";
 
   @Before
-  public void setup() throws IOException {
+  public void setup() throws IOException, URISyntaxException {
     project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
@@ -47,6 +51,7 @@ public class DicomIOReadIT {
     client = new HttpHealthcareApiClient();
 
     client.createDicomStore(healthcareDataset, storeName);
+    client.uploadToDicomStore(healthcareDataset + "/dicomStores/" + storeName, TEST_FILE_PATH);
   }
 
   @After
@@ -57,10 +62,14 @@ public class DicomIOReadIT {
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =
-        String.format("%s/dicomStores/%s/dicomWeb/studies/", healthcareDataset, storeName);
+        String.format(
+            "%s/dicomStores/%s/dicomWeb/studies/%s",
+            healthcareDataset, storeName, TEST_FILE_STUDY_ID);
 
     DicomIO.ReadStudyMetadata.Result result =
         pipeline.apply(Create.of(webPath)).apply(DicomIO.readStudyMetadata());
+
+    PAssert.that(result.getFailedReads()).empty();
 
     PipelineResult job = pipeline.run();
 

@@ -28,6 +28,7 @@ import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
@@ -211,4 +212,6 @@ public interface HealthcareApiClient {
   DicomStore createDicomStore(String dataset, String name, String pubsubTopic) throws IOException;
 
   Empty deleteDicomStore(String name) throws IOException;
+
+  Empty uploadToDicomStore(String webPath, String filePath) throws IOException, URISyntaxException;
 }

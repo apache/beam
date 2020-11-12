@@ -51,6 +51,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -67,6 +69,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
@@ -230,6 +233,25 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Empty deleteDicomStore(String name) throws IOException {
     return client.projects().locations().datasets().dicomStores().delete(name).execute();
+  }
+
+  @Override
+  public Empty uploadToDicomStore(String webPath, String filePath)
+      throws IOException, URISyntaxException {
+    byte[] dcmFile = Files.readAllBytes(Paths.get(filePath));
+    ByteArrayEntity requestEntity = new ByteArrayEntity(dcmFile);
+
+    String uri = String.format("%sv1/%s/dicomWeb/studies", client.getRootUrl(), webPath);
+    URIBuilder uriBuilder =
+        new URIBuilder(uri)
+            .setParameter("access_token", credentials.getAccessToken().getTokenValue());
+    HttpUriRequest request =
+        RequestBuilder.post(uriBuilder.build())
+            .setEntity(requestEntity)
+            .addHeader("Content-Type", "application/dicom")
+            .build();
+    HttpResponse response = httpClient.execute(request);
+    return new Empty();
   }
 
   @Override
