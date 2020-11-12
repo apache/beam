@@ -13,28 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+package metricsx
 
 import (
 	"testing"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/metricsx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 func TestCounterExtraction(t *testing.T) {
 	var value int64 = 15
-	want := CounterResult{
+	want := metrics.CounterResult{
 		Attempted: 15,
 		Committed: -1,
-		Key: StepKey{
+		Key: metrics.StepKey{
 			Step:      "main.customDoFn",
 			Name:      "customCounter",
 			Namespace: "customDoFn",
 		}}
 
-	payload, err := metricsx.Int64Counter(value)
+	payload, err := Int64Counter(value)
 	if err != nil {
 		panic(err)
 	}
@@ -46,8 +46,8 @@ func TestCounterExtraction(t *testing.T) {
 	}
 
 	mInfo := &pipepb.MonitoringInfo{
-		Urn:     metricsx.UrnToString(metricsx.UrnUserSumInt64),
-		Type:    metricsx.UrnToType(metricsx.UrnUserSumInt64),
+		Urn:     UrnToString(UrnUserSumInt64),
+		Type:    UrnToType(UrnUserSumInt64),
 		Labels:  labels,
 		Payload: payload,
 	}
@@ -69,21 +69,21 @@ func TestCounterExtraction(t *testing.T) {
 func TestDistributionExtraction(t *testing.T) {
 	var count, sum, min, max int64 = 100, 5, -12, 30
 
-	want := DistributionResult{
-		Attempted: DistributionValue{
+	want := metrics.DistributionResult{
+		Attempted: metrics.DistributionValue{
 			Count: 100,
 			Sum:   5,
 			Min:   -12,
 			Max:   30,
 		},
-		Committed: DistributionValue{},
-		Key: StepKey{
+		Committed: metrics.DistributionValue{},
+		Key: metrics.StepKey{
 			Step:      "main.customDoFn",
 			Name:      "customDist",
 			Namespace: "customDoFn",
 		}}
 
-	payload, err := metricsx.Int64Distribution(count, sum, min, max)
+	payload, err := Int64Distribution(count, sum, min, max)
 	if err != nil {
 		panic(err)
 	}
@@ -95,8 +95,8 @@ func TestDistributionExtraction(t *testing.T) {
 	}
 
 	mInfo := &pipepb.MonitoringInfo{
-		Urn:     metricsx.UrnToString(metricsx.UrnUserDistInt64),
-		Type:    metricsx.UrnToType(metricsx.UrnUserDistInt64),
+		Urn:     UrnToString(UrnUserDistInt64),
+		Type:    UrnToType(UrnUserDistInt64),
 		Labels:  labels,
 		Payload: payload,
 	}
@@ -120,19 +120,19 @@ func TestGaugeExtraction(t *testing.T) {
 	loc, _ := time.LoadLocation("Local")
 	tm := time.Date(2020, 11, 9, 17, 52, 28, 462*int(time.Millisecond), loc)
 
-	want := GaugeResult{
-		Attempted: GaugeValue{
+	want := metrics.GaugeResult{
+		Attempted: metrics.GaugeValue{
 			Value:     100,
 			Timestamp: tm,
 		},
-		Committed: GaugeValue{},
-		Key: StepKey{
+		Committed: metrics.GaugeValue{},
+		Key: metrics.StepKey{
 			Step:      "main.customDoFn",
 			Name:      "customGauge",
 			Namespace: "customDoFn",
 		}}
 
-	payload, err := metricsx.Int64Latest(tm, value)
+	payload, err := Int64Latest(tm, value)
 	if err != nil {
 		panic(err)
 	}
@@ -144,8 +144,8 @@ func TestGaugeExtraction(t *testing.T) {
 	}
 
 	mInfo := &pipepb.MonitoringInfo{
-		Urn:     metricsx.UrnToString(metricsx.UrnUserLatestMsInt64),
-		Type:    metricsx.UrnToType(metricsx.UrnUserLatestMsInt64),
+		Urn:     UrnToString(UrnUserLatestMsInt64),
+		Type:    UrnToType(UrnUserLatestMsInt64),
 		Labels:  labels,
 		Payload: payload,
 	}

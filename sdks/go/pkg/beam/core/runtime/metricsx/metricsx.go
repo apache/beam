@@ -17,154 +17,165 @@ package metricsx
 
 import (
 	"bytes"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-// Urn is an enum type for representing urns of metrics and monitored states.
-type Urn uint32
+// FromMonitoringInfos extracts metrics from monitored states and
+// groups them into counters, distributions and gauges.
+func FromMonitoringInfos(attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) *metrics.Results {
+	ac, ad, ag := groupByType(attempted)
+	cc, cd, cg := groupByType(committed)
 
-// TODO: Pull these from the protos.
-var sUrns = [...]string{
-	"beam:metric:user:sum_int64:v1",
-	"beam:metric:user:sum_double:v1",
-	"beam:metric:user:distribution_int64:v1",
-	"beam:metric:user:distribution_double:v1",
-	"beam:metric:user:latest_int64:v1",
-	"beam:metric:user:latest_double:v1",
-	"beam:metric:user:top_n_int64:v1",
-	"beam:metric:user:top_n_double:v1",
-	"beam:metric:user:bottom_n_int64:v1",
-	"beam:metric:user:bottom_n_double:v1",
-
-	"beam:metric:element_count:v1",
-	"beam:metric:sampled_byte_size:v1",
-
-	"beam:metric:pardo_execution_time:start_bundle_msecs:v1",
-	"beam:metric:pardo_execution_time:process_bundle_msecs:v1",
-	"beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
-	"beam:metric:ptransform_execution_time:total_msecs:v1",
-
-	"beam:metric:ptransform_progress:remaining:v1",
-	"beam:metric:ptransform_progress:completed:v1",
-	"beam:metric:data_channel:read_index:v1",
-
-	"TestingSentinelUrn", // Must remain last.
+	return metrics.NewResults(mergeCounters(ac, cc), mergeDistributions(ad, cd), mergeGauges(ag, cg))
 }
 
-// The supported urns of metrics and monitored states.
-const (
-	UrnUserSumInt64 Urn = iota
-	UrnUserSumFloat64
-	UrnUserDistInt64
-	UrnUserDistFloat64
-	UrnUserLatestMsInt64
-	UrnUserLatestMsFloat64
-	UrnUserTopNInt64
-	UrnUserTopNFloat64
-	UrnUserBottomNInt64
-	UrnUserBottomNFloat64
+func groupByType(minfos []*pipepb.MonitoringInfo) (
+	map[metrics.StepKey]int64,
+	map[metrics.StepKey]metrics.DistributionValue,
+	map[metrics.StepKey]metrics.GaugeValue) {
+	counters := make(map[metrics.StepKey]int64)
+	distributions := make(map[metrics.StepKey]metrics.DistributionValue)
+	gauges := make(map[metrics.StepKey]metrics.GaugeValue)
 
-	UrnElementCount
-	UrnSampledByteSize
+	for _, minfo := range minfos {
+		key, err := extractKey(minfo)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 
-	UrnStartBundle
-	UrnProcessBundle
-	UrnFinishBundle
-	UrnTransformTotalTime
+		r := bytes.NewReader(minfo.GetPayload())
 
-	UrnProgressRemaining
-	UrnProgressCompleted
-	UrnDataChannelReadIndex
-
-	UrnTestSentinel // Must remain last.
-)
-
-// UrnToString returns a string representation of the urn.
-func UrnToString(u Urn) string {
-	return sUrns[u]
+		switch minfo.GetType() {
+		case "beam:metrics:sum_int64:v1":
+			value, err := extractCounterValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			counters[key] = value
+		case "beam:metrics:distribution_int64:v1":
+			value, err := extractDistributionValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			distributions[key] = value
+		case
+			"beam:metrics:latest_int64:v1",
+			"beam:metrics:top_n_int64:v1",
+			"beam:metrics:bottom_n_int64:v1":
+			value, err := extractGaugeValue(r)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			gauges[key] = value
+		default:
+			log.Println("unknown metric type")
+		}
+	}
+	return counters, distributions, gauges
 }
 
-// UrnToType maps the urn to it's encoding type.
-// This function is written to be inlinable by the compiler.
-func UrnToType(u Urn) string {
-	switch u {
-	case UrnUserSumInt64, UrnElementCount, UrnStartBundle, UrnProcessBundle, UrnFinishBundle, UrnTransformTotalTime:
-		return "beam:metrics:sum_int64:v1"
-	case UrnUserSumFloat64:
-		return "beam:metrics:sum_double:v1"
-	case UrnUserDistInt64, UrnSampledByteSize:
-		return "beam:metrics:distribution_int64:v1"
-	case UrnUserDistFloat64:
-		return "beam:metrics:distribution_double:v1"
-	case UrnUserLatestMsInt64:
-		return "beam:metrics:latest_int64:v1"
-	case UrnUserLatestMsFloat64:
-		return "beam:metrics:latest_double:v1"
-	case UrnUserTopNInt64:
-		return "beam:metrics:top_n_int64:v1"
-	case UrnUserTopNFloat64:
-		return "beam:metrics:top_n_double:v1"
-	case UrnUserBottomNInt64:
-		return "beam:metrics:bottom_n_int64:v1"
-	case UrnUserBottomNFloat64:
-		return "beam:metrics:bottom_n_double:v1"
+func mergeCounters(
+	attempted map[metrics.StepKey]int64,
+	committed map[metrics.StepKey]int64) []metrics.CounterResult {
+	res := make([]metrics.CounterResult, 0)
 
-	case UrnProgressRemaining, UrnProgressCompleted:
-		return "beam:metrics:progress:v1"
-	case UrnDataChannelReadIndex:
-		return "beam:metrics:sum_int64:v1"
-
-	// Monitoring Table isn't currently in the protos.
-	// case ???:
-	//	return "beam:metrics:monitoring_table:v1"
-
-	case UrnTestSentinel:
-		return "TestingSentinelType"
-
-	default:
-		panic("metric urn without specified type" + sUrns[u])
+	for k := range attempted {
+		v, ok := committed[k]
+		if !ok {
+			v = -1
+		}
+		res = append(res, metrics.CounterResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
+	return res
 }
 
-// Int64Counter returns an encoded payload of the integer counter.
-func Int64Counter(v int64) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := coder.EncodeVarInt(v, &buf); err != nil {
-		return nil, err
+func mergeDistributions(
+	attempted map[metrics.StepKey]metrics.DistributionValue,
+	committed map[metrics.StepKey]metrics.DistributionValue) []metrics.DistributionResult {
+	res := make([]metrics.DistributionResult, 0)
+
+	for k := range attempted {
+		v, ok := committed[k]
+		if !ok {
+			v = metrics.DistributionValue{}
+		}
+		res = append(res, metrics.DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
-	return buf.Bytes(), nil
+	return res
 }
 
-// Int64Latest returns an encoded payload of the latest seen integer value.
-func Int64Latest(t time.Time, v int64) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := coder.EncodeVarInt(mtime.FromTime(t).Milliseconds(), &buf); err != nil {
-		return nil, err
+func mergeGauges(
+	attempted map[metrics.StepKey]metrics.GaugeValue,
+	committed map[metrics.StepKey]metrics.GaugeValue) []metrics.GaugeResult {
+	res := make([]metrics.GaugeResult, 0)
+
+	for k := range attempted {
+		v, ok := committed[k]
+		if !ok {
+			v = metrics.GaugeValue{}
+		}
+		res = append(res, metrics.GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
-	if err := coder.EncodeVarInt(v, &buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return res
 }
 
-// Int64Distribution returns an encoded payload of the distribution of an
-// integer value.
-func Int64Distribution(count, sum, min, max int64) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := coder.EncodeVarInt(count, &buf); err != nil {
-		return nil, err
+func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
+	labels := newLabels(mi.GetLabels())
+	stepName := labels.Transform()
+	if stepName == "" {
+		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)
 	}
-	if err := coder.EncodeVarInt(sum, &buf); err != nil {
-		return nil, err
+	return metrics.StepKey{Step: stepName, Name: labels.Name(), Namespace: labels.Namespace()}, nil
+}
+
+func extractCounterValue(reader *bytes.Reader) (int64, error) {
+	value, err := coder.DecodeVarInt(reader)
+	if err != nil {
+		return -1, err
 	}
-	if err := coder.EncodeVarInt(min, &buf); err != nil {
-		return nil, err
+	return value, nil
+}
+
+func extractDistributionValue(reader *bytes.Reader) (metrics.DistributionValue, error) {
+	values, err := decodeMany(reader, 4)
+	if err != nil {
+		return metrics.DistributionValue{}, err
 	}
-	if err := coder.EncodeVarInt(max, &buf); err != nil {
-		return nil, err
+	return metrics.DistributionValue{Count: values[0], Sum: values[1], Min: values[2], Max: values[3]}, nil
+}
+
+func extractGaugeValue(reader *bytes.Reader) (metrics.GaugeValue, error) {
+	values, err := decodeMany(reader, 2)
+	if err != nil {
+		return metrics.GaugeValue{}, err
 	}
-	return buf.Bytes(), nil
+	return metrics.GaugeValue{Timestamp: time.Unix(0, values[0]*int64(time.Millisecond)), Value: values[1]}, nil
+}
+
+func newLabels(miLabels map[string]string) *metrics.Labels {
+	labels := metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"])
+	return &labels
+}
+
+func decodeMany(reader *bytes.Reader, size int) ([]int64, error) {
+	var err error
+	values := make([]int64, size)
+
+	for i := 0; i < size; i++ {
+		values[i], err = coder.DecodeVarInt(reader)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return values, err
 }

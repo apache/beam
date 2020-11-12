@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/metricsx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
@@ -126,5 +127,5 @@ func getMetrics(ctx context.Context, jobID string, client jobpb.JobServiceClient
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
 	m := response.GetMetrics()
-	return metrics.FromMonitoringInfos(m.Attempted, m.Committed), err
+	return metricsx.FromMonitoringInfos(m.Attempted, m.Committed), err
 }

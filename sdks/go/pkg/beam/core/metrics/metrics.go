@@ -468,6 +468,14 @@ type Results struct {
 	gauges        []GaugeResult
 }
 
+// NewResults creates a new Results.
+func NewResults(
+	counters []CounterResult,
+	distributions []DistributionResult,
+	gauges []GaugeResult) *Results {
+	return &Results{counters, distributions, gauges}
+}
+
 // AllMetrics returns all metrics from a Results instance.
 func (mr Results) AllMetrics() QueryResults {
 	return QueryResults{mr.counters, mr.distributions, mr.gauges}
