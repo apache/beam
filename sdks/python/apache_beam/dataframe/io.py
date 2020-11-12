@@ -167,7 +167,7 @@ class _ReadFromPandas(beam.PTransform):
         handle = TextIOWrapper(handle)
       if self.incremental:
         sample = next(
-            self.reader(handle, *self.args, chunksize=100, **self.kwargs))
+            self.reader(handle, *self.args, **dict(self.kwargs, chunksize=100)))
       else:
         sample = self.reader(handle, *self.args, **self.kwargs)
 
@@ -207,7 +207,9 @@ class _ReadFromPandasDoFn(beam.DoFn):
       if not self.binary:
         handle = TextIOWrapper(handle)
       if self.incremental:
-        frames = reader(handle, *self.args, chunksize=100, **self.kwargs)
+        if 'chunksize' not in self.kwargs:
+          self.kwargs['chunksize'] = 10_000
+        frames = reader(handle, *self.args, **self.kwargs)
       else:
         frames = [reader(handle, *self.args, **self.kwargs)]
       for df in frames:
