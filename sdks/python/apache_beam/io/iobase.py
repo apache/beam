@@ -891,11 +891,13 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
+      display_data = self.source.display_data() or {}
+      display_data[source] = self.source.__class__
       return (
           pbegin
           | Impulse()
           | core.Map(lambda _: self.source)
-          | SDFBoundedSourceReader(self.source.display_data()))
+          | SDFBoundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
