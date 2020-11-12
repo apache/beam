@@ -238,7 +238,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     schema, metadata_list = self._export_files(bq, element, table_reference)
 
     for metadata in metadata_list:
-      yield self._create_source(matadata.path, schema)
+      yield self._create_source(metadata.path, schema)
 
     if element.query is not None:
       bq.clean_up_temporary_dataset(self._get_project())

@@ -1908,7 +1908,7 @@ class ReadFromBigQuery(PTransform):
 class ReadAllFromBigQuery(PTransform):
   """Read data from BigQuery.
 
-    PTransform:ReadAllFromBigQueryRequest->Rows
+    PTransform:ReadFromBigQueryRequest->Rows
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
     on GCS, and then reads from each produced file. Data is exported into
