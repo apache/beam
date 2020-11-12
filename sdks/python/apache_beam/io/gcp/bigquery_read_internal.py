@@ -203,8 +203,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def display_data(self):
     return {
-        'use_json_exports': str(use_json_exports),
-        'gcs_location': str(gcs_location),
+        'use_json_exports': str(self.use_json_exports),
+        'gcs_location': str(self.gcs_location),
         'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
         'kms_key': str(self.kms_key),
         'project': str(self.project),

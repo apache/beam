@@ -1934,7 +1934,7 @@ class ReadAllFromBigQuery(PTransform):
       gcs_location: Union[str, ValueProvider] = None,
       validate: bool = False,
       kms_key: str = None,
-      temp_dataset: Union[str, DatasetReference] = None,
+      temp_dataset: Union[str, bigquery.DatasetReference] = None,
       bigquery_job_labels: Dict[str, str] = None):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):
