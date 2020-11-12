@@ -17,5 +17,8 @@
  */
 
 class PythonTestProperties {
+  final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS = ['3.6', '3.8']
+  final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_JAVA_PYTHON_VERSIONS = ['3.6', '3.8']
+  final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_SQL_PYTHON_VERSIONS = ['3.8']
   final static String LOAD_TEST_PYTHON_VERSION = '3.7'
 }
