@@ -88,6 +88,17 @@
   color: $color-smoke;
 }
 
+.component-quote {
+  font-size: 20px;
+  font-weight: normal;
+  font-stretch: normal;
+  font-style: italic;
+  line-height: 1.44;
+  letter-spacing: 0.43px;
+  text-align: center;
+  color: $color-gray;
+}
+
 @media (max-width: $tablet) {
   .component-title {
     font-size: 28px;
