@@ -324,23 +324,22 @@ createCrossLanguageValidatesRunnerTask(
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=beam_fn_api",
-    "--experiments=use_unified_worker",
+    "--experiments=use_runner_v2",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
-    //"--sdkHarnessContainerImageOverrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=beam_fn_api,use_unified_worker",
+    "--sdkHarnessContainerImageOverrides=.*java.*,${dockerImageContainer}:${dockerTag}",
+    "--experiments=use_runner_v2",
   ],
   nosetestsOptions: [
     "--nocapture",
     "--processes=8",
     "--process-timeout=4500",
-    // TODO: re-enable when we support BEAM-10507
-    "--ignore-files=xlang_parquetio_test"
+    // TODO: enable after fixing BEAM-10507
+    "--exclude=test_xlang_parquetio_write|test_flatten",
   ]
 )
 

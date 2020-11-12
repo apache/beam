@@ -327,13 +327,15 @@ class BeamModulePlugin implements Plugin<Project> {
     Integer numParallelTests = 1
     // Whether the pipeline needs --sdk_location option
     boolean needsSdkLocation = false
-    // Categories for tests to run.
-    Closure testCategories = {
+    // Categories for Java tests to run.
+    Closure javaTestCategories = {
       includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
       // Use the following to include / exclude categories:
       // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
+    // Attribute for Python tests to run.
+    String pythonTestAttr = "UsesCrossLanguageTransforms"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -1937,7 +1939,7 @@ class BeamModulePlugin implements Plugin<Project> {
           classpath = config.classpath
           testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
           maxParallelForks config.numParallelTests
-          useJUnit(config.testCategories)
+          useJUnit(config.javaTestCategories)
           // increase maxHeapSize as this is directly correlated to direct memory,
           // see https://issues.apache.org/jira/browse/BEAM-6698
           maxHeapSize = '4g'
@@ -1950,7 +1952,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Task for running testcases in Python SDK
         def testOpts = [
-          "--attr=UsesCrossLanguageTransforms"
+          "--attr=${config.pythonTestAttr}"
         ]
         def beamPythonTestPipelineOptions = [
           "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
