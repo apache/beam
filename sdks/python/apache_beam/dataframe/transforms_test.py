@@ -322,5 +322,37 @@ class TransformTest(unittest.TestCase):
               }, errors='raise'))
 
 
+class TransformPartsTest(unittest.TestCase):
+  def test_rebatch(self):
+    with beam.Pipeline() as p:
+      sA = pd.Series(range(1000))
+      sB = sA * sA
+      pcA = p | 'CreatePCollA' >> beam.Create([('k0', sA[::3]),
+                                               ('k1', sA[1::3]),
+                                               ('k2', sA[2::3])])
+      pcB = p | 'CreatePCollB' >> beam.Create([('k0', sB[::3]),
+                                               ('k1', sB[1::3]),
+                                               ('k2', sB[2::3])])
+      input = {'A': pcA, 'B': pcB} | beam.CoGroupByKey()
+      output = input | beam.ParDo(
+          transforms._ReBatch(target_size=sA.memory_usage()))
+
+      # There should be exactly two elements, as the target size will be
+      # hit when 2/3 of pcA and 2/3 of pcB is seen, but not before.
+      assert_that(output | beam.combiners.Count.Globally(), equal_to([2]))
+
+      # Sanity check that we got all the right values.
+      assert_that(
+          output | beam.Map(lambda x: x['A'].sum())
+          | 'SumA' >> beam.CombineGlobally(sum),
+          equal_to([sA.sum()]),
+          label='CheckValuesA')
+      assert_that(
+          output | beam.Map(lambda x: x['B'].sum())
+          | 'SumB' >> beam.CombineGlobally(sum),
+          equal_to([sB.sum()]),
+          label='CheckValuesB')
+
+
 if __name__ == '__main__':
   unittest.main()
