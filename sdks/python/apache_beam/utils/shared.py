@@ -26,6 +26,13 @@ Example usage:
 
 To share a very large list across all threads of each worker in a DoFn::
 
+# Shared is a helper class for managing a single instance of an object
+# shared by multiple threads within the same process. Instances of Shared
+# are serializable objects that can be shared by all threads of each worker
+# process. A Shared object encapsulates a weak reference to a singleton
+# instance of the shared resource. The singleton is lazily initialized by
+# calls to Shared.acquire().
+# 
 # Several built-in types such as list and dict do not directly support weak
 # references but can add support through subclassing:
 # https://docs.python.org/3/library/weakref.html
