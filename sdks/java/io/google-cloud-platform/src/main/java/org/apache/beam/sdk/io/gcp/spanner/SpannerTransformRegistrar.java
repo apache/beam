@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.TimestampBound;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -47,13 +48,28 @@ import org.joda.time.Duration;
  */
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
-  public static final String WRITE_URN = "beam:external:java:spanner:write:v1";
+  public static final String INSERT_URN = "beam:external:java:spanner:insert:v1";
+  public static final String UPDATE_URN = "beam:external:java:spanner:update:v1";
+  public static final String REPLACE_URN = "beam:external:java:spanner:replace:v1";
+  public static final String INSERT_OR_UPDATE_URN =
+      "beam:external:java:spanner:insert_or_update:v1";
+  public static final String DELETE_URN = "beam:external:java:spanner:delete:v1";
   public static final String READ_URN = "beam:external:java:spanner:read:v1";
 
   @Override
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
-    return ImmutableMap.of(WRITE_URN, new WriteBuilder(), READ_URN, new ReadBuilder());
+    return ImmutableMap.<String, ExternalTransformBuilder<?, ?, ?>>builder()
+        .put(INSERT_URN, new InsertBuilder())
+        .put(UPDATE_URN, new UpdateBuilder())
+        .put(REPLACE_URN, new ReplaceBuilder())
+        .put(INSERT_OR_UPDATE_URN, new InsertOrUpdateBuilder())
+        .put(DELETE_URN, new DeleteBuilder())
+        .put(READ_URN, new ReadBuilder())
+        .build();
   }
 
   public abstract static class CrossLanguageConfiguration {
@@ -131,7 +147,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         this.exactStaleness = exactStaleness;
       }
 
-      private TimestampBound getTimestampBound() {
+      private @Nullable TimestampBound getTimestampBound() {
         if (timestampBoundMode == null) {
           return null;
         }
@@ -206,16 +222,62 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
   }
 
   @Experimental(Kind.PORTABILITY)
-  public static class WriteBuilder
+  public static class InsertBuilder extends WriteBuilder {
+    public InsertBuilder() {
+      super(Mutation.Op.INSERT);
+    }
+  }
+
+  @Experimental(Kind.PORTABILITY)
+  public static class UpdateBuilder extends WriteBuilder {
+    public UpdateBuilder() {
+      super(Mutation.Op.UPDATE);
+    }
+  }
+
+  @Experimental(Kind.PORTABILITY)
+  public static class InsertOrUpdateBuilder extends WriteBuilder {
+    public InsertOrUpdateBuilder() {
+      super(Mutation.Op.INSERT_OR_UPDATE);
+    }
+  }
+
+  @Experimental(Kind.PORTABILITY)
+  public static class ReplaceBuilder extends WriteBuilder {
+    public ReplaceBuilder() {
+      super(Mutation.Op.REPLACE);
+    }
+  }
+
+  @Experimental(Kind.PORTABILITY)
+  public static class DeleteBuilder extends WriteBuilder {
+    public DeleteBuilder() {
+      super(Mutation.Op.DELETE);
+    }
+  }
+
+  @Experimental(Kind.PORTABILITY)
+  private abstract static class WriteBuilder
       implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<Row>, PDone> {
 
+    private final Mutation.Op operation;
+
+    WriteBuilder(Mutation.Op operation) {
+      this.operation = operation;
+    }
+
     public static class Configuration extends CrossLanguageConfiguration {
-      @Nullable private Long maxBatchSizeBytes;
-      @Nullable private Long maxNumberMutations;
-      @Nullable private Long maxNumberRows;
-      @Nullable private Integer groupingFactor;
-      @Nullable private Duration commitDeadline;
-      @Nullable private Duration maxCumulativeBackoff;
+      private String table;
+      private @Nullable Long maxBatchSizeBytes;
+      private @Nullable Long maxNumberMutations;
+      private @Nullable Long maxNumberRows;
+      private @Nullable Integer groupingFactor;
+      private @Nullable Duration commitDeadline;
+      private @Nullable Duration maxCumulativeBackoff;
+
+      public void setTable(String table) {
+        this.table = table;
+      }
 
       public void setMaxBatchSizeBytes(@Nullable Long maxBatchSizeBytes) {
         this.maxBatchSizeBytes = maxBatchSizeBytes;
@@ -281,7 +343,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         writeTransform =
             writeTransform.withMaxCumulativeBackoff(configuration.maxCumulativeBackoff);
       }
-      return SpannerIO.WriteRows.of(writeTransform);
+      return SpannerIO.WriteRows.of(writeTransform, operation, configuration.table);
     }
   }
 }

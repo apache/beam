@@ -33,6 +33,9 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class StructUtils {
   public static Row structToBeamRow(Struct struct, Schema schema) {
     Map<String, Object> structValues =

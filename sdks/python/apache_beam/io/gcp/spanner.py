@@ -82,24 +82,17 @@
 
 from __future__ import absolute_import
 
-import uuid
 from enum import Enum
 from enum import auto
-from typing import List
 from typing import NamedTuple
 from typing import Optional
 
 from past.builtins import unicode
 
-from apache_beam import Map
-from apache_beam import PTransform
-from apache_beam import coders
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
-from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
-from apache_beam.typehints.schemas import schema_from_element_type
 
 __all__ = [
     'ReadFromSpanner',
@@ -116,10 +109,6 @@ __all__ = [
 def default_io_expansion_service():
   return BeamJarExpansionService(
       'sdks:java:io:google-cloud-platform:expansion-service:shadowJar')
-
-
-_READ_URN = 'beam:external:java:spanner:read:v1'
-_WRITE_URN = 'beam:external:java:spanner:write:v1'
 
 
 class TimeUnit(Enum):
@@ -162,8 +151,14 @@ class ReadFromSpanner(ExternalTransform):
   This transform required type of the row it has to return to provide the
   schema. Example::
 
-    ExampleRow = typing.NamedTuple('ExampleRow',
-                                   [('id', int), ('name', unicode)])
+    from typing import NamedTuple
+    from apache_beam import coders
+
+    class ExampleRow(NamedTuple):
+      id: int
+      name: unicode
+
+    coders.registry.register_coder(ExampleRow, coders.RowCoder)
 
     with Pipeline() as p:
       result = (
@@ -181,6 +176,9 @@ class ReadFromSpanner(ExternalTransform):
 
   Experimental; no backwards compatibility guarantees.
   """
+
+  URN = 'beam:external:java:spanner:read:v1'
+
   def __init__(
       self,
       project_id,
@@ -252,10 +250,8 @@ class ReadFromSpanner(ExternalTransform):
       assert timestamp_bound_mode is TimestampBoundMode.MIN_READ_TIMESTAMP\
              or timestamp_bound_mode is TimestampBoundMode.READ_TIMESTAMP
 
-    coders.registry.register_coder(row_type, coders.RowCoder)
-
     super(ReadFromSpanner, self).__init__(
-        _READ_URN,
+        self.URN,
         NamedTupleBasedPayloadBuilder(
             ReadFromSpannerSchema(
                 instance_id=instance_id,
@@ -281,6 +277,7 @@ class WriteToSpannerSchema(NamedTuple):
   project_id: unicode
   instance_id: unicode
   database_id: unicode
+  table: unicode
   max_batch_size_bytes: Optional[int]
   max_number_mutations: Optional[int]
   max_number_rows: Optional[int]
@@ -298,8 +295,14 @@ _CLASS_DOC = \
 
   This transform receives rows defined as NamedTuple. Example::
 
-    {row_type} =
-      typing.NamedTuple('{row_type}', [('id', int), ('name', unicode)])
+    from typing import NamedTuple
+    from apache_beam import coders
+
+    class {row_type}(NamedTuple):
+       id: int
+       name: unicode
+
+    coders.registry.register_coder({row_type}, coders.RowCoder)
 
     with Pipeline() as p:
       _ = (
@@ -307,7 +310,7 @@ _CLASS_DOC = \
           | 'Impulse' >> beam.Impulse()
           | 'Generate' >> beam.FlatMap(lambda x: range(num_rows))
           | 'To row' >> beam.Map(lambda n: {row_type}(n, str(n))
-              .with_output_types({output_type})
+              .with_output_types({row_type})
           | 'Write to Spanner' >> Spanner{operation_suffix}(
               instance_id='your_instance',
               database_id='existing_database',
@@ -355,14 +358,12 @@ def _add_doc(
     value,
     operation=None,
     row_type=None,
-    output_type=None,
     operation_suffix=None,
 ):
   def _doc(obj):
     obj.__doc__ = value.format(
         operation=operation,
         row_type=row_type,
-        output_type=output_type,
         operation_suffix=operation_suffix,
     )
     return obj
@@ -374,10 +375,12 @@ def _add_doc(
     _CLASS_DOC,
     operation='delete',
     row_type='ExampleKey',
-    output_type='List[ExampleKey]',
     operation_suffix='Delete',
 )
-class SpannerDelete(PTransform):
+class SpannerDelete(ExternalTransform):
+
+  URN = 'beam:external:java:spanner:delete:v1'
+
   @_add_doc(_INIT_DOC, operation='a delete')
   def __init__(
       self,
@@ -395,42 +398,41 @@ class SpannerDelete(PTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
   ):
-    super().__init__()
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
     commit_deadline = int(commit_deadline) if commit_deadline else None
-    self.table = table
-    self.params = WriteToSpannerSchema(
-        project_id=project_id,
-        instance_id=instance_id,
-        database_id=database_id,
-        max_batch_size_bytes=max_batch_size_bytes,
-        max_number_mutations=max_number_mutations,
-        max_number_rows=max_number_rows,
-        grouping_factor=grouping_factor,
-        host=host,
-        emulator_host=emulator_host,
-        commit_deadline=commit_deadline,
-        max_cumulative_backoff=max_cumulative_backoff,
+    super().__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToSpannerSchema(
+                project_id=project_id,
+                instance_id=instance_id,
+                database_id=database_id,
+                table=table,
+                max_batch_size_bytes=max_batch_size_bytes,
+                max_number_mutations=max_number_mutations,
+                max_number_rows=max_number_rows,
+                grouping_factor=grouping_factor,
+                host=host,
+                emulator_host=emulator_host,
+                commit_deadline=commit_deadline,
+                max_cumulative_backoff=max_cumulative_backoff,
+            ),
+        ),
+        expansion_service=expansion_service or default_io_expansion_service(),
     )
-    self.expansion_service = expansion_service or default_io_expansion_service()
-
-  def expand(self, pbegin):
-    return _apply_write_transform(
-        pbegin,
-        _RowToMutation(_Operation.DELETE, self.table),
-        self.params,
-        self.expansion_service)
 
 
 @_add_doc(
     _CLASS_DOC,
     operation='insert',
     row_type='ExampleRow',
-    output_type='ExampleRow',
     operation_suffix='Insert',
 )
-class SpannerInsert(PTransform):
+class SpannerInsert(ExternalTransform):
+
+  URN = 'beam:external:java:spanner:insert:v1'
+
   @_add_doc(_INIT_DOC, operation='an insert')
   def __init__(
       self,
@@ -448,42 +450,41 @@ class SpannerInsert(PTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
   ):
-    super().__init__()
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
     commit_deadline = int(commit_deadline) if commit_deadline else None
-    self.table = table
-    self.params = WriteToSpannerSchema(
-        project_id=project_id,
-        instance_id=instance_id,
-        database_id=database_id,
-        max_batch_size_bytes=max_batch_size_bytes,
-        max_number_mutations=max_number_mutations,
-        max_number_rows=max_number_rows,
-        grouping_factor=grouping_factor,
-        host=host,
-        emulator_host=emulator_host,
-        commit_deadline=commit_deadline,
-        max_cumulative_backoff=max_cumulative_backoff,
+    super().__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToSpannerSchema(
+                project_id=project_id,
+                instance_id=instance_id,
+                database_id=database_id,
+                table=table,
+                max_batch_size_bytes=max_batch_size_bytes,
+                max_number_mutations=max_number_mutations,
+                max_number_rows=max_number_rows,
+                grouping_factor=grouping_factor,
+                host=host,
+                emulator_host=emulator_host,
+                commit_deadline=commit_deadline,
+                max_cumulative_backoff=max_cumulative_backoff,
+            ),
+        ),
+        expansion_service=expansion_service or default_io_expansion_service(),
     )
-    self.expansion_service = expansion_service or default_io_expansion_service()
-
-  def expand(self, pbegin):
-    return _apply_write_transform(
-        pbegin,
-        _RowToMutation(_Operation.INSERT, self.table),
-        self.params,
-        self.expansion_service)
 
 
 @_add_doc(
     _CLASS_DOC,
     operation='replace',
     row_type='ExampleRow',
-    output_type='ExampleRow',
     operation_suffix='Replace',
 )
-class SpannerReplace(PTransform):
+class SpannerReplace(ExternalTransform):
+
+  URN = 'beam:external:java:spanner:replace:v1'
+
   @_add_doc(_INIT_DOC, operation='a replace')
   def __init__(
       self,
@@ -501,42 +502,41 @@ class SpannerReplace(PTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
   ):
-    super().__init__()
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
     commit_deadline = int(commit_deadline) if commit_deadline else None
-    self.table = table
-    self.params = WriteToSpannerSchema(
-        project_id=project_id,
-        instance_id=instance_id,
-        database_id=database_id,
-        max_batch_size_bytes=max_batch_size_bytes,
-        max_number_mutations=max_number_mutations,
-        max_number_rows=max_number_rows,
-        grouping_factor=grouping_factor,
-        host=host,
-        emulator_host=emulator_host,
-        commit_deadline=commit_deadline,
-        max_cumulative_backoff=max_cumulative_backoff,
+    super().__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToSpannerSchema(
+                project_id=project_id,
+                instance_id=instance_id,
+                database_id=database_id,
+                table=table,
+                max_batch_size_bytes=max_batch_size_bytes,
+                max_number_mutations=max_number_mutations,
+                max_number_rows=max_number_rows,
+                grouping_factor=grouping_factor,
+                host=host,
+                emulator_host=emulator_host,
+                commit_deadline=commit_deadline,
+                max_cumulative_backoff=max_cumulative_backoff,
+            ),
+        ),
+        expansion_service=expansion_service or default_io_expansion_service(),
     )
-    self.expansion_service = expansion_service or default_io_expansion_service()
-
-  def expand(self, pbegin):
-    return _apply_write_transform(
-        pbegin,
-        _RowToMutation(_Operation.REPLACE, self.table),
-        self.params,
-        self.expansion_service)
 
 
 @_add_doc(
     _CLASS_DOC,
     operation='insert-or-update',
     row_type='ExampleRow',
-    output_type='ExampleRow',
     operation_suffix='InsertOrUpdate',
 )
-class SpannerInsertOrUpdate(PTransform):
+class SpannerInsertOrUpdate(ExternalTransform):
+
+  URN = 'beam:external:java:spanner:insert_or_update:v1'
+
   @_add_doc(_INIT_DOC, operation='an insert-or-update')
   def __init__(
       self,
@@ -554,42 +554,41 @@ class SpannerInsertOrUpdate(PTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
   ):
-    super().__init__()
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
     commit_deadline = int(commit_deadline) if commit_deadline else None
-    self.table = table
-    self.params = WriteToSpannerSchema(
-        project_id=project_id,
-        instance_id=instance_id,
-        database_id=database_id,
-        max_batch_size_bytes=max_batch_size_bytes,
-        max_number_mutations=max_number_mutations,
-        max_number_rows=max_number_rows,
-        grouping_factor=grouping_factor,
-        host=host,
-        emulator_host=emulator_host,
-        commit_deadline=commit_deadline,
-        max_cumulative_backoff=max_cumulative_backoff,
+    super().__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToSpannerSchema(
+                project_id=project_id,
+                instance_id=instance_id,
+                database_id=database_id,
+                table=table,
+                max_batch_size_bytes=max_batch_size_bytes,
+                max_number_mutations=max_number_mutations,
+                max_number_rows=max_number_rows,
+                grouping_factor=grouping_factor,
+                host=host,
+                emulator_host=emulator_host,
+                commit_deadline=commit_deadline,
+                max_cumulative_backoff=max_cumulative_backoff,
+            ),
+        ),
+        expansion_service=expansion_service or default_io_expansion_service(),
     )
-    self.expansion_service = expansion_service or default_io_expansion_service()
-
-  def expand(self, pbegin):
-    return _apply_write_transform(
-        pbegin,
-        _RowToMutation(_Operation.INSERT_OR_UPDATE, self.table),
-        self.params,
-        self.expansion_service)
 
 
 @_add_doc(
     _CLASS_DOC,
     operation='update',
     row_type='ExampleRow',
-    output_type='ExampleRow',
     operation_suffix='Update',
 )
-class SpannerUpdate(PTransform):
+class SpannerUpdate(ExternalTransform):
+
+  URN = 'beam:external:java:spanner:update:v1'
+
   @_add_doc(_INIT_DOC, operation='an update')
   def __init__(
       self,
@@ -607,93 +606,30 @@ class SpannerUpdate(PTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
   ):
-    super().__init__()
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
     commit_deadline = int(commit_deadline) if commit_deadline else None
-    self.table = table
-    self.params = WriteToSpannerSchema(
-        project_id=project_id,
-        instance_id=instance_id,
-        database_id=database_id,
-        max_batch_size_bytes=max_batch_size_bytes,
-        max_number_mutations=max_number_mutations,
-        max_number_rows=max_number_rows,
-        grouping_factor=grouping_factor,
-        host=host,
-        emulator_host=emulator_host,
-        commit_deadline=commit_deadline,
-        max_cumulative_backoff=max_cumulative_backoff,
+    super().__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            WriteToSpannerSchema(
+                project_id=project_id,
+                instance_id=instance_id,
+                database_id=database_id,
+                table=table,
+                max_batch_size_bytes=max_batch_size_bytes,
+                max_number_mutations=max_number_mutations,
+                max_number_rows=max_number_rows,
+                grouping_factor=grouping_factor,
+                host=host,
+                emulator_host=emulator_host,
+                commit_deadline=commit_deadline,
+                max_cumulative_backoff=max_cumulative_backoff,
+            ),
+        ),
+        expansion_service=expansion_service or default_io_expansion_service(),
     )
-    self.expansion_service = expansion_service or default_io_expansion_service()
-
-  def expand(self, pbegin):
-    return _apply_write_transform(
-        pbegin,
-        _RowToMutation(_Operation.UPDATE, self.table),
-        self.params,
-        self.expansion_service)
-
-
-def _apply_write_transform(pbegin, to_mutation, params, expansion_service):
-  return (
-      pbegin
-      | to_mutation
-      | ExternalTransform(
-          _WRITE_URN, NamedTupleBasedPayloadBuilder(params), expansion_service))
-
-
-class _RowToMutation(PTransform):
-  """
-  Spanner mutations are represented as Row with the following schema:
-  table (str): name of the table.
-  operation (str): name of the operation (possible values: {INSERT,
-      INSERT_OR_UPDATE, REPLACE, UPDATE, DELETE}.
-  row (Optional[Row]): row with fields compatible with the mutated table's
-      schema. Used only with INSERT, INSERT_OR_UPDATE, REPLACE, UPDATE
-      operations.
-  keyset (Optional[List[Row]]): list of rows compatible with the keyset of
-      the mutated table. Used only with DELETE operation.
-  """
-  def __init__(self, operation, table):
-    super(_RowToMutation, self).__init__()
-    self.operation = operation
-    self.table = table
-
-  def expand(self, pcoll):
-    row_field = ('keyset', List[_to_schema(pcoll.element_type.inner_type)]) \
-      if _Operation.DELETE == self.operation \
-      else ('row', _to_schema(pcoll.element_type))
-
-    mutation_type = NamedTuple(
-        _create_mutation_name(self.operation), [
-            ('operation', unicode),
-            ('table', unicode),
-            row_field,
-        ])
-    coders.registry.register_coder(mutation_type, coders.RowCoder)
-
-    def row_to_mutation(row):
-      return mutation_type(self.operation, self.table, row)
-
-    return pcoll | Map(row_to_mutation)
 
 
 def _get_enum_name(enum):
   return None if enum is None else enum.name
-
-
-def _to_schema(element_type):
-  return named_tuple_from_schema(schema_from_element_type(element_type))
-
-
-def _create_mutation_name(operation):
-  return f'Mutation_{operation}_{uuid.uuid4()}'.replace('-', '')
-
-
-class _Operation:
-  INSERT = 'INSERT'
-  DELETE = 'DELETE'
-  UPDATE = 'UPDATE'
-  REPLACE = 'REPLACE'
-  INSERT_OR_UPDATE = 'INSERT_OR_UPDATE'

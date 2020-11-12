@@ -25,13 +25,13 @@ import os
 import time
 import unittest
 import uuid
-from typing import List
 from typing import NamedTuple
 from typing import Optional
 
 from past.builtins import unicode
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.io.gcp.spanner import ReadFromSpanner
 from apache_beam.io.gcp.spanner import SpannerDelete
 from apache_beam.io.gcp.spanner import SpannerInsert
@@ -104,6 +104,10 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
     cls.table = 'xlang_beam_spanner'
     cls.spanner_helper = SpannerHelper(
         cls.project_id, cls.instance_id, cls.table, use_spanner_emulator)
+
+    coders.registry.register_coder(SpannerTestRow, coders.RowCoder)
+    coders.registry.register_coder(SpannerPartTestRow, coders.RowCoder)
+    coders.registry.register_coder(SpannerTestKey, coders.RowCoder)
 
   @classmethod
   def tearDownClass(cls):
@@ -181,12 +185,9 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
         ])
 
     def to_row_fn(num):
-      return [
-          SpannerTestKey(f_string=f'delete{num}'),
-          SpannerTestKey(f_string=f'delete{num + 5}'),
-      ]
+      return SpannerTestKey(f_string=f'delete{num}')
 
-    self.run_write_pipeline(10, to_row_fn, List[SpannerTestKey], SpannerDelete)
+    self.run_write_pipeline(10, to_row_fn, SpannerTestKey, SpannerDelete)
 
     self.assertEqual(
         self.spanner_helper.read_data(self.database_id, prefix='delete'),

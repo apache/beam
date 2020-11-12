@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Key;
-import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
@@ -92,81 +91,39 @@ public class MutationUtilsTest {
           .withFieldValue("f_bool", false)
           .build();
 
-  private static final Schema WRITE_MUTATION_SCHEMA =
-      Schema.builder()
-          .addStringField("operation")
-          .addStringField("table")
-          .addNullableField("row", Schema.FieldType.row(WRITE_ROW_SCHEMA))
-          .build();
-
-  private static final Schema DELETE_MUTATION_SCHEMA =
-      Schema.builder()
-          .addStringField("operation")
-          .addStringField("table")
-          .addNullableField("keyset", Schema.FieldType.array(Schema.FieldType.row(KEY_SCHEMA)))
-          .build();
-
   @Test
   public void testCreateInsertMutationFromRow() {
     Mutation expectedMutation = createMutation(Mutation.Op.INSERT);
-
-    Row mutationRow = createWriteMutationRow(Mutation.Op.INSERT);
-
-    Mutation mutation = beamRowToMutationFn().apply(mutationRow);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.INSERT, TABLE).apply(WRITE_ROW);
     assertEquals(expectedMutation, mutation);
   }
 
   @Test
   public void testCreateUpdateMutationFromRow() {
     Mutation expectedMutation = createMutation(Mutation.Op.UPDATE);
-
-    Row mutationRow = createWriteMutationRow(Mutation.Op.UPDATE);
-
-    Mutation mutation = beamRowToMutationFn().apply(mutationRow);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.UPDATE, TABLE).apply(WRITE_ROW);
     assertEquals(expectedMutation, mutation);
   }
 
   @Test
   public void testCreateReplaceMutationFromRow() {
     Mutation expectedMutation = createMutation(Mutation.Op.REPLACE);
-
-    Row mutationRow = createWriteMutationRow(Mutation.Op.REPLACE);
-
-    Mutation mutation = beamRowToMutationFn().apply(mutationRow);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.REPLACE, TABLE).apply(WRITE_ROW);
     assertEquals(expectedMutation, mutation);
   }
 
   @Test
   public void testCreateInsertOrUpdateMutationFromRow() {
     Mutation expectedMutation = createMutation(Mutation.Op.INSERT_OR_UPDATE);
-
-    Row mutationRow = createWriteMutationRow(Mutation.Op.INSERT_OR_UPDATE);
-
-    Mutation mutation = beamRowToMutationFn().apply(mutationRow);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.INSERT_OR_UPDATE, TABLE).apply(WRITE_ROW);
     assertEquals(expectedMutation, mutation);
   }
 
   @Test
   public void testCreateDeleteMutationFromRow() {
     Mutation expectedMutation = createDeleteMutation();
-
-    Row mutationRow =
-        Row.withSchema(DELETE_MUTATION_SCHEMA)
-            .withFieldValue("table", TABLE)
-            .withFieldValue("operation", Mutation.Op.DELETE.toString())
-            .withFieldValue("keyset", ImmutableList.of(KEY_ROW, KEY_ROW))
-            .build();
-
-    Mutation mutation = beamRowToMutationFn().apply(mutationRow);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.DELETE, TABLE).apply(KEY_ROW);
     assertEquals(expectedMutation, mutation);
-  }
-
-  private Row createWriteMutationRow(Mutation.Op op) {
-    return Row.withSchema(WRITE_MUTATION_SCHEMA)
-        .withFieldValue("table", TABLE)
-        .withFieldValue("operation", op.toString())
-        .withFieldValue("row", WRITE_ROW)
-        .build();
   }
 
   private static Mutation createDeleteMutation() {
@@ -179,7 +136,7 @@ public class MutationUtilsTest {
             .append(Timestamp.parseTimestamp("2077-10-15T00:00:00"))
             .append(false)
             .build();
-    return Mutation.delete(TABLE, KeySet.newBuilder().addKey(key).addKey(key).build());
+    return Mutation.delete(TABLE, key);
   }
 
   private static Mutation createMutation(Mutation.Op operation) {
@@ -221,7 +178,7 @@ public class MutationUtilsTest {
       case INSERT_OR_UPDATE:
         return Mutation.newInsertOrUpdateBuilder(TABLE);
       default:
-        return null;
+        throw new IllegalArgumentException("Operation '" + op + "' not supported");
     }
   }
 }

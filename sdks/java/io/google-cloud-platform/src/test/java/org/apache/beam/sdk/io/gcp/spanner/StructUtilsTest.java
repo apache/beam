@@ -37,6 +37,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.DateTime;
 import org.junit.Test;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StructUtilsTest {
   private static final Schema EMPTY_SCHEMA = Schema.builder().build();
   private static final Schema INT64_SCHEMA = Schema.builder().addInt64Field("int64").build();

@@ -20,12 +20,10 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.beamRowToStruct;
 import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.beamTypeToSpannerType;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Key;
-import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,6 +33,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class MutationUtils {
   private MutationUtils() {}
 
@@ -62,45 +63,26 @@ final class MutationUtils {
    *
    * @return function that can convert row to mutation
    */
-  public static SerializableFunction<Row, Mutation> beamRowToMutationFn() {
-    return (mutationRow -> {
-      String table = mutationRow.getString("table");
-      String operation = mutationRow.getString("operation");
-      checkNotNull(table);
-      checkNotNull(operation);
-      switch (Mutation.Op.valueOf(operation)) {
+  public static SerializableFunction<Row, Mutation> beamRowToMutationFn(
+      Mutation.Op operation, String table) {
+    return (row -> {
+      switch (operation) {
         case INSERT:
-          checkNotNull(mutationRow.getRow("row"));
-          return MutationUtils.createMutationFromBeamRows(
-              Mutation.newInsertBuilder(table), mutationRow.getRow("row"));
+          return MutationUtils.createMutationFromBeamRows(Mutation.newInsertBuilder(table), row);
         case DELETE:
-          checkNotNull(mutationRow.getArray("keyset"));
-          return Mutation.delete(
-              table, MutationUtils.createKeySetFromBeamRows(mutationRow.getArray("keyset")));
+          return Mutation.delete(table, MutationUtils.createKeyFromBeamRow(row));
         case UPDATE:
-          checkNotNull(mutationRow.getRow("row"));
-          return MutationUtils.createMutationFromBeamRows(
-              Mutation.newUpdateBuilder(table), mutationRow.getRow("row"));
+          return MutationUtils.createMutationFromBeamRows(Mutation.newUpdateBuilder(table), row);
         case REPLACE:
-          checkNotNull(mutationRow.getRow("row"));
-          return MutationUtils.createMutationFromBeamRows(
-              Mutation.newReplaceBuilder(table), mutationRow.getRow("row"));
+          return MutationUtils.createMutationFromBeamRows(Mutation.newReplaceBuilder(table), row);
         case INSERT_OR_UPDATE:
-          checkNotNull(mutationRow.getRow("row"));
           return MutationUtils.createMutationFromBeamRows(
-              Mutation.newInsertOrUpdateBuilder(table), mutationRow.getRow("row"));
+              Mutation.newInsertOrUpdateBuilder(table), row);
         default:
           throw new IllegalArgumentException(
-              String.format(
-                  "Unknown mutation operation type: %s", mutationRow.getString("operation")));
+              String.format("Unknown mutation operation type: %s", operation));
       }
     });
-  }
-
-  private static KeySet createKeySetFromBeamRows(Iterable<Row> rows) {
-    KeySet.Builder builder = KeySet.newBuilder();
-    rows.forEach(row -> builder.addKey(createKeyFromBeamRow(row)));
-    return builder.build();
   }
 
   private static Key createKeyFromBeamRow(Row row) {

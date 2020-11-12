@@ -1079,13 +1079,17 @@ public class SpannerIO {
 
   static class WriteRows extends PTransform<PCollection<Row>, PDone> {
     private final Write write;
+    private final Mutation.Op operation;
+    private final String table;
 
-    private WriteRows(Write write) {
+    private WriteRows(Write write, Mutation.Op operation, String table) {
       this.write = write;
+      this.operation = operation;
+      this.table = table;
     }
 
-    public static WriteRows of(Write write) {
-      return new WriteRows(write);
+    public static WriteRows of(Write write, Mutation.Op operation, String table) {
+      return new WriteRows(write, operation, table);
     }
 
     @Override
@@ -1093,7 +1097,7 @@ public class SpannerIO {
       input
           .apply(
               MapElements.into(TypeDescriptor.of(Mutation.class))
-                  .via(MutationUtils.beamRowToMutationFn()))
+                  .via(MutationUtils.beamRowToMutationFn(operation, table)))
           .apply(write);
       return PDone.in(input.getPipeline());
     }
