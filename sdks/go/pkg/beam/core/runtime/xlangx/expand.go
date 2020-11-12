@@ -18,19 +18,79 @@ package xlangx
 import (
 	"context"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/grpc"
 )
 
-// Expand submits an external transform to be expanded by the expansion service.
-// The given transform should be the external transform, and the components are
-// any additional components necessary for the pipeline snippet.
+// Expand expands an unexpanded graph.ExternalTransform and returns the expanded
+// transform as a new graph.ExpandedTransform. This requires querying an
+// expansion service based on the configuration details within the
+// ExternalTransform.
+func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) (*graph.ExpandedTransform, error) {
+	// Build the ExpansionRequest
+
+	// Obtaining the components and transform proto representing this transform
+	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to generate proto representation of %v", ext)
+	}
+
+	transforms := p.GetComponents().GetTransforms()
+
+	// Transforms consist of only External transform and composites. Composites
+	// should be removed from proto before submitting expansion request.
+	extTransformID := p.GetRootTransformIds()[0]
+	extTransform := transforms[extTransformID]
+	for extTransform.UniqueName != "External" {
+		delete(transforms, extTransformID)
+		p, err := pipelinex.Normalize(p)
+		if err != nil {
+			return nil, err
+		}
+		extTransformID = p.GetRootTransformIds()[0]
+		extTransform = transforms[extTransformID]
+	}
+
+	// Scoping the ExternalTransform with respect to it's unique namespace, thus
+	// avoiding future collisions
+	AddNamespace(extTransform, p.GetComponents(), ext.Namespace)
+
+	graphx.AddFakeImpulses(p) // Inputs need to have sources
+	delete(transforms, extTransformID)
+
+	// Querying the expansion service
+	res, err := QueryExpansionService(context.Background(), p.GetComponents(), extTransform, ext.Namespace, ext.ExpansionAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handling ExpansionResponse
+
+	// Previously added fake impulses need to be removed to avoid having
+	// multiple sources to the same pcollection in the graph
+	graphx.RemoveFakeImpulses(res.GetComponents(), res.GetTransform())
+
+	exp := &graph.ExpandedTransform{
+		Components:   res.GetComponents(),
+		Transform:    res.GetTransform(),
+		Requirements: res.GetRequirements(),
+	}
+	return exp, nil
+}
+
+// QueryExpansionService submits an external transform to be expanded by the
+// expansion service. The given transform should be the external transform, and
+// the components are any additional components necessary for the pipeline
+// snippet.
 //
 // Users should generally call beam.CrossLanguage to access foreign transforms
 // rather than calling this function directly.
-func Expand(
+func QueryExpansionService(
 	ctx context.Context,
 	comps *pipepb.Components,
 	transform *pipepb.PTransform,
