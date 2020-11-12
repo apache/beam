@@ -116,13 +116,23 @@ if [[ $confirmation = "y" ]]; then
   echo "-------------Building Java Artifacts with Gradle-------------"
   git config credential.helper store
 
-  ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
-                -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
-                -Prelease.useAutomaticVersion=true --info --no-daemon
-
-  git push origin "${RELEASE_BRANCH}"
-  git push origin "v${RELEASE}-RC${RC_NUM}"
-
+  if git rev-parse "v${RELEASE}-RC${RC_NUM}" >/dev/null 2>&1; then
+    echo "Tag v${RELEASE}-RC${RC_NUM} already exists."
+    echo "Delete the tag and create a new tag commit (y) or skip this step (n)? [y/N]"
+    read confirmation
+    if [[ $confirmation = "y" ]]; then
+      # Delete tag with the git push <from>:<to> format, as shown here:
+      # https://git-scm.com/docs/git-push#Documentation/git-push.txt-codegitpushoriginexperimentalcode
+      git push origin :refs/tags/v${RELEASE}-RC${RC_NUM}
+    fi
+  fi
+  if [[ $confirmation = "y" ]]; then # Expected to be "y" unless user chose to skip creating tag.
+    ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
+                  -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
+                  -Prelease.useAutomaticVersion=true --info --no-daemon
+    git push origin "${RELEASE_BRANCH}"
+    git push origin "v${RELEASE}-RC${RC_NUM}"
+  fi
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
   ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
@@ -162,9 +172,15 @@ if [[ $confirmation = "y" ]]; then
   echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
 
-  # The svn commit is interactive already and can be aborted by deleted the commit msg
   svn add --force .
-  svn commit --no-auth-cache
+  svn status
+  echo "Please confirm these changes are ready to commit: [y|N] "
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Exit without staging source release on dist.apache.org."
+  else
+    svn commit --no-auth-cache --non-interactive -m "Staging Java artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
+  fi
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
 
@@ -228,10 +244,9 @@ if [[ $confirmation = "y" ]]; then
   read confirmation
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging python artifacts on dist.apache.org."
-    rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
-    exit
+  else
+    svn commit --no-auth-cache --non-interactive -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
   fi
-  svn commit --no-auth-cache
   rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
 fi
 
