@@ -46,8 +46,10 @@ from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms import PTransform
 
 try:
+  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
+  DatasetReference = None
   TableReference = None
 
 _LOGGER = logging.getLogger(__name__)
@@ -148,7 +150,7 @@ class ReadFromBigQueryRequest:
       define project and dataset (ex.: ``'PROJECT:DATASET.TABLE'``).
     :param flatten_results:
       Flattens all nested and repeated fields in the query results.
-      The default value is :data:`True`.
+      The default value is :data:`False`.
     """
     self.flatten_results = flatten_results
     self.query = query
@@ -185,7 +187,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       job_name: str = None,
       unique_id: str = None,
       kms_key: str = None,
-      project: str = None):
+      project: str = None,
+      temp_dataset: Union[str, DatasetReference] = None):
     self.options = options
     self.use_json_exports = use_json_exports
     self.gcs_location = gcs_location
@@ -195,11 +198,31 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     self._source_uuid = unique_id
     self.kms_key = kms_key
     self.project = project
+    self.temp_dataset = temp_dataset
     self.bq_io_metadata = None
+
+  def display_data(self):
+    return {
+        'use_json_exports': str(use_json_exports),
+        'gcs_location': str(gcs_location),
+        'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
+        'kms_key': str(self.kms_key),
+        'project': str(self.project),
+        'temp_dataset': str(self.temp_dataset)
+    }
+
+  def _get_temp_dataset(self):
+    if isinstance(self.temp_dataset, str):
+      return DatasetReference(
+          datasetId=self.temp_dataset, projectId=self._get_project())
+    else:
+      return sellf.temp_dataset
 
   def process(self, element: ReadFromBigQueryRequest, *args,
               **kwargs) -> Iterable[BoundedSource]:
-    bq = bigquery_tools.BigQueryWrapper()
+    bq = bigquery_tools.BigQueryWrapper(
+        temp_dataset_id=(
+            self.temp_dataset.datasetId if self._get_temp_dataset() else None))
 
     if element.query is not None:
       self._setup_temporary_dataset(bq, element)
@@ -213,15 +236,12 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       table_reference.projectId = self._get_project()
 
     schema, metadata_list = self._export_files(bq, element, table_reference)
-    split_result = [
-        self._create_source(metadata.path, schema) for metadata in metadata_list
-    ]
+
+    for metadata in metadata_list:
+      yield self._create_source(matadata.path, schema)
 
     if element.query is not None:
       bq.clean_up_temporary_dataset(self._get_project())
-
-    for source in split_result:
-      yield source
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:

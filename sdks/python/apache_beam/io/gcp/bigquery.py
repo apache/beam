@@ -98,7 +98,7 @@ refresh a side input coming from BigQuery. This would work like so:::
       | 'PeriodicImpulse' >> PeriodicImpulse(
           first_timestamp, last_timestamp, interval, True)
       | 'MapToReadRequest' >> beam.Map(
-          lambda x: BigQueryReadRequest(table='dataset.table'))
+          lambda x: ReadFromBigQueryRequest(table='dataset.table'))
       | beam.io.ReadAllFromBigQuery())
   main_input = (
       p
@@ -1911,7 +1911,9 @@ class ReadAllFromBigQuery(PTransform):
     PTransform:ReadAllFromBigQueryRequest->Rows
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
-    on GCS, and then reads from each produced JSON file.
+    on GCS, and then reads from each produced file. Data is exported into
+    a new subdirectory for each export using UUIDs generated in
+    `ReadFromBigQueryRequest` objects.
 
     It is recommended not to use this PTransform for streaming jobs on
     GlobalWindow, since it will not be able to cleanup snapshots.
@@ -1932,6 +1934,7 @@ class ReadAllFromBigQuery(PTransform):
       gcs_location: Union[str, ValueProvider] = None,
       validate: bool = False,
       kms_key: str = None,
+      temp_dataset: Union[str, DatasetReference] = None,
       bigquery_job_labels: Dict[str, str] = None):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):
@@ -1944,6 +1947,7 @@ class ReadAllFromBigQuery(PTransform):
     self.validate = validate
     self.kms_key = kms_key
     self.bigquery_job_labels = bigquery_job_labels
+    self.temp_dataset = temp_dataset
 
   def expand(self, pcoll):
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
@@ -1959,7 +1963,6 @@ class ReadAllFromBigQuery(PTransform):
     sources_to_read, cleanup_locations = (
         pcoll
         | beam.ParDo(
-        # TODO(pabloem): Make sure we have all necessary args.
         _BigQueryReadSplit(
             options=pcoll.pipeline.options,
             gcs_location=self.gcs_location,
@@ -1968,7 +1971,8 @@ class ReadAllFromBigQuery(PTransform):
             step_name=step_name,
             unique_id=unique_id,
             kms_key=self.kms_key,
-            project=project)).with_outputs(
+            project=project,
+            temp_dataset=self.temp_dataset)).with_outputs(
         "location_to_cleanup", main="files_to_read")
     )
 
