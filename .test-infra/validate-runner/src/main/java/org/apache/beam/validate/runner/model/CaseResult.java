@@ -5,10 +5,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CaseResult {
     private String className;
+    private String name;
     private  String status;
 
-    public CaseResult(String className, String status) {
+    public CaseResult(String className, String name, String status) {
         this.className = className;
+        this.name = name;
         this.status = status;
     }
 
@@ -22,6 +24,14 @@ public class CaseResult {
 
     public void setClassName(String className) {
         this.className = className;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getStatus() {
