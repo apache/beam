@@ -491,19 +491,25 @@ type QueryResults struct {
 	gauges        []GaugeResult
 }
 
-// GetCounters returns an array of counter metrics.
-func (qr QueryResults) GetCounters() []CounterResult {
-	return qr.counters
+// Counters returns an array of counter metrics.
+func (qr QueryResults) Counters() []CounterResult {
+	out := make([]CounterResult, len(qr.counters))
+	copy(out, qr.counters)
+	return out
 }
 
-// GetDistributions returns an array of distribution metrics.
-func (qr QueryResults) GetDistributions() []DistributionResult {
-	return qr.distributions
+// Distributions returns an array of distribution metrics.
+func (qr QueryResults) Distributions() []DistributionResult {
+	out := make([]DistributionResult, len(qr.distributions))
+	copy(out, qr.distributions)
+	return out
 }
 
-// GetGauges returns an array of gauge metrics.
-func (qr QueryResults) GetGauges() []GaugeResult {
-	return qr.gauges
+// Gauges returns an array of gauge metrics.
+func (qr QueryResults) Gauges() []GaugeResult {
+	out := make([]GaugeResult, len(qr.gauges))
+	copy(out, qr.gauges)
+	return out
 }
 
 // CounterResult is an attempted and a commited value of a counter metric plus
@@ -513,6 +519,15 @@ type CounterResult struct {
 	Key                  StepKey
 }
 
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r CounterResult) Result() int64 {
+	if r.Committed != -1 {
+		return r.Committed
+	}
+	return r.Attempted
+}
+
 // DistributionResult is an attempted and a commited value of a distribution
 // metric plus key.
 type DistributionResult struct {
@@ -520,11 +535,31 @@ type DistributionResult struct {
 	Key                  StepKey
 }
 
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r DistributionResult) Result() DistributionValue {
+	empty := DistributionValue{}
+	if r.Committed != empty {
+		return r.Committed
+	}
+	return r.Attempted
+}
+
 // GaugeResult is an attempted and a commited value of a gauge metric plus
 // key.
 type GaugeResult struct {
 	Attempted, Committed GaugeValue
 	Key                  StepKey
+}
+
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r GaugeResult) Result() GaugeValue {
+	empty := GaugeValue{}
+	if r.Committed != empty {
+		return r.Committed
+	}
+	return r.Attempted
 }
 
 // StepKey uniquely identifies a metric.

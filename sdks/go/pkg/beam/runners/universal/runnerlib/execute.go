@@ -109,23 +109,17 @@ type universalPipelineResult struct {
 }
 
 func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*universalPipelineResult, error) {
-	metrics, err := getMetrics(ctx, jobID, client)
+	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
+	response, err := client.GetJobMetrics(ctx, request)
 	if err != nil {
-		return &universalPipelineResult{jobID, nil}, err
+		return &universalPipelineResult{jobID, nil}, errors.Wrap(err, "failed to get metrics")
 	}
-	return &universalPipelineResult{jobID, metrics}, err
+
+	monitoredStates := response.GetMetrics()
+	metrics := metricsx.FromMonitoringInfos(monitoredStates.Attempted, monitoredStates.Committed)
+	return &universalPipelineResult{jobID, metrics}, nil
 }
 
 func (pr universalPipelineResult) Metrics() metrics.Results {
 	return *pr.metrics
-}
-
-func getMetrics(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*metrics.Results, error) {
-	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
-	response, err := client.GetJobMetrics(ctx, request)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get metrics")
-	}
-	m := response.GetMetrics()
-	return metricsx.FromMonitoringInfos(m.Attempted, m.Committed), err
 }

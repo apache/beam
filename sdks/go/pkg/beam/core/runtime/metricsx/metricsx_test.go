@@ -55,7 +55,7 @@ func TestCounterExtraction(t *testing.T) {
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
 
-	got := FromMonitoringInfos(attempted, committed).AllMetrics().GetCounters()
+	got := FromMonitoringInfos(attempted, committed).AllMetrics().Counters()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
@@ -104,7 +104,7 @@ func TestDistributionExtraction(t *testing.T) {
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
 
-	got := FromMonitoringInfos(attempted, committed).AllMetrics().GetDistributions()
+	got := FromMonitoringInfos(attempted, committed).AllMetrics().Distributions()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
@@ -153,7 +153,7 @@ func TestGaugeExtraction(t *testing.T) {
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
 
-	got := FromMonitoringInfos(attempted, committed).AllMetrics().GetGauges()
+	got := FromMonitoringInfos(attempted, committed).AllMetrics().Gauges()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
