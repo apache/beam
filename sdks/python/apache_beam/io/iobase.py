@@ -1193,7 +1193,7 @@ class _RoundRobinKeyFn(core.DoFn):
 
 
 class RestrictionTracker(object):
-  """Manages concurrent access to a restriction.
+  """Manages access to a restriction.
 
   Keeps track of the restrictions claimed part for a Splittable DoFn.
 
@@ -1236,8 +1236,8 @@ class RestrictionTracker(object):
   def check_done(self):
     """Checks whether the restriction has been fully processed.
 
-    Called by the runner after iterator returned by ``DoFn.process()`` has been
-    fully read.
+    Called by the SDK harness after iterator returned by ``DoFn.process()``
+    has been fully read.
 
     This method must raise a `ValueError` if there is still any unclaimed work
     remaining in the restriction when this method is invoked. Exception raised
@@ -1294,7 +1294,8 @@ class RestrictionTracker(object):
 
   def try_claim(self, position):
     """Attempts to claim the block of work in the current restriction
-    identified by the given position.
+    identified by the given position. Each claimed position MUST be a valid
+    split point.
 
     If this succeeds, the DoFn MUST execute the entire block of work. If it
     fails, the ``DoFn.process()`` MUST return ``None`` without performing any
@@ -1332,7 +1333,8 @@ class RestrictionTracker(object):
 
 class WatermarkEstimator(object):
   """A WatermarkEstimator which is used for estimating output_watermark based on
-  the timestamp of output records or manual modifications.
+  the timestamp of output records or manual modifications. Please refer to
+  ``watermark_estiamtors`` for commonly used watermark estimators.
 
   The base class provides common APIs that are called by the framework, which
   are also accessible inside a DoFn.process() body. Derived watermark estimator
