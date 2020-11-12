@@ -293,21 +293,22 @@ class WriteToSpannerSchema(NamedTuple):
 
 _CLASS_DOC = \
   """
-  A PTransform which writes {0} mutations to the specified Spanner table.
+  A PTransform which writes {operation} mutations to the specified Spanner
+  table.
 
   This transform receives rows defined as NamedTuple. Example::
 
-    {1} = typing.NamedTuple('{1}',
-                                   [('id', int), ('name', unicode)])
+    {row_type} =
+      typing.NamedTuple('{row_type}', [('id', int), ('name', unicode)])
 
     with Pipeline() as p:
       _ = (
           p
           | 'Impulse' >> beam.Impulse()
           | 'Generate' >> beam.FlatMap(lambda x: range(num_rows))
-          | 'To row' >> beam.Map(lambda n: {1}(n, str(n))
-              .with_output_types({2})
-          | 'Write to Spanner' >> Spanner{3}(
+          | 'To row' >> beam.Map(lambda n: {row_type}(n, str(n))
+              .with_output_types({output_type})
+          | 'Write to Spanner' >> Spanner{operation_suffix}(
               instance_id='your_instance',
               database_id='existing_database',
               project_id='your_project_id',
@@ -318,7 +319,7 @@ _CLASS_DOC = \
 
 _INIT_DOC = \
   """
-  Initializes {} operation to a Spanner table.
+  Initializes {operation} operation to a Spanner table.
 
   :param project_id: Specifies the Cloud Spanner project.
   :param instance_id: Specifies the Cloud Spanner instance.
@@ -350,17 +351,34 @@ _INIT_DOC = \
   """
 
 
-def _add_doc(value, *args):
+def _add_doc(
+    value,
+    operation=None,
+    row_type=None,
+    output_type=None,
+    operation_suffix=None,
+):
   def _doc(obj):
-    obj.__doc__ = value.format(*args)
+    obj.__doc__ = value.format(
+        operation=operation,
+        row_type=row_type,
+        output_type=output_type,
+        operation_suffix=operation_suffix,
+    )
     return obj
 
   return _doc
 
 
-@_add_doc(_CLASS_DOC, 'delete', 'ExampleKey', 'List[ExampleKey]', 'Delete')
+@_add_doc(
+    _CLASS_DOC,
+    operation='delete',
+    row_type='ExampleKey',
+    output_type='List[ExampleKey]',
+    operation_suffix='Delete',
+)
 class SpannerDelete(PTransform):
-  @_add_doc(_INIT_DOC, 'a delete')
+  @_add_doc(_INIT_DOC, operation='a delete')
   def __init__(
       self,
       project_id,
@@ -405,9 +423,15 @@ class SpannerDelete(PTransform):
         self.expansion_service)
 
 
-@_add_doc(_CLASS_DOC, 'insert', 'ExampleRow', 'ExampleRow', 'Insert')
+@_add_doc(
+    _CLASS_DOC,
+    operation='insert',
+    row_type='ExampleRow',
+    output_type='ExampleRow',
+    operation_suffix='Insert',
+)
 class SpannerInsert(PTransform):
-  @_add_doc(_INIT_DOC, 'an insert')
+  @_add_doc(_INIT_DOC, operation='an insert')
   def __init__(
       self,
       project_id,
@@ -452,9 +476,15 @@ class SpannerInsert(PTransform):
         self.expansion_service)
 
 
-@_add_doc(_CLASS_DOC, 'replace', 'ExampleRow', 'ExampleRow', 'Replace')
+@_add_doc(
+    _CLASS_DOC,
+    operation='replace',
+    row_type='ExampleRow',
+    output_type='ExampleRow',
+    operation_suffix='Replace',
+)
 class SpannerReplace(PTransform):
-  @_add_doc(_INIT_DOC, 'a replace')
+  @_add_doc(_INIT_DOC, operation='a replace')
   def __init__(
       self,
       project_id,
@@ -501,12 +531,13 @@ class SpannerReplace(PTransform):
 
 @_add_doc(
     _CLASS_DOC,
-    'insert-or-update',
-    'ExampleRow',
-    'ExampleRow',
-    'InsertOrUpdate')
+    operation='insert-or-update',
+    row_type='ExampleRow',
+    output_type='ExampleRow',
+    operation_suffix='InsertOrUpdate',
+)
 class SpannerInsertOrUpdate(PTransform):
-  @_add_doc(_INIT_DOC, 'an insert-or-update')
+  @_add_doc(_INIT_DOC, operation='an insert-or-update')
   def __init__(
       self,
       project_id,
@@ -551,9 +582,15 @@ class SpannerInsertOrUpdate(PTransform):
         self.expansion_service)
 
 
-@_add_doc(_CLASS_DOC, 'update', 'ExampleRow', 'ExampleRow', 'Update')
+@_add_doc(
+    _CLASS_DOC,
+    operation='update',
+    row_type='ExampleRow',
+    output_type='ExampleRow',
+    operation_suffix='Update',
+)
 class SpannerUpdate(PTransform):
-  @_add_doc(_INIT_DOC, 'an update')
+  @_add_doc(_INIT_DOC, operation='an update')
   def __init__(
       self,
       project_id,
