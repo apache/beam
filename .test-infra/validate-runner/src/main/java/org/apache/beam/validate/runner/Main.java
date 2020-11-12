@@ -1,10 +1,11 @@
 package org.apache.beam.validate.runner;
 
 import net.sf.json.JSONObject;
+import org.apache.beam.validate.runner.service.BatchTestService;
+import org.apache.beam.validate.runner.service.StreamTestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import service.BatchTestService;
-import service.StreamTestService;
+
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.io.IOException;
 public class Main {
     public static void main(String args[]) {
         try {
-            final Logger logger = LoggerFactory.getLogger(JenkinsApi.class);
+            final Logger logger = LoggerFactory.getLogger(Main.class);
 
             JSONObject outputDetails = new JSONObject();
 
