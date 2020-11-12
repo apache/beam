@@ -16,13 +16,9 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'base'
-    id 'org.apache.beam.module'
-}
-
 project.ext {
     imageJavaVersion = '8'
 }
 
+// Load the main build script which contains all build logic.
 apply from: "../common.gradle"

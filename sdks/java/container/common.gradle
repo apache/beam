@@ -16,11 +16,22 @@
  * limitations under the License.
  */
 
+/**
+ * Build script containign common build tasks for Java SDK Docker images.
+ * Should be applied as a script plugin per supported Java version.
+ * (see java$VER/build.gradle)
+ */
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'base'
 applyDockerNature()
 
-def imageJavaVersion = project.hasProperty('imageJavaVersion') ? project.findProperty('imageJavaVersion').replace("java", "") : '8'
+if (!project.hasProperty('imageJavaVersion')) {
+    throw new GradleException('imageJavaVersion project property must be set')
+}
+def imageJavaVersion = project.findProperty('imageJavaVersion')
 
-description = "Apache Beam :: SDKs :: Python :: Container :: Java ${imageJavaVersion} Container"
+description = "Apache Beam :: SDKs :: Java :: Container :: Java ${imageJavaVersion} Container"
 
 configurations {
     dockerDependency
