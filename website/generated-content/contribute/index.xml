@@ -1020,6 +1020,8 @@ Hi everyone,
 Please review and vote on the release candidate #3 for the version 1.2.3, as follows:
 [ ] +1, Approve the release
 [ ] -1, Do not approve the release (please provide specific comments)
+Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
+no issues are found.
 The complete staging area is available for your review, which includes:
 * JIRA release notes [1],
 * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
