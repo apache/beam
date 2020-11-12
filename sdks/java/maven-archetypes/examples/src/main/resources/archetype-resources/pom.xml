@@ -31,6 +31,7 @@
 
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-api-client.version>@google-api-client.version@</google-api-client.version>
+    <guava.version>@guava.version@</guava.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
@@ -460,9 +461,14 @@
     </dependency>
   </dependencies>
 
-  <!-- GCP libraries BOM sets the version for google http client -->
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>  <!-- "-jre" for Java 8 or higher -->
+      </dependency>
+      <!-- GCP libraries BOM sets the version for google http client -->
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
