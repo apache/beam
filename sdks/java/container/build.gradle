@@ -76,11 +76,6 @@ licenseReport {
   renderers = [new JsonReportRenderer()]
 }
 
-task buildAll {
-  dependsOn ':sdks:java:container:java8:docker'
-  dependsOn ':sdks:java:container:java11:docker'
-}
-
 task pullLicenses(type: Exec) {
   dependsOn generateLicenseReport
   generateLicenseReport.outputs.cacheIf { false }
