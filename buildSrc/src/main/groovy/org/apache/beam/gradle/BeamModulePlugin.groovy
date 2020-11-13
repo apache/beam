@@ -303,23 +303,39 @@ class BeamModulePlugin implements Plugin<Project> {
   class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
     String name = 'validatesCrossLanguageRunner'
-    // Job endpoint to use.
-    String jobEndpoint = 'localhost:8099'
+    // Java pipeline options to use.
+    List<String> javaPipelineOptions = [
+      "--runner=PortableRunner",
+      "--jobEndpoint=localhost:8099",
+      "--environmentCacheMillis=10000",
+      "--experiments=beam_fn_api",
+    ]
+    // Python pipeline options to use.
+    List<String> pythonPipelineOptions = [
+      "--runner=PortableRunner",
+      "--job_endpoint=localhost:8099",
+      "--environment_cache_millis=10000",
+      "--experiments=beam_fn_api",
+    ]
+    // Additional nosetests options
+    List<String> nosetestsOptions = []
     // Job server startup task.
     Task startJobServer
     // Job server cleanup task.
     Task cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
-    // Extra options to pass to TestPipeline
-    String[] pipelineOpts = []
-    // Categories for tests to run.
-    Closure testCategories = {
+    // Whether the pipeline needs --sdk_location option
+    boolean needsSdkLocation = false
+    // Categories for Java tests to run.
+    Closure javaTestCategories = {
       includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
       // Use the following to include / exclude categories:
       // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
+    // Attribute for Python tests to run.
+    String pythonTestAttr = "UsesCrossLanguageTransforms"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -1904,25 +1920,26 @@ class BeamModulePlugin implements Plugin<Project> {
       setupTask.finalizedBy cleanupTask
       config.startJobServer.finalizedBy config.cleanupJobServer
 
-      // Task for running testcases in Java SDK
-      def beamJavaTestPipelineOptions = [
-        "--runner=PortableRunner",
-        "--jobEndpoint=${config.jobEndpoint}",
-        "--environmentCacheMillis=10000",
-        "--experiments=beam_fn_api",
-      ]
-      beamJavaTestPipelineOptions.addAll(config.pipelineOpts)
+      def sdkLocationOpt = []
+      if (config.needsSdkLocation) {
+        setupTask.dependsOn ':sdks:python:sdist'
+        sdkLocationOpt = [
+          "--sdk_location=${pythonDir}/build/apache-beam.tar.gz"
+        ]
+      }
+
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
+        // Task for running testcases in Java SDK
         def javaTask = project.tasks.create(name: config.name+"JavaUsing"+sdk, type: Test) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
-          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamJavaTestPipelineOptions)
+          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
           systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
           classpath = config.classpath
           testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
           maxParallelForks config.numParallelTests
-          useJUnit(config.testCategories)
+          useJUnit(config.javaTestCategories)
           // increase maxHeapSize as this is directly correlated to direct memory,
           // see https://issues.apache.org/jira/browse/BEAM-6698
           maxHeapSize = '4g'
@@ -1935,16 +1952,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Task for running testcases in Python SDK
         def testOpts = [
-          "--attr=UsesCrossLanguageTransforms"
-        ]
-        def pipelineOpts = [
-          "--runner=PortableRunner",
-          "--environment_cache_millis=10000",
-          "--job_endpoint=${config.jobEndpoint}"
+          "--attr=${config.pythonTestAttr}"
         ]
         def beamPythonTestPipelineOptions = [
-          "pipeline_opts": pipelineOpts,
-          "test_opts": testOpts,
+          "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
+          "test_opts": testOpts + config.nosetestsOptions,
           "suite": "xlangValidateRunner"
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
@@ -1966,14 +1978,9 @@ class BeamModulePlugin implements Plugin<Project> {
       def testOpts = [
         "--attr=UsesSqlExpansionService"
       ]
-      def pipelineOpts = [
-        "--runner=PortableRunner",
-        "--environment_cache_millis=10000",
-        "--job_endpoint=${config.jobEndpoint}"
-      ]
       def beamPythonTestPipelineOptions = [
-        "pipeline_opts": pipelineOpts,
-        "test_opts": testOpts,
+        "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
+        "test_opts": testOpts + config.nosetestsOptions,
         "suite": "xlangSqlValidateRunner"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)

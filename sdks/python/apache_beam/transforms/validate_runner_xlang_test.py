@@ -245,6 +245,8 @@ class CrossLanguageTestPipelines(object):
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
 class ValidateRunnerXlangTest(unittest.TestCase):
+  _multiprocess_can_split_ = True
+
   def create_pipeline(self):
     test_pipeline = TestPipeline()
     test_pipeline.not_use_test_runner_api = True
