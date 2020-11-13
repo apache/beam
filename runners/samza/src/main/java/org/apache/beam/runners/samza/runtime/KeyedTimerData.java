@@ -159,8 +159,8 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
 
       final TimerData timer = value.getTimerData();
       // encode the timestamps first
+      // all new fields should be encoded at last
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
-      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
@@ -170,13 +170,13 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       }
 
       STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
     }
 
     @Override
     public KeyedTimerData<K> decode(InputStream inStream) throws CoderException, IOException {
       // decode the timestamp first
       final Instant timestamp = INSTANT_CODER.decode(inStream);
-      final Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       final String timerId = STRING_CODER.decode(inStream);
       final StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
@@ -197,6 +197,8 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       }
 
       final String timerFamilyId = inStream.available() > 0 ? STRING_CODER.decode(inStream) : "";
+      final Instant outputTimestamp =
+          inStream.available() > 0 ? INSTANT_CODER.decode(inStream) : timestamp;
       final TimerData timer =
           TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
       return new KeyedTimerData<>(keyBytes, key, timer);
