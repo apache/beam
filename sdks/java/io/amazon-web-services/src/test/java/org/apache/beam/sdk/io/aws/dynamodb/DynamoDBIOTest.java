@@ -27,16 +27,18 @@ import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -45,6 +47,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /** Test Coverage for the IO. */
@@ -161,10 +164,6 @@ public class DynamoDBIOTest implements Serializable {
   public void testWriteDataToDynamo() {
     final List<WriteRequest> writeRequests = DynamoDBIOTestHelper.generateWriteRequests(numOfItems);
 
-    final List<String> overwriteByPKeys = new ArrayList<>();
-    overwriteByPKeys.add(DynamoDBIOTestHelper.ATTR_NAME_1);
-    overwriteByPKeys.add(DynamoDBIOTestHelper.ATTR_NAME_2);
-
     final PCollection<Void> output =
         pipeline
             .apply(Create.of(writeRequests))
@@ -176,8 +175,7 @@ public class DynamoDBIOTest implements Serializable {
                     .withRetryConfiguration(
                         DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
                     .withAwsClientsProvider(
-                        AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
-                    .withOverwriteByPKeys(overwriteByPKeys));
+                        AwsClientsProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
 
     final PCollection<Long> publishedResultsSize = output.apply(Count.globally());
     PAssert.that(publishedResultsSize).containsInAnyOrder(0L);
@@ -193,10 +191,6 @@ public class DynamoDBIOTest implements Serializable {
 
     final List<WriteRequest> writeRequests = DynamoDBIOTestHelper.generateWriteRequests(numOfItems);
 
-    final List<String> overwriteByPKeys = new ArrayList<>();
-    overwriteByPKeys.add(DynamoDBIOTestHelper.ATTR_NAME_1);
-    overwriteByPKeys.add(DynamoDBIOTestHelper.ATTR_NAME_2);
-
     AmazonDynamoDB amazonDynamoDBMock = Mockito.mock(AmazonDynamoDB.class);
     Mockito.when(amazonDynamoDBMock.batchWriteItem(Mockito.any(BatchWriteItemRequest.class)))
         .thenThrow(new AmazonDynamoDBException("Service unavailable"));
@@ -210,8 +204,7 @@ public class DynamoDBIOTest implements Serializable {
                         writeRequest -> KV.of(tableName, writeRequest))
                 .withRetryConfiguration(
                     DynamoDBIO.RetryConfiguration.create(4, Duration.standardSeconds(10)))
-                .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock))
-                .withOverwriteByPKeys(overwriteByPKeys));
+                .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock)));
 
     try {
       pipeline.run().waitUntilFinish();
@@ -223,5 +216,50 @@ public class DynamoDBIOTest implements Serializable {
       throw e.getCause();
     }
     fail("Pipeline is expected to fail because we were unable to write to DynamoDB.");
+  }
+
+  @Test
+  public void testDeduplicateWriteItems() {
+    final List<WriteRequest> writeRequests = DynamoDBIOTestHelper.generateWriteRequests(numOfItems);
+    writeRequests.addAll(DynamoDBIOTestHelper.generateWriteRequests(numOfItems));
+
+    AmazonDynamoDB client = DynamoDBIOTestHelper.getDynamoDBClient();
+
+    final List<String> overwriteByPKeys =
+        Arrays.asList(DynamoDBIOTestHelper.ATTR_NAME_1, DynamoDBIOTestHelper.ATTR_NAME_2);
+
+    AmazonDynamoDB amazonDynamoDBMock = Mockito.mock(AmazonDynamoDB.class);
+
+    final PCollection<Void> output =
+        pipeline
+            .apply(Create.of(writeRequests))
+            .apply(
+                DynamoDBIO.<WriteRequest>write()
+                    .withWriteRequestMapperFn(
+                        (SerializableFunction<WriteRequest, KV<String, WriteRequest>>)
+                            writeRequest -> KV.of(tableName, writeRequest))
+                    .withRetryConfiguration(
+                        DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
+                    .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock))
+                    .withOverwriteByPKeys(overwriteByPKeys));
+
+    final PCollection<Long> publishedResultsSize = output.apply(Count.globally());
+    PAssert.that(publishedResultsSize).containsInAnyOrder(0L);
+
+    pipeline.run().waitUntilFinish();
+
+    ArgumentCaptor<BatchWriteItemRequest> argumentCaptor = ArgumentCaptor.forClass(BatchWriteItemRequest.class);
+    Mockito.verify(amazonDynamoDBMock, Mockito.atLeastOnce()).batchWriteItem(argumentCaptor.capture());
+    List<BatchWriteItemRequest> batchRequests = argumentCaptor.getAllValues();
+    batchRequests.forEach(requests -> {
+      List<Map<String, AttributeValue>> requestKeys = requests
+              .getRequestItems().get(tableName).stream().map(
+                      request -> request.getPutRequest() != null ?
+                              request.getPutRequest().getItem():
+                              request.getDeleteRequest().getKey()
+              ).collect(Collectors.toList());
+      System.out.println(requestKeys.size());
+      assertEquals(new HashSet<>(requestKeys).size(), requestKeys.size());
+    });
   }
 }
