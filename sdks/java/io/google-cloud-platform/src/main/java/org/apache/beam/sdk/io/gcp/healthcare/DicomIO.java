@@ -179,7 +179,9 @@ public class DicomIO {
           context.output(METADATA, responseData);
         } catch (Exception e) {
           String errorMessage = e.getMessage();
-          context.output(ERROR_MESSAGE, errorMessage);
+          if (errorMessage != null){
+            context.output(ERROR_MESSAGE, errorMessage);
+          }
         }
       }
     }
