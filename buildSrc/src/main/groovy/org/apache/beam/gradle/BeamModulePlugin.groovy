@@ -1448,6 +1448,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
     }
+    def cleanUpTask = project.task('cleanUp') {
+      dependsOn ':runners:google-cloud-dataflow-java:cleanUpDockerImages'
+    }
 
     // When applied in a module's build.gradle file, this closure provides task for running
     // IO integration tests.
@@ -1458,7 +1461,7 @@ class BeamModulePlugin implements Plugin<Project> {
       JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
 
       // Task for running integration tests
-      project.task('integrationTest', type: Test) {
+      def itTask = project.task('integrationTest', type: Test) {
 
         // Disable Gradle cache (it should not be used because the IT's won't run).
         outputs.upToDateWhen { false }
@@ -1473,27 +1476,53 @@ class BeamModulePlugin implements Plugin<Project> {
           allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
         }
 
-        if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
-          project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
-          def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-              project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-          def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
-          allOptionsList.addAll([
-            '--workerHarnessContainerImage=',
-            "--dataflowWorkerJar=${dataflowWorkerJar}",
-            "--region=${dataflowRegion}"
-          ])
+        if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
+          if (pipelineOptionsString.contains('use_runner_v2')) {
+            dependsOn ':runners:google-cloud-dataflow-java:buildAndPushDockerContainer'
+          } else {
+            project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+          }
         }
 
-        // Windows handles quotation marks differently
-        if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
-          def allOptionsListFormatted = allOptionsList.collect{ "\"$it\"" }
-          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
-        } else if (pipelineOptionsString) {
-          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
-        }
+        // We construct the pipeline options during task execution time in order to get dockerImageName.
+        doFirst {
+          if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
+            def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+            if (pipelineOptionsString.contains('use_runner_v2')) {
+              def dockerImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerImageName
+              allOptionsList.addAll([
+                "--workerHarnessContainerImage=${dockerImageName}",
+                "--region=${dataflowRegion}"
+              ])
+            } else {
+              def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
+                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+              allOptionsList.addAll([
+                '--workerHarnessContainerImage=',
+                "--dataflowWorkerJar=${dataflowWorkerJar}",
+                "--region=${dataflowRegion}"
+              ])
+            }
+          }
 
-        systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
+          // Windows handles quotation marks differently
+          if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
+            def allOptionsListFormatted = allOptionsList.collect { "\"$it\"" }
+            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
+          } else if (pipelineOptionsString) {
+            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
+          }
+
+          systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
+        }
+      }
+      project.afterEvaluate {
+        // Ensure all tasks which use published docker images run before they are cleaned up
+        project.tasks.each { t ->
+          if (t.dependsOn.contains(":runners:google-cloud-dataflow-java:buildAndPushDockerContainer")) {
+            t.finalizedBy cleanUpTask
+          }
+        }
       }
     }
 
