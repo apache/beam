@@ -35,13 +35,13 @@ Please follow the below steps in order to add new course content:
 * Change the Project dropdown to Course.
 * Right click where new content is to be created and select from the contextual menu
 New lesson, section, or task, where appropriate.
-* When the EduTools plugin creates new content, it will automatically create folders and files.  It is important to 
+* When the EduTools plugin creates new content, it will automatically create folders and files.  It is important to
 note that it will not add the ASF license and should be done manually.
 * When creating a new task, the EduTools plugin will create a go.mod in the folder.  It's important to delete this
 as well as change the main folder it creates to cmd.  Please see other tasks in the Go SDK katas for examples
 on the standard structure used throughout the course.
 * It's also important to note that when updating content, the EduTools plugin will update files and also remove
-the ASF license information.  When in doubt, the gradle rat task, at the root of the beam repository, can 
+the ASF license information.  When in doubt, the gradle rat task, at the root of the beam repository, can
 uncover any files with missing licenses.
 
 ### Updating Stepik
