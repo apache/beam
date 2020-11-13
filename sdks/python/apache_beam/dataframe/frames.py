@@ -676,9 +676,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return self.loc[key]
 
-    elif (isinstance(key, list) and
-          all(key_column in self._expr.proxy().columns
-              for key_column in key)) or key in self._expr.proxy().columns:
+    elif (
+        (isinstance(key, list) and all(key_column in self._expr.proxy().columns
+                                       for key_column in key)) or
+        key in self._expr.proxy().columns):
       return self._elementwise(lambda df: df[key], 'get_column')
 
     else:
