@@ -19,6 +19,9 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_JAVA_PYTHON_VERSIONS
+import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_SQL_PYTHON_VERSIONS
+
 // This job runs the suite of ValidatesRunner tests against the Dataflow runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Dataflow',
     'Run XVR_Dataflow PostCommit', 'Dataflow CrossLanguageValidatesRunner Tests', this) {
@@ -37,26 +40,23 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Dataflow',
       // Enable testing for Java pipeline using Python external transforms when BEAM-11203
       // is implemented.
       steps {
-        shell('echo "*** RUN CROSS-LANGUAGE DATAFLOW PYTHON WITH JAVA EXTERNAL TRANSFORMS USING PYTHON 3.6 ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingJava')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-PpythonVersion=3.6')
+        CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_JAVA_PYTHON_VERSIONS.each { pythonVersion ->
+          shell("echo \"*** RUN CROSS-LANGUAGE DATAFLOW PYTHON WITH JAVA EXTERNAL TRANSFORMS USING PYTHON ${pythonVersion} ***\"")
+          gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingJava')
+            commonJobProperties.setGradleSwitches(delegate)
+            switches("-PpythonVersion=${pythonVersion}")
+          }
         }
-        shell('echo "*** RUN CROSS-LANGUAGE DATAFLOW PYTHON WITH JAVA EXTERNAL TRANSFORMS USING PYTHON 3.8 ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingJava')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-PpythonVersion=3.8')
-        }
-        shell('echo "*** RUN CROSS-LANGUAGE DATAFLOW PYTHON WITH JAVA SQL TRANSFORMS USING PYTHON 3.8 ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingSql')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-PpythonVersion=3.8')
+        CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_SQL_PYTHON_VERSIONS.each { pythonVersion ->
+          shell("echo \"*** RUN CROSS-LANGUAGE DATAFLOW PYTHON WITH JAVA SQL TRANSFORMS USING PYTHON ${pythonVersion} ***\"")
+          gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            tasks(':runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingSql')
+            commonJobProperties.setGradleSwitches(delegate)
+            switches("-PpythonVersion=${pythonVersion}")
+          }
         }
       }
     }
