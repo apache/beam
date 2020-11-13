@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.ZetaSQLFunction.FunctionSignatureId;
-import java.util.List;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+
+import java.util.List;
 
 /**
  * List of ZetaSQL builtin functions supported by Beam ZetaSQL. Keep this list in sync with
@@ -386,7 +387,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_SUM_BIGNUMERIC, // sum
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
-          FunctionSignatureId.FN_BIT_OR_INT64 // bit_or
+          FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
@@ -426,7 +427,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_VAR_SAMP, // var_samp
           // FunctionSignatureId.FN_VAR_SAMP_NUMERIC, // var_samp
 
-          // FunctionSignatureId.FN_COUNTIF, // countif
+           FunctionSignatureId.FN_COUNTIF// countif
 
           // Approximate quantiles functions that produce or consume intermediate
           // sketches. All found in the "kll_quantiles.*" namespace.
