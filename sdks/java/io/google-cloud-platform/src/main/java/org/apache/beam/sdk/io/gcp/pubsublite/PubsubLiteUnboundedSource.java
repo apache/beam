@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import static com.google.cloud.pubsublite.internal.Preconditions.checkState;
+import static java.lang.Math.min;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
@@ -53,7 +54,8 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
   @Override
   public List<? extends UnboundedSource<SequencedMessage, OffsetCheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) {
-    ArrayList<ArrayList<Partition>> partitionPartitions = new ArrayList<>(desiredNumSplits);
+    ArrayList<ArrayList<Partition>> partitionPartitions = new ArrayList<>(
+        min(desiredNumSplits, subscriberOptions.partitions().size()));
     for (int i = 0; i < desiredNumSplits; i++) {
       partitionPartitions.add(new ArrayList<>());
     }
