@@ -105,10 +105,7 @@ func mergeDistributions(
 	res := make([]metrics.DistributionResult, 0)
 
 	for k := range attempted {
-		v, ok := committed[k]
-		if !ok {
-			v = metrics.DistributionValue{}
-		}
+		v := committed[k]
 		res = append(res, metrics.DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
 	return res
@@ -120,10 +117,7 @@ func mergeGauges(
 	res := make([]metrics.GaugeResult, 0)
 
 	for k := range attempted {
-		v, ok := committed[k]
-		if !ok {
-			v = metrics.GaugeValue{}
-		}
+		v := committed[k]
 		res = append(res, metrics.GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
 	return res

@@ -21,9 +21,10 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/google/go-cmp/cmp"
 )
 
-func TestCounterExtraction(t *testing.T) {
+func TestFromMonitoringInfos_Counters(t *testing.T) {
 	var value int64 = 15
 	want := metrics.CounterResult{
 		Attempted: 15,
@@ -36,7 +37,7 @@ func TestCounterExtraction(t *testing.T) {
 
 	payload, err := Int64Counter(value)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to encode Int64Counter: %v", err)
 	}
 
 	labels := map[string]string{
@@ -58,15 +59,15 @@ func TestCounterExtraction(t *testing.T) {
 	got := FromMonitoringInfos(attempted, committed).AllMetrics().Counters()
 	size := len(got)
 	if size < 1 {
-		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
+		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
-	if got[0] != want {
-		t.Fatalf("Invalid counter: got: %v, want: %v",
-			got[0], want)
+	if d := cmp.Diff(got[0], want); d != "" {
+		t.Fatalf("Invalid counter: got: %v, want: %v, diff(-want,+got):\n %v",
+			got[0], want, d)
 	}
 }
 
-func TestDistributionExtraction(t *testing.T) {
+func TestFromMonitoringInfos_Distributions(t *testing.T) {
 	var count, sum, min, max int64 = 100, 5, -12, 30
 
 	want := metrics.DistributionResult{
@@ -85,7 +86,7 @@ func TestDistributionExtraction(t *testing.T) {
 
 	payload, err := Int64Distribution(count, sum, min, max)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to encode Int64Distribution: %v", err)
 	}
 
 	labels := map[string]string{
@@ -107,15 +108,15 @@ func TestDistributionExtraction(t *testing.T) {
 	got := FromMonitoringInfos(attempted, committed).AllMetrics().Distributions()
 	size := len(got)
 	if size < 1 {
-		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
+		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
-	if got[0] != want {
-		t.Fatalf("Invalid distribution: got: %v, want: %v",
-			got[0], want)
+	if d := cmp.Diff(got[0], want); d != "" {
+		t.Fatalf("Invalid distribution: got: %v, want: %v, diff(-want,+got):\n %v",
+			got[0], want, d)
 	}
 }
 
-func TestGaugeExtraction(t *testing.T) {
+func TestFromMonitoringInfos_Gauges(t *testing.T) {
 	var value int64 = 100
 	loc, _ := time.LoadLocation("Local")
 	tm := time.Date(2020, 11, 9, 17, 52, 28, 462*int(time.Millisecond), loc)
@@ -134,7 +135,7 @@ func TestGaugeExtraction(t *testing.T) {
 
 	payload, err := Int64Latest(tm, value)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to encode Int64Latest: %v", err)
 	}
 
 	labels := map[string]string{
@@ -156,10 +157,10 @@ func TestGaugeExtraction(t *testing.T) {
 	got := FromMonitoringInfos(attempted, committed).AllMetrics().Gauges()
 	size := len(got)
 	if size < 1 {
-		t.Fatalf("Invalid array's size: got: %v, expected: %v", size, 1)
+		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
-	if got[0] != want {
-		t.Fatalf("Invalid gauge: got: %v, want: %v",
-			got[0], want)
+	if d := cmp.Diff(got[0], want); d != "" {
+		t.Fatalf("Invalid gauge: got: %v, want: %v, diff(-want,+got):\n %v",
+			got[0], want, d)
 	}
 }

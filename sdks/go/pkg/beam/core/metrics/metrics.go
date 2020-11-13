@@ -491,21 +491,21 @@ type QueryResults struct {
 	gauges        []GaugeResult
 }
 
-// Counters returns an array of counter metrics.
+// Counters returns a slice of counter metrics.
 func (qr QueryResults) Counters() []CounterResult {
 	out := make([]CounterResult, len(qr.counters))
 	copy(out, qr.counters)
 	return out
 }
 
-// Distributions returns an array of distribution metrics.
+// Distributions returns a slice of distribution metrics.
 func (qr QueryResults) Distributions() []DistributionResult {
 	out := make([]DistributionResult, len(qr.distributions))
 	copy(out, qr.distributions)
 	return out
 }
 
-// Gauges returns an array of gauge metrics.
+// Gauges returns a slice of gauge metrics.
 func (qr QueryResults) Gauges() []GaugeResult {
 	out := make([]GaugeResult, len(qr.gauges))
 	copy(out, qr.gauges)
@@ -562,7 +562,7 @@ func (r GaugeResult) Result() GaugeValue {
 	return r.Attempted
 }
 
-// StepKey uniquely identifies a metric.
+// StepKey uniquely identifies a metric within a pipeline graph.
 type StepKey struct {
 	Step, Name, Namespace string
 }
