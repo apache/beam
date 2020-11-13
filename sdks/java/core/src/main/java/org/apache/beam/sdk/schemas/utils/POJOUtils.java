@@ -163,7 +163,7 @@ public class POJOUtils {
         | InvocationTargetException e) {
       throw new RuntimeException(
           String.format(
-              "Unable to generate a creator for POJO '%s' with inferred schema: %s\nNote POJOs must have a zero-argument constructor, or a constructor annotated with @SchemaCreate.",
+              "Unable to generate a creator for POJO '%s' with inferred schema: %s%nNote POJOs must have a zero-argument constructor, or a constructor annotated with @SchemaCreate.",
               clazz, schema));
     }
   }

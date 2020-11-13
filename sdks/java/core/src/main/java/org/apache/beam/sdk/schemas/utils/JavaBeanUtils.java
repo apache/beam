@@ -65,6 +65,9 @@ public class JavaBeanUtils {
     return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
   }
 
+  private static final String CONSTRUCTOR_HELP_STRING =
+      "In order to infer a Schema from a Java Bean, it must have a constructor annotated with @SchemaCreate, or it must have a compatible setter for every getter used as a Schema field.";
+
   // Make sure that there are matching setters and getters.
   public static void validateJavaBean(
       List<FieldValueTypeInformation> getters,
@@ -80,28 +83,25 @@ public class JavaBeanUtils {
       }
     }
 
-    final String HELP_STRING =
-        "In order to infer a Schema from a Java Bean, it must have a constructor annotated with @SchemaCreate, or it must have a compatible setter for every getter used as a Schema field.";
-
     for (FieldValueTypeInformation type : getters) {
       FieldValueTypeInformation setterType = setterMap.get(type.getName());
       if (setterType == null) {
         throw new RuntimeException(
             String.format(
                 "Java Bean '%s' contains a getter for field '%s', but does not contain a matching setter. %s",
-                type.getMethod().getDeclaringClass(), type.getName(), HELP_STRING));
+                type.getMethod().getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
       }
       if (!type.getType().equals(setterType.getType())) {
         throw new RuntimeException(
             String.format(
                 "Java Bean '%s' contains a setter for field '%s' that has a mismatching type. %s",
-                type.getMethod().getDeclaringClass(), type.getName(), HELP_STRING));
+                type.getMethod().getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
       }
       if (!type.isNullable() == setterType.isNullable()) {
         throw new RuntimeException(
             String.format(
                 "Java Bean '%s' contains a setter for field '%s' that has a mismatching nullable attribute. %s",
-                type.getMethod().getDeclaringClass(), type.getName(), HELP_STRING));
+                type.getMethod().getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
       }
     }
   }
