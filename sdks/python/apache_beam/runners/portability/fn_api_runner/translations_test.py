@@ -151,7 +151,7 @@ class TranslationsTest(unittest.TestCase):
   def test_optimize_single_combine_globally(self):
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
-    pcoll = pipeline | Create(vals) | combiners.Count.Globally()
+    _ = pipeline | Create(vals) | combiners.Count.Globally()
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
         pipeline_proto,
