@@ -113,7 +113,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       private @Nullable String timestampBoundMode;
       private @Nullable String readTimestamp;
       private @Nullable String timeUnit;
-      private @Nullable Long exactStaleness;
+      private @Nullable Long staleness;
 
       public void setSql(@Nullable String sql) {
         this.sql = sql;
@@ -143,8 +143,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         this.timeUnit = timeUnit;
       }
 
-      public void setExactStaleness(@Nullable Long exactStaleness) {
-        this.exactStaleness = exactStaleness;
+      public void setStaleness(@Nullable Long staleness) {
+        this.staleness = staleness;
       }
 
       private @Nullable TimestampBound getTimestampBound() {

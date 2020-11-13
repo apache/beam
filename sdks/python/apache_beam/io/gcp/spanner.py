@@ -140,7 +140,7 @@ class ReadFromSpannerSchema(NamedTuple):
   batching: Optional[bool]
   timestamp_bound_mode: Optional[unicode]
   read_timestamp: Optional[unicode]
-  exact_staleness: Optional[int]
+  staleness: Optional[int]
   time_unit: Optional[unicode]
 
 
@@ -170,7 +170,7 @@ class ReadFromSpanner(ExternalTransform):
               row_type=ExampleRow,
               query='SELECT * FROM some_table',
               timestamp_bound_mode=TimestampBoundMode.MAX_STALENESS,
-              exact_staleness=3,
+              staleness=3,
               time_unit=TimeUnit.HOURS,
           ).with_output_types(ExampleRow))
 
@@ -192,7 +192,7 @@ class ReadFromSpanner(ExternalTransform):
       batching=None,
       timestamp_bound_mode=None,
       read_timestamp=None,
-      exact_staleness=None,
+      staleness=None,
       time_unit=None,
       expansion_service=None,
   ):
@@ -229,7 +229,7 @@ class ReadFromSpanner(ExternalTransform):
         queries at a timestamp chosen to be at most time_unit stale.
     :param read_timestamp: Timestamp in string. Use only when
         timestamp_bound_mode is set to READ_TIMESTAMP or MIN_READ_TIMESTAMP.
-    :param exact_staleness: Staleness value as int. Use only when
+    :param staleness: Staleness value as int. Use only when
         timestamp_bound_mode is set to EXACT_STALENESS or MAX_STALENESS.
         time_unit has to be set along with this param.
     :param time_unit: Time unit for staleness_value passed as TimeUnit enum.
@@ -239,7 +239,7 @@ class ReadFromSpanner(ExternalTransform):
     """
     assert row_type
     assert sql or table and not (sql and table)
-    staleness_value = int(exact_staleness) if exact_staleness else None
+    staleness_value = int(staleness) if staleness else None
 
     if staleness_value or time_unit:
       assert staleness_value and time_unit and \
@@ -265,7 +265,7 @@ class ReadFromSpanner(ExternalTransform):
                 batching=batching,
                 timestamp_bound_mode=_get_enum_name(timestamp_bound_mode),
                 read_timestamp=read_timestamp,
-                exact_staleness=exact_staleness,
+                staleness=staleness,
                 time_unit=_get_enum_name(time_unit),
             ),
         ),
