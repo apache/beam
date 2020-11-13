@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
@@ -30,15 +31,19 @@ import java.util.Map;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.joda.time.ReadableDateTime;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 final class StructUtils {
+
+  // It's not possible to pass nulls as values even with a field is nullable
+  @SuppressWarnings({
+    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  })
   public static Row structToBeamRow(Struct struct, Schema schema) {
-    Map<String, Object> structValues =
+    Map<String, @Nullable Object> structValues =
         schema.getFields().stream()
             .collect(
                 HashMap::new,
@@ -55,9 +60,14 @@ final class StructUtils {
           String column = field.getName();
           switch (field.getType().getTypeName()) {
             case ROW:
-              structBuilder
-                  .set(column)
-                  .to(beamTypeToSpannerType(field.getType()), beamRowToStruct(row.getRow(column)));
+              @Nullable Row subRow = row.getRow(column);
+              if (subRow == null) {
+                structBuilder.set(column).to(beamTypeToSpannerType(field.getType()), null);
+              } else {
+                structBuilder
+                    .set(column)
+                    .to(beamTypeToSpannerType(field.getType()), beamRowToStruct(subRow));
+              }
               break;
             case ARRAY:
               addIterableToStructBuilder(structBuilder, row.getArray(column), field);
@@ -66,37 +76,71 @@ final class StructUtils {
               addIterableToStructBuilder(structBuilder, row.getIterable(column), field);
               break;
             case FLOAT:
-              structBuilder.set(column).to(row.getFloat(column).doubleValue());
+              @Nullable Float floatValue = row.getFloat(column);
+              if (floatValue == null) {
+                structBuilder.set(column).to((Double) null);
+              } else {
+                structBuilder.set(column).to(floatValue);
+              }
               break;
             case DOUBLE:
               structBuilder.set(column).to(row.getDouble(column));
               break;
             case INT16:
-              structBuilder.set(column).to(row.getInt16(column).longValue());
+              @Nullable Short int16 = row.getInt16(column);
+              if (int16 == null) {
+                structBuilder.set(column).to((Long) null);
+              } else {
+                structBuilder.set(column).to(int16);
+              }
               break;
             case INT32:
-              structBuilder.set(column).to(row.getInt32(column).longValue());
+              @Nullable Integer int32 = row.getInt32(column);
+              if (int32 == null) {
+                structBuilder.set(column).to((Long) null);
+              } else {
+                structBuilder.set(column).to(int32);
+              }
               break;
             case INT64:
-              structBuilder.set(column).to(row.getInt64(column).longValue());
+              structBuilder.set(column).to(row.getInt64(column));
               break;
             case DECIMAL:
-              structBuilder.set(column).to(row.getDecimal(column));
+              @Nullable BigDecimal decimal = row.getDecimal(column);
+              // BigDecimal is not nullable
+              if (decimal == null) {
+                checkNotNull(decimal, "Null decimal at column " + column);
+              } else {
+                structBuilder.set(column).to(decimal);
+              }
               break;
               // TODO: implement logical type date and timestamp
             case DATETIME:
-              structBuilder
-                  .set(column)
-                  .to(Timestamp.parseTimestamp(row.getDateTime(column).toString()));
+              @Nullable ReadableDateTime dateTime = row.getDateTime(column);
+              if (dateTime == null) {
+                structBuilder.set(column).to((Timestamp) null);
+              } else {
+                structBuilder.set(column).to(Timestamp.parseTimestamp(dateTime.toString()));
+              }
               break;
             case STRING:
               structBuilder.set(column).to(row.getString(column));
               break;
             case BYTE:
-              structBuilder.set(column).to(row.getByte(column));
+              @Nullable Byte byteValue = row.getByte(column);
+              if (byteValue == null) {
+                structBuilder.set(column).to((Long) null);
+              } else {
+                structBuilder.set(column).to(byteValue);
+              }
               break;
             case BYTES:
-              structBuilder.set(column).to(ByteArray.copyFrom(row.getBytes(column)));
+              byte @Nullable [] bytes = row.getBytes(column);
+              if (bytes == null) {
+                structBuilder.set(column).to((ByteArray) null);
+              } else {
+                structBuilder.set(column).to(ByteArray.copyFrom(bytes));
+              }
               break;
             case BOOLEAN:
               structBuilder.set(column).to(row.getBoolean(column));
@@ -115,7 +159,12 @@ final class StructUtils {
     switch (beamType.getTypeName()) {
       case ARRAY:
       case ITERABLE:
-        return Type.array(simpleBeamTypeToSpannerType(beamType.getCollectionElementType()));
+        Schema.@Nullable FieldType elementType = beamType.getCollectionElementType();
+        if (elementType == null) {
+          throw new NullPointerException("Null element type");
+        } else {
+          return Type.array(simpleBeamTypeToSpannerType(elementType));
+        }
       default:
         return simpleBeamTypeToSpannerType(beamType);
     }
@@ -124,7 +173,12 @@ final class StructUtils {
   private static Type simpleBeamTypeToSpannerType(Schema.FieldType beamType) {
     switch (beamType.getTypeName()) {
       case ROW:
-        return Type.struct(translateRowFieldsToStructFields(beamType.getRowSchema().getFields()));
+        @Nullable Schema schema = beamType.getRowSchema();
+        if (schema == null) {
+          throw new NullPointerException("Null schema");
+        } else {
+          return Type.struct(translateRowFieldsToStructFields(schema.getFields()));
+        }
       case BYTES:
         return Type.bytes();
       case BYTE:
@@ -160,19 +214,26 @@ final class StructUtils {
 
   @SuppressWarnings("unchecked")
   private static void addIterableToStructBuilder(
-      Struct.Builder structBuilder, Iterable<Object> iterable, Schema.Field field) {
+      Struct.Builder structBuilder, @Nullable Iterable<Object> iterable, Schema.Field field) {
     String column = field.getName();
     Schema.FieldType beamIterableType = field.getType().getCollectionElementType();
+    if (beamIterableType == null) {
+      throw new NullPointerException("Null collection element type at field " + field.getName());
+    }
     Schema.TypeName beamIterableTypeName = beamIterableType.getTypeName();
     switch (beamIterableTypeName) {
       case ROW:
-        structBuilder
-            .set(column)
-            .toStructArray(
-                beamTypeToSpannerType(beamIterableType),
-                StreamSupport.stream(iterable.spliterator(), false)
-                    .map(row -> beamRowToStruct((Row) row))
-                    .collect(toList()));
+        if (iterable == null) {
+          structBuilder.set(column).toStructArray(beamTypeToSpannerType(beamIterableType), null);
+        } else {
+          structBuilder
+              .set(column)
+              .toStructArray(
+                  beamTypeToSpannerType(beamIterableType),
+                  StreamSupport.stream(iterable.spliterator(), false)
+                      .map(row -> beamRowToStruct((Row) row))
+                      .collect(toList()));
+        }
         break;
       case INT16:
       case INT32:
@@ -191,34 +252,42 @@ final class StructUtils {
         structBuilder.set(column).toBoolArray((Iterable<Boolean>) ((Object) iterable));
         break;
       case BYTES:
-        structBuilder
-            .set(column)
-            .toBytesArray(
-                StreamSupport.stream(iterable.spliterator(), false)
-                    .map(bytes -> ByteArray.copyFrom((byte[]) bytes))
-                    .collect(toList()));
+        if (iterable == null) {
+          structBuilder.set(column).toBytesArray(null);
+        } else {
+          structBuilder
+              .set(column)
+              .toBytesArray(
+                  StreamSupport.stream(iterable.spliterator(), false)
+                      .map(bytes -> ByteArray.copyFrom((byte[]) bytes))
+                      .collect(toList()));
+        }
         break;
       case STRING:
         structBuilder.set(column).toStringArray((Iterable<String>) ((Object) iterable));
         break;
         // TODO: implement logical date and datetime
       case DATETIME:
-        structBuilder
-            .set(column)
-            .toTimestampArray(
-                StreamSupport.stream(iterable.spliterator(), false)
-                    .map(timestamp -> Timestamp.parseTimestamp(timestamp.toString()))
-                    .collect(toList()));
+        if (iterable == null) {
+          structBuilder.set(column).toTimestampArray(null);
+        } else {
+          structBuilder
+              .set(column)
+              .toTimestampArray(
+                  StreamSupport.stream(iterable.spliterator(), false)
+                      .map(timestamp -> Timestamp.parseTimestamp(timestamp.toString()))
+                      .collect(toList()));
+        }
         break;
       default:
         throw new IllegalArgumentException(
             String.format(
-                "Unsupported iterable type while translating row to struct: %s",
-                field.getType().getCollectionElementType().getTypeName()));
+                "Unsupported iterable type '%s' while translating row to struct.",
+                beamIterableType.getTypeName()));
     }
   }
 
-  private static Object getStructValue(Struct struct, Schema.Field field) {
+  private static @Nullable Object getStructValue(Struct struct, Schema.Field field) {
     String column = field.getName();
     Type.Code typeCode = struct.getColumnType(column).getCode();
     if (struct.isNull(column)) {
@@ -247,14 +316,20 @@ final class StructUtils {
         return getStructArrayValue(
             struct, struct.getColumnType(column).getArrayElementType(), field);
       case STRUCT:
-        return structToBeamRow(struct.getStruct(column), field.getType().getRowSchema());
+        @Nullable Schema schema = field.getType().getRowSchema();
+        if (schema == null) {
+          throw new NullPointerException("Null schema at field " + field.getName());
+        } else {
+          return structToBeamRow(struct.getStruct(column), schema);
+        }
       default:
         throw new RuntimeException(
             String.format("Unsupported spanner type %s for column %s.", typeCode, column));
     }
   }
 
-  private static Object getStructArrayValue(Struct struct, Type arrayType, Schema.Field field) {
+  private static @Nullable Object getStructArrayValue(
+      Struct struct, Type arrayType, Schema.Field field) {
     Type.Code arrayCode = arrayType.getCode();
     String column = field.getName();
     if (struct.isNull(column)) {
@@ -289,9 +364,20 @@ final class StructUtils {
       case STRUCT:
         return struct.getStructList(column).stream()
             .map(
-                structElem ->
-                    structToBeamRow(
-                        structElem, field.getType().getCollectionElementType().getRowSchema()))
+                structElem -> {
+                  Schema.@Nullable FieldType fieldType = field.getType().getCollectionElementType();
+                  if (fieldType == null) {
+                    throw new NullPointerException(
+                        "Null collection element type at field " + field.getName());
+                  }
+
+                  @Nullable Schema elementSchema = fieldType.getRowSchema();
+                  if (elementSchema == null) {
+                    throw new NullPointerException(
+                        "Null schema element type at field " + field.getName());
+                  }
+                  return structToBeamRow(structElem, elementSchema);
+                })
             .collect(toList());
       default:
         throw new RuntimeException(

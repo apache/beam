@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.beamRowToStruct;
 import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.beamTypeToSpannerType;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
@@ -32,10 +33,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.ReadableDateTime;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 final class MutationUtils {
   private MutationUtils() {}
 
@@ -110,19 +110,39 @@ final class MutationUtils {
       Key.Builder keyBuilder, Schema.FieldType field, String columnName, Row row) {
     switch (field.getTypeName()) {
       case BYTE:
-        keyBuilder.append(row.getByte(columnName).longValue());
+        @Nullable Byte byteValue = row.getByte(columnName);
+        if (byteValue == null) {
+          keyBuilder.append((Long) null);
+        } else {
+          keyBuilder.append(byteValue);
+        }
         break;
       case INT16:
-        keyBuilder.append(row.getInt16(columnName).longValue());
+        @Nullable Short int16 = row.getInt16(columnName);
+        if (int16 == null) {
+          keyBuilder.append((Long) null);
+        } else {
+          keyBuilder.append(int16);
+        }
         break;
       case INT32:
-        keyBuilder.append(row.getInt32(columnName).longValue());
+        @Nullable Integer int32 = row.getInt32(columnName);
+        if (int32 == null) {
+          keyBuilder.append((Long) null);
+        } else {
+          keyBuilder.append(int32);
+        }
         break;
       case INT64:
         keyBuilder.append(row.getInt64(columnName));
         break;
       case FLOAT:
-        keyBuilder.append(row.getFloat(columnName).doubleValue());
+        @Nullable Float floatValue = row.getFloat(columnName);
+        if (floatValue == null) {
+          keyBuilder.append((Double) null);
+        } else {
+          keyBuilder.append(floatValue);
+        }
         break;
       case DOUBLE:
         keyBuilder.append(row.getDouble(columnName));
@@ -132,9 +152,13 @@ final class MutationUtils {
         break;
         // TODO: Implement logical date and datetime
       case DATETIME:
-        keyBuilder.append(
-            Timestamp.ofTimeMicroseconds(
-                row.getDateTime(columnName).toInstant().getMillis() * 1000L));
+        @Nullable ReadableDateTime dateTime = row.getDateTime(columnName);
+        if (dateTime == null) {
+          keyBuilder.append((Timestamp) null);
+        } else {
+          keyBuilder.append(
+              Timestamp.ofTimeMicroseconds(dateTime.toInstant().getMillis() * 1_000L));
+        }
         break;
       case BOOLEAN:
         keyBuilder.append(row.getBoolean(columnName));
@@ -143,7 +167,12 @@ final class MutationUtils {
         keyBuilder.append(row.getString(columnName));
         break;
       case BYTES:
-        keyBuilder.append(ByteArray.copyFrom(row.getBytes(columnName)));
+        byte @Nullable [] bytes = row.getBytes(columnName);
+        if (bytes == null) {
+          keyBuilder.append((ByteArray) null);
+        } else {
+          keyBuilder.append(ByteArray.copyFrom(bytes));
+        }
         break;
       default:
         throw new IllegalArgumentException(
@@ -158,33 +187,62 @@ final class MutationUtils {
       Row row) {
     switch (fieldType.getTypeName()) {
       case BYTE:
-        mutationBuilder.set(columnName).to(row.getByte(columnName).longValue());
+        @Nullable Byte byteValue = row.getByte(columnName);
+        if (byteValue == null) {
+          mutationBuilder.set(columnName).to(((Long) null));
+        } else {
+          mutationBuilder.set(columnName).to(byteValue);
+        }
         break;
       case INT16:
-        mutationBuilder.set(columnName).to(row.getInt16(columnName).longValue());
+        @Nullable Short int16 = row.getInt16(columnName);
+        if (int16 == null) {
+          mutationBuilder.set(columnName).to(((Long) null));
+        } else {
+          mutationBuilder.set(columnName).to(int16);
+        }
         break;
       case INT32:
-        mutationBuilder.set(columnName).to(row.getInt32(columnName).longValue());
+        @Nullable Integer int32 = row.getInt32(columnName);
+        if (int32 == null) {
+          mutationBuilder.set(columnName).to(((Long) null));
+        } else {
+          mutationBuilder.set(columnName).to(int32);
+        }
         break;
       case INT64:
         mutationBuilder.set(columnName).to(row.getInt64(columnName));
         break;
       case FLOAT:
-        mutationBuilder.set(columnName).to(row.getFloat(columnName).doubleValue());
+        @Nullable Float floatValue = row.getFloat(columnName);
+        if (floatValue == null) {
+          mutationBuilder.set(columnName).to(((Double) null));
+        } else {
+          mutationBuilder.set(columnName).to(floatValue);
+        }
         break;
       case DOUBLE:
         mutationBuilder.set(columnName).to(row.getDouble(columnName));
         break;
       case DECIMAL:
-        mutationBuilder.set(columnName).to(row.getDecimal(columnName));
+        @Nullable BigDecimal decimal = row.getDecimal(columnName);
+        // BigDecimal is not nullable
+        if (decimal == null) {
+          checkNotNull(decimal, "Null decimal at column " + columnName);
+        } else {
+          mutationBuilder.set(columnName).to(decimal);
+        }
         break;
         // TODO: Implement logical date and datetime
       case DATETIME:
-        mutationBuilder
-            .set(columnName)
-            .to(
-                Timestamp.ofTimeMicroseconds(
-                    row.getDateTime(columnName).toInstant().getMillis() * 1000L));
+        @Nullable ReadableDateTime dateTime = row.getDateTime(columnName);
+        if (dateTime == null) {
+          mutationBuilder.set(columnName).to(((Timestamp) null));
+        } else {
+          mutationBuilder
+              .set(columnName)
+              .to(Timestamp.ofTimeMicroseconds(dateTime.toInstant().getMillis() * 1000L));
+        }
         break;
       case BOOLEAN:
         mutationBuilder.set(columnName).to(row.getBoolean(columnName));
@@ -193,14 +251,26 @@ final class MutationUtils {
         mutationBuilder.set(columnName).to(row.getString(columnName));
         break;
       case BYTES:
-        mutationBuilder.set(columnName).to(ByteArray.copyFrom(row.getBytes(columnName)));
+        byte @Nullable [] bytes = row.getBytes(columnName);
+        if (bytes == null) {
+          mutationBuilder.set(columnName).to(((ByteArray) null));
+        } else {
+          mutationBuilder.set(columnName).to(ByteArray.copyFrom(bytes));
+        }
         break;
       case ROW:
-        mutationBuilder
-            .set(columnName)
-            .to(
-                beamTypeToSpannerType(row.getSchema().getField(columnName).getType()),
-                beamRowToStruct(row.getRow(columnName)));
+        @Nullable Row subRow = row.getRow(columnName);
+        if (subRow == null) {
+          mutationBuilder
+              .set(columnName)
+              .to(beamTypeToSpannerType(row.getSchema().getField(columnName).getType()), null);
+        } else {
+          mutationBuilder
+              .set(columnName)
+              .to(
+                  beamTypeToSpannerType(row.getSchema().getField(columnName).getType()),
+                  beamRowToStruct(subRow));
+        }
         break;
       case ARRAY:
         addIterableToMutationBuilder(
@@ -218,19 +288,28 @@ final class MutationUtils {
 
   @SuppressWarnings("unchecked")
   private static void addIterableToMutationBuilder(
-      Mutation.WriteBuilder mutationBuilder, Iterable<Object> iterable, Schema.Field field) {
+      Mutation.WriteBuilder mutationBuilder,
+      @Nullable Iterable<Object> iterable,
+      Schema.Field field) {
     String column = field.getName();
     Schema.FieldType beamIterableType = field.getType().getCollectionElementType();
+    if (beamIterableType == null) {
+      throw new NullPointerException("Null collection element type at field " + field.getName());
+    }
     Schema.TypeName beamIterableTypeName = beamIterableType.getTypeName();
     switch (beamIterableTypeName) {
       case ROW:
-        mutationBuilder
-            .set(column)
-            .toStructArray(
-                beamTypeToSpannerType(beamIterableType),
-                StreamSupport.stream(iterable.spliterator(), false)
-                    .map(row -> beamRowToStruct((Row) row))
-                    .collect(toList()));
+        if (iterable == null) {
+          mutationBuilder.set(column).toStructArray(beamTypeToSpannerType(beamIterableType), null);
+        } else {
+          mutationBuilder
+              .set(column)
+              .toStructArray(
+                  beamTypeToSpannerType(beamIterableType),
+                  StreamSupport.stream(iterable.spliterator(), false)
+                      .map(row -> beamRowToStruct((Row) row))
+                      .collect(toList()));
+        }
         break;
       case INT16:
       case INT32:
@@ -249,29 +328,37 @@ final class MutationUtils {
         mutationBuilder.set(column).toBoolArray((Iterable<Boolean>) ((Object) iterable));
         break;
       case BYTES:
-        mutationBuilder
-            .set(column)
-            .toBytesArray(
-                StreamSupport.stream(iterable.spliterator(), false)
-                    .map(object -> ByteArray.copyFrom((byte[]) object))
-                    .collect(toList()));
+        if (iterable == null) {
+          mutationBuilder.set(column).toBytesArray(null);
+        } else {
+          mutationBuilder
+              .set(column)
+              .toBytesArray(
+                  StreamSupport.stream(iterable.spliterator(), false)
+                      .map(object -> ByteArray.copyFrom((byte[]) object))
+                      .collect(toList()));
+        }
         break;
       case STRING:
         mutationBuilder.set(column).toStringArray((Iterable<String>) ((Object) iterable));
         break;
       case DATETIME:
-        mutationBuilder
-            .set(column)
-            .toTimestampArray(
-                StreamSupport.stream(iterable.spliterator(), false)
-                    .map(datetime -> Timestamp.parseTimestamp((datetime).toString()))
-                    .collect(toList()));
+        if (iterable == null) {
+          mutationBuilder.set(column).toDateArray(null);
+        } else {
+          mutationBuilder
+              .set(column)
+              .toTimestampArray(
+                  StreamSupport.stream(iterable.spliterator(), false)
+                      .map(datetime -> Timestamp.parseTimestamp((datetime).toString()))
+                      .collect(toList()));
+        }
         break;
       default:
         throw new IllegalArgumentException(
             String.format(
-                "Unsupported iterable type while translating row to struct: %s",
-                field.getType().getCollectionElementType().getTypeName()));
+                "Unsupported iterable type '%s' while translating row to struct.",
+                beamIterableType.getTypeName()));
     }
   }
 }

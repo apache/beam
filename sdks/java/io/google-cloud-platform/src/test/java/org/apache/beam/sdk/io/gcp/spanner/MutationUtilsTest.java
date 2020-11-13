@@ -27,6 +27,7 @@ import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
+import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -45,16 +46,17 @@ public class MutationUtilsTest {
 
   private static final Schema WRITE_ROW_SCHEMA =
       Schema.builder()
-          .addInt64Field("f_int64")
-          .addDoubleField("f_float64")
-          .addStringField("f_string")
-          .addByteArrayField("f_bytes")
-          .addDateTimeField("f_date_time")
-          .addBooleanField("f_bool")
-          .addRowField("f_struct", EMPTY_SCHEMA)
-          .addRowField("f_struct_int64", INT64_SCHEMA)
-          .addArrayField("f_array", Schema.FieldType.INT64)
-          .addArrayField("f_struct_array", Schema.FieldType.row(INT64_SCHEMA))
+          .addNullableField("f_int64", Schema.FieldType.INT64)
+          .addNullableField("f_float64", Schema.FieldType.DOUBLE)
+          .addNullableField("f_string", Schema.FieldType.STRING)
+          .addNullableField("f_bytes", Schema.FieldType.BYTES)
+          .addNullableField("f_date_time", Schema.FieldType.DATETIME)
+          .addNullableField("f_bool", Schema.FieldType.BOOLEAN)
+          .addNullableField("f_struct", Schema.FieldType.row(EMPTY_SCHEMA))
+          .addNullableField("f_struct_int64", Schema.FieldType.row(INT64_SCHEMA))
+          .addNullableField("f_array", Schema.FieldType.array(Schema.FieldType.INT64))
+          .addNullableField(
+              "f_struct_array", Schema.FieldType.array(Schema.FieldType.row(INT64_SCHEMA)))
           .build();
 
   private static final Row WRITE_ROW =
@@ -71,14 +73,28 @@ public class MutationUtilsTest {
           .withFieldValue("f_struct_array", ImmutableList.of(INT64_ROW, INT64_ROW))
           .build();
 
+  private static final Row WRITE_ROW_NULLS =
+      Row.withSchema(WRITE_ROW_SCHEMA)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .build();
+
   private static final Schema KEY_SCHEMA =
       Schema.builder()
-          .addInt64Field("f_int64")
-          .addDoubleField("f_float64")
-          .addStringField("f_string")
-          .addByteArrayField("f_bytes")
-          .addDateTimeField("f_date_time")
-          .addBooleanField("f_bool")
+          .addNullableField("f_int64", Schema.FieldType.INT64)
+          .addNullableField("f_float64", Schema.FieldType.DOUBLE)
+          .addNullableField("f_string", Schema.FieldType.STRING)
+          .addNullableField("f_bytes", Schema.FieldType.BYTES)
+          .addNullableField("f_date_time", Schema.FieldType.DATETIME)
+          .addNullableField("f_bool", Schema.FieldType.BOOLEAN)
           .build();
 
   private static final Row KEY_ROW =
@@ -89,6 +105,16 @@ public class MutationUtilsTest {
           .withFieldValue("f_bytes", "some_bytes".getBytes(UTF_8))
           .withFieldValue("f_date_time", DateTime.parse("2077-10-15T00:00:00+00:00"))
           .withFieldValue("f_bool", false)
+          .build();
+
+  private static final Row KEY_ROW_NULLS =
+      Row.withSchema(KEY_SCHEMA)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
+          .addValue(null)
           .build();
 
   @Test
@@ -126,6 +152,42 @@ public class MutationUtilsTest {
     assertEquals(expectedMutation, mutation);
   }
 
+  @Test
+  public void testCreateInsertMutationFromRowWithNulls() {
+    Mutation expectedMutation = createMutationNulls(Mutation.Op.INSERT);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.INSERT, TABLE).apply(WRITE_ROW_NULLS);
+    assertEquals(expectedMutation, mutation);
+  }
+
+  @Test
+  public void testCreateInsertOrUpdateMutationFromRowWithNulls() {
+    Mutation expectedMutation = createMutationNulls(Mutation.Op.INSERT_OR_UPDATE);
+    Mutation mutation =
+        beamRowToMutationFn(Mutation.Op.INSERT_OR_UPDATE, TABLE).apply(WRITE_ROW_NULLS);
+    assertEquals(expectedMutation, mutation);
+  }
+
+  @Test
+  public void testCreateUpdateMutationFromRowWithNulls() {
+    Mutation expectedMutation = createMutationNulls(Mutation.Op.UPDATE);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.UPDATE, TABLE).apply(WRITE_ROW_NULLS);
+    assertEquals(expectedMutation, mutation);
+  }
+
+  @Test
+  public void testCreateReplaceMutationFromRowWithNulls() {
+    Mutation expectedMutation = createMutationNulls(Mutation.Op.REPLACE);
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.REPLACE, TABLE).apply(WRITE_ROW_NULLS);
+    assertEquals(expectedMutation, mutation);
+  }
+
+  @Test
+  public void testCreateDeleteMutationFromRowWithNulls() {
+    Mutation expectedMutation = createDeleteMutationNulls();
+    Mutation mutation = beamRowToMutationFn(Mutation.Op.DELETE, TABLE).apply(KEY_ROW_NULLS);
+    assertEquals(expectedMutation, mutation);
+  }
+
   private static Mutation createDeleteMutation() {
     Key key =
         Key.newBuilder()
@@ -135,6 +197,19 @@ public class MutationUtilsTest {
             .append(ByteArray.copyFrom("some_bytes".getBytes(UTF_8)))
             .append(Timestamp.parseTimestamp("2077-10-15T00:00:00"))
             .append(false)
+            .build();
+    return Mutation.delete(TABLE, key);
+  }
+
+  private static Mutation createDeleteMutationNulls() {
+    Key key =
+        Key.newBuilder()
+            .append((Long) null)
+            .append((Double) null)
+            .append((String) null)
+            .append((ByteArray) null)
+            .append((Timestamp) null)
+            .append((Boolean) null)
             .build();
     return Mutation.delete(TABLE, key);
   }
@@ -164,6 +239,32 @@ public class MutationUtilsTest {
         .toStructArray(
             Type.struct(ImmutableList.of(Type.StructField.of("int64", Type.int64()))),
             ImmutableList.of(INT64_STRUCT, INT64_STRUCT))
+        .build();
+  }
+
+  private static Mutation createMutationNulls(Mutation.Op operation) {
+    Mutation.WriteBuilder builder = chooseBuilder(operation);
+    return builder
+        .set("f_int64")
+        .to((Long) null)
+        .set("f_float64")
+        .to((Double) null)
+        .set("f_string")
+        .to((String) null)
+        .set("f_bytes")
+        .to((ByteArray) null)
+        .set("f_date_time")
+        .to((Timestamp) null)
+        .set("f_bool")
+        .to((Boolean) null)
+        .set("f_struct")
+        .to(Type.struct(), null)
+        .set("f_struct_int64")
+        .to(Type.struct(Type.StructField.of("int64", Type.int64())), null)
+        .set("f_array")
+        .toInt64Array((List<Long>) null)
+        .set("f_struct_array")
+        .toStructArray(Type.struct(Type.StructField.of("int64", Type.int64())), null)
         .build();
   }
 

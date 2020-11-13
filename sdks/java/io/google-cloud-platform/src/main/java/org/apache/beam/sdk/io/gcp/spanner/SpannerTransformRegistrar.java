@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static com.google.cloud.spanner.TimestampBound.Mode.MAX_STALENESS;
+import static com.google.cloud.spanner.TimestampBound.Mode.READ_TIMESTAMP;
 
 import com.google.auto.service.AutoService;
 import com.google.cloud.Timestamp;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -48,9 +50,6 @@ import org.joda.time.Duration;
  */
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
   public static final String INSERT_URN = "beam:external:java:spanner:insert:v1";
   public static final String UPDATE_URN = "beam:external:java:spanner:update:v1";
@@ -61,6 +60,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
   public static final String READ_URN = "beam:external:java:spanner:read:v1";
 
   @Override
+  @NonNull
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
     return ImmutableMap.<String, ExternalTransformBuilder<?, ?, ?>>builder()
         .put(INSERT_URN, new InsertBuilder())
@@ -73,9 +73,9 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
   }
 
   public abstract static class CrossLanguageConfiguration {
-    String instanceId;
-    String databaseId;
-    String projectId;
+    String instanceId = "";
+    String databaseId = "";
+    String projectId = "";
     @Nullable String host;
     @Nullable String emulatorHost;
 
@@ -98,6 +98,18 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
     public void setEmulatorHost(@Nullable String emulatorHost) {
       this.emulatorHost = emulatorHost;
     }
+
+    void checkMandatoryFields() {
+      if (projectId.isEmpty()) {
+        throw new IllegalArgumentException("projectId can't be empty");
+      }
+      if (databaseId.isEmpty()) {
+        throw new IllegalArgumentException("databaseId can't be empty");
+      }
+      if (instanceId.isEmpty()) {
+        throw new IllegalArgumentException("instanceId can't be empty");
+      }
+    }
   }
 
   @Experimental(Kind.PORTABILITY)
@@ -106,7 +118,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     public static class Configuration extends CrossLanguageConfiguration {
       // TODO: BEAM-10851 Come up with something to determine schema without this explicit parameter
-      private Schema schema;
+      private Schema schema = Schema.builder().build();
       private @Nullable String sql;
       private @Nullable String table;
       private @Nullable Boolean batching;
@@ -151,52 +163,61 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         if (timestampBoundMode == null) {
           return null;
         }
-
         TimestampBound.Mode mode = TimestampBound.Mode.valueOf(timestampBoundMode);
-        if (mode == TimestampBound.Mode.MAX_STALENESS
-            || mode == TimestampBound.Mode.EXACT_STALENESS) {
-          checkArgument(
-              exactStaleness != null,
-              "Staleness value cannot be null when MAX_STALENESS or EXACT_STALENESS mode is selected");
-          checkArgument(
-              timeUnit != null,
-              "Time unit cannot be null when MAX_STALENESS or EXACT_STALENESS mode is selected");
-        }
-        if (mode == TimestampBound.Mode.READ_TIMESTAMP
-            || mode == TimestampBound.Mode.MIN_READ_TIMESTAMP) {
-          checkArgument(
-              readTimestamp != null,
-              "Timestamp cannot be null when READ_TIMESTAMP or MIN_READ_TIMESTAMP mode is selected");
-        }
         switch (mode) {
           case STRONG:
             return TimestampBound.strong();
           case MAX_STALENESS:
-            return TimestampBound.ofMaxStaleness(exactStaleness, TimeUnit.valueOf(timeUnit));
           case EXACT_STALENESS:
-            return TimestampBound.ofExactStaleness(exactStaleness, TimeUnit.valueOf(timeUnit));
+            if (staleness == null) {
+              throw new NullPointerException(
+                  "Staleness value cannot be empty when MAX_STALENESS or EXACT_STALENESS mode is selected");
+            }
+            if (timeUnit == null) {
+              throw new NullPointerException(
+                  "Time unit cannot be null when MAX_STALENESS or EXACT_STALENESS mode is selected");
+            }
+            return mode == MAX_STALENESS
+                ? TimestampBound.ofMaxStaleness(staleness, TimeUnit.valueOf(timeUnit))
+                : TimestampBound.ofExactStaleness(staleness, TimeUnit.valueOf(timeUnit));
           case READ_TIMESTAMP:
-            return TimestampBound.ofReadTimestamp(Timestamp.parseTimestamp(readTimestamp));
           case MIN_READ_TIMESTAMP:
-            return TimestampBound.ofMinReadTimestamp(Timestamp.parseTimestamp(readTimestamp));
+            if (readTimestamp == null) {
+              throw new NullPointerException(
+                  "Timestamp cannot be null when READ_TIMESTAMP or MIN_READ_TIMESTAMP mode is selected");
+            }
+            return mode == READ_TIMESTAMP
+                ? TimestampBound.ofReadTimestamp(Timestamp.parseTimestamp(readTimestamp))
+                : TimestampBound.ofMinReadTimestamp(Timestamp.parseTimestamp(readTimestamp));
           default:
-            throw new RuntimeException("Unknown timestamp bound mode: " + mode);
+            throw new IllegalArgumentException("Unknown timestamp bound mode: " + mode);
         }
       }
 
       public ReadOperation getReadOperation() {
-        checkArgument(
-            sql == null || table == null,
-            "Query and table params are mutually exclusive. Set just one of them.");
-        if (sql != null) {
-          return ReadOperation.create().withQuery(sql);
+        if (sql != null && table != null) {
+          throw new IllegalStateException(
+              "Query and table params are mutually exclusive. Set just one of them.");
         }
-        return ReadOperation.create().withTable(table).withColumns(schema.getFieldNames());
+        ReadOperation readOperation = ReadOperation.create();
+        if (sql != null) {
+          return readOperation.withQuery(sql);
+        }
+        if (Schema.builder().build().equals(schema)) {
+          throw new IllegalArgumentException("Schema can't be empty");
+        }
+        if (table != null) {
+          return readOperation.withTable(table).withColumns(schema.getFieldNames());
+        }
+        throw new IllegalStateException("Can't happen");
       }
     }
 
     @Override
+    @NonNull
     public PTransform<PBegin, PCollection<Row>> buildExternal(Configuration configuration) {
+      configuration.checkMandatoryFields();
+
       SpannerIO.Read readTransform =
           SpannerIO.read()
               .withProjectId(configuration.projectId)
@@ -210,8 +231,9 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       if (configuration.emulatorHost != null) {
         readTransform = readTransform.withEmulatorHost(configuration.emulatorHost);
       }
-      if (configuration.getTimestampBound() != null) {
-        readTransform = readTransform.withTimestampBound(configuration.getTimestampBound());
+      @Nullable TimestampBound timestampBound = configuration.getTimestampBound();
+      if (timestampBound != null) {
+        readTransform = readTransform.withTimestampBound(timestampBound);
       }
       if (configuration.batching != null) {
         readTransform = readTransform.withBatching(configuration.batching);
@@ -267,7 +289,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     public static class Configuration extends CrossLanguageConfiguration {
-      private String table;
+      private String table = "";
       private @Nullable Long maxBatchSizeBytes;
       private @Nullable Long maxNumberMutations;
       private @Nullable Long maxNumberRows;
@@ -311,7 +333,10 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     @Override
+    @NonNull
     public PTransform<PCollection<Row>, PDone> buildExternal(Configuration configuration) {
+      configuration.checkMandatoryFields();
+
       SpannerIO.Write writeTransform =
           SpannerIO.write()
               .withProjectId(configuration.projectId)
