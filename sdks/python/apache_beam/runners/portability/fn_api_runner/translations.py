@@ -789,9 +789,6 @@ def eliminate_common_key_with_none(stages, context):
   pcoll_id_remap = {}
   remaining_stages = []
   for sibling_stages in grouped_eligible_stages.values():
-    if len(sibling_stages) == 1:
-      ineligible_stages.extend(sibling_stages)
-      continue
     output_pcoll_ids = [
         only_element(stage.transforms[0].outputs.values())
         for stage in sibling_stages
