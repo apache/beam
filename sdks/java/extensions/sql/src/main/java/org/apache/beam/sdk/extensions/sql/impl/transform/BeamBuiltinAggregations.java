@@ -17,32 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.util.Map;
-import java.util.function.Function;
-import org.apache.beam.sdk.coders.BigDecimalCoder;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.Sample;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.Map;
+import java.util.function.Function;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 public class BeamBuiltinAggregations {
@@ -60,6 +52,7 @@ public class BeamBuiltinAggregations {
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
+              .put("LOGICAL_AND",BeamBuiltinAggregations::createLogicalAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -478,4 +471,48 @@ public class BeamBuiltinAggregations {
   //      return accum.val;
   //    }
   //  }
+
+  static CombineFn createLogicalAnd(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.BOOLEAN) {
+      return new LogicalAnd();
+    }
+    throw new UnsupportedOperationException(String.format("[%s] is not supported in LOGICAL_AND", fieldType));
+  }
+
+  static class LogicalAnd<T> extends CombineFn<T, Boolean, Boolean> {
+
+    // Indicate if input only contains null value.
+    private boolean isEmpty = true;
+    @Override
+    public Boolean createAccumulator() {
+      return null;
+    }
+
+    @Override
+    public Boolean addInput(Boolean accum, T input) {
+      if (input != null) {
+        this.isEmpty = false;
+        return accum && (Boolean) input;
+      }else {
+        return null;
+      }
+    }
+
+    @Override
+    public Boolean mergeAccumulators(Iterable<Boolean> accumulators) {
+      Boolean merged = createAccumulator();
+      for (Boolean accum : accumulators) {
+        merged = merged && accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Boolean extractOutput(Boolean accumulator) {
+      if(this.isEmpty){
+        return  null;
+      }
+      return accumulator;
+    }
+  }
 }

@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
-import java.util.Map;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+
+import java.util.Map;
 
 /** SqlOperatorMappingTable. */
 class SqlOperatorMappingTable {
@@ -79,6 +80,7 @@ class SqlOperatorMappingTable {
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)
           .put("timestamp", SqlOperators.TIMESTAMP_OP)
+          .put("logical_and", SqlOperators.LOGICAL_AND)
           .put("$case_no_value", SqlStdOperatorTable.CASE)
 
           // if operator - IF(cond, pos, neg) can actually be mapped directly to `CASE WHEN cond
