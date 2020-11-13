@@ -512,8 +512,8 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     if ARROW_MAJOR_VERSION == 1 and self._codec.lower() == "lz4":
       raise ValueError(
           "Due to ARROW-9424, writing with LZ4 compression is not supported in "
-          "pyarrow 1.x, please use a different pyarrow version or a different codec. "
-          f"Your pyarrow version: {pa.__version__}")
+          "pyarrow 1.x, please use a different pyarrow version or a different "
+          f"codec. Your pyarrow version: {pa.__version__}")
     self._row_group_buffer_size = row_group_buffer_size
     self._use_deprecated_int96_timestamps = use_deprecated_int96_timestamps
     self._buffer = [[] for _ in range(len(schema.names))]
