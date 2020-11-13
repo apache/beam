@@ -32,9 +32,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -364,15 +364,7 @@ public final class DynamoDBIO {
 
       abstract Builder<T> setOverwriteByPKeys(List<String> overwriteByPKeys);
 
-      abstract Write<T> autoBuild();
-
-      Write<T> build() {
-        Write<T> write = autoBuild();
-        if (write.getOverwriteByPKeys() == null) {
-          write = write.withOverwriteByPKeys(new ArrayList<>());
-        }
-        return write;
-      }
+      abstract Write<T> build();
     }
 
     public Write<T> withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
