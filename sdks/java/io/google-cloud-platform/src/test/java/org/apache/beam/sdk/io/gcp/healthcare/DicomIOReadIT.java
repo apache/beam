@@ -26,6 +26,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -70,6 +71,14 @@ public class DicomIOReadIT {
         pipeline.apply(Create.of(webPath)).apply(DicomIO.readStudyMetadata());
 
     PAssert.that(result.getFailedReads()).empty();
+    PAssert.that(result.getReadResponse())
+        .satisfies(
+            input -> {
+              for (String resp : input) {
+                Assert.assertTrue(resp.contains(TEST_FILE_STUDY_ID));
+              }
+              return null;
+            });
 
     PipelineResult job = pipeline.run();
 
