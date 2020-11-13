@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -146,20 +147,25 @@ public class BeamFnLoggingClientTest {
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
+      // Keep a strong reference to the loggers in this block. Otherwise the call to client.close()
+      // removes the only reference and the logger may get GC'd (BEAM-4136).
+      Logger rootLogger = LogManager.getLogManager().getLogger("");
+      Logger configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
+
       // Ensure that log levels were correctly set.
-      assertEquals(Level.OFF, LogManager.getLogManager().getLogger("").getLevel());
-      assertEquals(Level.FINE, LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      assertEquals(Level.OFF, rootLogger.getLevel());
+      assertEquals(Level.FINE, configuredLogger.getLevel());
 
       // Should be filtered because the default log level override is OFF
-      LogManager.getLogManager().getLogger("").log(FILTERED_RECORD);
+      rootLogger.log(FILTERED_RECORD);
       // Should not be filtered because the default log level override for ConfiguredLogger is DEBUG
-      LogManager.getLogManager().getLogger("ConfiguredLogger").log(TEST_RECORD);
-      LogManager.getLogManager().getLogger("ConfiguredLogger").log(TEST_RECORD_WITH_EXCEPTION);
+      configuredLogger.log(TEST_RECORD);
+      configuredLogger.log(TEST_RECORD_WITH_EXCEPTION);
       client.close();
 
       // Verify that after close, log levels are reset.
-      assertEquals(Level.INFO, LogManager.getLogManager().getLogger("").getLevel());
-      assertNull(LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      assertEquals(Level.INFO, rootLogger.getLevel());
+      assertNull(configuredLogger.getLevel());
 
       assertTrue(clientClosedStream.get());
       assertTrue(channel.isShutdown());
