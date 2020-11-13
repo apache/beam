@@ -251,7 +251,7 @@ task buildAndPushDockerContainer() {
 task cleanUpDockerImages() {
   doLast {
     exec {
-      commandLine "docker", "rmi", "${dockerImageName}"
+      commandLine "docker", "rmi", "--force", "${dockerImageName}"
     }
     exec {
       commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
