@@ -100,7 +100,7 @@ func addEnvironmentID(c *pipepb.Components, idMap map[string]string, eid string,
 	return idMap[eid]
 }
 
-func AddNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) {
+func addNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) {
 	newID := func(id string) string {
 		return fmt.Sprintf("%v@%v", id, namespace)
 	}

@@ -89,12 +89,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	// Fetch all dependencies for cross-language transforms
 	xlangx.ResolveArtifacts(ctx, edges, pipeline)
 
-	// Remap outputs of expanded transforms to be the inputs for all downstream consumers
-	xlangx.PurgeOutputInput(edges, pipeline)
-
-	// Merge the expanded components into the existing pipeline
-	xlangx.MergeExpandedWithPipeline(edges, pipeline)
-
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
 	opt := &runnerlib.JobOptions{
