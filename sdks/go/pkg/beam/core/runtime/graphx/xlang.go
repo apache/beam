@@ -23,8 +23,8 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-// MergeExpandedWithPipeline adds expanded components of all ExternalTransforms to the existing pipeline
-func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
+// mergeExpandedWithPipeline adds expanded components of all ExternalTransforms to the existing pipeline
+func mergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	// Adding Expanded transforms to their counterparts in the Pipeline
 
 	for _, e := range edges {
@@ -55,10 +55,10 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 				p.Components.Coders[k] = v
 			}
 			for k, v := range components.GetEnvironments() {
-				if k == "go" {
+				if k == defaultEnvId {
 					// This case is not an anomaly. It is expected to be always
 					// present. Any initial ExpansionRequest will have a
-					// component which requires the "go" environment. Scoping
+					// component which requires the default environment. Scoping
 					// using unique namespace prevents collision.
 					continue
 				}
@@ -77,7 +77,7 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 // PurgeOutputInput remaps outputs from edge corresponding to an
 // ExternalTransform with the correct expanded outputs. All consumers of the
 // previous outputs are updated with new inputs.
-func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
+func purgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	idxMap := make(map[string]string)
 	components := p.GetComponents()
 
@@ -227,7 +227,6 @@ func RemoveFakeImpulses(c *pipepb.Components, ext *pipepb.PTransform) {
 		t := transforms[id]
 		if t.GetSpec().GetUrn() == URNImpulse {
 			delete(transforms, id)
-
 		}
 	}
 }

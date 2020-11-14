@@ -27,17 +27,17 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Expand expands an unexpanded graph.ExternalTransform and returns the expanded
-// transform as a new graph.ExpandedTransform. This requires querying an
-// expansion service based on the configuration details within the
-// ExternalTransform.
-func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) (*graph.ExpandedTransform, error) {
+// Expand expands an unexpanded graph.ExternalTransform as a
+// graph.ExpandedTransform and assigns it to the ExternalTransform's Expanded
+// field. This requires querying an expansion service based on the configuration
+// details within the ExternalTransform.
+func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	// Build the ExpansionRequest
 
 	// Obtaining the components and transform proto representing this transform
 	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to generate proto representation of %v", ext)
+		return errors.Wrapf(err, "unable to generate proto representation of %v", ext)
 	}
 
 	transforms := p.GetComponents().GetTransforms()
@@ -50,7 +50,7 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) (*graph.Expande
 		delete(transforms, extTransformID)
 		p, err := pipelinex.Normalize(p)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		extTransformID = p.GetRootTransformIds()[0]
 		extTransform = transforms[extTransformID]
@@ -58,15 +58,15 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) (*graph.Expande
 
 	// Scoping the ExternalTransform with respect to it's unique namespace, thus
 	// avoiding future collisions
-	AddNamespace(extTransform, p.GetComponents(), ext.Namespace)
+	addNamespace(extTransform, p.GetComponents(), ext.Namespace)
 
 	graphx.AddFakeImpulses(p) // Inputs need to have sources
 	delete(transforms, extTransformID)
 
 	// Querying the expansion service
-	res, err := QueryExpansionService(context.Background(), p.GetComponents(), extTransform, ext.Namespace, ext.ExpansionAddr)
+	res, err := queryExpansionService(context.Background(), p.GetComponents(), extTransform, ext.Namespace, ext.ExpansionAddr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Handling ExpansionResponse
@@ -80,17 +80,18 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) (*graph.Expande
 		Transform:    res.GetTransform(),
 		Requirements: res.GetRequirements(),
 	}
-	return exp, nil
+	ext.Expanded = exp
+	return nil
 }
 
-// QueryExpansionService submits an external transform to be expanded by the
+// queryExpansionService submits an external transform to be expanded by the
 // expansion service. The given transform should be the external transform, and
 // the components are any additional components necessary for the pipeline
 // snippet.
 //
 // Users should generally call beam.CrossLanguage to access foreign transforms
 // rather than calling this function directly.
-func QueryExpansionService(
+func queryExpansionService(
 	ctx context.Context,
 	comps *pipepb.Components,
 	transform *pipepb.PTransform,

@@ -84,11 +84,10 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inboun
 	// unique namespace can be requested.
 	ext.Namespace = graph.NewNamespace()
 
-	expanded, err := xlangx.Expand(edge, ext)
-	if err != nil {
+	// Expand the transform into ext.Expanded.
+	if err := xlangx.Expand(edge, ext); err != nil {
 		return nil, errors.WithContext(err, "expanding external transform")
 	}
-	ext.Expanded = expanded
 
 	// Ensures the expected named outputs are present
 	graphx.VerifyNamedOutputs(ext)

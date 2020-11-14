@@ -153,9 +153,9 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 	// If there are external transforms that need expanding, do it now.
 	if m.needsExpansion {
 		// Remap outputs of expanded external transforms to be the inputs for all downstream consumers
-		PurgeOutputInput(edges, p)
+		purgeOutputInput(edges, p)
 		// Merge the expanded components into the existing pipeline
-		MergeExpandedWithPipeline(edges, p)
+		mergeExpandedWithPipeline(edges, p)
 	}
 
 	return p, nil
@@ -898,12 +898,13 @@ func boolToBounded(bounded bool) pipepb.IsBounded_Enum {
 	return pipepb.IsBounded_UNBOUNDED
 }
 
+const defaultEnvId = "go"
+
 func (m *marshaller) addDefaultEnv() string {
-	const id = "go"
-	if _, exists := m.environments[id]; !exists {
-		m.environments[id] = m.opt.Environment
+	if _, exists := m.environments[defaultEnvId]; !exists {
+		m.environments[defaultEnvId] = m.opt.Environment
 	}
-	return id
+	return defaultEnvId
 }
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, error) {
