@@ -107,7 +107,10 @@ rat {
     "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
 
     // JupyterLab extensions
-    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock"
+    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
+
+    // Sample text file for Java quickstart
+    "sdks/java/maven-archetypes/examples/sample.txt"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
