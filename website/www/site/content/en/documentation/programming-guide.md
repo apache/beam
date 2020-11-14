@@ -5500,7 +5500,7 @@ Pipelines that use transforms from more than one SDK-language are known as *mult
 
 ### 13.1. Creating cross-language transforms {#create-x-lang-transforms}
 
-To make transforms written in one language available to pipelines written in another language, an *expansion service* for that transform is used to create and inject the appropriate language-specific pipeline fragments into your pipeline.
+To make transforms written in one language available to pipelines written in another language, an *expansion service* for transforms written in the same language is used to create and inject the appropriate language-specific pipeline fragments into your pipeline.
 
 In the following example, a Python pipeline written the Apache Beam SDK for Python starts up a local Java expansion service on your computer to create and inject the appropriate Java pipeline fragments for executing the Java Kafka cross-language transform into your Python pipeline. The SDK then downloads and stages the necessary Java dependencies needed to execute these transforms.
 
@@ -5568,16 +5568,15 @@ public static class External implements ExternalTransformRegistrar {
   /** Parameters class to expose the Read transform to an external SDK. */
   public static class Configuration {
     private Map<String, String> consumerConfig;
-      private List<String> topics;
+    private List<String> topics;
 
+    public void setConsumerConfig(Map<String, String> consumerConfig) {
+      this.consumerConfig = consumerConfig;
+    }
 
-      public void setConsumerConfig(Map<String, String> consumerConfig) {
-        this.consumerConfig = consumerConfig;
-      }
-
-      public void setTopics(List<String> topics) {
-        this.topics = topics;
-      }
+    public void setTopics(List<String> topics) {
+      this.topics = topics;
+    }
 
     /** Remaining properties omitted for clarity. */
   }
@@ -5586,20 +5585,20 @@ public static class External implements ExternalTransformRegistrar {
 
 After you have implemented the `ExternalTransformBuilder` and `ExternalTransformRegistrar` interfaces, your transform can be registered and created successfully by the default Java expansion service.
 
-**Using the expansion service**
+**Starting the expansion service**
 
-Java has a default expansion service included and available in the Apache Beam Java SDK. You can write your own expansion service, but that is generally not needed, so it is not covered in this section.
+An expansion service can be used with multiple transforms in the same pipeline. Java has a default expansion service included and available in the Apache Beam Java SDK for you to use with your Java transforms. You can write your own expansion service, but that is generally not needed, so it is not covered in this section.
 
-Perform the following steps to start up a Java expansion service directly:
+Perform the following to start up a Java expansion service directly:
 
 {{< highlight >}}
-// Path to a JAR file that contains the transform to expand, cross-language specific utilities (builder, registrar, etc.), and dependencies.
-$ export EXPANSION_SERVICE_JAR=<My_expansion_service_JAR>
+# TODO: Build a JAR with both your transform and the expansion service
 
-$ export PORT_FOR_EXPANSION_SERVICE=12345
-
-$ jar -jar $EXPANSION_SERVICE_JAR $PORT_FOR_EXPANSION_SERVICE
+# Start the expansion service at the specified port.
+$ jar -jar /path/to/expansion_service.jar <PORT_NUMBER>
 {{< /highlight >}}
+
+The expansion service is now ready to serve transforms on the specified port.
 
 When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the [BeamJarExpansionService](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) utility for starting up a Java expansion service using a JAR file.
 
@@ -5613,7 +5612,7 @@ Your cross-language Java transform can be called through the lower-level [Extern
 
 To create an SDK wrapper for use in a Python pipeline, do the following:
 
-1. Create a Python module for your cross-language transform.
+1. Create a Python module for your cross-language transform(s).
 2. In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes.
 
     The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
@@ -5678,9 +5677,9 @@ def from_runner_api_parameter(
     return CombinePerKeyTransform()
     {{< /highlight >}}
 
-**Using the expansion service**
+**Starting the expansion service**
 
-Python has a default expansion service included and available in the Apache Beam SDK. You are free to write your own expansion service, but that is generally not needed, so it is not covered in this section.
+An expansion service can be used with multiple transforms in the same pipeline. Python has a default expansion service included and available in the Apache Beam Python SDK for you to use with your Python transforms. You are free to write your own expansion service, but that is generally not needed, so it is not covered in this section.
 
 Perform the following steps to start up the default Python expansion service directly:
 
@@ -5708,7 +5707,7 @@ Currently, to access cross-language transforms from the Java SDK, you have to us
 
 1. Make sure you have any runtime environment dependencies (like JRE) installed on your local machine (either directly on the local machine or available through a container). See the expansion service section for more details.
 
-    > **Note:** When including Python transforms from within a Java pipeline, all python dependencies have to be baked into the SDK harness container.
+    > **Note:** When including Python transforms from within a Java pipeline, all Python dependencies have to be included in the SDK harness container.
 2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
 
     Make sure the transform you are trying to use is available and can be used by the expansion service.
