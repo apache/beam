@@ -99,7 +99,7 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 		Payload:      serializedPayload,
 		Capabilities: goCapabilities(),
 		Dependencies: []*pipepb.ArtifactInformation{
-			&pipepb.ArtifactInformation{
+			{
 				TypeUrn: URNArtifactGoWorker,
 				RoleUrn: URNArtifactStagingTo,
 				RolePayload: protox.MustEncode(&pipepb.ArtifactStagingToRolePayload{
