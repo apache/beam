@@ -54,13 +54,6 @@ final class MutationUtils {
   /**
    * Utility function to convert row to mutation for cross-language usage.
    *
-   * <p>Spanner mutations are represented as Row with the following schema: table (String): name of
-   * the table. operation (String): name of the operation (possible values: {INSERT,
-   * INSERT_OR_UPDATE, REPLACE, UPDATE, DELETE}. row (Optional<Row>): row with fields compatible
-   * with the mutated table's schema. Used only with INSERT, INSERT_OR_UPDATE, REPLACE, UPDATE
-   * operations. keyset (Optional<Array<Row>>): list of rows compatible with the keyset of the
-   * mutated table. Used only with DELETE operation.
-   *
    * @return function that can convert row to mutation
    */
   public static SerializableFunction<Row, Mutation> beamRowToMutationFn(
