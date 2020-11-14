@@ -144,7 +144,21 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 		Components:   m.build(),
 		Requirements: m.getRequirements(),
 	}
-	return pipelinex.Normalize(p)
+
+	p, err := pipelinex.Normalize(p)
+	if err != nil {
+		return nil, err
+	}
+
+	// If there are external transforms that need expanding, do it now.
+	if m.needsExpansion {
+		// Remap outputs of expanded external transforms to be the inputs for all downstream consumers
+		purgeOutputInput(edges, p)
+		// Merge the expanded components into the existing pipeline
+		mergeExpandedWithPipeline(edges, p)
+	}
+
+	return p, nil
 }
 
 type marshaller struct {
@@ -159,6 +173,8 @@ type marshaller struct {
 	coders *CoderMarshaller
 
 	windowing2id map[string]string
+
+	needsExpansion bool // Indicates external transforms need to be expanded.
 }
 
 func newMarshaller(opt *Options) *marshaller {
@@ -285,12 +301,17 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			return handleErr(err)
 		}
 		return []string{reshuffleID}, nil
-	case edge.Edge.Op == graph.External && edge.Edge.Payload == nil:
-		edgeID, err := m.expandCrossLanguage(edge)
-		if err != nil {
-			return handleErr(err)
+	case edge.Edge.Op == graph.External:
+		if edge.Edge.External.Expanded != nil {
+			m.needsExpansion = true
 		}
-		return []string{edgeID}, nil
+		if edge.Edge.Payload == nil {
+			edgeID, err := m.expandCrossLanguage(edge)
+			if err != nil {
+				return handleErr(err)
+			}
+			return []string{edgeID}, nil
+		}
 	}
 
 	inputs := make(map[string]string)
@@ -877,12 +898,13 @@ func boolToBounded(bounded bool) pipepb.IsBounded_Enum {
 	return pipepb.IsBounded_UNBOUNDED
 }
 
+const defaultEnvId = "go"
+
 func (m *marshaller) addDefaultEnv() string {
-	const id = "go"
-	if _, exists := m.environments[id]; !exists {
-		m.environments[id] = m.opt.Environment
+	if _, exists := m.environments[defaultEnvId]; !exists {
+		m.environments[defaultEnvId] = m.opt.Environment
 	}
-	return id
+	return defaultEnvId
 }
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, error) {
