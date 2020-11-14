@@ -159,12 +159,12 @@ For Unix shells:
 
 {{< highlight class="runner-direct" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
+     -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -Pflink-runner
+     -Dexec.args="--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts" -Pflink-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
@@ -177,7 +177,7 @@ You can monitor the running job by visiting the Flink dashboard at http://<flink
 
 {{< highlight class="runner-spark" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -Pspark-runner
+     -Dexec.args="--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts" -Pspark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -193,7 +193,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {{< highlight class="runner-samza-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
+     -Dexec.args="--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
@@ -211,12 +211,12 @@ For Windows PowerShell:
 
 {{< highlight class="runner-direct" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--inputFile=sample.txt --output=counts" -P direct-runner
+ -D exec.args="--inputFile=/path/to/inputfile --output=counts" -P direct-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -P flink-runner
+ -D exec.args="--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts" -P flink-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
@@ -229,7 +229,7 @@ You can monitor the running job by visiting the Flink dashboard at http://<flink
 
 {{< highlight class="runner-spark" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -P spark-runner
+ -D exec.args="--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts" -P spark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -245,7 +245,7 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 
 {{< highlight class="runner-samza-local" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
-     -D exec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
+     -D exec.args="--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
@@ -283,7 +283,7 @@ We are working on adding the instruction for this runner!
 
 {{< highlight class="runner-spark" >}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=sample.txt --output=counts" -Pspark-runner
+    -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pspark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
