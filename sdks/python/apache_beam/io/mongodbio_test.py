@@ -28,6 +28,7 @@ from unittest import TestCase
 
 import mock
 from bson import objectid
+from parameterized import parameterized_class
 from pymongo import ASCENDING
 from pymongo import ReplaceOne
 
@@ -51,7 +52,13 @@ class _MockMongoColl(object):
   def __init__(self, docs):
     self.docs = docs
 
-  def _filter(self, filter, projection):
+  def __getitem__(self, index):
+    return self.docs[index]
+
+  def __len__(self):
+    return len(self.docs)
+
+  def _filter(self, filter, projection=None):
     projection = [] if projection is None else projection
     match = []
     if not filter:
@@ -87,8 +94,31 @@ class _MockMongoColl(object):
   def count_documents(self, filter):
     return len(self._filter(filter))
 
-  def __getitem__(self, index):
-    return self.docs[index]
+  def aggregate(self, pipeline):
+    # simulate $bucketAuto aggregate pipeline
+    doc_count = self.count_documents({})
+    bucket_count = min(pipeline[0]['$bucketAuto']['buckets'], doc_count)
+    # bucket_count ≠ 0
+    if doc_count % bucket_count == 0:
+      bucket_len = doc_count // bucket_count
+    else:
+      bucket_len = doc_count // (bucket_count - 1)
+    buckets = []
+    for start in range(0, doc_count, bucket_len):
+      if start + bucket_len < doc_count:
+        stop = start + bucket_len
+        count = bucket_len
+      else:
+        stop = doc_count - 1
+        count = doc_count - start
+      buckets.append({
+          '_id': {
+              'min': self.docs[start]['_id'],
+              'max': self.docs[stop]['_id'],
+          },
+          'count': count
+      })
+    return buckets
 
 
 class _MockMongoDb(object):
@@ -146,6 +176,7 @@ class _MockMongoClient(object):
     pass
 
 
+@parameterized_class(('bucket_auto', ), [(False, ), (True, )])
 class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def setUp(self, mock_client):
@@ -157,8 +188,12 @@ class MongoSourceTest(unittest.TestCase):
     self._docs = [{'_id': self._ids[i], 'x': i} for i in range(len(self._ids))]
     mock_client.return_value = _MockMongoClient(self._docs)
 
-    self.mongo_source = _BoundedMongoSource(
-        'mongodb://test', 'testdb', 'testcoll')
+    if self.bucket_auto:
+      self.mongo_source = _BoundedMongoSource(
+          'mongodb://test', 'testdb', 'testcoll', bucket_auto=True)
+    else:
+      self.mongo_source = _BoundedMongoSource(
+          'mongodb://test', 'testdb', 'testcoll')
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_estimate_size(self, mock_client):
@@ -246,6 +281,7 @@ class MongoSourceTest(unittest.TestCase):
     self.assertTrue('collection' in data)
 
 
+@parameterized_class(('bucket_auto', ), [(False, ), (True, )])
 class ReadFromMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read_from_mongodb(self, mock_client):
@@ -265,7 +301,8 @@ class ReadFromMongoDBTest(unittest.TestCase):
           uri='mongodb://test',
           db='db',
           coll='collection',
-          projection=projection)
+          projection=projection,
+          bucket_auto=self.bucket_auto)
       assert_that(docs, equal_to(projected_documents))
 
 

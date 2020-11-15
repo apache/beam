@@ -105,6 +105,29 @@ def run(argv=None):
   _LOGGER.info(
       'Read %d documents from mongodb finished in %.3f seconds' %
       (known_args.num_documents, elapsed))
+
+  # Test Read from MongoDB, using bucket_auto aggregation
+  with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
+    start_time = time.time()
+    _LOGGER.info(
+        'Reading from mongodb %s:%s with bucket_auto=True' %
+        (known_args.mongo_db, known_args.mongo_coll))
+    r = (
+        p | 'ReadFromMongoDB' >> beam.io.ReadFromMongoDB(
+            known_args.mongo_uri,
+            known_args.mongo_db,
+            known_args.mongo_coll,
+            projection=['number'],
+            bucket_auto=True)
+        | 'Map' >> beam.Map(lambda doc: doc['number'])
+        | 'Combine' >> beam.CombineGlobally(sum))
+    assert_that(r, equal_to([sum(range(known_args.num_documents))]))
+
+  elapsed = time.time() - start_time
+  _LOGGER.info(
+      'Read %d documents from mongodb finished in %.3f seconds' %
+      (known_args.num_documents, elapsed))
+
   with MongoClient(host=known_args.mongo_uri) as client:
     client.drop_database(known_args.mongo_db)
 

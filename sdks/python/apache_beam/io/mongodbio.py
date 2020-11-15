@@ -32,6 +32,18 @@ Example usage::
                              db='testdb',
                              coll='input')
 
+To read from MongoDB Atlas, use ``bucket_auto`` option to enable
+``@bucketAuto`` MongoDB aggregation instead of ``splitVector``
+command which is a high-privilege function that cannot be assigned
+to any user in Atlas.
+
+Example usage::
+
+  pipeline | ReadFromMongoDB(uri='mongodb+srv://user:pwd@cluster0.mongodb.net',
+                             db='testdb',
+                             coll='input',
+                             bucket_auto=True)
+
 
 Write to MongoDB:
 -----------------
@@ -101,22 +113,27 @@ class ReadFromMongoDB(PTransform):
       coll=None,
       filter=None,
       projection=None,
-      extra_client_params=None):
+      extra_client_params=None,
+      bucket_auto=False):
     """Initialize a :class:`ReadFromMongoDB`
 
     Args:
-      uri (str): The MongoDB connection string following the URI format
-      db (str): The MongoDB database name
-      coll (str): The MongoDB collection name
+      uri (str): The MongoDB connection string following the URI format.
+      db (str): The MongoDB database name.
+      coll (str): The MongoDB collection name.
       filter: A `bson.SON
         <https://api.mongodb.com/python/current/api/bson/son.html>`_ object
         specifying elements which must be present for a document to be included
-        in the result set
+        in the result set.
       projection: A list of field names that should be returned in the result
-        set or a dict specifying the fields to include or exclude
+        set or a dict specifying the fields to include or exclude.
       extra_client_params(dict): Optional `MongoClient
         <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
-        parameters
+        parameters.
+      bucket_auto (bool): If :data:`True`, use MongoDB `$bucketAuto` aggregation
+        to split collection into bundles instead of `splitVector` command,
+        which does not work with MongoDB Atlas.
+        If :data:`False` (the default), use `splitVector` command for bundling.
 
     Returns:
       :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -136,7 +153,8 @@ class ReadFromMongoDB(PTransform):
         coll=coll,
         filter=filter,
         projection=projection,
-        extra_client_params=extra_client_params)
+        extra_client_params=extra_client_params,
+        bucket_auto=bucket_auto)
 
   def expand(self, pcoll):
     return pcoll | iobase.Read(self._mongo_source)
@@ -150,7 +168,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
       coll=None,
       filter=None,
       projection=None,
-      extra_client_params=None):
+      extra_client_params=None,
+      bucket_auto=False):
     if extra_client_params is None:
       extra_client_params = {}
     if filter is None:
@@ -161,6 +180,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.filter = filter
     self.projection = projection
     self.spec = extra_client_params
+    self.bucket_auto = bucket_auto
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
@@ -170,34 +190,47 @@ class _BoundedMongoSource(iobase.BoundedSource):
     start_position, stop_position = self._replace_none_positions(
         start_position, stop_position)
 
-    desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
+    if self.bucket_auto:
+      # Use $bucketAuto for bundling
+      for bucket in self._get_buckets(desired_bundle_size,
+                                      start_position,
+                                      stop_position):
+        yield iobase.SourceBundle(
+            weight=bucket['count'],
+            source=self,
+            start_position=bucket['_id']['min'],
+            stop_position=bucket['_id']['max'])
 
-    # for desired bundle size, if desired chunk size smaller than 1mb, use
-    # mongodb default split size of 1mb.
-    if desired_bundle_size_in_mb < 1:
-      desired_bundle_size_in_mb = 1
+    else:
+      # Use splitVector for bundling
+      desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
 
-    split_keys = self._get_split_keys(
-        desired_bundle_size_in_mb, start_position, stop_position)
+      # for desired bundle size, if desired chunk size smaller than 1mb, use
+      # mongodb default split size of 1mb.
+      if desired_bundle_size_in_mb < 1:
+        desired_bundle_size_in_mb = 1
 
-    bundle_start = start_position
-    for split_key_id in split_keys:
-      if bundle_start >= stop_position:
-        break
-      bundle_end = min(stop_position, split_key_id['_id'])
-      yield iobase.SourceBundle(
-          weight=desired_bundle_size_in_mb,
-          source=self,
-          start_position=bundle_start,
-          stop_position=bundle_end)
-      bundle_start = bundle_end
-    # add range of last split_key to stop_position
-    if bundle_start < stop_position:
-      yield iobase.SourceBundle(
-          weight=desired_bundle_size_in_mb,
-          source=self,
-          start_position=bundle_start,
-          stop_position=stop_position)
+      split_keys = self._get_split_keys(
+          desired_bundle_size_in_mb, start_position, stop_position)
+
+      bundle_start = start_position
+      for split_key_id in split_keys:
+        if bundle_start >= stop_position:
+          break
+        bundle_end = min(stop_position, split_key_id['_id'])
+        yield iobase.SourceBundle(
+            weight=desired_bundle_size_in_mb,
+            source=self,
+            start_position=bundle_start,
+            stop_position=bundle_end)
+        bundle_start = bundle_end
+      # add range of last split_key to stop_position
+      if bundle_start < stop_position:
+        yield iobase.SourceBundle(
+            weight=desired_bundle_size_in_mb,
+            source=self,
+            start_position=bundle_start,
+            stop_position=stop_position)
 
   def get_range_tracker(self, start_position, stop_position):
     start_position, stop_position = self._replace_none_positions(
@@ -223,6 +256,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     res['filter'] = json.dumps(self.filter)
     res['projection'] = str(self.projection)
     res['mongo_client_spec'] = json.dumps(self.spec)
+    res['bucket_auto'] = str(self.bucket_auto)
     return res
 
   def _get_split_keys(self, desired_chunk_size_in_mb, start_pos, end_pos):
@@ -240,6 +274,27 @@ class _BoundedMongoSource(iobase.BoundedSource):
               min={'_id': start_pos},
               max={'_id': end_pos},
               maxChunkSize=desired_chunk_size_in_mb)['splitKeys'])
+
+  def _get_buckets(self, desired_chunk_size, start_pos, end_pos):
+    if start_pos >= end_pos:
+      # single document not splittable
+      return []
+    size = self.estimate_size()
+    bucket_count = size // desired_chunk_size
+    if size % desired_chunk_size != 0:
+      bucket_count += 1
+    with beam.io.mongodbio.MongoClient(self.uri, **self.spec) as client:
+      buckets = list(
+          client[self.db][self.coll].aggregate([{
+              '$bucketAuto': {
+                  'groupBy': '$_id',
+                  'buckets': bucket_count,
+              }
+          }]))
+      if buckets:
+        buckets[-1]['_id']['max'] = end_pos
+
+      return buckets
 
   def _merge_id_filter(self, range_tracker):
     # Merge the default filter with refined _id field range of range_tracker.
