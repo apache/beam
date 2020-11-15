@@ -15,9 +15,11 @@
 # limitations under the License.
 #
 
-"""A ValueProvider abstracts the notion of fetching a value that may or may not be currently available.
+"""A ValueProvider abstracts the notion of fetching a value that may or
+may not be currently available.
 
-This can be used to parameterize transforms that only read values in at runtime, for example.
+This can be used to parameterize transforms that only read values in at
+runtime, for example.
 """
 
 # pytype: skip-file
@@ -43,7 +45,9 @@ class ValueProvider(object):
   """Base class that all other ValueProviders must implement.
   """
   def is_accessible(self):
-    """Whether the contents of this ValueProvider is available to routines that run at graph construction time."""
+    """Whether the contents of this ValueProvider is available to routines
+    that run at graph construction time.
+    """
     raise NotImplementedError(
         'ValueProvider.is_accessible implemented in derived classes')
 
@@ -55,7 +59,9 @@ class ValueProvider(object):
 
 
 class StaticValueProvider(ValueProvider):
-  """StaticValueProvider is an implementation of ValueProvider that allows for a static value to be provided."""
+  """StaticValueProvider is an implementation of ValueProvider that allows
+  for a static value to be provided.
+  """
   def __init__(self, value_type, value):
     """
     Args:
@@ -91,7 +97,9 @@ class StaticValueProvider(ValueProvider):
 
 
 class RuntimeValueProvider(ValueProvider):
-  """RuntimeValueProvider is an implementation of ValueProvider that allows for a value to be provided at execution time rather than at graph construction time.
+  """RuntimeValueProvider is an implementation of ValueProvider that
+  allows for a value to be provided at execution time rather than
+  at graph construction time.
   """
   runtime_options = None
   experiments = set()  # type: Set[str]
@@ -138,7 +146,9 @@ class RuntimeValueProvider(ValueProvider):
 
 
 class NestedValueProvider(ValueProvider):
-  """NestedValueProvider is an implementation of ValueProvider that allows for wrapping another ValueProvider object."""
+  """NestedValueProvider is an implementation of ValueProvider that allows
+  for wrapping another ValueProvider object.
+  """
   def __init__(self, value, translator):
     """Creates a NestedValueProvider that wraps the provided ValueProvider.
 
@@ -146,7 +156,8 @@ class NestedValueProvider(ValueProvider):
       value: ValueProvider object to wrap
       translator: function that is applied to the ValueProvider
     Raises:
-      RuntimeValueProviderError: if any of the provided objects are not accessible
+      RuntimeValueProviderError: if any of the provided objects are not
+        accessible.
     """
     self.value = value
     self.translator = translator
@@ -171,11 +182,13 @@ class NestedValueProvider(ValueProvider):
 
 def check_accessible(value_provider_list):
   """A decorator that checks accessibility of a list of ValueProvider objects.
-  
+
   Args:
     value_provider_list: list of ValueProvider objects
   Raises:
-    RuntimeValueProviderError: if any of the provided objects are not accessible."""
+    RuntimeValueProviderError: if any of the provided objects are not
+      accessible.
+  """
   assert isinstance(value_provider_list, list)
 
   def _check_accessible(fnc):
