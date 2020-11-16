@@ -51,6 +51,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getHost();
 
+  public abstract @Nullable ValueProvider<String> getEmulatorHost();
+
   public abstract @Nullable ValueProvider<Duration> getCommitDeadline();
 
   public abstract @Nullable ValueProvider<Duration> getMaxCumulativeBackoff();
@@ -107,6 +109,8 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setHost(ValueProvider<String> host);
 
+    abstract Builder setEmulatorHost(ValueProvider<String> emulatorHost);
+
     abstract Builder setCommitDeadline(ValueProvider<Duration> commitDeadline);
 
     abstract Builder setMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff);
@@ -142,6 +146,10 @@ public abstract class SpannerConfig implements Serializable {
 
   public SpannerConfig withHost(ValueProvider<String> host) {
     return toBuilder().setHost(host).build();
+  }
+
+  public SpannerConfig withEmulatorHost(ValueProvider<String> emulatorHost) {
+    return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
   public SpannerConfig withCommitDeadline(Duration commitDeadline) {
