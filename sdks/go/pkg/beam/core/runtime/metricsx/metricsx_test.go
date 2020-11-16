@@ -28,7 +28,7 @@ func TestFromMonitoringInfos_Counters(t *testing.T) {
 	var value int64 = 15
 	want := metrics.CounterResult{
 		Attempted: 15,
-		Committed: -1,
+		Committed: 0,
 		Key: metrics.StepKey{
 			Step:      "main.customDoFn",
 			Name:      "customCounter",
@@ -61,7 +61,7 @@ func TestFromMonitoringInfos_Counters(t *testing.T) {
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
-	if d := cmp.Diff(got[0], want); d != "" {
+	if d := cmp.Diff(want, got[0]); d != "" {
 		t.Fatalf("Invalid counter: got: %v, want: %v, diff(-want,+got):\n %v",
 			got[0], want, d)
 	}
@@ -110,7 +110,7 @@ func TestFromMonitoringInfos_Distributions(t *testing.T) {
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
-	if d := cmp.Diff(got[0], want); d != "" {
+	if d := cmp.Diff(want, got[0]); d != "" {
 		t.Fatalf("Invalid distribution: got: %v, want: %v, diff(-want,+got):\n %v",
 			got[0], want, d)
 	}
@@ -159,7 +159,7 @@ func TestFromMonitoringInfos_Gauges(t *testing.T) {
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
-	if d := cmp.Diff(got[0], want); d != "" {
+	if d := cmp.Diff(want, got[0]); d != "" {
 		t.Fatalf("Invalid gauge: got: %v, want: %v, diff(-want,+got):\n %v",
 			got[0], want, d)
 	}

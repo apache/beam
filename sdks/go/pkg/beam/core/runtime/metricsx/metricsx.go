@@ -90,10 +90,7 @@ func mergeCounters(
 	res := make([]metrics.CounterResult, 0)
 
 	for k := range attempted {
-		v, ok := committed[k]
-		if !ok {
-			v = -1
-		}
+		v := committed[k]
 		res = append(res, metrics.CounterResult{Attempted: attempted[k], Committed: v, Key: k})
 	}
 	return res

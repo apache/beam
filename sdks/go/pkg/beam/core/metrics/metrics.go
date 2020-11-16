@@ -522,7 +522,7 @@ type CounterResult struct {
 // Result returns committed metrics. Falls back to attempted metrics if committed
 // are not populated (e.g. due to not being supported on a given runner).
 func (r CounterResult) Result() int64 {
-	if r.Committed != -1 {
+	if r.Committed != 0 {
 		return r.Committed
 	}
 	return r.Attempted
