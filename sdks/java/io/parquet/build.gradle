@@ -1,3 +1,5 @@
+import java.util.stream.Collectors
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -24,11 +26,14 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
 ext.summary = "IO to read and write on Parquet storage format."
 
-configurations {
-  hadoopVersion285
-}
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2101": "2.10.1",
+]
 
-def hadoop_285_version = '2.8.5'
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+
 def parquet_version = "1.10.0"
 
 dependencies {
@@ -47,16 +52,31 @@ dependencies {
   testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  hadoopVersion285 "org.apache.hadoop:hadoop-client:$hadoop_285_version"
-}
-
-configurations.hadoopVersion285 {
-  resolutionStrategy {
-    force "org.apache.hadoop:hadoop-client:$hadoop_285_version"
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
   }
 }
 
-task hadoopVersion285Test(type: Test) {
-  description = "Runs Parquet tests with Hadoop version $hadoop_285_version"
-  include '**/*Test.class'
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs Parquet tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs Parquet tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
 }
