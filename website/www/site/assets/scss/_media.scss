@@ -14,30 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
-.pillars
-  margin: $pad-xl 0
-  text-align: center
-
-  .pillars__title
-    +type-h2
-    margin-bottom: $pad
-
-  .pillars__cols
-    +type-body
-    +md
-      display: flex
-      justify-content: center
-
-    .pillars__cols__col
-      .pillars__cols__col__title
-        font-weight: 600
-        margin-bottom: $pad/2
-
-      .pillars__cols__col__body
-        max-width: 350px
-        margin: 0 auto $pad-sm
-
-        +md
-          padding: 0 $pad
-          margin: 0 auto
+ 
+$mobile: 640px;
+$tablet: 1280px;
+$fullhd: 1920px;
