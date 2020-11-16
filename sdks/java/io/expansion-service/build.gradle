@@ -34,6 +34,8 @@ dependencies {
   compile project(":sdks:java:expansion-service")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:io:jdbc")
+  // Include mysql so it can be used with external JDBC
+  compile library.java.mysql
   // Include postgres so it can be used with external JDBC
   compile library.java.postgres
   runtime library.java.kafka_clients
