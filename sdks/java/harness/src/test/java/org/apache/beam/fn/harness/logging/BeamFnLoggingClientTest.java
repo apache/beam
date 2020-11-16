@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.logging;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -148,7 +149,7 @@ public class BeamFnLoggingClientTest {
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
       // Keep a strong reference to the loggers in this block. Otherwise the call to client.close()
-      // removes the only reference and the logger may get GC'd (BEAM-4136).
+      // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
       Logger rootLogger = LogManager.getLogManager().getLogger("");
       Logger configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
 
@@ -207,6 +208,12 @@ public class BeamFnLoggingClientTest {
     server.start();
 
     ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+    // Keep a strong reference to the loggers. Otherwise the call to client.close()
+    // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
+    Logger rootLogger = null;
+    Logger configuredLogger = null;
+
     try {
       BeamFnLoggingClient client =
           new BeamFnLoggingClient(
@@ -219,12 +226,18 @@ public class BeamFnLoggingClientTest {
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
+      rootLogger = LogManager.getLogManager().getLogger("");
+      configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
+
       thrown.expectMessage("TEST ERROR");
       client.close();
     } finally {
+      assertNotNull("rootLogger should be initialized before exception", rootLogger);
+      assertNotNull("configuredLogger should be initialized before exception", rootLogger);
+
       // Verify that after close, log levels are reset.
-      assertEquals(Level.INFO, LogManager.getLogManager().getLogger("").getLevel());
-      assertNull(LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      assertEquals(Level.INFO, rootLogger.getLevel());
+      assertNull(configuredLogger.getLevel());
 
       assertTrue(channel.isShutdown());
 
@@ -275,12 +288,17 @@ public class BeamFnLoggingClientTest {
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
-      client.close();
-    } finally {
-      // Verify that after close, log levels are reset.
-      assertEquals(Level.INFO, LogManager.getLogManager().getLogger("").getLevel());
-      assertNull(LogManager.getLogManager().getLogger("ConfiguredLogger").getLevel());
+      // Keep a strong reference to the loggers in this block. Otherwise the call to client.close()
+      // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
+      Logger rootLogger = LogManager.getLogManager().getLogger("");
+      Logger configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
 
+      client.close();
+
+      // Verify that after close, log levels are reset.
+      assertEquals(Level.INFO, rootLogger.getLevel());
+      assertNull(configuredLogger.getLevel());
+    } finally {
       assertTrue(channel.isShutdown());
 
       server.shutdownNow();
