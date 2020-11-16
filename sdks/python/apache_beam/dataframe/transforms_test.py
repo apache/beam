@@ -81,7 +81,7 @@ class TransformTest(unittest.TestCase):
   def run_scenario(self, input, func):
     expected = func(input)
 
-    empty = input[0:0]
+    empty = input.iloc[0:0]
     input_placeholder = expressions.PlaceholderExpression(empty)
     input_deferred = frame_base.DeferredFrame.wrap(input_placeholder)
     actual_deferred = func(input_deferred)._expr.evaluate_at(
@@ -90,17 +90,18 @@ class TransformTest(unittest.TestCase):
     check_correct(expected, actual_deferred)
 
     with beam.Pipeline() as p:
-      input_pcoll = p | beam.Create([input[::2], input[1::2]])
+      input_pcoll = p | beam.Create([input.iloc[::2], input.iloc[1::2]])
       input_df = convert.to_dataframe(input_pcoll, proxy=empty)
       output_df = func(input_df)
 
       output_proxy = output_df._expr.proxy()
       if isinstance(output_proxy, pd.core.generic.NDFrame):
         self.assertTrue(
-            output_proxy[:0].equals(expected[:0]),
+            output_proxy.iloc[:0].equals(expected.iloc[:0]),
             (
                 'Output proxy is incorrect:\n'
-                f'Expected:\n{expected[:0]}\n\nActual:\n{output_proxy[:0]}'))
+                f'Expected:\n{expected.iloc[:0]}\n\n'
+                f'Actual:\n{output_proxy.iloc[:0]}'))
       else:
         self.assertEqual(type(output_proxy), type(expected))
 
@@ -160,6 +161,14 @@ class TransformTest(unittest.TestCase):
         'Size': ['Small', 'Extra Small', 'Large', 'Medium']
     })
     self.run_scenario(df, lambda df: df[['Speed', 'Size']])
+
+  def test_offset_elementwise(self):
+    s = pd.Series(range(10)).astype(float)
+    df = pd.DataFrame({'value': s, 'square': s * s, 'cube': s * s * s})
+    # Only those values that are both squares and cubes will intersect.
+    self.run_scenario(
+        df,
+        lambda df: df.set_index('square').value + df.set_index('cube').value)
 
   def test_batching_named_tuple_input(self):
     with beam.Pipeline() as p:
