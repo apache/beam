@@ -24,14 +24,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.junit.Test;
 
 /** Tests {@link CoderTypeSerializer}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoderTypeSerializerTest implements Serializable {
 
   @Test
@@ -58,7 +64,9 @@ public class CoderTypeSerializerTest implements Serializable {
   }
 
   private void testWriteAndReadConfigSnapshot(Coder<String> coder) throws IOException {
-    CoderTypeSerializer<String> serializer = new CoderTypeSerializer<>(coder);
+    CoderTypeSerializer<String> serializer =
+        new CoderTypeSerializer<>(
+            coder, new SerializablePipelineOptions(PipelineOptionsFactory.create()));
 
     TypeSerializerSnapshot writtenSnapshot = serializer.snapshotConfiguration();
     ComparatorTestBase.TestOutputView outView = new ComparatorTestBase.TestOutputView();

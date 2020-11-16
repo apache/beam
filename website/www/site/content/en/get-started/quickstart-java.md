@@ -132,7 +132,7 @@ task execute (type:JavaExec) {
     main = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
-    args System.getProperty("exec.args").split()
+    args System.getProperty("exec.args", "").split()
 }
 {{< /highlight >}}
 1. Rebuild your project by running:

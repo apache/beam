@@ -110,13 +110,13 @@ def loadTestJob = { scope, triggeringContext, jobType ->
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations(datasetName, jobType)) {
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON_37, testConfiguration.pipelineOptions, testConfiguration.test)
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
   }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_Combine_Dataflow_Batch',
-    'Run Python Load Tests Combine Dataflow Batch',
+    'Run Load Tests Python Combine Dataflow Batch',
     'Load Tests Python Combine Dataflow Batch suite',
     this
     ) {
@@ -134,7 +134,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H 15 * *
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_Combine_Dataflow_Streaming',
-    'Run Python Load Tests Combine Dataflow Streaming',
+    'Run Load Tests Python Combine Dataflow Streaming',
     'Load Tests Python Combine Dataflow Streaming suite',
     this
     ) {

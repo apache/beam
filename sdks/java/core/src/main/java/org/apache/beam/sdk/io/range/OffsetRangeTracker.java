@@ -30,6 +30,9 @@ import org.slf4j.LoggerFactory;
  * <p>Not to be confused with {@link
  * org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OffsetRangeTracker implements RangeTracker<Long> {
   private static final Logger LOG = LoggerFactory.getLogger(OffsetRangeTracker.class);
 

@@ -32,6 +32,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link Schema}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SchemaTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

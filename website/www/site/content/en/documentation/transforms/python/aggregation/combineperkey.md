@@ -226,4 +226,6 @@ You can use the following combiner transforms:
 * [Top](/documentation/transforms/python/aggregation/top)
 * [Sample](/documentation/transforms/python/aggregation/sample)
 
+See also [GroupBy](/documentation/transforms/python/aggregation/groupby) which allows you to combine more than one field at once.
+
 {{< button-pydoc path="apache_beam.transforms.core" class="CombinePerKey" >}}

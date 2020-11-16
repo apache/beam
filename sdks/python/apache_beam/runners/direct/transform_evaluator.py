@@ -887,6 +887,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     result_counters = self._counter_factory.get_counters()
     if self.user_state_context:
       self.user_state_context.commit()
+      self.user_state_context.reset()
     return TransformResult(self, bundles, [], result_counters, None)
 
 

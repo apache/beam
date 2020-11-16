@@ -119,6 +119,32 @@ class ToStringParDo(beam.PTransform):
     return input | 'Inner' >> beam.Map(lambda a: copy.copy(str(a)))
 
 
+class FlattenAndDouble(beam.PTransform):
+  def expand(self, pcolls):
+    return pcolls | beam.Flatten() | 'Double' >> DoubleParDo()
+
+
+class FlattenAndTriple(beam.PTransform):
+  def expand(self, pcolls):
+    return pcolls | beam.Flatten() | 'Triple' >> TripleParDo()
+
+
+class AddWithProductDoFn(beam.DoFn):
+  def process(self, input, a, b):
+    yield input + a * b
+
+
+class AddThenMultiplyDoFn(beam.DoFn):
+  def process(self, input, a, b):
+    yield (input + a) * b
+
+
+class AddThenMultiply(beam.PTransform):
+  def expand(self, pvalues):
+    return pvalues[0] | beam.ParDo(
+        AddThenMultiplyDoFn(), AsSingleton(pvalues[1]), AsSingleton(pvalues[2]))
+
+
 class PipelineTest(unittest.TestCase):
   @staticmethod
   def custom_callable(pcoll):
@@ -374,7 +400,9 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
+        ptransform = applied_ptransform.transform
         if isinstance(ptransform, DoubleParDo):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r' % ptransform)
@@ -391,14 +419,16 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return ToStringParDo()
 
     class WithTypeHintOverride(PTransformOverride):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return ToStringParDo().with_input_types(int).with_output_types(str)
 
     for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
@@ -412,6 +442,74 @@ class PipelineTest(unittest.TestCase):
 
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
+
+  def test_ptransform_override_multiple_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return isinstance(applied_ptransform.transform, FlattenAndDouble)
+
+      def get_replacement_transform(self, applied_ptransform):
+        return FlattenAndTriple()
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([1, 2, 3])
+    pcoll2 = p | 'pc2' >> beam.Create([4, 5, 6])
+    pcoll3 = (pcoll1, pcoll2) | 'FlattenAndMultiply' >> FlattenAndDouble()
+    assert_that(pcoll3, equal_to([3, 6, 9, 12, 15, 18]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
+
+  def test_ptransform_override_side_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return (
+            isinstance(applied_ptransform.transform, ParDo) and
+            isinstance(applied_ptransform.transform.fn, AddWithProductDoFn))
+
+      def get_replacement_transform(self, transform):
+        return AddThenMultiply()
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([2])
+    pcoll2 = p | 'pc2' >> beam.Create([3])
+    pcoll3 = p | 'pc3' >> beam.Create([4, 5, 6])
+    result = pcoll3 | 'Operate' >> beam.ParDo(
+        AddWithProductDoFn(), AsSingleton(pcoll1), AsSingleton(pcoll2))
+    assert_that(result, equal_to([18, 21, 24]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
+
+  def test_ptransform_override_replacement_inputs(self):
+    class MyParDoOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return (
+            isinstance(applied_ptransform.transform, ParDo) and
+            isinstance(applied_ptransform.transform.fn, AddWithProductDoFn))
+
+      def get_replacement_transform(self, transform):
+        return AddThenMultiply()
+
+      def get_replacement_inputs(self, applied_ptransform):
+        assert len(applied_ptransform.inputs) == 1
+        assert len(applied_ptransform.side_inputs) == 2
+        # Swap the order of the two side inputs
+        return (
+            applied_ptransform.inputs[0],
+            applied_ptransform.side_inputs[1].pvalue,
+            applied_ptransform.side_inputs[0].pvalue)
+
+    p = Pipeline()
+    pcoll1 = p | 'pc1' >> beam.Create([2])
+    pcoll2 = p | 'pc2' >> beam.Create([3])
+    pcoll3 = p | 'pc3' >> beam.Create([4, 5, 6])
+    result = pcoll3 | 'Operate' >> beam.ParDo(
+        AddWithProductDoFn(), AsSingleton(pcoll1), AsSingleton(pcoll2))
+    assert_that(result, equal_to([14, 16, 18]))
+
+    p.replace_all([MyParDoOverride()])
+    p.run()
 
   def test_ptransform_override_multiple_outputs(self):
     class MultiOutputComposite(PTransform):
@@ -441,7 +539,8 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return applied_ptransform.full_label == 'MyMultiOutput'
 
-      def get_replacement_transform(self, ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return MultiOutputComposite()
 
     def mux_input(x):

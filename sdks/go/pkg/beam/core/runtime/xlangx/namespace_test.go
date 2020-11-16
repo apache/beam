@@ -561,7 +561,7 @@ func TestAddNamespace(t *testing.T) {
 			if strings.Contains(tt.name, "Correctness") {
 				transform := tt.init.Transforms[tt.transformID]
 
-				AddNamespace(transform, tt.init, tt.namespace)
+				addNamespace(transform, tt.init, tt.namespace)
 
 				if d := cmp.Diff(tt.want, tt.init, protocmp.Transform()); d != "" {
 					t.Errorf("diff (-want, +got): %v", d)
@@ -571,7 +571,7 @@ func TestAddNamespace(t *testing.T) {
 			if strings.Contains(tt.name, "Consistency") {
 				defer expectPanic(t, tt.err)
 				transform := tt.init.Transforms[tt.transformID]
-				AddNamespace(transform, tt.init, tt.namespace)
+				addNamespace(transform, tt.init, tt.namespace)
 			}
 
 		})

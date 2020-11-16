@@ -46,11 +46,13 @@ from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.transforms import userstate
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import CombineValuesDoFn
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.typehints import trivial_inference
 
 # Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
@@ -107,6 +109,11 @@ class SwitchingDirectRunner(PipelineRunner):
             if any(isinstance(arg, ArgumentPlaceholder)
                    for arg in args_to_check):
               self.supported_by_fnapi_runner = False
+          if userstate.is_stateful_dofn(dofn):
+            _, timer_specs = userstate.get_dofn_specs(dofn)
+            for timer in timer_specs:
+              if timer.time_domain == TimeDomain.REAL_TIME:
+                self.supported_by_fnapi_runner = False
 
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
@@ -282,11 +289,13 @@ def _get_transform_overrides(pipeline_options):
       if isinstance(applied_ptransform.transform, CombinePerKey):
         return applied_ptransform.inputs[0].windowing.is_default()
 
-    def get_replacement_transform(self, transform):
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
       # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
       # with resolving imports when they are at top.
       # pylint: disable=wrong-import-position
       try:
+        transform = applied_ptransform.transform
         return LiftedCombinePerKey(
             transform.fn, transform.args, transform.kwargs)
       except NotImplementedError:
@@ -297,7 +306,8 @@ def _get_transform_overrides(pipeline_options):
       # Note: we match the exact class, since we replace it with a subclass.
       return applied_ptransform.transform.__class__ == _GroupByKeyOnly
 
-    def get_replacement_transform(self, transform):
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
       # Use specialized streaming implementation.
       transform = _StreamingGroupByKeyOnly()
       return transform
@@ -311,9 +321,11 @@ def _get_transform_overrides(pipeline_options):
           isinstance(transform.dofn, _GroupAlsoByWindowDoFn) and
           transform.__class__ != _StreamingGroupAlsoByWindow)
 
-    def get_replacement_transform(self, transform):
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
       # Use specialized streaming implementation.
-      transform = _StreamingGroupAlsoByWindow(transform.dofn.windowing)
+      transform = _StreamingGroupAlsoByWindow(
+          applied_ptransform.transform.dofn.windowing)
       return transform
 
   class TestStreamOverride(PTransformOverride):
@@ -322,9 +334,10 @@ def _get_transform_overrides(pipeline_options):
       self.applied_ptransform = applied_ptransform
       return isinstance(applied_ptransform.transform, TestStream)
 
-    def get_replacement_transform(self, transform):
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
       from apache_beam.runners.direct.test_stream_impl import _ExpandableTestStream
-      return _ExpandableTestStream(transform)
+      return _ExpandableTestStream(applied_ptransform.transform)
 
   class GroupByKeyPTransformOverride(PTransformOverride):
     """A ``PTransformOverride`` for ``GroupByKey``.
@@ -337,7 +350,8 @@ def _get_transform_overrides(pipeline_options):
       from apache_beam.transforms.core import GroupByKey
       return isinstance(applied_ptransform.transform, GroupByKey)
 
-    def get_replacement_transform(self, ptransform):
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
       return _GroupByKey()
 
   overrides = [
@@ -391,19 +405,19 @@ class _DirectWriteToPubSubFn(DoFn):
   BUFFER_SIZE_ELEMENTS = 100
   FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
 
-  def __init__(self, sink):
-    self.project = sink.project
-    self.short_topic_name = sink.topic_name
-    self.id_label = sink.id_label
-    self.timestamp_attribute = sink.timestamp_attribute
-    self.with_attributes = sink.with_attributes
+  def __init__(self, transform):
+    self.project = transform.project
+    self.short_topic_name = transform.topic_name
+    self.id_label = transform.id_label
+    self.timestamp_attribute = transform.timestamp_attribute
+    self.with_attributes = transform.with_attributes
 
     # TODO(BEAM-4275): Add support for id_label and timestamp_attribute.
-    if sink.id_label:
+    if transform.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for '
           'PubSub writes')
-    if sink.timestamp_attribute:
+    if transform.timestamp_attribute:
       raise NotImplementedError(
           'DirectRunner: timestamp_attribute is not '
           'supported for PubSub writes')
@@ -448,12 +462,13 @@ def _get_pubsub_transform_overrides(pipeline_options):
       return isinstance(
           applied_ptransform.transform, beam_pubsub.ReadFromPubSub)
 
-    def get_replacement_transform(self, transform):
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
       if not pipeline_options.view_as(StandardOptions).streaming:
         raise Exception(
             'PubSub I/O is only available in streaming mode '
             '(use the --streaming flag).')
-      return _DirectReadFromPubSub(transform._source)
+      return _DirectReadFromPubSub(applied_ptransform.transform._source)
 
   class WriteToPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
@@ -461,12 +476,13 @@ def _get_pubsub_transform_overrides(pipeline_options):
           applied_ptransform.transform,
           (beam_pubsub.WriteToPubSub, beam_pubsub._WriteStringsToPubSub))
 
-    def get_replacement_transform(self, transform):
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
       if not pipeline_options.view_as(StandardOptions).streaming:
         raise Exception(
             'PubSub I/O is only available in streaming mode '
             '(use the --streaming flag).')
-      return beam.ParDo(_DirectWriteToPubSubFn(transform._sink))
+      return beam.ParDo(_DirectWriteToPubSubFn(applied_ptransform.transform))
 
   return [ReadFromPubSubOverride(), WriteToPubSubOverride()]
 

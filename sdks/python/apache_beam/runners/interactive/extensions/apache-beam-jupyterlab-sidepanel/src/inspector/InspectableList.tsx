@@ -37,6 +37,10 @@ interface IInspectableListProps {
   pcolls: IKeyedInspectableMeta;
 }
 
+interface IInspectableListState {
+  activated: boolean;
+}
+
 /**
  * The PCollection sub list of the side list of the InteractiveInspector parent
  * component.
@@ -49,11 +53,20 @@ interface IInspectableListProps {
  */
 export class InspectableList extends React.Component<
   IInspectableListProps,
-  {}
+  IInspectableListState
 > {
   constructor(props: IInspectableListProps) {
     super(props);
     this._onClickHeader = this._onClickHeader.bind(this);
+    this.state = { activated: false };
+  }
+
+  componentDidMount(): void {
+    this._updateRenderTimerId = setInterval(() => this.updateRender(), 500);
+  }
+
+  componentWillUnmount(): void {
+    clearInterval(this._updateRenderTimerId);
   }
 
   render(): React.ReactNode {
@@ -70,6 +83,7 @@ export class InspectableList extends React.Component<
               text={this.props.metadata.name}
               secondaryText="pipeline"
               metaIcon="chevron_right"
+              activated={this.state.activated}
             />
           }
           onOpen={this._onClickHeader}
@@ -82,7 +96,16 @@ export class InspectableList extends React.Component<
     );
   }
 
+  updateRender(): void {
+    this.setState({
+      activated: this.props?.inspectableViewModel?.identifier === this.props.id
+    });
+  }
+
   private _onClickHeader(): void {
+    if (this.props?.inspectableViewModel?.identifier === this.props.id) {
+      return;
+    }
     this.props.inspectableViewModel.queryKernel(
       this.props.metadata.type,
       this.props.id
@@ -99,4 +122,6 @@ export class InspectableList extends React.Component<
       return <InspectableListItem key={key} {...propsWithKey} />;
     });
   }
+
+  private _updateRenderTimerId: number;
 }

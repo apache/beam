@@ -45,7 +45,11 @@ parsers:
 
 fixes:
   - "apache_beam/::sdks/python/apache_beam/"
+  
+github_checks:
+  annotations: false
 
 ignore:
   - "**/*_test.py"
   - "**/*_test_py3*.py"
+  - "**/*_microbenchmark.py"

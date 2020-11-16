@@ -28,12 +28,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -56,7 +58,8 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
   private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
   private WindowingStrategy<InputT, W> windowingStrategy;
   private TimestampCombiner timestampCombiner;
-  private IterableCoder<WindowedValue<AccumT>> accumulatorCoder;
+  private Coder<AccumT> accumulatorCoder;
+  private IterableCoder<WindowedValue<AccumT>> bufferEncoder;
   private IterableCoder<WindowedValue<OutputT>> outputCoder;
 
   public AggregatorCombiner(
@@ -67,7 +70,8 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     this.combineFn = combineFn;
     this.windowingStrategy = (WindowingStrategy<InputT, W>) windowingStrategy;
     this.timestampCombiner = windowingStrategy.getTimestampCombiner();
-    this.accumulatorCoder =
+    this.accumulatorCoder = accumulatorCoder;
+    this.bufferEncoder =
         IterableCoder.of(
             WindowedValue.FullWindowedValueCoder.of(
                 accumulatorCoder, windowingStrategy.getWindowFn().windowCoder()));
@@ -114,6 +118,22 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     // group accumulators by their merged window
     Map<W, List<Tuple2<AccumT, Instant>>> mergedWindowToAccumulators = new HashMap<>();
     for (WindowedValue<AccumT> accumulatorWv : accumulators) {
+      // Encode a version of the accumulator if it is in multiple windows. The combineFn is able to
+      // mutate the accumulator instance and this could lead to incorrect results if the same
+      // instance is merged across multiple windows so we decode a new instance as needed. This
+      // prevents issues during merging of accumulators.
+      byte[] encodedAccumT = null;
+      if (accumulatorWv.getWindows().size() > 1) {
+        try {
+          encodedAccumT = CoderUtils.encodeToByteArray(accumulatorCoder, accumulatorWv.getValue());
+        } catch (CoderException e) {
+          throw new RuntimeException(
+              String.format(
+                  "Unable to encode accumulator %s with coder %s.",
+                  accumulatorWv.getValue(), accumulatorCoder),
+              e);
+        }
+      }
       for (BoundedWindow accumulatorWindow : accumulatorWv.getWindows()) {
         W mergedWindowForAccumulator = windowToMergeResult.get(accumulatorWindow);
         mergedWindowForAccumulator =
@@ -121,10 +141,26 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
                 ? (W) accumulatorWindow
                 : mergedWindowForAccumulator;
 
+        // Decode a copy of the accumulator when necessary.
+        AccumT accumT;
+        if (encodedAccumT != null) {
+          try {
+            accumT = CoderUtils.decodeFromByteArray(accumulatorCoder, encodedAccumT);
+          } catch (CoderException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Unable to encode accumulator %s with coder %s.",
+                    accumulatorWv.getValue(), accumulatorCoder),
+                e);
+          }
+        } else {
+          accumT = accumulatorWv.getValue();
+        }
+
         // we need only the timestamp and the AccumT, we create a tuple
         Tuple2<AccumT, Instant> accumAndInstant =
             new Tuple2<>(
-                accumulatorWv.getValue(),
+                accumT,
                 timestampCombiner.assign(
                     mergedWindowForAccumulator,
                     windowingStrategy
@@ -178,7 +214,7 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
 
   @Override
   public Encoder<Iterable<WindowedValue<AccumT>>> bufferEncoder() {
-    return EncoderHelpers.fromBeamCoder(accumulatorCoder);
+    return EncoderHelpers.fromBeamCoder(bufferEncoder);
   }
 
   @Override

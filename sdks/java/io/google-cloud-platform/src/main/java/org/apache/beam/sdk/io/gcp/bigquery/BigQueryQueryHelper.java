@@ -47,6 +47,9 @@ import org.slf4j.LoggerFactory;
  * <p>This object is not serializable, and its state can be safely discarded across serialization
  * boundaries for any associated source objects.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigQueryQueryHelper {
 
   private static final Integer JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;

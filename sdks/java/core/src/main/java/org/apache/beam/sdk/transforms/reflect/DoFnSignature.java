@@ -62,6 +62,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @AutoValue
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class DoFnSignature {
   /** Class of the original {@link DoFn} from which this signature was produced. */
   public abstract Class<? extends DoFn<?, ?>> fnClass();
@@ -973,9 +976,8 @@ public abstract class DoFnSignature {
     public abstract @Nullable TypeDescriptor<?> watermarkEstimatorT();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
     public abstract boolean hasReturnValue();
@@ -1051,9 +1053,8 @@ public abstract class DoFnSignature {
     public abstract boolean requiresStableInput();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
@@ -1093,9 +1094,8 @@ public abstract class DoFnSignature {
     public abstract boolean requiresStableInput();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
@@ -1133,9 +1133,8 @@ public abstract class DoFnSignature {
     public abstract boolean requiresStableInput();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
@@ -1270,9 +1269,8 @@ public abstract class DoFnSignature {
     public abstract TypeDescriptor<?> restrictionT();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
@@ -1296,9 +1294,8 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of parameters of the annotated method, in the order they appear. */
     @Override
@@ -1321,9 +1318,8 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of parameters of the annotated method, in the order they appear. */
     @Override
@@ -1349,9 +1345,8 @@ public abstract class DoFnSignature {
     public abstract TypeDescriptor<?> trackerT();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
@@ -1375,9 +1370,8 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
@@ -1418,9 +1412,8 @@ public abstract class DoFnSignature {
     public abstract TypeDescriptor<?> watermarkEstimatorStateT();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
@@ -1447,9 +1440,8 @@ public abstract class DoFnSignature {
     public abstract TypeDescriptor<?> watermarkEstimatorT();
 
     /** The window type used by this method, if any. */
-    @Nullable
     @Override
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override

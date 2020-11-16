@@ -42,6 +42,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static utility methods for creating {@link StateTag} instances. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class StateTags {
 
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();

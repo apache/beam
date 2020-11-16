@@ -85,6 +85,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @AutoValue
 @Experimental
+@AutoValue.CopyAnnotations
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
@@ -291,6 +296,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class UdfDefinition {
     abstract String udfName();
 
@@ -304,6 +311,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class UdafDefinition {
     abstract String udafName();
 

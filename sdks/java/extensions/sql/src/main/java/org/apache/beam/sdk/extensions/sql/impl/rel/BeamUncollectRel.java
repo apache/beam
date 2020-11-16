@@ -37,6 +37,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncoll
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** {@link BeamRelNode} to implement an uncorrelated {@link Uncollect}, aka UNNEST. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
   public BeamUncollectRel(

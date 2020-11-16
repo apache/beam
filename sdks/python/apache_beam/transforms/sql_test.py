@@ -71,6 +71,8 @@ class SqlTransformTest(unittest.TestCase):
         --tests apache_beam.transforms.sql_test \\
         --test-pipeline-options="--runner=FlinkRunner"
   """
+  _multiprocess_can_split_ = True
+
   def test_generate_data(self):
     with TestPipeline() as p:
       out = p | SqlTransform(

@@ -55,6 +55,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code PTransform}s for getting an idea of a {@code PCollection}'s data distribution using
  * approximate {@code N}-tiles (e.g. quartiles, percentiles, etc.), either globally or per-key.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ApproximateQuantiles {
   private ApproximateQuantiles() {
     // do not instantiate

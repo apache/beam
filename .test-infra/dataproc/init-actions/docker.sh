@@ -30,7 +30,7 @@ readonly OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 readonly OS_CODE=$(lsb_release -cs)
 # TODO: Allow this to be configured by metadata.
 readonly DOCKER_VERSION="18.06.0~ce~3-0~${OS_ID}"
-readonly CREDENTIAL_HELPER_VERSION='1.5.0'
+readonly CREDENTIAL_HELPER_VERSION='2.0.2'
 
 
 function is_master() {
@@ -68,7 +68,7 @@ function install_docker() {
 function configure_gcr() {
   # this standalone method is recommended here:
   # https://cloud.google.com/container-registry/docs/advanced-authentication#standalone_docker_credential_helper
-  curl -fsSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v${CREDENTIAL_HELPER_VERSION}/docker-credential-gcr_linux_amd64-${CREDENTIAL_HELPER_VERSION}.tar.gz" \
+  curl -fsSL --retry 10 "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v${CREDENTIAL_HELPER_VERSION}/docker-credential-gcr_linux_amd64-${CREDENTIAL_HELPER_VERSION}.tar.gz" \
     | tar xz --to-stdout ./docker-credential-gcr \
     > /usr/local/bin/docker-credential-gcr && chmod +x /usr/local/bin/docker-credential-gcr
 

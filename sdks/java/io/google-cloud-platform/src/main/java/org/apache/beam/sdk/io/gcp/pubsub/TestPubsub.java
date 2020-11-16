@@ -17,24 +17,37 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.projectPathFromPath;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
+import com.google.cloud.pubsub.v1.AckReplyConsumer;
+import com.google.cloud.pubsub.v1.MessageReceiver;
+import com.google.cloud.pubsub.v1.Publisher;
+import com.google.cloud.pubsub.v1.Subscriber;
+import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
+import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
+import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PushConfig;
+import com.google.pubsub.v1.Subscription;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
@@ -53,18 +66,21 @@ import org.junit.runners.model.Statement;
  *
  * <p>Deletes topic and subscription on shutdown.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestPubsub implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
   private static final String EVENTS_TOPIC_NAME = "events";
   private static final String TOPIC_PREFIX = "integ-test-";
-  private static final String NO_ID_ATTRIBUTE = null;
-  private static final String NO_TIMESTAMP_ATTRIBUTE = null;
   private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
 
   private final TestPubsubOptions pipelineOptions;
+  private final String pubsubEndpoint;
 
-  private @Nullable PubsubClient pubsub = null;
+  private @Nullable TopicAdminClient topicAdmin = null;
+  private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath eventsTopicPath = null;
   private @Nullable SubscriptionPath subscriptionPath = null;
 
@@ -80,6 +96,7 @@ public class TestPubsub implements TestRule {
 
   private TestPubsub(TestPubsubOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
+    this.pubsubEndpoint = PubsubOptions.targetForRootUrl(this.pipelineOptions.getPubsubRootUrl());
   }
 
   @Override
@@ -87,9 +104,9 @@ public class TestPubsub implements TestRule {
     return new Statement() {
       @Override
       public void evaluate() throws Throwable {
-        if (TestPubsub.this.pubsub != null) {
+        if (TestPubsub.this.topicAdmin != null || TestPubsub.this.subscriptionAdmin != null) {
           throw new AssertionError(
-              "Pubsub client was not shutdown in previous test. "
+              "Pubsub client was not shutdown after previous test. "
                   + "Topic path is'"
                   + eventsTopicPath
                   + "'. "
@@ -108,38 +125,63 @@ public class TestPubsub implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
-    pubsub =
-        PubsubGrpcClient.FACTORY.newClient(
-            NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
+    topicAdmin =
+        TopicAdminClient.create(
+            TopicAdminSettings.newBuilder()
+                .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setEndpoint(pubsubEndpoint)
+                .build());
+    subscriptionAdmin =
+        SubscriptionAdminClient.create(
+            SubscriptionAdminSettings.newBuilder()
+                .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setEndpoint(pubsubEndpoint)
+                .build());
     TopicPath eventsTopicPathTmp =
         PubsubClient.topicPathFromName(
             pipelineOptions.getProject(), createTopicName(description, EVENTS_TOPIC_NAME));
-
-    pubsub.createTopic(eventsTopicPathTmp);
+    topicAdmin.createTopic(eventsTopicPathTmp.getPath());
 
     eventsTopicPath = eventsTopicPathTmp;
+
+    String subscriptionName =
+        topicPath().getName() + "_beam_" + ThreadLocalRandom.current().nextLong();
     subscriptionPath =
-        pubsub.createRandomSubscription(
-            projectPathFromPath(String.format("projects/%s", pipelineOptions.getProject())),
-            topicPath(),
+        new SubscriptionPath(
+            String.format(
+                "projects/%s/subscriptions/%s", pipelineOptions.getProject(), subscriptionName));
+
+    Subscription subscription =
+        subscriptionAdmin.createSubscription(
+            subscriptionPath.getPath(),
+            topicPath().getPath(),
+            PushConfig.getDefaultInstance(),
             DEFAULT_ACK_DEADLINE_SECONDS);
   }
 
   private void tearDown() throws IOException {
-    if (pubsub == null) {
+    if (subscriptionAdmin == null || topicAdmin == null) {
       return;
     }
 
     try {
       if (subscriptionPath != null) {
-        pubsub.deleteSubscription(subscriptionPath);
+        subscriptionAdmin.deleteSubscription(subscriptionPath.getPath());
       }
       if (eventsTopicPath != null) {
-        pubsub.deleteTopic(eventsTopicPath);
+        for (String subscriptionPath :
+            topicAdmin.listTopicSubscriptions(eventsTopicPath.getPath()).iterateAll()) {
+          subscriptionAdmin.deleteSubscription(subscriptionPath);
+        }
+        topicAdmin.deleteTopic(eventsTopicPath.getPath());
       }
     } finally {
-      pubsub.close();
-      pubsub = null;
+      subscriptionAdmin.close();
+      topicAdmin.close();
+
+      subscriptionAdmin = null;
+      topicAdmin = null;
+
       eventsTopicPath = null;
       subscriptionPath = null;
     }
@@ -186,43 +228,49 @@ public class TestPubsub implements TestRule {
     return subscriptionPath;
   }
 
-  private List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
-      throws IOException {
-    return pubsub.listSubscriptions(projectPath, topicPath).stream()
-        .filter((path) -> !path.equals(subscriptionPath))
-        .collect(ImmutableList.toImmutableList());
+  private List<String> listSubscriptions(TopicPath topicPath) {
+    Preconditions.checkNotNull(topicAdmin);
+    // Exclude subscriptionPath, the subscription that we created
+    return Streams.stream(topicAdmin.listTopicSubscriptions(topicPath.getPath()).iterateAll())
+        .filter((path) -> !path.equals(subscriptionPath.getPath()))
+        .collect(Collectors.toList());
   }
 
   /** Publish messages to {@link #topicPath()}. */
-  public void publish(List<PubsubMessage> messages) throws IOException {
-    List<PubsubClient.OutgoingMessage> outgoingMessages =
-        messages.stream().map(this::toOutgoingMessage).collect(toList());
-    pubsub.publish(eventsTopicPath, outgoingMessages);
-  }
-
-  /** Pull up to 100 messages from {@link #subscriptionPath()}. */
-  public List<PubsubMessage> pull() throws IOException {
-    return pull(100);
-  }
-
-  /** Pull up to {@code maxBatchSize} messages from {@link #subscriptionPath()}. */
-  public List<PubsubMessage> pull(int maxBatchSize) throws IOException {
-    List<PubsubClient.IncomingMessage> messages =
-        pubsub.pull(0, subscriptionPath, maxBatchSize, true);
-    if (!messages.isEmpty()) {
-      pubsub.acknowledge(
-          subscriptionPath,
-          messages.stream().map(IncomingMessage::ackId).collect(ImmutableList.toImmutableList()));
+  public void publish(List<PubsubMessage> messages) {
+    Preconditions.checkNotNull(eventsTopicPath);
+    Publisher eventPublisher;
+    try {
+      eventPublisher =
+          Publisher.newBuilder(eventsTopicPath.getPath())
+              .setCredentialsProvider(pipelineOptions::getGcpCredential)
+              .setEndpoint(pubsubEndpoint)
+              .build();
+    } catch (IOException e) {
+      throw new RuntimeException("Error creating event publisher", e);
     }
 
-    return messages.stream()
-        .map(
-            msg ->
-                new PubsubMessage(
-                    msg.message().getData().toByteArray(),
-                    msg.message().getAttributesMap(),
-                    msg.recordId()))
-        .collect(ImmutableList.toImmutableList());
+    List<ApiFuture<String>> futures =
+        messages.stream()
+            .map(
+                (message) -> {
+                  com.google.pubsub.v1.PubsubMessage.Builder builder =
+                      com.google.pubsub.v1.PubsubMessage.newBuilder()
+                          .setData(ByteString.copyFrom(message.getPayload()))
+                          .putAllAttributes(message.getAttributeMap());
+                  return eventPublisher.publish(builder.build());
+                })
+            .collect(Collectors.toList());
+
+    try {
+      ApiFutures.allAsList(futures).get();
+    } catch (ExecutionException e) {
+      throw new RuntimeException("Error publishing a test message", e);
+    } catch (InterruptedException e) {
+      throw new RuntimeException("Interrupted while waiting for messages to publish", e);
+    }
+
+    eventPublisher.shutdown();
   }
 
   /**
@@ -231,20 +279,48 @@ public class TestPubsub implements TestRule {
    */
   public List<PubsubMessage> waitForNMessages(int n, Duration timeoutDuration)
       throws IOException, InterruptedException {
-    List<PubsubMessage> receivedMessages = new ArrayList<>(n);
+    Preconditions.checkNotNull(subscriptionPath);
+
+    BlockingQueue<com.google.pubsub.v1.PubsubMessage> receivedMessages =
+        new LinkedBlockingDeque<>(n);
+
+    MessageReceiver receiver =
+        (com.google.pubsub.v1.PubsubMessage message, AckReplyConsumer replyConsumer) -> {
+          if (receivedMessages.offer(message)) {
+            replyConsumer.ack();
+          } else {
+            replyConsumer.nack();
+          }
+        };
+
+    Subscriber subscriber =
+        Subscriber.newBuilder(subscriptionPath.getPath(), receiver)
+            .setCredentialsProvider(pipelineOptions::getGcpCredential)
+            .setEndpoint(pubsubEndpoint)
+            .build();
+    subscriber.startAsync();
 
     DateTime startTime = new DateTime();
     int timeoutSeconds = timeoutDuration.toStandardSeconds().getSeconds();
-
-    receivedMessages.addAll(pull(n - receivedMessages.size()));
-
     while (receivedMessages.size() < n
         && Seconds.secondsBetween(startTime, new DateTime()).getSeconds() < timeoutSeconds) {
-      Thread.sleep(1000);
-      receivedMessages.addAll(pull(n - receivedMessages.size()));
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException ignored) {
+      }
     }
 
-    return receivedMessages;
+    subscriber.stopAsync();
+    subscriber.awaitTerminated();
+
+    return receivedMessages.stream()
+        .map(
+            (message) ->
+                new PubsubMessage(
+                    message.getData().toByteArray(),
+                    message.getAttributesMap(),
+                    message.getMessageId()))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -309,9 +385,7 @@ public class TestPubsub implements TestRule {
             < timeoutDuration.toStandardSeconds().getSeconds()) {
       // Sleep 1 sec
       Thread.sleep(1000);
-      sizeOfSubscriptionList =
-          listSubscriptions(projectPathFromPath(String.format("projects/%s", project)), topicPath())
-              .size();
+      sizeOfSubscriptionList = Iterables.size(listSubscriptions(topicPath()));
     }
 
     if (sizeOfSubscriptionList > 0) {

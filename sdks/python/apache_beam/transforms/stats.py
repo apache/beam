@@ -15,19 +15,35 @@
 # limitations under the License.
 #
 
-"""This module has all statistic related transforms."""
+"""This module has all statistic related transforms.
+
+This ApproximateUnique class will be deprecated [1]. PLease look into using
+HLLCount in the zetasketch extension module [2].
+
+[1] https://lists.apache.org/thread.html/501605df5027567099b81f18c080469661fb426
+4a002615fa1510502%40%3Cdev.beam.apache.org%3E
+[2] https://beam.apache.org/releases/javadoc/2.16.0/org/apache/beam/sdk/extensio
+ns/zetasketch/HllCount.html
+"""
 
 # pytype: skip-file
 
 from __future__ import absolute_import
 from __future__ import division
 
+import hashlib
 import heapq
 import itertools
+import logging
 import math
 import sys
 import typing
 from builtins import round
+from typing import Any
+from typing import Generic
+from typing import Iterable
+from typing import List
+from typing import Sequence
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -44,6 +60,31 @@ __all__ = [
 T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
+
+
+def _get_default_hash_fn():
+  """Returns either murmurhash or md5 based on installation."""
+  try:
+    import mmh3  # pylint: disable=import-error
+
+    def _mmh3_hash(value):
+      # mmh3.hash64 returns two 64-bit unsigned integers
+      return mmh3.hash64(value, seed=0, signed=False)[0]
+
+    return _mmh3_hash
+
+  except ImportError:
+    logging.warning(
+        'Couldn\'t find murmurhash. Install mmh3 for a faster implementation of'
+        'ApproximateUnique.')
+
+    def _md5_hash(value):
+      # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
+      # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
+      # integer fingerprint.
+      return int(hashlib.md5(value).hexdigest()[:16], 16)
+
+    return _md5_hash
 
 
 class ApproximateUnique(object):
@@ -137,11 +178,12 @@ class _LargestUnique(object):
   An object to keep samples and calculate sample hash space. It is an
   accumulator of a combine function.
   """
-  _HASH_SPACE_SIZE = 2.0 * sys.maxsize
+  # We use unsigned 64-bit integer hashes.
+  _HASH_SPACE_SIZE = 2.0**64
 
   def __init__(self, sample_size):
     self._sample_size = sample_size
-    self._min_hash = sys.maxsize
+    self._min_hash = 2.0**64
     self._sample_heap = []
     self._sample_set = set()
 
@@ -166,7 +208,6 @@ class _LargestUnique(object):
         self._min_hash = self._sample_heap[0]
       elif element < self._min_hash:
         self._min_hash = element
-
     return True
 
   def get_estimate(self):
@@ -188,16 +229,14 @@ class _LargestUnique(object):
     est = log1p(-sample_size/sample_space) / log1p(-1/sample_space)
       * hash_space / sample_space
     """
-
     if len(self._sample_heap) < self._sample_size:
       return len(self._sample_heap)
     else:
-      sample_space_size = sys.maxsize - 1.0 * self._min_hash
+      sample_space_size = self._HASH_SPACE_SIZE - 1.0 * self._min_hash
       est = (
           math.log1p(-self._sample_size / sample_space_size) /
           math.log1p(-1 / sample_space_size) * self._HASH_SPACE_SIZE /
           sample_space_size)
-
       return round(est)
 
 
@@ -208,17 +247,22 @@ class ApproximateUniqueCombineFn(CombineFn):
   """
   def __init__(self, sample_size, coder):
     self._sample_size = sample_size
+    coder = coders.typecoders.registry.verify_deterministic(
+        coder, 'ApproximateUniqueCombineFn')
+
     self._coder = coder
+    self._hash_fn = _get_default_hash_fn()
 
   def create_accumulator(self, *args, **kwargs):
     return _LargestUnique(self._sample_size)
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      accumulator.add(hash(self._coder.encode(element)))
+      hashed_value = self._hash_fn(self._coder.encode(element))
+      accumulator.add(hashed_value)
       return accumulator
     except Exception as e:
-      raise RuntimeError("Runtime exception: %s", e)
+      raise RuntimeError("Runtime exception: %s" % e)
 
   # created an issue https://issues.apache.org/jira/browse/BEAM-7285 to speed up
   # merge process.
@@ -347,11 +391,12 @@ class ApproximateQuantiles(object):
           weighted=self._weighted)
 
 
-class _QuantileBuffer(object):
+class _QuantileBuffer(Generic[T]):
   """A single buffer in the sense of the referenced algorithm.
   (see http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
   def __init__(self, elements, weighted, level=0, weight=1):
+    # type: (Sequence[T], bool, int, int) -> None
     # In case of weighted quantiles, elements are tuples of values and weights.
     self.elements = elements
     self.weighted = weighted
@@ -387,14 +432,15 @@ class _QuantileBuffer(object):
     return QuantileBufferIterator(self.elements, self.weighted, self.weight)
 
 
-class _QuantileState(object):
+class _QuantileState(Generic[T]):
   """
   Compact summarization of a collection on which quantiles can be estimated.
   """
-  min_val = None  # Holds smallest item in the list
-  max_val = None  # Holds largest item in the list
+  min_val = None  # type: Any  # Holds smallest item in the list
+  max_val = None  # type: Any  # Holds largest item in the list
 
   def __init__(self, buffer_size, num_buffers, unbuffered_elements, buffers):
+    # type: (int, int, List[Any], List[_QuantileBuffer[T]]) -> None
     self.buffer_size = buffer_size
     self.num_buffers = num_buffers
     self.buffers = buffers
@@ -408,11 +454,13 @@ class _QuantileState(object):
     self.unbuffered_elements = unbuffered_elements
 
   def is_empty(self):
+    # type: () -> bool
+
     """Check if the buffered & unbuffered elements are empty or not."""
     return not self.unbuffered_elements and not self.buffers
 
 
-class ApproximateQuantilesCombineFn(CombineFn):
+class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
   """
   This combiner gives an idea of the distribution of a collection of values
   using approximate N-tiles. The output of this combiner is the list of size of
@@ -466,13 +514,13 @@ class ApproximateQuantilesCombineFn(CombineFn):
   # non-optimal. The impact is logarithmic with respect to this value, so this
   # default should be fine for most uses.
   _MAX_NUM_ELEMENTS = 1e9
-  _qs = None  # Refers to the _QuantileState
+  _qs = None  # type: _QuantileState[T]
 
   def __init__(
       self,
-      num_quantiles,
-      buffer_size,
-      num_buffers,
+      num_quantiles,  # type: int
+      buffer_size,  # type: int
+      num_buffers,  # type: int
       key=None,
       reverse=False,
       weighted=False):
@@ -502,12 +550,14 @@ class ApproximateQuantilesCombineFn(CombineFn):
   @classmethod
   def create(
       cls,
-      num_quantiles,
+      num_quantiles,  # type: int
       epsilon=None,
       max_num_elements=None,
       key=None,
       reverse=False,
       weighted=False):
+    # type: (...) -> ApproximateQuantilesCombineFn
+
     """
     Creates an approximate quantiles combiner with the given key and desired
     number of quantiles.
@@ -551,6 +601,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
         weighted=weighted)
 
   def _add_unbuffered(self, qs, elements):
+    # type: (_QuantileState[T], Iterable[T]) -> None
+
     """
     Add a new buffer to the unbuffered list, creating a new buffer and
     collapsing if needed.
@@ -572,6 +624,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
         self._collapse_if_needed(qs)
 
   def _offset(self, new_weight):
+    # type: (int) -> float
+
     """
     If the weight is even, we must round up or down. Alternate between these
     two options to avoid a bias.
@@ -583,6 +637,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
       return (new_weight + self._offset_jitter) / 2
 
   def _collapse(self, buffers):
+    # type: (Iterable[_QuantileBuffer[T]]) -> _QuantileBuffer[T]
     new_level = 0
     new_weight = 0
     for buffer_elem in buffers:
@@ -602,6 +657,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     return _QuantileBuffer(new_elements, self._weighted, new_level, new_weight)
 
   def _collapse_if_needed(self, qs):
+    # type: (_QuantileState) -> None
     while len(qs.buffers) > self._num_buffers:
       to_collapse = []
       to_collapse.append(heapq.heappop(qs.buffers))
@@ -663,7 +719,9 @@ class ApproximateQuantilesCombineFn(CombineFn):
         new_elements.append(weighted_element[0])
     return new_elements
 
-  def create_accumulator(self):
+  # TODO(BEAM-7746): Signature incompatible with supertype
+  def create_accumulator(self):  # type: ignore[override]
+    # type: () -> _QuantileState[T]
     self._qs = _QuantileState(
         buffer_size=self._buffer_size,
         num_buffers=self._num_buffers,

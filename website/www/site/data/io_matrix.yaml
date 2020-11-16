@@ -206,7 +206,7 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.rabbitmq.RabbitMqIO
-            url: https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.html
       - transform: SqsIO
         description: An unbounded source for [Amazon Simple Queue Service (SQS)](https://aws.amazon.com/sqs/).
         implementations:
@@ -259,7 +259,7 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.kudu
-            url: https://github.com/apache/beam/blob/master/sdks/java/io/kudu/src/main/java/org/apache/beam/sdk/io/kudu/KuduIO.java
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kudu/KuduIO.html
       - transform: SolrIO
         description: Transforms for reading and writing data from/to [Solr](https://lucene.apache.org/solr/).
         implementations:

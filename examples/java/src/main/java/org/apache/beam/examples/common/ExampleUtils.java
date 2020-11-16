@@ -62,6 +62,9 @@ import org.joda.time.Duration;
  *
  * <p>It is used to run Beam examples.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExampleUtils {
 
   private static final int SC_NOT_FOUND = 404;

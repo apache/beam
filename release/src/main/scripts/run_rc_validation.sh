@@ -66,7 +66,7 @@ HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
 BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
-declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
+declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.6" "python3.8")
 
 echo ""
 echo "====================Checking Environment & Variables================="
@@ -229,6 +229,18 @@ if [[ "$java_quickstart_dataflow" = true && ! -z `which gcloud` ]]; then
   -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
 else
   echo "* Skip Java quickstart with Dataflow runner. Google Cloud SDK is required."
+fi
+
+echo "[Current task] Java quickstart with Twister2 local runner"
+if [[ "$java_quickstart_twister2_local" = true ]]; then
+  echo "*************************************************************"
+  echo "* Running Java Quickstart with Twister2 local runner"
+  echo "*************************************************************"
+  ./gradlew :runners:twister2:runQuickstartJavaTwister2 \
+  -Prepourl=${REPO_URL} \
+  -Pver=${RELEASE_VER}
+else
+  echo "* Skip Java quickstart with Twister2 local runner"
 fi
 
 echo ""

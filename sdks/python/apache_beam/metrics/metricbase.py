@@ -38,7 +38,9 @@ from __future__ import absolute_import
 
 from builtins import object
 
-__all__ = ['Metric', 'Counter', 'Distribution', 'Gauge', 'MetricName']
+__all__ = [
+    'Metric', 'Counter', 'Distribution', 'Gauge', 'Histogram', 'MetricName'
+]
 
 
 class MetricName(object):
@@ -49,6 +51,8 @@ class MetricName(object):
   between multiple metrics of the same name.
   """
   def __init__(self, namespace, name):
+    # type: (str, str) -> None
+
     """Initializes ``MetricName``.
 
     Args:
@@ -78,7 +82,9 @@ class MetricName(object):
 
 class Metric(object):
   """Base interface of a metric object."""
-  pass
+  def __init__(self, metric_name):
+    # type: (MetricName) -> None
+    self.metric_name = metric_name
 
 
 class Counter(Metric):
@@ -106,4 +112,13 @@ class Gauge(Metric):
   Allows tracking of the latest value of a variable during pipeline
   execution."""
   def set(self, value):
+    raise NotImplementedError
+
+
+class Histogram(Metric):
+  """Histogram Metric interface.
+
+  Allows statistics about the percentile of a variable to be collected during
+  pipeline execution."""
+  def update(self, value):
     raise NotImplementedError

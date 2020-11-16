@@ -78,22 +78,18 @@ function get_version() {
 #   BEAM_PYTHON_SDK*
 # Arguments:
 #   $1 - SDK type: tar, wheel
-#   $2 - python interpreter version: python2.7, python3.5, ...
+#   $2 - python interpreter version: python3.7, python3.8, ...
 #######################################
 function download_files() {
   if [[ $1 = *"wheel"* ]]; then
-    if [[ $2 == "python2.7" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp27-cp27mu-manylinux1_x86_64.whl"
-    elif [[ $2 == "python3.5" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp35-cp35m-manylinux1_x86_64.whl"
-    elif [[ $2 == "python3.6" ]]; then
+    if [[ $2 == "python3.6" ]]; then
       BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp36-cp36m-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.7" ]]; then
       BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp37-cp37m-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.8" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp38-cp38m-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp38-cp38-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.9" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp39-cp39m-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp39-cp39-manylinux1_x86_64.whl"
     else
       echo "Unable to determine a Beam wheel for interpreter version $2."
       exit 1
@@ -157,7 +153,7 @@ function get_asc_name() {
 #   BEAM_PYTHON_SDK
 # Arguments:
 #   $1 - SDK type: tar, wheel
-#   $2 - python interpreter version: [python2.7, python3.5, ...]
+#   $2 - python interpreter version: [python3.7, python3.8, ...]
 #######################################
 function install_sdk() {
   sdk_file=$(get_sdk_name $1)

@@ -74,55 +74,65 @@ Local execution is limited by the memory available in your local environment. It
 
 If your pipeline uses an unbounded data source or sink, you must set the `streaming` option to `true`.
 
+{:.language-py}
 ### Execution Mode
 
+{:.language-py}
 Python [FnApiRunner](https://beam.apache.org/contribute/runner-guide/#the-fn-api) supports multi-threading and multi-processing mode.
 
+{:.language-py}
 <strong>Setting parallelism</strong>
 
+{:.language-py}
 Number of threads or subprocesses is defined by setting the `direct_num_workers` option.
-From 2.22.0, `direct_num_workers = 0` is supported. When `direct_num_workers` is set to 0, it will set the number of threads/subprocess to the number of cores of the machine where the pipelien is running.
+From 2.22.0, `direct_num_workers = 0` is supported. When `direct_num_workers` is set to 0, it will set the number of threads/subprocess to the number of cores of the machine where the pipeline is running.
 
-There are several ways to set this option.
-
-* Passing through CLI when executing a pipeline.
-```
+{:.language-py}
+* There are several ways to set this option.
+```py
 python wordcount.py --input xx --output xx --direct_num_workers 2
 ```
 
+{:.language-py}
 * Setting with `PipelineOptions`.
-```
+```py
 from apache_beam.options.pipeline_options import PipelineOptions
 pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
 ```
 
+{:.language-py}
 * Adding to existing `PipelineOptions`.
-```
+```py
 from apache_beam.options.pipeline_options import DirectOptions
 pipeline_options = PipelineOptions(xxx)
 pipeline_options.view_as(DirectOptions).direct_num_workers = 2
 ```
 
-
-
+{:.language-py}
 <strong>Setting running mode</strong>
 
+{:.language-py}
 From 2.19, a new option was added to set running mode. We can use `direct_running_mode` option to set the running mode.
 `direct_running_mode` can be one of [`'in_memory'`, `'multi_threading'`, `'multi_processing'`].
 
+{:.language-py}
 <b>in_memory</b>: Runner and workers' communication happens in memory (not through gRPC). This is a default mode.
 
+{:.language-py}
 <b>multi_threading</b>: Runner and workers communicate through gRPC and each worker runs in a thread.
 
+{:.language-py}
 <b>multi_processing</b>: Runner and workers communicate through gRPC and each worker runs in a subprocess.
 
+{:.language-py}
 Same as other options, `direct_running_mode` can be passed through CLI or set with `PipelineOptions`.
 
+{:.language-py}
 For the versions before 2.19.0, the running mode should be set with `FnApiRunner()`. Please refer following examples.
 
+{:.language-py}
 #### Running with multi-threading mode
-
-```
+```py
 import argparse
 
 import apache_beam as beam
@@ -142,9 +152,9 @@ p = beam.Pipeline(options=pipeline_options,
           urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 ```
 
+{:.language-py}
 #### Running with multi-processing mode
-
-```
+```py
 import argparse
 import sys
 

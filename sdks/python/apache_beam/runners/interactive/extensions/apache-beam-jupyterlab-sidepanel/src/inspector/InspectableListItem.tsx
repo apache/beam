@@ -38,13 +38,32 @@ interface IInspectableListItemProps {
   metadata: IInspectableMeta;
 }
 
+interface IInspectableListItemState {
+  activated: boolean;
+}
+
 export class InspectableListItem extends React.Component<
   IInspectableListItemProps,
-  {}
+  IInspectableListItemState
 > {
   constructor(props: IInspectableListItemProps) {
     super(props);
     this.show = this.show.bind(this);
+    this.state = { activated: false };
+  }
+
+  componentDidMount(): void {
+    this._updateRenderTimerId = setInterval(() => this.updateRender(), 500);
+  }
+
+  componentWillUnmount(): void {
+    clearInterval(this._updateRenderTimerId);
+  }
+
+  updateRender(): void {
+    this.setState({
+      activated: this.props?.inspectableViewModel?.identifier === this.props.id
+    });
   }
 
   /**
@@ -67,6 +86,9 @@ export class InspectableListItem extends React.Component<
           paddingLeft: '5px'
         }}
         onClick={this.show}
+        activated={
+          this.props?.inspectableViewModel?.identifier === this.props.id
+        }
       >
         <ListItemText>
           <ListItemPrimaryText>{this.props.metadata.name}</ListItemPrimaryText>
@@ -75,4 +97,6 @@ export class InspectableListItem extends React.Component<
       </ListItem>
     );
   }
+
+  private _updateRenderTimerId: number;
 }

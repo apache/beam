@@ -18,6 +18,8 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -80,6 +82,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DefaultJobBundleFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DefaultJobBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Mock private EnvironmentFactory envFactory;
@@ -471,8 +476,10 @@ public class DefaultJobBundleFactoryTest {
       new Timer().schedule(closeBundleTask, 100);
 
       RemoteBundle b3 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
+
       // ensure we waited for close
-      Assert.assertTrue(System.currentTimeMillis() - tms >= 100 && closed.get());
+      Assert.assertThat(System.currentTimeMillis() - tms, greaterThanOrEqualTo(100L));
+      Assert.assertThat(closed.get(), is(true));
 
       verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
       b3.close();

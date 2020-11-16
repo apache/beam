@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
@@ -48,7 +49,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -101,6 +101,11 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link DoFnOperator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DoFnOperatorTest {
 
   // views and windows for testing side inputs
@@ -138,11 +143,12 @@ public class DoFnOperatorTest {
             Collections.emptyMap(),
             outputTag,
             Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag, coder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
             WindowingStrategy.globalDefault(),
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             null,
             null,
             DoFnSchemaInformation.create(),
@@ -203,11 +209,15 @@ public class DoFnOperatorTest {
             mainOutput,
             ImmutableList.of(additionalOutput1, additionalOutput2),
             new DoFnOperator.MultiOutputOutputManagerFactory(
-                mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds),
+                mainOutput,
+                tagsToOutputTags,
+                tagsToCoders,
+                tagsToIds,
+                new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
             WindowingStrategy.globalDefault(),
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             null,
             null,
             DoFnSchemaInformation.create(),
@@ -339,11 +349,14 @@ public class DoFnOperatorTest {
             Collections.emptyMap(),
             outputTag,
             Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag,
+                outputCoder,
+                new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
             windowingStrategy,
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             keyCoder, /* key coder */
             keySelector,
             DoFnSchemaInformation.create(),
@@ -353,9 +366,12 @@ public class DoFnOperatorTest {
         new KeyedOneInputStreamOperatorTestHarness<>(
             doFnOperator,
             keySelector,
-            new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+            new CoderTypeInformation<>(
+                FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
 
-    testHarness.setup(new CoderTypeSerializer<>(outputCoder));
+    testHarness.setup(
+        new CoderTypeSerializer<>(
+            outputCoder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults())));
 
     testHarness.open();
 
@@ -448,11 +464,14 @@ public class DoFnOperatorTest {
             Collections.emptyMap(),
             outputTag,
             Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag,
+                outputCoder,
+                new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
             windowingStrategy,
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             keyCoder, /* key coder */
             keySelector,
             DoFnSchemaInformation.create(),
@@ -462,7 +481,8 @@ public class DoFnOperatorTest {
         new KeyedOneInputStreamOperatorTestHarness<>(
             doFnOperator,
             keySelector,
-            new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+            new CoderTypeInformation<>(
+                FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
 
     testHarness.open();
 
@@ -508,76 +528,17 @@ public class DoFnOperatorTest {
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(new Duration(10))).withAllowedLateness(Duration.ZERO);
-
-    final String timerId = "boo";
-    final String stateId = "dazzle";
-
     final int offset = 5000;
     final int timerOutput = 4093;
-
-    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
-        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
-
-          @TimerId(timerId)
-          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-          @StateId(stateId)
-          private final StateSpec<ValueState<String>> stateSpec =
-              StateSpecs.value(StringUtf8Coder.of());
-
-          @ProcessElement
-          public void processElement(
-              ProcessContext context,
-              @TimerId(timerId) Timer timer,
-              @StateId(stateId) ValueState<String> state,
-              BoundedWindow window) {
-            timer.set(window.maxTimestamp());
-            state.write(context.element().getKey());
-            context.output(
-                KV.of(context.element().getKey(), context.element().getValue() + offset));
-          }
-
-          @OnTimer(timerId)
-          public void onTimer(OnTimerContext context, @StateId(stateId) ValueState<String> state) {
-            context.output(KV.of(state.read(), timerOutput));
-          }
-        };
-
-    WindowedValue.FullWindowedValueCoder<KV<String, Integer>> coder =
-        WindowedValue.getFullCoder(
-            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
-            windowingStrategy.getWindowFn().windowCoder());
-
-    TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
-
-    KeySelector<WindowedValue<KV<String, Integer>>, ByteBuffer> keySelector =
-        e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
-
-    DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
-        new DoFnOperator<>(
-            fn,
-            "stepName",
-            coder,
-            Collections.emptyMap(),
-            outputTag,
-            Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-            windowingStrategy,
-            new HashMap<>(), /* side-input mapping */
-            Collections.emptyList(), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            StringUtf8Coder.of(), /* key coder */
-            keySelector,
-            DoFnSchemaInformation.create(),
-            Collections.emptyMap());
 
     KeyedOneInputStreamOperatorTestHarness<
             ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
         testHarness =
-            new KeyedOneInputStreamOperatorTestHarness<>(
-                doFnOperator,
-                keySelector,
-                new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+            getHarness(
+                windowingStrategy,
+                offset,
+                (window) -> new Instant(window.maxTimestamp()),
+                timerOutput);
 
     testHarness.open();
 
@@ -628,10 +589,143 @@ public class DoFnOperatorTest {
             WindowedValue.of(
                 KV.of("key2", timerOutput), new Instant(9), window1, PaneInfo.NO_FIRING)));
 
+    testHarness.close();
+  }
+
+  @Test
+  public void testGCForGlobalWindow() throws Exception {
+    WindowingStrategy<Object, GlobalWindow> windowingStrategy = WindowingStrategy.globalDefault();
+
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+        testHarness = getHarness(windowingStrategy, 5000, (window) -> new Instant(50), 4092);
+
+    testHarness.open();
+
+    testHarness.processWatermark(0);
+
     // ensure the state was garbage collected and the pending timers have been removed
     assertEquals(0, testHarness.numKeyedStateEntries());
 
+    // Check global window cleanup via final watermark, _without_ cleanup timers
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(
+                KV.of("key1", 5), new Instant(23), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(
+                KV.of("key2", 6), new Instant(42), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+
+    // timers set by the transform
+    assertThat(testHarness.numEventTimeTimers(), is(2));
+    // state has been written which needs to be cleaned up (includes timers)
+    assertThat(testHarness.numKeyedStateEntries(), is(4));
+
+    // Fire timers set
+    testHarness.processWatermark(51);
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(2));
+
+    // Should not trigger garbage collection yet
+    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(1).getMillis());
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(2));
+
+    // Cleanup due to end of global window
+    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(2).getMillis());
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+
+    // Any new state will also be cleaned up on close
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(
+                KV.of("key2", 6), new Instant(42), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+
+    // Close sends Flink's max watermark and will cleanup again
     testHarness.close();
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+  }
+
+  private static KeyedOneInputStreamOperatorTestHarness<
+          ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+      getHarness(
+          WindowingStrategy windowingStrategy,
+          int elementOffset,
+          Function<BoundedWindow, Instant> timerTimestamp,
+          int timerOutput)
+          throws Exception {
+    final String timerId = "boo";
+    final String stateId = "dazzle";
+
+    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<String>> stateSpec =
+              StateSpecs.value(StringUtf8Coder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context,
+              @TimerId(timerId) Timer timer,
+              @StateId(stateId) ValueState<String> state,
+              BoundedWindow window) {
+            timer.set(timerTimestamp.apply(window));
+            state.write(context.element().getKey());
+            context.output(
+                KV.of(context.element().getKey(), context.element().getValue() + elementOffset));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context, @StateId(stateId) ValueState<String> state) {
+            context.output(KV.of(state.read(), timerOutput));
+          }
+        };
+
+    WindowedValue.FullWindowedValueCoder<KV<String, Integer>> coder =
+        WindowedValue.getFullCoder(
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+            windowingStrategy.getWindowFn().windowCoder());
+
+    TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
+
+    KeySelector<WindowedValue<KV<String, Integer>>, ByteBuffer> keySelector =
+        e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
+
+    DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
+        new DoFnOperator<>(
+            fn,
+            "stepName",
+            coder,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag, coder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
+            windowingStrategy,
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            FlinkPipelineOptions.defaults(),
+            StringUtf8Coder.of(), /* key coder */
+            keySelector,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator,
+                keySelector,
+                new CoderTypeInformation<>(
+                    FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
+    return testHarness;
   }
 
   @Test
@@ -668,11 +762,12 @@ public class DoFnOperatorTest {
             Collections.emptyMap(),
             outputTag,
             Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag, coder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
             WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
             sideInputMapping, /* side-input mapping */
             ImmutableList.of(view1, view2), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             keyed ? keyCoder : null,
             keyed ? keySelector : null,
             DoFnSchemaInformation.create(),
@@ -688,7 +783,8 @@ public class DoFnOperatorTest {
               doFnOperator,
               keySelector,
               null,
-              new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+              new CoderTypeInformation<>(
+                  FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
     }
 
     testHarness.open();
@@ -777,14 +873,15 @@ public class DoFnOperatorTest {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>("main-output");
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToByteBufferKeySelector keySelector = new KvToByteBufferKeySelector<>(keyCoder);
+    KvToByteBufferKeySelector keySelector = new KvToByteBufferKeySelector<>(keyCoder, null);
     KvCoder<String, Long> coder = KvCoder.of(keyCoder, VarLongCoder.of());
 
     FullWindowedValueCoder<KV<String, Long>> kvCoder =
         WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
 
     CoderTypeInformation<ByteBuffer> keyCoderInfo =
-        new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of());
+        new CoderTypeInformation<>(
+            FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults());
 
     OneInputStreamOperatorTestHarness<
             WindowedValue<KV<String, Long>>, WindowedValue<KV<String, Long>>>
@@ -862,11 +959,14 @@ public class DoFnOperatorTest {
                   Collections.emptyMap(),
                   outputTag,
                   Collections.emptyList(),
-                  new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                      outputTag,
+                      coder,
+                      new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
                   WindowingStrategy.globalDefault(),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
-                  PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+                  FlinkPipelineOptions.defaults(),
                   null,
                   null,
                   DoFnSchemaInformation.create(),
@@ -902,11 +1002,14 @@ public class DoFnOperatorTest {
                   Collections.emptyMap(),
                   outputTag,
                   Collections.emptyList(),
-                  new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                      outputTag,
+                      coder,
+                      new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
                   WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
-                  PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+                  FlinkPipelineOptions.defaults(),
                   keyCoder,
                   keySelector,
                   DoFnSchemaInformation.create(),
@@ -917,7 +1020,8 @@ public class DoFnOperatorTest {
               keySelector,
               // we use a dummy key for the second input since it is considered to be broadcast
               null,
-              new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+              new CoderTypeInformation<>(
+                  FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
         });
   }
 
@@ -1001,11 +1105,14 @@ public class DoFnOperatorTest {
                   Collections.emptyMap(),
                   outputTag,
                   Collections.emptyList(),
-                  new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                      outputTag,
+                      coder,
+                      new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
                   WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
-                  PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+                  FlinkPipelineOptions.defaults(),
                   null,
                   null,
                   DoFnSchemaInformation.create(),
@@ -1042,11 +1149,14 @@ public class DoFnOperatorTest {
                   Collections.emptyMap(),
                   outputTag,
                   Collections.emptyList(),
-                  new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                      outputTag,
+                      coder,
+                      new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
                   WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
-                  PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+                  FlinkPipelineOptions.defaults(),
                   keyCoder,
                   keySelector,
                   DoFnSchemaInformation.create(),
@@ -1057,7 +1167,8 @@ public class DoFnOperatorTest {
               keySelector,
               // we use a dummy key for the second input since it is considered to be broadcast
               null,
-              new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+              new CoderTypeInformation<>(
+                  FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
         });
   }
 
@@ -1157,9 +1268,11 @@ public class DoFnOperatorTest {
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
     final CoderTypeSerializer<WindowedValue<String>> outputSerializer =
-        new CoderTypeSerializer<>(outputCoder);
+        new CoderTypeSerializer<>(
+            outputCoder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     CoderTypeInformation<ByteBuffer> keyCoderInfo =
-        new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of());
+        new CoderTypeInformation<>(
+            FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults());
     KeySelector<WindowedValue<Integer>, ByteBuffer> keySelector =
         e -> FlinkKeyUtils.encodeKey(e.getValue(), keyCoder);
 
@@ -1237,11 +1350,14 @@ public class DoFnOperatorTest {
             Collections.emptyMap(),
             outputTag,
             Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag,
+                outputCoder,
+                new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
             windowingStrategy,
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             keyCoder /* key coder */,
             keySelector,
             DoFnSchemaInformation.create(),
@@ -1258,7 +1374,7 @@ public class DoFnOperatorTest {
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setMaxBundleSize(2L);
     options.setMaxBundleTimeMills(10L);
 
@@ -1274,7 +1390,8 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
             outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
 
     DoFnOperator<String, String> doFnOperator =
         new DoFnOperator<>(
@@ -1392,13 +1509,15 @@ public class DoFnOperatorTest {
   public void testBundleKeyed() throws Exception {
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToByteBufferKeySelector keySelector = new KvToByteBufferKeySelector<>(keyCoder);
+    KvToByteBufferKeySelector keySelector =
+        new KvToByteBufferKeySelector<>(
+            keyCoder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
     WindowedValue.ValueOnlyWindowedValueCoder<KV<String, String>> windowedValueCoder =
         WindowedValue.getValueOnlyCoder(kvCoder);
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setMaxBundleSize(2L);
     options.setMaxBundleTimeMills(10L);
 
@@ -1420,7 +1539,8 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
             outputTag,
-            WindowedValue.getFullCoder(kvCoder.getValueCoder(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(kvCoder.getValueCoder(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
 
     DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator =
         new DoFnOperator(
@@ -1523,7 +1643,7 @@ public class DoFnOperatorTest {
 
   @Test
   public void testCheckpointBufferingWithMultipleBundles() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setMaxBundleSize(10L);
     options.setCheckpointingInterval(1L);
 
@@ -1536,7 +1656,8 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory<>(
             outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
 
     @SuppressWarnings("unchecked")
     Supplier<DoFnOperator<String, String>> doFnOperatorSupplier =
@@ -1627,7 +1748,7 @@ public class DoFnOperatorTest {
 
   @Test
   public void testExactlyOnceBuffering() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setMaxBundleSize(2L);
     options.setCheckpointingInterval(1L);
 
@@ -1660,7 +1781,8 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
             outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
 
     Supplier<DoFnOperator<String, String>> doFnOperatorSupplier =
         () ->
@@ -1737,14 +1859,15 @@ public class DoFnOperatorTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testExactlyOnceBufferingKeyed() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setMaxBundleSize(2L);
     options.setCheckpointingInterval(1L);
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToByteBufferKeySelector keySelector = new KvToByteBufferKeySelector<>(keyCoder);
+    KvToByteBufferKeySelector keySelector =
+        new KvToByteBufferKeySelector<>(keyCoder, new SerializablePipelineOptions(options));
     KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
     WindowedValue.ValueOnlyWindowedValueCoder<KV<String, String>> windowedValueCoder =
         WindowedValue.getValueOnlyCoder(kvCoder);
@@ -1775,7 +1898,8 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
             outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
 
     Supplier<DoFnOperator<KV<String, String>, KV<String, String>>> doFnOperatorSupplier =
         () ->
@@ -1869,7 +1993,7 @@ public class DoFnOperatorTest {
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    KvToByteBufferKeySelector keySelector = new KvToByteBufferKeySelector<>(keyCoder);
+    KvToByteBufferKeySelector keySelector = new KvToByteBufferKeySelector<>(keyCoder, null);
     KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
     WindowedValue.ValueOnlyWindowedValueCoder<KV<String, String>> windowedValueCoder =
         WindowedValue.getValueOnlyCoder(kvCoder);
@@ -1887,9 +2011,10 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
             outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     // should make the DoFnOperator creation fail
     options.setCheckpointingInterval(-1L);
     new DoFnOperator(
@@ -1912,7 +2037,7 @@ public class DoFnOperatorTest {
 
   @Test
   public void testBundleProcessingExceptionIsFatalDuringCheckpointing() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setMaxBundleSize(10L);
     options.setCheckpointingInterval(1L);
 
@@ -1925,7 +2050,8 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
             outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
 
     @SuppressWarnings("unchecked")
     DoFnOperator doFnOperator =
@@ -2006,7 +2132,7 @@ public class DoFnOperatorTest {
   }
 
   private static DoFnOperator getOperatorForCleanupInspection() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setParallelism(4);
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
@@ -2024,7 +2150,8 @@ public class DoFnOperatorTest {
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
             outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
 
     return new DoFnOperator<>(
         doFn,
@@ -2049,10 +2176,9 @@ public class DoFnOperatorTest {
         .filter(o -> o instanceof StreamRecord)
         .transform(
             new Function<Object, WindowedValue<String>>() {
-              @Nullable
               @Override
               @SuppressWarnings({"unchecked", "rawtypes"})
-              public WindowedValue<String> apply(@Nullable Object o) {
+              public @Nullable WindowedValue<String> apply(@Nullable Object o) {
                 if (o instanceof StreamRecord) {
                   return (WindowedValue<String>) ((StreamRecord) o).getValue();
                 }

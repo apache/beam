@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import random
 from typing import Any
 from typing import Iterable
 from typing import Tuple
@@ -29,6 +30,9 @@ Frame = TypeVar('Frame', bound=pd.core.generic.NDFrame)
 class Partitioning(object):
   """A class representing a (consistent) partitioning of dataframe objects.
   """
+  def __repr__(self):
+    return self.__class__.__name__
+
   def is_subpartitioning_of(self, other):
     # type: (Partitioning) -> bool
 
@@ -39,8 +43,8 @@ class Partitioning(object):
     """
     raise NotImplementedError
 
-  def partition_fn(self, df):
-    # type: (Frame) -> Iterable[Tuple[Any, Frame]]
+  def partition_fn(self, df, num_partitions):
+    # type: (Frame, int) -> Iterable[Tuple[Any, Frame]]
 
     """A callable that actually performs the partitioning of a Frame df.
 
@@ -48,6 +52,9 @@ class Partitioning(object):
     achieve the desired partitioning.
     """
     raise NotImplementedError
+
+  def test_partition_fn(self, df):
+    return self.partition_fn(df, 5)
 
 
 class Index(Partitioning):
@@ -63,11 +70,14 @@ class Index(Partitioning):
   The ordering is implemented via the is_subpartitioning_of method, where the
   examples on the right are subpartitionings of the examples on the left above.
   """
-
-  _INDEX_PARTITIONS = 10
-
   def __init__(self, levels=None):
     self._levels = levels
+
+  def __repr__(self):
+    if self._levels:
+      return 'Index%s' % self._levels
+    else:
+      return 'Index'
 
   def __eq__(self, other):
     return type(self) == type(other) and self._levels == other._levels
@@ -94,7 +104,7 @@ class Index(Partitioning):
     else:
       return False
 
-  def partition_fn(self, df):
+  def partition_fn(self, df, num_partitions):
     if self._levels is None:
       levels = list(range(df.index.nlevels))
     else:
@@ -102,8 +112,8 @@ class Index(Partitioning):
     hashes = sum(
         pd.util.hash_array(df.index.get_level_values(level))
         for level in levels)
-    for key in range(self._INDEX_PARTITIONS):
-      yield key, df[hashes % self._INDEX_PARTITIONS == key]
+    for key in range(num_partitions):
+      yield key, df[hashes % num_partitions == key]
 
 
 class Singleton(Partitioning):
@@ -121,7 +131,7 @@ class Singleton(Partitioning):
   def is_subpartitioning_of(self, other):
     return True
 
-  def partition_fn(self, df):
+  def partition_fn(self, df, num_partitions):
     yield None, df
 
 
@@ -139,3 +149,16 @@ class Nothing(Partitioning):
 
   def is_subpartitioning_of(self, other):
     return isinstance(other, Nothing)
+
+  def test_partition_fn(self, df):
+    num_partitions = max(min(df.size, 10), 1)
+
+    def shuffled(seq):
+      seq = list(seq)
+      random.shuffle(seq)
+      return seq
+
+    # pylint: disable=range-builtin-not-iterating
+    part = pd.Series(shuffled(range(len(df))), index=df.index) % num_partitions
+    for k in range(num_partitions):
+      yield k, df[part == k]

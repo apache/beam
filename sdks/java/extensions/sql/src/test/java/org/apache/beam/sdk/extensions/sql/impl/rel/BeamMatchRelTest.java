@@ -148,7 +148,8 @@ public class BeamMatchRelTest {
             + "A AS name = 'a', "
             + "B AS name = 'b', "
             + "C AS name = 'c' "
-            + ") AS T";
+            + ") AS T "
+            + "WHERE T.id > 0";
 
     PCollection<Row> result = compilePipeline(sql, pipeline);
 
@@ -165,7 +166,42 @@ public class BeamMatchRelTest {
     pipeline.run().waitUntilFinish();
   }
 
-  @Ignore("NFA has not been implemented for now.")
+  @Test
+  public void matchPrevFunctionTest() {
+    // finds the minimum prices in the table
+    Schema schemaType = Schema.builder().addInt32Field("transTime").addInt32Field("price").build();
+
+    registerTable(
+        "TestTable", TestBoundedTable.of(schemaType).addRows(3, 1, 1, 3, 2, 2, 4, 5, 5, 6));
+
+    String sql =
+        "SELECT * "
+            + "FROM TestTable "
+            + "MATCH_RECOGNIZE ("
+            + "ORDER BY transTime "
+            + "MEASURES "
+            + "LAST (A.price) AS beforePrice, "
+            + "FIRST (B.price) AS afterPrice "
+            + "PATTERN (A+ B+) "
+            + "DEFINE "
+            + "A AS price < PREV(A.price), "
+            + "B AS price > PREV(B.price) "
+            + ") AS T ";
+
+    PCollection<Row> result = compilePipeline(sql, pipeline);
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT32, "beforePrice",
+                    Schema.FieldType.INT32, "afterPrice")
+                .addRows(1, 5)
+                .getRows());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Ignore("NFA has not been fully implemented for now.")
   @Test
   public void matchNFATest() {
     Schema schemaType =

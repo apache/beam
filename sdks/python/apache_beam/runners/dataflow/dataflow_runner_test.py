@@ -52,6 +52,7 @@ from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_a
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms import combiners
 from apache_beam.transforms import environments
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Windowing
@@ -250,15 +251,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
     self.assertEqual(job_dict[u'steps'][2][u'kind'], u'ParallelDo')
 
-  def test_bigquery_read_streaming_fail(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append("--streaming")
-    with self.assertRaisesRegex(ValueError,
-                                r'source is not currently available'):
-      with Pipeline(remote_runner,
-                    PipelineOptions(self.default_properties)) as p:
-        _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-
   def test_biqquery_read_fn_api_fail(self):
     remote_runner = DataflowRunner()
     for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
@@ -269,7 +261,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
         with Pipeline(remote_runner,
                       PipelineOptions(self.default_properties)) as p:
-          _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
+          _ = p | beam.io.Read(
+              beam.io.BigQuerySource(
+                  'some.table', use_dataflow_native_source=True))
 
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
@@ -323,7 +317,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                          options=PipelineOptions(self.default_properties)) as p:
         # pylint: disable=expression-not-assigned
         p | beam.io.Read(
-            beam.io.BigQuerySource('dataset.faketable')) | beam.GroupByKey()
+            beam.io.BigQuerySource(
+                'dataset.faketable',
+                use_dataflow_native_source=True)) | beam.GroupByKey()
 
   def test_group_by_key_input_visitor_with_valid_inputs(self):
     p = TestPipeline()
@@ -641,7 +637,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
-      p | beam.io.Read(beam.io.BigQuerySource('some.table', coder=BytesCoder()))
+      p | beam.io.Read(
+          beam.io.BigQuerySource(
+              'some.table', coder=BytesCoder(),
+              use_dataflow_native_source=True))
 
     self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
 
@@ -757,6 +756,36 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         # pylint: disable=expression-not-assigned
         out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
         out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
+
+  @unittest.skip('BEAM-3736: enable once CombineFnVisitor is fixed')
+  def test_unsupported_combinefn_detection(self):
+    class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
+      def setup(self, *args, **kwargs):
+        pass
+
+      def teardown(self, *args, **kwargs):
+        pass
+
+    runner = DataflowRunner()
+    with self.assertRaisesRegex(ValueError,
+                                'CombineFn.setup and CombineFn.'
+                                'teardown are not supported'):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(CombinerWithNonDefaultSetupTeardown()))
+
+    try:
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(
+                combiners.SingleInputTupleCombineFn(
+                    combiners.CountCombineFn(), combiners.CountCombineFn())))
+    except ValueError:
+      self.fail('ValueError raised unexpectedly')
 
 
 class CustomMergingWindowFn(window.WindowFn):

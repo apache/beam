@@ -30,6 +30,9 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SystemReduceFnBuffering<K, T, W extends BoundedWindow>
     extends SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W> {
   private static final String BUFFER_NAME = "buf";

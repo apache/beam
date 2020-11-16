@@ -18,18 +18,21 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker:false,
-  ignoreRawtypeErrors:true,
   automaticModuleName: 'org.apache.beam.sdk.io.kafka',
   mavenRepositories: [
     [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
-  ]
+  ],
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
+
+// Testing Kafka clients API 2.1.0 onwards (deserialization with Headers suppport)
+configurations {
+  kafkaVersion210
+}
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
@@ -64,4 +67,24 @@ dependencies {
   testCompile library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  kafkaVersion210 "org.apache.kafka:kafka-clients:2.1.0"
 }
+
+configurations.kafkaVersion210 {
+  resolutionStrategy {
+    force "org.apache.kafka:kafka-clients:2.1.0"
+  }
+}
+
+task kafkaVersion210Test(type: Test) {
+  group = "Verification"
+  description = 'Runs KafkaIO tests with Kafka clients API 2.1.0'
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  classpath =  configurations.kafkaVersion210 + sourceSets.test.runtimeClasspath
+  include '**/KafkaIOTest.class'
+  shouldRunAfter test
+  useJUnit { }
+}
+
+check.dependsOn kafkaVersion210Test

@@ -153,6 +153,9 @@ import org.slf4j.LoggerFactory;
  * connect timeout of 1000ms.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ElasticsearchIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIO.class);

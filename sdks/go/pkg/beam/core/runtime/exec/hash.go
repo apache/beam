@@ -45,6 +45,13 @@ func makeElementHasher(c *coder.Coder) elementHasher {
 	case coder.String:
 		return &stringHasher{hash: hasher}
 
+	case coder.Row:
+		enc := MakeElementEncoder(c)
+		return &rowHasher{
+			hash:  hasher,
+			coder: enc,
+		}
+
 	case coder.Custom:
 		// Shortcut for primitives where we know we can do better.
 		switch c.Custom.Type {
@@ -131,6 +138,22 @@ func (h *numberHasher) Hash(element interface{}) (uint64, error) {
 		panic(fmt.Sprintf("received unknown value type: want a number:, got %T", n))
 	}
 	return val, nil
+}
+
+type rowHasher struct {
+	hash  hash.Hash64
+	coder ElementEncoder
+	fv    FullValue
+}
+
+func (h *rowHasher) Hash(element interface{}) (uint64, error) {
+	h.hash.Reset()
+	h.fv.Elm = element
+	if err := h.coder.Encode(&h.fv, h.hash); err != nil {
+		return 0, err
+	}
+	h.fv.Elm = nil
+	return h.hash.Sum64(), nil
 }
 
 type customEncodedHasher struct {

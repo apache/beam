@@ -34,8 +34,8 @@ public class CEPMeasure implements Serializable {
   public CEPMeasure(Schema streamSchema, String outTableName, CEPOperation opr) {
     this.outTableName = outTableName;
     this.opr = opr;
-    this.fieldRef = CEPUtil.getFieldRef(opr);
-    this.fieldType = CEPUtil.getFieldType(streamSchema, opr);
+    this.fieldRef = CEPUtils.getFieldRef(opr);
+    this.fieldType = CEPUtils.getFieldType(streamSchema, opr);
   }
 
   // return the out column name

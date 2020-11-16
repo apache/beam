@@ -30,6 +30,9 @@ import org.joda.time.Duration;
  * programmatically. We only capture properties which may influence the resulting pipeline
  * performance, as captured by {@link NexmarkPerf}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NexmarkConfiguration implements Serializable {
   public static final NexmarkConfiguration DEFAULT = new NexmarkConfiguration();
 
@@ -41,6 +44,9 @@ public class NexmarkConfiguration implements Serializable {
 
   /** Where events come from. */
   @JsonProperty public NexmarkUtils.SourceType sourceType = NexmarkUtils.SourceType.DIRECT;
+
+  /** If provided, only generate events and write them to local file with this prefix. */
+  @JsonProperty public String generateEventFilePathPrefix = null;
 
   /** Where results go to. */
   @JsonProperty public NexmarkUtils.SinkType sinkType = NexmarkUtils.SinkType.DEVNULL;
@@ -216,6 +222,10 @@ public class NexmarkConfiguration implements Serializable {
     if (options.getSourceType() != null) {
       sourceType = options.getSourceType();
     }
+    if (options.getGenerateEventFilePathPrefix() != null) {
+      generateEventFilePathPrefix = options.getGenerateEventFilePathPrefix();
+    }
+
     if (options.getSinkType() != null) {
       sinkType = options.getSinkType();
     }

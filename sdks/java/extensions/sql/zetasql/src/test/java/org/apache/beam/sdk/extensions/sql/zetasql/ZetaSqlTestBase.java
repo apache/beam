@@ -34,6 +34,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Common setup for ZetaSQL tests. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class ZetaSqlTestBase {
   protected static final long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
 
@@ -52,6 +55,7 @@ public abstract class ZetaSqlTestBase {
     testBoundedTableMap.put("table_with_struct_two", TestInput.TABLE_WITH_STRUCT_TWO);
     testBoundedTableMap.put("table_with_array", TestInput.TABLE_WITH_ARRAY);
     testBoundedTableMap.put("table_with_array_for_unnest", TestInput.TABLE_WITH_ARRAY_FOR_UNNEST);
+    testBoundedTableMap.put("table_with_struct_of_array", TestInput.TABLE_WITH_STRUCT_OF_ARRAY);
     testBoundedTableMap.put("table_for_case_when", TestInput.TABLE_FOR_CASE_WHEN);
     testBoundedTableMap.put("aggregate_test_table_two", TestInput.AGGREGATE_TABLE_TWO);
     testBoundedTableMap.put("table_empty", TestInput.TABLE_EMPTY);

@@ -28,9 +28,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/apache/beam/sdks/go/examples/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
@@ -67,12 +66,9 @@ func main() {
 	col := beam.CreateList(s, []int64{1, 2, 3, 4, 5, 6})
 
 	// Using the cross-language transform
-	outputType := typex.New(reflectx.Int64)
-	namedOutputs := map[string]typex.FullType{"0": outputType, "1": outputType}
-	c := beam.CrossLanguageWithSource(s, "beam:transforms:xlang:test:partition", nil, *expansionAddr, col, namedOutputs)
-
-	formatted0 := beam.ParDo(s, formatFn, c["0"])
-	formatted1 := beam.ParDo(s, formatFn, c["1"])
+	out0, out1 := xlang.Partition(s, *expansionAddr, col)
+	formatted0 := beam.ParDo(s, formatFn, out0)
+	formatted1 := beam.ParDo(s, formatFn, out1)
 
 	passert.Equals(s, formatted0, "2", "4", "6")
 	passert.Equals(s, formatted1, "1", "3", "5")

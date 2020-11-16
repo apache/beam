@@ -206,14 +206,14 @@ returned as base64-encoded bytes.
 
 ## Reading from BigQuery
 
-BigQueryIO allows you to read from a BigQuery table, or read the results of an
-arbitrary SQL query string. By default, Beam invokes a [BigQuery export
+BigQueryIO allows you to read from a BigQuery table, or to execute a SQL query
+and read the results. By default, Beam invokes a [BigQuery export
 request](https://cloud.google.com/bigquery/docs/exporting-data) when you apply a
-BigQueryIO read transform. However, the Beam SDK for Java (version 2.11.0 and
-later) adds support for the beta release of the [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
-as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
-See [Using the BigQuery Storage API](#storage-api) for more information and a
-list of limitations.
+BigQueryIO read transform. However, the Beam SDK for Java also supports using
+the [BigQuery Storage
+API](https://cloud.google.com/bigquery/docs/reference/storage) to read directly
+from BigQuery storage. See [Using the BigQuery Storage API](#storage-api) for
+more information.
 
 > Beam’s use of BigQuery APIs is subject to BigQuery's
 > [Quota](https://cloud.google.com/bigquery/quota-policy)
@@ -322,21 +322,18 @@ in the following example:
 ### Using the BigQuery Storage API {#storage-api}
 
 The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
-allows you to directly access tables in BigQuery storage. As a result, your
-pipeline can read from BigQuery storage faster than previously possible.
+allows you to directly access tables in BigQuery storage, and supports features
+such as column selection and predicate filter push-down which can allow more
+efficient pipeline execution.
 
-The Beam SDK for Java (version 2.11.0 and later) adds support for the beta
-release of the BigQuery Storage API as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
-Beam's support for the BigQuery Storage API has the following limitations:
+The Beam SDK for Java supports using the BigQuery Storage API when reading from
+BigQuery. SDK versions before 2.24.0 support the BigQuery Storage API as an
+[experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html)
+and use the pre-GA BigQuery Storage API surface. Callers should migrate
+pipelines which use the BigQuery Storage API to use SDK version 2.24.0 or later.
 
-* The SDK for Python does not support the BigQuery Storage API.
-* SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
-  can only read from a table.
-* SDK versions before 2.15.0 do not support dynamic work rebalancing. As a
-  result, reads might be less efficient in the presence of stragglers.
-
-Because this is currently a Beam experimental feature, export based reads are
-recommended for production jobs.
+The Beam SDK for Python does not support the BigQuery Storage API. See
+[BEAM-10917](https://issues.apache.org/jira/browse/BEAM-10917)).
 
 #### Updating your code
 
@@ -597,11 +594,6 @@ as the previous example.
 
 ### Setting the insertion method
 
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support specifying the insertion
-method.
-{{< /paragraph >}}
-
 BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
 streaming inserts. Each insertion method provides different tradeoffs of cost,
 quota, and data consistency. See the BigQuery documentation for
@@ -728,10 +720,6 @@ You can either keep retrying, or return the failed records in a separate
 
 ### Using dynamic destinations
 
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support dynamic destinations.
-{{< /paragraph >}}
-
 You can use the dynamic destinations feature to write elements in a
 `PCollection` to different BigQuery tables, possibly with different schemas.
 
@@ -772,14 +760,10 @@ different table for each year.
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The Beam SDK for Python does not currently support dynamic destinations.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_dynamic_destinations>}}
 {{< /highlight >}}
 
 ### Using time partitioning
-
-{{< paragraph class="language-py" >}}
-> The Beam SDK for Python does not currently support time partitioning.
-{{< /paragraph >}}
 
 BigQuery time partitioning divides your table into smaller partitions, which is
 called a [partitioned table](https://cloud.google.com/bigquery/docs/partitioned-tables).
@@ -808,7 +792,7 @@ This example generates one partition per day.
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The Beam SDK for Python does not currently support time partitioning.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_time_partitioning>}}
 {{< /highlight >}}
 
 

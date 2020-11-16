@@ -40,6 +40,10 @@ jcip-annotations:
 jaxen:
   '1.1.6':
     type: "3-Clause BSD"
+libraries-bom:
+  '13.2.0':
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
+    type: "Apache License 2.0"
 paranamer:
   '2.7':
     license: "https://raw.githubusercontent.com/paul-hammant/paranamer/master/LICENSE.txt"

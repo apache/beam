@@ -88,11 +88,22 @@ public class BigQueryIOPushDownIT {
   private static final String SELECT_STATEMENT =
       "SELECT `by` as author, type, title, score from HACKER_NEWS where (type='story' or type='job') and score>2";
 
+  //  https://github.com/typetools/checker-framework/issues/1525
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static SQLBigQueryPerfTestOptions options;
+
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static String metricsBigQueryDataset;
+
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static String metricsBigQueryTable;
+
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static InfluxDBSettings settings;
+
   private Pipeline pipeline = Pipeline.create(options);
+
+  @SuppressWarnings("initialization.fields.uninitialized")
   private BeamSqlEnv sqlEnv;
 
   @BeforeClass

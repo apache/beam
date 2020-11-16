@@ -70,7 +70,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to connect to job service: %v")
+		return "", "", "", errors.Wrap(err, "failed to connect to job service")
 	}
 	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), resp.GetStagingSessionToken(), nil
 }

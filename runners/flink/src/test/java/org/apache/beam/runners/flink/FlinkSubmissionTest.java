@@ -51,6 +51,10 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
 /** End-to-end submission test of Beam jobs on a Flink cluster. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkSubmissionTest {
 
   @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
@@ -160,7 +164,7 @@ public class FlinkSubmissionTest {
 
   /** The Flink program which is executed by the CliFrontend. */
   public static void main(String[] args) {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(FlinkRunner.class);
     options.setStreaming(streaming);
     options.setParallelism(1);

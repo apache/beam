@@ -33,6 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** TestInput. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class TestInput {
 
   public static final TestBoundedTable BASIC_TABLE_ONE =
@@ -217,6 +220,27 @@ class TestInput {
                   .build())
           .addRows(14L, Arrays.asList(14L, 18L))
           .addRows(18L, Arrays.asList(22L, 24L));
+
+  private static final Schema STRUCT_OF_ARRAY =
+      Schema.builder().addArrayField("arr", FieldType.STRING).build();
+  private static final Schema STRUCT_OF_STRUCT_OF_ARRAY =
+      Schema.builder().addRowField("struct", STRUCT_OF_ARRAY).build();
+  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_ARRAY =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("int_col")
+                  .addRowField("struct_col", STRUCT_OF_STRUCT_OF_ARRAY)
+                  .build())
+          .addRows(
+              10L,
+              Row.withSchema(STRUCT_OF_STRUCT_OF_ARRAY)
+                  .addValue(Row.withSchema(STRUCT_OF_ARRAY).addArray("1").build())
+                  .build())
+          .addRows(
+              20L,
+              Row.withSchema(STRUCT_OF_STRUCT_OF_ARRAY)
+                  .addValue(Row.withSchema(STRUCT_OF_ARRAY).addArray("2", "3").build())
+                  .build());
 
   public static final TestBoundedTable TABLE_FOR_CASE_WHEN =
       TestBoundedTable.of(

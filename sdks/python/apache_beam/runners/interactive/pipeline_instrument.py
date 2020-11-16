@@ -63,6 +63,13 @@ class Cacheable:
         self.pcoll,
         self.producer_version))
 
+  def to_key(self):
+    return CacheKey(
+        self.var,
+        self.version,
+        self.producer_version,
+        str(id(self.pcoll.pipeline)))
+
 
 # TODO: turn this into a dataclass object when we finally get off of Python2.
 class CacheKey:
@@ -385,7 +392,7 @@ class PipelineInstrument(object):
 
   @property
   def has_unbounded_sources(self):
-    """Returns whether the pipeline has any capturable sources.
+    """Returns whether the pipeline has any recordable sources.
     """
     return len(self._unbounded_sources) > 0
 
@@ -462,7 +469,7 @@ class PipelineInstrument(object):
 
       def visit_transform(self, transform_node):
         if isinstance(transform_node.transform,
-                      tuple(ie.current_env().options.capturable_sources)):
+                      tuple(ie.current_env().options.recordable_sources)):
           unbounded_source_pcolls.update(transform_node.outputs.values())
         cacheable_inputs.update(self._pin._cacheable_inputs(transform_node))
         ins, outs = self._pin._all_inputs_outputs(transform_node)
@@ -603,14 +610,14 @@ class PipelineInstrument(object):
     if pcoll.pipeline is not pipeline:
       return
 
-    # Ignore the unbounded reads from capturable sources as these will be pruned
+    # Ignore the unbounded reads from recordable sources as these will be pruned
     # out using the PipelineFragment later on.
     if ignore_unbounded_reads:
       ignore = False
       producer = pcoll.producer
       while producer:
         if isinstance(producer.transform,
-                      tuple(ie.current_env().options.capturable_sources)):
+                      tuple(ie.current_env().options.recordable_sources)):
           ignore = True
           break
         producer = producer.parent
@@ -917,16 +924,16 @@ def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
 
 
 def has_unbounded_sources(pipeline):
-  """Checks if a given pipeline has capturable sources."""
+  """Checks if a given pipeline has recordable sources."""
   return len(unbounded_sources(pipeline)) > 0
 
 
 def unbounded_sources(pipeline):
-  """Returns a pipeline's capturable sources."""
+  """Returns a pipeline's recordable sources."""
   class CheckUnboundednessVisitor(PipelineVisitor):
     """Visitor checks if there are any unbounded read sources in the Pipeline.
 
-    Visitor visits all nodes and checks if it is an instance of capturable
+    Visitor visits all nodes and checks if it is an instance of recordable
     sources.
     """
     def __init__(self):
@@ -937,7 +944,7 @@ def unbounded_sources(pipeline):
 
     def visit_transform(self, transform_node):
       if isinstance(transform_node.transform,
-                    tuple(ie.current_env().options.capturable_sources)):
+                    tuple(ie.current_env().options.recordable_sources)):
         self.unbounded_sources.append(transform_node)
 
   v = CheckUnboundednessVisitor()
@@ -999,7 +1006,7 @@ def watch_sources(pipeline):
 
     def visit_transform(self, transform_node):
       if isinstance(transform_node.transform,
-                    tuple(ie.current_env().options.capturable_sources)):
+                    tuple(ie.current_env().options.recordable_sources)):
         for pcoll in transform_node.outputs.values():
           ie.current_env().watch({'synthetic_var_' + str(id(pcoll)): pcoll})
 

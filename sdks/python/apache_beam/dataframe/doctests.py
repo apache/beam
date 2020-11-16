@@ -45,7 +45,9 @@ import collections
 import contextlib
 import doctest
 import re
+import sys
 import traceback
+from io import StringIO
 from typing import Any
 from typing import Dict
 from typing import List
@@ -56,6 +58,7 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
+from apache_beam.dataframe import pandas_top_level_functions
 from apache_beam.dataframe import transforms
 from apache_beam.dataframe.frame_base import DeferredBase
 
@@ -86,6 +89,9 @@ class FakePandasObject(object):
     setattr(self, name, result)
     return result
 
+  def __reduce__(self):
+    return lambda: pd, ()
+
 
 class TestEnvironment(object):
   """A class managing the patching (of methods, inputs, and outputs) needed
@@ -99,7 +105,7 @@ class TestEnvironment(object):
     self._all_frames = {}
 
   def fake_pandas_module(self):
-    return FakePandasObject(pd, self)
+    return FakePandasObject(pandas_top_level_functions.pd_wrapper, self)
 
   @contextlib.contextmanager
   def _monkey_patch_type(self, deferred_type):
@@ -166,6 +172,10 @@ class _InMemoryResultRecorder(object):
     return self._ALL_RESULTS[self._id][name]
 
 
+WONT_IMPLEMENT = 'apache_beam.dataframe.frame_base.WontImplementError'
+NOT_IMPLEMENTED = 'NotImplementedError'
+
+
 class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
   """Validates output by replacing DeferredBase[...] with computed values.
   """
@@ -175,13 +185,13 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
       self.compute = self.compute_using_beam
     else:
       self.compute = self.compute_using_session
-    self._seen_wont_implement = False
+    self.reset()
 
   def reset(self):
-    self._seen_wont_implement = False
+    self._last_error = None
 
   def compute_using_session(self, to_compute):
-    session = expressions.Session(self._env._inputs)
+    session = expressions.PartitioningSession(self._env._inputs)
     return {
         name: frame._expr.evaluate_at(session)
         for name,
@@ -231,8 +241,8 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         def sort_and_normalize(text):
           return '\n'.join(
               sorted(
-                  line.rstrip()
-                  for line in text.split('\n') if line.strip())) + '\n'
+                  [line.rstrip() for line in text.split('\n') if line.strip()],
+                  key=str.strip)) + '\n'
 
         got = sort_and_normalize(got)
         want = sort_and_normalize(want)
@@ -240,19 +250,37 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         got = traceback.format_exc()
     return want, got
 
+  @property
+  def _seen_error(self):
+    return self._last_error is not None
+
   def check_output(self, want, got, optionflags):
-    if got.startswith('apache_beam.dataframe.frame_base.WontImplementError'):
-      self._seen_wont_implement = True
-      return True
-    elif got.startswith('NameError') and self._seen_wont_implement:
-      # After raising WontImplementError, ignore NameErrors.
-      # This allows us to gracefully skip tests like
-      #    >>> res = df.unsupported_operation()
-      #    >>> check(res)
-      return True
-    else:
-      # Reset.
-      self._seen_wont_implement = False
+    # When an error occurs check_output is called with want=example.exc_msg,
+    # and got=exc_msg
+
+    # First check if `want` is a special string indicating wont_implement_ok
+    # and/or not_implemented_ok
+    allowed_exceptions = want.split('|')
+    if all(exc in (WONT_IMPLEMENT, NOT_IMPLEMENTED)
+           for exc in allowed_exceptions):
+      # If it is, check for WontImplementError and NotImplementedError
+      if WONT_IMPLEMENT in allowed_exceptions and got.startswith(
+          WONT_IMPLEMENT):
+        self._last_error = WONT_IMPLEMENT
+        return True
+
+      elif NOT_IMPLEMENTED in allowed_exceptions and got.startswith(
+          NOT_IMPLEMENTED):
+        self._last_error = NOT_IMPLEMENTED
+        return True
+
+      elif got.startswith('NameError') and self._seen_error:
+        # This allows us to gracefully skip tests like
+        #    >>> res = df.unsupported_operation()
+        #    >>> check(res)
+        return True
+
+    self.reset()
     want, got = self.fix(want, got)
     return super(_DeferrredDataframeOutputChecker,
                  self).check_output(want, got, optionflags)
@@ -276,7 +304,13 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   by beam.
   """
   def __init__(
-      self, env, use_beam=True, wont_implement_ok=None, skip=None, **kwargs):
+      self,
+      env,
+      use_beam=True,
+      wont_implement_ok=None,
+      not_implemented_ok=None,
+      skip=None,
+      **kwargs):
     self._test_env = env
 
     def to_callable(cond):
@@ -290,6 +324,11 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         for test,
         examples in (wont_implement_ok or {}).items()
     }
+    self._not_implemented_ok = {
+        test: [to_callable(cond) for cond in examples]
+        for test,
+        examples in (not_implemented_ok or {}).items()
+    }
     self._skip = {
         test: [to_callable(cond) for cond in examples]
         for test,
@@ -300,9 +339,18 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         **kwargs)
     self.success = 0
     self.skipped = 0
-    self.wont_implement = 0
-    self._wont_implement_reasons = []
+    self._reasons = collections.defaultdict(list)
     self._skipped_set = set()
+
+  def _is_wont_implement_ok(self, example, test):
+    return any(
+        wont_implement(example)
+        for wont_implement in self._wont_implement_ok.get(test.name, []))
+
+  def _is_not_implemented_ok(self, example, test):
+    return any(
+        not_implemented(example)
+        for not_implemented in self._not_implemented_ok.get(test.name, []))
 
   def run(self, test, **kwargs):
     self._checker.reset()
@@ -313,32 +361,48 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         example.source = 'pass'
         example.want = ''
         self.skipped += 1
-      elif example.exc_msg is None and any(
-          wont_implement(example)
-          for wont_implement in self._wont_implement_ok.get(test.name, [])):
-        # Don't fail doctests that raise this error.
-        example.exc_msg = (
-            'apache_beam.dataframe.frame_base.WontImplementError: ...')
-        self.wont_implement += 1
+      elif example.exc_msg is None:
+        allowed_exceptions = []
+        if self._is_not_implemented_ok(example, test):
+          allowed_exceptions.append(NOT_IMPLEMENTED)
+        if self._is_wont_implement_ok(example, test):
+          allowed_exceptions.append(WONT_IMPLEMENT)
+
+        if len(allowed_exceptions):
+          # Don't fail doctests that raise this error.
+          example.exc_msg = '|'.join(allowed_exceptions)
     with self._test_env.context():
       result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
+      # Can't add attributes to builtin result.
+      result = AugmentedTestResults(result.failed, result.attempted)
+      result.summary = self.summary()
       return result
 
   def report_success(self, out, test, example, got):
-    def extract_concise_reason(got):
-      m = re.search(r"(WontImplementError:.*)\n$", got)
+    def extract_concise_reason(got, expected_exc):
+      m = re.search(r"Implement(?:ed)?Error:\s+(.*)\n$", got)
       if m:
         return m.group(1)
       elif "NameError" in got:
-        return "NameError"
+        return "NameError following %s" % expected_exc
       elif re.match(r"DeferredBase\[\d+\]\n", got):
         return "DeferredBase[*]"
       else:
         return got.replace("\n", "\\n")
 
-    if example.exc_msg == (
-        'apache_beam.dataframe.frame_base.WontImplementError: ...'):
-      self._wont_implement_reasons.append(extract_concise_reason(got))
+    if self._checker._last_error is not None:
+      self._reasons[self._checker._last_error].append(
+          extract_concise_reason(got, self._checker._last_error))
+
+    if self._checker._seen_error:
+      m = re.search('^([a-zA-Z0-9_, ]+)=', example.source)
+      if m:
+        for var in m.group(1).split(','):
+          var = var.strip()
+          if var in test.globs:
+            # More informative to get a NameError than
+            # use the wrong previous value.
+            del test.globs[var]
 
     return super(BeamDataframeDoctestRunner,
                  self).report_success(out, test, example, got)
@@ -348,55 +412,211 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
   def summarize(self):
     super(BeamDataframeDoctestRunner, self).summarize()
-    if self.failures:
-      return
+    self.summary().summarize()
 
+  def summary(self):
+    return Summary(self.failures, self.tries, self.skipped, self._reasons)
+
+
+class AugmentedTestResults(doctest.TestResults):
+  pass
+
+
+class Summary(object):
+  def __init__(self, failures=0, tries=0, skipped=0, error_reasons=None):
+    self.failures = failures
+    self.tries = tries
+    self.skipped = skipped
+    self.error_reasons = error_reasons or collections.defaultdict(list)
+
+  def result(self):
+    res = AugmentedTestResults(self.failures, self.tries)
+    res.summary = self
+    return res
+
+  def __add__(self, other):
+    merged_reasons = {
+        key: self.error_reasons.get(key, []) + other.error_reasons.get(key, [])
+        for key in set(self.error_reasons.keys()).union(
+            other.error_reasons.keys())
+    }
+    return Summary(
+        self.failures + other.failures,
+        self.tries + other.tries,
+        self.skipped + other.skipped,
+        merged_reasons)
+
+  def summarize(self):
     def print_partition(indent, desc, n, total):
       print("%s%d %s (%.1f%%)" % ("  " * indent, n, desc, n / total * 100))
 
     print()
     print("%d total test cases:" % self.tries)
+
+    if not self.tries:
+      return
+
     print_partition(1, "skipped", self.skipped, self.tries)
-    print_partition(1, "won't implement", self.wont_implement, self.tries)
-    reason_counts = sorted(
-        collections.Counter(self._wont_implement_reasons).items(),
-        key=lambda x: x[1],
-        reverse=True)
-    for desc, count in reason_counts:
-      print_partition(2, desc, count, self.wont_implement)
+    for error, reasons in self.error_reasons.items():
+      print_partition(1, error, len(reasons), self.tries)
+      reason_counts = sorted(
+          collections.Counter(reasons).items(),
+          key=lambda x: x[1],
+          reverse=True)
+      for desc, count in reason_counts:
+        print_partition(2, desc, count, len(reasons))
+    print_partition(1, "failed", self.failures, self.tries)
     print_partition(
         1,
         "passed",
-        self.tries - self.skipped - self.wont_implement - self.failures,
+        self.tries - self.skipped -
+        sum(len(reasons)
+            for reasons in self.error_reasons.values()) - self.failures,
         self.tries)
     print()
 
 
-def teststring(text, report=True, **runner_kwargs):
+def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
+  """Extracts examples from an rst file and produce a test suite by running
+  them through pandas to get the expected outputs.
+  """
+
+  # Optional dependency.
+  import IPython
+  from traitlets.config import Config
+
+  def get_indent(line):
+    return len(line) - len(line.lstrip())
+
+  def is_example_line(line):
+    line = line.strip()
+    return line and not line.startswith('#') and not line[0] == line[-1] == ':'
+
+  IMPORT_PANDAS = 'import pandas as pd'
+
+  example_srcs = []
+  lines = iter([(lineno, line.rstrip()) for lineno,
+                line in enumerate(rst.split('\n')) if is_example_line(line)] +
+               [(None, 'END')])
+
+  # https://ipython.readthedocs.io/en/stable/sphinxext.html
+  lineno, line = next(lines)
+  while True:
+    if line == 'END':
+      break
+    if line.startswith('.. ipython::'):
+      lineno, line = next(lines)
+      indent = get_indent(line)
+      example = []
+      example_srcs.append((lineno, example))
+      while get_indent(line) >= indent:
+        if '@verbatim' in line or ':verbatim:' in line or '@savefig' in line:
+          example_srcs.pop()
+          break
+        line = re.sub(r'In \[\d+\]: ', '', line)
+        line = re.sub(r'\.\.\.+:', '', line)
+        example.append(line[indent:])
+        lineno, line = next(lines)
+        if get_indent(line) == indent and line[indent] not in ')]}':
+          example = []
+          example_srcs.append((lineno, example))
+    else:
+      lineno, line = next(lines)
+
+  # TODO(robertwb): Would it be better to try and detect/compare the actual
+  # objects in two parallel sessions than make (stringified) doctests?
+  examples = []
+
+  config = Config()
+  config.HistoryManager.hist_file = ':memory:'
+  config.InteractiveShell.autocall = False
+  config.InteractiveShell.autoindent = False
+  config.InteractiveShell.colors = 'NoColor'
+
+  set_pandas_options()
+  IP = IPython.InteractiveShell.instance(config=config)
+  IP.run_cell(IMPORT_PANDAS + '\n')
+  IP.run_cell('import numpy as np\n')
+  try:
+    stdout = sys.stdout
+    for lineno, src in example_srcs:
+      sys.stdout = cout = StringIO()
+      src = '\n'.join(src)
+      if src == IMPORT_PANDAS:
+        continue
+      IP.run_cell(src + '\n')
+      output = cout.getvalue()
+      if output:
+        # Strip the prompt.
+        # TODO(robertwb): Figure out how to suppress this.
+        output = re.sub(r'^Out\[\d+\]:\s*', '', output)
+      examples.append(doctest.Example(src, output, lineno=lineno))
+
+  finally:
+    sys.stdout = stdout
+
+  return doctest.DocTest(
+      examples, dict(extraglobs or {}, np=np), name, name, None, None)
+
+
+def test_rst_ipython(
+    rst,
+    name,
+    report=False,
+    wont_implement_ok=(),
+    not_implemented_ok=(),
+    skip=(),
+    **kwargs):
+  """Extracts examples from an rst file and run them through pandas to get the
+  expected output, and then compare them against our dataframe implementation.
+  """
+  def run_tests(extraglobs, optionflags, **kwargs):
+    # The patched one.
+    tests = parse_rst_ipython_tests(rst, name, extraglobs, optionflags)
+    runner = doctest.DocTestRunner(optionflags=optionflags)
+    set_pandas_options()
+    result = runner.run(tests, **kwargs)
+    if report:
+      runner.summarize()
+    return result
+
+  result = _run_patched(
+      run_tests,
+      wont_implement_ok={name: wont_implement_ok},
+      not_implemented_ok={name: not_implemented_ok},
+      skip={name: skip},
+      **kwargs)
+  return result
+
+
+def teststring(text, wont_implement_ok=None, not_implemented_ok=None, **kwargs):
+  return teststrings(
+      {'<string>': text},
+      wont_implement_ok={'<string>': ['*']} if wont_implement_ok else None,
+      not_implemented_ok={'<string>': ['*']} if not_implemented_ok else None,
+      **kwargs)
+
+
+def teststrings(texts, report=False, **runner_kwargs):
   optionflags = runner_kwargs.pop('optionflags', 0)
   optionflags |= (
       doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
 
-  wont_implement_ok = runner_kwargs.pop('wont_implement_ok', False)
-
   parser = doctest.DocTestParser()
   runner = BeamDataframeDoctestRunner(
-      TestEnvironment(),
-      optionflags=optionflags,
-      wont_implement_ok={'<string>': ['*']} if wont_implement_ok else None,
-      **runner_kwargs)
-  test = parser.get_doctest(
-      text, {
-          'pd': runner.fake_pandas_module(), 'np': np
-      },
-      '<string>',
-      '<string>',
-      0)
+      TestEnvironment(), optionflags=optionflags, **runner_kwargs)
+  globs = {
+      'pd': runner.fake_pandas_module(),
+      'np': np,
+      'option_context': pd.option_context,
+  }
   with expressions.allow_non_parallel_operations():
-    result = runner.run(test)
+    for name, text in texts.items():
+      test = parser.get_doctest(text, globs, name, name, 0)
+      runner.run(test)
   if report:
     runner.summarize()
-  return result
+  return runner.summary().result()
 
 
 def testfile(*args, **kwargs):
@@ -407,31 +627,38 @@ def testmod(*args, **kwargs):
   return _run_patched(doctest.testmod, *args, **kwargs)
 
 
+def set_pandas_options():
+  # See
+  # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
+  np.random.seed(123456)
+  np.set_printoptions(precision=4, suppress=True)
+  pd.options.display.max_rows = 15
+
+
 def _run_patched(func, *args, **kwargs):
+  set_pandas_options()
+
+  # https://github.com/pandas-dev/pandas/blob/1.0.x/setup.cfg#L63
+  optionflags = kwargs.pop('optionflags', 0)
+  optionflags |= (
+      doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
+
+  env = TestEnvironment()
+  use_beam = kwargs.pop('use_beam', True)
+  skip = kwargs.pop('skip', {})
+  wont_implement_ok = kwargs.pop('wont_implement_ok', {})
+  not_implemented_ok = kwargs.pop('not_implemented_ok', {})
+  extraglobs = dict(kwargs.pop('extraglobs', {}))
+  extraglobs['pd'] = env.fake_pandas_module()
+
   try:
-    # See
-    # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
-    np.random.seed(123456)
-    np.set_printoptions(precision=4, suppress=True)
-    pd.options.display.max_rows = 15
-
-    # https://github.com/pandas-dev/pandas/blob/1.0.x/setup.cfg#L63
-    optionflags = kwargs.pop('optionflags', 0)
-    optionflags |= (
-        doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
-
-    env = TestEnvironment()
-    use_beam = kwargs.pop('use_beam', True)
-    skip = kwargs.pop('skip', {})
-    wont_implement_ok = kwargs.pop('wont_implement_ok', {})
-    extraglobs = dict(kwargs.pop('extraglobs', {}))
-    extraglobs['pd'] = env.fake_pandas_module()
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
         env,
         use_beam=use_beam,
         wont_implement_ok=wont_implement_ok,
+        not_implemented_ok=not_implemented_ok,
         skip=skip,
         **kwargs)
     with expressions.allow_non_parallel_operations():

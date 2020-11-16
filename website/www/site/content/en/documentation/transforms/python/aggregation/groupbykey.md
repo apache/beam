@@ -49,7 +49,8 @@ Output:
 
 ## Related transforms
 
-* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) for combining all values associated with a key to a single result.
+* [GroupBy](/documentation/transforms/python/aggregation/groupby) for grouping by arbitrary properties of the elements.
+* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey) for combining all values associated with a key to a single result.
 * [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey) for multiple input collections.
 
 {{< button-pydoc path="apache_beam.transforms.core" class="GroupByKey" >}}

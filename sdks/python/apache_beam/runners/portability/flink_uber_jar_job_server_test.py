@@ -184,7 +184,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
 
   def test_retain_unknown_options(self):
     original_options = pipeline_options.PipelineOptions(
-        ['--unknown_option_foo', 'some_value'])
+        ['--unknown_option_foo=some_value'])
     flink_options = original_options.view_as(
         pipeline_options.FlinkRunnerOptions)
     flink_options.flink_submit_uber_jar = True
