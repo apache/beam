@@ -68,8 +68,15 @@
       {{ end }}
     </div>
     <div class="pillars-social">
-      {{ $pillar_social_text := T "home-pillars-social-text" }}
-      {{ partial "pillars/pillars-social" (dict "github" "icons/github-icon.svg" "youtube" "icons/youtube-icon.svg" "twitter" "icons/twitter-icon.svg" "text" $pillar_social_text) }}
+      <div class="pillars-social-icons">
+        {{ $data := index $.Site.Data .Site.Language.Lang }}
+        {{ range $pillars_social := $data.pillars_social }}
+            {{ partial "pillars/pillars-social" (dict "icon" $pillars_social.icon  "url" $pillars_social.url "name" $pillars_social.name) }}
+        {{ end }}
+      </div>
+      <p class="pillars-social-text">
+        {{ T "home-pillars-social-text" }}
+      </p>
     </div>
   </div>
 {{ end }}

@@ -10,30 +10,10 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
-<div class="pillars-social-icons">
-  <div class="pillars-github-icon">
-    <a href="https://github.com/apache/beam" target="_blank">
-      {{ with resources.Get .github }}
-        {{ .Content | safeHTML }}
-      {{ end }}
-    </a>
-  </div>
-  <div class="pillars-youtube-icon">
-    <a href="https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ" target="_blank">
-      {{ with resources.Get .youtube }}
-        {{ .Content | safeHTML }}
-      {{ end }}
-    </a>
-  </div>
-  <div class="pillars-twitter-icon">
-    <a href="https://twitter.com/apachebeam" target="_blank">
-      {{ with resources.Get .twitter }}
-        {{ .Content | safeHTML }}
-      {{ end }}
-    </a>
-  </div>
+<div class="{{ .name }}">
+  <a href="{{ .url }}" target="_blank">
+    {{ with resources.Get .icon }}
+      {{ .Content | safeHTML }}
+    {{ end }}
+  </a>
 </div>
-<p class="pillars-social-text">
-  {{ .text | markdownify }}
-</p>
-
