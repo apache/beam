@@ -315,8 +315,12 @@ task validatesRunnerStreaming {
   ))
 }
 
+task setupXVR {
+  dependsOn buildAndPushDockerContainer
+}
+
 createCrossLanguageValidatesRunnerTask(
-  startJobServer: buildAndPushDockerContainer,
+  startJobServer: setupXVR,
   cleanupJobServer: cleanUpDockerImages,
   classpath: configurations.validatesRunner,
   numParallelTests: Integer.MAX_VALUE,
