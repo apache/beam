@@ -169,6 +169,7 @@ class _ReadFromPandas(beam.PTransform):
     pcoll = (
         paths_pcoll
         | fileio.MatchFiles(self.path)
+        | beam.Reshuffle()
         | fileio.ReadMatches()
         | beam.ParDo(
             _ReadFromPandasDoFn(
