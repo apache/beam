@@ -30,6 +30,7 @@ def hadoopVersions = [
     "285": "2.8.5",
     "292": "2.9.2",
     "2101": "2.10.1",
+    "321": "3.2.1",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
