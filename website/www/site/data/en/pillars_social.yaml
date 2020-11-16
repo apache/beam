@@ -10,15 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- title: Unified
-  body: Use a single programming model for both batch and streaming use cases.
-  icon: icons/unified-icon.svg 
-- title: Extensible
-  body: Write and share new SDKs, IO connectors, and transformation libraries.
-  icon: icons/extensive-icon.svg
-- title: Portable
-  body: Execute pipelines on multiple execution environments.
-  icon: icons/portable-icon.svg
-- title: Open Source
-  body: Use a single programming model for both batch and streaming use cases.
-  icon: icons/open-source-icon.svg
+- name: pillars-github-icon
+  icon: icons/github-icon.svg
+  url: https://github.com/apache/beam
+- name: pillars-youtube-icon
+  icon: icons/youtube-icon.svg
+  url: https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ
+- name: pillars-twitter-icon
+  icon: icons/twitter-icon.svg
+  url: https://twitter.com/apachebeam

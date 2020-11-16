@@ -14,22 +14,41 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+ 
+ @import "media";
 
-$color-brand: #FF6D00
-$color-dark: #37424B
-$color-white: #FFF
-$color-light-gray: #F7F7F7
-$color-dark-gray: #555
-$color-gray: #333333
+.component-title {
+  font-size: 36px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1.1;
+  letter-spacing: normal;
+  color: $color-gray;
+}
 
-$pad-sm: 15px
-$pad-s: 24px
-$pad: 30px
-$pad-md: 60px
-$pad-l: 84px
-$pad-xl: 100px
+.component-header {
+  font-size: 22px;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 1.45;
+  letter-spacing: 0.43px;
+  color: $color-gray;
+}
 
-$box-shadow: 0px 3px 20px 0 rgba(0,0,0,0.075)
-$box-shadow-hover: 0px 3px 50px 0 rgba(0,0,0,0.075)
-$font-weight-semibold: 500
-$font-weight-bold: 600
+.component-text {
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1.63;
+  letter-spacing: 0.43px;
+  color: $color-gray;
+}
+
+@media (max-width: $tablet) {
+  .component-title {
+    font-size: 28px;
+  }
+  .component-header {
+    font-weight: normal;
+  }
+}
