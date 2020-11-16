@@ -676,9 +676,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return self.loc[key]
 
-    elif (isinstance(key, list) and
-          all(key_column in self._expr.proxy().columns
-              for key_column in key)) or key in self._expr.proxy().columns:
+    elif (
+        (isinstance(key, list) and all(key_column in self._expr.proxy().columns
+                                       for key_column in key)) or
+        key in self._expr.proxy().columns):
       return self._elementwise(lambda df: df[key], 'get_column')
 
     else:
@@ -1917,9 +1918,12 @@ for base in ['add',
       '__i%s__' % base,
       frame_base._elementwise_method('__i%s__' % base, inplace=True))
 
-for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
-  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
+  for p in '%s', '__%s__':
+    # Note that non-underscore name is used for both as the __xxx__ methods are
+    # order-sensitive.
+    setattr(DeferredSeries, p % name, frame_base._elementwise_method(name))
+    setattr(DeferredDataFrame, p % name, frame_base._elementwise_method(name))
 
 for name in ['__neg__', '__pos__', '__invert__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
