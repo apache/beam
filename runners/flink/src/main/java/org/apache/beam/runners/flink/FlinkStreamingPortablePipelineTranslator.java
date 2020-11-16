@@ -418,7 +418,9 @@ public class FlinkStreamingPortablePipelineTranslator
             .name("ToKeyedWorkItem");
 
     WorkItemKeySelector<K, V> keySelector =
-        new WorkItemKeySelector<>(inputElementCoder.getKeyCoder());
+        new WorkItemKeySelector<>(
+            inputElementCoder.getKeyCoder(),
+            new SerializablePipelineOptions(context.getPipelineOptions()));
 
     KeyedStream<WindowedValue<KeyedWorkItem<K, V>>, ByteBuffer> keyedWorkItemStream =
         workItemStream.keyBy(keySelector);
