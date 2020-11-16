@@ -236,6 +236,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         # Actually evaluate the expressions.
         def evaluate(partition, stage=self.stage, **side_inputs):
           def lookup(expr):
+            # Use proxy if there's no data in this partition
             return expr.proxy(
             ).iloc[:0] if partition[expr._id] is None else partition[expr._id]
 
