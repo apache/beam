@@ -110,6 +110,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -551,12 +552,25 @@ class FlinkStreamingTransformTranslators {
         keySelector =
             new KvToByteBufferKeySelector(
                 keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
-        inputDataStream = inputDataStream.keyBy(keySelector);
+        final PTransform<?, PCollection<InputT>> producer = context.getProducer(input);
+        final String previousUrn =
+            producer != null
+                ? PTransformTranslation.urnForTransformOrNull(context.getProducer(input))
+                : null;
+        // We can skip reshuffle in case previous transform was CPK or GBK
+        if (PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN.equals(previousUrn)
+            || PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN.equals(previousUrn)) {
+          inputDataStream = DataStreamUtils.reinterpretAsKeyedStream(inputDataStream, keySelector);
+        } else {
+          inputDataStream = inputDataStream.keyBy(keySelector);
+        }
         stateful = true;
       } else if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
         // we know that it is keyed on byte[]
         keyCoder = ByteArrayCoder.of();
-        keySelector = new WorkItemKeySelector<>(keyCoder);
+        keySelector =
+            new WorkItemKeySelector<>(
+                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
         stateful = true;
       }
 
@@ -929,7 +943,10 @@ class FlinkStreamingTransformTranslators {
               .name("ToBinaryKeyedWorkItem");
 
       WorkItemKeySelector<K, byte[]> keySelector =
-          new WorkItemKeySelector<>(inputKvCoder.getKeyCoder());
+          new WorkItemKeySelector<>(
+              inputKvCoder.getKeyCoder(),
+              new SerializablePipelineOptions(context.getPipelineOptions()));
+
       KeyedStream<WindowedValue<KeyedWorkItem<K, byte[]>>, ByteBuffer> keyedWorkItemStream =
           workItemStream.keyBy(keySelector);
 
@@ -1035,7 +1052,9 @@ class FlinkStreamingTransformTranslators {
               .name("ToKeyedWorkItem");
 
       WorkItemKeySelector<K, InputT> keySelector =
-          new WorkItemKeySelector<>(inputKvCoder.getKeyCoder());
+          new WorkItemKeySelector<>(
+              inputKvCoder.getKeyCoder(),
+              new SerializablePipelineOptions(context.getPipelineOptions()));
       KeyedStream<WindowedValue<KeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream =
           workItemStream.keyBy(keySelector);
 
@@ -1172,7 +1191,10 @@ class FlinkStreamingTransformTranslators {
               .name("ToKeyedWorkItem");
 
       KeyedStream<WindowedValue<KeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream =
-          workItemStream.keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
+          workItemStream.keyBy(
+              new WorkItemKeySelector<>(
+                  inputKvCoder.getKeyCoder(),
+                  new SerializablePipelineOptions(context.getPipelineOptions())));
 
       context.setOutputDataStream(context.getOutput(transform), keyedWorkItemStream);
     }
