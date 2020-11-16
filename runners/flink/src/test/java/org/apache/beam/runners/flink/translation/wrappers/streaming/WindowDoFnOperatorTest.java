@@ -224,7 +224,8 @@ public class WindowDoFnOperatorTest {
         emptyList(),
         FlinkPipelineOptions.defaults(),
         VarLongCoder.of(),
-        new WorkItemKeySelector(VarLongCoder.of()));
+        new WorkItemKeySelector(
+            VarLongCoder.of(), new SerializablePipelineOptions(FlinkPipelineOptions.defaults())));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<
