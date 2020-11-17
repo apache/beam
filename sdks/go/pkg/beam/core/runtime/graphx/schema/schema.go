@@ -139,37 +139,7 @@ func FromType(ot reflect.Type) (*pipepb.Schema, error) {
 const (
 	// optGoNillable indicates that this top level schema should be returned as a pointer type.
 	optGoNillable = "beam:schema:go:nillable:v1"
-	// optGoInt indicates that this field should be decoded to an int, rather than an int64.
-	optGoInt = "beam:schema:go:int:v1"
-	// Since maps, arrays, and iterables don't have options, we need additional options
-	// to handle plain go integers.
-	optGoIntKey  = "beam:schema:go:intkey:v1"  // For int map keys
-	optGoIntElem = "beam:schema:go:intelem:v1" // For int values for maps,slices, and arrays
 )
-
-func goIntOptions(t reflect.Type) []*pipepb.Option {
-	var opts []*pipepb.Option
-	switch t.Kind() {
-	case reflect.Int:
-		opts = append(opts, &pipepb.Option{
-			Name: optGoInt,
-		})
-	case reflect.Map:
-		if t.Key().Kind() == reflect.Int {
-			opts = append(opts, &pipepb.Option{
-				Name: optGoIntKey,
-			})
-		}
-		fallthrough
-	case reflect.Array, reflect.Slice:
-		if t.Elem().Kind() == reflect.Int {
-			opts = append(opts, &pipepb.Option{
-				Name: optGoIntElem,
-			})
-		}
-	}
-	return opts
-}
 
 // nillableFromOptions converts the passed in type to it's pointer version
 // if the option is present. This permits go types to be pointers.
@@ -213,18 +183,34 @@ func structFieldToField(sf reflect.StructField) (*pipepb.Field, error) {
 	if tag := sf.Tag.Get("beam"); tag != "" {
 		name, _ = parseTag(tag)
 	}
-	ftype, opts, err := reflectTypeToFieldType(sf.Type)
+	ftype, err := reflectTypeToFieldType(sf.Type)
 	if err != nil {
 		return nil, err
 	}
 	return &pipepb.Field{
-		Name:    name,
-		Type:    ftype,
-		Options: opts,
+		Name: name,
+		Type: ftype,
 	}, nil
 }
 
-func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, []*pipepb.Option, error) {
+func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, error) {
+	if lID, ok := logicalIdentifiers[ot]; ok {
+		lt := logicalTypes[lID]
+		ftype, err := reflectTypeToFieldType(lt.StorageType())
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema field", lID, lt.StorageType(), lt.GoType())
+		}
+		return &pipepb.FieldType{
+			TypeInfo: &pipepb.FieldType_LogicalType{
+				LogicalType: &pipepb.LogicalType{
+					Urn:            lID,
+					Representation: ftype,
+					// TODO(BEAM-9615): Handle type Arguments.
+				},
+			},
+		}, nil
+	}
+
 	var isPtr bool
 	t := ot
 	if t.Kind() == reflect.Ptr {
@@ -233,13 +219,13 @@ func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, []*pipepb.Optio
 	}
 	switch t.Kind() {
 	case reflect.Map:
-		kt, _, err := reflectTypeToFieldType(t.Key())
+		kt, err := reflectTypeToFieldType(t.Key())
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "unable to convert key of %v to schema field", ot)
+			return nil, errors.Wrapf(err, "unable to convert key of %v to schema field", ot)
 		}
-		vt, _, err := reflectTypeToFieldType(t.Elem())
+		vt, err := reflectTypeToFieldType(t.Elem())
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "unable to convert value of %v to schema field", ot)
+			return nil, errors.Wrapf(err, "unable to convert value of %v to schema field", ot)
 		}
 		return &pipepb.FieldType{
 			Nullable: isPtr,
@@ -249,11 +235,11 @@ func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, []*pipepb.Optio
 					ValueType: vt,
 				},
 			},
-		}, goIntOptions(t), nil
+		}, nil
 	case reflect.Struct:
 		sch, err := structToSchema(t)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "unable to convert %v to schema field", ot)
+			return nil, errors.Wrapf(err, "unable to convert %v to schema field", ot)
 		}
 		return &pipepb.FieldType{
 			Nullable: isPtr,
@@ -262,7 +248,7 @@ func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, []*pipepb.Optio
 					Schema: sch,
 				},
 			},
-		}, nil, nil
+		}, nil
 	case reflect.Slice, reflect.Array:
 		// Special handling for []byte
 		if t == reflectx.ByteSlice {
@@ -271,13 +257,12 @@ func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, []*pipepb.Optio
 				TypeInfo: &pipepb.FieldType_AtomicType{
 					AtomicType: pipepb.AtomicType_BYTES,
 				},
-			}, nil, nil
+			}, nil
 		}
-		vt, _, err := reflectTypeToFieldType(t.Elem())
+		vt, err := reflectTypeToFieldType(t.Elem())
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "unable to convert element type of %v to schema field", ot)
+			return nil, errors.Wrapf(err, "unable to convert element type of %v to schema field", ot)
 		}
-		opts := goIntOptions(t)
 		return &pipepb.FieldType{
 			Nullable: isPtr,
 			TypeInfo: &pipepb.FieldType_ArrayType{
@@ -285,9 +270,9 @@ func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, []*pipepb.Optio
 					ElementType: vt,
 				},
 			},
-		}, opts, nil
+		}, nil
 	case reflect.Interface, reflect.Chan, reflect.UnsafePointer, reflect.Complex128, reflect.Complex64:
-		return nil, nil, errors.Errorf("unable to convert unsupported type %v to schema", ot)
+		return nil, errors.Errorf("unable to convert unsupported type %v to schema", ot)
 	default: // must be an atomic type
 		if enum, ok := reflectTypeToAtomicTypeMap[t.Kind()]; ok {
 			return &pipepb.FieldType{
@@ -295,9 +280,9 @@ func reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, []*pipepb.Optio
 				TypeInfo: &pipepb.FieldType_AtomicType{
 					AtomicType: enum,
 				},
-			}, goIntOptions(t), nil
+			}, nil
 		}
-		return nil, nil, errors.Errorf("unable to map %v to pipepb.AtomicType", t)
+		return nil, errors.Errorf("unable to map %v to pipepb.AtomicType", t)
 	}
 }
 
@@ -306,7 +291,6 @@ var reflectTypeToAtomicTypeMap = map[reflect.Kind]pipepb.AtomicType{
 	reflect.Int16:   pipepb.AtomicType_INT16,
 	reflect.Int32:   pipepb.AtomicType_INT32,
 	reflect.Int64:   pipepb.AtomicType_INT64,
-	reflect.Int:     pipepb.AtomicType_INT64,
 	reflect.Float32: pipepb.AtomicType_FLOAT,
 	reflect.Float64: pipepb.AtomicType_DOUBLE,
 	reflect.String:  pipepb.AtomicType_STRING,
@@ -373,18 +357,10 @@ func fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.Option) (refle
 		if t, ok = atomicTypeToReflectType[sft.GetAtomicType()]; !ok {
 			return nil, errors.Errorf("unknown atomic type: %v", sft.GetAtomicType())
 		}
-		// Handle duplicate type matchings.
-		if optT := checkOptions(opts, optGoInt, reflectx.Int); optT != nil {
-			t = optT
-		}
 	case *pipepb.FieldType_ArrayType:
 		rt, err := fieldTypeToReflectType(sft.GetArrayType().GetElementType(), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to convert array element type")
-		}
-		// Handle duplicate type matchings.
-		if optT := checkOptions(opts, optGoIntElem, reflectx.Int); optT != nil {
-			rt = optT
 		}
 		t = reflect.SliceOf(rt)
 	case *pipepb.FieldType_MapType:
@@ -392,15 +368,9 @@ func fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.Option) (refle
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to convert map key type")
 		}
-		if optT := checkOptions(opts, optGoIntKey, reflectx.Int); optT != nil {
-			kt = optT
-		}
 		vt, err := fieldTypeToReflectType(sft.GetMapType().GetValueType(), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to convert map value type")
-		}
-		if optT := checkOptions(opts, optGoIntElem, reflectx.Int); optT != nil {
-			vt = optT
 		}
 		t = reflect.MapOf(kt, vt) // Panics for invalid map keys (slices/iterables)
 	case *pipepb.FieldType_RowType:
@@ -412,12 +382,18 @@ func fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.Option) (refle
 	// case *pipepb.FieldType_IterableType:
 	// TODO(BEAM-9615): handle IterableTypes.
 
-	//case *pipepb.FieldType_LogicalType:
-	// TODO(BEAM-9615): handle LogicalTypes types.
-	//sft.GetLogicalType().
+	case *pipepb.FieldType_LogicalType:
+		lst := sft.GetLogicalType()
+		identifier := lst.GetUrn()
+		lt, ok := logicalTypes[identifier]
+		if !ok {
+			return nil, errors.Errorf("unknown logical type: %v", identifier)
+		}
+		t = lt.GoType()
 
 	// Logical Types are for things that have more specialized user representation already, or
-	// things like Time or protocol buffers.
+	// things like Time or protocol buffers, or int.
+	// Or specifically formatted integers.
 	// They would be encoded with the schema encoding.
 
 	default:
