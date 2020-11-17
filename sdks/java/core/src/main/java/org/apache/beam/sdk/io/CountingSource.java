@@ -435,7 +435,8 @@ public class CountingSource {
     }
 
     private long expectedValue() {
-      if (source.period.getMillis() == 0L) {
+      // Within the SDF unbounded wrapper, we will query the initial size before we start to read.
+      if (source.period.getMillis() == 0L || firstStarted == null) {
         return Long.MAX_VALUE;
       }
       double periodsElapsed =
