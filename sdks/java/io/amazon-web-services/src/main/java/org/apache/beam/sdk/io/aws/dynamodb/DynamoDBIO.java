@@ -30,7 +30,6 @@ import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;

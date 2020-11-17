@@ -235,7 +235,8 @@ public class DynamoDBIOTest implements Serializable {
   }
 
   @Test
-  public void testDeduplicateWriteItems() {
+  public void testWriteDeduplication() {
+    // designate duplication factor for each bundle
     final List<Integer> duplications = Arrays.asList(1, 2, 3);
 
     final List<String> overwriteByPKeys =
@@ -243,19 +244,18 @@ public class DynamoDBIOTest implements Serializable {
 
     AmazonDynamoDB amazonDynamoDBMock = Mockito.mock(AmazonDynamoDB.class);
 
-    final PCollection<Void> output =
-        pipeline
-            .apply(Create.of(duplications))
-            .apply("duplicate", ParDo.of(new WriteDuplicateGeneratorDoFn()))
-            .apply(
-                DynamoDBIO.<WriteRequest>write()
-                    .withWriteRequestMapperFn(
-                        (SerializableFunction<WriteRequest, KV<String, WriteRequest>>)
-                            writeRequest -> KV.of(tableName, writeRequest))
-                    .withRetryConfiguration(
-                        DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
-                    .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock))
-                    .withOverwriteByPKeys(overwriteByPKeys));
+    pipeline
+        .apply(Create.of(duplications))
+        .apply("duplicate", ParDo.of(new WriteDuplicateGeneratorDoFn()))
+        .apply(
+            DynamoDBIO.<WriteRequest>write()
+                .withWriteRequestMapperFn(
+                    (SerializableFunction<WriteRequest, KV<String, WriteRequest>>)
+                        writeRequest -> KV.of(tableName, writeRequest))
+                .withRetryConfiguration(
+                    DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
+                .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock))
+                .withOverwriteByPKeys(overwriteByPKeys));
 
     pipeline.run().waitUntilFinish();
 

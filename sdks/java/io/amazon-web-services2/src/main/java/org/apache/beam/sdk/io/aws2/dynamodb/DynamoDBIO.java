@@ -23,11 +23,10 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -452,7 +451,7 @@ public final class DynamoDBIO {
       private static final int BATCH_SIZE = 25;
       private transient DynamoDbClient client;
       private final Write spec;
-      private List<KV<String, WriteRequest>> batch;
+      private Map<KV<String, Map<String, AttributeValue>>, KV<String, WriteRequest>> batch;
 
       WriteFn(Write spec) {
         this.spec = spec;
@@ -475,25 +474,18 @@ public final class DynamoDBIO {
 
       @StartBundle
       public void startBundle(StartBundleContext context) {
-        batch = new ArrayList<>();
+        batch = new HashMap<>();
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         final KV<String, WriteRequest> writeRequest =
             (KV<String, WriteRequest>) spec.getWriteItemMapperFn().apply(context.element());
-        if (spec.getOverwriteByPKeys() != null) {
-          removeDupPKeysRequestsIfAny(writeRequest.getValue());
-        }
-        batch.add(writeRequest);
+        batch.put(
+            KV.of(writeRequest.getKey(), extractPkeyValues(writeRequest.getValue())), writeRequest);
         if (batch.size() >= BATCH_SIZE) {
           flushBatch();
         }
-      }
-
-      private void removeDupPKeysRequestsIfAny(WriteRequest request) {
-        Map<String, AttributeValue> pKeyValueNew = extractPkeyValues(request);
-        batch.removeIf(item -> extractPkeyValues(item.getValue()).equals(pKeyValueNew));
       }
 
       private Map<String, AttributeValue> extractPkeyValues(WriteRequest request) {
@@ -506,6 +498,12 @@ public final class DynamoDBIO {
             return request.deleteRequest().key().entrySet().stream()
                 .filter(entry -> spec.getOverwriteByPKeys().contains(entry.getKey()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          }
+        } else {
+          if (request.putRequest() != null) {
+            return request.putRequest().item();
+          } else if (request.deleteRequest() != null) {
+            return request.deleteRequest().key();
           }
         }
         return Collections.emptyMap();
@@ -525,7 +523,7 @@ public final class DynamoDBIO {
           // Since each element is a KV<tableName, writeRequest> in the batch, we need to group them
           // by tableName
           Map<String, List<WriteRequest>> mapTableRequest =
-              batch.stream()
+              batch.values().stream()
                   .collect(
                       Collectors.groupingBy(
                           KV::getKey, Collectors.mapping(KV::getValue, Collectors.toList())));
