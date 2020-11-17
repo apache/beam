@@ -378,6 +378,7 @@ class RecordingManager:
       runner = runner._underlying_runner
 
     # Make sure that sources without a user reference are still cached.
+    ie.current_env().add_user_pipeline(self.user_pipeline)
     pi.watch_sources(self.user_pipeline)
 
     # Attempt to run background caching job to record any sources.

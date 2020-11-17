@@ -320,6 +320,7 @@ def is_source_to_cache_changed(
     ie.current_env().cleanup(user_pipeline)
     ie.current_env().set_cached_source_signature(
         user_pipeline, current_signature)
+    ie.current_env().add_user_pipeline(user_pipeline)
   return is_changed
 
 

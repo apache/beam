@@ -280,6 +280,7 @@ class InteractiveEnvironment(object):
     self.evict_computed_pcollections(pipeline)
     self.evict_cached_source_signature(pipeline)
     self.evict_pipeline_result(pipeline)
+    self.evict_tracked_pipelines(pipeline)
 
   def _track_user_pipelines(self, watchable):
     """Tracks user pipelines from the given watchable."""
@@ -549,14 +550,26 @@ class InteractiveEnvironment(object):
 
   @property
   def tracked_user_pipelines(self):
-    return self._tracked_user_pipelines
+    """Returns the user pipelines in this environment."""
+    for p in self._tracked_user_pipelines:
+      yield p
 
   def user_pipeline(self, derived_pipeline):
+    """Returns the user pipeline for the given derived pipeline."""
     return self._tracked_user_pipelines.get_user_pipeline(derived_pipeline)
 
+  def add_user_pipeline(self, user_pipeline):
+    self._tracked_user_pipelines.add_user_pipeline(user_pipeline)
+
   def add_derived_pipeline(self, user_pipeline, derived_pipeline):
+    """Adds the derived pipeline to the parent user pipeline."""
     self._tracked_user_pipelines.add_derived_pipeline(
         user_pipeline, derived_pipeline)
+
+  def evict_tracked_pipelines(self, user_pipeline):
+    """Evicts the user pipeline and its derived pipelines."""
+    if user_pipeline:
+      self._tracked_user_pipelines.evict(user_pipeline)
 
   def pipeline_id_to_pipeline(self, pid):
     """Converts a pipeline id to a user pipeline.
