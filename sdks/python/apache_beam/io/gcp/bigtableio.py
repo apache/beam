@@ -49,7 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 try:
   from google.cloud.bigtable import Client
 except ImportError:
-  _LOGGER.error('Error in: from google.cloud.bigtable import Client', exc_info=True)
+  _LOGGER.warning('ImportError: from google.cloud.bigtable import Client', exc_info=True)
   pass
 
 __all__ = ['WriteToBigTable']
