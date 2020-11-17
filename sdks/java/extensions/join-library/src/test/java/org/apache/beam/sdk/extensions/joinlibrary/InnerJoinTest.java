@@ -26,7 +26,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -173,13 +172,6 @@ public class InnerJoinTest {
   }
 
   // Temporal Join Tests
-  private static class FirstCharacterEqualsFn extends SimpleFunction<KV<String, String>, Boolean> {
-    @Override
-    public Boolean apply(KV<String, String> input) {
-      return input.getKey().charAt(0) == input.getValue().charAt(0);
-    }
-  }
-
   private static class TemporalTestRecord {
     private final String key;
     private final String value;
@@ -205,7 +197,7 @@ public class InnerJoinTest {
   }
 
   @Test
-  public void testTemporalJoinOneToOneMapping() {
+  public void testEventTimeBoundedEquijoinOneToOneMapping() {
     Duration temporalBound = Duration.standardSeconds(2);
     List<TimestampedValue<KV<String, String>>> leftList = new ArrayList<>();
     leftList.add(TemporalTestRecord.of("key", "v-left", 2000).asTimestampedKV());
@@ -228,14 +220,13 @@ public class InnerJoinTest {
                 TemporalTestRecord.of("key", "v-left", 10000).asKV().getValue(),
                 TemporalTestRecord.of("key", "v-right", 11999).asKV().getValue())));
     PCollection<KV<String, KV<String, String>>> output =
-        Join.temporalInnerJoin(
-            "Join", leftCollection, rightCollection, temporalBound, new FirstCharacterEqualsFn());
+        Join.eventTimeBoundedInnerjoin("Join", leftCollection, rightCollection, temporalBound);
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
   @Test
-  public void testTemporalJoinWithOneToNoneMappingStreaming() {
+  public void testEventTimeBoundedEquijoinWithOneToNoneMappingStreaming() {
     Duration temporalBound = Duration.standardSeconds(1);
 
     TestStream<KV<String, String>> leftStream =
@@ -254,14 +245,13 @@ public class InnerJoinTest {
     PCollection<KV<String, String>> rightCollection = p.apply("RightStream", rightStream);
 
     PCollection<KV<String, KV<String, String>>> output =
-        Join.temporalInnerJoin(
-            "Join", leftCollection, rightCollection, temporalBound, new FirstCharacterEqualsFn());
+        Join.eventTimeBoundedInnerjoin("Join", leftCollection, rightCollection, temporalBound);
     PAssert.that(output).empty();
     p.run();
   }
 
   @Test
-  public void testTemporalJoinOneToOneMappingWithTemporalBoundNonInclusiveStreaming() {
+  public void testEventTimeBoundedEquijoinOneToOneMappingWithTemporalBoundNonInclusiveStreaming() {
     Duration temporalBound = Duration.standardSeconds(2);
 
     TestStream<KV<String, String>> leftStream =
@@ -293,14 +283,13 @@ public class InnerJoinTest {
                 TemporalTestRecord.of("key", "v-right", 11999).asKV().getValue())));
 
     PCollection<KV<String, KV<String, String>>> output =
-        Join.temporalInnerJoin(
-            "Join", leftCollection, rightCollection, temporalBound, new FirstCharacterEqualsFn());
+        Join.eventTimeBoundedInnerjoin("Join", leftCollection, rightCollection, temporalBound);
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
   @Test
-  public void testTemporalJoinOneToManyMappingStreaming() {
+  public void testEventTimeBoundedEquijoinOneToManyMappingStreaming() {
     Duration temporalBound = Duration.standardSeconds(2);
 
     TestStream<KV<String, String>> leftStream =
@@ -342,8 +331,7 @@ public class InnerJoinTest {
                 TemporalTestRecord.of("key", "v-right", 2000).asKV().getValue())));
 
     PCollection<KV<String, KV<String, String>>> output =
-        Join.temporalInnerJoin(
-            "Join", leftCollection, rightCollection, temporalBound, new FirstCharacterEqualsFn());
+        Join.eventTimeBoundedInnerjoin("Join", leftCollection, rightCollection, temporalBound);
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }

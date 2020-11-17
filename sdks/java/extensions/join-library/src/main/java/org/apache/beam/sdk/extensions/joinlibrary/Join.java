@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.joinlibrary;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -40,11 +41,13 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -369,33 +372,30 @@ public class Join {
   }
 
   /**
-   * PTransform representing a temporal inner join of PCollection<KV>s.
+   * PTransform representing an equijoin of PCollection<KV>s bounded by event time.
    *
    * @param <K> Type of the key for both collections.
    * @param <V1> Type of the values for the left collection.
    * @param <V2> Type of the values for the right collection.
    */
-  public static class TemporalInnerJoin<K, V1, V2>
+  public static class EventTimeBoundedEquijoin<K, V1, V2>
       extends PTransform<PCollection<KV<K, V1>>, PCollection<KV<K, KV<V1, V2>>>> {
     private final transient PCollection<KV<K, V2>> rightCollection;
     private final Duration temporalBound;
-    private final SimpleFunction<KV<V1, V2>, Boolean> comparatorFn;
 
-    private TemporalInnerJoin(
-        final PCollection<KV<K, V2>> rightCollection,
-        final Duration temporalBound,
-        final SimpleFunction<KV<V1, V2>, Boolean> compareFn) {
+    private EventTimeBoundedEquijoin(
+        final PCollection<KV<K, V2>> rightCollection, final Duration temporalBound) {
       this.temporalBound = temporalBound;
       this.rightCollection = rightCollection;
-      this.comparatorFn = compareFn;
     }
 
     /**
-     * Returns a TemporalInnerJoin PTransform that joins two PCollection<KV>s.
+     * Returns a EventTimeBoundedEquijoin PTransform that joins two PCollection<KV>s.
      *
-     * <p>Similar to {@code innerJoin} but also supports unbounded PCollections in the GlobalWindow.
-     * Join results will be produced eagerly as new elements are received, regardless of windowing,
-     * however users should prefer {@code innerJoin} in most cases for better throughput.
+     * <p>Similar to {@link #innerJoin} but also supports unbounded PCollections in the
+     * GlobalWindow. Join results will be produced eagerly as new elements are received, regardless
+     * of windowing, however users should prefer {@link #innerJoin} in most cases for better
+     * throughput.
      *
      * <p>The non-inclusive {@code temporalBound}, used as part of the join predicate, allows
      * elements to be expired when they are irrelevant according to the event-time watermark. This
@@ -403,16 +403,13 @@ public class Join {
      *
      * @param rightCollection Right side collection of the join.
      * @param temporalBound Duration used in the join predicate (non-inclusive).
-     * @param compareFn Join predicate used for matching elements.
      * @param <K> Type of the key for both collections.
      * @param <V1> Type of the values for the left collection.
      * @param <V2> Type of values for the right collection.
      */
-    public static <K, V1, V2> TemporalInnerJoin<K, V1, V2> with(
-        PCollection<KV<K, V2>> rightCollection,
-        Duration temporalBound,
-        SimpleFunction<KV<V1, V2>, Boolean> compareFn) {
-      return new TemporalInnerJoin<>(rightCollection, temporalBound, compareFn);
+    public static <K, V1, V2> EventTimeBoundedEquijoin<K, V1, V2> with(
+        PCollection<KV<K, V2>> rightCollection, Duration temporalBound) {
+      return new EventTimeBoundedEquijoin<>(rightCollection, temporalBound);
     }
 
     @Override
@@ -447,12 +444,10 @@ public class Join {
 
       return PCollectionList.of(leftUnion)
           .and(rightUnion)
-          .apply(Flatten.pCollections())
+          .apply("FlattenUnionTagged", Flatten.pCollections())
           .apply(
-              "TemporalInnerJoinFn",
-              ParDo.of(
-                  new TemporalInnerJoinFn<>(
-                      leftValueCoder, rightValueCoder, temporalBound, comparatorFn)));
+              "EventTimeBoundedEquijoinFn",
+              ParDo.of(new EventTimeEquijoinFn<>(leftValueCoder, rightValueCoder, temporalBound)));
     }
   }
 
@@ -472,85 +467,82 @@ public class Join {
     }
   }
 
-  private static class TemporalInnerJoinFn<K, V1, V2>
+  private static class EventTimeEquijoinFn<K, V1, V2>
       extends DoFn<KV<K, KV<V1, V2>>, KV<K, KV<V1, V2>>> {
+    private static final String LEFT_STATE = "left";
+    private static final String RIGHT_STATE = "right";
+    private static final String LAST_EVICTION_STATE = "lastEviction";
+    private static final String EVICTION_TIMER_INIT_STATE = "evictionTimerInit";
+    private static final String EVICTION_TIMER = "eviction";
 
-    @StateId("left")
+    @StateId(LEFT_STATE)
     private final StateSpec<OrderedListState<V1>> leftStateSpec;
 
-    @StateId("right")
+    @StateId(RIGHT_STATE)
     private final StateSpec<OrderedListState<V2>> rightStateSpec;
 
     // Null only when uninitialized. After first element is received this will always be non-null.
-    @StateId("lastEviction")
+    @StateId(LAST_EVICTION_STATE)
     private final StateSpec<ValueState<Instant>> lastEvictionStateSpec;
 
-    @TimerId("eviction")
+    // Tracks the initialization state of the eviction timer. Value is true when the timer has been
+    // set and execution is waiting for the event time watermark to fire the timer according to the
+    // evictionFrequency. False after the timer has been fired, so processElement can set the timer
+    // using the previous firing event time.
+    @StateId(EVICTION_TIMER_INIT_STATE)
+    private final StateSpec<ValueState<Boolean>> evictionTimerInitSpec;
+
+    @TimerId(EVICTION_TIMER)
     private final TimerSpec evictionSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     private final Duration temporalBound;
     private final Duration evictionFrequency;
-    private final SimpleFunction<KV<V1, V2>, Boolean> compareFn;
 
-    // Tracks the state of the eviction timer. Value is true when the timer has been set and
-    // execution is waiting for the event time watermark to fire the timer according to the
-    // evictionFrequency. False after the timer has been fired, so processElement can set the timer
-    // using the previous firing event time.
-    private transient boolean evictionTimerSet;
-
-    @Setup
-    public void setup() {
-      evictionTimerSet = false;
-    }
-
-    protected TemporalInnerJoinFn(
-        final Coder<V1> leftCoder,
-        final Coder<V2> rightCoder,
-        final Duration temporalBound,
-        SimpleFunction<KV<V1, V2>, Boolean> compareFn) {
+    protected EventTimeEquijoinFn(
+        final Coder<V1> leftCoder, final Coder<V2> rightCoder, final Duration temporalBound) {
       this.leftStateSpec = StateSpecs.orderedList(leftCoder);
       this.rightStateSpec = StateSpecs.orderedList(rightCoder);
       this.lastEvictionStateSpec = StateSpecs.value(InstantCoder.of());
+      this.evictionTimerInitSpec = StateSpecs.value(BooleanCoder.of());
       this.temporalBound = temporalBound;
-      this.compareFn = compareFn;
       this.evictionFrequency =
           temporalBound.getMillis() <= 4 ? Duration.millis(1) : temporalBound.dividedBy(4);
     }
 
     @ProcessElement
     public void processElement(
-        ProcessContext c,
-        @AlwaysFetched @StateId("left") OrderedListState<V1> leftState,
-        @AlwaysFetched @StateId("right") OrderedListState<V2> rightState,
-        @AlwaysFetched @StateId("lastEviction") ValueState<Instant> lastEvictionState,
+        @Element KV<K, KV<V1, V2>> element,
+        OutputReceiver<KV<K, KV<V1, V2>>> outputReceiver,
+        @StateId(LEFT_STATE) OrderedListState<V1> leftState,
+        @StateId(RIGHT_STATE) OrderedListState<V2> rightState,
+        @AlwaysFetched @StateId(LAST_EVICTION_STATE) ValueState<Instant> lastEvictionState,
+        @AlwaysFetched @StateId(EVICTION_TIMER_INIT_STATE)
+            ValueState<Boolean> evictionTimerSetState,
         @Timestamp Instant timestamp,
-        @TimerId("eviction") Timer evictionTimer) {
+        @TimerId(EVICTION_TIMER) Timer evictionTimer) {
       Instant lastEviction = lastEvictionState.read();
       if (lastEviction == null) {
         // Initialize timer for the first time relatively since event time watermark is unknown.
-        evictionTimerSet = true;
+        evictionTimerSetState.write(true);
         evictionTimer.offset(evictionFrequency).setRelative();
-      } else if (!evictionTimerSet) {
+      } else if (!MoreObjects.firstNonNull(evictionTimerSetState.read(), false)) {
         // Set timer using persisted event watermark from last timer firing event time.
         checkNotNull(lastEviction);
-        evictionTimerSet = true;
+        evictionTimerSetState.write(true);
         evictionTimer.set(lastEviction.plus(evictionFrequency));
       }
 
-      KV<K, KV<V1, V2>> e = c.element();
-      K key = e.getKey();
-      V1 left = e.getValue().getKey();
-      V2 right = e.getValue().getValue();
+      K key = element.getKey();
+      V1 left = element.getValue().getKey();
+      V2 right = element.getValue().getValue();
       if (left != null) {
         leftState.add(TimestampedValue.of(left, timestamp));
         rightState
             .readRange(timestamp.minus(temporalBound), timestamp.plus(temporalBound))
             .forEach(
                 r -> {
-                  KV<V1, V2> matchCandidate = KV.of(left, r.getValue());
-                  if (new Duration(r.getTimestamp(), timestamp).abs().isShorterThan(temporalBound)
-                      && compareFn.apply(matchCandidate)) {
-                    c.output(KV.of(key, matchCandidate));
+                  if (isAbsoluteDurationShorterThanTemporalBound(r.getTimestamp(), timestamp)) {
+                    outputReceiver.output(KV.of(key, KV.of(left, r.getValue())));
                   }
                 });
       } else {
@@ -559,34 +551,36 @@ public class Join {
             .readRange(timestamp.minus(temporalBound), timestamp.plus(temporalBound))
             .forEach(
                 l -> {
-                  KV<V1, V2> matchCandidate = KV.of(l.getValue(), right);
-                  if (new Duration(l.getTimestamp(), timestamp).abs().isShorterThan(temporalBound)
-                      && compareFn.apply(matchCandidate)) {
-                    c.output(KV.of(key, matchCandidate));
+                  if (isAbsoluteDurationShorterThanTemporalBound(l.getTimestamp(), timestamp)) {
+                    outputReceiver.output(KV.of(key, KV.of(l.getValue(), right)));
                   }
                 });
       }
     }
 
-    @OnTimer("eviction")
+    private boolean isAbsoluteDurationShorterThanTemporalBound(Instant time1, Instant time2) {
+      return new Duration(time1, time2).abs().isShorterThan(temporalBound);
+    }
+
+    @OnTimer(EVICTION_TIMER)
     public void onEviction(
-        @StateId("left") OrderedListState<V1> leftState,
-        @StateId("right") OrderedListState<V2> rightState,
-        @StateId("lastEviction") ValueState<Instant> lastEvictionState,
+        @StateId(LEFT_STATE) OrderedListState<V1> leftState,
+        @StateId(RIGHT_STATE) OrderedListState<V2> rightState,
+        @StateId(LAST_EVICTION_STATE) ValueState<Instant> lastEvictionState,
+        @StateId(EVICTION_TIMER_INIT_STATE) ValueState<Boolean> evictionTimerSetState,
         @Timestamp Instant ts) {
-      evictionTimerSet = false;
+      evictionTimerSetState.write(false);
       lastEvictionState.write(ts);
-      leftState.clearRange(new Instant(0L), ts);
-      rightState.clearRange(new Instant(0L), ts);
+      leftState.clearRange(BoundedWindow.TIMESTAMP_MIN_VALUE, ts.minus(temporalBound));
+      rightState.clearRange(BoundedWindow.TIMESTAMP_MIN_VALUE, ts.minus(temporalBound));
     }
   }
 
   /**
-   * Inner joins two PCollection<KV>s that satisfy a temporal predicate.
+   * Inner joins two PCollection<KV>s within a bounded event time duration.
    *
    * <p>Similar to {@code innerJoin} but also supports unbounded PCollections in the GlobalWindow.
-   * Join results will be produced eagerly as new elements are received, regardless of windowing,
-   * however users should prefer {@code innerJoin} in most cases for better throughput.
+   * Join results will be produced eagerly as new elements are received, regardless of windowing.
    *
    * <p>The non-inclusive {@code temporalBound}, used as part of the join predicate, allows elements
    * to be expired when they are irrelevant according to the event-time watermark. This helps reduce
@@ -599,16 +593,14 @@ public class Join {
    * @param leftCollection Left collection of the join.
    * @param rightCollection Right collection of the join.
    * @param temporalBound Time domain range used in the join predicate (non-inclusive).
-   * @param compareFn Function used when comparing elements in the join predicate.
    */
-  public static <K, V1, V2> PCollection<KV<K, KV<V1, V2>>> temporalInnerJoin(
+  public static <K, V1, V2> PCollection<KV<K, KV<V1, V2>>> eventTimeBoundedInnerjoin(
       final String name,
       final PCollection<KV<K, V1>> leftCollection,
       final PCollection<KV<K, V2>> rightCollection,
-      final Duration temporalBound,
-      final SimpleFunction<KV<V1, V2>, Boolean> compareFn) {
+      final Duration temporalBound) {
     return leftCollection
-        .apply(name, TemporalInnerJoin.with(rightCollection, temporalBound, compareFn))
+        .apply(name, EventTimeBoundedEquijoin.with(rightCollection, temporalBound))
         .setCoder(
             KvCoder.of(
                 ((KvCoder<K, V1>) leftCollection.getCoder()).getKeyCoder(),
