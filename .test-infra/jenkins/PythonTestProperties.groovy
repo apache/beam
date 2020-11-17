@@ -19,7 +19,7 @@
 class PythonTestProperties {
   final static String LOWEST_SUPPORTED = '3.6'
   final static String HIGHEST_SUPPORTED = '3.8'
-  final static String ESSENTIAL_VERSIONS = [
+  final static List<String> ESSENTIAL_VERSIONS = [
     LOWEST_SUPPORTED,
     HIGHEST_SUPPORTED
   ]
