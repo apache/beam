@@ -30,10 +30,12 @@ import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -347,7 +349,7 @@ public final class DynamoDBIO {
 
     abstract @Nullable SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
 
-    abstract @Nullable List<String> getOverwriteByPKeys();
+    abstract List<String> getOverwriteByPKeys();
 
     abstract Builder<T> builder();
 
@@ -363,7 +365,16 @@ public final class DynamoDBIO {
 
       abstract Builder<T> setOverwriteByPKeys(List<String> overwriteByPKeys);
 
-      abstract Write<T> build();
+      abstract Write<T> autoBuild();
+
+      abstract Optional<List<String>> getOverwriteByPKeys();
+
+      Write<T> build() {
+        if (!getOverwriteByPKeys().isPresent()) {
+          setOverwriteByPKeys(new ArrayList<>());
+        }
+        return autoBuild();
+      }
     }
 
     public Write<T> withAwsClientsProvider(AwsClientsProvider awsClientsProvider) {
