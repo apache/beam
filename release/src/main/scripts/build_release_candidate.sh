@@ -60,6 +60,7 @@ WEBSITE_ROOT_DIR=beam-site
 DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
 DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
 
+JAVA_VER=("java8")
 PYTHON_VER=("python3.6" "python3.7" "python3.8")
 FLINK_VER=("1.8" "1.9" "1.10")
 
@@ -274,7 +275,10 @@ if [[ $confirmation = "y" ]]; then
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
-  ./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  echo "Building containers for the following Java versions:" "${JAVA_VER[@]}"
+  for ver in "${JAVA_VER[@]}"; do
+    ./gradlew :sdks:java:container:${ver}:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  done
 
   echo '-------------Generating and Pushing Flink job server images-------------'
   echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
