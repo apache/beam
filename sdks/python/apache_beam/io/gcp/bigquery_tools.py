@@ -52,9 +52,12 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import Metrics
+from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.metrics import monitoring_infos
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -566,14 +569,43 @@ class BigQueryWrapper(object):
             skipInvalidRows=skip_invalid_rows,
             # TODO(silviuc): Should have an option for ignoreUnknownValues?
             rows=rows))
+
+    resource = resource_identifiers.BigQueryTable(
+        project_id, dataset_id, table_id)
+
+    labels = {
+        # TODO(ajamato): Add Ptransform label.
+        monitoring_infos.SERVICE_LABEL: 'BigQuery',
+        # Refer to any method which writes elements to BigQuery in batches
+        # as "BigQueryBatchWrite". I.e. storage API's insertAll, or future
+        # APIs introduced.
+        monitoring_infos.METHOD_LABEL: 'BigQueryBatchWrite',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.BIGQUERY_PROJECT_ID_LABEL: project_id,
+        monitoring_infos.BIGQUERY_DATASET_LABEL: dataset_id,
+        monitoring_infos.BIGQUERY_TABLE_LABEL: table_id,
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+
     started_millis = int(time.time() * 1000)
+    response = None
     try:
       response = self.client.tabledata.InsertAll(request)
-      # response.insertErrors is not [] if errors encountered.
+      if not response.insertErrors:
+        service_call_metric.call('ok')
+      for insert_error in response.insertErrors:
+        for error in insert_error.errors:
+          service_call_metric.call(error.reason)
+    except HttpError as e:
+      service_call_metric.call(e)
     finally:
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)
-    return not response.insertErrors, response.insertErrors
+    if response:
+      return not response.insertErrors, response.insertErrors
+    return False, []
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
