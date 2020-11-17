@@ -17,7 +17,7 @@
  */
 
 /**
- * Build script containign common build tasks for Java SDK Docker images.
+ * Build script containing common build tasks for Java SDK Docker images.
  * Should be applied as a script plugin per supported Java version.
  * (see java$VER/build.gradle)
  */
