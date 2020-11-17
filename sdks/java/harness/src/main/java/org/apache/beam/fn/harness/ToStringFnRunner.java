@@ -19,6 +19,8 @@ package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
+import java.util.Objects;
+
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.function.ThrowingFunction;
@@ -38,9 +40,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>For each element, the human-readable string is returned. The nonce is used by a runner to
  * associate each input with its output. The nonce is represented as an opaque set of bytes.
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class ToStringFnRunner {
   static final String URN = PTransformTranslation.TO_STRING_TRANSFORM_URN;
 
@@ -51,6 +50,9 @@ public class ToStringFnRunner {
   public static class Registrar implements PTransformRunnerFactory.Registrar {
 
     @Override
+    @SuppressWarnings({
+      "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    })
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
       return ImmutableMap.of(
           URN,
@@ -60,17 +62,6 @@ public class ToStringFnRunner {
 
   static <T, V> ThrowingFunction<KV<T, V>, KV<T, String>> createToStringFunctionForPTransform(
       String ptransformId, PTransform pTransform) {
-    return (KV<T, V> input) -> {
-      String val = "null";
-
-      // For some reason, the nullness checker cannot be satisfied when dereferencing
-      // input.getValue(). It is only satisfied by creating a temporary variable with v.
-      V v = input.getValue();
-      if (v != null) {
-        val = v.toString();
-      }
-
-      return KV.of(input.getKey(), val);
-    };
+    return (KV<T, V> input) -> KV.of(input.getKey(), Objects.toString(input.getValue()));
   }
 }
