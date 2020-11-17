@@ -38,7 +38,7 @@ class GrpcVendoring_1_26_0 {
   static def compress_lzf_version = "1.0.3"
   static def lz4_version = "1.3.0"
   static def bouncycastle_version = "1.54"
-  static def conscrypt_version = "1.3.0"
+  static def conscrypt_version = "2.5.1"
   static def alpn_api_version = "1.1.2.v20150522"
   static def npn_api_version = "1.1.1.v20141010"
   static def jboss_marshalling_version = "1.4.11.Final"
