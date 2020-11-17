@@ -59,6 +59,8 @@ WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
 WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
 DATA_CHANNEL_READ_INDEX = (
     common_urns.monitoring_info_specs.DATA_CHANNEL_READ_INDEX.spec.urn)
+API_REQUEST_COUNT_URN = (
+    common_urns.monitoring_info_specs.API_REQUEST_COUNT.spec.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
@@ -81,6 +83,20 @@ PTRANSFORM_LABEL = (
 NAMESPACE_LABEL = (
     common_urns.monitoring_info_labels.NAMESPACE.label_props.name)
 NAME_LABEL = (common_urns.monitoring_info_labels.NAME.label_props.name)
+SERVICE_LABEL = (common_urns.monitoring_info_labels.SERVICE.label_props.name)
+METHOD_LABEL = (common_urns.monitoring_info_labels.METHOD.label_props.name)
+RESOURCE_LABEL = (common_urns.monitoring_info_labels.RESOURCE.label_props.name)
+STATUS_LABEL = (common_urns.monitoring_info_labels.STATUS.label_props.name)
+BIGQUERY_PROJECT_ID_LABEL = (
+    common_urns.monitoring_info_labels.BIGQUERY_PROJECT_ID.label_props.name)
+BIGQUERY_DATASET_LABEL = (
+    common_urns.monitoring_info_labels.BIGQUERY_DATASET.label_props.name)
+BIGQUERY_TABLE_LABEL = (
+    common_urns.monitoring_info_labels.BIGQUERY_TABLE.label_props.name)
+BIGQUERY_VIEW_LABEL = (
+    common_urns.monitoring_info_labels.BIGQUERY_VIEW.label_props.name)
+BIGQUERY_QUERY_NAME_LABEL = (
+    common_urns.monitoring_info_labels.BIGQUERY_QUERY_NAME.label_props.name)
 
 
 def extract_counter_value(monitoring_info_proto):
@@ -151,7 +167,7 @@ def int64_user_counter(namespace, name, metric, ptransform=None):
       USER_COUNTER_URN, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_counter(urn, metric, ptransform=None, pcollection=None):
+def int64_counter(urn, metric, ptransform=None, pcollection=None, labels=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the counter monitoring info for the specifed URN, metric and labels.
@@ -162,7 +178,8 @@ def int64_counter(urn, metric, ptransform=None, pcollection=None):
     ptransform: The ptransform id used as a label.
     pcollection: The pcollection id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, pcollection=pcollection)
+  labels = labels or dict()
+  labels.update(create_labels(ptransform=ptransform, pcollection=pcollection))
   if isinstance(metric, int):
     metric = coders.VarIntCoder().encode(metric)
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)

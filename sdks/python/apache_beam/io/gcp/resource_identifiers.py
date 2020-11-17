@@ -15,31 +15,21 @@
 # limitations under the License.
 #
 
-cimport cython
-cimport libc.stdint
+"""Helper functions to generate resource labels strings for GCP entitites
 
-from apache_beam.metrics.cells cimport MetricCell
+These can be used on MonitoringInfo 'resource' labels.
 
-cdef object get_current_tracker
+See example entities:
+    https://s.apache.org/beam-gcp-debuggability
 
+For GCP entities, populate the RESOURCE label with the aip.dev/122 format:
+https://google.aip.dev/122
 
-cdef class _TypedMetricName(object):
-  cdef readonly object cell_type
-  cdef readonly object metric_name
-  cdef readonly object fast_name
-  cdef libc.stdint.int64_t _hash
-
-
-cdef object _DEFAULT
+If an official GCP format does not exist, try to use the following format.
+    //whatever.googleapis.com/parents/{parentId}/whatevers/{whateverId}
+"""
 
 
-cdef class MetricUpdater(object):
-  cdef _TypedMetricName typed_metric_name
-  cdef object default_value
-  cdef bint process_wide  # bint is used to represent C++ bool.
-
-
-cdef class MetricsContainer(object):
-  cdef object step_name
-  cdef public dict metrics
-  cpdef MetricCell get_metric_cell(self, metric_key)
+def BigQueryTable(project_id, dataset_id, table_id):
+  return '//bigquery.googleapis.com/projects/%s/datasets/%s/tables/%s' % (
+      project_id, dataset_id, table_id)
