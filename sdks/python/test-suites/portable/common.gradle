@@ -37,7 +37,7 @@ def createFlinkRunnerTestTask(String workerType) {
   // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
   task.dependsOn ':runners:flink:1.10:job-server:shadowJar'
   // The Java SDK worker is required to execute external transforms.
-  task.dependsOn ':sdks:java:container:docker'
+  task.dependsOn ':sdks:java:container:java8:docker'
   if (workerType == 'DOCKER') {
     task.dependsOn ext.pythonContainerTask
   } else if (workerType == 'PROCESS') {
@@ -164,7 +164,7 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
           'setupVirtualenv',
           'installGcpTest',
           ':runners:flink:1.10:job-server:shadowJar',
-          ':sdks:java:container:docker',
+          ':sdks:java:container:java8:docker',
           ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
           ':sdks:java:io:kinesis:expansion-service:shadowJar',
