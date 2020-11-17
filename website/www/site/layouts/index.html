@@ -150,13 +150,13 @@
 {{ end }}
 
 {{ define "logos-section" }}
-  <div class="logos section">
-    <div class="logos__title">
+  <div class="logos">
+    <div class="logos-title">
       {{ T "home-logos-title" }}
     </div>
-    <div class="logos__logos">
+    <div class="logos-logos">
       {{ range $logo := $.Site.Data.works_with }}
-      <div class="logos__logos__logo">
+      <div class="logos-logo">
         <a href="{{ $logo.url }}"><img src="{{ $logo.image_url }}" alt="{{ $logo.title }}"></a>
       </div>
       {{ end }}
