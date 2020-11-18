@@ -180,7 +180,7 @@ func ResolveOutputIsBounded(e *graph.MultiEdge, isBoundedUpdater func(*graph.Nod
 			}
 			isBoundedUpdater(node, isBounded)
 		} else {
-			panic(errors.Errorf("missing corresponsing pcollection of named output: %v is expected in %v", id, expandedPCollections))
+			panic(errors.Errorf("missing corresponding pcollection of named output: %v is expected in %v", id, expandedPCollections))
 		}
 
 	}
