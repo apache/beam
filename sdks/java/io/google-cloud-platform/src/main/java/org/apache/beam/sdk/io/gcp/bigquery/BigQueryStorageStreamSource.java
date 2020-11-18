@@ -163,6 +163,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private long currentOffset;
 
     // Values used for progress reporting.
+    private boolean splitPossible;
     private double fractionConsumed;
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
@@ -178,6 +179,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.parseFn = source.parseFn;
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
+      this.splitPossible = true;
       this.fractionConsumed = 0d;
       this.progressAtResponseStart = 0d;
       this.progressAtResponseEnd = 0d;
@@ -288,78 +290,85 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         return null;
       }
 
-      SplitReadStreamRequest splitRequest =
-          SplitReadStreamRequest.newBuilder()
-              .setName(source.readStream.getName())
-              .setFraction((float) fraction)
-              .build();
+      if (splitPossible) {
+        SplitReadStreamRequest splitRequest =
+            SplitReadStreamRequest.newBuilder()
+                .setName(source.readStream.getName())
+                .setFraction((float) fraction)
+                .build();
 
-      SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
-      if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
-        // No more splits are possible!
-        Metrics.counter(
-                BigQueryStorageStreamReader.class,
-                "split-at-fraction-calls-failed-due-to-impossible-split-point")
-            .inc();
-        LOG.info(
-            "BigQuery Storage API stream {} cannot be split at {}.",
-            source.readStream.getName(),
-            fraction);
-        return null;
-      }
-
-      // We may be able to split this source. Before continuing, we pause the reader thread and
-      // replace its current source with the primary stream iff the reader has not moved past
-      // the split point.
-      synchronized (this) {
-        BigQueryServerStream<ReadRowsResponse> newResponseStream;
-        Iterator<ReadRowsResponse> newResponseIterator;
-        try {
-          newResponseStream =
-              storageClient.readRows(
-                  ReadRowsRequest.newBuilder()
-                      .setReadStream(splitResponse.getPrimaryStream().getName())
-                      .setOffset(currentOffset + 1)
-                      .build());
-          newResponseIterator = newResponseStream.iterator();
-          newResponseIterator.hasNext();
-        } catch (FailedPreconditionException e) {
-          // The current source has already moved past the split point, so this split attempt
-          // is unsuccessful.
+        SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
+        if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
+          // No more splits are possible!
           Metrics.counter(
-                  BigQueryStorageStreamReader.class,
-                  "split-at-fraction-calls-failed-due-to-bad-split-point")
+              BigQueryStorageStreamReader.class,
+              "split-at-fraction-calls-failed-due-to-impossible-split-point")
               .inc();
           LOG.info(
-              "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
-                  + "the left of the split fraction {}.",
+              "BigQuery Storage API stream {} cannot be split at {}.",
               source.readStream.getName(),
               fraction);
-          return null;
-        } catch (Exception e) {
-          Metrics.counter(
-                  BigQueryStorageStreamReader.class,
-                  "split-at-fraction-calls-failed-due-to-other-reasons")
-              .inc();
-          LOG.error("BigQuery Storage API stream split failed.", e);
+          splitPossible = false;
           return null;
         }
 
-        // Cancels the parent stream before replacing it with the primary stream.
-        responseStream.cancel();
-        source = source.fromExisting(splitResponse.getPrimaryStream());
-        responseStream = newResponseStream;
-        responseIterator = newResponseIterator;
-        decoder = null;
-      }
+        // We may be able to split this source. Before continuing, we pause the reader thread and
+        // replace its current source with the primary stream iff the reader has not moved past
+        // the split point.
+        synchronized (this) {
+          BigQueryServerStream<ReadRowsResponse> newResponseStream;
+          Iterator<ReadRowsResponse> newResponseIterator;
+          try {
+            newResponseStream =
+                storageClient.readRows(
+                    ReadRowsRequest.newBuilder()
+                        .setReadStream(splitResponse.getPrimaryStream().getName())
+                        .setOffset(currentOffset + 1)
+                        .build());
+            newResponseIterator = newResponseStream.iterator();
+            newResponseIterator.hasNext();
+          } catch (FailedPreconditionException e) {
+            // The current source has already moved past the split point, so this split attempt
+            // is unsuccessful.
+            Metrics.counter(
+                BigQueryStorageStreamReader.class,
+                "split-at-fraction-calls-failed-due-to-bad-split-point")
+                .inc();
+            LOG.info(
+                "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
+                    + "the left of the split fraction {}.",
+                source.readStream.getName(),
+                fraction);
+            splitPossible = false;
+            return null;
+          } catch (Exception e) {
+            Metrics.counter(
+                BigQueryStorageStreamReader.class,
+                "split-at-fraction-calls-failed-due-to-other-reasons")
+                .inc();
+            LOG.error("BigQuery Storage API stream split failed.", e);
+            splitPossible = false;
+            return null;
+          }
 
-      Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
-          .inc();
-      LOG.info(
-          "Successfully split BigQuery Storage API stream at {}. Split response: {}",
-          fraction,
-          splitResponse);
-      return source.fromExisting(splitResponse.getRemainderStream());
+          // Cancels the parent stream before replacing it with the primary stream.
+          responseStream.cancel();
+          source = source.fromExisting(splitResponse.getPrimaryStream());
+          responseStream = newResponseStream;
+          responseIterator = newResponseIterator;
+          decoder = null;
+        }
+
+        Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
+            .inc();
+        LOG.info(
+            "Successfully split BigQuery Storage API stream at {}. Split response: {}",
+            fraction,
+            splitResponse);
+        return source.fromExisting(splitResponse.getRemainderStream());
+      } else {
+        return null;
+      }
     }
 
     @Override
