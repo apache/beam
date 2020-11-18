@@ -1495,8 +1495,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   groups = property(frame_base.wont_implement_method('non-deferred'))
 
 
-def _liftable_agg(meth):
+def _liftable_agg(meth, postagg_meth=None):
   name, func = frame_base.name_and_func(meth)
+
+  if postagg_meth is None:
+    post_agg_name, post_agg_func = name, func
+  else:
+    post_agg_name, post_agg_func = frame_base.name_and_func(postagg_meth)
 
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
@@ -1521,8 +1526,8 @@ def _liftable_agg(meth):
         preserves_partition_by=partitionings.Singleton())
 
     post_agg = expressions.ComputedExpression(
-        'post_combine_' + name,
-        lambda df: func(
+        'post_combine_' + post_agg_name,
+        lambda df: post_agg_func(
             df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
             **kwargs),
         [pre_agg],
@@ -1561,11 +1566,14 @@ def _unliftable_agg(meth):
 
   return wrapper
 
-LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'size', 'sum']
+LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
+LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
 UNLIFTABLE_AGGREGATIONS = ['mean', 'median', 'std', 'var']
 
 for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))
+for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
+  setattr(DeferredGroupBy, meth, _liftable_agg(meth, postagg_meth='sum'))
 for meth in UNLIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 

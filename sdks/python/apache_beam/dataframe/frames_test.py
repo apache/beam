@@ -89,10 +89,20 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(new_column, df)
 
   def test_groupby(self):
-    df = pd.DataFrame({'group': ['a', 'a', 'a', 'b'], 'value': [1, 2, 3, 5]})
-    self._run_test(lambda df: df.groupby('group').agg(sum), df)
-    self._run_test(lambda df: df.groupby('group').sum(), df)
-    self._run_test(lambda df: df.groupby('group').median(), df)
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'value': [None if i % 11 == 0 else i for i in range(100)]
+    })
+    self._run_test(
+        lambda df: df.groupby('group').agg(sum), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').sum(), df, distributed=True)
+    self._run_test(
+        lambda df: df.groupby('group').median(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').size(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').count(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').max(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').min(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').mean(), df, distributed=True)
 
   @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
