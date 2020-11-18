@@ -20,6 +20,27 @@
 Cloud Pub/Sub sources and sinks are currently supported only in streaming
 pipelines, during remote execution.
 
+Multiple Read from Pub/Sub
+========================
+
+The `MultipleReadFromPubSub` transform allows you to read multiple topics and/or
+subscriptions using just one transform. It is the recommended transform to read
+multiple Pub/Sub sources when the output `PCollection` are going to be
+flattened. The transform takes a list of `PubSubSourceDescriptor` and organize
+them by type (topic / subscription) and project::
+
+  topic_1 = PubSubSourceDescriptor('projects/myproject/topics/a_topic')
+  topic_2 = PubSubSourceDescriptor(
+              'projects/myproject2/topics/b_topic',
+              'my_label',
+              'my_timestamp_attribute')
+  subscription_1 = PubSubSourceDescriptor(
+              'projects/myproject/subscriptions/a_subscription')
+
+  results = pipeline | MultipleReadFromPubSub(
+              [topic_1, topic_2, subscription_1])
+
+
 This API is currently under development and is subject to change.
 """
 
@@ -452,65 +473,89 @@ class _PubSubSink(dataflow_io.NativeSink):
 
 
 class PubSubSourceDescriptor(NamedTuple):
-  """A PubSub source descriptor for ``MultipleReadFromPubSub```"""
+  """A PubSub source descriptor for ``MultipleReadFromPubSub```
+
+  Attributes:
+    source: Existing Cloud Pub/Sub topic or subscription to use in the
+      form "projects/<project>/topics/<topic>" or
+      "projects/<project>/subscriptions/<subscription>"
+    id_label: The attribute on incoming Pub/Sub messages to use as a unique
+      record identifier. When specified, the value of this attribute (which
+      can be any string that uniquely identifies the record) will be used for
+      deduplication of messages. If not provided, we cannot guarantee
+      that no duplicate data will be delivered on the Pub/Sub stream. In this
+      case, deduplication of the stream will be strictly best effort.
+    timestamp_attribute: Message value to use as element timestamp. If None,
+      uses message publishing time as the timestamp.
+
+      Timestamp values should be in one of two formats:
+
+      - A numerical value representing the number of milliseconds since the
+        Unix epoch.
+      - A string in RFC 3339 format, UTC timezone. Example:
+        ``2015-10-29T23:41:41.123Z``. The sub-second component of the
+        timestamp is optional, and digits beyond the first three (i.e., time
+        units smaller than milliseconds) may be ignored.
+  """
   source: str
   id_label: str = None
   timestamp_attribute: str = None
 
 
+PUBSUB_DESCRIPTOR_REGEXP = 'projects/([^/]+)/(topics|subscriptions)/(.+)'
+
 class MultipleReadFromPubSub(PTransform):
   """A ``PTransform`` that expands ``ReadFromPubSub`` to read from multiple
-  subscriptions and/or topics."""
+  ``PubSubSourceDescriptor``."""
   def __init__(
       self,
-      source_list,  # type: List[PubSubSourceDescriptor]
+      pubsub_source_descriptors,  # type: List[PubSubSourceDescriptor]
       with_attributes=False,  # type: bool
   ):
     """Initializes ``PubSubMultipleReader``.
 
     Args:
-      source_list: List of Cloud Pub/Sub topics or subscriptions of type
-      `~PubSubSourceDescriptor`.
+      pubsub_source_descriptors: List of Cloud Pub/Sub topics or subscriptions
+      of type `~PubSubSourceDescriptor`.
       with_attributes:
         True - input elements will be :class:`~PubsubMessage` objects.
         False - input elements will be of type ``bytes`` (message data only).
     """
-    self.source_list = source_list
+    self.pubsub_source_descriptors = pubsub_source_descriptors
     self.with_attributes = with_attributes
 
-    for source in self.source_list:
-      match_topic = re.match(TOPIC_REGEXP, source.source)
-      match_subscription = re.match(SUBSCRIPTION_REGEXP, source.source)
+    for descriptor in self.pubsub_source_descriptors:
+      match_descriptor = re.match(PUBSUB_DESCRIPTOR_REGEXP, descriptor.source)
 
-      if not (match_topic or match_subscription):
+      if not match_descriptor:
         raise ValueError(
-            'PubSub source must be in the form "projects/<project>/topics'
-            '/<topic>" or "projects/<project>/subscription'
-            '/<subscription>" (got %r).' % source.source)
+            'PubSub source descriptor must be in the form "projects/<project>'
+            '/topics/<topic>" or "projects/<project>/subscription'
+            '/<subscription>" (got %r).' % descriptor.source)
 
   def expand(self, pcol):
     sources_pcol = []
-    for source in self.source_list:
-      source_split = source.source.split('/')
-      source_project = source_split[1]
-      source_type = source_split[2]
-      source_name = source_split[-1]
+    for descriptor in self.pubsub_source_descriptors:
+      source_match = re.match(PUBSUB_DESCRIPTOR_REGEXP, descriptor.source)
+      source_project = source_match.group(1)
+      source_type = source_match.group(2)
+      source_name = source_match.group(3)
 
-      step_name_base = 'PubSub %s/project:%s' % (source_type, source_project)
-      read_step_name = '%s/Read %s' % (step_name_base, source_name)
+      read_step_name = 'PubSub %s/project:%s/Read %s' % (
+          source_type, source_project, source_name)
 
       if source_type == 'topics':
         current_source = pcol | read_step_name >> ReadFromPubSub(
-            topic=source.source,
-            id_label=source.id_label,
+            topic=descriptor.source,
+            id_label=descriptor.id_label,
             with_attributes=self.with_attributes,
-            timestamp_attribute=source.timestamp_attribute)
+            timestamp_attribute=descriptor.timestamp_attribute)
       else:
         current_source = pcol | read_step_name >> ReadFromPubSub(
-            subscription=source.source,
-            id_label=source.id_label,
+            subscription=descriptor.source,
+            id_label=descriptor.id_label,
             with_attributes=self.with_attributes,
-            timestamp_attribute=source.timestamp_attribute)
+            timestamp_attribute=descriptor.timestamp_attribute)
 
       sources_pcol.append(current_source)
 
