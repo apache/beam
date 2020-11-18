@@ -59,7 +59,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Beam modules that depend on Hadoop are now tested for compatibility with Hadoop 3 ([BEAM-8569](https://issues.apache.org/jira/browse/BEAM-8569)). (Hive/HCatalog pending)
 
 ## Breaking Changes
 
