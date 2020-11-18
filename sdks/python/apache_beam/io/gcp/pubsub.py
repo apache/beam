@@ -21,7 +21,7 @@ Cloud Pub/Sub sources and sinks are currently supported only in streaming
 pipelines, during remote execution.
 
 Multiple Read from Pub/Sub
-========================
+==========================
 
 The `MultipleReadFromPubSub` transform allows you to read multiple topics and/or
 subscriptions using just one transform. It is the recommended transform to read
