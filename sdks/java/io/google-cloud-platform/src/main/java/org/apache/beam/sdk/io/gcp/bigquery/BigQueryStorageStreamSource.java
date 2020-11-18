@@ -341,7 +341,6 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   + "the left of the split fraction {}.",
               source.readStream.getName(),
               fraction);
-          splitPossible = false;
           return null;
         } catch (Exception e) {
           Metrics.counter(
@@ -349,7 +348,6 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   "split-at-fraction-calls-failed-due-to-other-reasons")
               .inc();
           LOG.error("BigQuery Storage API stream split failed.", e);
-          splitPossible = false;
           return null;
         }
 
