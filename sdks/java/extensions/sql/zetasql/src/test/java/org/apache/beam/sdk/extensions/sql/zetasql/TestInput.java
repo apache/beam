@@ -221,11 +221,26 @@ class TestInput {
           .addRows(14L, Arrays.asList(14L, 18L))
           .addRows(18L, Arrays.asList(22L, 24L));
 
+  public static final TestBoundedTable TABLE_WITH_ARRAY_OF_STRUCT =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("int_col")
+                  .addArrayField("array_col", FieldType.row(structSchema))
+                  .build())
+          .addRows(10L, ImmutableList.of(Row.withSchema(structSchema).addValues(1L, "1").build()))
+          .addRows(
+              20L,
+              Arrays.asList(
+                  Row.withSchema(structSchema).addValues(2L, "2").build(),
+                  Row.withSchema(structSchema).addValues(3L, "3").build()));
+
   private static final Schema STRUCT_OF_ARRAY =
       Schema.builder().addArrayField("arr", FieldType.STRING).build();
   private static final Schema STRUCT_OF_STRUCT_OF_ARRAY =
       Schema.builder().addRowField("struct", STRUCT_OF_ARRAY).build();
-  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_ARRAY =
+  private static final Schema STRUCT_OF_ARRAY_OF_STRUCT =
+      Schema.builder().addArrayField("arr", FieldType.row(structSchema)).build();
+  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_STRUCT_OF_ARRAY =
       TestBoundedTable.of(
               Schema.builder()
                   .addInt64Field("int_col")
@@ -240,6 +255,24 @@ class TestInput {
               20L,
               Row.withSchema(STRUCT_OF_STRUCT_OF_ARRAY)
                   .addValue(Row.withSchema(STRUCT_OF_ARRAY).addArray("2", "3").build())
+                  .build());
+  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_ARRAY_OF_STRUCT =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("int_col")
+                  .addRowField("struct_col", STRUCT_OF_ARRAY_OF_STRUCT)
+                  .build())
+          .addRows(
+              10L,
+              Row.withSchema(STRUCT_OF_ARRAY_OF_STRUCT)
+                  .addArray(Row.withSchema(structSchema).addValues(1L, "1").build())
+                  .build())
+          .addRows(
+              20L,
+              Row.withSchema(STRUCT_OF_ARRAY_OF_STRUCT)
+                  .addArray(
+                      Row.withSchema(structSchema).addValues(2L, "2").build(),
+                      Row.withSchema(structSchema).addValues(3L, "3").build())
                   .build());
 
   public static final TestBoundedTable TABLE_FOR_CASE_WHEN =

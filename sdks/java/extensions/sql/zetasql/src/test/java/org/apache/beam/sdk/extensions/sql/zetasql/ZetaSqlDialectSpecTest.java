@@ -2469,9 +2469,63 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testUnnestArrayOfStructColumn() {
+    String sql = "SELECT int_col, data FROM table_with_array_of_struct, UNNEST(array_col) AS s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("int_col").addStringField("data").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(10L, "1").build(),
+            Row.withSchema(schema).addValues(20L, "2").build(),
+            Row.withSchema(schema).addValues(20L, "3").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestArrayOfStructLiteral() {
+    String sql = "SELECT a, b FROM UNNEST([STRUCT(1 AS a, '1' AS b), STRUCT(2, '2')])";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("a").addStringField("b").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(1L, "1").build(),
+            Row.withSchema(schema).addValues(2L, "2").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testUnnestArrayFieldOfNestedStructColumn() {
     String sql =
-        "SELECT int_col, s FROM table_with_struct_of_array, UNNEST(struct_col.struct.arr) as s";
+        "SELECT int_col, s FROM table_with_struct_of_struct_of_array, UNNEST(struct_col.struct.arr) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("int_col").addStringField("p").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(10L, "1").build(),
+            Row.withSchema(schema).addValues(20L, "2").build(),
+            Row.withSchema(schema).addValues(20L, "3").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestStructOfArrayOfStructColumn() {
+    String sql =
+        "SELECT int_col, data FROM table_with_struct_of_array_of_struct, UNNEST(struct_col.arr) as s";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
