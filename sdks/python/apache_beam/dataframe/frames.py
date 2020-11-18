@@ -1600,7 +1600,7 @@ def _unliftable_agg(meth):
   return wrapper
 
 LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
-LIFTABLE_WITH_SUM_AGGREGATIONS = ['size']
+LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
 UNLIFTABLE_AGGREGATIONS = ['mean', 'median', 'std', 'var']
 
 for meth in LIFTABLE_AGGREGATIONS:

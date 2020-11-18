@@ -99,6 +99,7 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.groupby('group').median(), df, distributed=True)
     self._run_test(lambda df: df.groupby('group').size(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').count(), df, distributed=True)
     self._run_test(lambda df: df.groupby('group').max(), df, distributed=True)
     self._run_test(lambda df: df.groupby('group').min(), df, distributed=True)
     self._run_test(lambda df: df.groupby('group').mean(), df, distributed=True)
