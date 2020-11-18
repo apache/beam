@@ -5535,16 +5535,15 @@ abstract static class Builder<K, V>
   @Override
   public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
       External.Configuration config) {
-    ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
-    for (String topic : config.topics) {
-      listBuilder.add(topic);
-    }
-    setTopics(listBuilder.build());
+    setTopics(ImmutableList.copyOf(config.topics));
 
     /** Remaining property defaults omitted for clarity. */
   }
 }
     {{< /highlight >}}
+
+    Note that `buildExternal` method may choose to perform additional operations before setting properties received from external SDKs in the transform. For example, `buildExternal` method may validates properties available in the configuration object before setting them in the transform.
+
 2. Register the transform as an external cross-language transform by defining a class that implements `ExternalTransformRegistrar`. You must annotate your class with the `AutoService` annotation to ensure that your transform is registered and instantiated properly by the expansion service.
 3. In your registrar class, define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.
 4. From within your registrar class, define a configuration class for the parameters used during the initialization of your transform by the external SDK.
@@ -5592,7 +5591,7 @@ An expansion service can be used with multiple transforms in the same pipeline. 
 Perform the following to start up a Java expansion service directly:
 
 {{< highlight >}}
-# TODO: Build a JAR with both your transform and the expansion service
+# Build a JAR with both your transform and the expansion service
 
 # Start the expansion service at the specified port.
 $ jar -jar /path/to/expansion_service.jar <PORT_NUMBER>
@@ -5600,7 +5599,7 @@ $ jar -jar /path/to/expansion_service.jar <PORT_NUMBER>
 
 The expansion service is now ready to serve transforms on the specified port.
 
-When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the [BeamJarExpansionService](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) utility for starting up a Java expansion service using a JAR file.
+When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities [JavaJarExpansionService and BeamJarExpansionService](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) utility for starting up a Java expansion service using a JAR file.
 
 **Including dependencies**
 
@@ -5627,9 +5626,12 @@ class ReadFromKafkaSchema(typing.NamedTuple):
 
 payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
     {{< /highlight >}}
-3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides a utility, `BeamJarExpansionService`, for easily starting an expansion service based on a JAR released with Beam. To use this, do the following:
 
-    1. Add a Gradle target to Beam that can be used to build a shaded expansion service JAR for the target Java transform. This target should produce a Beam JAR that contains all dependencies needed for expanding the Java transform and the JAR should be released with Beam.
+3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities `JavaJarExpansionService` and `BeamJarExpansionService` for easily starting up an expansion service using a JAR file.. `JavaJarExpansionService` can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. `BeamJarExpansionService` can be used for easily starting an expansion service based on a JAR released with Beam.
+
+    For transforms released with Beam do the following:
+
+    1. Add a Gradle target to Beam that can be used to build a shaded expansion service JAR for the target Java transform. This target should produce a Beam JAR that contains all dependencies needed for expanding the Java transform and the JAR should be released with Beam. Note that you might be able to use one of the existing Gradle target that offer an aggregated version of an expansion service jar (for example, for all GCP IO).
     2. In your Python module, instantiate `BeamJarExpansionService` with the Gradle target.
 
         {{< highlight >}}
@@ -5688,12 +5690,15 @@ Perform the following steps to start up the default Python expansion service dir
 
     {{< highlight >}}
 $ export PORT_FOR_EXPANSION_SERVICE=12345
+3. Import any modules that contain transforms to be made available using the expansion service.
 $ python -m apache_beam.runners.portability.expansion_service -p $PORT_FOR_EXPANSION_SERVICE
     {{< /highlight >}}
 
+4. This expansion service is not ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
+
 **Including dependencies**
 
-If your transform requires external libraries, make sure those dependencies are already specified in a custom container for SDK harness. Core Apache Beam dependencies are already included.
+Currently Python external transforms are limited to dependencies available in core Beam SDK Harness.
 
 ### 13.2. Using cross-language transforms {#use-x-lang-transforms}
 
@@ -5734,7 +5739,7 @@ kafka_records = (
             },
             topics=[self.topic],
             max_num_records=max_num_records,
-            expansion_service=self.expansion_service))
+            expansion_service=<Address of expansion service>))
   {{< /highlight >}}
 
 **Using the ExternalTransform class**
@@ -5755,7 +5760,7 @@ with pipeline as p:
         | beam.ExternalTransform(
             TEST_PREFIX_URN,
             ImplicitSchemaPayloadBuilder({'data': u'0'}),
-            self.expansion_service))
+            <Address of expansion service>))
     assert_that(res, equal_to(['0a', '0b']))
     {{< /highlight >}}
 
