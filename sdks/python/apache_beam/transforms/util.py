@@ -790,9 +790,10 @@ class GroupIntoBatches(PTransform):
     """A GroupIntoBatches transform that outputs batched elements associated
     with sharded input keys.
 
-    The sharding is determined by the runner to balance the load during the
-    execution time. By default, it spreads the input elements with the same key
-    to all available threads executing the transform.
+    By default, keys are sharded to such that the input elements with the same
+    key are spread to all available threads executing the transform. Runners may
+    override the default sharding to do a better load balancing during the
+    execution time.
     """
     def __init__(self, batch_size, max_buffering_duration_secs=None):
       """Create a new GroupIntoBatches.WithShardedKey.
