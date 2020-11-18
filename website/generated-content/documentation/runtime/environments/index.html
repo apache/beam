@@ -27,7 +27,8 @@ python -m apache_beam.examples.wordcount \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
 --environment_config=path/to/container/image</code></pre></div><h2 id=building-container-images>Building container images</h2><p>To build Beam SDK container images:</p><ol><li>Navigate to the root directory of the local copy of your Apache Beam.</li><li>Run Gradle with the <code>docker</code> target. If you&rsquo;re <a href=#writing-new-dockerfiles>building a child image</a>, set the optional <code>--file</code> flag to the new Dockerfile. If you&rsquo;re <a href=#modifying-dockerfiles>building an image from an original Dockerfile</a>, ignore the <code>--file</code> flag:</li></ol><pre><code># The default repository of each SDK
-./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:java8:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:java11:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:go:container:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py2:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py35:docker
@@ -37,14 +38,15 @@ python -m apache_beam.examples.wordcount \
 # Shortcut for building all four Python SDKs
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
 </code></pre><p>From 2.21.0, <code>docker-pull-licenses</code> tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when <code>docker-pull-licenses</code> was set.
-For example, <code>./gradlew :sdks:java:container:docker -Pdocker-pull-licenses</code>. The files are added to <code>/opt/apache/beam/third_party_licenses/</code>.
+For example, <code>./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses</code>. The files are added to <code>/opt/apache/beam/third_party_licenses/</code>.
 By default, no licenses/notices are added to the docker images.</p><p>To examine the containers that you built, run <code>docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p><pre><code>REPOSITORY                         TAG                 IMAGE ID            CREATED           SIZE
-apache/beam_java8_sdk              latest              16ca619d489e        2 weeks ago        550MB
-apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
-apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
-apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
-apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB
-apache/beam_go_sdk                 latest              30cf602e9763        2 weeks ago        124MB
+apache/beam_java8_sdk              latest              ...                 2 weeks ago       ...
+apache/beam_java11_sdk             latest              ...                 2 weeks ago       ...
+apache/beam_python2.7_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_python3.5_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_python3.6_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_python3.7_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_go_sdk                 latest              ...                 2 weeks ago       ...
 </code></pre><h3 id=overriding-default-docker-targets>Overriding default Docker targets</h3><p>The default <a href=https://docs.docker.com/engine/reference/commandline/tag/>tag</a> is sdk_version defined at <a href=https://github.com/apache/beam/blob/master/gradle.properties>gradle.properties</a> and the default repositories are in the Docker Hub <code>apache</code> namespace.
 The <code>docker</code> command-line tool implicitly <a href=#pushing-container-images>pushes container images</a> to this location.</p><p>To tag a local image, set the <code>docker-tag</code> option when building the container. The following command tags a Python SDK image with a date.</p><pre><code>./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
 </code></pre><p>To change the repository, set the <code>docker-repository-root</code> option to a new location. The following command sets the <code>docker-repository-root</code>

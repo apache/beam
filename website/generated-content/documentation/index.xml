@@ -9782,7 +9782,8 @@ python -m apache_beam.examples.wordcount \
 &lt;li>Run Gradle with the &lt;code>docker&lt;/code> target. If you&amp;rsquo;re &lt;a href="#writing-new-dockerfiles">building a child image&lt;/a>, set the optional &lt;code>--file&lt;/code> flag to the new Dockerfile. If you&amp;rsquo;re &lt;a href="#modifying-dockerfiles">building an image from an original Dockerfile&lt;/a>, ignore the &lt;code>--file&lt;/code> flag:&lt;/li>
 &lt;/ol>
 &lt;pre>&lt;code># The default repository of each SDK
-./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:java8:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:java11:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:go:container:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py2:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py35:docker
@@ -9791,16 +9792,17 @@ python -m apache_beam.examples.wordcount \
 # Shortcut for building all four Python SDKs
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
 &lt;/code>&lt;/pre>&lt;p>From 2.21.0, &lt;code>docker-pull-licenses&lt;/code> tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when &lt;code>docker-pull-licenses&lt;/code> was set.
-For example, &lt;code>./gradlew :sdks:java:container:docker -Pdocker-pull-licenses&lt;/code>. The files are added to &lt;code>/opt/apache/beam/third_party_licenses/&lt;/code>.
+For example, &lt;code>./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses&lt;/code>. The files are added to &lt;code>/opt/apache/beam/third_party_licenses/&lt;/code>.
 By default, no licenses/notices are added to the docker images.&lt;/p>
 &lt;p>To examine the containers that you built, run &lt;code>docker images&lt;/code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:&lt;/p>
 &lt;pre>&lt;code>REPOSITORY TAG IMAGE ID CREATED SIZE
-apache/beam_java8_sdk latest 16ca619d489e 2 weeks ago 550MB
-apache/beam_python2.7_sdk latest b6fb40539c29 2 weeks ago 1.78GB
-apache/beam_python3.5_sdk latest bae309000d09 2 weeks ago 1.85GB
-apache/beam_python3.6_sdk latest 42faad307d1a 2 weeks ago 1.86GB
-apache/beam_python3.7_sdk latest 18267df54139 2 weeks ago 1.86GB
-apache/beam_go_sdk latest 30cf602e9763 2 weeks ago 124MB
+apache/beam_java8_sdk latest ... 2 weeks ago ...
+apache/beam_java11_sdk latest ... 2 weeks ago ...
+apache/beam_python2.7_sdk latest ... 2 weeks ago ...
+apache/beam_python3.5_sdk latest ... 2 weeks ago ...
+apache/beam_python3.6_sdk latest ... 2 weeks ago ...
+apache/beam_python3.7_sdk latest ... 2 weeks ago ...
+apache/beam_go_sdk latest ... 2 weeks ago ...
 &lt;/code>&lt;/pre>&lt;h3 id="overriding-default-docker-targets">Overriding default Docker targets&lt;/h3>
 &lt;p>The default &lt;a href="https://docs.docker.com/engine/reference/commandline/tag/">tag&lt;/a> is sdk_version defined at &lt;a href="https://github.com/apache/beam/blob/master/gradle.properties">gradle.properties&lt;/a> and the default repositories are in the Docker Hub &lt;code>apache&lt;/code> namespace.
 The &lt;code>docker&lt;/code> command-line tool implicitly &lt;a href="#pushing-container-images">pushes container images&lt;/a> to this location.&lt;/p>
