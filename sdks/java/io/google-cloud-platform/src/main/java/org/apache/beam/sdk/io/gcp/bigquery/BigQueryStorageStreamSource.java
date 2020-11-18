@@ -301,8 +301,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
           // No more splits are possible!
           Metrics.counter(
-              BigQueryStorageStreamReader.class,
-              "split-at-fraction-calls-failed-due-to-impossible-split-point")
+                  BigQueryStorageStreamReader.class,
+                  "split-at-fraction-calls-failed-due-to-impossible-split-point")
               .inc();
           LOG.info(
               "BigQuery Storage API stream {} cannot be split at {}.",
@@ -331,8 +331,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             // The current source has already moved past the split point, so this split attempt
             // is unsuccessful.
             Metrics.counter(
-                BigQueryStorageStreamReader.class,
-                "split-at-fraction-calls-failed-due-to-bad-split-point")
+                    BigQueryStorageStreamReader.class,
+                    "split-at-fraction-calls-failed-due-to-bad-split-point")
                 .inc();
             LOG.info(
                 "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
@@ -343,8 +343,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             return null;
           } catch (Exception e) {
             Metrics.counter(
-                BigQueryStorageStreamReader.class,
-                "split-at-fraction-calls-failed-due-to-other-reasons")
+                    BigQueryStorageStreamReader.class,
+                    "split-at-fraction-calls-failed-due-to-other-reasons")
                 .inc();
             LOG.error("BigQuery Storage API stream split failed.", e);
             splitPossible = false;
