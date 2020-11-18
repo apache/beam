@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
@@ -333,7 +334,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> inputRows =
             pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
-    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql).registerUdaf("COUNTIF", new CountIf.CountIfFn()));
 
     PAssert.that(result).containsInAnyOrder(rowResult);
 
