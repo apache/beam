@@ -70,7 +70,7 @@ def run(argv=None):
   # Test Write to MongoDB
   with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
     start_time = time.time()
-    _LOGGER.info('Writing %d documents to mongodb' % known_args.num_documents)
+    _LOGGER.info('Writing %d documents to mongodb', known_args.num_documents)
 
     _ = (
         p | beam.Create([known_args.num_documents])
@@ -86,48 +86,83 @@ def run(argv=None):
       (known_args.num_documents, elapsed))
 
   # Test Read from MongoDB
-  with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
-    start_time = time.time()
+  total_sum = sum(range(known_args.num_documents))
+  mod_3_sum = sum(
+      num for num in range(known_args.num_documents) if num % 3 == 0)
+  mod_3_count = sum(
+      1 for num in range(known_args.num_documents) if num % 3 == 0)
+  # yapf: disable
+  read_cases = [
+      # (reader_params, expected)
+      (
+          {
+              'projection': ['number']
+          },
+          {
+              'number_sum': total_sum,
+              'docs_count': known_args.num_documents
+          }
+      ),
+      (
+          {
+              'filter': {'number_mod_3': 0},
+              'projection': ['number']
+          },
+          {
+              'number_sum': mod_3_sum,
+              'docs_count': mod_3_count
+          }
+      ),
+      (
+          {
+              'projection': ['number'],
+              'bucket_auto': True
+          },
+          {
+              'number_sum': total_sum,
+              'docs_count': known_args.num_documents
+          }
+      ),
+      (
+          {
+              'filter': {'number_mod_3': 0},
+              'projection': ['number'],
+              'bucket_auto': True
+          },
+          {
+              'number_sum': mod_3_sum,
+              'docs_count': mod_3_count
+          }
+      ),
+  ]
+  # yapf: enable
+  for reader_params, expected in read_cases:
+    with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
+      start_time = time.time()
+      _LOGGER.info('=' * 80)
+      _LOGGER.info(
+          'Reading from mongodb %s:%s',
+          known_args.mongo_db,
+          known_args.mongo_coll)
+      _LOGGER.info('reader params   : %s', reader_params)
+      _LOGGER.info('expected results: %s', expected)
+      docs = (
+          p | 'ReadFromMongoDB' >> beam.io.ReadFromMongoDB(
+              known_args.mongo_uri,
+              known_args.mongo_db,
+              known_args.mongo_coll,
+              **reader_params)
+          | 'Map' >> beam.Map(lambda doc: doc['number']))
+      number_sum = (docs | 'Combine' >> beam.CombineGlobally(sum))
+      docs_count = (docs | 'Count' >> beam.combiners.Count.Globally())
+      r = ([number_sum, docs_count] | 'Flatten' >> beam.Flatten())
+      assert_that(r, equal_to([expected['number_sum'], expected['docs_count']]))
+
+    elapsed = time.time() - start_time
     _LOGGER.info(
-        'Reading from mongodb %s:%s' %
-        (known_args.mongo_db, known_args.mongo_coll))
-    r = (
-        p | 'ReadFromMongoDB' >> beam.io.ReadFromMongoDB(
-            known_args.mongo_uri,
-            known_args.mongo_db,
-            known_args.mongo_coll,
-            projection=['number'])
-        | 'Map' >> beam.Map(lambda doc: doc['number'])
-        | 'Combine' >> beam.CombineGlobally(sum))
-    assert_that(r, equal_to([sum(range(known_args.num_documents))]))
+        'Reading documents from mongodb finished in %.3f seconds', elapsed)
 
-  elapsed = time.time() - start_time
-  _LOGGER.info(
-      'Read %d documents from mongodb finished in %.3f seconds' %
-      (known_args.num_documents, elapsed))
-
-  # Test Read from MongoDB, using bucket_auto aggregation
-  with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
-    start_time = time.time()
-    _LOGGER.info(
-        'Reading from mongodb %s:%s with bucket_auto=True' %
-        (known_args.mongo_db, known_args.mongo_coll))
-    r = (
-        p | 'ReadFromMongoDB' >> beam.io.ReadFromMongoDB(
-            known_args.mongo_uri,
-            known_args.mongo_db,
-            known_args.mongo_coll,
-            projection=['number'],
-            bucket_auto=True)
-        | 'Map' >> beam.Map(lambda doc: doc['number'])
-        | 'Combine' >> beam.CombineGlobally(sum))
-    assert_that(r, equal_to([sum(range(known_args.num_documents))]))
-
-  elapsed = time.time() - start_time
-  _LOGGER.info(
-      'Read %d documents from mongodb finished in %.3f seconds' %
-      (known_args.num_documents, elapsed))
-
+  # Clean-up
   with MongoClient(host=known_args.mongo_uri) as client:
     client.drop_database(known_args.mongo_db)
 

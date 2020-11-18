@@ -69,8 +69,10 @@ No backward compatibility guarantees. Everything in this module is experimental.
 from __future__ import absolute_import
 from __future__ import division
 
+import itertools
 import json
 import logging
+import math
 import struct
 
 import apache_beam as beam
@@ -186,51 +188,58 @@ class _BoundedMongoSource(iobase.BoundedSource):
     with MongoClient(self.uri, **self.spec) as client:
       return client[self.db].command('collstats', self.coll).get('size')
 
+  def _estimate_average_document_size(self):
+    with MongoClient(self.uri, **self.spec) as client:
+      return client[self.db].command('collstats', self.coll).get('avgObjSize')
+
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
+    desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
+
+    # for desired bundle size, if desired chunk size smaller than 1mb, use
+    # MongoDB default split size of 1mb.
+    if desired_bundle_size_in_mb < 1:
+      desired_bundle_size_in_mb = 1
+
+    is_initial_split = start_position is None and stop_position is None
     start_position, stop_position = self._replace_none_positions(
-        start_position, stop_position)
+      start_position, stop_position)
 
     if self.bucket_auto:
       # Use $bucketAuto for bundling
-      for bucket in self._get_buckets(desired_bundle_size,
-                                      start_position,
-                                      stop_position):
-        yield iobase.SourceBundle(
-            weight=bucket['count'],
-            source=self,
-            start_position=bucket['_id']['min'],
-            stop_position=bucket['_id']['max'])
-
+      split_keys = []
+      weights = []
+      for bucket in self._get_auto_buckets(desired_bundle_size_in_mb,
+                                           start_position,
+                                           stop_position,
+                                           is_initial_split):
+        split_keys.append({'_id': bucket['_id']['max']})
+        weights.append(bucket['count'])
     else:
       # Use splitVector for bundling
-      desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
-
-      # for desired bundle size, if desired chunk size smaller than 1mb, use
-      # mongodb default split size of 1mb.
-      if desired_bundle_size_in_mb < 1:
-        desired_bundle_size_in_mb = 1
-
       split_keys = self._get_split_keys(
           desired_bundle_size_in_mb, start_position, stop_position)
+      weights = itertools.cycle((desired_bundle_size_in_mb, ))
 
-      bundle_start = start_position
-      for split_key_id in split_keys:
-        if bundle_start >= stop_position:
-          break
-        bundle_end = min(stop_position, split_key_id['_id'])
-        yield iobase.SourceBundle(
-            weight=desired_bundle_size_in_mb,
-            source=self,
-            start_position=bundle_start,
-            stop_position=bundle_end)
-        bundle_start = bundle_end
-      # add range of last split_key to stop_position
-      if bundle_start < stop_position:
-        yield iobase.SourceBundle(
-            weight=desired_bundle_size_in_mb,
-            source=self,
-            start_position=bundle_start,
-            stop_position=stop_position)
+    bundle_start = start_position
+    for split_key_id, weight in zip(split_keys, weights):
+      if bundle_start >= stop_position:
+        break
+      bundle_end = min(stop_position, split_key_id['_id'])
+      yield iobase.SourceBundle(
+          weight=weight,
+          source=self,
+          start_position=bundle_start,
+          stop_position=bundle_end)
+      bundle_start = bundle_end
+    # add range of last split_key to stop_position
+    if bundle_start < stop_position:
+      # bucket_auto mode can come here if not split due to single document
+      weight = 1 if self.bucket_auto else desired_bundle_size_in_mb
+      yield iobase.SourceBundle(
+          weight=weight,
+          source=self,
+          start_position=bundle_start,
+          stop_position=stop_position)
 
   def get_range_tracker(self, start_position, stop_position):
     start_position, stop_position = self._replace_none_positions(
@@ -239,7 +248,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def read(self, range_tracker):
     with MongoClient(self.uri, **self.spec) as client:
-      all_filters = self._merge_id_filter(range_tracker)
+      all_filters = self._merge_id_filter(
+          range_tracker.start_position(), range_tracker.stop_position())
       docs_cursor = client[self.db][self.coll].find(
           filter=all_filters,
           projection=self.projection).sort([('_id', ASCENDING)])
@@ -256,12 +266,12 @@ class _BoundedMongoSource(iobase.BoundedSource):
     res['filter'] = json.dumps(self.filter)
     res['projection'] = str(self.projection)
     res['mongo_client_spec'] = json.dumps(self.spec)
-    res['bucket_auto'] = str(self.bucket_auto)
+    res['bucket_auto'] = self.bucket_auto
     return res
 
   def _get_split_keys(self, desired_chunk_size_in_mb, start_pos, end_pos):
     # calls mongodb splitVector command to get document ids at split position
-    if start_pos >= end_pos:
+    if start_pos >= _ObjectIdHelper.increment_id(end_pos, -1):
       # single document not splittable
       return []
     with MongoClient(self.uri, **self.spec) as client:
@@ -275,46 +285,62 @@ class _BoundedMongoSource(iobase.BoundedSource):
               max={'_id': end_pos},
               maxChunkSize=desired_chunk_size_in_mb)['splitKeys'])
 
-  def _get_buckets(self, desired_chunk_size, start_pos, end_pos):
-    if start_pos >= end_pos:
+  def _get_auto_buckets(
+      self, desired_chunk_size_in_mb, start_pos, end_pos, is_initial_split):
+
+    if start_pos >= _ObjectIdHelper.increment_id(end_pos, -1):
       # single document not splittable
       return []
-    size = self.estimate_size()
-    bucket_count = size // desired_chunk_size
-    if size % desired_chunk_size != 0:
-      bucket_count += 1
+
+    if is_initial_split and not self.filter:
+      # total collection size
+      size_in_mb = self.estimate_size() / float(1 << 20)
+    else:
+      # size of documents within start/end id range and possibly filtered
+      documents_count = self._count_id_range(start_pos, end_pos)
+      avg_document_size = self._estimate_average_document_size()
+      size_in_mb = documents_count * avg_document_size / float(1 << 20)
+
+    if size_in_mb == 0:
+      # no documents not splittable (maybe a result of filtering)
+      return []
+
+    bucket_count = math.ceil(size_in_mb / desired_chunk_size_in_mb)
     with beam.io.mongodbio.MongoClient(self.uri, **self.spec) as client:
-      buckets = list(
-          client[self.db][self.coll].aggregate([{
+      pipeline = [
+          {
+              # filter by positions and by the custom filter if any
+              '$match': self._merge_id_filter(start_pos, end_pos)
+          },
+          {
               '$bucketAuto': {
-                  'groupBy': '$_id',
-                  'buckets': bucket_count,
+                  'groupBy': '$_id', 'buckets': bucket_count
               }
-          }]))
+          }
+      ]
+      buckets = list(client[self.db][self.coll].aggregate(pipeline))
       if buckets:
         buckets[-1]['_id']['max'] = end_pos
 
       return buckets
 
-  def _merge_id_filter(self, range_tracker):
-    # Merge the default filter with refined _id field range of range_tracker.
-    # see more at https://docs.mongodb.com/manual/reference/operator/query/and/
-    all_filters = {
-        '$and': [
-            self.filter.copy(),
-            # add additional range filter to query. $gte specifies start
-            # position(inclusive) and $lt specifies the end position(exclusive),
-            # see more at
-            # https://docs.mongodb.com/manual/reference/operator/query/gte/ and
-            # https://docs.mongodb.com/manual/reference/operator/query/lt/
-            {
-                '_id': {
-                    '$gte': range_tracker.start_position(),
-                    '$lt': range_tracker.stop_position()
-                }
-            },
-        ]
-    }
+  def _merge_id_filter(self, start_position, stop_position):
+    # Merge the default filter (if any) with refined _id field range
+    # of range_tracker.
+    # $gte specifies start position (inclusive)
+    # and $lt specifies the end position (exclusive),
+    # see more at
+    # https://docs.mongodb.com/manual/reference/operator/query/gte/ and
+    # https://docs.mongodb.com/manual/reference/operator/query/lt/
+    id_filter = {'_id': {'$gte': start_position, '$lt': stop_position}}
+    if self.filter:
+      all_filters = {
+          # see more at
+          # https://docs.mongodb.com/manual/reference/operator/query/and/
+          '$and': [self.filter.copy(), id_filter]
+      }
+    else:
+      all_filters = id_filter
 
     return all_filters
 
@@ -336,6 +362,13 @@ class _BoundedMongoSource(iobase.BoundedSource):
       # is not excluded
       stop_position = _ObjectIdHelper.increment_id(last_doc_id, 1)
     return start_position, stop_position
+
+  def _count_id_range(self, start_position, stop_position):
+    # Number of documents between start_position (inclusive)
+    # and stop_position (exclusive), respecting the custom filter if any.
+    with MongoClient(self.uri, **self.spec) as client:
+      return client[self.db][self.coll].count_documents(
+          filter=self._merge_id_filter(start_position, stop_position))
 
 
 class _ObjectIdHelper(object):
