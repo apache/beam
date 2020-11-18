@@ -6,9 +6,9 @@ categories:
   - blog
   - java
 authors:
-  - Alex Kosolapov
   - Ilya Kozyrev
   - Artur Khanin
+  - Alex Kosolapov
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,15 +24,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-In this blog post, we're glad to present an example template that creates a pipeline
+In this blog post we present an example template that creates a pipeline
 to read data from a single or multiple topics from
-[Apache Kafka](https://kafka.apache.org/) and write data into a single topic
+[Apache Kafka](https://kafka.apache.org/) and write data into a topic
 in [Google Pub/Sub](https://cloud.google.com/pubsub).
-Such a good template doesn't only give an understanding and code examples on how to 
-implement simple yet powerful pipelines, it also provides the out-of-the-box solution 
+The template provides code examples to 
+implement simple yet powerful pipelines and also provides an out-of-the-box solution 
 that you can just _"plug'n'play"_. 
 
-That is why if you were looking for transferring data from Kafka into Pub/Sub - congratulations, you found it!
+We hope you will find this template useful for setting up data pipelines between Kafka and Pub/Sub.
 
 # Template specs
 
@@ -61,7 +61,7 @@ command-line tool you can create a Flex Template out of this Beam template and e
 The only difference between local and cloud execution is that **Flex version of this template doesn't support SSL configuration.**
 
 # Next Steps
-Don't limit yourself in playing with **the first Beam template** and diving into its implementation details!
+Give this **first Beam template** a try, and let us know your feedback adding comments to [BEAM-11065 JIRA ticket](https://issues.apache.org/jira/browse/BEAM-11065) or sending an email in [this thread](https://lists.apache.org/thread.html/r8db90b3a1271188afb31ea52ccfed231f276f26ded3855d90084fe85%40%3Cdev.beam.apache.org%3E)!
 
 Please
 [let us know](https://beam.apache.org/community/contact-us/) if you encounter any
