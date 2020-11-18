@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import GaugeCell
 
 
@@ -71,6 +72,40 @@ class MonitoringInfosTest(unittest.TestCase):
         'gaugenamespace', 'gaugename', metric)
     _, gauge_value = monitoring_infos.extract_gauge_value(result)
     self.assertEqual(0, gauge_value)
+
+  def test_int64_user_counter(self):
+    expected_labels = {}
+    expected_labels[monitoring_infos.NAMESPACE_LABEL] = "counternamespace"
+    expected_labels[monitoring_infos.NAME_LABEL] = "countername"
+
+    metric = CounterCell().get_cumulative()
+    result = monitoring_infos.int64_user_counter(
+        'counternamespace', 'countername', metric)
+    counter_value = monitoring_infos.extract_counter_value(result)
+
+    self.assertEqual(0, counter_value)
+    self.assertEqual(result.labels, expected_labels)
+
+  def test_int64_counter(self):
+    expected_labels = {}
+    expected_labels[monitoring_infos.PCOLLECTION_LABEL] = "collectionname"
+    expected_labels[monitoring_infos.PTRANSFORM_LABEL] = "ptransformname"
+    expected_labels[monitoring_infos.SERVICE_LABEL] = "BigQuery"
+
+    labels = {
+        monitoring_infos.SERVICE_LABEL: "BigQuery",
+    }
+    metric = CounterCell().get_cumulative()
+    result = monitoring_infos.int64_counter(
+        monitoring_infos.API_REQUEST_COUNT_URN,
+        metric,
+        ptransform="ptransformname",
+        pcollection="collectionname",
+        labels=labels)
+    counter_value = monitoring_infos.extract_counter_value(result)
+
+    self.assertEqual(0, counter_value)
+    self.assertEqual(result.labels, expected_labels)
 
 
 if __name__ == '__main__':
