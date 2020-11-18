@@ -333,7 +333,8 @@ class TestMultiReadFromPubSubOverride(unittest.TestCase):
   def test_expand_with_wrong_source(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'PubSub source must be in the form "projects/<project>/topics/<topic>"'
+        r'PubSub source descriptor must be in the form '
+        r'"projects/<project>/topics/<topic>"'
         ' or "projects/<project>/subscription/<subscription>".*'):
       MultipleReadFromPubSub([PubSubSourceDescriptor('not_a_proper_source')])
 
