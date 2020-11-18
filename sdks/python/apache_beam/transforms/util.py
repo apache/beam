@@ -25,12 +25,12 @@ from __future__ import division
 
 import collections
 import contextlib
-import os
 import random
 import re
 import sys
 import threading
 import time
+import uuid
 from builtins import filter
 from builtins import object
 from builtins import range
@@ -783,6 +783,7 @@ class GroupIntoBatches(PTransform):
             self.max_buffering_duration_secs,
             self.clock))
 
+  @experimental()
   @typehints.with_input_types(Tuple[K, V])
   @typehints.with_output_types(Tuple[K, Iterable[V]])
   class WithShardedKey(PTransform):
@@ -810,17 +811,17 @@ class GroupIntoBatches(PTransform):
             'max buffering duration should be a positive value')
       self.max_buffering_duration_secs = max_buffering_duration_secs
 
-    _pid = os.getpid()
+    _shard_id_prefix = uuid.uuid4().bytes
 
     def expand(self, pcoll):
       sharded_pcoll = pcoll | Map(
-          lambda x: (
+          lambda key_value: (
               ShardedKey(
-                  x[0],
-                  # Use [process id, thread id] as the shard id.
-                  bytes(GroupIntoBatches.WithShardedKey._pid) + bytes(
+                  key_value[0],
+                  # Use [uuid, thread id] as the shard id.
+                  GroupIntoBatches.WithShardedKey._shard_id_prefix + bytes(
                       threading.get_ident().to_bytes(8, 'big'))),
-              x[1]))
+              key_value[1]))
       return (
           sharded_pcoll
           | GroupIntoBatches(self.batch_size, self.max_buffering_duration_secs))
