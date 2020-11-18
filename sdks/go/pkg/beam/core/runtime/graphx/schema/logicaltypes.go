@@ -37,7 +37,6 @@ var (
 // using a known underlying type for storage. The storage type must be comprised of
 // known schema field types, or pre-registered LogicalTypes. LogicalTypes may not be
 // mutually recursive at any level of indirection.
-//End
 type LogicalType interface {
 	ID() string
 	ArgumentType() reflect.Type

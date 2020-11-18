@@ -391,11 +391,6 @@ func fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.Option) (refle
 		}
 		t = lt.GoType()
 
-	// Logical Types are for things that have more specialized user representation already, or
-	// things like Time or protocol buffers, or int.
-	// Or specifically formatted integers.
-	// They would be encoded with the schema encoding.
-
 	default:
 		return nil, errors.Errorf("unknown fieldtype: %T", sft.GetTypeInfo())
 	}
