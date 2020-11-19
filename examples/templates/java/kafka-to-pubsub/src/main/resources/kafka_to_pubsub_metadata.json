@@ -47,6 +47,38 @@
       "regexes": [],
       "paramType": "TEXT",
       "isOptional": true
+    },
+    {
+      "name": "truststorePath",
+      "label": "Truststore Path",
+      "helpText": "The path to the trust store file",
+      "regexes": [],
+      "paramType": "TEXT",
+      "isOptional": true
+    },
+    {
+      "name": "truststorePassword",
+      "label": "The password for the trust store password",
+      "helpText": "Token to access HashiCorp Vault secret storage",
+      "regexes": [],
+      "paramType": "TEXT",
+      "isOptional": true
+    },
+    {
+      "name": "keystorePath",
+      "label": "The path to the key store file",
+      "helpText": "Token to access HashiCorp Vault secret storage",
+      "regexes": [],
+      "paramType": "TEXT",
+      "isOptional": true
+    },
+    {
+      "name": "keystorePassword",
+      "label": "Keystore Password",
+      "helpText": "The store password for the key store password",
+      "regexes": [],
+      "paramType": "TEXT",
+      "isOptional": true
     }
   ]
 }

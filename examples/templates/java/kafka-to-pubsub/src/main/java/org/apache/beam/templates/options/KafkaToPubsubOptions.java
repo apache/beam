@@ -73,12 +73,12 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   void setKeystorePath(String keystorePath);
 
-  @Description("The password for the trust store file")
+  @Description("The password for the trust store password")
   String getTruststorePassword();
 
   void setTruststorePassword(String truststorePassword);
 
-  @Description("The store password for the key store file")
+  @Description("The store password for the key store password")
   String getKeystorePassword();
 
   void setKeystorePassword(String keystorePassword);

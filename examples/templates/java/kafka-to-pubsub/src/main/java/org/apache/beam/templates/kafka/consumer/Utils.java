@@ -17,15 +17,14 @@
  */
 package org.apache.beam.templates.kafka.consumer;
 
-import static org.apache.beam.templates.KafkaPubsubConstants.BUCKET;
 import static org.apache.beam.templates.KafkaPubsubConstants.KAFKA_CREDENTIALS;
 import static org.apache.beam.templates.KafkaPubsubConstants.PASSWORD;
-import static org.apache.beam.templates.KafkaPubsubConstants.SSL_CREDENTIALS;
 import static org.apache.beam.templates.KafkaPubsubConstants.USERNAME;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonParser;
 import org.apache.http.HttpResponse;
@@ -119,28 +118,6 @@ public class Utils {
             "There are no username and/or password for Kafka in Vault."
                 + "Trying to initiate an unauthorized connection.");
       }
-
-      // SSL truststore, keystore, and password
-      try {
-        Map<String, String> sslCredentials = new HashMap<>();
-        String[] configNames = {
-          BUCKET,
-          SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG,
-          SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG,
-          SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG,
-          SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG,
-          SslConfigs.SSL_KEY_PASSWORD_CONFIG
-        };
-        for (String configName : configNames) {
-          sslCredentials.put(configName, credentials.get(configName).getAsString());
-        }
-        credentialMap.put(SSL_CREDENTIALS, sslCredentials);
-      } catch (NullPointerException e) {
-        LOG.warn(
-            "There is no enough information to configure SSL."
-                + "Trying to initiate an unsecure connection.",
-            e);
-      }
     }
 
     return credentialMap;
@@ -165,5 +142,23 @@ public class Utils {
               props.get(USERNAME), props.get(PASSWORD)));
     }
     return config;
+  }
+
+  public static Map<String, String> configureSsl(KafkaToPubsubOptions options) {
+    Map<String, String> config = new HashMap<>();
+    config.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, options.getTruststorePath());
+    config.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, options.getKeystorePath());
+    config.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, options.getTruststorePassword());
+    config.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, options.getKeystorePassword());
+    config.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, options.getKeyPassword());
+
+    return config;
+  }
+
+  public static boolean isSslSpecified(KafkaToPubsubOptions options) {
+    return options.getTruststorePath() != null
+        || options.getTruststorePassword() != null
+        || options.getKeystorePath() != null
+        || options.getKeyPassword() != null;
   }
 }

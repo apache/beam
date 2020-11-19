@@ -17,8 +17,7 @@
  */
 package org.apache.beam.templates;
 
-import static org.apache.beam.templates.kafka.consumer.Utils.configureKafka;
-import static org.apache.beam.templates.kafka.consumer.Utils.getKafkaCredentialsFromVault;
+import static org.apache.beam.templates.kafka.consumer.Utils.*;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -153,16 +152,23 @@ public class KafkaToPubsub {
   public static PipelineResult run(KafkaToPubsubOptions options) {
     // Configure Kafka consumer properties
     Map<String, Object> kafkaConfig = new HashMap<>();
-    Map<String, String> sslConfig = null;
     if (options.getSecretStoreUrl() != null && options.getVaultToken() != null) {
       Map<String, Map<String, String>> credentials =
           getKafkaCredentialsFromVault(options.getSecretStoreUrl(), options.getVaultToken());
       kafkaConfig = configureKafka(credentials.get(KafkaPubsubConstants.KAFKA_CREDENTIALS));
-      sslConfig = credentials.get(KafkaPubsubConstants.SSL_CREDENTIALS);
     } else {
       LOG.warn(
           "No information to retrieve Kafka credentials was provided. "
               + "Trying to initiate an unauthorized connection.");
+    }
+
+    Map<String, String> sslConfig = new HashMap<>();
+    if (isSslSpecified(options)) {
+      sslConfig.putAll(configureSsl(options));
+    } else {
+      LOG.info(
+          "No information to retrieve SSL certificate was provided. "
+              + "Trying to initiate a plain text connection.");
     }
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.getInputTopics().split(",")));
