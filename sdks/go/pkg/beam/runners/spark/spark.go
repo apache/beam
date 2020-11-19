@@ -25,6 +25,7 @@ import (
 
 func init() {
 	beam.RegisterRunner("spark", Execute)
+	beam.RegisterRunner("SparkRunner", Execute)
 }
 
 // Execute runs the given pipeline on Spark. Convenience wrapper over the
