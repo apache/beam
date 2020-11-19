@@ -340,7 +340,7 @@ func TestMergeExpandedWithPipeline(t *testing.T) {
 				wantTransform := exp.Transform.(*pipepb.PTransform)
 				var found bool
 				for _, gotTransform := range gotComps.GetTransforms() {
-					if d := cmp.Diff(wantTransform, gotTransform, protocmp.Transform()); d == "" {
+					if cmp.Equal(wantTransform, gotTransform, protocmp.Transform()) {
 						found = true
 						break
 					}
@@ -367,7 +367,14 @@ func TestMergeExpandedWithPipeline(t *testing.T) {
 	}
 }
 
+// validateComponents validates that the wanted components (wantComps) are
+// present in the received components (gotComps), or in other words, that
+// wantComps is a subset of gotComps.
 func validateComponents(t *testing.T, wantComps, gotComps *pipepb.Components) {
+	// Because we're checking that wantComps is a subset of gotComps, we can't
+	// just diff both Components directly, and instead need to explicitly search
+	// through the various fields.
+
 	// Transforms
 	for k, wantVal := range wantComps.GetTransforms() {
 		gotVal, ok := gotComps.Transforms[k]
