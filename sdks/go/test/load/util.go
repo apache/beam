@@ -73,12 +73,12 @@ type RuntimeMonitor struct{}
 
 // StartBundle updates a distribution metric.
 func (fn *RuntimeMonitor) StartBundle(ctx context.Context, emit func([]byte, []byte)) {
-	runtime.Update(ctx, time.Now().Unix())
+	runtime.Update(ctx, time.Now().UnixNano())
 }
 
 // FinishBundle updates a distribution metric.
 func (fn *RuntimeMonitor) FinishBundle(ctx context.Context, emit func([]byte, []byte)) {
-	runtime.Update(ctx, time.Now().Unix())
+	runtime.Update(ctx, time.Now().UnixNano())
 }
 
 // ProcessElement emits unmodified input elements.
@@ -159,7 +159,7 @@ func toLoadTestResults(results metrics.QueryResults) []loadTestResult {
 }
 
 // extractRuntimeValue returns a difference between the maximum of maximum
-// values and the minimum of minimum values.
+// values and the minimum of minimum values in seconds.
 func extractRuntimeValue(dists []metrics.DistributionResult) float64 {
 	min := dists[0].Result().Min
 	max := min
@@ -173,7 +173,7 @@ func extractRuntimeValue(dists []metrics.DistributionResult) float64 {
 			max = res.Max
 		}
 	}
-	return float64(max - min)
+	return float64(max-min) / float64(time.Second)
 }
 
 func publishMetricstoInfluxDB(options *influxDBOptions, results []loadTestResult) {
