@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.templates;
+package org.apache.beam.templates.kafka.consumer;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,14 +30,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class to create Kafka Consumer with configured SSL. */
-public class ConsumerFactoryFn
+public class SslConsumerFactoryFn
     implements SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> {
   private final Map<String, String> sslConfig;
 
   /* Logger for class.*/
-  private static final Logger LOG = LoggerFactory.getLogger(ConsumerFactoryFn.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SslConsumerFactoryFn.class);
 
-  public ConsumerFactoryFn(Map<String, String> sslConfig) {
+  public SslConsumerFactoryFn(Map<String, String> sslConfig) {
     this.sslConfig = sslConfig;
   }
 

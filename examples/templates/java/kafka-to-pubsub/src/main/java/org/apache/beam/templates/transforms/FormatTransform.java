@@ -32,9 +32,9 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.templates.ConsumerFactoryFn;
 import org.apache.beam.templates.avro.TaxiRide;
 import org.apache.beam.templates.avro.TaxiRidesKafkaAvroDeserializer;
+import org.apache.beam.templates.kafka.consumer.SslConsumerFactoryFn;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -70,7 +70,7 @@ public class FormatTransform {
         .withValueDeserializerAndCoder(
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
         .withConsumerConfigUpdates(kafkaConfig)
-        .withConsumerFactoryFn(new ConsumerFactoryFn(sslConfig))
+        .withConsumerFactoryFn(new SslConsumerFactoryFn(sslConfig))
         .withoutMetadata();
   }
 
@@ -95,7 +95,7 @@ public class FormatTransform {
         .withValueDeserializerAndCoder(
             TaxiRidesKafkaAvroDeserializer.class, AvroCoder.of(TaxiRide.class))
         .withConsumerConfigUpdates(config)
-        .withConsumerFactoryFn(new ConsumerFactoryFn(sslConfig))
+        .withConsumerFactoryFn(new SslConsumerFactoryFn(sslConfig))
         .withoutMetadata();
   }
 

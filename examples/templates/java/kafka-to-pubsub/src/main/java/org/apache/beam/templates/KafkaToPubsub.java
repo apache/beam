@@ -17,11 +17,10 @@
  */
 package org.apache.beam.templates;
 
+import static org.apache.beam.templates.kafka.consumer.Utils.configureKafka;
+import static org.apache.beam.templates.kafka.consumer.Utils.getKafkaCredentialsFromVault;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,15 +34,6 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.templates.avro.TaxiRide;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.templates.transforms.FormatTransform;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
-import org.apache.kafka.common.config.SaslConfigs;
-import org.apache.kafka.common.config.SslConfigs;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.apache.kafka.common.security.scram.ScramMechanism;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,84 +146,6 @@ public class KafkaToPubsub {
   }
 
   /**
-   * Retrieves username and password from HashiCorp Vault secret storage and configures Kafka
-   * consumer for authorized connection.
-   *
-   * @param secretStoreUrl url to the secret storage that contains a credentials for Kafka
-   * @param token Vault token to access the secret storage
-   * @return configuration set of parameters for Kafka
-   * @throws IOException throws in case of the failure to execute the request to the secret storage
-   */
-  public static Map<String, Object> configureKafka(String secretStoreUrl, String token)
-      throws IOException {
-    // Execute a request to get the credentials
-    HttpClient client = HttpClientBuilder.create().build();
-    HttpGet request = new HttpGet(secretStoreUrl);
-    request.addHeader("X-Vault-Token", token);
-    HttpResponse response = client.execute(request);
-    String json = EntityUtils.toString(response.getEntity(), "UTF-8");
-
-    /*
-     Vault's response JSON has a specific schema, where the actual data is placed under
-     {data: {data: <actual data>}}.
-     Example:
-       {
-         "request_id": "6a0bb14b-ef24-256c-3edf-cfd52ad1d60d",
-         "lease_id": "",
-         "renewable": false,
-         "lease_duration": 0,
-         "data": {
-           "data": {
-             "password": "admin-secret",
-             "username": "admin"
-           },
-           "metadata": {
-             "created_time": "2020-10-20T11:43:11.109186969Z",
-             "deletion_time": "",
-             "destroyed": false,
-             "version": 8
-           }
-         },
-         "wrap_info": null,
-         "warnings": null,
-         "auth": null
-       }
-    */
-    // Parse username and password from the response JSON
-    JsonObject credentials =
-        JsonParser.parseString(json)
-            .getAsJsonObject()
-            .get("data")
-            .getAsJsonObject()
-            .getAsJsonObject("data");
-    String username = credentials.get("username").getAsString();
-    String password = credentials.get("password").getAsString();
-
-    // Create the configuration for Kafka
-    Map<String, Object> config = new HashMap<>();
-    config.put(SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_512.mechanismName());
-    config.put("security.protocol", SecurityProtocol.SASL_PLAINTEXT.name());
-    config.put(
-        SaslConfigs.SASL_JAAS_CONFIG,
-        String.format(
-            "org.apache.kafka.common.security.scram.ScramLoginModule required "
-                + "username=\"%s\" password=\"%s\";",
-            username, password));
-    return config;
-  }
-
-  public static Map<String, String> configureSsl(KafkaToPubsubOptions options) {
-    Map<String, String> config = new HashMap<>();
-    config.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, options.getTruststorePath());
-    config.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, options.getKeystorePath());
-    config.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, options.getTruststorePassword());
-    config.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, options.getKeystorePassword());
-    config.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, options.getKeyPassword());
-
-    return config;
-  }
-
-  /**
    * Runs a pipeline which reads message from Kafka and writes it to GCS.
    *
    * @param options arguments to the pipeline
@@ -241,28 +153,16 @@ public class KafkaToPubsub {
   public static PipelineResult run(KafkaToPubsubOptions options) {
     // Configure Kafka consumer properties
     Map<String, Object> kafkaConfig = new HashMap<>();
-    try {
-      String secretStoreUrl = options.getSecretStoreUrl();
-      String token = options.getVaultToken();
-      kafkaConfig.putAll(configureKafka(secretStoreUrl, token));
-    } catch (NullPointerException exception) {
-      LOG.info(
+    Map<String, String> sslConfig = null;
+    if (options.getSecretStoreUrl() != null && options.getVaultToken() != null) {
+      Map<String, Map<String, String>> credentials =
+          getKafkaCredentialsFromVault(options.getSecretStoreUrl(), options.getVaultToken());
+      kafkaConfig = configureKafka(credentials.get(KafkaPubsubConstants.KAFKA_CREDENTIALS));
+      sslConfig = credentials.get(KafkaPubsubConstants.SSL_CREDENTIALS);
+    } else {
+      LOG.warn(
           "No information to retrieve Kafka credentials was provided. "
               + "Trying to initiate an unauthorized connection.");
-    } catch (IOException exception) {
-      LOG.error(
-          "Failed to retrieve credentials for Kafka client. "
-              + "Trying to initiate an unauthorized connection.",
-          exception);
-    }
-
-    Map<String, String> sslConfig = new HashMap<>();
-    try {
-      sslConfig.putAll(configureSsl(options));
-    } catch (NullPointerException e) {
-      LOG.info(
-          "No information to retrieve SSL certificate was provided. "
-              + "Trying to initiate a plain text connection.");
     }
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.getInputTopics().split(",")));
@@ -304,7 +204,7 @@ public class KafkaToPubsub {
           .apply("createValues", Values.create())
           .apply("writeAvrosToPubSub", PubsubIO.writeAvros(TaxiRide.class));
 
-    } else {
+    } else if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
       pipeline
           .apply(
               "readFromKafka",

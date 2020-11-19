@@ -49,5 +49,3 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 
-def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'

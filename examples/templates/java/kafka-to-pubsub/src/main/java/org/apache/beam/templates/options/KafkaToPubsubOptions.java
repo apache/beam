@@ -17,20 +17,21 @@
  */
 package org.apache.beam.templates.options;
 
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.templates.transforms.FormatTransform;
 
 public interface KafkaToPubsubOptions extends PipelineOptions {
-  @Description("Kafka Bootstrap Servers")
+  @Description(
+      "Comma Separated list of Kafka Bootstrap Servers (e.g: server1:[port],server2:[port]).")
   @Validation.Required
   String getBootstrapServers();
 
   void setBootstrapServers(String value);
 
-  @Description("Kafka topics to read the input from")
+  @Description(
+      "Comma Separated list of Kafka topic(s) to read the input from (e.g: topic1,topic2).")
   @Validation.Required
   String getInputTopics();
 
@@ -45,9 +46,9 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   void setOutputTopic(String outputTopic);
 
-  @Description("")
+  @Description(
+      "Format which will be writen to output Pub/Sub topic. Supported formats: AVRO, PUBSUB")
   @Validation.Required
-  @Default.Enum("PUBSUB")
   FormatTransform.FORMAT getOutputFormat();
 
   void setOutputFormat(FormatTransform.FORMAT outputFormat);
