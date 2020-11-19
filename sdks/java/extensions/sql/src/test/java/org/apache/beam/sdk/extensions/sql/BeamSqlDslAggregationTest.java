@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
@@ -312,7 +313,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
 
   @Test
-  public void testLogicalAnd() throws Exception {
+  public void testLogicalAndFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     Schema schemaInTableA =
@@ -333,7 +334,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> inputRows =
             pipeline.apply("boolVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
-    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql).registerUdaf("logical_and", new BeamBuiltinAggregations.LogicalAnd()));
 
     PAssert.that(result).containsInAnyOrder(rowResult);
 

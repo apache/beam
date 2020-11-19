@@ -479,9 +479,7 @@ public class BeamBuiltinAggregations {
     throw new UnsupportedOperationException(String.format("[%s] is not supported in LOGICAL_AND", fieldType));
   }
 
-  static class LogicalAnd<T> extends CombineFn<T, Boolean, Boolean> {
-
-    // Indicate if input only contains null value.
+  public static class LogicalAnd extends CombineFn<Boolean, Boolean, Boolean> {
     private boolean isEmpty = true;
     @Override
     public Boolean createAccumulator() {
@@ -489,10 +487,10 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Boolean addInput(Boolean accum, T input) {
+    public Boolean addInput(Boolean mutableAccumulator, Boolean input) {
       if (input != null) {
         this.isEmpty = false;
-        return accum && (Boolean) input;
+        return mutableAccumulator && input;
       }else {
         return null;
       }
@@ -514,5 +512,8 @@ public class BeamBuiltinAggregations {
       }
       return accumulator;
     }
+
+    // Indicate if input only contains null value.
+
   }
 }
