@@ -32,8 +32,6 @@ import hamcrest as hc
 import mock
 
 import apache_beam as beam
-from apache_beam.io import Read
-from apache_beam.io import Write
 from apache_beam.io.gcp.pubsub import MultipleReadFromPubSub
 from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.io.gcp.pubsub import PubSubSourceDescriptor
@@ -45,9 +43,6 @@ from apache_beam.io.gcp.pubsub import _PubSubSink
 from apache_beam.io.gcp.pubsub import _PubSubSource
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct import transform_evaluator
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _get_transform_overrides
@@ -61,7 +56,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 
 # Protect against environments where the PubSub library is not available.
