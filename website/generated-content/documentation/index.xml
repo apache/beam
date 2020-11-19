@@ -7007,15 +7007,68 @@ restriction pairs.&lt;/li>
 &lt;p>&lt;img src="/images/sdf_high_level_overview.svg" alt="Diagram of steps that an SDF is composed of">&lt;/p>
 &lt;h4 id="a-basic-sdf">12.1.1. A basic SDF&lt;/h4>
 &lt;p>A basic SDF is composed of three parts: a restriction, a restriction provider, and a
-restriction tracker. The restriction is used to represent a subset of work for a given element.
-The restriction provider lets SDF authors override default implementations for splitting, sizing,
-watermark estimation, and so forth. In &lt;a href="https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/DoFn.java#L92">Java&lt;/a>
+restriction tracker. If you want to control the watermark, especially in a streaming
+pipeline, two more components are needed: a watermark estimator provider and a watermark estimator.&lt;/p>
+&lt;p>The restriction is a user-defined object that is used to represent a subset of
+work for a given element. For example, we defined &lt;code>OffsetRange&lt;/code> as a restriction to represent offset
+positions in &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/range/OffsetRange.html">Java&lt;/a>
+and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.restriction_trackers.html#apache_beam.io.restriction_trackers.OffsetRange">Python&lt;/a>.&lt;/p>
+&lt;p>The restriction provider lets SDF authors override default implementations, including the ones for
+splitting and sizing. In &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html">Java&lt;/a>
 and &lt;a href="https://github.com/apache/beam/blob/0f466e6bcd4ac8677c2bd9ecc8e6af3836b7f3b8/sdks/go/pkg/beam/pardo.go#L226">Go&lt;/a>,
-this is the &lt;code>DoFn&lt;/code>. &lt;a href="https://github.com/apache/beam/blob/f4c2734261396858e388ebef2eef50e7d48231a8/sdks/python/apache_beam/transforms/core.py#L213">Python&lt;/a>
-has a dedicated RestrictionProvider type. The restriction tracker is responsible for tracking
-what subset of the restriction has been completed during processing.&lt;/p>
+this is the &lt;code>DoFn&lt;/code>. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.RestrictionProvider">Python&lt;/a>
+has a dedicated &lt;code>RestrictionProvider&lt;/code> type.&lt;/p>
+&lt;p>The restriction tracker is responsible for tracking which subset of the restriction has been
+completed during processing. For APIs details, read the &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/RestrictionTracker.html">Java&lt;/a>
+and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.RestrictionTracker">Python&lt;/a>
+reference documentation.&lt;/p>
+&lt;p>There are some built-in &lt;code>RestrictionTracker&lt;/code> implementations defined in Java:&lt;/p>
+&lt;ol>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/OffsetRangeTracker.html">OffsetRangeTracker&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/GrowableOffsetRangeTracker.html">GrowableOffsetRangeTracker&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/ByteKeyRangeTracker.html">ByteKeyRangeTracker&lt;/a>&lt;/li>
+&lt;/ol>
+&lt;p>The SDF also has a built-in &lt;code>RestrictionTracker&lt;/code> implementation in Python:&lt;/p>
+&lt;ol>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.restriction_trackers.html#apache_beam.io.restriction_trackers.OffsetRestrictionTracker">OffsetRangeTracker&lt;/a>&lt;/li>
+&lt;/ol>
+&lt;p>The watermark state is a user-defined object which is used to create a &lt;code>WatermarkEstimator&lt;/code> from a
+&lt;code>WatermarkEstimatorProvider&lt;/code>. The simplest watermark state could be a &lt;code>timestamp&lt;/code>.&lt;/p>
+&lt;p>The watermark estimator provider lets SDF authors define how to initialize the watermark state and
+create a watermark estimator. In &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html">Java&lt;/a>
+this is the &lt;code>DoFn&lt;/code>. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.WatermarkEstimatorProvider">Python&lt;/a>
+has a dedicated &lt;code>WatermarkEstimatorProvider&lt;/code> type.&lt;/p>
+&lt;p>The watermark estimator tracks the watermark when an element-restriction pair is in progress.
+For APIs details, read the &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimator.html">Java&lt;/a>
+and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.WatermarkEstimator">Python&lt;/a>
+reference documentation.&lt;/p>
+&lt;p>There are some built-in &lt;code>WatermarkEstimator&lt;/code> implementations in Java:&lt;/p>
+&lt;ol>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.Manual.html">Manual&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.MonotonicallyIncreasing.html">MonotonicallyIncreasing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.WallTime.html">WallTime&lt;/a>&lt;/li>
+&lt;/ol>
+&lt;p>Along with the default &lt;code>WatermarkEstimatorProvider&lt;/code>, there are the same set of built-in
+&lt;code>WatermarkEstimator&lt;/code> implementations in Python:&lt;/p>
+&lt;ol>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.ManualWatermarkEstimator">ManualWatermarkEstimator&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.MonotonicWatermarkEstimator">MonotonicWatermarkEstimator&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.WalltimeWatermarkEstimator">WalltimeWatermarkEstimator&lt;/a>&lt;/li>
+&lt;/ol>
 &lt;p>To define an SDF, you must choose whether the SDF is bounded (default) or
-unbounded and define a way to initialize an initial restriction for an element.&lt;/p>
+unbounded and define a way to initialize an initial restriction for an element. The distinction is
+based on how the amount of work is represented:&lt;/p>
+&lt;ul>
+&lt;li>Bounded DoFns are those where the work represented by an element is well-known beforehand and has
+an end. Examples of bounded elements include a file or group of files.&lt;/li>
+&lt;li>Unbounded DoFns are those where the amount of work does not have a specific end or the
+amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+topic.&lt;/li>
+&lt;/ul>
+&lt;p>In Java, you can use &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html">@UnboundedPerElement&lt;/a>
+or &lt;a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.BoundedPerElement.html">@BoundedPerElement&lt;/a>
+to annotate your &lt;code>DoFn&lt;/code>. In Python, you can use &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.unbounded_per_element">@unbounded_per_element&lt;/a>
+to annotate the &lt;code>DoFn&lt;/code>.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@BoundedPerElement&lt;/span>
 &lt;span class="kd">private&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FileToWordsFn&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
@@ -7235,10 +7288,13 @@ resource utilization.&lt;/p>
 &lt;p>A runner at any time may attempt to split a restriction while it is being processed. This allows the
 runner to either pause processing of the restriction so that other work may be done (common for
 unbounded restrictions to limit the amount of output and/or improve latency) or split the restriction
-into two pieces, increasing the available parallelism within the system. It is important to author a
-SDF with this in mind since the end of the restriction may change. Thus when writing the
-processing loop, it is important to use the result from trying to claim a piece of the restriction
-instead of assuming one can process till the end.&lt;/p>
+into two pieces, increasing the available parallelism within the system. Different runners (e.g.,
+Dataflow, Flink, Spark) have different strategies to issue splits under batch and streaming
+execution.&lt;/p>
+&lt;p>Author an SDF with this in mind since the end of the restriction may change. When writing the
+processing loop, use the result from trying to claim a piece of the restriction instead of assuming
+you can process until the end.&lt;/p>
+&lt;p>One incorrect example could be:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@ProcessElement&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">badTryClaimLoop&lt;/span>&lt;span class="o">(&lt;/span>
@@ -7322,7 +7378,7 @@ Timestamp observing watermark estimators use the output timestamp of each record
 estimate while external clock observing watermark estimators control the watermark by using a clock that
 is not associated to any individual output, such as the local clock of the machine or a clock exposed
 through an external service.&lt;/p>
-&lt;p>The restriction provider lets you override the default watermark estimation logic and use an existing
+&lt;p>The watermark estimator provider lets you override the default watermark estimation logic and use an existing
 watermark estimator implementation. You can also provide your own watermark estimator implementation.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="c1">// (Optional) Define a custom watermark state type to save information between bundle
