@@ -488,9 +488,9 @@ class MultipleReadFromPubSub(PTransform):
   """A ``PTransform`` that expands ``ReadFromPubSub`` to read from multiple
   ``PubSubSourceDescriptor``.
 
-  The `MultipleReadFromPubSub` transform allows you to read multiple topics and/or
-  subscriptions using just one transform. It is the recommended transform to read
-  multiple Pub/Sub sources when the output `PCollection` are going to be
+  The `MultipleReadFromPubSub` transform allows you to read multiple topics
+  and/or subscriptions using just one transform. It is the recommended transform
+  to read multiple Pub/Sub sources when the output `PCollection` are going to be
   flattened. The transform takes a list of `PubSubSourceDescriptor` and organize
   them by type (topic / subscription) and project:::
 
