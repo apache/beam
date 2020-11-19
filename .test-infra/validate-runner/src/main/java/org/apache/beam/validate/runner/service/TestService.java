@@ -20,12 +20,12 @@ import java.util.Optional;
 
 public interface TestService {
 
-    default List<String> getAllTests(TestResult testResult) {
+    default List<CaseResults> getAllTests(TestResult testResult) {
         List<CaseResult> caseResults = new ArrayList<>();
         Optional.ofNullable(testResult.getSuites()).ifPresent(suites -> suites.forEach(item -> caseResults.addAll(item.getCases())));
-        List<String> tests = new ArrayList<>();
-        Optional.ofNullable(caseResults).ifPresent(cases -> cases.forEach(item -> tests.add(item.getClassName() + "." + item.getName() + " : " + item.getStatus())));
-        return tests;
+//        List<String> tests = new ArrayList<>();
+//        Optional.ofNullable(caseResults).ifPresent(cases -> cases.forEach(item -> tests.add(item.getClassName() + "." + item.getName() + " : " + item.getStatus())));
+        return caseResults;
     }
 
     default URL getUrl(Map<String, String> job, Configuration configuration) throws URISyntaxException, IOException {
