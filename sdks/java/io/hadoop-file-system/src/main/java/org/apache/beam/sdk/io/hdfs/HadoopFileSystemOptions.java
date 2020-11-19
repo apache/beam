@@ -21,6 +21,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
@@ -69,7 +70,9 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
     }
 
     private List<Configuration> readConfigurationFromHadoopYarnConfigDirs() {
-      List<Configuration> configurationList = Lists.newArrayList();
+      // Linkedin: we notice deployment failure due configurationList contians two same elements.
+      // Change to use set to avoid duplicates.
+      Set<Configuration> configurationSet = Sets.newHashSet();
 
       /*
        * If we find a configuration in HADOOP_CONF_DIR and YARN_CONF_DIR,
@@ -123,11 +126,11 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
             }
           }
           if (confLoaded) {
-            configurationList.add(conf);
+            configurationSet.add(conf);
           }
         }
       }
-      return configurationList;
+      return configurationSet.stream().collect(Collectors.toList());
     }
 
     @VisibleForTesting
