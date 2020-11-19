@@ -25,6 +25,7 @@ import (
 
 func init() {
 	beam.RegisterRunner("flink", Execute)
+	beam.RegisterRunner("FlinkRunner", Execute)
 }
 
 // Execute runs the given pipeline on Flink. Convenience wrapper over the
