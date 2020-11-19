@@ -50,6 +50,10 @@ import org.junit.runners.JUnit4;
 
 /** Test for {@link DataflowSideInputHandlerFactory} */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class DataflowSideInputHandlerFactoryTest {
 
   private static final String TRANSFORM_ID = "transformId";
@@ -73,9 +77,8 @@ public final class DataflowSideInputHandlerFactoryTest {
   public void setUp() {
     fakeSideInputReader =
         new SideInputReader() {
-          @Nullable
           @Override
-          public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+          public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
             assertEquals(GlobalWindow.INSTANCE, window);
             assertEquals(SIDE_INPUT_NAME, view.getTagInternal().getId());
 

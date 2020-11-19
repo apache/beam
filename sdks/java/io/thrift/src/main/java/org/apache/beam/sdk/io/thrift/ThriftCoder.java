@@ -34,6 +34,9 @@ import org.apache.thrift.transport.TIOStreamTransport;
  *
  * @param <T> type of element handled by coder.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ThriftCoder<T> extends CustomCoder<T> {
 
   private final Class<T> type;

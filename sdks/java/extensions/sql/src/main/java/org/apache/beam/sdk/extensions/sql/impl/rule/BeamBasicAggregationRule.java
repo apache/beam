@@ -43,6 +43,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilde
  *
  * <p>{@link BeamAggregationRule} supports projection and windowing.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamBasicAggregationRule extends RelOptRule {
   public static final BeamBasicAggregationRule INSTANCE =
       new BeamBasicAggregationRule(Aggregate.class, RelFactories.LOGICAL_BUILDER);

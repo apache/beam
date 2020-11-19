@@ -30,6 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link SideInputReader} that caches materialized views. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CachedSideInputReader implements SideInputReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(CachedSideInputReader.class);
@@ -51,9 +54,8 @@ public class CachedSideInputReader implements SideInputReader {
     this.delegate = delegate;
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
     final Cache<Key<T>, Value<T>> materializedCasted =
         (Cache) SideInputStorage.getMaterializedSideInputs();

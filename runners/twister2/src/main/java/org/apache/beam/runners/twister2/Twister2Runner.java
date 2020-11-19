@@ -65,6 +65,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * to a Twister2 Plan and then executing them either locally or on a Twister2 cluster, depending on
  * the configuration.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Twister2Runner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = Logger.getLogger(Twister2Runner.class.getName());
@@ -99,7 +103,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     Twister2PipelineExecutionEnvironment env = new Twister2PipelineExecutionEnvironment(options);
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
-    SplittableParDo.validateNoPrimitiveReads(pipeline);
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     env.translate(pipeline);
     setupSystem(options);
 
@@ -155,7 +159,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
     Twister2PipelineExecutionEnvironment env = new Twister2PipelineExecutionEnvironment(options);
     LOG.info("Translating pipeline to Twister2 program.");
     pipeline.replaceAll(getDefaultOverrides());
-    SplittableParDo.validateNoPrimitiveReads(pipeline);
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     env.translate(pipeline);
     setupSystemTest(options);
     Map configMap = new HashMap();

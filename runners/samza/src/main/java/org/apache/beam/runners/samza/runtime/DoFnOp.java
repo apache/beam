@@ -66,6 +66,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Samza operator for {@link DoFn}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOp.class);
   private static final long MIN_BUNDLE_CHECK_TIME_MS = 10L;
@@ -351,11 +355,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     timerInternalsFactory.setInputWatermark(actualInputWatermark);
 
-    pushbackFnRunner.startBundle();
-    for (KeyedTimerData<?> keyedTimerData : timerInternalsFactory.removeReadyTimers()) {
-      fireTimer(keyedTimerData);
+    Collection<? extends KeyedTimerData<?>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    if (!readyTimers.isEmpty()) {
+      pushbackFnRunner.startBundle();
+      for (KeyedTimerData<?> keyedTimerData : readyTimers) {
+        fireTimer(keyedTimerData);
+      }
+      pushbackFnRunner.finishBundle();
     }
-    pushbackFnRunner.finishBundle();
 
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(actualInputWatermark)) {

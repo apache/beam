@@ -30,6 +30,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeast;
@@ -166,6 +167,9 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingDataflowWorkerTest {
 
   private final boolean streamingEngine;
@@ -759,6 +763,76 @@ public class StreamingDataflowWorkerTest {
       assertEquals(
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
     }
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
+  }
+
+  @Test
+  public void testHotKeyLogging() throws Exception {
+    // This is to test that the worker can correctly log the key from a hot key.
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())),
+            makeSinkInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setIsReady(false);
+
+    StreamingConfigTask streamingConfig = new StreamingConfigTask();
+    streamingConfig.setStreamingComputationConfigs(
+        ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
+    streamingConfig.setWindmillServiceEndpoint("foo");
+    WorkItem workItem = new WorkItem();
+    workItem.setStreamingConfigTask(streamingConfig);
+    when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
+
+    StreamingDataflowWorkerOptions options =
+        createTestingPipelineOptions(server, "--hotKeyLoggingEnabled=true");
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    final int numIters = 2000;
+    for (int i = 0; i < numIters; ++i) {
+      server.addWorkToOffer(makeInput(i, 0, "key", DEFAULT_SHARDING_KEY));
+    }
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    worker.stop();
+
+    verify(hotKeyLogger, atLeastOnce())
+        .logHotKeyDetection(nullable(String.class), any(), eq("key"));
+  }
+
+  @Test
+  public void testHotKeyLoggingNotEnabled() throws Exception {
+    // This is to test that the worker can correctly log the key from a hot key.
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())),
+            makeSinkInstruction(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setIsReady(false);
+
+    StreamingConfigTask streamingConfig = new StreamingConfigTask();
+    streamingConfig.setStreamingComputationConfigs(
+        ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
+    streamingConfig.setWindmillServiceEndpoint("foo");
+    WorkItem workItem = new WorkItem();
+    workItem.setStreamingConfigTask(streamingConfig);
+    when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
+
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    final int numIters = 2000;
+    for (int i = 0; i < numIters; ++i) {
+      server.addWorkToOffer(makeInput(i, 0, "key", DEFAULT_SHARDING_KEY));
+    }
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    worker.stop();
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
@@ -2149,6 +2223,136 @@ public class StreamingDataflowWorkerTest {
                         + "source_state_updates {"
                         + "  only_finalize: true"
                         + "} ")
+                .build()));
+
+    assertThat(finalizeTracker, contains(0));
+  }
+
+  // Regression test to ensure that a reader is not used from the cache
+  // on work item retry.
+  @Test
+  public void testUnboundedSourceWorkRetry() throws Exception {
+    List<Integer> finalizeTracker = Lists.newArrayList();
+    TestCountingSource.setFinalizeTracker(finalizeTracker);
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setWorkerCacheMb(0); // Disable state cache so it doesn't detect retry.
+    StreamingDataflowWorker worker =
+        makeWorker(makeUnboundedSourcePipeline(), options, false /* publishCounters */);
+    worker.start();
+
+    // Test new key.
+    Windmill.GetWorkResponse work =
+        buildInput(
+            "work {"
+                + "  computation_id: \"computation\""
+                + "  input_data_watermark: 0"
+                + "  work {"
+                + "    key: \"0000000000000001\""
+                + "    sharding_key: 1"
+                + "    work_token: 1"
+                + "    cache_token: 1"
+                + "  }"
+                + "}",
+            null);
+    server.addWorkToOffer(work);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Iterable<CounterUpdate> counters = worker.buildCounters();
+    Windmill.WorkItemCommitRequest commit = result.get(1L);
+    UnsignedLong finalizeId =
+        UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    Windmill.WorkItemCommitRequest expectedCommit =
+        setMessagesMetadata(
+                PaneInfo.NO_FIRING,
+                CoderUtils.encodeToByteArray(
+                    CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+                    Arrays.asList(GlobalWindow.INSTANCE)),
+                parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 1 "
+                        + "cache_token: 1 "
+                        + "source_backlog_bytes: 7 "
+                        + "output_messages {"
+                        + "  destination_stream_id: \"out\""
+                        + "  bundles {"
+                        + "    key: \"0000000000000001\""
+                        + "    messages {"
+                        + "      timestamp: 0"
+                        + "      data: \"0:0\""
+                        + "    }"
+                        + "    messages_ids: \"\""
+                        + "  }"
+                        + "} "
+                        + "source_state_updates {"
+                        + "  state: \"\000\""
+                        + "  finalize_ids: "
+                        + finalizeId
+                        + "} "
+                        + "source_watermark: 1000"))
+            .build();
+
+    assertThat(commit, equalTo(expectedCommit));
+    assertEquals(
+        18L, splitIntToLong(getCounter(counters, "dataflow_input_size-computation").getInteger()));
+
+    // Test retry of work item, it should return the same result and not start the reader from the
+    // position it was left at.
+    server.clearCommitsReceived();
+    server.addWorkToOffer(work);
+    result = server.waitForAndGetCommits(1);
+    commit = result.get(1L);
+    finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+    Windmill.WorkItemCommitRequest.Builder commitBuilder = expectedCommit.toBuilder();
+    commitBuilder
+        .getSourceStateUpdatesBuilder()
+        .setFinalizeIds(0, commit.getSourceStateUpdates().getFinalizeIds(0));
+    expectedCommit = commitBuilder.build();
+    assertThat(commit, equalTo(expectedCommit));
+
+    // Continue with processing.
+    server.addWorkToOffer(
+        buildInput(
+            "work {"
+                + "  computation_id: \"computation\""
+                + "  input_data_watermark: 0"
+                + "  work {"
+                + "    key: \"0000000000000001\""
+                + "    sharding_key: 1"
+                + "    work_token: 2"
+                + "    cache_token: 1"
+                + "    source_state {"
+                + "      state: \"\001\""
+                + "      finalize_ids: "
+                + finalizeId
+                + "    } "
+                + "  }"
+                + "}",
+            null));
+
+    result = server.waitForAndGetCommits(1);
+
+    commit = result.get(2L);
+    finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    assertThat(
+        commit,
+        equalTo(
+            parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 2 "
+                        + "cache_token: 1 "
+                        + "source_backlog_bytes: 7 "
+                        + "source_state_updates {"
+                        + "  state: \"\000\""
+                        + "  finalize_ids: "
+                        + finalizeId
+                        + "} "
+                        + "source_watermark: 1000")
                 .build()));
 
     assertThat(finalizeTracker, contains(0));

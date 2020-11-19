@@ -31,13 +31,17 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -46,6 +50,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -65,10 +70,16 @@ import org.mockito.Mockito;
 
 /** Unit tests for {@link HadoopFormatIO.Read}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFormatIOReadTest {
   private static SerializableConfiguration serConf;
   private static SimpleFunction<Text, String> myKeyTranslate;
   private static SimpleFunction<Employee, String> myValueTranslate;
+  private static SimpleFunction<Employee, Row> myValueToRowTranslate;
+  private static Schema myValueToRowSchema;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -90,6 +101,20 @@ public class HadoopFormatIOReadTest {
           @Override
           public String apply(Employee input) {
             return input.getEmpName() + "_" + input.getEmpAddress();
+          }
+        };
+    myValueToRowSchema =
+        Schema.of(
+            Schema.Field.of("emp_name", Schema.FieldType.STRING),
+            Schema.Field.of("emp_address", Schema.FieldType.STRING));
+    myValueToRowTranslate =
+        new SimpleFunction<Employee, Row>() {
+          @Override
+          public Row apply(Employee input) {
+            return Row.withSchema(myValueToRowSchema)
+                .addValue(input.getEmpName())
+                .addValue(input.getEmpAddress())
+                .build();
           }
         };
   }
@@ -196,6 +221,14 @@ public class HadoopFormatIOReadTest {
         .withKeyTranslation(null);
   }
 
+  @Test
+  public void testReadObjectCreationFailsIfKeyCoderIsNull() {
+    thrown.expect(IllegalArgumentException.class);
+    HadoopFormatIO.<String, Employee>read()
+        .withConfiguration(serConf.get())
+        .withKeyTranslation(myKeyTranslate, null);
+  }
+
   /**
    * This test validates {@link HadoopFormatIO.Read Read} transform object creation with
    * configuration and key translation.
@@ -209,12 +242,38 @@ public class HadoopFormatIOReadTest {
     assertEquals(serConf.get(), read.getConfiguration().get());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
     assertEquals(null, read.getValueTranslationFunction());
+    assertEquals(null, read.getKeyCoder());
     assertEquals(
         myKeyTranslate.getOutputTypeDescriptor().getRawType(),
         read.getKeyTypeDescriptor().getRawType());
     assertEquals(
         serConf.get().getClass("value.class", Object.class),
         read.getValueTypeDescriptor().getRawType());
+  }
+
+  @Test
+  public void testReadObjectCreationWithConfigurationKeyTranslationAndCoder() {
+    HadoopFormatIO.Read<String, Employee> read =
+        HadoopFormatIO.<String, Employee>read()
+            .withConfiguration(serConf.get())
+            .withKeyTranslation(myKeyTranslate, StringUtf8Coder.of());
+    assertEquals(serConf.get(), read.getConfiguration().get());
+    assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
+    assertEquals(StringUtf8Coder.of(), read.getKeyCoder());
+    assertEquals(
+        StringUtf8Coder.of().getEncodedTypeDescriptor().getRawType(),
+        read.getKeyTypeDescriptor().getRawType());
+    assertEquals(
+        serConf.get().getClass("value.class", Object.class),
+        read.getValueTypeDescriptor().getRawType());
+
+    // set key-translation again without coder should reset back to type-descriptor only
+    read = read.withKeyTranslation(myKeyTranslate);
+    assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
+    assertEquals(null, read.getKeyCoder());
+    assertEquals(
+        myKeyTranslate.getOutputTypeDescriptor().getRawType(),
+        read.getKeyTypeDescriptor().getRawType());
   }
 
   /**
@@ -227,6 +286,14 @@ public class HadoopFormatIOReadTest {
   public void testReadObjectCreationFailsIfValueTranslationFunctionIsNull() {
     thrown.expect(IllegalArgumentException.class);
     HadoopFormatIO.<Text, String>read().withConfiguration(serConf.get()).withValueTranslation(null);
+  }
+
+  @Test
+  public void testReadObjectCreationFailsIfValueCoderIsNull() {
+    thrown.expect(IllegalArgumentException.class);
+    HadoopFormatIO.<Text, String>read()
+        .withConfiguration(serConf.get())
+        .withValueTranslation(myValueTranslate, null);
   }
 
   /**
@@ -245,6 +312,31 @@ public class HadoopFormatIOReadTest {
     assertEquals(
         serConf.get().getClass("key.class", Object.class),
         read.getKeyTypeDescriptor().getRawType());
+    assertEquals(
+        myValueTranslate.getOutputTypeDescriptor().getRawType(),
+        read.getValueTypeDescriptor().getRawType());
+  }
+
+  @Test
+  public void testReadObjectCreationWithConfigurationValueTranslationAndCoder() {
+    Coder<String> coder = StringUtf8Coder.of();
+    HadoopFormatIO.Read<Text, String> read =
+        HadoopFormatIO.<Text, String>read()
+            .withConfiguration(serConf.get())
+            .withValueTranslation(myValueTranslate, coder);
+    assertEquals(serConf.get(), read.getConfiguration().get());
+    assertEquals(myValueTranslate, read.getValueTranslationFunction());
+    assertEquals(coder, read.getValueCoder());
+    assertEquals(
+        coder.getEncodedTypeDescriptor().getRawType(), read.getValueTypeDescriptor().getRawType());
+    assertEquals(
+        serConf.get().getClass("key.class", Object.class),
+        read.getKeyTypeDescriptor().getRawType());
+
+    // set value-translation again without coder should reset back to type-descriptor only
+    read = read.withValueTranslation(myValueTranslate);
+    assertEquals(myValueTranslate, read.getValueTranslationFunction());
+    assertEquals(null, read.getValueCoder());
     assertEquals(
         myValueTranslate.getOutputTypeDescriptor().getRawType(),
         read.getValueTypeDescriptor().getRawType());
@@ -393,6 +485,22 @@ public class HadoopFormatIOReadTest {
         HadoopFormatIO.<Text, Employee>read().withConfiguration(serConf.get());
     List<KV<Text, Employee>> expected = TestEmployeeDataSet.getEmployeeData();
     PCollection<KV<Text, Employee>> actual = p.apply("ReadTest", read);
+    PAssert.that(actual).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  public void testReadingDataWithCoder() {
+    HadoopFormatIO.Read<Text, Row> read =
+        HadoopFormatIO.<Text, Row>read()
+            .withConfiguration(serConf.get())
+            .withValueTranslation(myValueToRowTranslate, RowCoder.of(myValueToRowSchema));
+
+    List<KV<Text, Row>> expected =
+        TestEmployeeDataSet.getEmployeeData().stream()
+            .map(kv -> KV.of(kv.getKey(), myValueToRowTranslate.apply(kv.getValue())))
+            .collect(Collectors.toList());
+    PCollection<KV<Text, Row>> actual = p.apply("ReadTest", read);
     PAssert.that(actual).containsInAnyOrder(expected);
     p.run();
   }

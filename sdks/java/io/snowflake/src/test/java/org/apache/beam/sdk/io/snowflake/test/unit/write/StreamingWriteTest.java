@@ -60,6 +60,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingWriteTest {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWriteTest.class);
   private static final String FAKE_TABLE = "TEST_TABLE";

@@ -38,6 +38,9 @@ import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server. */
 // TODO extend JobServerDriver
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaJobServerDriver {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 

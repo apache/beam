@@ -69,6 +69,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * }</pre>
  */
 @Experimental(Kind.WITH_EXCEPTIONS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WithFailures {
 
   /**

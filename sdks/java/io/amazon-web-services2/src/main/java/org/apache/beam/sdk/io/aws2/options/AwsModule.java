@@ -59,6 +59,9 @@ import software.amazon.awssdk.utils.AttributeMap;
  */
 @Experimental(Kind.SOURCE_SINK)
 @AutoService(Module.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";

@@ -35,6 +35,9 @@ import java.nio.channels.SeekableByteChannel;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 
 /** A readable S3 object, as a {@link SeekableByteChannel}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
   private final AmazonS3 amazonS3;

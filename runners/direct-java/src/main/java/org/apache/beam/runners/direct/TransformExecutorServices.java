@@ -28,6 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Static factory methods for constructing instances of {@link TransformExecutorService}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class TransformExecutorServices {
   private TransformExecutorServices() {
     // Do not instantiate

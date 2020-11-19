@@ -46,6 +46,9 @@ import org.mockito.Mockito;
 
 /** Tests for WriteOperation. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class WriteOperationTest {
 
   private final CounterSet counterSet = new CounterSet();

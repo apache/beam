@@ -42,6 +42,9 @@ import org.slf4j.LoggerFactory;
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6561
 @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
 @NotThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class WorkProgressUpdater {
   private static final Logger LOG = LoggerFactory.getLogger(WorkProgressUpdater.class);
 

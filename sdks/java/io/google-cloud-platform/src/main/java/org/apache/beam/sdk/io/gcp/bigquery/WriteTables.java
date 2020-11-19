@@ -83,6 +83,9 @@ import org.slf4j.LoggerFactory;
  * the data directly into the final table, skipping temporary tables. In this case, the output
  * {@link KV} maps the final table to itself.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WriteTables<DestinationT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, List<String>>>,

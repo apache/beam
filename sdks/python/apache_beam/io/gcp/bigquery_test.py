@@ -49,7 +49,9 @@ from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
@@ -58,8 +60,10 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
-from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
@@ -370,34 +374,112 @@ class TestJsonToDictCoder(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
-  def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
-    with self.assertRaises(ValueError):
-      p = beam.Pipeline()
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
+  @classmethod
+  def setUpClass(cls):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--gcs_location')
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
-  def test_fallback_to_temp_location(self, BigQueryWrapper):
-    pipeline_options = beam.pipeline.PipelineOptions()
-    pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
-    try:
-      p = beam.Pipeline(options=pipeline_options)
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
-    except ValueError:
-      self.fail('ValueError was raised unexpectedly')
+    cls.UserDefinedOptions = UserDefinedOptions
 
-  def test_gcs_location_validation_works_properly(self):
-    with self.assertRaises(ValueError) as context:
-      p = beam.Pipeline()
-      _ = p | beam.io.ReadFromBigQuery(
-          project='project',
-          dataset='dataset',
-          table='table',
-          validate=True,
-          gcs_location='fs://bad_location')
+  def tearDown(self):
+    # Reset runtime options to avoid side-effects caused by other tests.
+    RuntimeValueProvider.set_runtime_options(None)
+
+  def test_get_destination_uri_empty_runtime_vp(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      # Don't provide any runtime values.
+      RuntimeValueProvider.set_runtime_options({})
+      options = self.UserDefinedOptions()
+
+      bigquery_export_destination_uri(
+          options.gcs_location, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_none(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      bigquery_export_destination_uri(None, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_runtime_vp(self):
+    # Provide values at job-execution time.
+    RuntimeValueProvider.set_runtime_options({'gcs_location': 'gs://bucket'})
+    options = self.UserDefinedOptions()
+    unique_id = uuid.uuid4().hex
+
+    uri = bigquery_export_destination_uri(options.gcs_location, None, unique_id)
     self.assertEqual(
-        'Invalid GCS location: fs://bad_location', str(context.exception))
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_static_vp(self):
+    unique_id = uuid.uuid4().hex
+    uri = bigquery_export_destination_uri(
+        StaticValueProvider(str, 'gs://bucket'), None, unique_id)
+    self.assertEqual(
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_fallback_temp_location(self):
+    # Don't provide any runtime values.
+    RuntimeValueProvider.set_runtime_options({})
+    options = self.UserDefinedOptions()
+
+    with self.assertLogs('apache_beam.io.gcp.bigquery_read_internal',
+                         level='DEBUG') as context:
+      bigquery_export_destination_uri(
+          options.gcs_location, 'gs://bucket', uuid.uuid4().hex)
+    self.assertEqual(
+        context.output,
+        [
+            'DEBUG:apache_beam.io.gcp.bigquery_read_internal:gcs_location is '
+            'empty, using temp_location instead'
+        ])
+
+  @mock.patch.object(BigQueryWrapper, '_delete_dataset')
+  @mock.patch('apache_beam.io.gcp.internal.clients.bigquery.BigqueryV2')
+  def test_temp_dataset_location_is_configurable(self, api, delete_dataset):
+    temp_dataset = bigquery.DatasetReference(
+        projectId='temp-project', datasetId='bq_dataset')
+    bq = BigQueryWrapper(client=api, temp_dataset_id=temp_dataset.datasetId)
+    gcs_location = 'gs://gcs_location'
+
+    # bq.get_or_create_dataset.return_value = temp_dataset
+    c = beam.io.gcp.bigquery._CustomBigQuerySource(
+        query='select * from test_table',
+        gcs_location=gcs_location,
+        validate=True,
+        pipeline_options=beam.options.pipeline_options.PipelineOptions(),
+        job_name='job_name',
+        step_name='step_name',
+        project='execution_project',
+        **{'temp_dataset': temp_dataset})
+
+    api.datasets.Get.side_effect = HttpError({
+        'status_code': 404, 'status': 404
+    },
+                                             '',
+                                             '')
+
+    c._setup_temporary_dataset(bq)
+    api.datasets.Insert.assert_called_with(
+        bigquery.BigqueryDatasetsInsertRequest(
+            dataset=bigquery.Dataset(datasetReference=temp_dataset),
+            projectId=temp_dataset.projectId))
+
+    api.datasets.Get.return_value = temp_dataset
+    api.datasets.Get.side_effect = None
+    bq.clean_up_temporary_dataset(temp_dataset.projectId)
+    delete_dataset.assert_called_with(
+        temp_dataset.projectId, temp_dataset.datasetId, True)
+
+    self.assertEqual(
+        bq._get_temp_table(temp_dataset.projectId),
+        bigquery.TableReference(
+            projectId=temp_dataset.projectId,
+            datasetId=temp_dataset.datasetId,
+            tableId=BigQueryWrapper.TEMP_TABLE + bq._temporary_table_suffix))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -851,7 +933,6 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               None,
               None, [],
               ignore_insert_ids=False,
-              latency_logging_frequency_sec=None,
               test_client=client))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:

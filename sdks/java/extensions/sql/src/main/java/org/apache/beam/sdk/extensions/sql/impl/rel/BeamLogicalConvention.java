@@ -25,6 +25,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDe
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 
 /** Convertion for Beam SQL. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public enum BeamLogicalConvention implements Convention {
   INSTANCE;
 

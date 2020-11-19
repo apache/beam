@@ -54,6 +54,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runs a Pipeline on Flink via {@link FlinkRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
 

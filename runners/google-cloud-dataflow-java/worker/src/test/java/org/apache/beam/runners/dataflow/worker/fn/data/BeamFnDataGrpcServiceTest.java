@@ -75,7 +75,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnDataGrpcService}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataGrpcServiceTest {
   private static final String TRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =

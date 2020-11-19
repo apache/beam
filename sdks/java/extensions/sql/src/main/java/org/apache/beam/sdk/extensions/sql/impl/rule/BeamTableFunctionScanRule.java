@@ -34,6 +34,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.Log
  * This is the conveter rule that converts a Calcite {@code TableFunctionScan} to Beam {@code
  * TableFunctionScanRel}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamTableFunctionScanRule extends ConverterRule {
   public static final BeamTableFunctionScanRule INSTANCE = new BeamTableFunctionScanRule();
 

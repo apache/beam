@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.joda.time.DateTime;
 
 /** Simple mock implementation of Kinesis service for testing, singletone. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KinesisServiceMock {
   private static KinesisServiceMock instance;
 

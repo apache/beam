@@ -35,6 +35,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * A {@link RootInputProvider} that delegates to primitive {@link RootInputProvider} implementations
  * based on the type of {@link PTransform} of the application.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class RootProviderRegistry {
   /** Returns a {@link RootProviderRegistry} that supports the Java SDK root transforms. */
   public static RootProviderRegistry javaNativeRegistry(

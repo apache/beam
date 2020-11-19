@@ -35,6 +35,10 @@ import org.slf4j.LoggerFactory;
  * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed in the
  * thread which calls @{link #drainAndBlock}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
   private static final int QUEUE_SIZE = 1000;

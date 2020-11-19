@@ -168,7 +168,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         return words
 
     # Add the TestStream so that it can be cached.
-    ib.options.capturable_sources.add(TestStream)
+    ib.options.recordable_sources.add(TestStream)
 
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(),

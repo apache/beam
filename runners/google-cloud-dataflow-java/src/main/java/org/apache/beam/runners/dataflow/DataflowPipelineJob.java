@@ -53,6 +53,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A DataflowPipelineJob represents a job submitted to Dataflow using {@link DataflowRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowPipelineJob implements PipelineResult {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineJob.class);
@@ -200,9 +203,9 @@ public class DataflowPipelineJob implements PipelineResult {
    * @return The final state of the job or null on timeout or if the thread is interrupted.
    * @throws IOException If there is a persistent problem getting job information.
    */
-  @Nullable
   @VisibleForTesting
-  public State waitUntilFinish(Duration duration, MonitoringUtil.JobMessagesHandler messageHandler)
+  public @Nullable State waitUntilFinish(
+      Duration duration, MonitoringUtil.JobMessagesHandler messageHandler)
       throws IOException, InterruptedException {
     // We ignore the potential race condition here (Ctrl-C after job submission but before the
     // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
@@ -230,8 +233,8 @@ public class DataflowPipelineJob implements PipelineResult {
     }
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
       MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
@@ -265,8 +268,8 @@ public class DataflowPipelineJob implements PipelineResult {
    * @throws IOException If there is a persistent problem getting job information.
    * @throws InterruptedException if the thread is interrupted.
    */
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
       MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
@@ -296,7 +299,7 @@ public class DataflowPipelineJob implements PipelineResult {
       } catch (IOException e) {
         exception = e;
         LOG.warn("Failed to get job state: {}", e.getMessage());
-        LOG.debug("Failed to get job state: {}", e);
+        LOG.debug("Failed to get job state.", e);
         continue;
       }
 
@@ -323,7 +326,7 @@ public class DataflowPipelineJob implements PipelineResult {
     if (exception == null) {
       LOG.warn("No terminal state was returned within allotted timeout. State value {}", state);
     } else {
-      LOG.error("Failed to fetch job metadata with error: {}", exception);
+      LOG.error("Failed to fetch job metadata.", exception);
     }
 
     return null;
@@ -392,7 +395,7 @@ public class DataflowPipelineJob implements PipelineResult {
         }
       } catch (GoogleJsonResponseException | SocketTimeoutException e) {
         LOG.warn("Failed to get job messages: {}", e.getMessage());
-        LOG.debug("Failed to get job messages: {}", e);
+        LOG.debug("Failed to get job messages.", e);
         return e;
       }
     }

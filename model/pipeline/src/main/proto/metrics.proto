@@ -24,14 +24,13 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "MetricsApi";
 
 
 import "beam_runner_api.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/timestamp.proto";
 
 // A specification for describing a well known MonitoringInfo.
 //
@@ -307,6 +306,29 @@ message MonitoringInfoSpecs {
         value: "The read index of the data channel."
       }]
     }];
+
+    API_REQUEST_COUNT = 19 [(monitoring_info_spec) = {
+      urn: "beam:metric:io:api_request_count:v1",
+      type: "beam:metrics:sum_int64:v1",
+      required_labels: [
+        "SERVICE",
+        "METHOD",
+        "RESOURCE",
+        "PTRANSFORM",
+        "STATUS"
+      ],
+      annotations: [
+        {
+          key: "description",
+          value: "Request counts with status made to an IOs service APIs to batch read or write elements."
+        },
+        {
+          key: "process_metric",  // Should be reported as a process metric
+                                  // instead of a bundle metric
+          value: "true"
+        }
+      ]
+    }];
   }
 }
 
@@ -355,6 +377,15 @@ message MonitoringInfo {
     ENVIRONMENT = 4 [(label_props) = { name: "ENVIRONMENT" }];
     NAMESPACE = 5 [(label_props) = { name: "NAMESPACE" }];
     NAME = 6 [(label_props) = { name: "NAME" }];
+    SERVICE = 7 [(label_props) = { name: "SERVICE" }];
+    METHOD = 8 [(label_props) = { name: "METHOD" }];
+    RESOURCE = 9 [(label_props) = { name: "RESOURCE" }];
+    STATUS = 10 [(label_props) = { name: "STATUS" }];
+    BIGQUERY_PROJECT_ID = 11 [(label_props) = { name: "BIGQUERY_PROJECT_ID" }];
+    BIGQUERY_DATASET = 12 [(label_props) = { name: "BIGQUERY_DATASET" }];
+    BIGQUERY_TABLE = 13 [(label_props) = { name: "BIGQUERY_TABLE" }];
+    BIGQUERY_VIEW = 14 [(label_props) = { name: "BIGQUERY_VIEW" }];
+    BIGQUERY_QUERY_NAME = 15 [(label_props) = { name: "BIGQUERY_QUERY_NAME" }];
   }
 
   // A set of key and value labels which define the scope of the metric. For

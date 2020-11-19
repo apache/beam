@@ -67,6 +67,10 @@ import org.slf4j.LoggerFactory;
  * A {@link ParDoFnFactory} to create GroupAlsoByWindowsDoFn instances according to specifications
  * from the Dataflow service.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(GroupAlsoByWindowParDoFnFactory.class);

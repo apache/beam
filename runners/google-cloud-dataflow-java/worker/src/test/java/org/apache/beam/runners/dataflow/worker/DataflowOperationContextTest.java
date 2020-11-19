@@ -68,6 +68,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DataflowOperationContext}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowOperationContextTest {
 
   /**
@@ -219,9 +222,8 @@ public class DataflowOperationContextTest {
               null /* metricsContainer */,
               ScopedProfiler.INSTANCE.emptyScope(),
               clock) {
-            @Nullable
             @Override
-            public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+            public @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate) {
               // not being used for extracting updates
               return null;
             }

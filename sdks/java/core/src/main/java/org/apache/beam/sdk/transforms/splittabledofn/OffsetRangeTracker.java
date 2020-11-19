@@ -38,6 +38,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * - 1}.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
     implements HasProgress {
   protected OffsetRange range;

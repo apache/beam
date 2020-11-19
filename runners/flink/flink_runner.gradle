@@ -28,9 +28,8 @@ import groovy.json.JsonOutput
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.flink',
-    enableChecker: false,
-    ignoreRawtypeErrors: true,
-    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName))
+    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
+)
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
 
@@ -148,6 +147,8 @@ dependencies {
   compile "org.apache.flink:flink-java:$flink_version"
   compile "org.apache.flink:flink-runtime_2.11:$flink_version"
   compile "org.apache.flink:flink-streaming-java_2.11:$flink_version"
+  // RocksDB state backend (included in the Flink distribution)
+  provided "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")

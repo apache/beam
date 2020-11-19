@@ -56,6 +56,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * This {@link ReceivingOperation} is responsible for fetching any ready side inputs and also
  * filtering any input elements that aren't ready by pushing them back into state.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWindow>
     extends ReceivingOperation {
 
@@ -103,9 +107,8 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
       this.delegate = delegate;
     }
 
-    @Nullable
     @Override
-    public PCollection<?> getPCollection() {
+    public @Nullable PCollection<?> getPCollection() {
       return delegate.getPCollection();
     }
 

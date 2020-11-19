@@ -17,6 +17,8 @@
 
 """Set of utilities for execution of a pipeline by the FnApiRunner."""
 
+# mypy: disallow-untyped-defs
+
 from __future__ import absolute_import
 
 import collections
@@ -26,10 +28,12 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import DefaultDict
 from typing import Dict
+from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import MutableMapping
 from typing import Optional
+from typing import Set
 from typing import Tuple
 
 from typing_extensions import Protocol
@@ -59,9 +63,13 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
-  from apache_beam.coders.coder_impl import CoderImpl
+  from apache_beam.coders.coder_impl import CoderImpl, WindowedValueCoderImpl
+  from apache_beam.portability.api import endpoints_pb2
   from apache_beam.runners.portability.fn_api_runner import worker_handlers
+  from apache_beam.runners.portability.fn_api_runner.fn_runner import DataOutput
+  from apache_beam.runners.portability.fn_api_runner.fn_runner import OutputTimers
   from apache_beam.runners.portability.fn_api_runner.translations import DataSideInput
+  from apache_beam.transforms import core
   from apache_beam.transforms.window import BoundedWindow
 
 ENCODED_IMPULSE_VALUE = WindowedValueCoder(
@@ -87,13 +95,27 @@ class PartitionableBuffer(Buffer, Protocol):
     # type: (int) -> List[List[bytes]]
     pass
 
+  @property
+  def cleared(self):
+    # type: () -> bool
+    pass
+
+  def clear(self):
+    # type: () -> None
+    pass
+
+  def reset(self):
+    # type: () -> None
+    pass
+
 
 class ListBuffer(object):
   """Used to support parititioning of a list."""
   def __init__(self, coder_impl):
+    # type: (CoderImpl) -> None
     self._coder_impl = coder_impl
     self._inputs = []  # type: List[bytes]
-    self._grouped_output = None
+    self._grouped_output = None  # type: Optional[List[List[bytes]]]
     self.cleared = False
 
   def append(self, element):
@@ -139,6 +161,8 @@ class ListBuffer(object):
     self._grouped_output = None
 
   def reset(self):
+    # type: () -> None
+
     """Resets a cleared buffer for reuse."""
     if not self.cleared:
       raise RuntimeError('Trying to reset a non-cleared ListBuffer.')
@@ -150,7 +174,7 @@ class GroupingBuffer(object):
   def __init__(self,
                pre_grouped_coder,  # type: coders.Coder
                post_grouped_coder,  # type: coders.Coder
-               windowing
+               windowing  # type: core.Windowing
               ):
     # type: (...) -> None
     self._key_coder = pre_grouped_coder.key_coder()
@@ -227,12 +251,24 @@ class GroupingBuffer(object):
     """
     return itertools.chain(*self.partition(1))
 
+  # these should never be accessed, but they allow this class to meet the
+  # PartionableBuffer protocol
+  cleared = False
+
+  def clear(self):
+    # type: () -> None
+    pass
+
+  def reset(self):
+    # type: () -> None
+    pass
+
 
 class WindowGroupingBuffer(object):
   """Used to partition windowed side inputs."""
   def __init__(
       self,
-      access_pattern,
+      access_pattern,  # type: beam_runner_api_pb2.FunctionSpec
       coder  # type: WindowedValueCoder
   ):
     # type: (...) -> None
@@ -283,17 +319,21 @@ class GenericNonMergingWindowFn(window.NonMergingWindowFn):
   URN = 'internal-generic-non-merging'
 
   def __init__(self, coder):
+    # type: (coders.Coder) -> None
     self._coder = coder
 
   def assign(self, assign_context):
+    # type: (window.WindowFn.AssignContext) -> Iterable[BoundedWindow]
     raise NotImplementedError()
 
   def get_window_coder(self):
+    # type: () -> coders.Coder
     return self._coder
 
   @staticmethod
   @window.urns.RunnerApiFn.register_urn(URN, bytes)
   def from_runner_api_parameter(window_coder_id, context):
+    # type: (bytes, Any) -> GenericNonMergingWindowFn
     return GenericNonMergingWindowFn(
         context.coders[window_coder_id.decode('utf-8')])
 
@@ -308,9 +348,11 @@ class FnApiRunnerExecutionContext(object):
       stages,  # type: List[translations.Stage]
       worker_handler_manager,  # type: worker_handlers.WorkerHandlerManager
       pipeline_components,  # type: beam_runner_api_pb2.Components
-      safe_coders,
-      data_channel_coders,
+      safe_coders,  # type: Dict[str, str]
+      data_channel_coders,  # type: Dict[str, str]
                ):
+    # type: (...) -> None
+
     """
     :param worker_handler_manager: This class manages the set of worker
         handlers, and the communication with state / control APIs.
@@ -365,7 +407,7 @@ class FnApiRunnerExecutionContext(object):
       return all_side_inputs
 
     all_side_inputs = frozenset(get_all_side_inputs())
-    data_side_inputs_by_producing_stage = {}
+    data_side_inputs_by_producing_stage = {}  # type: Dict[str, DataSideInput]
 
     producing_stages_by_pcoll = {}
 
@@ -397,6 +439,7 @@ class FnApiRunnerExecutionContext(object):
     return data_side_inputs_by_producing_stage
 
   def _make_safe_windowing_strategy(self, id):
+    # type: (str) -> str
     windowing_strategy_proto = self.pipeline_components.windowing_strategies[id]
     if windowing_strategy_proto.window_fn.urn in SAFE_WINDOW_FNS:
       return id
@@ -420,15 +463,17 @@ class FnApiRunnerExecutionContext(object):
 
   @property
   def state_servicer(self):
+    # type: () -> worker_handlers.StateServicer
     # TODO(BEAM-9625): Ensure FnApiRunnerExecutionContext owns StateServicer
     return self.worker_handler_manager.state_servicer
 
   def next_uid(self):
+    # type: () -> str
     self._last_uid += 1
     return str(self._last_uid)
 
   def _iterable_state_write(self, values, element_coder_impl):
-    # type: (...) -> bytes
+    # type: (Iterable, CoderImpl) -> bytes
     token = unique_name(None, 'iter').encode('ascii')
     out = create_OutputStream()
     for element in values:
@@ -484,21 +529,23 @@ class BundleContextManager(object):
                stage,  # type: translations.Stage
                num_workers,  # type: int
               ):
+    # type: (...) -> None
     self.execution_context = execution_context
     self.stage = stage
     self.bundle_uid = self.execution_context.next_uid()
     self.num_workers = num_workers
 
     # Properties that are lazily initialized
-    self._process_bundle_descriptor = None
-    self._worker_handlers = None
+    self._process_bundle_descriptor = None  # type: Optional[beam_fn_api_pb2.ProcessBundleDescriptor]
+    self._worker_handlers = None  # type: Optional[List[worker_handlers.WorkerHandler]]
     # a mapping of {(transform_id, timer_family_id): timer_coder_id}. The map
     # is built after self._process_bundle_descriptor is initialized.
     # This field can be used to tell whether current bundle has timers.
-    self._timer_coder_ids = None
+    self._timer_coder_ids = None  # type: Optional[Dict[Tuple[str, str], str]]
 
   @property
   def worker_handlers(self):
+    # type: () -> List[worker_handlers.WorkerHandler]
     if self._worker_handlers is None:
       self._worker_handlers = (
           self.execution_context.worker_handler_manager.get_worker_handlers(
@@ -506,23 +553,27 @@ class BundleContextManager(object):
     return self._worker_handlers
 
   def data_api_service_descriptor(self):
+    # type: () -> Optional[endpoints_pb2.ApiServiceDescriptor]
     # All worker_handlers share the same grpc server, so we can read grpc server
     # info from any worker_handler and read from the first worker_handler.
     return self.worker_handlers[0].data_api_service_descriptor()
 
   def state_api_service_descriptor(self):
+    # type: () -> Optional[endpoints_pb2.ApiServiceDescriptor]
     # All worker_handlers share the same grpc server, so we can read grpc server
     # info from any worker_handler and read from the first worker_handler.
     return self.worker_handlers[0].state_api_service_descriptor()
 
   @property
   def process_bundle_descriptor(self):
+    # type: () -> beam_fn_api_pb2.ProcessBundleDescriptor
     if self._process_bundle_descriptor is None:
       self._process_bundle_descriptor = self._build_process_bundle_descriptor()
       self._timer_coder_ids = self._build_timer_coders_id_map()
     return self._process_bundle_descriptor
 
   def _build_process_bundle_descriptor(self):
+    # type: () -> beam_fn_api_pb2.ProcessBundleDescriptor
     # Cannot be invoked until *after* _extract_endpoints is called.
     # Always populate the timer_api_service_descriptor.
     return beam_fn_api_pb2.ProcessBundleDescriptor(
@@ -543,7 +594,7 @@ class BundleContextManager(object):
         timer_api_service_descriptor=self.data_api_service_descriptor())
 
   def extract_bundle_inputs_and_outputs(self):
-    # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], str]]
+    # type: () -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], bytes]]
 
     """Returns maps of transform names to PCollection identifiers.
 
@@ -560,7 +611,7 @@ class BundleContextManager(object):
     data_input = {}  # type: Dict[str, PartitionableBuffer]
     data_output = {}  # type: DataOutput
     # A mapping of {(transform_id, timer_family_id) : buffer_id}
-    expected_timer_output = {}  # type: Dict[Tuple[str, str], str]
+    expected_timer_output = {}  # type: OutputTimers
     for transform in self.stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                 bundle_processor.DATA_OUTPUT_URN):
@@ -609,6 +660,8 @@ class BundleContextManager(object):
     return self.get_coder_impl(coder_id)
 
   def _build_timer_coders_id_map(self):
+    # type: () -> Dict[Tuple[str, str], str]
+    assert self._process_bundle_descriptor is not None
     timer_coder_ids = {}
     for transform_id, transform_proto in (self._process_bundle_descriptor
         .transforms.items()):
@@ -621,6 +674,7 @@ class BundleContextManager(object):
     return timer_coder_ids
 
   def get_coder_impl(self, coder_id):
+    # type: (str) -> CoderImpl
     if coder_id in self.execution_context.safe_coders:
       return self.execution_context.pipeline_context.coders[
           self.execution_context.safe_coders[coder_id]].get_impl()
@@ -628,6 +682,8 @@ class BundleContextManager(object):
       return self.execution_context.pipeline_context.coders[coder_id].get_impl()
 
   def get_timer_coder_impl(self, transform_id, timer_family_id):
+    # type: (str, str) -> CoderImpl
+    assert self._timer_coder_ids is not None
     return self.get_coder_impl(
         self._timer_coder_ids[(transform_id, timer_family_id)])
 

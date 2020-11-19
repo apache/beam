@@ -32,6 +32,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link ParDoFnFactory} to create instances of {@link ReifyTimestampAndWindowsParDoFn}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ReifyTimestampAndWindowsParDoFnFactory implements ParDoFnFactory {
   @Override
   public ParDoFn create(
