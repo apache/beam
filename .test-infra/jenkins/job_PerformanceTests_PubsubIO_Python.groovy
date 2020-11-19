@@ -56,7 +56,7 @@ def executeJob = { scope, testConfig ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner,
-      CommonTestProperties.SDK.PYTHON_37, testConfig.pipelineOptions, testConfig.test, withDataflowWorkerJar)
+      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, withDataflowWorkerJar)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

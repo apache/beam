@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+import copy
 import itertools
 
 from apache_beam.transforms import userstate
@@ -160,7 +161,9 @@ class CombiningValueRuntimeState(DirectRuntimeState,
           self).__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
-    self._combine_fn = state_spec.combine_fn
+    self._combine_fn = copy.deepcopy(state_spec.combine_fn)
+    self._combine_fn.setup()
+    self._finalized = False
 
   def _read_initial_value(self):
     if self._current_accumulator is UNREAD_VALUE:
@@ -185,6 +188,11 @@ class CombiningValueRuntimeState(DirectRuntimeState,
   def clear(self):
     self._modified = True
     self._current_accumulator = self._combine_fn.create_accumulator()
+
+  def finalize(self):
+    if not self._finalized:
+      self._combine_fn.teardown()
+      self._finalized = True
 
 
 class DirectUserStateContext(userstate.UserStateContext):
@@ -293,3 +301,9 @@ class DirectUserStateContext(userstate.UserStateContext):
             timer_name,
             timer_spec.time_domain,
             runtime_timer._new_timestamp)
+
+  def reset(self):
+    for state in self.cached_states.values():
+      state.finalize()
+    self.cached_states = {}
+    self.cached_timers = {}

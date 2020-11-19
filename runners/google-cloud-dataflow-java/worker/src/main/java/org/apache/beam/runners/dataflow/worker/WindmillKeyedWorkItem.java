@@ -49,6 +49,10 @@ import org.joda.time.Instant;
  * @param <K> the key type
  * @param <ElemT> the element type
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
   private static final Predicate<Timer> IS_WATERMARK =
       input -> input.getType() == Timer.Type.WATERMARK;

@@ -54,6 +54,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientCallStreamObserver
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
@@ -136,8 +137,9 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
     BeamFnLoggingGrpc.BeamFnLoggingStub stub = BeamFnLoggingGrpc.newStub(channel);
     inboundObserver = new LogControlObserver();
-    logRecordHandler = new LogRecordHandler(options.as(GcsOptions.class).getExecutorService());
+    logRecordHandler = new LogRecordHandler();
     logRecordHandler.setLevel(Level.ALL);
+    logRecordHandler.executeOn(options.as(GcsOptions.class).getExecutorService());
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }
@@ -176,14 +178,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
   private class LogRecordHandler extends Handler implements Runnable {
     private final BlockingDeque<BeamFnApi.LogEntry> bufferedLogEntries =
         new LinkedBlockingDeque<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
-    private final Future<?> bufferedLogWriter;
+    private @Nullable Future<?> bufferedLogWriter = null;
     /**
      * Safe object publishing is not required since we only care if the thread that set this field
      * is equal to the thread also attempting to add a log entry.
      */
-    private Thread logEntryHandlerThread;
+    private @Nullable Thread logEntryHandlerThread = null;
 
-    private LogRecordHandler(ExecutorService executorService) {
+    private void executeOn(ExecutorService executorService) {
       bufferedLogWriter = executorService.submit(this);
     }
 
@@ -193,19 +195,27 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (severity == null) {
         return;
       }
+
       BeamFnApi.LogEntry.Builder builder =
           BeamFnApi.LogEntry.newBuilder()
               .setSeverity(severity)
-              .setLogLocation(record.getLoggerName())
               .setMessage(FORMATTER.formatMessage(record))
               .setThread(Integer.toString(record.getThreadID()))
               .setTimestamp(
                   Timestamp.newBuilder()
                       .setSeconds(record.getMillis() / 1000)
                       .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
-      if (record.getThrown() != null) {
-        builder.setTrace(getStackTraceAsString(record.getThrown()));
+
+      Throwable thrown = record.getThrown();
+      if (thrown != null) {
+        builder.setTrace(getStackTraceAsString(thrown));
       }
+
+      String loggerName = record.getLoggerName();
+      if (loggerName != null) {
+        builder.setLogLocation(loggerName);
+      }
+
       // The thread that sends log records should never perform a blocking publish and
       // only insert log records best effort.
       if (Thread.currentThread() != logEntryHandlerThread) {
@@ -291,15 +301,17 @@ public class BeamFnLoggingClient implements AutoCloseable {
       // outbound observer.
       phaser.forceTermination();
 
-      try {
-        bufferedLogWriter.get();
-      } catch (CancellationException e) {
-        // Ignore cancellations
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
-      } catch (ExecutionException e) {
-        throw new RuntimeException(e);
+      if (bufferedLogWriter != null) {
+        try {
+          bufferedLogWriter.get();
+        } catch (CancellationException e) {
+          // Ignore cancellations
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
   }
@@ -308,7 +320,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
       implements ClientResponseObserver<BeamFnApi.LogEntry, BeamFnApi.LogControl> {
 
     @Override
-    public void beforeStart(ClientCallStreamObserver requestStream) {
+    public void beforeStart(ClientCallStreamObserver<BeamFnApi.LogEntry> requestStream) {
       requestStream.setOnReadyHandler(phaser::arrive);
     }
 

@@ -326,6 +326,9 @@ import org.joda.time.Duration;
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroIO {
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
@@ -1848,9 +1851,8 @@ public class AvroIO {
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
     /** @deprecated RecordFormatter will be removed in future versions. */
-    @Nullable
     @Deprecated
-    abstract RecordFormatter<ElementT> getRecordFormatter();
+    abstract @Nullable RecordFormatter<ElementT> getRecordFormatter();
 
     abstract @Nullable String getJsonSchema();
 

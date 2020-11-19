@@ -25,14 +25,12 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
 import "endpoints.proto";
-import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/timestamp.proto";
 
 message BeamConstants {
   enum Constants {
@@ -296,6 +294,22 @@ message StandardPTransforms {
     //
     // Payload: WindowingStrategy#window_fn FunctionSpec
     MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
+
+    // A transform that translates a given element to its human-readable
+    // representation.
+    // 
+    // Input: KV<nonce, element>
+    // Output: KV<nonce, string>
+    // 
+    // For each given element, the implementation returns the best-effort
+    // human-readable representation. When possible, the implementation could
+    // call a user-overridable method on the type. For example, Java could
+    // call `toString()`, Python could call `str()`, Golang could call
+    // `String()`.  The nonce is used by a runner to associate each input with
+    // its output. The nonce is represented as an opaque set of bytes.
+    //
+    // Payload: none
+    TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
@@ -324,6 +338,12 @@ message StandardPTransforms {
 
     // Less well-known. Payload: WriteFilesPayload.
     WRITE_FILES = 3 [(beam_urn) = "beam:transform:write_files:v1"];
+
+    // Payload: PubSubReadPayload.
+    PUBSUB_READ = 4 [(beam_urn) = "beam:transform:pubsub_read:v1"];
+
+    // Payload: PubSubWritePayload.
+    PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -650,6 +670,42 @@ message WriteFilesPayload {
   map<string, SideInput> side_inputs = 5;
 }
 
+// Payload used by Google Cloud Pub/Sub read transform.
+// This can be used by runners that wish to override Beam Pub/Sub read transform
+// with a native implementation.
+message PubSubReadPayload {
+
+  // Topic to read from. Exactly one of topic or subscription should be set.
+  string topic = 1;
+
+  // Subscription to read from. Exactly one of topic or subscription should be set.
+  string subscription = 2;
+
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 3;
+
+  // Attribute to be used for uniquely identifying messages.
+  string id_attribute = 4;
+
+  // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
+  bool with_attributes = 5;
+}
+
+// Payload used by Google Cloud Pub/Sub write transform.
+// This can be used by runners that wish to override Beam Pub/Sub write transform
+// with a native implementation.
+message PubSubWritePayload {
+
+  // Topic to write to.
+  string topic = 1;
+
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 2;
+
+  // Attribute that uniquely identify messages.
+  string id_attribute = 3;
+}
+
 // A coder, the binary format for serialization and deserialization of data in
 // a pipeline.
 message Coder {
@@ -874,11 +930,39 @@ message StandardCoders {
     //     values.
     //   - For present values the null indicator is followed by the value
     //     encoded with it's corresponding coder.
-    //
+    // 
+    // Well known logical types:
+    //   beam:logical_type:micros_instant:v1
+    //   - Representation type: ROW<seconds: INT64, micros: INT64>
+    //   - A timestamp without a timezone where seconds + micros represents the
+    //     amount of time since the epoch.
+    // 
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
     ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
+
+    // Encodes a user key and a shard id which is an opaque byte string.
+    //
+    // The encoding for a sharded key consists of a shard id byte string and the
+    // encoded user key in the following order:
+    //
+    //     - shard id using beam:coder:bytes:v1
+    //     - encoded user key
+    //
+    // Examples:
+    // user key with an empty shard id
+    //     0x00
+    //     encode(user_key)
+    //
+    // user key with a shard id taking up two bytes.
+    //     0x02
+    //     0x11 0x22
+    //     encode(user_key)
+    //
+    // Components: the user key coder.
+    // Experimental.
+    SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
   }
 }
 

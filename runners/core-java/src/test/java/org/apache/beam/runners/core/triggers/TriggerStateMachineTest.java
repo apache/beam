@@ -29,6 +29,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TriggerStateMachine}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TriggerStateMachineTest {
 
   @Test
@@ -61,10 +64,19 @@ public class TriggerStateMachineTest {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {}
+
+    @Override
     public void onElement(TriggerStateMachine.OnElementContext c) {}
 
     @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+    @Override
     public void onMerge(TriggerStateMachine.OnMergeContext c) {}
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
@@ -82,10 +94,19 @@ public class TriggerStateMachineTest {
     }
 
     @Override
+    public void prefetchOnElement(PrefetchContext c) {}
+
+    @Override
     public void onElement(TriggerStateMachine.OnElementContext c) {}
 
     @Override
+    public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+    @Override
     public void onMerge(TriggerStateMachine.OnMergeContext c) {}
+
+    @Override
+    public void prefetchShouldFire(PrefetchContext c) {}
 
     @Override
     public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {

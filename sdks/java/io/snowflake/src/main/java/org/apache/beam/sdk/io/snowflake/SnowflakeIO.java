@@ -175,6 +175,10 @@ import org.slf4j.LoggerFactory;
  * specified stagingBucketName in directory named 'data' and then into Snowflake.
  */
 @Experimental
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
 
@@ -250,6 +254,8 @@ public class SnowflakeIO {
 
   /** Implementation of {@link #read()}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
@@ -627,6 +633,8 @@ public class SnowflakeIO {
 
   /** Implementation of {@link #write()}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
@@ -1386,6 +1394,8 @@ public class SnowflakeIO {
    * DataSource}.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class DataSourceConfiguration implements Serializable {
     @Nullable
     public abstract String getUrl();

@@ -35,6 +35,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * An immutable registry from {@link String} identifiers (provided to the worker by the Dataflow
  * service) to appropriate {@link SinkFactory} instances.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SinkRegistry implements SinkFactory {
 
   /**

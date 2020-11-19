@@ -22,8 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
@@ -48,6 +46,9 @@ import org.joda.time.Instant;
  *
  * <p>Includes parsing / assembly of timer tags and some extra methods.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WindmillTimerInternals implements TimerInternals {
 
   private static final String TIMER_HOLD_PREFIX = "/h";
@@ -225,29 +226,6 @@ class WindmillTimerInternals implements TimerInternals {
 
     // Wipe the unpersisted state
     timers.clear();
-  }
-
-  public boolean hasTimerBefore(Instant time) {
-    for (Cell<String, StateNamespace, Boolean> cell : timerStillPresent.cellSet()) {
-      TimerData timerData = timers.get(cell.getRowKey(), cell.getColumnKey());
-      if (cell.getValue()) {
-        if (timerData.getTimestamp().isBefore(time)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  public List<TimerData> getCurrentTimers() {
-    List<TimerData> timerDataList = new ArrayList<>();
-    for (Cell<String, StateNamespace, Boolean> cell : timerStillPresent.cellSet()) {
-      TimerData timerData = timers.get(cell.getRowKey(), cell.getColumnKey());
-      if (cell.getValue()) {
-        timerDataList.add(timerData);
-      }
-    }
-    return timerDataList;
   }
 
   private boolean needsWatermarkHold(TimerData timerData) {

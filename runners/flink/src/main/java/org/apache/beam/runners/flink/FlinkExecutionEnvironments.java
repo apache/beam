@@ -22,6 +22,7 @@ import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironm
 import java.util.List;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
@@ -32,8 +33,10 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -45,6 +48,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);
@@ -208,6 +214,21 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().setExecutionRetryDelay(retryDelay);
     }
 
+    configureCheckpointing(options, flinkStreamEnv);
+
+    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+
+    if (options.getAutoWatermarkInterval() != null) {
+      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
+    }
+
+    configureStateBackend(options, flinkStreamEnv);
+
+    return flinkStreamEnv;
+  }
+
+  private static void configureCheckpointing(
+      FlinkPipelineOptions options, StreamExecutionEnvironment flinkStreamEnv) {
     // A value of -1 corresponds to disabled checkpointing (see CheckpointConfig in Flink).
     // If the value is not -1, then the validity checks are applied.
     // By default, checkpointing is disabled.
@@ -259,27 +280,47 @@ public class FlinkExecutionEnvironments {
         options.setShutdownSourcesAfterIdleMs(0L);
       }
     }
+  }
 
-    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+  private static void configureStateBackend(
+      FlinkPipelineOptions options, StreamExecutionEnvironment env) {
+    final StateBackend stateBackend;
+    if (options.getStateBackend() != null) {
+      final String storagePath = options.getStateBackendStoragePath();
+      Preconditions.checkArgument(
+          storagePath != null,
+          "State backend was set to '%s' but no storage path was provided.",
+          options.getStateBackend());
 
-    if (options.getAutoWatermarkInterval() != null) {
-      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
-    }
-
-    // State backend
-    if (options.getStateBackendFactory() != null) {
-      final StateBackend stateBackend =
+      if (options.getStateBackend().equalsIgnoreCase("rocksdb")) {
+        try {
+          stateBackend = new RocksDBStateBackend(storagePath);
+        } catch (Exception e) {
+          throw new RuntimeException(
+              "Could not create RocksDB state backend. Make sure it is included in the path.", e);
+        }
+      } else if (options.getStateBackend().equalsIgnoreCase("filesystem")) {
+        stateBackend = new FsStateBackend(storagePath);
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Unknown state backend '%s'. Use 'rocksdb' or 'filesystem' or configure via Flink config file.",
+                options.getStateBackend()));
+      }
+    } else if (options.getStateBackendFactory() != null) {
+      // Legacy way of setting the state backend
+      stateBackend =
           InstanceBuilder.ofType(FlinkStateBackendFactory.class)
               .fromClass(options.getStateBackendFactory())
               .build()
               .createStateBackend(options);
-      flinkStreamEnv.setStateBackend(stateBackend);
+    } else {
+      stateBackend = null;
     }
-
-    return flinkStreamEnv;
+    if (stateBackend != null) {
+      env.setStateBackend(stateBackend);
+    }
   }
-
-  private void configureCheckpointingOptions() {}
 
   /**
    * Removes the http:// or https:// schema from a url string. This is commonly used with the

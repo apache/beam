@@ -62,6 +62,10 @@ import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
  *
  * <p>TODO: Add a variant which works on {@link ByteString}s to remove encoding/decoding overhead.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StateRequestHandlers {
 
   /**

@@ -39,6 +39,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts ORDER BY LIMIT. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitOffsetScan> {
 
   LimitOffsetScanToOrderByLimitConverter(ConversionContext context) {

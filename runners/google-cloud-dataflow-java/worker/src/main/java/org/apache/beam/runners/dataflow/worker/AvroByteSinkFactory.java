@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates an {@link AvroByteSink} from a {@link CloudObject} spec. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public final class AvroByteSinkFactory implements SinkFactory {
 
   /** A {@link SinkFactory.Registrar} for Avro byte sinks. */

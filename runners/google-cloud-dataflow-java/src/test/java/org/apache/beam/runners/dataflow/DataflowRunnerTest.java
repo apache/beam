@@ -141,7 +141,7 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
@@ -173,6 +173,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -1604,9 +1607,7 @@ public class DataflowRunnerTest implements Serializable {
     verifyMergingStatefulParDoRejected(options);
   }
 
-  private void verifyGroupIntoBatchesOverride(PipelineOptions options) {
-    Pipeline p = Pipeline.create(options);
-
+  private void verifyGroupIntoBatchesOverride(Pipeline p) {
     final int batchSize = 2;
     List<KV<String, Integer>> testValues =
         Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
@@ -1641,12 +1642,12 @@ public class DataflowRunnerTest implements Serializable {
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (options.as(StreamingOptions.class).isStreaming()
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()
                 && node.getTransform()
                     instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatches) {
               sawGroupIntoBatchesOverride.set(true);
             }
-            if (!options.as(StreamingOptions.class).isStreaming()
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
                 && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
               sawGroupIntoBatchesOverride.set(true);
             }
@@ -1658,18 +1659,16 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testBatchGroupIntoBatchesOverride() throws IOException {
-    PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
-    verifyGroupIntoBatchesOverride(options);
+  public void testBatchGroupIntoBatchesOverride() {
+    verifyGroupIntoBatchesOverride(pipeline);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testStreamingGroupIntoBatchesOverride() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     options.as(StreamingOptions.class).setStreaming(true);
-    verifyGroupIntoBatchesOverride(options);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverride(p);
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
@@ -1681,7 +1680,8 @@ public class DataflowRunnerTest implements Serializable {
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
-            AppliedPTransform.of("writefiles", objs.expand(), Collections.emptyMap(), original, p);
+            AppliedPTransform.of(
+                "writefiles", PValues.expandInput(objs), Collections.emptyMap(), original, p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)
@@ -1691,8 +1691,8 @@ public class DataflowRunnerTest implements Serializable {
 
     WriteFilesResult<Void> originalResult = objs.apply(original);
     WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-    Map<PValue, ReplacementOutput> res =
-        factory.mapOutputs(originalResult.expand(), replacementResult);
+    Map<PCollection<?>, ReplacementOutput> res =
+        factory.mapOutputs(PValues.expandOutput(originalResult), replacementResult);
     assertEquals(1, res.size());
     assertEquals(
         originalResult.getPerDestinationOutputFilenames(),
@@ -1719,9 +1719,8 @@ public class DataflowRunnerTest implements Serializable {
                   throw new UnsupportedOperationException("should not be called");
                 }
 
-                @Nullable
                 @Override
-                public ResourceId unwindowedFilename(
+                public @Nullable ResourceId unwindowedFilename(
                     int shardNumber, int numShards, OutputFileHints outputFileHints) {
                   throw new UnsupportedOperationException("should not be called");
                 }

@@ -25,6 +25,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 
 /** Representation of multiple metric updates. */
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class MetricUpdates {
 
   public static final MetricUpdates EMPTY =

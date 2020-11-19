@@ -75,6 +75,9 @@ import org.junit.Test;
  * This test ensures that we are reordering joins and get a plan similar to Join(large,Join(small,
  * medium)) instead of Join(small, Join(medium,large).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JoinReorderingTest {
   private final PipelineOptions defaultPipelineOptions = PipelineOptionsFactory.create();
 
@@ -364,6 +367,9 @@ public class JoinReorderingTest {
   }
 }
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class ThreeTablesSchema extends AbstractSchema {
 
   private final ImmutableMap<String, Table> tables;

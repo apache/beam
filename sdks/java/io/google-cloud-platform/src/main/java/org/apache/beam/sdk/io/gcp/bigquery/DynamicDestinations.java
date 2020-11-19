@@ -73,6 +73,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * be a compact type with an efficient coder, as these objects may be used as a key in a {@link
  * org.apache.beam.sdk.transforms.GroupByKey}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
   interface SideInputAccessor {
     <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);

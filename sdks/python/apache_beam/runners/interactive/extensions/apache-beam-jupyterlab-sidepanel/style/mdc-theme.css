@@ -48,3 +48,12 @@
 .mdc-drawer li.mdc-list-item--activated {
   color: var(--jp-ui-font-color1);
 }
+
+.mdc-form-field > label {
+  margin-bottom: 0;
+}
+
+.mdc-text-field {
+  margin-left: 4px;
+  margin-right: 4px;
+}

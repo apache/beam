@@ -91,6 +91,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link IsmReader}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IsmReaderTest {
   private static final long BLOOM_FILTER_SIZE_LIMIT = 10_000;
   private static final int TEST_BLOCK_SIZE = 1024;

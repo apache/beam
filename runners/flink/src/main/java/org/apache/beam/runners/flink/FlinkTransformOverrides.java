@@ -30,6 +30,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link PTransform} overrides for Flink runner. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class FlinkTransformOverrides {
   static List<PTransformOverride> getDefaultOverrides(FlinkPipelineOptions options) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();

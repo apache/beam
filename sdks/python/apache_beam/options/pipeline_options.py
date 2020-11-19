@@ -52,6 +52,7 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
+    'S3Options'
 ]
 
 PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
@@ -718,27 +719,6 @@ class HadoopFileSystemOptions(PipelineOptions):
     return errors
 
 
-class BigQueryOptions(PipelineOptions):
-  """BigQueryIO configuration options."""
-  @classmethod
-  def _add_argparse_args(cls, parser):
-    parser.add_argument(
-        '--latency_logging_frequency_sec',
-        type=int,
-        default=180,
-        help=(
-            'The minimum duration in seconds between percentile latencies '
-            'logging. The interval might be longer than the specified value '
-            'due to each bundle processing time.'))
-
-  def validate(self, validator):
-    errors = []
-    errors.extend(
-        validator.validate_optional_argument_positive(
-            self, 'latency_logging_frequency_sec'))
-    return errors
-
-
 # Command line options controlling the worker pool configuration.
 # TODO(silviuc): Update description when autoscaling options are in.
 class WorkerOptions(PipelineOptions):
@@ -1114,7 +1094,20 @@ class PortableOptions(PipelineOptions):
             'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
             '"<process to execute>", "env":{"<Environment variables 1>": '
             '"<ENV_VAL>"} }. All fields in the json are optional except '
-            'command.'))
+            'command.\n\nPrefer using --environment_options instead.'))
+    parser.add_argument(
+        '--environment_option',
+        '--environment_options',
+        dest='environment_options',
+        action='append',
+        default=None,
+        help=(
+            'Environment configuration for running the user code. '
+            'Recognized options depend on --environment_type.\n '
+            'For DOCKER: docker_container_image (optional)\n '
+            'For PROCESS: process_command (required), process_variables '
+            '(optional, comma-separated)\n '
+            'For EXTERNAL: external_service_address (required)'))
     parser.add_argument(
         '--sdk_worker_parallelism',
         default=1,
@@ -1134,6 +1127,26 @@ class PortableOptions(PipelineOptions):
         help=(
             'Create an executable jar at this path rather than running '
             'the pipeline.'))
+
+  def validate(self, validator):
+    return validator.validate_environment_options(self)
+
+  def add_environment_option(self, option):
+    # pylint: disable=access-member-before-definition
+    if self.environment_options is None:
+      self.environment_options = []
+    if option not in self.environment_options:
+      self.environment_options.append(option)
+
+  def lookup_environment_option(self, key, default=None):
+    if not self.environment_options:
+      return default
+    elif key in self.environment_options:
+      return True
+    for option in self.environment_options:
+      if option.startswith(key + '='):
+        return option.split('=', 1)[1]
+    return default
 
 
 class JobServerOptions(PipelineOptions):
@@ -1309,3 +1322,44 @@ class OptionsContext(object):
       for name, value in override.items():
         setattr(options, name, value)
     return options
+
+
+class S3Options(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # These options are passed to the S3 IO Client
+    parser.add_argument(
+        '--s3_access_key_id',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_secret_access_key',
+        default=None,
+        help='The secret key to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_session_token',
+        default=None,
+        help='The session token to use when creating the s3 client.')
+    parser.add_argument(
+        '--s3_endpoint_url',
+        default=None,
+        help='The complete URL to use for the constructed s3 client.')
+    parser.add_argument(
+        '--s3_region_name',
+        default=None,
+        help='The name of the region associated with the s3 client.')
+    parser.add_argument(
+        '--s3_api_version',
+        default=None,
+        help='The API version to use with the s3 client.')
+    parser.add_argument(
+        '--s3_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the s3 client.')
+    parser.add_argument(
+        '--s3_disable_ssl',
+        default=False,
+        action='store_true',
+        help=(
+            'Whether or not to use SSL with the s3 client. '
+            'By default, SSL is used.'))

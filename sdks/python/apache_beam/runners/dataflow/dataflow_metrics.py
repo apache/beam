@@ -97,16 +97,29 @@ class DataflowMetrics(MetricResults):
   def _translate_step_name(self, internal_name):
     """Translate between internal step names (e.g. "s1") and user step names."""
     if not self._job_graph:
-      raise ValueError('Could not translate the internal step name.')
-
-    try:
-      step = _get_match(
-          self._job_graph.proto.steps, lambda x: x.name == internal_name)
-      user_step_name = _get_match(
-          step.properties.additionalProperties,
-          lambda x: x.key == 'user_name').value.string_value
-    except ValueError:
-      raise ValueError('Could not translate the internal step name.')
+      raise ValueError(
+          'Could not translate the internal step name %r since job graph is '
+          'not available.' % internal_name)
+    user_step_name = None
+    if (self._job_graph and internal_name in
+        self._job_graph.proto_pipeline.components.transforms.keys()):
+      # Dataflow Runner v2 with portable job submission uses proto transform map
+      # IDs for step names. Also PTransform.unique_name maps to user step names.
+      # Hence we lookup user step names based on the proto.
+      user_step_name = self._job_graph.proto_pipeline.components.transforms[
+          internal_name].unique_name
+    else:
+      try:
+        step = _get_match(
+            self._job_graph.proto.steps, lambda x: x.name == internal_name)
+        user_step_name = _get_match(
+            step.properties.additionalProperties,
+            lambda x: x.key == 'user_name').value.string_value
+      except ValueError:
+        pass  # Exception is handled below.
+    if not user_step_name:
+      raise ValueError(
+          'Could not translate the internal step name %r.' % internal_name)
     return user_step_name
 
   def _get_metric_key(self, metric):

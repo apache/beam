@@ -42,7 +42,8 @@ class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
 
   Implementations should support random access reads.
   """
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def size(self):
     """Size of file to download."""
 

@@ -40,6 +40,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * For Dataflow Streaming, we want to efficiently support many threads report metric updates, and a
  * single total delta being reported periodically as physical counters.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingStepMetricsContainer implements MetricsContainer {
 
   private final String stepName;
