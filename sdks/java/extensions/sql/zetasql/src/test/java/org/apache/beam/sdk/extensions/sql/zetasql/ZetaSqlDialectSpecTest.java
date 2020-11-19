@@ -4326,7 +4326,9 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Test
   public void testCountIfZetaSQLDialect() {
-    String sql = "SELECT COUNTIF(row_id > "+0+") FROM table_all_types GROUP BY bool_col";
+
+    String sql = "SELECT COUNTIF(x<0) AS num_negative, COUNTIF(x>0) AS num_positive\n" +
+            "FROM UNNEST([5, -2, 3, 6, -10, -7, 4, 0]) AS x";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
