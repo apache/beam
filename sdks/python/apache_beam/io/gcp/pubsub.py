@@ -20,27 +20,6 @@
 Cloud Pub/Sub sources and sinks are currently supported only in streaming
 pipelines, during remote execution.
 
-Multiple Read from Pub/Sub
-==========================
-
-The `MultipleReadFromPubSub` transform allows you to read multiple topics and/or
-subscriptions using just one transform. It is the recommended transform to read
-multiple Pub/Sub sources when the output `PCollection` are going to be
-flattened. The transform takes a list of `PubSubSourceDescriptor` and organize
-them by type (topic / subscription) and project:::
-
-  topic_1 = PubSubSourceDescriptor('projects/myproject/topics/a_topic')
-  topic_2 = PubSubSourceDescriptor(
-              'projects/myproject2/topics/b_topic',
-              'my_label',
-              'my_timestamp_attribute')
-  subscription_1 = PubSubSourceDescriptor(
-              'projects/myproject/subscriptions/a_subscription')
-
-  results = pipeline | MultipleReadFromPubSub(
-              [topic_1, topic_2, subscription_1])
-
-
 This API is currently under development and is subject to change.
 """
 
@@ -507,7 +486,25 @@ PUBSUB_DESCRIPTOR_REGEXP = 'projects/([^/]+)/(topics|subscriptions)/(.+)'
 
 class MultipleReadFromPubSub(PTransform):
   """A ``PTransform`` that expands ``ReadFromPubSub`` to read from multiple
-  ``PubSubSourceDescriptor``."""
+  ``PubSubSourceDescriptor``.
+
+  The `MultipleReadFromPubSub` transform allows you to read multiple topics and/or
+  subscriptions using just one transform. It is the recommended transform to read
+  multiple Pub/Sub sources when the output `PCollection` are going to be
+  flattened. The transform takes a list of `PubSubSourceDescriptor` and organize
+  them by type (topic / subscription) and project:::
+
+    topic_1 = PubSubSourceDescriptor('projects/myproject/topics/a_topic')
+    topic_2 = PubSubSourceDescriptor(
+                'projects/myproject2/topics/b_topic',
+                'my_label',
+                'my_timestamp_attribute')
+    subscription_1 = PubSubSourceDescriptor(
+                'projects/myproject/subscriptions/a_subscription')
+
+    results = pipeline | MultipleReadFromPubSub(
+                [topic_1, topic_2, subscription_1])
+  """
   def __init__(
       self,
       pubsub_source_descriptors,  # type: List[PubSubSourceDescriptor]
