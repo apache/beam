@@ -145,13 +145,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
         def set_index(s, by):
           df = pd.DataFrame(s)
-          df, by = df.align(by, axis=0)
+          df, by = df.align(by, axis=0, join='inner')
           return df.set_index(by).iloc[:, 0]
 
       else:
 
         def set_index(df, by):  # type: ignore
-          df, by = df.align(by, axis=0)
+          df, by = df.align(by, axis=0, join='inner')
           return df.set_index(by)
 
       to_group = expressions.ComputedExpression(
