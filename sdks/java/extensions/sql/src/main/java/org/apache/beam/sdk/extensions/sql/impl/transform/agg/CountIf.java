@@ -12,25 +12,21 @@ public class CountIf {
 
     /** Returns a {@link Combine.CombineFn} that counts the number of its inputs.
      * @return*/
-    public static <T extends Number> CountIfFn<T> combineFn() {
-        return new CountIf.CountIfFn<T>();
+    public static CountIfFn combineFn() {
+        return new CountIf.CountIfFn();
     }
 
-    public static class CountIfFn<T extends Number> extends Combine.CombineFn<T, Integer, Integer> {
-
+    public static class CountIfFn extends Combine.CombineFn<Boolean, Integer, Integer> {
         @Override
         public Integer createAccumulator() {
             return 0;
         }
 
         @Override
-        public Integer addInput(Integer mutableAccumulator, T input) {
-            try {
-                mutableAccumulator += evaluateExpression(input);
-            } catch (ScriptException e) {
-                e.printStackTrace();
-            }
-            return mutableAccumulator;
+        public Integer addInput(Integer mutableAccumulator, Boolean input) {
+            if (input)
+                mutableAccumulator += 1;
+            return  mutableAccumulator;
         }
 
         @Override
@@ -48,7 +44,7 @@ public class CountIf {
         }
 
         // To convert an input string expression to mathematical representation and evaluates it to true or false
-        public Integer evaluateExpression(T expression) throws ScriptException {
+        public Integer evaluateExpression(String expression) throws ScriptException {
             Integer count = 0;
             ScriptEngineManager mgr = new ScriptEngineManager();
             ScriptEngine engine = mgr.getEngineByName("JavaScript");

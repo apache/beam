@@ -312,28 +312,28 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   @Test
-  public void testCountIfFn() throws Exception {
+  public void testCountIfFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     Schema schemaInTableA =
-            Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+            Schema.builder().addInt32Field("f_int").addInt32Field("f_int2").build();
 
-    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+    Schema resultType = Schema.builder().addInt32Field("finalAnswer").build();
 
     List<Row> rowsInTableA =
             TestUtils.RowsBuilder.of(schemaInTableA)
                     .addRows(
-                            0xF001L, 0,
-                            0x00A1L, 0,
-                            44L, 0)
+                            1, 0,
+                            3, 0,
+                            4, 0)
                     .getRows();
 
-    String sql = "SELECT COUNTIF(f_long"+ " > " + 0 +") AS countif_no " + "FROM PCOLLECTION GROUP BY f_int2";
+    String sql = "SELECT COUNTIF(f_int >"+ 0 +") AS countif_no " + "FROM PCOLLECTION GROUP BY f_int2";
 
-    Row rowResult = Row.withSchema(resultType).addValues(3L).build();
+    Row rowResult = Row.withSchema(resultType).addValues(3).build();
 
     PCollection<Row> inputRows =
-            pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+            pipeline.apply("intVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql).registerUdaf("COUNTIF", new CountIf.CountIfFn()));
 
     PAssert.that(result).containsInAnyOrder(rowResult);
