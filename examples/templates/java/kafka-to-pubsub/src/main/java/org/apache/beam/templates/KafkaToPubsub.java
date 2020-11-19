@@ -17,7 +17,10 @@
  */
 package org.apache.beam.templates;
 
-import static org.apache.beam.templates.kafka.consumer.Utils.*;
+import static org.apache.beam.templates.kafka.consumer.Utils.configureKafka;
+import static org.apache.beam.templates.kafka.consumer.Utils.configureSsl;
+import static org.apache.beam.templates.kafka.consumer.Utils.getKafkaCredentialsFromVault;
+import static org.apache.beam.templates.kafka.consumer.Utils.isSslSpecified;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
