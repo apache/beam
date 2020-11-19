@@ -65,7 +65,7 @@ func init() {
 
 // RuntimeMonitor is a DoFn to record processing time in the pipeline.
 //
-// It uses a distribution metric which is updated every time new bundle
+// It uses a distribution metric which is updated every time a new bundle
 // starts or finishes. The processing time can be extracted by calculating
 // the difference of the maximum and the minimum value of the distribution
 // metric.
