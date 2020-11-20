@@ -1498,13 +1498,13 @@ public class FhirIO {
 
     @Override
     public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, Object>>> input) {
-      return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
+      return input.apply("Fetch Fhir messages", new FetchResourceJsonString(this.fhirStore));
     }
 
     /**
-     * DoFn to search for resources from an Google Cloud Healthcare FHIR store based on resource type and parameters
+     * DoFn to fetch a resource from an Google Cloud Healthcare FHIR store based on resourceID
      *
-     * <p>This DoFn consumes a {@link PCollection} of notifications from the FHIR
+     * <p>This DoFn consumes a {@link PCollection} of notifications {@link String}s from the FHIR
      * store, and fetches the actual {@link String} object based on the id in the notification and
      * will output a {@link PCollectionTuple} which contains the output and dead-letter {@link
      * PCollection}*.
