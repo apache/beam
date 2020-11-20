@@ -33,7 +33,7 @@ func TestReadSdf(t *testing.T) {
 	lines := ReadSdf(s, f)
 	passert.Count(s, lines, "NumLines", 1)
 
-	if err := beam.Run(context.Background(), "direct", p); err != nil {
+	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
 		t.Fatalf("Failed to execute job: %v", err)
 	}
 }

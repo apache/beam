@@ -99,7 +99,8 @@ To build Beam SDK container images:
 
 ```
 # The default repository of each SDK
-./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:java8:docker
+./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:java11:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:go:container:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py2:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py35:docker
@@ -111,18 +112,19 @@ To build Beam SDK container images:
 ```
 
 From 2.21.0, `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set.
-For example, `./gradlew :sdks:java:container:docker -Pdocker-pull-licenses`. The files are added to `/opt/apache/beam/third_party_licenses/`.
+For example, `./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses`. The files are added to `/opt/apache/beam/third_party_licenses/`.
 By default, no licenses/notices are added to the docker images.
 
 To examine the containers that you built, run `docker images` from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:
 ```
 REPOSITORY                         TAG                 IMAGE ID            CREATED           SIZE
-apache/beam_java8_sdk              latest              16ca619d489e        2 weeks ago        550MB
-apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
-apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
-apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
-apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB
-apache/beam_go_sdk                 latest              30cf602e9763        2 weeks ago        124MB
+apache/beam_java8_sdk              latest              ...                 2 weeks ago       ...
+apache/beam_java11_sdk             latest              ...                 2 weeks ago       ...
+apache/beam_python2.7_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_python3.5_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_python3.6_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_python3.7_sdk          latest              ...                 2 weeks ago       ...
+apache/beam_go_sdk                 latest              ...                 2 weeks ago       ...
 ```
 
 ### Overriding default Docker targets

@@ -36,6 +36,9 @@ import hamcrest as hc
 import mock
 
 from apache_beam.coders import VarIntCoder
+from apache_beam.internal.metrics.metric import Metrics as InternalMetrics
+from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -206,6 +209,63 @@ class SdkWorkerTest(unittest.TestCase):
         beam_fn_api_pb2.InstructionResponse(
             instruction_id='split_instruction_id',
             process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitResponse()))
+
+  def get_responses(self, instruction_requests):
+    """Evaluates and returns {id: InstructionResponse} for the requests."""
+    test_controller = BeamFnControlServicer(instruction_requests)
+
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+    beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
+        test_controller, server)
+    test_port = server.add_insecure_port("[::]:0")
+    server.start()
+
+    harness = sdk_worker.SdkHarness(
+        "localhost:%s" % test_port, state_cache_size=100)
+    harness.run()
+    return test_controller.responses
+
+  def test_harness_monitoring_infos_and_metadata(self):
+    # Clear the process wide metric container.
+    MetricsEnvironment.process_wide_container().reset()
+    # Create a process_wide metric.
+    urn = 'my.custom.urn'
+    labels = {'key': 'value'}
+    InternalMetrics.counter(urn=urn, labels=labels, process_wide=True).inc(10)
+
+    harness_monitoring_infos_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id="monitoring_infos",
+        harness_monitoring_infos=beam_fn_api_pb2.HarnessMonitoringInfosRequest(
+        ))
+
+    responses = self.get_responses([harness_monitoring_infos_request])
+
+    expected_monitoring_info = monitoring_infos.int64_counter(
+        urn, 10, labels=labels)
+    monitoring_data = (
+        responses['monitoring_infos'].harness_monitoring_infos.monitoring_data)
+
+    # Request the full MonitoringInfo metadata for the returned short_ids.
+    short_ids = list(monitoring_data.keys())
+    monitoring_infos_metadata_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id="monitoring_infos_metadata",
+        monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataRequest(
+            monitoring_info_id=short_ids))
+
+    responses = self.get_responses([monitoring_infos_metadata_request])
+
+    # Request the full MonitoringInfo metadata to be returned now.
+    expected_monitoring_info.ClearField("payload")
+
+    # Verify that one of the returned monitoring infos is our expected
+    # monitoring info.
+    short_id_to_mi = (
+        responses['monitoring_infos_metadata'].monitoring_infos.monitoring_info)
+    found = False
+    for mi in short_id_to_mi.values():
+      if mi == expected_monitoring_info:
+        found = True
+    self.assertTrue(found, str(responses['monitoring_infos_metadata']))
 
   def test_failed_bundle_processor_returns_failed_split_response(self):
     bundle_processor = mock.MagicMock()
