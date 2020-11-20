@@ -26,11 +26,11 @@ import json
 import logging
 import random
 import uuid
+from typing import TYPE_CHECKING
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Union
-from typing import TYPE_CHECKING
 
 import apache_beam as beam
 from apache_beam.coders import coders
