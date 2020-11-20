@@ -156,7 +156,7 @@ class NestedValueProvider(ValueProvider):
       value: ValueProvider object to wrap
       translator: function that is applied to the ValueProvider
     Raises:
-      RuntimeValueProviderError: if any of the provided objects are not
+      ``RuntimeValueProviderError``: if any of the provided objects are not
         accessible.
     """
     self.value = value
@@ -186,7 +186,7 @@ def check_accessible(value_provider_list):
   Args:
     value_provider_list: list of ValueProvider objects
   Raises:
-    RuntimeValueProviderError: if any of the provided objects are not
+    ``RuntimeValueProviderError``: if any of the provided objects are not
       accessible.
   """
   assert isinstance(value_provider_list, list)

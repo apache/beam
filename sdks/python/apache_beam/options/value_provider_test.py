@@ -23,13 +23,14 @@ from __future__ import absolute_import
 
 import logging
 import unittest
+
 from mock import Mock
 
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import NestedValueProvider
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
-from apache_beam.options.value_provider import NestedValueProvider
 
 
 # TODO(BEAM-1319): Require unique names only within a test.
