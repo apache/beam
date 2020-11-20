@@ -102,9 +102,7 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     private final CompletableFuture<BeamFnDataInboundObserver> future;
 
     private DeferredInboundDataClient(
-            String clientId,
-            LogicalEndpoint inputLocation,
-            FnDataReceiver<ByteString> consumer) {
+        String clientId, LogicalEndpoint inputLocation, FnDataReceiver<ByteString> consumer) {
       this.future =
           getClientFuture(clientId)
               .thenCompose(
