@@ -429,6 +429,20 @@ public interface NexmarkOptions
 
   void setKafkaTopic(String value);
 
+  @Description(
+      "Number of partitions for Kafka topic in streaming mode. If unspecified, the broker will be queried for all partitions.")
+  int getNumKafkaTopicPartitions();
+
+  void setNumKafkaTopicPartitions(int value);
+
+  @Description(
+      "If non-negative, events from the Kafka topic will get their timestamps from the Kafka createtime, with the maximum delay for"
+          + "disorder as specified.")
+  @Default.Integer(60)
+  int getKafkaTopicCreateTimeMaxDelaySec();
+
+  void setKafkaTopicCreateTimeMaxDelaySec(int value);
+
   @Description("Base name of Kafka results topic in streaming mode.")
   @Default.String("nexmark-results")
   @Nullable
