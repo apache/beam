@@ -22,7 +22,7 @@
 This directory contains an [Apache Beam](https://beam.apache.org/) Template that creates a pipeline
 to read data from a single or multiple topics from
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic
-in [Google Pub/Sub](https://cloud.google.com/pubsub).
+in [Google Cloud Pub/Sub](https://cloud.google.com/pubsub).
 
 Supported data formats:
 - Serializable plaintext formats, such as JSON
@@ -34,7 +34,7 @@ Supported input source configurations:
 - Secrets vault service [HashiCorp Vault](https://www.vaultproject.io/).
 
 Supported destination configuration:
-- Single Google Pub/Sub topic.
+- Single Google Cloud Pub/Sub topic.
 
 In a simple scenario, the template will create an Apache Beam pipeline that will read messages from a source Kafka server with a source topic, and stream the text messages into specified Pub/Sub destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed over plain text or SSL encrypted connection. The template supports using a single Kafka user account to authenticate in the provided source Kafka servers and topics. To support SASL authenticaton over SSL the template will need an SSL certificate location and access to a secrets vault service with Kafka username and password, currently supporting HashiCorp Vault.
 
@@ -182,6 +182,8 @@ gcloud dataflow flex-template build ${TEMPLATE_PATH} \
 To deploy the pipeline, you should refer to the template file and pass the
 [parameters](https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#setting-other-cloud-dataflow-pipeline-options)
 required by the pipeline.
+
+To understand how works flex templates, please take a look at this [Documentation](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates)
 
 You can do this in 3 different ways:
 1. Using [Dataflow Google Cloud Console](https://console.cloud.google.com/dataflow/jobs)

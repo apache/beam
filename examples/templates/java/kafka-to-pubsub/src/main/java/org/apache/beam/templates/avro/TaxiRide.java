@@ -43,8 +43,6 @@ public class TaxiRide {
   String rideStatus;
   Integer passengerCount;
 
-  public TaxiRide() {}
-
   public TaxiRide(
       String rideId,
       Float latitude,
