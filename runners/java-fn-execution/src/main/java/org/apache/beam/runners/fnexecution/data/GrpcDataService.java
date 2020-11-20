@@ -36,6 +36,7 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
@@ -139,13 +140,13 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public <T> InboundDataClient receive(
-      final LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> listener) {
+      final LogicalEndpoint inputLocation, FnDataReceiver<ByteString> listener) {
     LOG.debug(
         "Registering receiver for instruction {} and transform {}",
         inputLocation.getInstructionId(),
         inputLocation.getTransformId());
-    final BeamFnDataInboundObserver<T> observer =
-        BeamFnDataInboundObserver.forConsumer(inputLocation, coder, listener);
+    final BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumer(inputLocation, listener);
     if (connectedClient.isDone()) {
       try {
         connectedClient.get().registerConsumer(inputLocation, observer);
