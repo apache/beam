@@ -129,7 +129,7 @@ def batchScenarios = {
         parallelism         : 16,
         input_options        : """
                                    {
-                                     "numRecords": 5000000,
+                                     "num_records": 5000000,
                                      "key_size": 10,
                                      "value_size": 90
                                    }
@@ -151,7 +151,7 @@ def batchScenarios = {
         parallelism         : 5,
         input_options        : """
                                    {
-                                     "numRecords": 5000000,
+                                     "num_records": 5000000,
                                      "key_size": 10,
                                      "value_size": 90,
                                      "num_hot_keys": 200,
