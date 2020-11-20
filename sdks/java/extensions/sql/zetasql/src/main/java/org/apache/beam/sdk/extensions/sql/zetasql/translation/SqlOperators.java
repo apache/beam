@@ -186,7 +186,7 @@ public class SqlOperators {
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
   }
 
-  public static SqlUserDefinedAggFunction createUdafOperator(
+  static SqlUserDefinedAggFunction createUdafOperator(
       String name, SqlReturnTypeInference returnTypeInference, AggregateFunction function) {
     return new SqlUserDefinedAggFunction(
         new SqlIdentifier(name, SqlParserPos.ZERO),
@@ -216,8 +216,7 @@ public class SqlOperators {
         ZetaSqlScalarFunctionImpl.create(methodClass, methodName, funGroup));
   }
 
-  public static SqlUserDefinedFunction createUdfOperator(
-      String name, Method method, String funGroup) {
+  static SqlUserDefinedFunction createUdfOperator(String name, Method method, String funGroup) {
     return createUdfOperator(name, method, SqlSyntax.FUNCTION, funGroup);
   }
 
