@@ -329,12 +329,10 @@ class WindmillTimerInternals implements TimerInternals {
             ? tag.substring(timerFamilyStart, timerFamilyEnd).toStringUtf8()
             : "";
 
-    // Parse the output timestamp.
+    // Parse the output timestamp. Not using '+' as a terminator because the output timestamp is the
+    // last segment in the tag and the timestamp encoding itself may contain '+'.
     int outputTimestampStart = timerFamilyEnd + 1;
-    int outputTimestampEnd = outputTimestampStart;
-    while (outputTimestampEnd < tag.size() && tag.byteAt(outputTimestampEnd) != '+') {
-      outputTimestampEnd++;
-    }
+    int outputTimestampEnd = tag.size();
 
     // For backwards compatibility, handle the case were the output timestamp isn't present.
     Instant outputTimestamp = timestamp;
@@ -386,7 +384,10 @@ class WindmillTimerInternals implements TimerInternals {
                 .append(timerData.getTimerFamilyId())
                 .toString();
         out.write(tagString.getBytes(StandardCharsets.UTF_8));
-        // Only encode the extra 9 bytes if the output timestamp is different than the timestamp;
+        // Only encode the extra 9 bytes if the output timestamp is different than the timestamp.
+        // NOTE: If we are going to add more information after the output timestamp in the tag, we
+        // should avoid using '+' as a separator since the timestamp may contain '+' in the
+        // encoding.
         if (!timerData.getOutputTimestamp().equals(timerData.getTimestamp())) {
           out.write('+');
           VarInt.encode(timerData.getOutputTimestamp().getMillis(), out);
