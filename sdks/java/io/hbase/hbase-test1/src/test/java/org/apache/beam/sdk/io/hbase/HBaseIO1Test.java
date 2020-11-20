@@ -82,7 +82,7 @@ import org.junit.runners.JUnit4;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class HBaseIOTest {
+public class HBaseIO1Test {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TemporaryHBaseTable tmpTable = new TemporaryHBaseTable();
@@ -97,6 +97,7 @@ public class HBaseIOTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
+
     conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
     // Try to bind the hostname to localhost to solve an issue when it is not configured or
     // no DNS resolution available.

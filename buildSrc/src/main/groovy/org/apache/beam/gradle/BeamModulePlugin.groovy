@@ -447,7 +447,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.0-rc2"
+    def testcontainers_version = "1.15.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -612,6 +612,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
+        testcontainers_common                       : "org.testcontainers:testcontainers:$testcontainers_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",

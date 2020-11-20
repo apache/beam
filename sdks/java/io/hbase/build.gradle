@@ -18,21 +18,10 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hbase')
-provideIntegrationTestingDependencies()
-enableJavaPerformanceTesting()
 
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HBase"
 ext.summary = "Library to read and write from/to HBase"
-
-test {
-  systemProperty "log4j.configuration", "log4j-test.properties"
-  jvmArgs "-XX:-UseGCOverheadLimit"
-  if (System.getProperty("beamSurefireArgline")) {
-    jvmArgs System.getProperty("beamSurefireArgline")
-  }
-  jvmArgs "-Dtest.build.data.basedirectory=build/test-data"
-}
 
 def hbase_version = "1.2.6"
 
@@ -42,27 +31,5 @@ dependencies {
   compile project(":sdks:java:io:hadoop-common")
   compile library.java.slf4j_api
   provided "org.apache.hbase:hbase-shaded-client:$hbase_version"
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.hadoop_minicluster
-  testCompile library.java.hadoop_hdfs
-  testCompile library.java.hadoop_common
-  testCompile "org.apache.hbase:hbase-shaded-server:$hbase_version"
-  testCompile("org.apache.hbase:hbase-server:$hbase_version:tests") {
-    // We prevent bringing in unshaded dependencies to not conflict
-    // with hbase-shaded-server and hbase-shaded-client
-    transitive = false
-  }
-  testCompile("org.apache.hbase:hbase-common:$hbase_version:tests") {
-    // We prevent bringing in unshaded dependencies to not conflict
-    // with hbase-shaded-server and hbase-shaded-client
-    transitive = false
-  }
-  testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
-  testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
-  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 

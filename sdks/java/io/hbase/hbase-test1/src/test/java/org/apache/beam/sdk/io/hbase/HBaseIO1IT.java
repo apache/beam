@@ -53,7 +53,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * A test of {@link org.apache.beam.sdk.io.hbase.HBaseIOIT} on an independent HBase instance.
+ * A test of {@link HBaseIO1IT} on an independent HBase instance.
  *
  * <p>This test requires a running instance of HBase. Pass in connection information using
  * PipelineOptions:
@@ -70,7 +70,7 @@ import org.junit.runners.JUnit4;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class HBaseIOIT {
+public class HBaseIO1IT {
 
   /** HBaseIOIT options. */
   public interface HBasePipelineOptions extends IOTestPipelineOptions {

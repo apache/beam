@@ -17,35 +17,23 @@
  */
 package org.apache.beam.sdk.io.hbase;
 
-import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Increment;
-import org.apache.hadoop.hbase.client.Mutation;
-import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for HBaseMutationCoder. */
+/** Tests for HBaseResultCoder. */
 @RunWith(JUnit4.class)
-public class HBaseMutationCoderTest {
+public class HBaseResultCoder1Test {
   @Rule public final ExpectedException thrown = ExpectedException.none();
-  private static final HBaseMutationCoder CODER = HBaseMutationCoder.of();
+  private static final HBaseResultCoder CODER = HBaseResultCoder.of();
 
   @Test
-  public void testMutationEncoding() throws Exception {
-    Mutation put = new Put("1".getBytes(StandardCharsets.UTF_8));
-    CoderProperties.structuralValueDecodeEncodeEqual(CODER, put);
-
-    Mutation delete = new Delete("1".getBytes(StandardCharsets.UTF_8));
-    CoderProperties.structuralValueDecodeEncodeEqual(CODER, delete);
-
-    Mutation increment = new Increment("1".getBytes(StandardCharsets.UTF_8));
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Only Put and Delete are supported");
-    CoderProperties.coderDecodeEncodeEqual(CODER, increment);
+  public void testResultEncoding() throws Exception {
+    Result value = Result.EMPTY_RESULT;
+    CoderProperties.structuralValueDecodeEncodeEqual(CODER, value);
   }
 }

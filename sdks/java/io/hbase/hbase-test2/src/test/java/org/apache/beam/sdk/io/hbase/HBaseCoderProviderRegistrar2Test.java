@@ -28,7 +28,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link HBaseCoderProviderRegistrar}. */
 @RunWith(JUnit4.class)
-public class HBaseCoderProviderRegistrarTest {
+public class HBaseCoderProviderRegistrar2Test {
   @Test
   public void testResultCoderIsRegistered() throws Exception {
     CoderRegistry.createDefault().getCoder(Result.class);
