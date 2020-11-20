@@ -25,25 +25,9 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1beta1.CloudHealthcare;
 import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
+import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.Search;
 import com.google.api.services.healthcare.v1beta1.CloudHealthcareScopes;
-import com.google.api.services.healthcare.v1beta1.model.CreateMessageRequest;
-import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
-import com.google.api.services.healthcare.v1beta1.model.DeidentifyFhirStoreRequest;
-import com.google.api.services.healthcare.v1beta1.model.Empty;
-import com.google.api.services.healthcare.v1beta1.model.ExportResourcesRequest;
-import com.google.api.services.healthcare.v1beta1.model.FhirStore;
-import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsDestination;
-import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsSource;
-import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
-import com.google.api.services.healthcare.v1beta1.model.ImportResourcesRequest;
-import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
-import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
-import com.google.api.services.healthcare.v1beta1.model.ListFhirStoresResponse;
-import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
-import com.google.api.services.healthcare.v1beta1.model.Message;
-import com.google.api.services.healthcare.v1beta1.model.NotificationConfig;
-import com.google.api.services.healthcare.v1beta1.model.Operation;
+import com.google.api.services.healthcare.v1beta1.model.*;
 import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
@@ -543,6 +527,26 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public HttpBody readFhirResource(String resourceId) throws IOException {
     return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
+  }
+
+  @Override
+  public HttpBody searchFhirResource(
+          String fhirStore,
+          String resourceType,
+          @Nullable Map<String, Object> parameters)
+          throws IOException {
+    SearchResourcesRequest request = new SearchResourcesRequest().setResourceType(resourceType);
+    Search search = client
+            .projects()
+            .locations()
+            .datasets()
+            .fhirStores()
+            .fhir()
+            .search(fhirStore, request);
+    if (parameters != null && !parameters.isEmpty()) {
+      parameters.forEach(search::set);
+    }
+    return search.execute();
   }
 
   public static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
