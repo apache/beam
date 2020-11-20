@@ -29,127 +29,127 @@ String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
 def batchScenarios = {
   [
-      [
-        title          : 'Load test: 2GB of 10B records',
-        test           : 'group_by_key',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
-          influx_measurement   : 'go_batch_gbk_1',
-          input_options        : """
+    [
+      title          : 'Load test: 2GB of 10B records',
+      test           : 'group_by_key',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_measurement   : 'go_batch_gbk_1',
+        input_options        : """
                                    {
                                      "num_records": 200000000,
                                      "key_size": 1,
                                      "value_size": 9
                                    }
                                """.trim().replaceAll("\\s", ""),
-          iterations          : 1,
-          fanout              : 1,
-          parallelism         : 5,
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: 2GB of 100B records',
-        test           : 'group_by_key',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
-          influx_measurement   : 'go_batch_gbk_1',
-          input_options        : """
+        iterations          : 1,
+        fanout              : 1,
+        parallelism         : 5,
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: 2GB of 100B records',
+      test           : 'group_by_key',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_measurement   : 'go_batch_gbk_1',
+        input_options        : """
                                    {
                                      "num_records": 20000000,
                                      "key_size": 10,
                                      "value_size": 90
                                    }
                                """.trim().replaceAll("\\s", ""),
-          iterations          : 1,
-          fanout              : 1,
-          parallelism         : 5,
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: 2GB of 100kB records',
-        test           : 'group_by_key',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
-          influx_measurement   : 'go_batch_gbk_1',
-          iterations          : 1,
-          fanout              : 1,
-          parallelism         : 5,
-          input_options        : """
+        iterations          : 1,
+        fanout              : 1,
+        parallelism         : 5,
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: 2GB of 100kB records',
+      test           : 'group_by_key',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_measurement   : 'go_batch_gbk_1',
+        iterations          : 1,
+        fanout              : 1,
+        parallelism         : 5,
+        input_options        : """
                                    {
                                      "num_records": 20000,
                                      "key_size": 10000,
                                      "value_size": 90000
                                    }
                                """.trim().replaceAll("\\s", ""),
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
-        test           : 'group_by_key',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
-          influx_measurement   : 'go_batch_gbk_1',
-          iterations          : 1,
-          fanout              : 4,
-          parallelism         : 16,
-          input_options        : """
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+      test           : 'group_by_key',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_measurement   : 'go_batch_gbk_1',
+        iterations          : 1,
+        fanout              : 4,
+        parallelism         : 16,
+        input_options        : """
                                    {
                                      "num_records": 5000000,
                                      "key_size": 10,
                                      "value_size": 90
                                    }
                                """.trim().replaceAll("\\s", ""),
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
-        test           : 'group_by_key',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
-          influx_measurement   : 'go_batch_gbk_1',
-          iterations          : 1,
-          fanout              : 8,
-          parallelism         : 16,
-          input_options        : """
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+      test           : 'group_by_key',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_measurement   : 'go_batch_gbk_1',
+        iterations          : 1,
+        fanout              : 8,
+        parallelism         : 16,
+        input_options        : """
                                    {
                                      "numRecords": 5000000,
                                      "key_size": 10,
                                      "value_size": 90
                                    }
                                """.trim().replaceAll("\\s", ""),
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: reiterate 4 times 10kB values',
-        test           : 'group_by_key',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
-          influx_measurement   : 'go_batch_gbk_1',
-          iterations          : 4,
-          fanout              : 1,
-          parallelism         : 5,
-          input_options        : """
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: reiterate 4 times 10kB values',
+      test           : 'group_by_key',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_measurement   : 'go_batch_gbk_1',
+        iterations          : 4,
+        fanout              : 1,
+        parallelism         : 5,
+        input_options        : """
                                    {
                                      "numRecords": 5000000,
                                      "key_size": 10,
@@ -158,22 +158,22 @@ def batchScenarios = {
                                      "hot_key_fraction": 1
                                    }
                                """.trim().replaceAll("\\s", ""),
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: reiterate 4 times 2MB values',
-        test           : 'group_by_key',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
-          influx_measurement   : 'go_batch_gbk_1',
-          iterations          : 4,
-          fanout              : 1,
-          parallelism         : 5,
-          input_options        : """
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: reiterate 4 times 2MB values',
+      test           : 'group_by_key',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_measurement   : 'go_batch_gbk_1',
+        iterations          : 4,
+        fanout              : 1,
+        parallelism         : 5,
+        input_options        : """
                                    {
                                      "num_records": 20000000,
                                      "key_size": 10,
@@ -182,12 +182,12 @@ def batchScenarios = {
                                      "hot_key_fraction": 1
                                    }
                                """.trim().replaceAll("\\s", ""),
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
