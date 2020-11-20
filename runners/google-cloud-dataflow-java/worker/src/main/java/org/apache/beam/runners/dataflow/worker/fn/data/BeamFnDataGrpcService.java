@@ -35,6 +35,7 @@ import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -196,7 +197,7 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
           LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> consumer) {
         LOG.debug("Registering consumer for {}", inputLocation);
 
-        return new DeferredInboundDataClient(clientId, inputLocation, coder, consumer);
+        return new DeferredInboundDataClient(clientId, inputLocation, new DecodingFnDataReceiver<T>(coder, consumer));
       }
 
       @Override
