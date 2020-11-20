@@ -59,12 +59,12 @@ public class FhirIOTest {
   @Test
   public void test_FhirIO_failedSearches() {
     List<KV<String, Map<String, Object>>> input = Arrays.asList(KV.of("resource-type-1", null));
-    FhirIO.Search.Result readResult =
+    FhirIO.Search.Result searchResult =
             pipeline.apply(Create.of(input)).apply(FhirIO.searchResources("bad-store"));
 
-    PCollection<HealthcareIOError<String>> failed = readResult.getFailedSearches();
+    PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
-    PCollection<String> resources = readResult.getResources();
+    PCollection<String> resources = searchResult.getResources();
 
     PCollection<String> failedMsgIds =
             failed.apply(
