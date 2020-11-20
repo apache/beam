@@ -55,17 +55,17 @@ var (
 		"iterations",
 		1,
 		"A number of subsequent ParDo transforms to be performed")
-	syntheticSourceConfig = flag.String(
+	syntheticConfig = flag.String(
 		"input_options",
 		"",
 		"A JSON object that describes the configuration for synthetic source")
 )
 
-func parseSyntheticSourceConfig() synthetic.SourceConfig {
-	if *syntheticSourceConfig == "" {
+func parseSyntheticConfig() synthetic.SourceConfig {
+	if *syntheticConfig == "" {
 		panic("--input_options not provided")
 	} else {
-		encoded := []byte(*syntheticSourceConfig)
+		encoded := []byte(*syntheticConfig)
 		return synthetic.DefaultSourceConfig().BuildFromJSON(encoded)
 	}
 }
@@ -77,7 +77,7 @@ func main() {
 	ctx := context.Background()
 
 	p, s := beam.NewPipelineWithRoot()
-	src := synthetic.SourceSingle(s, parseSyntheticSourceConfig())
+	src := synthetic.SourceSingle(s, parseSyntheticConfig())
 	pcoll := beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	for i := 0; i < *fanout; i++ {
 		pcoll = beam.GroupByKey(s, src)
