@@ -34,7 +34,7 @@ job('beam_Publish_Docker_Snapshots') {
       )
 
   // Runs once per day.
-  commonJobProperties.setAutoJob(delegate, 'H 10 * * *')
+  commonJobProperties.setAutoJob(delegate, 'H H/4 * * *')
 
   steps {
     gradle {

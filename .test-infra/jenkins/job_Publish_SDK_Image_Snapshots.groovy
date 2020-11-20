@@ -29,8 +29,8 @@ job('beam_Publish_Beam_SDK_Snapshots') {
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Runs once per hour during MTV time (9-17 UTC-8 --> 17-23,0-2 UTC)
-  commonJobProperties.setAutoJob(delegate, '0 17-23,0-2 * * *')
+  // Runs once per hour during MTV time (9-16 UTC-8 --> 17-23,0-1UTC)
+  commonJobProperties.setAutoJob(delegate, 'H 0-2,17-23 * * *')
 
   // Use jenkins env var interpolation - leave in single quotes
   def imageRepo = 'gcr.io/apache-beam-testing/beam-sdk'
