@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import com.google.gson.JsonArray;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -1425,10 +1426,9 @@ public class FhirIO {
 
     /** The type Result. */
     public static class Result implements POutput, PInput {
-      private PCollection<String> resources;
+      private PCollection<JsonArray> resources;
 
       private PCollection<HealthcareIOError<String>> failedSearches;
-      /** The Pct. */
       PCollectionTuple pct;
 
       /**
@@ -1471,7 +1471,7 @@ public class FhirIO {
        *
        * @return the resources
        */
-      public PCollection<String> getResources() {
+      public PCollection<JsonArray> getResources() {
         return resources;
       }
 
@@ -1491,7 +1491,7 @@ public class FhirIO {
     }
 
     /** The tag for the main output of Fhir Messages. */
-    public static final TupleTag<String> OUT = new TupleTag<String>() {};
+    public static final TupleTag<JsonArray> OUT = new TupleTag<JsonArray>() {};
     /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
             new TupleTag<HealthcareIOError<String>>() {};
@@ -1538,7 +1538,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      static class SearchResourcesFn extends DoFn<KV<String, Map<String, Object>>, String> {
+      static class SearchResourcesFn extends DoFn<KV<String, Map<String, Object>>, JsonArray> {
 
         private Counter failedSearches =
                 Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
@@ -1587,15 +1587,20 @@ public class FhirIO {
           }
         }
 
-        private String searchResources(HealthcareApiClient client, String fhirStore, String resourceType,
+        private JsonArray searchResources(HealthcareApiClient client, String fhirStore, String resourceType,
                                        @Nullable Map<String, Object> parameters)
-                throws IOException, IllegalArgumentException {
+                throws IllegalArgumentException {
           long startTime = System.currentTimeMillis();
 
-          HttpBody resource = client.searchFhirResource(fhirStore, resourceType, parameters);
-
+          HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator iter =
+                  new HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator(
+                          client, fhirStore, resourceType, parameters);
+          JsonArray result = new JsonArray();
+          while (iter.hasNext()) {
+            result.addAll(iter.next());
+          }
           this.successfulSearches.inc();
-          return mapper.writeValueAsString(resource);
+          return result;
         }
       }
     }

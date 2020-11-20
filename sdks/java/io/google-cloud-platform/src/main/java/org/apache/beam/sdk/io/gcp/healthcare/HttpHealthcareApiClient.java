@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -32,8 +33,10 @@ import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -41,6 +44,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
+
+import com.google.common.base.Splitter;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -533,7 +542,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   public HttpBody searchFhirResource(
           String fhirStore,
           String resourceType,
-          @Nullable Map<String, Object> parameters)
+          @Nullable Map<String, Object> parameters,
+          String pageToken)
           throws IOException {
     SearchResourcesRequest request = new SearchResourcesRequest().setResourceType(resourceType);
     Search search = client
@@ -545,6 +555,9 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             .search(fhirStore, request);
     if (parameters != null && !parameters.isEmpty()) {
       parameters.forEach(search::set);
+    }
+    if (!pageToken.isEmpty()) {
+      search.set("_page_token", pageToken);
     }
     return search.execute();
   }
@@ -755,6 +768,147 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
               String.format(
                   "Error listing HL7v2 Messages from %s: %s", hl7v2Store, e.getMessage()));
         }
+      }
+    }
+  }
+
+  public static class FhirResourcePages implements Iterable<JsonArray> {
+
+    private final String fhirStore;
+    private final String resourceType;
+    private final Map<String, Object> parameters;
+    private transient HealthcareApiClient client;
+
+    /**
+     * Instantiates a new Fhir resource pages.
+     *
+     * @param client the client
+     * @param fhirStore the Fhir store
+     * @param resourceType the Fhir resource type to search for
+     * @param parameters the search parameters
+     */
+    FhirResourcePages(
+            HealthcareApiClient client,
+            String fhirStore,
+            String resourceType,
+            @Nullable Map<String, Object> parameters) {
+      this.client = client;
+      this.fhirStore = fhirStore;
+      this.resourceType = resourceType;
+      this.parameters = parameters;
+    }
+
+    /**
+     * Make search request.
+     *
+     * @param client the client
+     * @param fhirStore the Fhir store
+     * @param resourceType the Fhir resource type to search for
+     * @param parameters the search parameters
+     * @param pageToken the page token
+     * @return the search response
+     * @throws IOException the io exception
+     */
+    public static HttpBody makeSearchRequest(
+            HealthcareApiClient client,
+            String fhirStore,
+            String resourceType,
+            @Nullable Map<String, Object> parameters,
+            String pageToken)
+            throws IOException {
+      return client.searchFhirResource(fhirStore, resourceType, parameters, pageToken);
+    }
+
+    @Override
+    public Iterator<JsonArray> iterator() {
+      return new FhirResourcePagesIterator(
+              this.client, this.fhirStore, this.resourceType, this.parameters);
+    }
+
+    /** The type Fhir resource pages iterator. */
+    public static class FhirResourcePagesIterator implements Iterator<JsonArray> {
+
+      private final String fhirStore;
+      private final String resourceType;
+      private final Map<String, Object> parameters;
+      private HealthcareApiClient client;
+      private String pageToken;
+      private boolean isFirstRequest;
+      private ObjectMapper mapper;
+
+      /**
+       * Instantiates a new Fhir resource pages iterator.
+       *
+       * @param client the client
+       * @param fhirStore the Fhir store
+       * @param resourceType the Fhir resource type to search for
+       * @param parameters the search parameters
+       */
+      FhirResourcePagesIterator(
+              HealthcareApiClient client,
+              String fhirStore,
+              String resourceType,
+              @Nullable Map<String, Object> parameters) {
+        this.client = client;
+        this.fhirStore = fhirStore;
+        this.resourceType = resourceType;
+        this.parameters = parameters;
+        this.pageToken = null;
+        this.isFirstRequest = true;
+        this.mapper = new ObjectMapper();
+      }
+
+      @Override
+      public boolean hasNext() throws NoSuchElementException {
+        if (!isFirstRequest) {
+          return this.pageToken != null;
+        }
+        try {
+          HttpBody response = makeSearchRequest(client, fhirStore, resourceType, parameters, pageToken);
+          JsonObject jsonResponse = JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
+          JsonArray resources = jsonResponse.getAsJsonArray("entry");
+          return resources.size() != 0;
+        } catch (IOException e) {
+          throw new NoSuchElementException(
+                  String.format(
+                          "Failed to list first page of Fhir resources from %s: %s",
+                          fhirStore, e.getMessage()));
+        }
+      }
+
+      @Override
+      public JsonArray next() throws NoSuchElementException {
+        try {
+          HttpBody response = makeSearchRequest(client, fhirStore, resourceType, parameters, pageToken);
+          this.isFirstRequest = false;
+          JsonObject jsonResponse = JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
+          JsonArray links = jsonResponse.getAsJsonArray("link");
+          this.pageToken = parsePageToken(links);
+          JsonArray resources = jsonResponse.getAsJsonArray("entry");
+          return resources;
+        } catch (IOException e) {
+          this.pageToken = null;
+          throw new NoSuchElementException(
+                  String.format(
+                          "Error listing Fhir resources from %s: %s", fhirStore, e.getMessage()));
+        }
+      }
+
+      private static String parsePageToken(JsonArray links) throws MalformedURLException {
+        for (JsonElement e : links) {
+          JsonObject link = e.getAsJsonObject();
+          if (link.get("relation").getAsString().equalsIgnoreCase("next")) {
+            URL url = new URL(link.get("url").getAsString());
+            List<String> parameters = Splitter.on("&").splitToList(url.getQuery());
+            for (String parameter : parameters) {
+              List<String> parts = Splitter.on("=").limit(2).splitToList(parameter);
+              if (parts.get(0).equalsIgnoreCase("_page_token")) {
+                return parts.get(1);
+              }
+            }
+          }
+        }
+        return "";
       }
     }
   }
