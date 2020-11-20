@@ -17,6 +17,8 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import JavaTestProperties as javaProperties
+import PythonTestProperties as pythonProperties
 
 // This job publishes regular snapshots of the SDK harness containers for
 // testing purposes. It builds and pushes the SDK container to the
@@ -27,8 +29,8 @@ job('beam_Publish_Beam_SDK_Snapshots') {
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // // Runs once per hour.
-  commonJobProperties.setAutoJob(delegate, '0 * * * *')
+  // Runs once per hour during MTV time (9-17 UTC-8 --> 17-23,0-2 UTC)
+  commonJobProperties.setAutoJob(delegate, '0 17-23,0-2 * * *')
 
   // Use jenkins env var interpolation - leave in single quotes
   def imageRepo = 'gcr.io/apache-beam-testing/beam-sdk'
@@ -40,8 +42,12 @@ job('beam_Publish_Beam_SDK_Snapshots') {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
       tasks(':sdks:go:container:dockerPush')
-      tasks(':sdks:python:container:java8:dockerPush')
-      tasks(':sdks:python:container:java11:dockerPush')
+      javaProperties.SUPPORTED_CONTAINER_TASKS.each { taskVer ->
+        tasks(":sdks:java:container:${taskVer}:dockerPush")
+      }
+      pythonProperties.SUPPORTED_CONTAINER_TASKS.each { taskVer ->
+        tasks(":sdks:python:container:${taskVer}:dockerPush")
+      }
       tasks(':sdks:python:container:py36:dockerPush')
       tasks(':sdks:python:container:py37:dockerPush')
       tasks(':sdks:python:container:py38:dockerPush')
