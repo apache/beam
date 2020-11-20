@@ -270,6 +270,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   array = property(frame_base.wont_implement_method('non-deferred value'))
 
+  rename = frame_base._elementwise_method('rename')
   between = frame_base._elementwise_method('between')
 
   def dot(self, other):
