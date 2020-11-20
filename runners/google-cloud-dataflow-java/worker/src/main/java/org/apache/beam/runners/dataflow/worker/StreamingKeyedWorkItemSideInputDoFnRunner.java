@@ -54,7 +54,9 @@ import org.joda.time.Instant;
  * @param <OutputT> output element type
  * @param <W> window type
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<KeyedWorkItem<K, InputT>, OutputT> {
   private final DoFnRunner<KeyedWorkItem<K, InputT>, OutputT> simpleDoFnRunner;

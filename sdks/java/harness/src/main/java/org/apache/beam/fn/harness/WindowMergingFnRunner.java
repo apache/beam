@@ -53,6 +53,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * can only be part of one output set. The nonce is used by a runner to associate each input with
  * its output. The nonce is represented as an opaque set of bytes.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
   static final String URN = PTransformTranslation.MERGE_WINDOWS_TRANSFORM_URN;
 

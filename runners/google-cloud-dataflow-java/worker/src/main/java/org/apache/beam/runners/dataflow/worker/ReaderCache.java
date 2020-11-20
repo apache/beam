@@ -35,7 +35,9 @@ import org.slf4j.LoggerFactory;
  * minute expiration timeout and the reader will be closed if it is not used within this period.
  */
 @ThreadSafe
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReaderCache.class);
@@ -50,11 +52,13 @@ class ReaderCache {
   private static class CacheEntry {
 
     final UnboundedSource.UnboundedReader<?> reader;
-    final long token;
+    final long cacheToken;
+    final long workToken;
 
-    CacheEntry(UnboundedSource.UnboundedReader<?> reader, long token) {
+    CacheEntry(UnboundedSource.UnboundedReader<?> reader, long cacheToken, long workToken) {
       this.reader = reader;
-      this.token = token;
+      this.cacheToken = cacheToken;
+      this.workToken = workToken;
     }
   }
 
@@ -97,15 +101,17 @@ class ReaderCache {
    * Return null in case of a cache miss.
    */
   UnboundedSource.UnboundedReader<?> acquireReader(
-      WindmillComputationKey computationKey, long cacheToken) {
+      WindmillComputationKey computationKey, long cacheToken, long workToken) {
     CacheEntry entry = cache.asMap().remove(computationKey);
 
     cache.cleanUp();
 
     if (entry != null) {
-      if (entry.token == cacheToken) {
+      if (entry.cacheToken == cacheToken && workToken > entry.workToken) {
         return entry.reader;
-      } else { // new cacheToken invalidates old one. close the reader.
+      } else {
+        // new cacheToken invalidates old one or this is a retried or stale request,
+        // close the reader.
         closeReader(computationKey, entry);
       }
     }
@@ -116,9 +122,10 @@ class ReaderCache {
   void cacheReader(
       WindmillComputationKey computationKey,
       long cacheToken,
+      long workToken,
       UnboundedSource.UnboundedReader<?> reader) {
     CacheEntry existing =
-        cache.asMap().putIfAbsent(computationKey, new CacheEntry(reader, cacheToken));
+        cache.asMap().putIfAbsent(computationKey, new CacheEntry(reader, cacheToken, workToken));
     Preconditions.checkState(existing == null, "Overwriting existing readers is not allowed");
     cache.cleanUp();
   }
@@ -126,6 +133,6 @@ class ReaderCache {
   /** If a reader is cached for this key, remove and close it. */
   void invalidateReader(WindmillComputationKey computationKey) {
     // use an invalid cache token that will trigger close.
-    acquireReader(computationKey, -1L);
+    acquireReader(computationKey, -1L, -1);
   }
 }

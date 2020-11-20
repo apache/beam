@@ -19,8 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.contextualtextio',
-        enableChecker: false,
-        ignoreRawtypeErrors: true)
+)
 
 description = "Apache Beam :: SDKs :: Java :: Contextual-Text-IO"
 ext.summary = "Context-aware Text IO."

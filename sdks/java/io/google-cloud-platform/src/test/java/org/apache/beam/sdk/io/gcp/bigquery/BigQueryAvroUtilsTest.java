@@ -50,7 +50,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BigQueryAvroUtils}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryAvroUtilsTest {
   private List<TableFieldSchema> subFields =
       Lists.newArrayList(

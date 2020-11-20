@@ -24,9 +24,14 @@ import unittest
 from mock import patch
 
 from apache_beam.internal.metrics.cells import HistogramCellFactory
+from apache_beam.internal.metrics.metric import Metrics as InternalMetrics
 from apache_beam.internal.metrics.metric import MetricLogger
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
 from apache_beam.utils.histogram import LinearBucket
 
 
@@ -46,6 +51,42 @@ class MetricLoggerTest(unittest.TestCase):
 
     mock_logger.info.assert_called_once_with(
         Contains('HistogramData(Total count: 1, P99: 2, P90: 2, P50: 2)'))
+
+
+class MetricsTest(unittest.TestCase):
+  def test_create_process_wide(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+
+    try:
+      sampler.start()
+      with state1:
+        urn = "my:custom:urn"
+        labels = {'key': 'value'}
+        counter = InternalMetrics.counter(
+            urn=urn, labels=labels, process_wide=True)
+        # Test that if process_wide is set, that it will be set
+        # on the process_wide container.
+        counter.inc(10)
+        self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
+
+        del counter
+
+        metric_name = MetricName(None, None, urn=urn, labels=labels)
+        # Expect a value set on the current container.
+        self.assertEqual(
+            MetricsEnvironment.process_wide_container().get_counter(
+                metric_name).get_cumulative(),
+            10)
+        # Expect no value set on the current container.
+        self.assertEqual(
+            MetricsEnvironment.current_container().get_counter(
+                metric_name).get_cumulative(),
+            0)
+    finally:
+      sampler.stop()
 
 
 if __name__ == '__main__':

@@ -77,11 +77,58 @@ class DeferredFrameTest(unittest.TestCase):
     })
     self._run_test(new_column, df)
 
+  def test_set_column_from_index(self):
+    def new_column(df):
+      df['NewCol'] = df.index
+      return df
+
+    df = pd.DataFrame({
+        'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
+        'Speed': [380., 370., 24., 26.]
+    })
+    self._run_test(new_column, df)
+
   def test_groupby(self):
-    df = pd.DataFrame({'group': ['a', 'a', 'a', 'b'], 'value': [1, 2, 3, 5]})
-    self._run_test(lambda df: df.groupby('group').agg(sum), df)
-    self._run_test(lambda df: df.groupby('group').sum(), df)
-    self._run_test(lambda df: df.groupby('group').median(), df)
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'value': [None if i % 11 == 0 else i for i in range(100)]
+    })
+    self._run_test(
+        lambda df: df.groupby('group').agg(sum), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').sum(), df, distributed=True)
+    self._run_test(
+        lambda df: df.groupby('group').median(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').size(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').count(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').max(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').min(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').mean(), df, distributed=True)
+
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').sum(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').mean(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').size(),
+        df,
+        distributed=True)
+
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).sum(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).mean(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).size(),
+        df,
+        distributed=True)
 
   @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
@@ -191,6 +238,41 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.corr(min_periods=12).round(8), df, distributed=True)
     self._run_test(
         lambda df: df.cov(min_periods=12).round(8), df, distributed=True)
+    self._run_test(lambda df: df.corrwith(df.a).round(8), df, distributed=True)
+    self._run_test(
+        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8),
+        df,
+        distributed=True)
+
+  def test_categorical_groupby(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+    df['B'] = df['B'].astype(pd.CategoricalDtype(list('cab')))
+    df = df.set_index('B')
+    # TODO(BEAM-11190): These aggregations can be done in index partitions, but
+    # it will require a little more complex logic
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.groupby(level=0).sum(), df, distributed=True)
+      self._run_test(
+          lambda df: df.groupby(level=0).mean(), df, distributed=True)
+
+  def test_dataframe_eval_query(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df: df.eval('foo = a + b - c'), df, distributed=True)
+    self._run_test(lambda df: df.query('a > b + c'), df, distributed=True)
+
+    def eval_inplace(df):
+      df.eval('foo = a + b - c', inplace=True)
+      return df.foo
+
+    self._run_test(eval_inplace, df, distributed=True)
+
+    # Verify that attempting to access locals raises a useful error
+    deferred_df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(df, df[0:0]))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.eval('foo = a + @b - c'))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
 
 class AllowNonParallelTest(unittest.TestCase):

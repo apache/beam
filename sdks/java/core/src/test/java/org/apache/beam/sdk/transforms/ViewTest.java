@@ -48,10 +48,13 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSideInputs;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -78,7 +81,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @Category(UsesSideInputs.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -148,6 +153,47 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(47, 47, 48);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTestStream.class})
+  public void testWindowedSideInputNotPresent() {
+    PCollection<KV<Integer, Integer>> input =
+        pipeline.apply(
+            TestStream.create(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()))
+                .advanceWatermarkTo(new Instant(0))
+                .addElements(TimestampedValue.of(KV.of(1000, 1000), new Instant(1000)))
+                .advanceWatermarkTo(new Instant(20000))
+                .advanceWatermarkToInfinity());
+
+    final PCollectionView<Integer> view =
+        input
+            .apply(Values.create())
+            .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(100))))
+            .apply("ViewCombine", Combine.globally(Sum.ofIntegers()).withoutDefaults())
+            .apply("Rewindow", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+            .apply(View.<Integer>asSingleton().withDefaultValue(0));
+
+    PCollection<Integer> output =
+        input
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+            .apply(GroupByKey.create())
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<KV<Integer, Iterable<Integer>>, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.output(c.sideInput(view));
+                          }
+                        })
+                    .withSideInputs(view));
+
+    PAssert.that(output)
+        .inWindow(new IntervalWindow(new Instant(0), new Instant(10000)))
+        .containsInAnyOrder(0);
 
     pipeline.run();
   }

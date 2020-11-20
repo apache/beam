@@ -139,7 +139,9 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link BigQueryIO#write}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryIOWriteTest implements Serializable {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -542,8 +544,7 @@ public class BigQueryIOWriteTest implements Serializable {
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
-  @Test
-  public void testTriggeredFileLoadsWithTempTables() throws Exception {
+  public void testTriggeredFileLoadsWithTempTables(String tableRef) throws Exception {
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
@@ -564,7 +565,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(testStream)
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
+                .to(tableRef)
                 .withSchema(
                     new TableSchema()
                         .setFields(
@@ -582,6 +583,16 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithTempTables() throws Exception {
+    testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
+    testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
   }
 
   @Test

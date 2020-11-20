@@ -30,8 +30,9 @@ def dependOnProjects = [":runners:core-construction-java",
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.direct',
-        enableChecker: false,
-        ignoreRawtypeErrors: true,
+        classesTriggerCheckerBugs: [
+          'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
+        ],
         shadowClosure: {
           dependencies {
             dependOnProjects.each {
@@ -42,7 +43,8 @@ applyJavaNature(
           relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
           relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
           relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
-        })
+        },
+)
 
 description = "Apache Beam :: Runners :: Direct Java"
 

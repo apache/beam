@@ -64,7 +64,9 @@ import org.slf4j.LoggerFactory;
  *   <li>...Java classes...
  * </ul>
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class PortablePipelineJarUtils {
   private static final String ARTIFACT_FOLDER = "artifacts";
   private static final String PIPELINE_FOLDER = "BEAM-PIPELINE";

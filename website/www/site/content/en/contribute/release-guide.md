@@ -754,6 +754,9 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [ ] -1, Do not approve the release (please provide specific comments)
 
 
+    Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
+    no issues are found.
+
     The complete staging area is available for your review, which includes:
     * JIRA release notes [1],
     * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
@@ -1113,7 +1116,11 @@ git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```
 
-After the tag is uploaded, publish the release notes to Github, as follows:
+After pushing the tag, the tag should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
+
+### Publish release to Github
+
+Once the tag is uploaded, publish the release notes to Github, as follows:
 
 ```
 cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
@@ -1121,6 +1128,7 @@ cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
 
 Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
 
+After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do. Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
@@ -1145,7 +1153,8 @@ Use reporter.apache.org to seed the information about the release into future pr
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 * Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 * Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
-* Release tagged in the source code repository
+* The release is tagged on Github's [Tags](https://github.com/apache/beam/tags) page.
+* The release notes are published on Github's [Releases](https://github.com/apache/beam/releases) page.
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org
 

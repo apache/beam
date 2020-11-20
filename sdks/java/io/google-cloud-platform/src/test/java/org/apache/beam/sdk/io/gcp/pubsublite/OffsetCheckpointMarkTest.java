@@ -39,7 +39,9 @@ import org.mockito.Captor;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OffsetCheckpointMarkTest {
   @Captor private ArgumentCaptor<Map<Partition, Offset>> mapCaptor;
 

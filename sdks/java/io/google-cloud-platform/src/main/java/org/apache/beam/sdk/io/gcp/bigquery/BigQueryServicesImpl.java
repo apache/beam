@@ -28,9 +28,11 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
@@ -1126,15 +1128,27 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final BigQueryReadClient client;
 
     private StorageClientImpl(BigQueryOptions options) throws IOException {
-      BigQueryReadSettings settings =
+      BigQueryReadSettings.Builder builder =
           BigQueryReadSettings.newBuilder()
               .setCredentialsProvider(FixedCredentialsProvider.create(options.getGcpCredential()))
               .setTransportChannelProvider(
                   BigQueryReadSettings.defaultGrpcTransportProviderBuilder()
                       .setHeaderProvider(USER_AGENT_HEADER_PROVIDER)
-                      .build())
-              .build();
-      this.client = BigQueryReadClient.create(settings);
+                      .build());
+
+      UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
+          builder.getStubSettingsBuilder().createReadSessionSettings();
+
+      RetrySettings.Builder retrySettings =
+          createReadSessionSettings
+              .getRetrySettings()
+              .toBuilder()
+              .setInitialRpcTimeout(org.threeten.bp.Duration.ofHours(2))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofHours(2))
+              .setTotalTimeout(org.threeten.bp.Duration.ofHours(2));
+
+      createReadSessionSettings.setRetrySettings(retrySettings.build());
+      this.client = BigQueryReadClient.create(builder.build());
     }
 
     @Override

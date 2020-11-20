@@ -34,7 +34,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * they registered i.e. the function registered later overrides the earlier one if they resolve the
  * same artifact.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DefaultArtifactResolver implements ArtifactResolver {
   public static final ArtifactResolver INSTANCE = new DefaultArtifactResolver();
 

@@ -107,7 +107,9 @@ import redis.clients.jedis.ScanResult;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RedisIO {
 
   /** Read data from a Redis server. */

@@ -64,6 +64,9 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 
 /** Tests for {@link ExpansionService}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ExpansionServiceTest {
 
   private static final String TEST_URN = "test:beam:transforms:count";

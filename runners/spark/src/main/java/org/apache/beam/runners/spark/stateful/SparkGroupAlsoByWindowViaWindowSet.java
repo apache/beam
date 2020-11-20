@@ -93,7 +93,9 @@ import scala.runtime.AbstractFunction1;
  * bounds the types of state and output to be the same, a (state, output) tuple is used, filtering
  * the state (and output if no firing) in the following steps.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);

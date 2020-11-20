@@ -26,7 +26,9 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 /**
  * A DOT renderer for BEAM portable {@link org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class PortablePipelineDotRenderer {
   private final StringBuilder dotBuilder = new StringBuilder();
   private final Map<String, Integer> valueToProducerNodeId = new HashMap<>();

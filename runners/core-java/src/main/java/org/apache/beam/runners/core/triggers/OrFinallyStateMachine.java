@@ -23,7 +23,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 /**
  * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class OrFinallyStateMachine extends TriggerStateMachine {
 
   private static final int ACTUAL = 0;
@@ -35,9 +37,23 @@ class OrFinallyStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnElement(c.forTrigger(subTrigger));
+    }
+  }
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     c.trigger().subTrigger(ACTUAL).invokeOnElement(c);
     c.trigger().subTrigger(UNTIL).invokeOnElement(c);
+  }
+
+  @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnMerge(c.forTrigger(subTrigger));
+    }
   }
 
   @Override
@@ -46,6 +62,13 @@ class OrFinallyStateMachine extends TriggerStateMachine {
       subTrigger.invokeOnMerge(c);
     }
     updateFinishedState(c);
+  }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchShouldFire(c.forTrigger(subTrigger));
+    }
   }
 
   @Override

@@ -218,10 +218,23 @@ def _proxy_function(
     deferred_arg_indices = []
     deferred_arg_exprs = []
     constant_args = [None] * len(args)
+    from apache_beam.dataframe.frames import _DeferredIndex
     for ix, arg in enumerate(args):
       if isinstance(arg, DeferredBase):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(arg._expr)
+      elif isinstance(arg, _DeferredIndex):
+        # TODO(robertwb): Consider letting indices pass through as indices.
+        # This would require updating the partitioning code, as indices don't
+        # have indices.
+        deferred_arg_indices.append(ix)
+        deferred_arg_exprs.append(
+            expressions.ComputedExpression(
+                'index_as_series',
+                lambda ix: ix.index.to_series(),  # yapf break
+                [arg._frame._expr],
+                preserves_partition_by=partitionings.Singleton(),
+                requires_partition_by=partitionings.Nothing()))
       elif isinstance(arg, pd.core.generic.NDFrame):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(expressions.ConstantExpression(arg, arg[0:0]))
@@ -263,10 +276,10 @@ def _proxy_function(
 
       return actual_func(*full_args, **full_kwargs)
 
-    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame) for arg in
-           deferred_exprs) and not requires_partition_by.is_subpartitioning_of(
-               partitionings.Index()):
-      # Implicit join on index.
+    if (not requires_partition_by.is_subpartitioning_of(partitionings.Index())
+        and sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+                for arg in deferred_exprs) > 1):
+      # Implicit join on index if there is more than one indexed input.
       actual_requires_partition_by = partitionings.Index()
     else:
       actual_requires_partition_by = requires_partition_by
@@ -294,14 +307,14 @@ def _agg_method(func):
 
 
 def wont_implement_method(msg):
-  def wrapper(self, *args, **kwargs):
+  def wrapper(*args, **kwargs):
     raise WontImplementError(msg)
 
   return wrapper
 
 
 def not_implemented_method(op, jira='BEAM-9547'):
-  def wrapper(self, *args, **kwargs):
+  def wrapper(*args, **kwargs):
     raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
   return wrapper

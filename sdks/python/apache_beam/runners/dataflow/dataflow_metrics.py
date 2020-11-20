@@ -101,18 +101,13 @@ class DataflowMetrics(MetricResults):
           'Could not translate the internal step name %r since job graph is '
           'not available.' % internal_name)
     user_step_name = None
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.internal import apiclient
-    if apiclient._use_unified_worker_portable_job(self._job_graph.options):
+    if (self._job_graph and internal_name in
+        self._job_graph.proto_pipeline.components.transforms.keys()):
       # Dataflow Runner v2 with portable job submission uses proto transform map
       # IDs for step names. Also PTransform.unique_name maps to user step names.
       # Hence we lookup user step names based on the proto.
-      proto_pipeline = self._job_graph.proto_pipeline
-      for transform_id in proto_pipeline.components.transforms.keys():
-        if internal_name == transform_id:
-          user_step_name = proto_pipeline.components.transforms[
-              transform_id].unique_name
-          break
+      user_step_name = self._job_graph.proto_pipeline.components.transforms[
+          internal_name].unique_name
     else:
       try:
         step = _get_match(

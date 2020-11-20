@@ -39,7 +39,9 @@ import org.apache.beam.sdk.values.PDone;
  * Generate, format, and write BigQuery table row information. Use provided information about the
  * field names and types, as well as lambda functions that describe how to generate their values.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WriteToBigQuery<InputT> extends PTransform<PCollection<InputT>, PDone> {
 
   protected String projectId;

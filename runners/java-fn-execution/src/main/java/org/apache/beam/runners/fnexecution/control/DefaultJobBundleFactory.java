@@ -91,7 +91,10 @@ import org.slf4j.LoggerFactory;
  * is called for a stage.
  */
 @ThreadSafe
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
@@ -456,7 +459,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
-        BundleFinalizationHandler finalizationHandler)
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler)
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
@@ -517,7 +521,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
               getTimerReceivers(currentClient.processBundleDescriptor, timerReceiverFactory),
               stateRequestHandler,
               progressHandler,
-              finalizationHandler);
+              finalizationHandler,
+              checkpointHandler);
       return new RemoteBundle() {
         @Override
         public String getId() {

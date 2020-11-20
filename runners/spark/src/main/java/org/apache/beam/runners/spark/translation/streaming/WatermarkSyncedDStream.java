@@ -56,7 +56,9 @@ import org.slf4j.LoggerFactory;
  * <p>See also <a href="https://issues.apache.org/jira/browse/BEAM-2671">BEAM-2671</a>, <a
  * href="https://issues.apache.org/jira/browse/BEAM-2789">BEAM-2789</a>.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
 
   private static final Logger LOG =

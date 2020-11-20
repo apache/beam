@@ -54,7 +54,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link DataflowExecutionContext} for use in batch mode. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BatchModeExecutionContext
     extends DataflowExecutionContext<BatchModeExecutionContext.StepContext> {
 
@@ -315,7 +317,10 @@ public class BatchModeExecutionContext
   }
 
   public <K, V> Cache<K, V> getLogicalReferenceCache() {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     Cache<K, V> rval = (Cache) logicalReferenceCache;
     return rval;
   }

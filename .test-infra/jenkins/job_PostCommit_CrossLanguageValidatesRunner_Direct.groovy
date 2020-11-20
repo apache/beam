@@ -19,6 +19,8 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS
+
 // This job runs the suite of ValidatesRunner tests against the Direct runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Direct',
     'Run XVR_Direct PostCommit', 'Direct CrossLanguageValidatesRunner Tests', this) {
@@ -34,19 +36,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Direct',
 
       // Gradle goals for this job.
       steps {
-        shell('echo "*** RUN CROSS-LANGUAGE DIRECT USING PYTHON 3.6 ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-PpythonVersion=3.6')
-        }
-        shell('echo "*** RUN CROSS-LANGUAGE DIRECT USING PYTHON 3.8 ***"')
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner')
-          commonJobProperties.setGradleSwitches(delegate)
-          switches('-PpythonVersion=3.8')
+        CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
+          shell("echo \"*** RUN CROSS-LANGUAGE DIRECT USING PYTHON ${pythonVersion} ***\"")
+          gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            tasks(':sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner')
+            commonJobProperties.setGradleSwitches(delegate)
+            switches("-PpythonVersion=${pythonVersion}")
+          }
         }
       }
     }

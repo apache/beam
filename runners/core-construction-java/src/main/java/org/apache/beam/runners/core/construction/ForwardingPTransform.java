@@ -33,7 +33,10 @@ import org.apache.beam.sdk.values.TupleTag;
  * delegate transform but with overridden methods. Implementors are required to implement {@link
  * #delegate()}, which returns the object to forward calls to, and {@link #expand(PInput)}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class ForwardingPTransform<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {
   protected abstract PTransform<InputT, OutputT> delegate();

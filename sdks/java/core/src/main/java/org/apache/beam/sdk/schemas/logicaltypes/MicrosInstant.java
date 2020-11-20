@@ -32,7 +32,9 @@ import org.apache.beam.sdk.values.Row;
  * <p>For a more faithful logical type to use with {@code java.time.Instant}, see {@link
  * NanosInstant}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
   public static final String IDENTIFIER = "beam:logical_type:micros_instant:v1";
   // TODO(BEAM-10878): This should be a constant

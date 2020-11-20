@@ -27,6 +27,9 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** {@link org.apache.beam.sdk.transforms.PTransform} overrides for Samza runner. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SamzaTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides() {
     return ImmutableList.<PTransformOverride>builder()

@@ -64,7 +64,10 @@ import org.junit.runner.RunWith;
 
 /** Tests for conversion between AVRO records and Beam rows. */
 @RunWith(JUnitQuickcheck.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroUtilsTest {
 
   private static final org.apache.avro.Schema NULL_SCHEMA =

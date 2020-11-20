@@ -33,7 +33,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Integration tests for aggregation nullable columns. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSqlDslAggregationNullableTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();

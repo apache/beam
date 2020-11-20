@@ -70,7 +70,10 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for SamzaStoreStateInternals. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaStoreStateInternalsTest implements Serializable {
   @Rule
   public final transient TestPipeline pipeline =

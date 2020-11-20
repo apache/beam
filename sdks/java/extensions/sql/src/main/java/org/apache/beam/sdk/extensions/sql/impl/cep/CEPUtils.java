@@ -34,7 +34,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator
  * Some utility methods for transforming Calcite's constructs into our own Beam constructs (for
  * serialization purpose).
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CEPUtils {
 
   private static Quantifier getQuantifier(int start, int end, boolean isReluctant) {

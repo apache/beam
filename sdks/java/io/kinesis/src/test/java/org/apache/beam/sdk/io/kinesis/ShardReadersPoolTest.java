@@ -47,7 +47,9 @@ import org.mockito.stubbing.Answer;
 
 /** Tests {@link ShardReadersPool}. */
 @RunWith(MockitoJUnitRunner.Silent.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShardReadersPoolTest {
 
   private static final int TIMEOUT_IN_MILLIS = (int) TimeUnit.SECONDS.toMillis(10);

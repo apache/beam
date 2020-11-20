@@ -66,7 +66,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
 // TODO: Rename to ExecutableStages?
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ProcessBundleDescriptors {
 
   /**
@@ -418,6 +421,8 @@ public class ProcessBundleDescriptors {
   }
 
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class OutputEncoding {
     abstract String getPTransformId();
 
@@ -429,6 +434,8 @@ public class ProcessBundleDescriptors {
    * side input state requests.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class SideInputSpec<T, W extends BoundedWindow> {
     public static <T, W extends BoundedWindow> SideInputSpec of(
         String transformId,
@@ -456,6 +463,8 @@ public class ProcessBundleDescriptors {
    * handling bag user state requests.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class BagUserStateSpec<K, V, W extends BoundedWindow> {
     static <K, V, W extends BoundedWindow> BagUserStateSpec<K, V, W> of(
         String transformId,
@@ -483,6 +492,8 @@ public class ProcessBundleDescriptors {
    * destination used when handling timer requests.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class TimerSpec<K, V, W extends BoundedWindow> {
     static <K, V, W extends BoundedWindow> TimerSpec<K, V, W> of(
         String transformId,
@@ -504,6 +515,8 @@ public class ProcessBundleDescriptors {
 
   /** */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class ExecutableProcessBundleDescriptor {
     public static ExecutableProcessBundleDescriptor of(
         ProcessBundleDescriptor descriptor,

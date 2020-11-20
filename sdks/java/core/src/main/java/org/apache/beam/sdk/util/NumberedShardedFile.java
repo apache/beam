@@ -46,7 +46,9 @@ import org.slf4j.LoggerFactory;
  * hardcoded to allow existing uses to work OK.
  */
 @Internal
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NumberedShardedFile implements ShardedFile {
 
   private static final Logger LOG = LoggerFactory.getLogger(NumberedShardedFile.class);

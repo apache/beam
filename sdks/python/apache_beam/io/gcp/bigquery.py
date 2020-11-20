@@ -243,7 +243,6 @@ import time
 import uuid
 from builtins import object
 from builtins import zip
-from typing import Optional
 
 from future.utils import itervalues
 from past.builtins import unicode
@@ -258,6 +257,8 @@ from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
@@ -473,7 +474,8 @@ class _BigQuerySource(dataflow_io.NativeSource):
       coder=None,
       use_standard_sql=False,
       flatten_results=True,
-      kms_key=None):
+      kms_key=None,
+      temp_dataset=None):
     """Initialize a :class:`BigQuerySource`.
 
     Args:
@@ -512,6 +514,10 @@ class _BigQuerySource(dataflow_io.NativeSource):
         query results. The default value is :data:`True`.
       kms_key (str): Optional Cloud KMS key name for use when creating new
         tables.
+      temp_dataset (``google.cloud.bigquery.dataset.DatasetReference``):
+        The dataset in which to create temporary tables when performing file
+        loads. By default, a new dataset is created in the execution project for
+        temporary tables.
 
     Raises:
       ValueError: if any of the following is true:
@@ -551,6 +557,7 @@ class _BigQuerySource(dataflow_io.NativeSource):
     self.flatten_results = flatten_results
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
     self.kms_key = kms_key
+    self.temp_dataset = temp_dataset
 
   def display_data(self):
     if self.query is not None:
@@ -584,11 +591,11 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
+
+
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
-
-  FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
-
   def __init__(self, table_schema):
     self.fields = self._convert_to_tuple(table_schema.fields)
     self._converters = {
@@ -620,8 +627,7 @@ class _JsonToDictCoder(coders.Coder):
       return []
 
     return [
-        cls.FieldSchema(
-            cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
+        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
         for x in table_field_schemas
     ]
 
@@ -681,7 +687,8 @@ class _CustomBigQuerySource(BoundedSource):
       use_json_exports=False,
       job_name=None,
       step_name=None,
-      unique_id=None):
+      unique_id=None,
+      temp_dataset=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -712,6 +719,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
     self.use_json_exports = use_json_exports
+    self.temp_dataset = temp_dataset
     self._job_name = job_name or 'AUTOMATIC_JOB_NAME'
     self._step_name = step_name
     self._source_uuid = unique_id
@@ -781,6 +789,8 @@ class _CustomBigQuerySource(BoundedSource):
     project = self.options.view_as(GoogleCloudOptions).project
     if isinstance(project, vp.ValueProvider):
       project = project.get()
+    if self.temp_dataset:
+      return self.temp_dataset.projectId
     if not project:
       project = self.project
     return project
@@ -798,7 +808,9 @@ class _CustomBigQuerySource(BoundedSource):
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
-      bq = bigquery_tools.BigQueryWrapper()
+      bq = bigquery_tools.BigQueryWrapper(
+          temp_dataset_id=(
+              self.temp_dataset.datasetId if self.temp_dataset else None))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -873,7 +885,7 @@ class _CustomBigQuerySource(BoundedSource):
         bigquery_tools.BigQueryJobTypes.EXPORT,
         random.randint(0, 1000))
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
-    gcs_location = ReadFromBigQuery.get_destination_uri(
+    gcs_location = bigquery_export_destination_uri(
         self.gcs_location, temp_location, self._source_uuid)
     if self.use_json_exports:
       job_ref = bq.perform_extract_job([gcs_location],
@@ -1800,32 +1812,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     return WriteToBigQuery(**config)
 
 
-class _PassThroughThenCleanup(PTransform):
-  """A PTransform that invokes a DoFn after the input PCollection has been
-    processed.
-  """
-  def __init__(self, cleanup_dofn):
-    self.cleanup_dofn = cleanup_dofn
-
-  def expand(self, input):
-    class PassThrough(beam.DoFn):
-      def process(self, element):
-        yield element
-
-    output = input | beam.ParDo(PassThrough()).with_outputs(
-        'cleanup_signal', main='main')
-    main_output = output['main']
-    cleanup_signal = output['cleanup_signal']
-
-    _ = (
-        input.pipeline
-        | beam.Create([None])
-        | beam.ParDo(
-            self.cleanup_dofn, beam.pvalue.AsSingleton(cleanup_signal)))
-
-    return main_output
-
-
 class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
@@ -1910,54 +1896,23 @@ class ReadFromBigQuery(PTransform):
     self._args = args
     self._kwargs = kwargs
 
-  @staticmethod
-  def get_destination_uri(
-      gcs_location_vp,  # type: Optional[ValueProvider]
-      temp_location,  # type: Optional[str]
-      unique_id,  # type: str
-      directory_only=False,  # type: bool
-  ):
-    """Returns the fully qualified Google Cloud Storage URI where the
-    extracted table should be written.
-    """
-    file_pattern = 'bigquery-table-dump-*.json'
-
-    gcs_location = None
-    if gcs_location_vp is not None:
-      gcs_location = gcs_location_vp.get()
-
-    if gcs_location is not None:
-      gcs_base = gcs_location
-    elif temp_location is not None:
-      gcs_base = temp_location
-      _LOGGER.debug("gcs_location is empty, using temp_location instead")
-    else:
-      raise ValueError(
-          'ReadFromBigQuery requires a GCS location to be provided. Neither '
-          'gcs_location in the constructor nor the fallback option '
-          '--temp_location is set.')
-
-    if directory_only:
-      return FileSystems.join(gcs_base, unique_id)
-    else:
-      return FileSystems.join(gcs_base, unique_id, file_pattern)
-
   def expand(self, pcoll):
-    class RemoveExportedFiles(beam.DoFn):
-      def __init__(self, gcs_location_vp):
-        self._gcs_location_vp = gcs_location_vp
-        self._temp_location = temp_location
-        self._unique_id = unique_id
-
-      def process(self, unused_element, signal):
-        gcs_location = ReadFromBigQuery.get_destination_uri(
-            self._gcs_location_vp, self._temp_location, self._unique_id, True)
-        FileSystems.delete([gcs_location + '/'])
-
     unique_id = str(uuid.uuid4())[0:10]
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     job_name = pcoll.pipeline.options.view_as(GoogleCloudOptions).job_name
+    gcs_location_vp = self.gcs_location
+    unique_id = str(uuid.uuid4())[0:10]
+
+    def file_path_to_remove(unused_elm):
+      gcs_location = bigquery_export_destination_uri(
+          gcs_location_vp, temp_location, unique_id, True)
+      return gcs_location + '/'
+
+    files_to_remove_pcoll = beam.pvalue.AsList(
+        pcoll.pipeline
+        | 'FilesToRemoveImpulse' >> beam.Create([None])
+        | 'MapFilesToRemove' >> beam.Map(file_path_to_remove))
 
     try:
       step_name = self.label
@@ -1975,4 +1930,4 @@ class ReadFromBigQuery(PTransform):
                 unique_id=unique_id,
                 *self._args,
                 **self._kwargs))
-        | _PassThroughThenCleanup(RemoveExportedFiles(self.gcs_location)))
+        | _PassThroughThenCleanup(files_to_remove_pcoll))

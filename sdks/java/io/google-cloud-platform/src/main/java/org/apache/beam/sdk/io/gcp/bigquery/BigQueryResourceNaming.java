@@ -37,7 +37,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
  *
  * <p>This class has no backwards compatibility guaantees. It is considered internal.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigQueryResourceNaming {
 
   /**

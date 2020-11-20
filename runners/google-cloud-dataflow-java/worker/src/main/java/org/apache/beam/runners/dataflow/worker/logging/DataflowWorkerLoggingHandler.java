@@ -52,7 +52,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutpu
  * Formats {@link LogRecord} into JSON format for Cloud Logging. Any exception is represented using
  * {@link Throwable#printStackTrace()}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowWorkerLoggingHandler extends Handler {
   private static final EnumMap<BeamFnApi.LogEntry.Severity.Enum, String>
       BEAM_LOG_LEVEL_TO_CLOUD_LOG_LEVEL;

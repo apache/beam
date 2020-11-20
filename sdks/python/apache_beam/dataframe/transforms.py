@@ -45,6 +45,7 @@ TARGET_PARTITION_SIZE = 1 << 23  # 8M
 MAX_PARTITIONS = 1000
 DEFAULT_PARTITIONS = 100
 MIN_PARTITIONS = 10
+PER_COL_OVERHEAD = 1000
 
 
 class DataframeTransform(transforms.PTransform):
@@ -200,11 +201,23 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                           MIN_PARTITIONS,
                           min(MAX_PARTITIONS, size // TARGET_PARTITION_SIZE))))
 
+          partition_fn = self.stage.partitioning.partition_fn
+
+          class Partition(beam.PTransform):
+            def expand(self, pcoll):
+              return (
+                  pcoll
+                  # Attempt to create batches of reasonable size.
+                  | beam.ParDo(_PreBatch())
+                  # Actually partition.
+                  | beam.FlatMap(partition_fn, num_partitions)
+                  # Don't bother shuffling empty partitions.
+                  | beam.Filter(lambda k_df: len(k_df[1])))
+
           # Arrange such that partitioned_pcoll is properly partitioned.
           main_pcolls = {
               expr._id: pcolls[expr._id] | 'Partition_%s_%s' %
-              (self.stage.partitioning, expr._id) >> beam.FlatMap(
-                  self.stage.partitioning.partition_fn, num_partitions)
+              (self.stage.partitioning, expr._id) >> Partition()
               for expr in tabular_inputs
           } | beam.CoGroupByKey()
           partitioned_pcoll = main_pcolls | beam.ParDo(_ReBatch())
@@ -222,8 +235,13 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
         # Actually evaluate the expressions.
         def evaluate(partition, stage=self.stage, **side_inputs):
+          def lookup(expr):
+            # Use proxy if there's no data in this partition
+            return expr.proxy(
+            ).iloc[:0] if partition[expr._id] is None else partition[expr._id]
+
           session = expressions.Session(
-              dict([(expr, partition[expr._id]) for expr in tabular_inputs] +
+              dict([(expr, lookup(expr)) for expr in tabular_inputs] +
                    [(expr, side_inputs[expr._id]) for expr in scalar_inputs]))
           for expr in stage.outputs:
             yield beam.pvalue.TaggedOutput(expr._id, expr.evaluate_at(session))
@@ -400,11 +418,42 @@ def _total_memory_usage(frame):
   try:
     size = frame.memory_usage()
     if not isinstance(size, int):
-      size = size.sum()
+      size = size.sum() + PER_COL_OVERHEAD * len(size)
+    else:
+      size += PER_COL_OVERHEAD
     return size
   except AttributeError:
     # Don't know, assume it's really big.
     float('inf')
+
+
+class _PreBatch(beam.DoFn):
+  def __init__(self, target_size=TARGET_PARTITION_SIZE):
+    self._target_size = target_size
+
+  def start_bundle(self):
+    self._parts = collections.defaultdict(list)
+    self._running_size = 0
+
+  def process(
+      self,
+      part,
+      window=beam.DoFn.WindowParam,
+      timestamp=beam.DoFn.TimestampParam):
+    part_size = _total_memory_usage(part)
+    if part_size >= self._target_size:
+      yield part
+    else:
+      self._running_size += part_size
+      self._parts[window, timestamp].append(part)
+      if self._running_size >= self._target_size:
+        yield from self.finish_bundle()
+
+  def finish_bundle(self):
+    for (window, timestamp), parts in self._parts.items():
+      yield windowed_value.WindowedValue(
+          pd.concat(parts), timestamp, (window, ))
+    self.start_bundle()
 
 
 class _ReBatch(beam.DoFn):
@@ -431,14 +480,16 @@ class _ReBatch(beam.DoFn):
         self._running_size += _total_memory_usage(part)
       self._parts[window, timestamp][tag].extend(parts)
     if self._running_size >= self._target_size:
-      self.finish_bundle()
+      yield from self.finish_bundle()
 
   def finish_bundle(self):
     for (window, timestamp), tagged_parts in self._parts.items():
-      yield windowed_value.WindowedValue(
-          {tag: pd.concat(parts)
-           for tag, parts in tagged_parts.items()},
-          timestamp, (window, ))
+      yield windowed_value.WindowedValue(  # yapf break
+      {
+          tag: pd.concat(parts) if parts else None
+          for (tag, parts) in tagged_parts.items()
+      },
+      timestamp, (window, ))
     self.start_bundle()
 
 

@@ -55,7 +55,9 @@ import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 /** Wraps {@link KinesisClient} class providing much simpler interface and proper error handling. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SimplifiedKinesisClient {
 
   private static final String KINESIS_NAMESPACE = "AWS/Kinesis";

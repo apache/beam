@@ -39,6 +39,7 @@ from typing import Type
 from typing import Union
 
 from apache_beam.internal.metrics.cells import HistogramCellFactory
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metric import Metrics as UserMetrics
 from apache_beam.metrics.metricbase import Histogram
@@ -49,12 +50,40 @@ if TYPE_CHECKING:
   from apache_beam.metrics.cells import MetricCellFactory
   from apache_beam.utils.histogram import BucketType
 
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  pass
+
 __all__ = ['Metrics']
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class Metrics(object):
+  @staticmethod
+  def counter(urn, labels=None, process_wide=False):
+    # type: (str, Optional[Dict[str, str]], bool) -> UserMetrics.DelegatingCounter
+
+    """Obtains or creates a Counter metric.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+      urn: URN to populate on a MonitoringInfo, when sending to RunnerHarness.
+      labels: Labels to populate on a MonitoringInfo
+      process_wide: Whether or not the metric is specific to the current bundle
+          or should be calculated for the entire process.
+
+    Returns:
+      A Counter object.
+    """
+    return UserMetrics.DelegatingCounter(
+        MetricName(namespace=None, name=None, urn=urn, labels=labels),
+        process_wide=process_wide)
+
   @staticmethod
   def histogram(namespace, name, bucket_type, logger=None):
     # type: (Union[Type, str], str, BucketType, Optional[MetricLogger]) -> Metrics.DelegatingHistogram
@@ -136,3 +165,64 @@ class MetricLogger(object):
           self._last_logging_millis = current_millis
       finally:
         self._lock.release()
+
+
+class ServiceCallMetric(object):
+  """Metric class which records Service API call metrics.
+
+  This class will capture a request count metric for the specified
+  request_count_urn and base_labels.
+
+  When call() is invoked the status must be provided, which will
+  be converted to a canonical GCP status code, if possible.
+
+  TODO(ajamato): Add Request latency metric.
+  """
+  def __init__(self, request_count_urn, base_labels=None):
+    # type: (str, Optional[Dict[str, str]]) -> None
+    self.base_labels = base_labels if base_labels else {}
+    self.request_count_urn = request_count_urn
+
+  def call(self, status):
+    # type: (Union[int, str, HttpError]) -> None
+
+    """Record the status of the call into appropriate metrics."""
+    canonical_status = self.convert_to_canonical_status_string(status)
+    additional_labels = {monitoring_infos.STATUS_LABEL: canonical_status}
+
+    labels = dict(
+        list(self.base_labels.items()) + list(additional_labels.items()))
+
+    request_counter = Metrics.counter(
+        urn=self.request_count_urn, labels=labels, process_wide=True)
+    request_counter.inc()
+
+  def convert_to_canonical_status_string(self, status):
+    # type: (Union[int, str, HttpError]) -> str
+
+    """Converts a status to a canonical GCP status cdoe string."""
+    http_status_code = None
+    if isinstance(status, int):
+      http_status_code = status
+    elif isinstance(status, str):
+      return status.lower()
+    elif isinstance(status, HttpError):
+      http_status_code = int(status.status_code)
+    http_to_canonical_gcp_status = {
+        200: 'ok',
+        400: 'out_of_range',
+        401: 'unauthenticated',
+        403: 'permission_denied',
+        404: 'not_found',
+        409: 'already_exists',
+        429: 'resource_exhausted',
+        499: 'cancelled',
+        500: 'internal',
+        501: 'not_implemented',
+        503: 'unavailable',
+        504: 'deadline_exceeded'
+    }
+    if (http_status_code is not None and
+        http_status_code in http_to_canonical_gcp_status):
+      return http_to_canonical_gcp_status[http_status_code]
+    return str(http_status_code)

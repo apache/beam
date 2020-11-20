@@ -98,7 +98,7 @@ class Stage(object):
       transforms,  # type: List[beam_runner_api_pb2.PTransform]
       downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
       must_follow=frozenset(),  # type: FrozenSet[Stage]
-      parent=None,  # type: Optional[Stage]
+      parent=None,  # type: Optional[str]
       environment=None,  # type: Optional[str]
       forced_root=False):
     self.name = name
@@ -165,8 +165,8 @@ class Stage(object):
         self.is_all_sdk_urns(context) and consumer.is_all_sdk_urns(context) and
         no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
-  def fuse(self, other):
-    # type: (Stage) -> Stage
+  def fuse(self, other, context):
+    # type: (Stage, TransformContext) -> Stage
     return Stage(
         "(%s)+(%s)" % (self.name, other.name),
         self.transforms + other.transforms,
@@ -174,7 +174,7 @@ class Stage(object):
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
             self.environment, other.environment),
-        parent=self.parent if self.parent == other.parent else None,
+        parent=_parent_for_fused_stages([self.name, other.name], context),
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
@@ -484,9 +484,21 @@ class TransformContext(object):
         self.maybe_length_prefixed_coder(
             self.components.pcollections[pcoll_id].coder_id))
 
+  @memoize_on_instance
+  def parents_map(self):
+    return {
+        child: parent
+        for (parent, transform) in self.components.transforms.items()
+        for child in transform.subtransforms
+    }
+
 
 def leaf_transform_stages(
-    root_ids, components, parent=None, known_composites=KNOWN_COMPOSITES):
+    root_ids,  # type: Iterable[str]
+    components,  # type: beam_runner_api_pb2.Components
+    parent=None,  # type: Optional[str]
+    known_composites=KNOWN_COMPOSITES  # type: FrozenSet[str]
+):
   # type: (...) -> Iterator[Stage]
   for root_id in root_ids:
     root = components.transforms[root_id]
@@ -539,8 +551,6 @@ def pipeline_from_stages(
     if parent is None:
       roots.add(child)
     else:
-      if isinstance(parent, Stage):
-        parent = parent.name
       if (parent not in components.transforms and
           parent in pipeline_proto.components.transforms):
         components.transforms[parent].CopyFrom(
@@ -740,6 +750,12 @@ def _group_stages_by_key(stages, get_stage_key):
   return (grouped_stages, stages_with_none_key)
 
 
+def _remap_input_pcolls(transform, pcoll_id_remap):
+  for input_key in list(transform.inputs.keys()):
+    if transform.inputs[input_key] in pcoll_id_remap:
+      transform.inputs[input_key] = pcoll_id_remap[transform.inputs[input_key]]
+
+
 def eliminate_common_key_with_none(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
 
@@ -777,19 +793,22 @@ def eliminate_common_key_with_none(stages, context):
         only_element(stage.transforms[0].outputs.values())
         for stage in sibling_stages
     ]
+    parent = _parent_for_fused_stages([s.name for s in sibling_stages], context)
     for to_delete_pcoll_id in output_pcoll_ids[1:]:
       pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
       del context.components.pcollections[to_delete_pcoll_id]
+    sibling_stages[0].parent = parent
     remaining_stages.append(sibling_stages[0])
+
+  # Remap all transforms in components.
+  for transform in context.components.transforms.values():
+    _remap_input_pcolls(transform, pcoll_id_remap)
 
   # Yield stages while remapping input PCollections if needed.
   stages_to_yield = itertools.chain(ineligible_stages, remaining_stages)
   for stage in stages_to_yield:
-    for transform in stage.transforms:
-      for input_key in list(transform.inputs.keys()):
-        if transform.inputs[input_key] in pcoll_id_remap:
-          transform.inputs[input_key] = pcoll_id_remap[
-              transform.inputs[input_key]]
+    transform = only_transform(stage.transforms)
+    _remap_input_pcolls(transform, pcoll_id_remap)
     yield stage
 
 
@@ -842,7 +861,7 @@ def pack_combiners(stages, context):
 
   def _try_fuse_stages(a, b):
     if a.can_fuse(b, context):
-      return a.fuse(b)
+      return a.fuse(b, context)
     else:
       raise ValueError
 
@@ -958,7 +977,7 @@ def pack_combiners(stages, context):
         pack_combine_name + '/Pack', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        parent=fused_stage.parent,
         environment=fused_stage.environment)
     yield pack_stage
 
@@ -980,7 +999,7 @@ def pack_combiners(stages, context):
         pack_combine_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        parent=fused_stage.parent,
         environment=fused_stage.environment)
     yield unpack_stage
 
@@ -1042,7 +1061,7 @@ def lift_combiners(stages, context):
         transform.unique_name, [transform],
         downstream_side_inputs=base_stage.downstream_side_inputs,
         must_follow=base_stage.must_follow,
-        parent=base_stage,
+        parent=base_stage.name,
         environment=base_stage.environment)
 
   def lifted_stages(stage):
@@ -1166,6 +1185,52 @@ def lift_combiners(stages, context):
       yield stage
 
 
+def _lowest_common_ancestor(a, b, context):
+  # type: (str, str, TransformContext) -> Optional[str]
+
+  '''Returns the name of the lowest common ancestor of the two named stages.
+
+  The provided context is used to compute ancestors of stages. Note that stages
+  are considered to be ancestors of themselves.
+  '''
+  assert a != b
+
+  parents = context.parents_map()
+
+  def get_ancestors(name):
+    ancestor = name
+    while ancestor is not None:
+      yield ancestor
+      ancestor = parents.get(ancestor)
+
+  a_ancestors = set(get_ancestors(a))
+  for b_ancestor in get_ancestors(b):
+    if b_ancestor in a_ancestors:
+      return b_ancestor
+  return None
+
+
+def _parent_for_fused_stages(stages, context):
+  # type: (Iterable[Optional[str]], TransformContext) -> Optional[str]
+
+  '''Returns the name of the new parent for the fused stages.
+
+  The new parent is the lowest common ancestor of the fused stages that is not
+  contained in the set of stages to be fused. The provided context is used to
+  compute ancestors of stages.
+  '''
+  def reduce_fn(a, b):
+    # type: (Optional[str], Optional[str]) -> Optional[str]
+    if a is None or b is None:
+      return None
+    return _lowest_common_ancestor(a, b, context)
+
+  result = functools.reduce(reduce_fn, stages)
+  if result in stages:
+    result = context.parents_map().get(result)
+  return result
+
+
 def expand_sdf(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
@@ -1215,7 +1280,7 @@ def expand_sdf(stages, context):
               transform.unique_name, [transform],
               base_stage.downstream_side_inputs,
               union(base_stage.must_follow, frozenset(extra_must_follow)),
-              parent=base_stage,
+              parent=base_stage.name,
               environment=base_stage.environment)
 
         main_input_tag = only_element(
@@ -1518,7 +1583,7 @@ def greedily_fuse(stages, pipeline_context):
     return s
 
   def fuse(producer, consumer):
-    fused = producer.fuse(consumer)
+    fused = producer.fuse(consumer, pipeline_context)
     replacements[producer] = fused
     replacements[consumer] = fused
 
@@ -1702,6 +1767,12 @@ def sort_stages(stages, pipeline_context):
   seen = set()  # type: Set[Stage]
   ordered = []
 
+  producers = {
+      pcoll: stage
+      for stage in all_stages for t in stage.transforms
+      for pcoll in t.outputs.values()
+  }
+
   def process(stage):
     if stage not in seen:
       seen.add(stage)
@@ -1709,6 +1780,13 @@ def sort_stages(stages, pipeline_context):
         return
       for prev in stage.must_follow:
         process(prev)
+      stage_outputs = set(
+          pcoll for transform in stage.transforms
+          for pcoll in transform.outputs.values())
+      for transform in stage.transforms:
+        for pcoll in transform.inputs.values():
+          if pcoll not in stage_outputs:
+            process(producers[pcoll])
       ordered.append(stage)
 
   for stage in stages:

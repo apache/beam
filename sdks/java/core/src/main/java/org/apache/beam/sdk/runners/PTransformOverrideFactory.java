@@ -38,6 +38,9 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 @Internal
 @Experimental(Kind.CORE_RUNNERS_ONLY)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface PTransformOverrideFactory<
     InputT extends PInput,
     OutputT extends POutput,

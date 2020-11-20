@@ -28,7 +28,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationConte
  * <p>It is a JNI wrapper of an equivalent C++ class.
  */
 @ThreadSafe
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class ApplianceShuffleReader implements ShuffleReader, Closeable {
   static {
     ShuffleLibrary.load();

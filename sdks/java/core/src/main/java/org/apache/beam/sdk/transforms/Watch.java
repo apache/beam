@@ -126,7 +126,10 @@ import org.slf4j.LoggerFactory;
  * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class Watch {
   private static final Logger LOG = LoggerFactory.getLogger(Watch.class);
 
