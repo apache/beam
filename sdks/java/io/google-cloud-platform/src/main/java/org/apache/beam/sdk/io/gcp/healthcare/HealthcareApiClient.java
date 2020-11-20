@@ -29,6 +29,8 @@ import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -166,6 +168,18 @@ public interface HealthcareApiClient {
    * @throws IOException the io exception
    */
   HttpBody readFhirResource(String resourceId) throws IOException;
+
+  /**
+   * Search fhir resource http body.
+   *
+   * @param fhirStore the fhir store
+   * @param resourceType the resource type
+   * @param parameters the parameters
+   * @return the http body
+   * @throws IOException
+   */
+  HttpBody searchFhirResource(String fhirStore, String resourceType,
+                              @Nullable Map<String, Object> parameters) throws IOException;
 
   /**
    * Create hl 7 v 2 store hl 7 v 2 store.
