@@ -29,73 +29,73 @@ String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
 def batchScenarios = {
   [
-      [
-        title          : 'Load test: 2GB of 10B records',
-        test           : 'combine',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-combine-1-${now}",
-          influx_measurement   : 'go_batch_combine_1',
-          input_options        : """
+    [
+      title          : 'Load test: 2GB of 10B records',
+      test           : 'combine',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-combine-1-${now}",
+        influx_measurement   : 'go_batch_combine_1',
+        input_options        : """
                                    {
                                      "num_records": 200000000,
                                      "key_size": 1,
                                      "value_size": 9
                                    }
                                """.trim().replaceAll("\\s", ""),
-          fanout               : 1,
-          top_count            : 20,
-          parallelism          : 5,
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
-        test           : 'combine',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-combine-1-${now}",
-          influx_measurement   : 'go_batch_combine_1',
-          input_options        : """
+        fanout               : 1,
+        top_count            : 20,
+        parallelism          : 5,
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+      test           : 'combine',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-combine-1-${now}",
+        influx_measurement   : 'go_batch_combine_1',
+        input_options        : """
                                    {
                                      "num_records": 5000000,
                                      "key_size": 10,
                                      "value_size": 90
                                    }
                                """.trim().replaceAll("\\s", ""),
-          fanout               : 4,
-          top_count            : 20,
-          parallelism          : 16,
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-      [
-        title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
-        test           : 'combine',
-        runner         : CommonTestProperties.Runner.FLINK,
-        pipelineOptions: [
-          job_name             : "load-tests-go-flink-batch-combine-1-${now}",
-          influx_measurement   : 'go_batch_combine_1',
-          fanout               : 8,
-          top_count            : 20,
-          parallelism          : 16,
-          input_options        : """
+        fanout               : 4,
+        top_count            : 20,
+        parallelism          : 16,
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+      test           : 'combine',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name             : "load-tests-go-flink-batch-combine-1-${now}",
+        influx_measurement   : 'go_batch_combine_1',
+        fanout               : 8,
+        top_count            : 20,
+        parallelism          : 16,
+        input_options        : """
                                    {
                                      "num_records": 2500000,
                                      "key_size": 10,
                                      "value_size": 90
                                    }
                                """.trim().replaceAll("\\s", ""),
-          endpoint             : 'localhost:8099',
-          environment_type     : 'DOCKER',
-          environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-        ]
-      ],
-    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+        endpoint             : 'localhost:8099',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
