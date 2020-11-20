@@ -37,7 +37,7 @@ job('beam_Publish_Beam_SDK_Snapshots') {
   def imageTag = '${GIT_COMMIT}'
 
   steps {
-    shell("echo 'Pushing SDK snapshots to ${imageRepo} at tag: ${imageTag}")
+    shell("echo 'Pushing SDK snapshots to ${imageRepo} at tag: ${imageTag}'")
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
