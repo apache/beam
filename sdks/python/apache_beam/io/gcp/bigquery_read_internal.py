@@ -30,6 +30,7 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Union
+from typing import TYPE_CHECKING
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -44,6 +45,9 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms import PTransform
+
+if TYPE_CHECKING:
+  from apache_beam.io.gcp.bigquery import ReadFromBigQueryRequest
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -125,57 +129,6 @@ class _PassThroughThenCleanup(PTransform):
     return main_output
 
 
-class ReadFromBigQueryRequest:
-  """
-  Class that defines data to read from BQ.
-  """
-  def __init__(
-      self,
-      query: str = None,
-      use_standard_sql: bool = True,
-      table: Union[str, TableReference] = None,
-      flatten_results: bool = False):
-    """
-    Only one of query or table should be specified.
-
-    :param query: SQL query to fetch data.
-    :param use_standard_sql:
-      Specifies whether to use BigQuery's standard SQL dialect for this query.
-      The default value is :data:`True`. If set to :data:`False`,
-      the query will use BigQuery's legacy SQL dialect.
-      This parameter is ignored for table inputs.
-    :param table:
-      The ID of the table to read. The ID must contain only letters
-      ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. Table should
-      define project and dataset (ex.: ``'PROJECT:DATASET.TABLE'``).
-    :param flatten_results:
-      Flattens all nested and repeated fields in the query results.
-      The default value is :data:`False`.
-    """
-    self.flatten_results = flatten_results
-    self.query = query
-    self.use_standard_sql = use_standard_sql
-    self.table = table
-    self.validate()
-
-    # We use this internal object ID to generate BigQuery export directories.
-    self.obj_id = random.randint(0, 100000)
-
-  def validate(self):
-    if self.table is not None and self.query is not None:
-      raise ValueError(
-          'Both a BigQuery table and a query were specified.'
-          ' Please specify only one of these.')
-    elif self.table is None and self.query is None:
-      raise ValueError('A BigQuery table or a query must be specified')
-    if self.table is not None:
-      if isinstance(self.table, str):
-        assert self.table.find('.'), (
-            'Expected a table reference '
-            '(PROJECT:DATASET.TABLE or DATASET.TABLE) instead of %s'
-            % self.table)
-
-
 class _BigQueryReadSplit(beam.transforms.DoFn):
   """Starts the process of reading from BigQuery.
 
@@ -223,7 +176,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     else:
       return self.temp_dataset
 
-  def process(self, element: ReadFromBigQueryRequest, *args,
+  def process(self, element: 'ReadFromBigQueryRequest', *args,
               **kwargs) -> Iterable[BoundedSource]:
     bq = bigquery_tools.BigQueryWrapper(
         temp_dataset_id=self._get_temp_dataset().datasetId)
@@ -269,7 +222,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def _setup_temporary_dataset(
       self,
       bq: bigquery_tools.BigQueryWrapper,
-      element: ReadFromBigQueryRequest):
+      element: 'ReadFromBigQueryRequest'):
     location = bq.get_query_location(
         self._get_project(), element.query, not element.use_standard_sql)
     bq.create_temporary_dataset(self._get_project(), location)
@@ -277,7 +230,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def _execute_query(
       self,
       bq: bigquery_tools.BigQueryWrapper,
-      element: ReadFromBigQueryRequest):
+      element: 'ReadFromBigQueryRequest'):
     query_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
         self._source_uuid,
@@ -299,7 +252,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def _export_files(
       self,
       bq: bigquery_tools.BigQueryWrapper,
-      element: ReadFromBigQueryRequest,
+      element: 'ReadFromBigQueryRequest',
       table_reference: TableReference):
     """Runs a BigQuery export job.
 
