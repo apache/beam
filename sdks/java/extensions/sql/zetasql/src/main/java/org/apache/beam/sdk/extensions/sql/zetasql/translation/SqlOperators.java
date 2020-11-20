@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
@@ -33,20 +34,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Aggregat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlSyntax;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.*;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.InferTypes;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.OperandTypes;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.*;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Optionality;
@@ -133,9 +123,9 @@ public class SqlOperators {
   public static final SqlOperator DATE_OP =
       createUdfOperator("DATE", BeamBuiltinMethods.DATE_METHOD);
 
-
   public static final SqlOperator LOGICAL_AND =
-          createUdfOperator("LOGICAL_AND", BeamBuiltinMethods.LOGICAL_AND);
+          createUdafOperator("LOGICAL_AND", x -> createTypeFactory().createSqlType(SqlTypeName.BOOLEAN),
+                  new UdafImpl<>(new BeamBuiltinAggregations.LogicalAnd()));
 
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(

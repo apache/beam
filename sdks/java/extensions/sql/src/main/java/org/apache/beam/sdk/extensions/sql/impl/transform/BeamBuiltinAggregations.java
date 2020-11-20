@@ -483,7 +483,7 @@ public class BeamBuiltinAggregations {
     private boolean isEmpty = true;
     @Override
     public Boolean createAccumulator() {
-      return null;
+      return Boolean.FALSE;
     }
 
     @Override

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
-import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
@@ -305,36 +304,6 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> inputRows =
         pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
-
-    PAssert.that(result).containsInAnyOrder(rowResult);
-
-    pipeline.run().waitUntilFinish();
-  }
-
-
-  @Test
-  public void testLogicalAndFunction() throws Exception {
-    pipeline.enableAbandonedNodeEnforcement(false);
-
-    Schema schemaInTableA =
-            Schema.builder().addBooleanField("f_bool").addInt32Field("f_int2").build();
-    Schema resultType = Schema.builder().addBooleanField("finalAnswer").build();
-
-    List<Row> rowsInTableA =
-            TestUtils.RowsBuilder.of(schemaInTableA)
-                    .addRows(
-                            true, 0,
-                            false, 0,
-                            true, 0)
-                    .getRows();
-
-    String sql = "SELECT logical_and(f_bool) as logicaland " + "FROM PCOLLECTION GROUP BY f_int2";
-
-    Row rowResult = Row.withSchema(resultType).addValues(false).build();
-
-    PCollection<Row> inputRows =
-            pipeline.apply("boolVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
-    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql).registerUdaf("logical_and", new BeamBuiltinAggregations.LogicalAnd()));
 
     PAssert.that(result).containsInAnyOrder(rowResult);
 
