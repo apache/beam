@@ -469,9 +469,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       # We're only handling a single column.
       base_func = func[0] if isinstance(func, list) else func
       if _is_associative(base_func) and not args and not kwargs:
-        intermediate = expressions.elementwise_expression(
+        intermediate = expressions.ComputedExpression(
             'pre_aggregate',
-            lambda s: s.agg([base_func], *args, **kwargs), [self._expr])
+            lambda s: s.agg([base_func], *args, **kwargs), [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Nothing())
         allow_nonparallel_final = True
       else:
         intermediate = self._expr
