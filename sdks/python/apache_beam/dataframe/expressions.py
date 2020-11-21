@@ -48,10 +48,15 @@ class Session(object):
 class PartitioningSession(Session):
   """An extension of Session that enforces actual partitioning of inputs.
 
-  When evaluating an expression, inputs are partitioned according to its
-  `requires_partition_by` specifications, the expression is evaluated on each
-  partition separately, and the final result concatinated, as if this were
-  actually executed in a parallel manner.
+  Each expression is evaluated multiple times for various supported
+  partitionings determined by its `requires_partition_by` specification. For
+  each tested partitioning, the input is partitioned and the expression is
+  evaluated on each partition separately, as if this were actually executed in
+  a parallel manner.
+
+  For each input partitioning, the results are verified to be partitioned
+  appropriately according to the expression's `preserves_partition_by`
+  specification.
 
   For testing only.
   """
@@ -67,28 +72,57 @@ class PartitioningSession(Session):
         result = super(PartitioningSession, self).evaluate(expr)
       else:
         scaler_args = [arg for arg in expr.args() if is_scalar(arg)]
-        parts = collections.defaultdict(
-            lambda: Session({arg: self.evaluate(arg)
-                             for arg in scaler_args}))
-        for arg in expr.args():
-          if not is_scalar(arg):
-            input = self.evaluate(arg)
-            for key, part in expr.requires_partition_by().test_partition_fn(
-                input):
-              parts[key]._bindings[arg] = part
-        if not parts:
-          parts[None]  # Create at least one entry.
 
-        results = []
-        for session in parts.values():
-          if any(len(session.lookup(arg)) for arg in expr.args()
-                 if not is_scalar(arg)):
-            results.append(session.evaluate(expr))
-        if results:
-          result = pd.concat(results)
-        else:
-          # Choose any single session.
-          result = next(iter(parts.values())).evaluate(expr)
+        def evaluate_with(input_partitioning):
+          parts = collections.defaultdict(
+              lambda: Session({arg: self.evaluate(arg)
+                               for arg in scaler_args}))
+          for arg in expr.args():
+            if not is_scalar(arg):
+              input = self.evaluate(arg)
+              for key, part in input_partitioning.test_partition_fn(input):
+                parts[key]._bindings[arg] = part
+          if not parts:
+            parts[None]  # Create at least one entry.
+
+          results = []
+          for session in parts.values():
+            if any(len(session.lookup(arg)) for arg in expr.args()
+                   if not is_scalar(arg)):
+              results.append(session.evaluate(expr))
+
+          expected_output_partitioning = expr.preserves_partition_by(
+          ) if input_partitioning.is_subpartitioning_of(
+              expr.preserves_partition_by()) else input_partitioning
+
+          if not expected_output_partitioning.check(results):
+            raise AssertionError(
+                f"""Expression does not preserve partitioning!
+                Expression: {expr}
+                Requires: {expr.requires_partition_by()}
+                Preserves: {expr.preserves_partition_by()}
+                Input partitioning: {input_partitioning}
+                Expected output partitioning: {expected_output_partitioning}
+                """)
+
+          if results:
+            return pd.concat(results)
+          else:
+            # Choose any single session.
+            return next(iter(parts.values())).evaluate(expr)
+
+        input_partitioning = expr.requires_partition_by()
+
+        while input_partitioning is not None:
+          result = evaluate_with(input_partitioning)
+
+          if input_partitioning == partitionings.Nothing():
+            input_partitioning = partitionings.Index()
+          elif isinstance(input_partitioning, partitionings.Index):
+            input_partitioning = partitionings.Singleton()
+          else:  # partitionings.Singleton()
+            input_partitioning = None
+
         self._bindings[expr] = result
     return self._bindings[expr]
 
