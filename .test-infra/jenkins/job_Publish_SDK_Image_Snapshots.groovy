@@ -17,8 +17,8 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import JavaTestProperties as javaProperties
-import PythonTestProperties as pythonProperties
+import static JavaTestProperties.SUPPORTED_CONTAINER_TASKS as SUPPORTED_JAVA_CONTAINER_TASKS
+import static PythonTestProperties.SUPPORTED_CONTAINER_TASKS as SUPPORTED_PYTHON_CONTAINER_TASKS
 
 // This job publishes regular snapshots of the SDK harness containers for
 // testing purposes. It builds and pushes the SDK container to the
@@ -42,10 +42,10 @@ job('beam_Publish_Beam_SDK_Snapshots') {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
       tasks(':sdks:go:container:dockerPush')
-      javaProperties.SUPPORTED_CONTAINER_TASKS.each { taskVer ->
+      SUPPORTED_JAVA_CONTAINER_TASKS.each { taskVer ->
         tasks(":sdks:java:container:${taskVer}:dockerPush")
       }
-      pythonProperties.SUPPORTED_CONTAINER_TASKS.each { taskVer ->
+      SUPPORTED_PYTHON_CONTAINER_TASKS.each { taskVer ->
         tasks(":sdks:python:container:${taskVer}:dockerPush")
       }
       tasks(':sdks:python:container:py36:dockerPush')

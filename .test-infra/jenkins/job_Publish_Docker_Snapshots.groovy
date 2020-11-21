@@ -17,7 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PythonTestProperties as pythonProperties
+import static PythonTestProperties.SUPPORTED_CONTAINER_TASKS
 
 job('beam_Publish_Docker_Snapshots') {
   description('Builds SDK harness images and job server images for testing purposes.')
@@ -40,7 +40,7 @@ job('beam_Publish_Docker_Snapshots') {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
-      pythonProperties.SUPPORTED_CONTAINER_TASKS.each { taskVer ->
+      SUPPORTED_CONTAINER_TASKS.each { taskVer ->
         tasks(":sdks:python:container:${taskVer}:dockerPush")
       }
       tasks(':sdks:go:container:dockerPush')
