@@ -112,7 +112,7 @@ refresh a side input coming from BigQuery. This would work like so:::
       | 'ApplyCrossJoin' >> beam.FlatMap(
           cross_join, rights=beam.pvalue.AsIter(side_input)))
 
-**Note**: This transform is supported on Portable runners only.
+**Note**: This transform is supported on Portable and Dataflow v2 runners.
 
 Writing Data to BigQuery
 ========================

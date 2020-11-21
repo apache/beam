@@ -177,6 +177,11 @@ class ReadFromBigQueryRequest:
 
 
 class _BigQueryReadSplit(beam.transforms.DoFn):
+  """Starts the process of reading from BigQuery.
+
+  This transform will start a BigQuery export job, and output a number of
+  file sources that are consumed downstream.
+  """
   def __init__(
       self,
       options: PipelineOptions,
@@ -198,7 +203,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     self._source_uuid = unique_id
     self.kms_key = kms_key
     self.project = project
-    self.temp_dataset = temp_dataset
+    self.temp_dataset = temp_dataset or 'bq_read_all_%s' % uuid.uuid4().hex
     self.bq_io_metadata = None
 
   def display_data(self):
@@ -221,9 +226,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def process(self, element: ReadFromBigQueryRequest, *args,
               **kwargs) -> Iterable[BoundedSource]:
     bq = bigquery_tools.BigQueryWrapper(
-        temp_dataset_id=(
-            self._get_temp_dataset().datasetId if self._get_temp_dataset(
-            ) else None))
+        temp_dataset_id=self._get_temp_dataset().datasetId)
 
     if element.query is not None:
       self._setup_temporary_dataset(bq, element)
@@ -242,7 +245,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       yield self._create_source(metadata.path, schema)
 
     if element.query is not None:
-      bq.clean_up_temporary_dataset(self._get_project())
+      bq._delete_table(
+          table_reference.projectId,
+          table_reference.datasetId,
+          table_reference.tableId)
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
