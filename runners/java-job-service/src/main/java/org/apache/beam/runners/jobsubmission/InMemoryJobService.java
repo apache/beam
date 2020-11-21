@@ -148,7 +148,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       JobInvoker invoker,
       int maxInvocationHistory) {
     this.stagingService = stagingService;
-    this.stagingServiceDescriptor = stagingService.getApiServiceDescriptor();
+    //li_trunk ONLY: added null check for stagingService here since it's null for samza runner
+    this.stagingServiceDescriptor =
+        stagingService == null ? null : stagingService.getApiServiceDescriptor();
     this.stagingServiceTokenProvider = stagingServiceTokenProvider;
     this.cleanupJobFn = cleanupJobFn;
     this.invoker = invoker;
@@ -193,19 +195,21 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       String stagingSessionToken = stagingServiceTokenProvider.apply(preparationId);
       stagingSessionTokens.putIfAbsent(preparationId, stagingSessionToken);
 
-      stagingService
-          .getService()
-          .registerJob(
-              stagingSessionToken,
-              Maps.transformValues(
-                  request.getPipeline().getComponents().getEnvironmentsMap(),
-                  RunnerApi.Environment::getDependenciesList));
+      //li_trunk ONLY: added null check for stagingService here since it's null for samza runner
+      if (stagingService != null) {
+        stagingService
+            .getService()
+            .registerJob(
+                stagingSessionToken,
+                Maps.transformValues(
+                    request.getPipeline().getComponents().getEnvironmentsMap(),
+                    RunnerApi.Environment::getDependenciesList));
+      }
 
       // send response
       PrepareJobResponse response =
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
-              .setArtifactStagingEndpoint(stagingServiceDescriptor)
               // li_trunk ONLY: commenting out the staging endpoint to avoid the involvement of
               // Docker
               // need a better solution from open source to support our Dockerless environment
@@ -244,7 +248,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       // create new invocation
       JobInvocation invocation =
           invoker.invoke(
-              resolveDependencies(preparation.pipeline(), stagingSessionTokens.get(preparationId)),
+              //li_trunk ONLY: added null check for stagingService here since it's null for samza runner
+              stagingService == null
+                  ? preparation.pipeline()
+                  : resolveDependencies(
+                      preparation.pipeline(), stagingSessionTokens.get(preparationId)),
               preparation.options(),
               request.getRetrievalToken());
       String invocationId = invocation.getId();
