@@ -87,8 +87,12 @@ class MetricName(object):
     return not self == other
 
   def __str__(self):
-    return 'MetricName(namespace={}, name={}, urn={}, labels={})'.format(
-        self.namespace, self.name, self.urn, self.labels)
+    if self.urn:
+      return 'MetricName(namespace={}, name={}, urn={}, labels={})'.format(
+          self.namespace, self.name, self.urn, self.labels)
+    else:  # User counter case.
+      return 'MetricName(namespace={}, name={})'.format(
+          self.namespace, self.name)
 
   def __hash__(self):
     return hash((self.namespace, self.name, self.urn) +
