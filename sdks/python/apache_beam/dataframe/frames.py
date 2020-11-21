@@ -160,7 +160,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           set_index,  #
           [self._expr, by._expr],
           requires_partition_by=partitionings.Index(),
-          preserves_partition_by=partitionings.Singleton())
+          preserves_partition_by=partitionings.Nothing())
 
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError('order sensitive')
