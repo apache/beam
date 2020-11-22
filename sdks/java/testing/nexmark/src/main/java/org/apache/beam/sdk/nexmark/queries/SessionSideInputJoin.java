@@ -54,7 +54,7 @@ public class SessionSideInputJoin extends NexmarkQueryTransform<Bid> {
   private final NexmarkConfiguration configuration;
 
   public SessionSideInputJoin(NexmarkConfiguration configuration) {
-    super("BoundedSideInputJoin");
+    super("SessionSideInputJoin");
     this.configuration = configuration;
   }
 
