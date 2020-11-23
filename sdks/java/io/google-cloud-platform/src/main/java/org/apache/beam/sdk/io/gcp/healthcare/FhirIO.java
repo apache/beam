@@ -1426,7 +1426,7 @@ public class FhirIO {
 
     /** The type Result. */
     public static class Result implements POutput, PInput {
-      private PCollection<JsonArray> resources;
+      private PCollection<String> resources;
 
       private PCollection<HealthcareIOError<String>> failedSearches;
       PCollectionTuple pct;
@@ -1471,7 +1471,7 @@ public class FhirIO {
        *
        * @return the resources
        */
-      public PCollection<JsonArray> getResources() {
+      public PCollection<String> getResources() {
         return resources;
       }
 
@@ -1491,7 +1491,7 @@ public class FhirIO {
     }
 
     /** The tag for the main output of Fhir Messages. */
-    public static final TupleTag<JsonArray> OUT = new TupleTag<JsonArray>() {};
+    public static final TupleTag<String> OUT = new TupleTag<String>() {};
     /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
             new TupleTag<HealthcareIOError<String>>() {};
@@ -1538,7 +1538,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      static class SearchResourcesFn extends DoFn<KV<String, Map<String, Object>>, JsonArray> {
+      static class SearchResourcesFn extends DoFn<KV<String, Map<String, Object>>, String> {
 
         private Counter failedSearches =
                 Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
@@ -1546,7 +1546,6 @@ public class FhirIO {
         private final Counter successfulSearches =
                 Metrics.counter(SearchResourcesFn.class, "successful-fhir-searches");
         private HealthcareApiClient client;
-        private ObjectMapper mapper;
         private final ValueProvider<String> fhirStore;
 
         /** Instantiates a new Fhir resources search fn. */
@@ -1562,7 +1561,6 @@ public class FhirIO {
         @Setup
         public void instantiateHealthcareClient() throws IOException {
           this.client = new HttpHealthcareApiClient();
-          this.mapper = new ObjectMapper();
         }
 
         /**
@@ -1587,7 +1585,7 @@ public class FhirIO {
           }
         }
 
-        private JsonArray searchResources(HealthcareApiClient client, String fhirStore, String resourceType,
+        private String searchResources(HealthcareApiClient client, String fhirStore, String resourceType,
                                        @Nullable Map<String, Object> parameters)
                 throws IllegalArgumentException {
           long startTime = System.currentTimeMillis();
@@ -1600,7 +1598,7 @@ public class FhirIO {
             result.addAll(iter.next());
           }
           this.successfulSearches.inc();
-          return result;
+          return result.toString();
         }
       }
     }
