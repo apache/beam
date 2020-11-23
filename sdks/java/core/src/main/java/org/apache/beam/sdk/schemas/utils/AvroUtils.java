@@ -41,6 +41,7 @@ import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
@@ -64,6 +65,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
+import org.apache.beam.sdk.schemas.logicaltypes.Date;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
@@ -90,9 +92,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Days;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.LocalDate;
 import org.joda.time.ReadableInstant;
 
 /** Utils to convert AVRO records to Beam rows. */
@@ -761,7 +762,9 @@ public class AvroUtils {
         // this is done, this logical type needs to be changed.
         fieldType = FieldType.DATETIME;
       } else if (logicalType instanceof LogicalTypes.Date) {
-        fieldType = FieldType.DATETIME;
+        fieldType = FieldType.logicalType(new Date());
+      } else {
+        throw new AssertionError("Unexpected AVRO LogicalType: " + logicalType.getName());
       }
     }
 
@@ -888,6 +891,9 @@ public class AvroUtils {
 
       case LOGICAL_TYPE:
         switch (fieldType.getLogicalType().getIdentifier()) {
+          case Date.IDENTIFIER:
+            baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
+            break;
           case FixedBytes.IDENTIFIER:
             FixedBytesField fixedBytesField =
                 checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
@@ -975,22 +981,20 @@ public class AvroUtils {
         return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
 
       case DATETIME:
-        if (typeWithNullability.type.getType() == Type.INT) {
-          ReadableInstant instant = (ReadableInstant) value;
-          return (int) Days.daysBetween(Instant.EPOCH, instant).getDays();
-        } else if (typeWithNullability.type.getType() == Type.LONG) {
-          ReadableInstant instant = (ReadableInstant) value;
-          return (long) instant.getMillis();
-        } else {
-          throw new IllegalArgumentException(
-              "Can't represent " + fieldType + " as " + typeWithNullability.type.getType());
-        }
+        ReadableInstant instant = (ReadableInstant) value;
+        return (long) instant.getMillis();
 
       case BYTES:
         return ByteBuffer.wrap((byte[]) value);
 
       case LOGICAL_TYPE:
         switch (fieldType.getLogicalType().getIdentifier()) {
+          case Date.IDENTIFIER:
+            return new TimeConversions.DateConversion()
+                .toInt(
+                    (LocalDate) value,
+                    typeWithNullability.type,
+                    typeWithNullability.type.getLogicalType());
           case FixedBytes.IDENTIFIER:
             FixedBytesField fixedBytesField =
                 checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
@@ -1092,12 +1096,10 @@ public class AvroUtils {
           return convertDateTimeStrict((Long) value, fieldType);
         }
       } else if (logicalType instanceof LogicalTypes.Date) {
-        if (value instanceof ReadableInstant) {
-          int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
-          return convertDateStrict(epochDays, fieldType);
-        } else {
-          return convertDateStrict((Integer) value, fieldType);
-        }
+        return new TimeConversions.DateConversion()
+            .fromInt((Integer) value, type.type, logicalType);
+      } else {
+        throw new AssertionError("Unexpected AVRO LogicalType: " + logicalType.getName());
       }
     }
 
@@ -1189,11 +1191,6 @@ public class AvroUtils {
   private static Object convertDecimal(BigDecimal value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.DECIMAL, "decimal");
     return value;
-  }
-
-  private static Object convertDateStrict(Integer epochDays, Schema.FieldType fieldType) {
-    checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "date");
-    return Instant.EPOCH.plus(Duration.standardDays(epochDays));
   }
 
   private static Object convertDateTimeStrict(Long value, Schema.FieldType fieldType) {

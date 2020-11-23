@@ -33,10 +33,11 @@ import org.apache.beam.sdk.schemas.Schema;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class Date implements Schema.LogicalType<LocalDate, Long> {
+  public static final String IDENTIFIER = "beam:logical_type:date:v1";
 
   @Override
   public String getIdentifier() {
-    return "beam:logical_type:date:v1";
+    return IDENTIFIER;
   }
 
   // unused

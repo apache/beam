@@ -32,6 +32,7 @@ import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.Date;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.transforms.Group;
@@ -275,7 +276,7 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
-          .addField("date", FieldType.DATETIME)
+          .addField("date", FieldType.logicalType(new Date()))
           .addField("timestampMillis", FieldType.DATETIME)
           .addField("TestEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
@@ -293,7 +294,7 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
-          .addField("date", FieldType.DATETIME)
+          .addField("date", FieldType.logicalType(new Date()))
           .addField("timestampMillis", FieldType.DATETIME)
           .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
@@ -365,7 +366,7 @@ public class AvroSchemaTest {
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
               BYTE_ARRAY,
-              DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
+              DATE,
               DATE_TIME,
               TEST_ENUM_TYPE.valueOf("abc"),
               NESTED_ROW,
@@ -440,7 +441,7 @@ public class AvroSchemaTest {
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
               BYTE_ARRAY,
-              DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
+              DATE,
               DATE_TIME,
               TEST_ENUM_TYPE.valueOf("abc"),
               NESTED_ROW,
