@@ -13,25 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is GroupByKey load test with Synthetic Source. Besides of the standard
-// input options there are additional options:
-// * fanout (optional) - number of GBK operations to run in parallel
-// * iterations (optional) - number of reiterations over per-key-grouped
-// values to perform
-// input_options - options for Synthetic Sources.
-
-// Example test run:
-
-// go run sdks/go/test/load/group_by_key_test/group_by_key.go  \
-// --fanout=1
-// --iterations=1
-// --input_options='{
-// \"num_records\": 300,
-// \"key_size\": 5,
-// \"value_size\": 15,
-// \"num_hot_keys\": 30,
-// \"hot_key_fraction\": 0.5
-// }'"
+// This is GroupByKey load test with Synthetic Source.
 
 package main
 
@@ -50,15 +32,15 @@ var (
 	fanout = flag.Int(
 		"fanout",
 		1,
-		"Fanout")
+		"A number of GroupByKey operations to perform in parallel.")
 	iterations = flag.Int(
 		"iterations",
 		1,
-		"A number of subsequent ParDo transforms to be performed")
+		"A number of reiterations over per-key-grouped values to perform.")
 	syntheticConfig = flag.String(
 		"input_options",
 		"",
-		"A JSON object that describes the configuration for synthetic source")
+		"A JSON object that describes the configuration for synthetic source.")
 )
 
 func parseSyntheticConfig() synthetic.SourceConfig {
@@ -81,16 +63,16 @@ func main() {
 	pcoll := beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	for i := 0; i < *fanout; i++ {
 		pcoll = beam.GroupByKey(s, src)
-		beam.ParDo(s, func(key []uint8, values func(*[]uint8) bool) ([]uint8, []uint8) {
+		beam.ParDo(s, func(key []byte, values func(*[]byte) bool) ([]byte, []byte) {
 			for i := 0; i < *iterations; i++ {
-				var value []uint8
+				var value []byte
 				for values(&value) {
 					if i == *iterations-1 {
 						return key, value
 					}
 				}
 			}
-			return key, []uint8{0}
+			return key, []byte{0}
 		}, pcoll)
 	}
 
