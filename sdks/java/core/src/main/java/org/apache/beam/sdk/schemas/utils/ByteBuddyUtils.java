@@ -93,6 +93,11 @@ import org.joda.time.ReadablePartial;
 import org.joda.time.base.BaseLocal;
 
 @Internal
+@SuppressWarnings({
+  "keyfor",
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class ByteBuddyUtils {
   private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
   private static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);
@@ -1417,7 +1422,7 @@ public class ByteBuddyUtils {
         if (fieldValue.getField() != null) {
           fieldsByJavaClassMember.put(fieldValue.getField().getName(), i);
         } else if (fieldValue.getMethod() != null) {
-          String name = ReflectUtils.stripPrefix(fieldValue.getMethod().getName(), "set");
+          String name = ReflectUtils.stripGetterPrefix(fieldValue.getMethod().getName());
           fieldsByJavaClassMember.put(name, i);
         }
       }

@@ -95,6 +95,10 @@ import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";

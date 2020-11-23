@@ -57,6 +57,7 @@ import sys
 import tempfile
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import pkg_resources
 from future.moves.urllib.parse import urlparse
@@ -68,8 +69,6 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import WorkerOptions
-# TODO(angoenka): Remove reference to dataflow internal names
-from apache_beam.runners.dataflow.internal.names import DATAFLOW_SDK_TARBALL_FILE
 from apache_beam.runners.internal import names
 from apache_beam.utils import processes
 from apache_beam.utils import retry
@@ -230,9 +229,8 @@ class Stager(object):
           # This branch is also used by internal tests running with the SDK
           # built at head.
           if os.path.isdir(setup_options.sdk_location):
-            # TODO(angoenka): remove reference to Dataflow
             sdk_path = os.path.join(
-                setup_options.sdk_location, DATAFLOW_SDK_TARBALL_FILE)
+                setup_options.sdk_location, names.STAGED_SDK_SOURCES_FILENAME)
           else:
             sdk_path = setup_options.sdk_location
 
@@ -612,7 +610,7 @@ class Stager(object):
       else:
         raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
     else:
-      return DATAFLOW_SDK_TARBALL_FILE
+      return names.STAGED_SDK_SOURCES_FILENAME
 
   @staticmethod
   def _create_beam_sdk(sdk_remote_location, temp_dir):

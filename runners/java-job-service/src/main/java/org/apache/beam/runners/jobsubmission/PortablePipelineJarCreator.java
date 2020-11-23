@@ -63,6 +63,10 @@ import org.slf4j.LoggerFactory;
  * <p>Each {@link PortablePipelineJarCreator} instance is not threadsafe; a new instance is expected
  * to be constructed and {@link #run} once per job.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PortablePipelineJarCreator implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(PortablePipelineJarCreator.class);
 

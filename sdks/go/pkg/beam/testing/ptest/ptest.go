@@ -73,7 +73,8 @@ func Run(p *beam.Pipeline) error {
 	if *Runner == "" {
 		*Runner = defaultRunner
 	}
-	return beam.Run(context.Background(), *Runner, p)
+	_, err := beam.Run(context.Background(), *Runner, p)
+	return err
 }
 
 // Main is an implementation of testing's TestMain to permit testing

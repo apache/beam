@@ -39,6 +39,7 @@ import org.joda.time.Instant;
  * A Flink combine runner that first sorts the elements by window and then does one pass that merges
  * windows and outputs results.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends AbstractFlinkCombineRunner<K, InputT, AccumT, OutputT, W> {
 

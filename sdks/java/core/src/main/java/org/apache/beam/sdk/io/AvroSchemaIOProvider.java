@@ -39,6 +39,9 @@ import org.apache.beam.sdk.values.Row;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroSchemaIOProvider implements SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   @Override

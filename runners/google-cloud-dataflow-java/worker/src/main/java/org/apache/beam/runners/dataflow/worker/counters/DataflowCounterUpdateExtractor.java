@@ -32,6 +32,9 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMe
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Factory methods for extracting {@link CounterUpdate} updates from counters. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowCounterUpdateExtractor implements CounterUpdateExtractor<CounterUpdate> {
 
   public static final DataflowCounterUpdateExtractor INSTANCE =

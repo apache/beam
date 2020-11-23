@@ -80,6 +80,9 @@ import org.slf4j.LoggerFactory;
  *   <li>file:///C:/Users/beam/Documents/pom.xml
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
@@ -195,7 +198,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         Files.delete(resourceId.getPath());
       } catch (NoSuchFileException e) {
         LOG.info(
-            "Ignoring failed deletion of file {} which already does not exist: {}", resourceId, e);
+            "Ignoring failed deletion of file {} which already does not exist.", resourceId, e);
       }
     }
   }

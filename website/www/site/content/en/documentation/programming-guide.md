@@ -742,7 +742,7 @@ following requirements:
   that value in any way.
 {{< /paragraph >}}
 
-{{< paragraph class="language-python" >}}
+{{< paragraph class="language-py" >}}
 * You should not in any way modify the `element` argument provided to the
   `process` method, or any side inputs.
 * Once you output a value using `yield` or `return`, you should not modify
@@ -2155,6 +2155,10 @@ In Java you could use the following set of classes to represent the purchase sch
 infer the correct schema based on the members of the class.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.
+{{< /paragraph >}}
+
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class Purchase {
@@ -2198,10 +2202,34 @@ public class Transaction {
 }
 {{< /highlight >}}
 
+{{< highlight py >}}
+import typing
+
+class Purchase(typing.NamedTuple):
+  user_id: str  # The id of the user who made the purchase.
+  item_id: int  # The identifier of the item that was purchased.
+  shipping_address: ShippingAddress  # The shipping address, a nested type.
+  cost_cents: int  # The cost of the item
+  transactions: typing.Sequence[Transaction]  # The transactions that paid for this purchase (a list, since the purchase might be spread out over multiple credit cards).
+
+class ShippingAddress(typing.NamedTuple):
+  street_address: str
+  city: str
+  state: typing.Optional[str]
+  country: str
+  postal_code: str
+
+class Transaction(typing.NamedTuple):
+  bank: str
+  purchase_amount: float
+{{< /highlight >}}
+
+{{< paragraph class="language-java" >}}
 Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
 the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
 conversions between types that have matching schemas. For example, the above
 `Transaction` class has the same schema as the following class:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaFieldSchema.class)
@@ -2211,15 +2239,19 @@ public class TransactionPojo {
 }
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 So if we had two `PCollection`s as follows
+{{< /paragraph >}}
 
 {{< highlight java >}}
 PCollection<Transaction> transactionBeans = readTransactionsAsJavaBean();
 PCollection<TransactionPojos> transactionPojos = readTransactionsAsPojo();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Then these two `PCollection`s would have the same schema, even though their Java types would be different. This means
 for example the following two code snippets are valid:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 transactionBeans.apply(ParDo.of(new DoFn<...>() {
@@ -2229,7 +2261,10 @@ transactionBeans.apply(ParDo.of(new DoFn<...>() {
 }));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 and
+{{< /paragraph >}}
+
 {{< highlight java >}}
 transactionPojos.apply(ParDo.of(new DoFn<...>() {
    @ProcessElement public void process(@Element Transaction row) {
@@ -2237,9 +2272,11 @@ transactionPojos.apply(ParDo.of(new DoFn<...>() {
 }));
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 Even though the in both cases the `@Element` parameter differs from the the `PCollection`'s Java type, since the
 schemas are the same Beam will automatically make the conversion. The built-in `Convert` transform can also be used
 to translate between Java types of equivalent schemas, as detailed below.
+{{< /paragraph >}}
 
 ### 6.3. Schema definition {#schema-definition}
 
@@ -2447,17 +2484,25 @@ In order to take advantage of schemas, your `PCollection`s must have a schema at
 Beam is able to infer schemas from a variety of common Java types. The `@DefaultSchema` annotation can be used to tell Beam to infer schemas from a specific type. The annotation takes a `SchemaProvider` as an argument, and `SchemaProvider` classes are already built in for common Java types. The `SchemaRegistry` can also be invoked programmatically for cases where it is not practical to annotate the Java type itself.
 {{< /paragraph >}}
 
-##### **Java POJOs**
+{{< paragraph class="language-java" >}}
+**Java POJOs**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 A POJO (Plain Old Java Object) is a Java object that is not bound by any restriction other than the Java Language
 Specification. A POJO can contain member variables that are primitives, that are other POJOs, or are collections maps or
 arrays thereof. POJOs do not have to extend prespecified classes or extend any specific interfaces.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 If a POJO class is annotated with `@DefaultSchema(JavaFieldSchema.class)`, Beam will automatically infer a schema for
 this class. Nested classes are supported as are classes with `List`, array, and `Map` fields.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 For example, annotating the following class tells Beam to infer a schema from this POJO class and apply it to any
 `PCollection<TransactionPojo>`.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaFieldSchema.class)
@@ -2474,32 +2519,42 @@ public class TransactionPojo {
 PCollection<TransactionPojo> pojos = readPojos();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The `@SchemaCreate` annotation tells Beam that this constructor can be used to create instances of TransactionPojo,
 assuming that constructor parameters have the same names as the field names. `@SchemaCreate` can also be used to annotate
 static factory methods on the class, allowing the constructor to remain private. If there is no `@SchemaCreate`
  annotation then all the fields must be non-final and the class must have a zero-argument constructor.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 There are a couple of other useful annotations that affect how Beam infers schemas. By default the schema field names
 inferred will match that of the class field names. However `@SchemaFieldName` can be used to specify a different name to
 be used for the schema field. `@SchemaIgnore` can be used to mark specific class fields as excluded from the inferred
 schema. For example, it’s common to have ephemeral fields in a class that should not be included in a schema
 (e.g. caching the hash value to prevent expensive recomputation of the hash), and `@SchemaIgnore` can be used to
 exclude these fields. Note that ignored fields will not be included in the encoding of these records.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 In some cases it is not convenient to annotate the POJO class, for example if the POJO is in a different package that is
 not owned by the Beam pipeline author. In these cases the schema inference can be triggered programmatically in
 pipeline’s main function as follows:
+{{< /paragraph >}}
 
 {{< highlight java >}}
  pipeline.getSchemaRegistry().registerPOJO(TransactionPOJO.class);
 {{< /highlight >}}
 
-##### **Java Beans**
+{{< paragraph class="language-java" >}}
+**Java Beans**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Java Beans are a de-facto standard for creating reusable property classes in Java. While the full
 standard has many characteristics, the key ones are that all properties are accessed via getter and setter classes, and
 the name format for these getters and setters is standardized. A Java Bean class can be annotated with
 `@DefaultSchema(JavaBeanSchema.class)` and Beam will automatically infer a schema for this class. For example:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
@@ -2514,8 +2569,10 @@ public class TransactionBean {
 PCollection<TransactionBean> beans = readBeans();
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 The `@SchemaCreate` annotation can be used to specify a constructor or a static factory method, in which case the
 setters and zero-argument constructor can be omitted.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(JavaBeanSchema.class)
@@ -2527,15 +2584,23 @@ public class TransactionBean {
 }
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 `@SchemaFieldName` and `@SchemaIgnore` can be used to alter the schema inferred, just like with POJO classes.
+{{< /paragraph >}}
 
-##### **AutoValue**
+{{< paragraph class="language-java" >}}
+**AutoValue**
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in
 order to properly implement a value class. AutoValue is a popular library for easily generating such classes by
 implementing a simple abstract base class.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 Beam can infer a schema from an AutoValue class. For example:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 @DefaultSchema(AutoValueSchema.class)
@@ -2546,10 +2611,79 @@ public abstract class TransactionValue {
 }
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
 This is all that’s needed to generate a simple AutoValue class, and the above `@DefaultSchema` annotation tells Beam to
 infer a schema from it. This also allows AutoValue elements to be used inside of `PCollection`s.
+{{< /paragraph >}}
 
+{{< paragraph class="language-java" >}}
 `@SchemaFieldName` and `@SchemaIgnore` can be used to alter the schema inferred.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+Beam has a few different mechanisms for inferring schemas from Python code.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+**NamedTuple classes**
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+A [NamedTuple](https://docs.python.org/3/library/typing.html#typing.NamedTuple)
+class is a Python class that wraps a `tuple`, assigning a name to each element
+and restricting it to a particular type. Beam will automatically infer the
+schema for PCollections with `NamedTuple` output types. For example:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+class Transaction(typing.NamedTuple):
+  bank: str
+  purchase_amount: float
+
+pc = input | beam.Map(lambda ...).with_output_types(Transaction)
+{{< /highlight >}}
+
+
+{{< paragraph class="language-py" >}}
+**beam.Row and Select**
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+There are also methods for creating ad-hoc schema declarations. First, you can
+use a lambda that returns instances of `beam.Row`:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
+                                                      purchase_amount=item["purchase_amount"])
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Sometimes it can be more concise to express the same logic with the
+[`Select`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Select) transform:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Select(bank=lambda item: item["bank"],
+                                   purchase_amount=lambda item: item["purchase_amount"])
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Note that these declaration don't include any specific information about the
+types of the `bank` and `purchase_amount` fields, so Beam will attempt to infer
+type information. If it's unable to it will fall back to the generic type
+`Any`. Sometimes this is not ideal, you can use casts to make sure Beam
+correctly infers types with `beam.Row` or with `Select`:
+{{< /paragraph >}}
+
+{{< highlight py >}}
+input_pc = ... # {"bank": ..., "purchase_amount": ...}
+output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=str(item["bank"]),
+                                                      purchase_amount=float(item["purchase_amount"])))
+{{< /highlight >}}
+
 
 ### 6.6. Using Schema Transforms {#using-schemas}
 
@@ -3539,8 +3673,8 @@ pipeline processes data, consider the following pipeline:
 
 **Figure 4:** `GroupByKey` and `ParDo` without windowing, on a bounded collection.
 
-In the above pipeline, we create a bounded `PCollection` by reading a set of
-key/value pairs using `TextIO`. We then group the collection using `GroupByKey`,
+In the above pipeline, we create a bounded `PCollection` by reading lines from a
+file using `TextIO`. We then group the collection using `GroupByKey`,
 and apply a `ParDo` transform to the grouped `PCollection`. In this example, the
 `GroupByKey` creates a collection of unique keys, and then `ParDo` gets applied
 exactly once per key.
@@ -3554,8 +3688,8 @@ Now, consider the same pipeline, but using a windowing function:
 
 **Figure 5:** `GroupByKey` and `ParDo` with windowing, on a bounded collection.
 
-As before, the pipeline creates a bounded `PCollection` of key/value pairs. We
-then set a [windowing function](#setting-your-pcollections-windowing-function)
+As before, the pipeline creates a bounded `PCollection` by reading lines from a
+file. We then set a [windowing function](#setting-your-pcollections-windowing-function)
 for that `PCollection`.  The `GroupByKey` transform groups the elements of the
 `PCollection` by both key and window, based on the windowing function. The
 subsequent `ParDo` transform gets applied multiple times per key, once for each
@@ -4000,7 +4134,10 @@ sets the window's **accumulation mode**.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_setting_trigger >}}
+  pcollection | WindowInto(
+    FixedWindows(1 * 60),
+    trigger=AfterProcessingTime(1 * 60),
+    accumulation_mode=AccumulationMode.DISCARDING)
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
@@ -4194,7 +4331,7 @@ potentially while the pipeline is running. There could be different reasons for 
 *   Retrieve an accurate count of the number of elements that have been processed;
 *   ...and so on.
 
-### 10.1 The main concepts of Beam metrics
+### 10.1. The main concepts of Beam metrics
 *   **Named**. Each metric has a name which consists of a namespace and an actual name. The
     namespace can be used to differentiate between multiple metrics with the same name and also
     allows querying for all metrics within a specific namespace.
@@ -4214,7 +4351,7 @@ transform reported, as well as aggregating the metric across the entire pipeline
 > **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only
 after jobs have completed.
 
-### 10.2 Types of metrics {#types-of-metrics}
+### 10.2. Types of metrics {#types-of-metrics}
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and
 `Gauge`.
 
@@ -4260,7 +4397,7 @@ public void processElement(ProcessContext context) {
 }
 {{< /highlight >}}
 
-### 10.3 Querying metrics {#querying-metrics}
+### 10.3. Querying metrics {#querying-metrics}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics
 matching a given filter.
@@ -4288,7 +4425,7 @@ public interface MetricResult<T> {
 }
 {{< /highlight >}}
 
-### 10.4 Using metrics in pipeline {#using-metrics}
+### 10.4. Using metrics in pipeline {#using-metrics}
 Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
 
 {{< highlight java >}}
@@ -4326,7 +4463,7 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 }
 {{< /highlight >}}
 
-### 10.5 Export metrics {#export-metrics}
+### 10.5. Export metrics {#export-metrics}
 
 Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period.
 The configuration is held in the [MetricsOptions](https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html) class.
@@ -4370,7 +4507,7 @@ In Python DoFn declares states to be accessed by creating `StateSpec` class memb
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
 {{< /paragraph >}}
 
-### 11.1 Types of state {#types-of-state}
+### 11.1. Types of state {#types-of-state}
 
 Beam provides several types of state:
 
@@ -4477,7 +4614,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
 {{< /highlight >}}
 
-### 11.2 Deferred state reads {#deferred-state-reads}
+### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
@@ -4531,14 +4668,14 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-### 11.3 Timers {#timers}
+### 11.3. Timers {#timers}
 
 Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
 Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
 TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
 firing time for that key's timer.
 
-#### 11.3.1 Event-time timers {#event-time-timers}
+#### 11.3.1. Event-time timers {#event-time-timers}
 
 Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that
 the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
@@ -4588,7 +4725,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
 {{< /highlight >}}
 
-#### 11.3.2 Processing-time timers {#processing-time-timers}
+#### 11.3.2. Processing-time timers {#processing-time-timers}
 
 Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
 before processing. It can also be used to schedule events that should occur at a specific time. Just like with
@@ -4636,7 +4773,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
 {{< /highlight >}}
 
-#### 11.3.3 Dynamic timer tags {#dynamic-timer-tags}
+#### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
 
 Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
 in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
@@ -4666,7 +4803,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< highlight python >}}
 To be supported, See BEAM-9602
 {{< /highlight >}}
-#### 11.3.4 Timer output timestamps {#timer-output-timestamps}
+#### 11.3.4. Timer output timestamps {#timer-output-timestamps}
 
 By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
 that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish
@@ -4769,11 +4906,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-### 11.4 Garbage collecting state {#garbage-collecting-state}
+### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
 
-##### 11.4.1 **Using windows for garbage collection** {#using-windows-for-garbage-collection}
+##### 11.4.1. **Using windows for garbage collection** {#using-windows-for-garbage-collection}
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
@@ -4814,7 +4951,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
 day is garbage collected.
 
-##### 11.4.1 **Using timers For garbage collection** {#using-timers-for-garbage-collection}
+##### 11.4.1. **Using timers For garbage collection** {#using-timers-for-garbage-collection}
 
 In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For
 example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
@@ -4891,7 +5028,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'User DoFn' >> beam.ParDo(UserDoFn()))
 {{< /highlight >}}
 
-### 11.5 State and timers examples {#state-timers-examples}
+### 11.5. State and timers examples {#state-timers-examples}
 
 Following are some example uses of state and timers
 
@@ -4977,7 +5114,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
  }));
 {{< /highlight >}}
 
-#### 11.5.2 Batching RPCs {#batching-rpcs}
+#### 11.5.2. Batching RPCs {#batching-rpcs}
 
 In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
 multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
@@ -5017,3 +5154,620 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   }
 }));
 {{< /highlight >}}
+
+## 12. Splittable `DoFns` {#splittable-dofns}
+
+A Splittable `DoFn` (SDF) enables users to create modular components containing I/Os (and some advanced
+[non I/O use cases](https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv)). Having modular
+I/O components that can be connected to each other simplify typical patterns that users want.
+For example, a popular use case is to read filenames from a message queue followed by parsing those
+files. Traditionally, users were required to either write a single I/O connector that contained the
+logic for the message queue and the file reader (increased complexity) or choose to reuse a message
+queue I/O followed by a regular `DoFn` that read the file (decreased performance). With SDF,
+we bring the richness of Apache Beam’s I/O APIs to a `DoFn` enabling modularity while maintaining the
+performance of traditional I/O connectors.
+
+### 12.1. SDF basics {#sdf-basics}
+
+At a high level, an SDF is responsible for processing element and restriction pairs. A
+restriction represents a subset of work that would have been necessary to have been done when
+processing the element.
+
+Executing an SDF follows the following steps:
+
+1. Each element is paired with a restriction (e.g. filename is paired with offset range representing the whole file).
+2. Each element and restriction pair is split (e.g. offset ranges are broken up into smaller pieces).
+3. The runner redistributes the element and restriction pairs to several workers.
+4. Element and restriction pairs are processed in parallel (e.g. the file is read). Within this last step,
+the element and restriction pair can pause its own processing and/or be split into further element and
+restriction pairs.
+
+![Diagram of steps that an SDF is composed of](/images/sdf_high_level_overview.svg)
+
+
+#### 12.1.1. A basic SDF {#a-basic-sdf}
+
+A basic SDF is composed of three parts: a restriction, a restriction provider, and a
+restriction tracker. If you want to control the watermark, especially in a streaming
+pipeline, two more components are needed: a watermark estimator provider and a watermark estimator.
+
+The restriction is a user-defined object that is used to represent a subset of
+work for a given element. For example, we defined `OffsetRange` as a restriction to represent offset
+positions in [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/range/OffsetRange.html)
+and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.restriction_trackers.html#apache_beam.io.restriction_trackers.OffsetRange).
+
+The restriction provider lets SDF authors override default implementations, including the ones for
+splitting and sizing. In [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html)
+and [Go](https://github.com/apache/beam/blob/0f466e6bcd4ac8677c2bd9ecc8e6af3836b7f3b8/sdks/go/pkg/beam/pardo.go#L226),
+this is the `DoFn`. [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.RestrictionProvider)
+has a dedicated `RestrictionProvider` type.
+
+The restriction tracker is responsible for tracking which subset of the restriction has been
+completed during processing. For APIs details, read the [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/RestrictionTracker.html)
+and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.RestrictionTracker)
+reference documentation.
+
+There are some built-in `RestrictionTracker` implementations defined in Java:
+1. [OffsetRangeTracker](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/OffsetRangeTracker.html)
+2. [GrowableOffsetRangeTracker](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/GrowableOffsetRangeTracker.html)
+3. [ByteKeyRangeTracker](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/ByteKeyRangeTracker.html)
+
+The SDF also has a built-in `RestrictionTracker` implementation in Python:
+1. [OffsetRangeTracker](https://beam.apache.org/releases/pydoc/current/apache_beam.io.restriction_trackers.html#apache_beam.io.restriction_trackers.OffsetRestrictionTracker)
+
+The watermark state is a user-defined object which is used to create a `WatermarkEstimator` from a
+`WatermarkEstimatorProvider`. The simplest watermark state could be a `timestamp`.
+
+The watermark estimator provider lets SDF authors define how to initialize the watermark state and
+create a watermark estimator. In [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html)
+this is the `DoFn`. [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.WatermarkEstimatorProvider)
+has a dedicated `WatermarkEstimatorProvider` type.
+
+The watermark estimator tracks the watermark when an element-restriction pair is in progress.
+For APIs details, read the [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimator.html)
+and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.WatermarkEstimator)
+reference documentation.
+
+There are some built-in `WatermarkEstimator` implementations in Java:
+1. [Manual](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.Manual.html)
+2. [MonotonicallyIncreasing](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.MonotonicallyIncreasing.html)
+3. [WallTime](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.WallTime.html)
+
+Along with the default `WatermarkEstimatorProvider`, there are the same set of built-in
+`WatermarkEstimator` implementations in Python:
+1. [ManualWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.ManualWatermarkEstimator)
+2. [MonotonicWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.MonotonicWatermarkEstimator)
+3. [WalltimeWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.WalltimeWatermarkEstimator)
+
+To define an SDF, you must choose whether the SDF is bounded (default) or
+unbounded and define a way to initialize an initial restriction for an element. The distinction is
+based on how the amount of work is represented:
+* Bounded DoFns are those where the work represented by an element is well-known beforehand and has
+an end. Examples of bounded elements include a file or group of files.
+* Unbounded DoFns are those where the amount of work does not have a specific end or the
+amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+topic.
+
+In Java, you can use [@UnboundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html)
+or [@BoundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.BoundedPerElement.html)
+to annotate your `DoFn`. In Python, you can use [@unbounded_per_element](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.unbounded_per_element)
+to annotate the `DoFn`.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExample >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExample >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *splittableDoFn) CreateInitialRestriction(filename string) offsetrange.Restriction {
+	return offsetrange.Restriction{
+		Start: 0,
+		End:   getFileLength(filename),
+	}
+}
+
+func (fn *splittableDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+}
+
+func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
+            file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
+
+	if err != nil {
+		return err
+	}
+	for rt.TryClaim(offset) {
+		record, newOffset := readNextRecord(file)
+		emit(record)
+		offset = newOffset
+	}
+	return nil
+}
+{{< /highlight >}}
+
+At this point, we have an SDF that supports [runner-initiated splits](#runner-initiated-split)
+enabling dynamic work rebalancing. To increase the rate at which initial parallelization of work occurs
+or for those runners that do not support runner-initiated splitting, we recommend providing
+a set of initial splits:
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExampleWithSplitting >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExampleWithSplitting >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
+	size := 64 * (1 << 20)
+	i := rest.Start
+	for i < rest.End - size {
+		// Compute and output 64 MiB size ranges to process in parallel
+		end := i + size
+     		splits = append(splits, offsetrange.Restriction{i, end})
+		i = end
+	}
+	// Output the last range
+	splits = append(splits, offsetrange.Restriction{i, rest.End})
+	return splits
+}
+{{< /highlight >}}
+
+### 12.2. Sizing and progress {#sizing-and-progress}
+
+Sizing and progress are used during execution of an SDF to inform runners so that they may
+perform intelligent decisions about which restrictions to split and how to parallelize work.
+
+Before processing an element and restriction, an initial size may be used by a runner to choose
+how and who processes the restrictions attempting to improve initial balancing and parallelization
+of work. During the processing of an element and restriction, sizing and progress are used to choose
+which restrictions to split and who should process them.
+
+By default, we use the restriction tracker’s estimate for work remaining falling back to assuming
+that all restrictions have an equal cost. To override the default, SDF authors can provide the
+appropriate method within the restriction provider.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_GetSize >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_GetSize >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Restriction) float64 {
+	weight := float64(1)
+	if strings.Contains(filename, “expensiveRecords”) {
+		weight = 2
+	}
+	return weight * (rest.End - rest.Start)
+}
+{{< /highlight >}}
+
+### 12.3. User-initiated checkpoint {#user-initiated-checkpoint}
+
+Some I/Os cannot produce all of the data necessary to complete a restriction within the lifetime of a
+single bundle. This typically happens with unbounded restrictions, but can also happen with bounded
+restrictions. For example, there could be more data that needs to be ingested but is not available yet.
+Another cause of this scenario is the source system throttling your data.
+
+Your SDF can signal to you that you are not done processing the current restriction. This
+signal can suggest a time to resume at. While the runner tries to honor the resume time, this is not
+guaranteed. This allows execution to continue on a restriction that has available work improving
+resource utilization.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_UserInitiatedCheckpoint >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_UserInitiatedCheckpoint >}}
+{{< /highlight >}}
+
+### 12.4. Runner-initiated split {#runner-initiated-split}
+
+A runner at any time may attempt to split a restriction while it is being processed. This allows the
+runner to either pause processing of the restriction so that other work may be done (common for
+unbounded restrictions to limit the amount of output and/or improve latency) or split the restriction
+into two pieces, increasing the available parallelism within the system. Different runners (e.g.,
+Dataflow, Flink, Spark) have different strategies to issue splits under batch and streaming
+execution.
+
+Author an SDF with this in mind since the end of the restriction may change. When writing the
+processing loop, use the result from trying to claim a piece of the restriction instead of assuming
+you can process until the end.
+
+One incorrect example could be:
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BadTryClaimLoop >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BadTryClaimLoop >}}
+{{< /highlight >}}
+
+{{< highlight go >}}
+func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
+            file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
+
+	if err != nil {
+		return err
+	}
+
+	// The restriction tracker can be modified by another thread in parallel
+	// so storing state locally is ill advised.
+	end = rt.GetRestriction().(offsetrange.Restriction).End
+	for offset < end {
+		// Only after successfully claiming should we produce any output and/or
+		// perform side effects.
+    	rt.TryClaim(offset)
+		record, newOffset := readNextRecord(file)
+		emit(record)
+		offset = newOffset
+	}
+	return nil
+}
+{{< /highlight >}}
+
+### 12.5. Watermark estimation {#watermark-estimation}
+
+The default watermark estimator does not produce a watermark estimate. Therefore, the output watermark
+is solely computed by the minimum of upstream watermarks.
+
+An SDF can advance the output watermark by specifying a lower bound for all future output
+that this element and restriction pair will produce. The runner computes the minimum output watermark
+by taking the minimum over all upstream watermarks and the minimum reported by each element and
+restriction pair. The reported watermark must monotonically increase for each element and restriction
+pair across bundle boundaries. When an element and restriction pair stops processing its watermark,
+it is no longer considered part of the above calculation.
+
+Tips:
+*   If you author an SDF that outputs records with timestamps, you should expose ways to allow users of
+this SDF to configure which watermark estimator to use.
+*   Any data produced before the watermark may be considered late. See
+[watermarks and late data](#watermarks-and-late-data) for more details.
+
+#### 12.5.1. Controlling the watermark {#controlling-the-watermark}
+
+There are two general types of watermark estimators: timestamp observing and external clock observing.
+Timestamp observing watermark estimators use the output timestamp of each record to compute the watermark
+estimate while external clock observing watermark estimators control the watermark by using a clock that
+is not associated to any individual output, such as the local clock of the machine or a clock exposed
+through an external service.
+
+The watermark estimator provider lets you override the default watermark estimation logic and use an existing
+watermark estimator implementation. You can also provide your own watermark estimator implementation.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_CustomWatermarkEstimator >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_CustomWatermarkEstimator >}}
+{{< /highlight >}}
+
+### 12.6. Truncating during drain {#truncating-during-drain}
+
+Runners which support draining pipelines need the ability to drain SDFs; otherwise, the
+pipeline may never stop. By default, bounded restrictions process the remainder of the restriction while
+unbounded restrictions finish processing at the next SDF-initiated checkpoint or runner-initiated split.
+You are able to override this default behavior by defining the appropriate method on the restriction
+provider.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_Truncate >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_Truncate >}}
+{{< /highlight >}}
+
+### 12.7. Bundle finalization {#bundle-finalization}
+
+Bundle finalization enables a `DoFn` to perform side effects by registering a callback.
+The callback is invoked once the runner has acknowledged that it has durably persisted the output.
+For example, a message queue might need to acknowledge messages that it has ingested into the pipeline.
+Bundle finalization is not limited to SDFs but is called out here since this is the primary
+use case.
+
+{{< highlight java >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BundleFinalize >}}
+{{< /highlight >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BundleFinalize >}}
+{{< /highlight >}}
+
+## 13. Multi-language pipelines {#mulit-language-pipelines}
+
+Beam allows you to combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the [Apache Kafka connector](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) and [SQL transform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py) from the Java SDK can be used in Python streaming pipelines.
+
+Pipelines that use transforms from more than one SDK-language are known as *multi-language pipelines*.
+
+### 13.1. Creating cross-language transforms {#create-x-lang-transforms}
+
+To make transforms written in one language available to pipelines written in another language, an *expansion service* for transforms written in the same language is used to create and inject the appropriate language-specific pipeline fragments into your pipeline.
+
+In the following example, a Python pipeline written the Apache Beam SDK for Python starts up a local Java expansion service on your computer to create and inject the appropriate Java pipeline fragments for executing the Java Kafka cross-language transform into your Python pipeline. The SDK then downloads and stages the necessary Java dependencies needed to execute these transforms.
+
+![Diagram of multi-language pipeline execution flow.](/images/multi-language-pipelines-diagram.svg)
+
+At runtime, the Beam runner will execute both Python and Java transforms to execute your pipeline.
+
+In this section, we will use [KafkaIO.Read](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html) to illustrate how to create a cross-language transform for Java and a test example for Python.
+
+#### 13.1.1. Creating cross-language Java transforms
+
+To make your Apache Beam Java SDK transform portable across SDK languages, you must implement two interfaces: [ExternalTransformBuilder](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/ExternalTransformBuilder.java) and [ExternalTransformRegistrar](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/expansion/ExternalTransformRegistrar.java). The `ExternalTransformBuilder` interface constructs the cross-language transform using configuration values passed in from the pipeline and the `ExternalTransformRegistrar` interface registers the cross-language transform for use with the expansion service.
+
+**Implementing the interfaces**
+
+1. Define a Builder class for your transform that implements the `ExternalTransformBuilder` interface and overrides the `buildExternal` method that will be used to build your transform object. Initial configuration values for your transform should be defined in the `buildExternal` method. In most cases, it is convenient to make the Java transform builder class implement `ExternalTransformBuilder`.
+
+    > **Note:** `ExternalTransformBuilder` requires you to define a configuration object (a simple POJO) to capture a set of parameters sent by external SDKs to initiate the Java transform. Usually these parameters directly map to constructor parameters of the Java transform.
+
+    {{< highlight >}}
+@AutoValue.Builder
+abstract static class Builder<K, V>
+  implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
+  abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
+
+  abstract Builder<K, V> setTopics(List<String> topics);
+
+  /** Remaining property declarations omitted for clarity. */
+
+  abstract Read<K, V> build();
+
+  @Override
+  public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
+      External.Configuration config) {
+    setTopics(ImmutableList.copyOf(config.topics));
+
+    /** Remaining property defaults omitted for clarity. */
+  }
+}
+    {{< /highlight >}}
+
+    Note that `buildExternal` method may choose to perform additional operations before setting properties received from external SDKs in the transform. For example, `buildExternal` method may validates properties available in the configuration object before setting them in the transform.
+
+2. Register the transform as an external cross-language transform by defining a class that implements `ExternalTransformRegistrar`. You must annotate your class with the `AutoService` annotation to ensure that your transform is registered and instantiated properly by the expansion service.
+3. In your registrar class, define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.
+4. From within your registrar class, define a configuration class for the parameters used during the initialization of your transform by the external SDK.
+
+    The following example from the KafkaIO transform shows how to implement steps two through four:
+
+    {{< highlight >}}
+@AutoService(ExternalTransformRegistrar.class)
+public static class External implements ExternalTransformRegistrar {
+
+  public static final String URN = "beam:external:java:kafka:read:v1";
+
+  @Override
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+    return ImmutableMap.of(
+        URN,
+        (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+            (Class<?>) AutoValue_KafkaIO_Read.Builder.class);
+  }
+
+  /** Parameters class to expose the Read transform to an external SDK. */
+  public static class Configuration {
+    private Map<String, String> consumerConfig;
+    private List<String> topics;
+
+    public void setConsumerConfig(Map<String, String> consumerConfig) {
+      this.consumerConfig = consumerConfig;
+    }
+
+    public void setTopics(List<String> topics) {
+      this.topics = topics;
+    }
+
+    /** Remaining properties omitted for clarity. */
+  }
+}
+    {{< /highlight >}}
+
+After you have implemented the `ExternalTransformBuilder` and `ExternalTransformRegistrar` interfaces, your transform can be registered and created successfully by the default Java expansion service.
+
+**Starting the expansion service**
+
+An expansion service can be used with multiple transforms in the same pipeline. Java has a default expansion service included and available in the Apache Beam Java SDK for you to use with your Java transforms. You can write your own expansion service, but that is generally not needed, so it is not covered in this section.
+
+Perform the following to start up a Java expansion service directly:
+
+{{< highlight >}}
+# Build a JAR with both your transform and the expansion service
+
+# Start the expansion service at the specified port.
+$ jar -jar /path/to/expansion_service.jar <PORT_NUMBER>
+{{< /highlight >}}
+
+The expansion service is now ready to serve transforms on the specified port.
+
+When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities [JavaJarExpansionService and BeamJarExpansionService](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) utility for starting up a Java expansion service using a JAR file.
+
+**Including dependencies**
+
+If your transform requires external libraries, you can include them by adding them to the classpath of the expansion service. After they are included in the classpath, they will be staged when your transform is expanded by the expansion service.
+
+**Writing SDK-specific wrappers**
+
+Your cross-language Java transform can be called through the lower-level [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.
+
+To create an SDK wrapper for use in a Python pipeline, do the following:
+
+1. Create a Python module for your cross-language transform(s).
+2. In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes.
+
+    The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
+
+    In the following example, [kafka.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) uses `NamedTupleBasedPayloadBuilder` to build the payload. The parameters map to the Java [KafkaIO.External.Configuration](https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java) config object defined previously in the **Implementing the interfaces** section.
+
+    {{< highlight >}}
+class ReadFromKafkaSchema(typing.NamedTuple):
+      consumer_config: typing.Mapping[str, str]
+      topics: typing.List[str]
+      # Other properties omitted for clarity.
+
+payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
+    {{< /highlight >}}
+
+3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities `JavaJarExpansionService` and `BeamJarExpansionService` for easily starting up an expansion service using a JAR file.. `JavaJarExpansionService` can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. `BeamJarExpansionService` can be used for easily starting an expansion service based on a JAR released with Beam.
+
+    For transforms released with Beam do the following:
+
+    1. Add a Gradle target to Beam that can be used to build a shaded expansion service JAR for the target Java transform. This target should produce a Beam JAR that contains all dependencies needed for expanding the Java transform and the JAR should be released with Beam. Note that you might be able to use one of the existing Gradle target that offer an aggregated version of an expansion service jar (for example, for all GCP IO).
+    2. In your Python module, instantiate `BeamJarExpansionService` with the Gradle target.
+
+        {{< highlight >}}
+    expansion_service = BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+        {{< /highlight >}}
+4. Add a Python wrapper transform class that extends [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py). Pass the payload and expansion service defined above as parameters to the constructor of the `ExternalTransform` parent class.
+
+#### 13.1.2. Creating cross-language Python transforms
+
+To make your Python transform usable with different SDK languages, you must create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation.
+
+**Defining the Python module**
+
+1. Define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.
+
+    {{< highlight >}}
+TEST_COMPK_URN = "beam:transforms:xlang:test:compk"
+    {{< /highlight >}}
+2. For an existing Python transform, create a new class to register the URN with the Python expansion service.
+
+    {{< highlight >}}
+@ptransform.PTransform.register_urn(TEST_COMPK_URN, None)
+class CombinePerKeyTransform(ptransform.PTransform):
+    {{< /highlight >}}
+3. From within the class, define an expand method that takes an input PCollection, runs the Python transform, and then returns the output PCollection.
+
+    {{< highlight >}}
+def expand(self, pcoll):
+    return pcoll \
+        | beam.CombinePerKey(sum).with_output_types(
+              typing.Tuple[unicode, int])
+    {{< /highlight >}}
+4. As with other Python transforms, define a `to_runner_api_parameter` method that returns the URN.
+
+    {{< highlight >}}
+def to_runner_api_parameter(self, unused_context):
+    return TEST_COMPK_URN, None
+    {{< /highlight >}}
+5. Define a static `from_runner_api_parameter` method that returns an instantiation of the cross-language Python transform.
+
+    {{< highlight >}}
+@staticmethod
+def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
+    return CombinePerKeyTransform()
+    {{< /highlight >}}
+
+**Starting the expansion service**
+
+An expansion service can be used with multiple transforms in the same pipeline. Python has a default expansion service included and available in the Apache Beam Python SDK for you to use with your Python transforms. You are free to write your own expansion service, but that is generally not needed, so it is not covered in this section.
+
+Perform the following steps to start up the default Python expansion service directly:
+
+1. Create a virtual environment and [install the Apache Beam SDK](https://beam.apache.org/get-started/quickstart-py/).
+2. Start the Python SDK’s expansion service with a specified port.
+
+    {{< highlight >}}
+$ export PORT_FOR_EXPANSION_SERVICE=12345
+3. Import any modules that contain transforms to be made available using the expansion service.
+$ python -m apache_beam.runners.portability.expansion_service -p $PORT_FOR_EXPANSION_SERVICE
+    {{< /highlight >}}
+
+4. This expansion service is not ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
+
+**Including dependencies**
+
+Currently Python external transforms are limited to dependencies available in core Beam SDK Harness.
+
+### 13.2. Using cross-language transforms {#use-x-lang-transforms}
+
+Depending on the SDK language of the pipeline, you can use a high-level SDK-wrapper class, or a low-level transform class to access a cross-language transform.
+
+#### 13.2.1. Using cross-language transforms in a Java pipeline
+
+Currently, to access cross-language transforms from the Java SDK, you have to use the lower-level [External](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) class.
+
+**Using the External class**
+
+1. Make sure you have any runtime environment dependencies (like JRE) installed on your local machine (either directly on the local machine or available through a container). See the expansion service section for more details.
+
+    > **Note:** When including Python transforms from within a Java pipeline, all Python dependencies have to be included in the SDK harness container.
+2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
+
+    Make sure the transform you are trying to use is available and can be used by the expansion service.
+3. Include [External.of(...)](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) when instantiating your pipeline. Reference the URN, payload, and expansion service. For examples, see the [cross-language transform test suite](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/test/java/org/apache/beam/runners/core/construction/ValidateRunnerXlangTest.java).
+4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
+
+#### 13.2.2 Using cross-language transforms in a Python pipeline
+
+If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) class to access the transform.
+
+**Using an SDK wrapper**
+
+To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline as shown in the example:
+
+  {{< highlight >}}
+from apache_beam.io.kafka import ReadFromKafka
+
+kafka_records = (
+        pipeline
+        | 'ReadFromKafka' >> ReadFromKafka(
+            consumer_config={
+                'bootstrap.servers': self.bootstrap_servers,
+                'auto.offset.reset': 'earliest'
+            },
+            topics=[self.topic],
+            max_num_records=max_num_records,
+            expansion_service=<Address of expansion service>))
+  {{< /highlight >}}
+
+**Using the ExternalTransform class**
+
+When an SDK-specific wrapper isn't available, you will have to access the cross-language transform through the `ExternalTransform` class.
+
+1. Make sure you have any runtime environment dependencies (like JRE) installed on your local machine. See the expansion service section for more details.
+2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
+
+    Make sure the transform you're trying to use is available and can be used by the expansion service. For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.
+3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes to build the payload for `ExternalTransform`.
+
+    {{< highlight >}}
+with pipeline as p:
+    res = (
+        p
+        | beam.Create(['a', 'b']).with_output_types(unicode)
+        | beam.ExternalTransform(
+            TEST_PREFIX_URN,
+            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            <Address of expansion service>))
+    assert_that(res, equal_to(['0a', '0b']))
+    {{< /highlight >}}
+
+4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
+
+### 13.3. Runner Support {#x-lang-transform-runner-support}
+
+Currently, portable runners such as Flink, Spark, and the Direct runner can be used with multi-language pipelines.
+
+Google Cloud Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.

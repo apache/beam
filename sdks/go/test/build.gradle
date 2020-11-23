@@ -27,6 +27,8 @@ description = "Apache Beam :: SDKs :: Go :: Test"
 // "./github.com/apache/beam/sdks/go"
 resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
+clean.dependsOn cleanVendor
+
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.

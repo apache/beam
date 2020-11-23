@@ -39,7 +39,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.FullNameTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
@@ -53,7 +53,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
   private static final TableFactory GCS_TABLE_FACTORY = new GcsTableFactory();
 
   private static final Map<String, TableProvider> DELEGATE_PROVIDERS =
-      Stream.of(new PubsubJsonTableProvider(), new BigQueryTableProvider(), new TextTableProvider())
+      Stream.of(new PubsubTableProvider(), new BigQueryTableProvider(), new TextTableProvider())
           .collect(toMap(TableProvider::getTableType, p -> p));
 
   private final DataCatalogClient dataCatalog;

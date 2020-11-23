@@ -110,19 +110,11 @@ or running all commands manually.
 
 __NOTE__: When generating the key, please make sure you choose the key type as __RSA and RSA (default)__ and key size as __4096 bit__.
 
+* To run the commands manually, refer to the contents of `preparation_before_release.sh`.
 
-##### Run all commands manually
+##### Key ID
 
-* Get more entropy for creating a GPG key
-
-      sudo apt-get install rng-tools
-      sudo rngd -r /dev/urandom
-
-* Create a GPG key
-
-      gpg --full-generate-key
-
-* Determine your Apache GPG Key and Key ID, as follows:
+* You may need your Key ID for future steps. Determine your Apache GPG Key and Key ID as follows:
 
       gpg --list-sigs --keyid-format LONG
 
@@ -134,20 +126,6 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
       sub   2048R/BA4D50BE 2016-02-23
 
   Here, the key ID is the 8-digit hex string in the `pub` line: `845E6689`.
-
-  Now, add your Apache GPG key to the Beam’s `KEYS` file both in [`dev`](https://dist.apache.org/repos/dist/dev/beam/KEYS) and [`release`](https://dist.apache.org/repos/dist/release/beam/KEYS) repositories at `dist.apache.org`. Follow the instructions listed at the top of these files. (Note: Only PMC members have write access to the release repository. If you end up getting 403 errors ask on the mailing list for assistance.)
-
-* Configure `git` to use this key when signing code by giving it your key ID, as follows:
-
-      git config --global user.signingkey 845E6689
-
-  You may drop the `--global` option if you’d prefer to use this key for the current repository only.
-
-* Start GPG agent in order to unlock your GPG key
-
-      eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
-      export GPG_TTY=$(tty)
-      export GPG_AGENT_INFO
 
 #### Access to Apache Nexus repository
 
@@ -219,20 +197,8 @@ After successful login, authorization info will be stored at ~/.docker/config.js
    "auth": "xxxxxx"
 }
 ```
-Release managers should have push permission; please ask for help at dev@.
-```
-From: Release Manager
-To: dev@beam.apache.org
-Subject: DockerHub Push Permission
+Release managers should have push permission; request membership in the [`beammaintainers` team](https://hub.docker.com/orgs/apache/teams/beammaintainers) by filing a JIRA with the Apache Infrastructure team, like [INFRA-20900](https://issues.apache.org/jira/browse/INFRA-20900).
 
-Hi DockerHub Admins
-
-I need push permission to proceed with release, can you please add me to maintainer team?
-My docker hub ID is: xxx
-
-Thanks,
-Release Manager
-```
 ### Create a new version in JIRA
 
 When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:
@@ -399,14 +365,16 @@ There are 2 ways to perform this verification, either running automation script(
 * Usage
   1. Create a personal access token from your Github account. See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
      It'll be used by the script for accessing Github API.
-     You don't have to add any permissions to this token.
+     You only need to enable "repo" permissions to this token.
   1. Update required configurations listed in `RELEASE_BUILD_CONFIGS` in [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
      ```
      cd beam/release/src/main/scripts && ./verify_release_build.sh
      ```
   1. Trigger `beam_Release_Gradle_Build` and all PostCommit Jenkins jobs from PR (which is created by previous step).
-     To do so, only add one trigger phrase per comment. See `JOB_TRIGGER_PHRASES` in [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh#L43)
+     You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
+     Or manually add one trigger phrase per PR comment.
+     See `COMMENTS_TO_ADD` in [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
      for full list of phrases.
 
 * Tasks included in the script
@@ -415,8 +383,6 @@ There are 2 ways to perform this verification, either running automation script(
 
 Jenkins job `beam_Release_Gradle_Build` basically run `./gradlew build -PisRelease`.
 This only verifies that everything builds with unit tests passing.
-
-You can use [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to mass-comment on PR.
 
 #### Verify the build succeeds
 
@@ -563,11 +529,11 @@ _Tip_: Another tool in your toolbox is the known issues section of the release b
 * JIRA release item for the subsequent release has been created;
 * All test failures from branch verification have associated JIRA issues;
 * There are no release blocking JIRA issues;
-* Combined javadoc has the appropriate contents;
 * Release branch has been created;
 * There are no open pull requests to release branch;
 * Originating branch has the version information updated to the new version;
 * Nightly snapshot is in progress (do revisit it continually);
+* Set `JAVA_HOME` to JDK 8 (Example: `export JAVA_HOME=/example/path/to/java/jdk8`).
 
 The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.
 
@@ -607,9 +573,9 @@ For this step, we recommend you using automation script to create a RC, but you 
           docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
-          - For Java SDK images, there should be around 1400 dependencies.
+          - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
+          docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
@@ -686,7 +652,7 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
 
 ### Blog post
 
-Write a blog post similar to [beam-2.20.0.md](https://github.com/apache/beam/blob/master/website/www/site/content/en/blog/beam-2.20.0.md).
+Write a blog post similar to [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d).
 
 - Update `CHANGES.md` by adding a new section for the next release.
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
@@ -743,7 +709,7 @@ For more information on changes in {$RELEASE_VERSION}, check out the
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
 
 ${CONTRIBUTORS}
 ```
@@ -787,6 +753,9 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [ ] +1, Approve the release
     [ ] -1, Do not approve the release (please provide specific comments)
 
+
+    Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
+    no issues are found.
 
     The complete staging area is available for your review, which includes:
     * JIRA release notes [1],
@@ -1147,7 +1116,11 @@ git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```
 
-After the tag is uploaded, publish the release notes to Github, as follows:
+After pushing the tag, the tag should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
+
+### Publish release to Github
+
+Once the tag is uploaded, publish the release notes to Github, as follows:
 
 ```
 cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
@@ -1155,6 +1128,7 @@ cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
 
 Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
 
+After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do. Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
@@ -1179,7 +1153,8 @@ Use reporter.apache.org to seed the information about the release into future pr
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 * Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 * Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
-* Release tagged in the source code repository
+* The release is tagged on Github's [Tags](https://github.com/apache/beam/tags) page.
+* The release notes are published on Github's [Releases](https://github.com/apache/beam/releases) page.
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org
 

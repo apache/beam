@@ -42,6 +42,7 @@ job('beam_Publish_Docker_Snapshots') {
       tasks(':sdks:python:container:py36:dockerPush')
       tasks(':sdks:python:container:py37:dockerPush')
       tasks(':sdks:python:container:py38:dockerPush')
+      tasks(':sdks:go:container:dockerPush')
       tasks(':runners:flink:1.10:job-server-container:dockerPush')
       switches("-Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability")
       switches("-Pdocker-tag=latest")

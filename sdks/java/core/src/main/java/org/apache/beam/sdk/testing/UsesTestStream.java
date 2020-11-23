@@ -24,4 +24,4 @@ import org.apache.beam.sdk.annotations.Internal;
  * special feature currently only implemented by the direct runner and the Flink Runner (streaming).
  */
 @Internal
-public interface UsesTestStream {}
+public interface UsesTestStream extends UsesUnboundedPCollections {}

@@ -46,6 +46,8 @@ type JobOptions struct {
 
 	// RetainDocker is an option to pass to the runner.
 	RetainDocker bool
+
+	Parallelism int
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
@@ -57,6 +59,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 		AppName:      opt.Name,
 		Experiments:  append(opt.Experiments, "beam_fn_api"),
 		RetainDocker: opt.RetainDocker,
+		Parallelism:  opt.Parallelism,
 	}
 
 	options, err := provision.OptionsToProto(raw)
@@ -70,7 +73,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to connect to job service: %v")
+		return "", "", "", errors.Wrap(err, "failed to connect to job service")
 	}
 	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), resp.GetStagingSessionToken(), nil
 }

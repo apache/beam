@@ -75,6 +75,9 @@ import org.joda.time.Instant;
  * <p>Our implementation will use a custom windowing function in order to bring bids and auctions
  * together without requiring global state.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WinningBids extends PTransform<PCollection<Event>, PCollection<AuctionBid>> {
   /** Windows for open auctions and bids. */
   private static class AuctionOrBidWindow extends IntervalWindow {

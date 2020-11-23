@@ -68,6 +68,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A real system would use an external system to maintain the id-to-person association.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(Query3.class);

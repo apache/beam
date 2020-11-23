@@ -53,6 +53,9 @@ import org.junit.runners.JUnit4;
 
 /** Test the various NEXMark queries yield results coherent with their models. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SqlBoundedSideInputJoinTest {
 
   private abstract static class SqlBoundedSideInputJoinTestCases {

@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
@@ -46,6 +47,9 @@ import org.slf4j.LoggerFactory;
 /** Implementation of DoFn to perform streaming BigQuery write. */
 @SystemDoFnInternal
 @VisibleForTesting
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class StreamingWriteFn<ErrorT, ElementT>
     extends DoFn<KV<ShardedKey<String>, TableRowInfo<ElementT>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWriteFn.class);
@@ -58,9 +62,10 @@ class StreamingWriteFn<ErrorT, ElementT>
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
+  private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
-  private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
+  private transient Map<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> tableRows;
 
   /** The list of unique ids for each BigQuery table row. */
   private transient Map<String, List<String>> uniqueIdsForTableRows;
@@ -79,7 +84,8 @@ class StreamingWriteFn<ErrorT, ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
-      SerializableFunction<ElementT, TableRow> toTableRow) {
+      SerializableFunction<ElementT, TableRow> toTableRow,
+      SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
@@ -88,6 +94,7 @@ class StreamingWriteFn<ErrorT, ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
+    this.toFailsafeTableRow = toFailsafeTableRow;
   }
 
   @Setup
@@ -120,13 +127,14 @@ class StreamingWriteFn<ErrorT, ElementT>
       BoundedWindow window,
       PaneInfo pane) {
     String tableSpec = element.getKey().getKey();
-    List<ValueInSingleWindow<TableRow>> rows =
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         BigQueryHelpers.getOrCreateMapListValue(tableRows, tableSpec);
     List<String> uniqueIds =
         BigQueryHelpers.getOrCreateMapListValue(uniqueIdsForTableRows, tableSpec);
 
     TableRow tableRow = toTableRow.apply(element.getValue().tableRow);
-    rows.add(ValueInSingleWindow.of(tableRow, timestamp, window, pane));
+    TableRow failsafeTableRow = toFailsafeTableRow.apply(element.getValue().tableRow);
+    rows.add(FailsafeValueInSingleWindow.of(tableRow, timestamp, window, pane, failsafeTableRow));
     uniqueIds.add(element.getValue().uniqueId);
   }
 
@@ -135,7 +143,8 @@ class StreamingWriteFn<ErrorT, ElementT>
   public void finishBundle(FinishBundleContext context) throws Exception {
     List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
     BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-    for (Map.Entry<String, List<ValueInSingleWindow<TableRow>>> entry : tableRows.entrySet()) {
+    for (Map.Entry<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> entry :
+        tableRows.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
       flushRows(
           tableReference,
@@ -173,7 +182,7 @@ class StreamingWriteFn<ErrorT, ElementT>
   /** Writes the accumulated rows into BigQuery with streaming API. */
   private void flushRows(
       TableReference tableReference,
-      List<ValueInSingleWindow<TableRow>> tableRows,
+      List<FailsafeValueInSingleWindow<TableRow, TableRow>> tableRows,
       List<String> uniqueIds,
       BigQueryOptions options,
       List<ValueInSingleWindow<ErrorT>> failedInserts)

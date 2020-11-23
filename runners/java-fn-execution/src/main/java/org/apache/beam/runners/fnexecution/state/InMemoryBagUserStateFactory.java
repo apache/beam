@@ -34,6 +34,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * Holds user state in memory. Only one key is active at a time due to the GroupReduceFunction being
  * called once per key. Needs to be reset via {@code resetForNewKey()} before processing a new key.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InMemoryBagUserStateFactory<K, V, W extends BoundedWindow>
     implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
 

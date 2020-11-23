@@ -30,6 +30,9 @@ import org.apache.beam.sdk.util.common.Reiterator;
  *
  * <p>This class, and the returned iterators, are not threadsafe.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TaggedReiteratorList extends AbstractList<Reiterator<Object>> {
 
   /** Interface for extracting the tag and value from an opaque element. */

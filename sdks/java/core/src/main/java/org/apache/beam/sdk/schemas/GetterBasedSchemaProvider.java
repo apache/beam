@@ -31,6 +31,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * FieldValueGetter}s.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   /** Implementing class should override to return FieldValueGetters. */
   public abstract List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema);

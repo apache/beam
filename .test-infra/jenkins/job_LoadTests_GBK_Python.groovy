@@ -162,7 +162,7 @@ def addStreamingOptions(test) {
 
 def loadTestJob = { scope, triggeringContext, mode ->
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37,
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON,
       loadTestConfigurations(mode, datasetName), 'GBK', mode)
 }
 

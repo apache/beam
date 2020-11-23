@@ -22,6 +22,7 @@ import unittest
 import pandas as pd
 
 from apache_beam.dataframe import doctests
+from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
 @unittest.skipIf(sys.version_info <= (3, ), 'Requires contextlib.ExitStack.')
@@ -79,7 +80,6 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
-            'pandas.core.frame.DataFrame.axes': ['*'],
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
@@ -87,11 +87,6 @@ class DoctestTest(unittest.TestCase):
             # We should be able to support pivot and pivot_table for categorical
             # columns
             'pandas.core.frame.DataFrame.pivot': ['*'],
-
-            # DataFrame.__getitem__ cannot be used as loc
-            'pandas.core.frame.DataFrame.query': [
-                'df[df.A > df.B]', "df[df.B == df['C C']]"
-            ],
 
             # We can implement this as a zipping operator, but it won't have the
             # same capability. The doctest includes an example that branches on
@@ -102,39 +97,41 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.combine_first': ['*'],
 
             # Difficult to parallelize but should be possible?
-            'pandas.core.frame.DataFrame.corr': ['*'],
-            'pandas.core.frame.DataFrame.cov': ['*'],
-            'pandas.core.frame.DataFrame.dot': ['*'],
-
-            # element-wise
-            'pandas.core.frame.DataFrame.eval': ['*'],
-            'pandas.core.frame.DataFrame.explode': ['*'],
+            'pandas.core.frame.DataFrame.dot': [
+                # reindex not supported
+                's2 = s.reindex([1, 0, 2, 3])',
+                'df.dot(s2)',
+            ],
 
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
-            'pandas.core.frame.DataFrame.drop': ['*'],
-            'pandas.core.frame.DataFrame.rename': ['*'],
+            # Difficult to determine proxy, need to inspect function
             'pandas.core.frame.DataFrame.apply': ['*'],
-
-            # Zipping operation if input is a DeferredSeries
-            'pandas.core.frame.DataFrame.assign': ['*'],
 
             # In theory this is possible for bounded inputs?
             'pandas.core.frame.DataFrame.append': ['*'],
         },
         skip={
+            'pandas.core.frame.DataFrame.axes': [
+                # Returns deferred index.
+                'df.axes',
+            ],
             'pandas.core.frame.DataFrame.compare': ['*'],
+            'pandas.core.frame.DataFrame.cov': [
+                # Relies on setting entries ahead of time.
+                "df.loc[df.index[:5], 'a'] = np.nan",
+                "df.loc[df.index[5:10], 'b'] = np.nan",
+                'df.cov(min_periods=12)',
+            ],
             'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
             'pandas.core.frame.DataFrame.duplicated': ['*'],
-            'pandas.core.frame.DataFrame.groupby': [
-                'df.groupby(level=0).mean()',
-                'df.groupby(level="Type").mean()',
-                'df.groupby(by=["b"], dropna=False).sum()',
-                'df.groupby(by="a", dropna=False).sum()'
-            ],
             'pandas.core.frame.DataFrame.idxmax': ['*'],
             'pandas.core.frame.DataFrame.idxmin': ['*'],
-            'pandas.core.frame.DataFrame.pop': ['*'],
+            'pandas.core.frame.DataFrame.rename': [
+                # Returns deferred index.
+                'df.index',
+                'df.rename(index=str).index',
+            ],
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
@@ -161,8 +158,6 @@ class DoctestTest(unittest.TestCase):
                 "          ignore_index=True)"
             ],
             'pandas.core.frame.DataFrame.eval': ['df'],
-            # No override for __matmul__ and friends
-            'pandas.core.frame.DataFrame.dot': ['df @ other'],
             'pandas.core.frame.DataFrame.melt': [
                 "df.columns = [list('ABC'), list('DEF')]", "df"
             ],
@@ -183,10 +178,6 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.to_sparse': ['type(df)'],
 
-            # DeferredSeries has no attribute dtype. Should we allow this and
-            # defer to proxy?
-            'pandas.core.frame.DataFrame.iterrows': ["print(df['int'].dtype)"],
-
             # Skipped because "seen_wont_implement" is reset before getting to
             # these calls, so the NameError they raise is not ignored.
             'pandas.core.frame.DataFrame.T': [
@@ -205,11 +196,15 @@ class DoctestTest(unittest.TestCase):
         report=True,
         wont_implement_ok={
             'pandas.core.series.Series.__array__': ['*'],
+            'pandas.core.series.Series.array': ['*'],
             'pandas.core.series.Series.cummax': ['*'],
             'pandas.core.series.Series.cummin': ['*'],
             'pandas.core.series.Series.cumsum': ['*'],
             'pandas.core.series.Series.cumprod': ['*'],
             'pandas.core.series.Series.diff': ['*'],
+            'pandas.core.series.Series.dot': [
+                's.dot(arr)',  # non-deferred result
+            ],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -224,6 +219,7 @@ class DoctestTest(unittest.TestCase):
                 "s.nsmallest(3)",
                 "s.nsmallest(3, keep='last')",
             ],
+            'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.searchsorted': ['*'],
             'pandas.core.series.Series.shift': ['*'],
             'pandas.core.series.Series.take': ['*'],
@@ -234,10 +230,14 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.view': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.series.Series.groupby': [
+                'ser.groupby(["a", "b", "a", "b"]).mean()',
+                'ser.groupby(["a", "b", "a", np.nan]).mean()',
+                'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
+            ],
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
-            'pandas.core.series.Series.array': ['*'],
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
@@ -245,22 +245,21 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
-            'pandas.core.series.Series.corr': ['*'],
             'pandas.core.series.Series.count': ['*'],
-            'pandas.core.series.Series.cov': ['*'],
-            'pandas.core.series.Series.dot': ['*'],
+            'pandas.core.series.Series.cov': [
+                # Differs in LSB on jenkins.
+                "s1.cov(s2)",
+            ],
             'pandas.core.series.Series.drop': ['*'],
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
-            'pandas.core.series.Series.groupby': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.name': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
-            'pandas.core.series.Series.pop': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
-            'pandas.core.series.Series.rename': ['*'],
+            'pandas.core.series.Series.pop': ['ser'],  # testing side effect
             'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
             'pandas.core.series.Series.reset_index': ['*'],
@@ -285,36 +284,28 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.strings,
         use_beam=False,
-        skip={
-            'pandas.core.strings.StringMethods.cat': ['*'],
-            'pandas.core.strings.StringMethods.repeat': ['*'],
-            'pandas.core.strings.str_repeat': ['*'],
-
-            # The rest of the skipped tests represent bad test strings,
-            # fixed upstream in
-            # https://github.com/pandas-dev/pandas/commit/d095ac899da953d759992824592a72a1e6ff5e09
-            'pandas.core.strings.StringMethods': [
-                "s.str.split('_')", "s.str.replace('_', '')"
+        wont_implement_ok={
+            # These methods can accept deferred series objects, but not lists
+            'pandas.core.strings.StringMethods.cat': [
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',')",
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',', na_rep='-')",
+                "s.str.cat(['A', 'B', 'C', 'D'], na_rep='-')"
             ],
-            'pandas.core.strings.str_split': ["s.str.split(expand=True)"],
+            'pandas.core.strings.StringMethods.repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
+            'pandas.core.strings.str_repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
+        },
+        skip={
+            # Bad test strings
             'pandas.core.strings.str_replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
             'pandas.core.strings.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
-            'pandas.core.strings.StringMethods.partition': [
-                'idx.str.partition()'
-            ],
-            'pandas.core.strings.StringMethods.rpartition': [
-                'idx.str.partition()'
-            ],
-            # rsplit/split are particularly troublesome because the first test,
-            # defining a test series, is bad and must be skipped. But skipping
-            # it breaks every other test. To run the rest we would need to
-            # execute the first test but ignore the output.
-            'pandas.core.strings.StringMethods.rsplit': ["*"],
-            'pandas.core.strings.StringMethods.split': ["*"],
         })
     self.assertEqual(result.failed, 0)
 
@@ -374,6 +365,73 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexing._LocIndexer': ['*'],
             'pandas.core.indexing._iAtIndexer': ['*'],
             'pandas.core.indexing._iLocIndexer': ['*'],
+        })
+    self.assertEqual(result.failed, 0)
+
+  def test_top_level(self):
+    tests = {
+        name: func.__doc__
+        for (name, func) in pd.__dict__.items()
+        if _is_top_level_function(func) and getattr(func, '__doc__', None)
+    }
+
+    skip_reads = {name: ['*'] for name in dir(pd) if name.startswith('read_')}
+
+    result = doctests.teststrings(
+        tests,
+        use_beam=False,
+        report=True,
+        not_implemented_ok={
+            'concat': ['pd.concat([s1, s2], ignore_index=True)'],
+            'crosstab': ['*'],
+            'cut': ['*'],
+            'eval': ['*'],
+            'factorize': ['*'],
+            'get_dummies': ['*'],
+            'infer_freq': ['*'],
+            'lreshape': ['*'],
+            'melt': ['*'],
+            'merge_asof': ['*'],
+            'pivot': ['*'],
+            'pivot_table': ['*'],
+            'qcut': ['*'],
+            'reset_option': ['*'],
+            'set_eng_float_format': ['*'],
+            'set_option': ['*'],
+            'to_datetime': ['*'],
+            'to_numeric': ['*'],
+            'to_timedelta': ['*'],
+            'unique': ['*'],
+            'value_counts': ['*'],
+            'wide_to_long': ['*'],
+        },
+        wont_implement_ok={
+            'to_datetime': ['s.head()'],
+            'to_pickle': ['*'],
+        },
+        skip={
+            # error formatting
+            'concat': ['pd.concat([df5, df6], verify_integrity=True)'],
+            # doctest DeprecationWarning
+            'melt': ['df'],
+            # Order-sensitive re-indexing.
+            'merge': [
+                "df1.merge(df2, left_on='lkey', right_on='rkey')",
+                "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
+                "          suffixes=('_left', '_right'))"
+            ],
+            # Not an actual test.
+            'option_context': ['*'],
+            'factorize': ['codes', 'uniques'],
+            # Bad top-level use of un-imported function.
+            'merge_ordered': [
+                'merge_ordered(df1, df2, fill_method="ffill", left_by="group")'
+            ],
+            # Expected error.
+            'pivot': ["df.pivot(index='foo', columns='bar', values='baz')"],
+            # Never written.
+            'to_pickle': ['os.remove("./dummy.pkl")'],
+            **skip_reads
         })
     self.assertEqual(result.failed, 0)
 
