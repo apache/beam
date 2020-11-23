@@ -31,15 +31,10 @@ public class AvroDataClass {
   Float field2;
   Float field3;
 
-  public AvroDataClass(
-      String field1,
-      Float field2,
-      Float field3
-      ) {
+  public AvroDataClass(String field1, Float field2, Float field3) {
     this.field1 = field1;
     this.field2 = field2;
     this.field3 = field3;
-
   }
 
   public String getField1() {
