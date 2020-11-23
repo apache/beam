@@ -96,7 +96,7 @@ gLinux users should configure their machines for sudoless Docker.
 
 Alternatively, you can use the [Dockerfile](https://github.com/apache/beam/blob/master/Dockerfile) to setup a container meeting the requirements above, and mounting the directory that contains the Beam repo to the container. e.g.:
 ```shell script
-docker run -it --mount type=bind,source=/Users/jsmith/Desktop/beam,target=/workspaces/beam <CONTAINER_ID> bash
+docker run -it --network=host -v /var/run/docker.sock:/var/run/docker.sock  --mount type=bind,source="$PWD",target=/workspaces/beam <CONTAINER_ID> bash
 ```
 
 ### Connect With the Beam community
