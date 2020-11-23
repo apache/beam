@@ -27,7 +27,8 @@ from __future__ import absolute_import
 # Standard file names used for staging files.
 from builtins import object
 
-DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
+# Referenced by Dataflow legacy worker.
+from apache_beam.runners.internal.names import PICKLED_MAIN_SESSION_FILE  # pylint: disable=unused-import
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'
@@ -40,22 +41,10 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20200911'
+BEAM_CONTAINER_VERSION = 'beam-master-20201116'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20200911'
-
-# TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
-PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
-STAGED_PIPELINE_FILENAME = 'pipeline.pb'
-STAGED_PIPELINE_URL_METADATA_FIELD = 'pipeline_url'
-
-# Package names for different distributions
-BEAM_PACKAGE_NAME = 'apache-beam'
-
-# SDK identifiers for different distributions
-BEAM_SDK_NAME = 'Apache Beam SDK for Python'
-# TODO(BEAM-5393): End duplicated constants (see above).
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20201116'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 

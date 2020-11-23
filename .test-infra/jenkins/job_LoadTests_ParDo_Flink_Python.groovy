@@ -24,6 +24,7 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -82,7 +83,7 @@ def batchScenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     // TODO(BEAM-10270): Takes too long time to execute (currently more than 3 hours). Re-enable
@@ -108,7 +109,7 @@ def batchScenarios = { datasetName ->
     //                         parallelism          : 5,
     //                         job_endpoint         : 'localhost:8099',
     //                         environment_type     : 'DOCKER',
-    //                         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+    //                         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
     //                 ]
     //         ],
     [
@@ -132,7 +133,7 @@ def batchScenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     [
@@ -156,7 +157,7 @@ def batchScenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
@@ -189,7 +190,7 @@ def streamingScenarios = { datasetName ->
         stateful             : null,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         use_stateful_load_generator: null,
       ]
     ],
@@ -215,7 +216,7 @@ def streamingScenarios = { datasetName ->
         streaming            : null,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         use_stateful_load_generator: null,
       ]
     ],
@@ -241,7 +242,7 @@ def streamingScenarios = { datasetName ->
         streaming            : null,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         use_stateful_load_generator: null,
       ]
     ],
@@ -267,7 +268,7 @@ def streamingScenarios = { datasetName ->
         streaming            : null,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         use_stateful_load_generator: null,
       ]
     ],
@@ -301,7 +302,7 @@ def streamingScenarios = { datasetName ->
         shutdown_sources_after_idle_ms: 300000,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
         use_stateful_load_generator: null,
       ]
     ],
@@ -316,12 +317,12 @@ def loadTestJob = { scope, triggeringContext, mode ->
   Flink flink = new Flink(scope, "beam_LoadTests_Python_ParDo_Flink_${mode.capitalize()}")
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+        "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       numberOfWorkers,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, testScenarios, 'ParDo', mode)
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'ParDo', mode)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

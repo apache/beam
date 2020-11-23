@@ -48,6 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 // TODO(CALCITE-3381): some methods below can be deleted after updating vendor Calcite version.
 // Calcite v1_20_0 does not have type translation implemented, but later (unreleased) versions do.
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
 
   public static final SqlDialect.Context DEFAULT_CONTEXT =
@@ -87,16 +90,17 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           .put("$extract_time", "TIME")
           .put("$extract_datetime", "DATETIME")
           .build();
-  public static final String DOUBLE_POSITIVE_INF_FUNCTION = "double_positive_inf";
-  public static final String DOUBLE_NEGATIVE_INF_FUNCTION = "double_negative_inf";
-  public static final String DOUBLE_NAN_FUNCTION = "double_nan";
-  private static final Map<String, String> DOUBLE_FUNCTIONS =
+  public static final String DOUBLE_POSITIVE_INF_WRAPPER = "double_positive_inf";
+  public static final String DOUBLE_NEGATIVE_INF_WRAPPER = "double_negative_inf";
+  public static final String DOUBLE_NAN_WRAPPER = "double_nan";
+  // ZetaSQL has no literal representation of NaN and infinity, so we need to CAST from strings
+  private static final Map<String, String> DOUBLE_LITERAL_WRAPPERS =
       ImmutableMap.<String, String>builder()
-          .put(DOUBLE_POSITIVE_INF_FUNCTION, "CAST('+inf' AS FLOAT64)")
-          .put(DOUBLE_NEGATIVE_INF_FUNCTION, "CAST('-inf' AS FLOAT64)")
-          .put(DOUBLE_NAN_FUNCTION, "CAST('NaN' AS FLOAT64)")
+          .put(DOUBLE_POSITIVE_INF_WRAPPER, "CAST('+inf' AS FLOAT64)")
+          .put(DOUBLE_NEGATIVE_INF_WRAPPER, "CAST('-inf' AS FLOAT64)")
+          .put(DOUBLE_NAN_WRAPPER, "CAST('NaN' AS FLOAT64)")
           .build();
-  public static final String NUMERIC_LITERAL_FUNCTION = "numeric_literal";
+  public static final String NUMERIC_LITERAL_WRAPPER = "numeric_literal";
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -166,12 +170,12 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
         break;
       case OTHER_FUNCTION:
         String funName = call.getOperator().getName();
-        if (DOUBLE_FUNCTIONS.containsKey(funName)) {
+        if (DOUBLE_LITERAL_WRAPPERS.containsKey(funName)) {
           // self-designed function dealing with the unparsing of ZetaSQL DOUBLE positive
           // infinity, negative infinity and NaN
-          unparseDoubleWrapperFunction(writer, funName);
+          unparseDoubleLiteralWrapperFunction(writer, funName);
           break;
-        } else if (NUMERIC_LITERAL_FUNCTION.equals(funName)) {
+        } else if (NUMERIC_LITERAL_WRAPPER.equals(funName)) {
           // self-designed function dealing with the unparsing of ZetaSQL NUMERIC literal
           unparseNumericLiteralWrapperFunction(writer, call, leftPrec, rightPrec);
           break;
@@ -253,12 +257,8 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
     writer.endFunCall(trimFrame);
   }
 
-  /**
-   * As there is no direct ZetaSQL literal representation of NaN or infinity, we cast String "+inf",
-   * "-inf" and "NaN" to FLOAT64 representing positive infinity, negative infinity and NaN.
-   */
-  private void unparseDoubleWrapperFunction(SqlWriter writer, String funName) {
-    writer.literal(DOUBLE_FUNCTIONS.get(funName));
+  private void unparseDoubleLiteralWrapperFunction(SqlWriter writer, String funName) {
+    writer.literal(DOUBLE_LITERAL_WRAPPERS.get(funName));
   }
 
   private void unparseNumericLiteralWrapperFunction(

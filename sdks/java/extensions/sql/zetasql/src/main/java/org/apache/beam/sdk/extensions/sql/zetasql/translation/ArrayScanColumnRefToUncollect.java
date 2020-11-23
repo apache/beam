@@ -38,6 +38,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Converts array scan that represents a reference to an array column, or an (possibly nested) array
  * field of an struct column to uncollect.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.ResolvedArrayScan> {
   ArrayScanColumnRefToUncollect(ConversionContext context) {
     super(context);

@@ -62,6 +62,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests that {@link ParDo} exercises {@link DoFn} methods in the appropriate sequence. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ParDoLifecycleTest implements Serializable {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();

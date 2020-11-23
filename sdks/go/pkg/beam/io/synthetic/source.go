@@ -23,13 +23,15 @@
 package synthetic
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"math/rand"
 	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
@@ -125,12 +127,22 @@ func (fn *sourceFn) Setup() {
 // ProcessElement creates a number of random elements based on the restriction
 // tracker received. Each element is a random byte slice key and value, in the
 // form of KV<[]byte, []byte>.
-func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, _ SourceConfig, emit func([]byte, []byte)) error {
+func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, emit func([]byte, []byte)) error {
+	generator := rand.New(rand.NewSource(0))
 	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
-		key := make([]byte, 8)
-		val := make([]byte, 8)
-		if _, err := fn.rng.Read(key); err != nil {
-			return err
+		key := make([]byte, config.KeySize)
+		val := make([]byte, config.ValueSize)
+		generator.Seed(i)
+		randomSample := generator.Float64()
+		if randomSample < config.HotKeyFraction {
+			generator.Seed(i % int64(config.NumHotKeys))
+			if _, err := generator.Read(key); err != nil {
+				return err
+			}
+		} else {
+			if _, err := fn.rng.Read(key); err != nil {
+				return err
+			}
 		}
 		if _, err := fn.rng.Read(val); err != nil {
 			return err
@@ -163,8 +175,12 @@ type SourceConfigBuilder struct {
 func DefaultSourceConfig() *SourceConfigBuilder {
 	return &SourceConfigBuilder{
 		cfg: SourceConfig{
-			NumElements:   1, // 0 is invalid (drops elements).
-			InitialSplits: 1, // 0 is invalid (drops elements).
+			NumElements:    1, // 0 is invalid (drops elements).
+			InitialSplits:  1, // 0 is invalid (drops elements).
+			KeySize:        8, // 0 is invalid (drops elements).
+			ValueSize:      8, // 0 is invalid (drops elements).
+			NumHotKeys:     0,
+			HotKeyFraction: 0,
 		},
 	}
 }
@@ -197,6 +213,41 @@ func (b *SourceConfigBuilder) InitialSplits(val int) *SourceConfigBuilder {
 	return b
 }
 
+// KeySize determines the size of the key of elements for the source to
+// generate.
+//
+// Valid values are in the range of [1, ...] and the default value is 8.
+func (b *SourceConfigBuilder) KeySize(val int) *SourceConfigBuilder {
+	b.cfg.KeySize = val
+	return b
+}
+
+// ValueSize determines the size of the value of elements for the source to
+// generate.
+//
+// Valid values are in the range of [1, ...] and the default value is 8.
+func (b *SourceConfigBuilder) ValueSize(val int) *SourceConfigBuilder {
+	b.cfg.ValueSize = val
+	return b
+}
+
+// NumHotKeys determines the number of keys with the same value among
+// generated keys.
+//
+// Valid values are in the range of [0, ...] and the default value is 0.
+func (b *SourceConfigBuilder) NumHotKeys(val int) *SourceConfigBuilder {
+	b.cfg.NumHotKeys = val
+	return b
+}
+
+// HotKeyFraction determines the value of hot key fraction.
+//
+// Valid values are floating point numbers from 0 to 1.
+func (b *SourceConfigBuilder) HotKeyFraction(val float64) *SourceConfigBuilder {
+	b.cfg.HotKeyFraction = val
+	return b
+}
+
 // Build constructs the SourceConfig initialized by this builder. It also
 // performs error checking on the fields, and panics if any have been set to
 // invalid values.
@@ -207,6 +258,39 @@ func (b *SourceConfigBuilder) Build() SourceConfig {
 	if b.cfg.NumElements <= 0 {
 		panic(fmt.Sprintf("SourceConfig.NumElements must be >= 1. Got: %v", b.cfg.NumElements))
 	}
+	if b.cfg.KeySize <= 0 {
+		panic(fmt.Sprintf("SourceConfig.KeySize must be >= 1. Got: %v", b.cfg.KeySize))
+	}
+	if b.cfg.ValueSize <= 0 {
+		panic(fmt.Sprintf("SourceConfig.ValueSize must be >= 1. Got: %v", b.cfg.ValueSize))
+	}
+	if b.cfg.NumHotKeys < 0 {
+		panic(fmt.Sprintf("SourceConfig.NumHotKeys must be >= 0. Got: %v", b.cfg.HotKeyFraction))
+	}
+	if b.cfg.HotKeyFraction < 0 || b.cfg.HotKeyFraction > 1 {
+		panic(fmt.Sprintf("SourceConfig.HotKeyFraction must be a floating point number from 0 and 1. Got: %v", b.cfg.NumHotKeys))
+	}
+	return b.cfg
+}
+
+// BuildFromJSON constructs the SourceConfig by populating it with the parsed
+// JSON. Panics if there is an error in the syntax of the JSON or if the input
+// contains unknown object keys.
+//
+// An example of valid JSON object:
+// {
+// 	 "num_records": 5,
+// 	 "key_size": 5,
+// 	 "value_size": 5,
+//	 "num_hot_keys": 5,
+// }
+func (b *SourceConfigBuilder) BuildFromJSON(jsonData []byte) SourceConfig {
+	decoder := json.NewDecoder(bytes.NewReader(jsonData))
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&b.cfg); err != nil {
+		panic(fmt.Sprintf("Could not unmarshal SourceConfig: %v", err))
+	}
 	return b.cfg
 }
 
@@ -214,6 +298,10 @@ func (b *SourceConfigBuilder) Build() SourceConfig {
 // synthetic source. It should be created via a SourceConfigBuilder, not by
 // directly initializing it (the fields are public to allow encoding).
 type SourceConfig struct {
-	NumElements   int
-	InitialSplits int
+	NumElements    int     `json:"num_records"`
+	InitialSplits  int     `json:"initial_splits"`
+	KeySize        int     `json:"key_size"`
+	ValueSize      int     `json:"value_size"`
+	NumHotKeys     int     `json:"num_hot_keys"`
+	HotKeyFraction float64 `json:"hot_key_fraction"`
 }

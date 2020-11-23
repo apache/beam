@@ -106,6 +106,10 @@ import org.joda.time.Instant;
 /**
  * Translators for transforming {@link PTransform PTransforms} to Flink {@link DataSet DataSets}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlinkBatchTransformTranslators {
 
   // --------------------------------------------------------------------------------------------
@@ -299,7 +303,8 @@ class FlinkBatchTransformTranslators {
               WindowedValue.getFullCoder(
                   KvCoder.of(
                       inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getValueCoder())),
-                  windowingStrategy.getWindowFn().windowCoder()));
+                  windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
       final DataSet<WindowedValue<KV<K, Iterable<InputT>>>> outputDataSet =
           new GroupReduceOperator<>(
                   inputGrouping,
@@ -348,7 +353,8 @@ class FlinkBatchTransformTranslators {
           new CoderTypeInformation<>(
               WindowedValue.getFullCoder(
                   KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder),
-                  windowingStrategy.getWindowFn().windowCoder()));
+                  windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
 
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
           inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
@@ -638,7 +644,7 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+      Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
 
       final TupleTag<OutputT> mainOutputTag;
       DoFnSchemaInformation doFnSchemaInformation;
@@ -692,8 +698,8 @@ class FlinkBatchTransformTranslators {
 
       TypeInformation<WindowedValue<RawUnionValue>> typeInformation =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
-                  unionCoder, windowingStrategy.getWindowFn().windowCoder()));
+              WindowedValue.getFullCoder(unionCoder, windowingStrategy.getWindowFn().windowCoder()),
+              context.getPipelineOptions());
 
       List<PCollectionView<?>> sideInputs;
       try {
@@ -778,7 +784,7 @@ class FlinkBatchTransformTranslators {
 
       transformSideInputs(sideInputs, outputDataSet, context);
 
-      for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      for (Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         pruneOutput(
             outputDataSet,
             context,
@@ -823,7 +829,7 @@ class FlinkBatchTransformTranslators {
         PTransform<PCollectionList<T>, PCollection<T>> transform,
         FlinkBatchTranslationContext context) {
 
-      Map<TupleTag<?>, PValue> allInputs = context.getInputs(transform);
+      Map<TupleTag<?>, PCollection<?>> allInputs = context.getInputs(transform);
       DataSet<WindowedValue<T>> result = null;
 
       if (allInputs.isEmpty()) {
@@ -841,7 +847,8 @@ class FlinkBatchTransformTranslators {
                 .returns(
                     new CoderTypeInformation<>(
                         WindowedValue.getFullCoder(
-                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE)));
+                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
+                        context.getPipelineOptions()));
       } else {
         for (PValue taggedPc : allInputs.values()) {
           checkArgument(

@@ -42,6 +42,7 @@ public class BufferedExternalSorter implements Sorter {
     private final SorterType sorterType;
 
     private Options(String tempLocation, int memoryMB, SorterType sorterType) {
+      checkMemoryMB(memoryMB, sorterType);
       this.tempLocation = tempLocation;
       this.memoryMB = memoryMB;
       this.sorterType = sorterType;
@@ -63,14 +64,10 @@ public class BufferedExternalSorter implements Sorter {
 
     /**
      * Sets the size of the memory buffer in megabytes. This controls both the buffer for initial in
-     * memory sorting and the buffer used when external sorting. Must be greater than zero and less
-     * than 2048.
+     * memory sorting and the buffer used when external sorting. Must be greater than zero. Must be
+     * less than 2048 if sorter type is Hadoop.
      */
     public Options withMemoryMB(int memoryMB) {
-      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
-      // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
-      // overflow
-      checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
       return new Options(tempLocation, memoryMB, sorterType);
     }
 
@@ -88,6 +85,15 @@ public class BufferedExternalSorter implements Sorter {
     public SorterType getExternalSorterType() {
       return sorterType;
     }
+
+    private static void checkMemoryMB(int memoryMB, SorterType sorterType) {
+      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
+      if (sorterType == SorterType.HADOOP) {
+        // Hadoop's external sort stores the number of available memory bytes in an int, this
+        // prevents overflow
+        checkArgument(memoryMB < 2048, "memoryMB must be less than 2048 for Hadoop sorter");
+      }
+    }
   }
 
   private final ExternalSorter externalSorter;
@@ -102,9 +108,9 @@ public class BufferedExternalSorter implements Sorter {
 
   public static BufferedExternalSorter create(Options options) {
     ExternalSorter.Options externalSorterOptions = new ExternalSorter.Options();
-    externalSorterOptions.setMemoryMB(options.getMemoryMB());
     externalSorterOptions.setTempLocation(options.getTempLocation());
     externalSorterOptions.setSorterType(options.getExternalSorterType());
+    externalSorterOptions.setMemoryMB(options.getMemoryMB());
 
     InMemorySorter.Options inMemorySorterOptions = new InMemorySorter.Options();
     inMemorySorterOptions.setMemoryMB(options.getMemoryMB());

@@ -37,6 +37,10 @@ import java.util.Map;
 import java.util.function.Function;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamBuiltinAggregations {
 
   public static final Map<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>
@@ -53,6 +57,7 @@ public class BeamBuiltinAggregations {
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("LOGICAL_AND",BeamBuiltinAggregations::createLogicalAnd)
+              .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -180,13 +185,13 @@ public class BeamBuiltinAggregations {
         String.format("[%s] is not supported in BIT_OR", fieldType));
   }
 
-  //  static CombineFn createBitAnd(Schema.FieldType fieldType) {
-  //    if (fieldType.getTypeName() == TypeName.INT64) {
-  //      return new BitAnd();
-  //    }
-  //    throw new UnsupportedOperationException(
-  //        String.format("[%s] is not supported in BIT_AND", fieldType));
-  //  }
+  static CombineFn createBitAnd(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitAnd();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_AND", fieldType));
+  }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
     @Override
@@ -381,9 +386,10 @@ public class BeamBuiltinAggregations {
   }
 
   /**
-   * NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)
+   * Bitwise AND function implementation.
    *
-   * <p>Comment the following implementation for BitAnd class for now.
+   * <p>Note: null values are ignored when mixed with non-null values.
+   * (https://issues.apache.org/jira/browse/BEAM-10379)
    */
   //  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
   //    // Indicate if input only contains null value.
@@ -472,48 +478,82 @@ public class BeamBuiltinAggregations {
   //    }
   //  }
 
-  static CombineFn createLogicalAnd(Schema.FieldType fieldType) {
-    if (fieldType.getTypeName() == TypeName.BOOLEAN) {
-      return new LogicalAnd();
-    }
-    throw new UnsupportedOperationException(String.format("[%s] is not supported in LOGICAL_AND", fieldType));
+  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
+      // Indicate if input only contains null value.
+      private boolean isEmpty = true;
+
+      @Override
+      public Long createAccumulator() {
+          return -1L;
+      }
+
+      @Override
+      public Long addInput(Long accum, T input) {
+          if (input != null) {
+              this.isEmpty = false;
+              return accum & input.longValue();
+          } else {
+              return null;
+          }
+      }
+      @Override
+      public Long mergeAccumulators(Iterable<Long> accums) {
+          Long merged = createAccumulator();
+          for (Long accum : accums) {
+              merged = merged & accum;
+          }
+          return merged;
+      }
+
+      @Override
+      public Long extractOutput(Long accumulator) {
+          if(this.isEmpty){
+              return  null;
+          }
+          return accumulator;
+      }
   }
 
-  public static class LogicalAnd extends CombineFn<Boolean, Boolean, Boolean> {
-    private boolean isEmpty = true;
-    @Override
-    public Boolean createAccumulator() {
-      return Boolean.FALSE;
+    static CombineFn createLogicalAnd(Schema.FieldType fieldType) {
+        if (fieldType.getTypeName() == TypeName.BOOLEAN) {
+            return new LogicalAnd();
+        }
+        throw new UnsupportedOperationException(String.format("[%s] is not supported in LOGICAL_AND", fieldType));
     }
 
-    @Override
-    public Boolean addInput(Boolean mutableAccumulator, Boolean input) {
-      if (input != null) {
-        this.isEmpty = false;
-        return mutableAccumulator && input;
-      }else {
-        return null;
-      }
+    public static class LogicalAnd extends CombineFn<Boolean, Boolean, Boolean> {
+        private boolean isEmpty = true;
+        @Override
+        public Boolean createAccumulator() {
+            return Boolean.FALSE;
+        }
+
+        @Override
+        public Boolean addInput(Boolean mutableAccumulator, Boolean input) {
+            if (input != null) {
+                this.isEmpty = false;
+                return mutableAccumulator && input;
+            }else {
+                return null;
+            }
+        }
+
+        @Override
+        public Boolean mergeAccumulators(Iterable<Boolean> accumulators) {
+            Boolean merged = createAccumulator();
+            for (Boolean accum : accumulators) {
+                merged = merged && accum;
+            }
+            return merged;
+        }
+
+        @Override
+        public Boolean extractOutput(Boolean accumulator) {
+            if(this.isEmpty){
+                return  null;
+            }
+            return accumulator;
+        }
+
     }
-
-    @Override
-    public Boolean mergeAccumulators(Iterable<Boolean> accumulators) {
-      Boolean merged = createAccumulator();
-      for (Boolean accum : accumulators) {
-        merged = merged && accum;
-      }
-      return merged;
-    }
-
-    @Override
-    public Boolean extractOutput(Boolean accumulator) {
-      if(this.isEmpty){
-        return  null;
-      }
-      return accumulator;
-    }
-
-    // Indicate if input only contains null value.
-
-  }
 }

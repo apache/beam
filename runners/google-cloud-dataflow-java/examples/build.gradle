@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false, enableChecker: false)
+applyJavaNature(publish: false, exportJavadoc: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")
@@ -104,7 +104,7 @@ afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
     if (t.dependsOn.contains(":runners:google-cloud-dataflow-java:buildAndPushDockerContainer")) {
-      project(':runners:google-cloud-dataflow-java').cleanUpDockerImages.mustRunAfter t
+        t.finalizedBy ':runners:google-cloud-dataflow-java:cleanUpDockerImages'
     }
   }
 }

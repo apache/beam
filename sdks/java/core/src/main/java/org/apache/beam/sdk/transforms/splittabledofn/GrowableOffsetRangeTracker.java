@@ -36,6 +36,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
  * <p>The growable range is marked as done by claiming {@code Long.MAX_VALUE}.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
   /**
    * Provides the estimated end offset of the range.

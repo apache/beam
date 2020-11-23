@@ -64,6 +64,7 @@ import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -132,6 +133,11 @@ import org.slf4j.LoggerFactory;
  */
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class DoFnOperator<InputT, OutputT>
     extends AbstractStreamOperatorCompat<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
@@ -386,7 +392,8 @@ public class DoFnOperator<InputT, OutputT>
 
     ListStateDescriptor<WindowedValue<InputT>> pushedBackStateDescriptor =
         new ListStateDescriptor<>(
-            "pushed-back-elements", new CoderTypeSerializer<>(windowedInputCoder));
+            "pushed-back-elements",
+            new CoderTypeSerializer<>(windowedInputCoder, serializedOptions));
 
     if (keySelector != null) {
       pushedBackElementsHandler =
@@ -408,7 +415,9 @@ public class DoFnOperator<InputT, OutputT>
 
       FlinkBroadcastStateInternals sideInputStateInternals =
           new FlinkBroadcastStateInternals<>(
-              getContainingTask().getIndexInSubtaskGroup(), getOperatorStateBackend());
+              getContainingTask().getIndexInSubtaskGroup(),
+              getOperatorStateBackend(),
+              serializedOptions);
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
       sideInputReader = sideInputHandler;
@@ -424,11 +433,13 @@ public class DoFnOperator<InputT, OutputT>
     // StatefulPardo or WindowDoFn
     if (keyCoder != null) {
       keyedStateInternals =
-          new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(), keyCoder);
+          new FlinkStateInternals<>(
+              (KeyedStateBackend) getKeyedStateBackend(), keyCoder, serializedOptions);
 
       if (timerService == null) {
         timerService =
-            getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+            getInternalTimerService(
+                "beam-timer", new CoderTypeSerializer<>(timerCoder, serializedOptions), this);
       }
 
       timerInternals = new FlinkTimerInternals();
@@ -485,7 +496,8 @@ public class DoFnOperator<InputT, OutputT>
                   windowingStrategy.getWindowFn().windowCoder(),
                   getOperatorStateBackend(),
                   getKeyedStateBackend(),
-                  options.getNumConcurrentCheckpoints());
+                  options.getNumConcurrentCheckpoints(),
+                  serializedOptions);
     }
     doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
     earlyBindStateIfNeeded();
@@ -533,7 +545,7 @@ public class DoFnOperator<InputT, OutputT>
       if (doFn != null) {
         DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
         FlinkStateInternals.EarlyBinder earlyBinder =
-            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend(), serializedOptions);
         for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
           StateSpec<?> spec =
               (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
@@ -944,7 +956,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
-  public final void notifyCheckpointComplete(long checkpointId) throws Exception {
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
     if (checkpointStats != null) {
       checkpointStats.reportCheckpointDuration(checkpointId);
     }
@@ -1193,29 +1205,35 @@ public class DoFnOperator<InputT, OutputT>
     private Map<TupleTag<?>, Integer> tagsToIds;
     private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
     private Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders;
+    private final SerializablePipelineOptions pipelineOptions;
 
     // There is no side output.
     @SuppressWarnings("unchecked")
     public MultiOutputOutputManagerFactory(
-        TupleTag<OutputT> mainTag, Coder<WindowedValue<OutputT>> mainCoder) {
+        TupleTag<OutputT> mainTag,
+        Coder<WindowedValue<OutputT>> mainCoder,
+        SerializablePipelineOptions pipelineOptions) {
       this(
           mainTag,
           new HashMap<>(),
           ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
               .put(mainTag, (Coder) mainCoder)
               .build(),
-          ImmutableMap.<TupleTag<?>, Integer>builder().put(mainTag, 0).build());
+          ImmutableMap.<TupleTag<?>, Integer>builder().put(mainTag, 0).build(),
+          pipelineOptions);
     }
 
     public MultiOutputOutputManagerFactory(
         TupleTag<OutputT> mainTag,
         Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
         Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
-        Map<TupleTag<?>, Integer> tagsToIds) {
+        Map<TupleTag<?>, Integer> tagsToIds,
+        SerializablePipelineOptions pipelineOptions) {
       this.mainTag = mainTag;
       this.tagsToOutputTags = tagsToOutputTags;
       this.tagsToCoders = tagsToCoders;
       this.tagsToIds = tagsToIds;
+      this.pipelineOptions = pipelineOptions;
     }
 
     @Override
@@ -1230,7 +1248,8 @@ public class DoFnOperator<InputT, OutputT>
 
       TaggedKvCoder taggedKvCoder = buildTaggedKvCoder();
       ListStateDescriptor<KV<Integer, WindowedValue<?>>> taggedOutputPushbackStateDescriptor =
-          new ListStateDescriptor<>("bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder));
+          new ListStateDescriptor<>(
+              "bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder, pipelineOptions));
       ListState<KV<Integer, WindowedValue<?>>> listStateBuffer =
           operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
       PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
@@ -1291,7 +1310,7 @@ public class DoFnOperator<InputT, OutputT>
           new MapStateDescriptor<>(
               PENDING_TIMERS_STATE_NAME,
               new StringSerializer(),
-              new CoderTypeSerializer<>(timerCoder));
+              new CoderTypeSerializer<>(timerCoder, serializedOptions));
       this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
       populateOutputTimestampQueue();
     }
@@ -1314,7 +1333,7 @@ public class DoFnOperator<InputT, OutputT>
         keyedStateBackend.setCurrentKey(internalTimer.getKey());
         TimerData timer = internalTimer.getNamespace();
         checkInvokeStartBundle();
-        fireTimer(timer);
+        fireTimerInternal((ByteBuffer) internalTimer.getKey(), timer);
       }
     }
 
@@ -1329,16 +1348,13 @@ public class DoFnOperator<InputT, OutputT>
       }
     }
 
-    private void onRemovedEventTimer(TimerData removedTimer) {
+    /** Holds the watermark when there is an sdf timer. */
+    private void onNewSdfTimer(TimerData newTimer) {
       Preconditions.checkState(
-          removedTimer.getDomain() == TimeDomain.EVENT_TIME,
-          "Timer with id %s is not an event time timer!",
-          removedTimer.getTimerId());
-      // Remove the first occurrence of the output timestamp, if cached
-      // Note: There may be duplicate timestamps from other timers, that's ok.
-      if (timerUsesOutputTimestamp(removedTimer)) {
-        keyedStateInternals.removeWatermarkHoldUsage(removedTimer.getOutputTimestamp());
-      }
+          StateAndTimerBundleCheckpointHandler.isSdfTimer(newTimer.getTimerId()));
+      // An SDF timer should hold the watermark for further output.
+      Preconditions.checkState(timerUsesOutputTimestamp(newTimer));
+      keyedStateInternals.addWatermarkHoldUsage(newTimer.getOutputTimestamp());
     }
 
     private void populateOutputTimestampQueue() {
@@ -1351,7 +1367,8 @@ public class DoFnOperator<InputT, OutputT>
               keyedStateBackend.setCurrentKey(key);
               try {
                 for (TimerData timerData : pendingTimersById.values()) {
-                  if (timerData.getDomain() == TimeDomain.EVENT_TIME) {
+                  if (timerData.getDomain() == TimeDomain.EVENT_TIME
+                      || StateAndTimerBundleCheckpointHandler.isSdfTimer(timerData.getTimerId())) {
                     if (timerUsesOutputTimestamp(timerData)) {
                       keyedStateInternals.addWatermarkHoldUsage(timerData.getOutputTimestamp());
                     }
@@ -1423,6 +1440,9 @@ public class DoFnOperator<InputT, OutputT>
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
           timerService.registerProcessingTimeTimer(timer, adjustTimestampForFlink(time));
+          if (StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
+            onNewSdfTimer(timer);
+          }
           break;
         default:
           throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
@@ -1448,8 +1468,11 @@ public class DoFnOperator<InputT, OutputT>
     void onFiredOrDeletedTimer(TimerData timer) {
       try {
         pendingTimersById.remove(getContextTimerId(timer.getTimerId(), timer.getNamespace()));
-        if (timer.getDomain() == TimeDomain.EVENT_TIME) {
-          onRemovedEventTimer(timer);
+        if (timer.getDomain() == TimeDomain.EVENT_TIME
+            || StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
+          if (timerUsesOutputTimestamp(timer)) {
+            keyedStateInternals.removeWatermarkHoldUsage(timer.getOutputTimestamp());
+          }
         }
       } catch (Exception e) {
         throw new RuntimeException("Failed to cleanup pending timers state.", e);
@@ -1500,9 +1523,8 @@ public class DoFnOperator<InputT, OutputT>
       return new Instant(timerService.currentProcessingTime());
     }
 
-    @Nullable
     @Override
-    public Instant currentSynchronizedProcessingTime() {
+    public @Nullable Instant currentSynchronizedProcessingTime() {
       return new Instant(timerService.currentProcessingTime());
     }
 
@@ -1511,9 +1533,8 @@ public class DoFnOperator<InputT, OutputT>
       return new Instant(getEffectiveInputWatermark());
     }
 
-    @Nullable
     @Override
-    public Instant currentOutputWatermarkTime() {
+    public @Nullable Instant currentOutputWatermarkTime() {
       return new Instant(currentOutputWatermark);
     }
 

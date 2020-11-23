@@ -145,13 +145,14 @@ class ReadFromPubSub(PTransform):
 
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self,
-               topic=None,  # type: Optional[str]
-               subscription=None,  # type: Optional[str]
-               id_label=None,  # type: Optional[str]
-               with_attributes=False,  # type: bool
-               timestamp_attribute=None  # type: Optional[str]
-              ):
+  def __init__(
+      self,
+      topic=None,  # type: Optional[str]
+      subscription=None,  # type: Optional[str]
+      id_label=None,  # type: Optional[str]
+      with_attributes=False,  # type: bool
+      timestamp_attribute=None  # type: Optional[str]
+  ):
     # type: (...) -> None
 
     """Initializes ``ReadFromPubSub``.
@@ -246,8 +247,11 @@ class _WriteStringsToPubSub(PTransform):
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
     super(_WriteStringsToPubSub, self).__init__()
-    self._sink = _PubSubSink(
-        topic, id_label=None, with_attributes=False, timestamp_attribute=None)
+    self.with_attributes = False
+    self.id_label = None
+    self.timestamp_attribute = None
+    self.project, self.topic_name = parse_topic(topic)
+    self._sink = _PubSubSink(topic, id_label=None, timestamp_attribute=None)
 
   def expand(self, pcoll):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
@@ -260,12 +264,13 @@ class WriteToPubSub(PTransform):
 
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self,
-               topic,  # type: str
-               with_attributes=False,  # type: bool
-               id_label=None,  # type: Optional[str]
-               timestamp_attribute=None  # type: Optional[str]
-              ):
+  def __init__(
+      self,
+      topic,  # type: str
+      with_attributes=False,  # type: bool
+      id_label=None,  # type: Optional[str]
+      timestamp_attribute=None  # type: Optional[str]
+  ):
     # type: (...) -> None
 
     """Initializes ``WriteToPubSub``.
@@ -286,11 +291,12 @@ class WriteToPubSub(PTransform):
     self.with_attributes = with_attributes
     self.id_label = id_label
     self.timestamp_attribute = timestamp_attribute
-    self._sink = _PubSubSink(
-        topic, id_label, with_attributes, timestamp_attribute)
+    self.project, self.topic_name = parse_topic(topic)
+    self.full_topic = topic
+    self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
 
   @staticmethod
-  def to_proto_str(element):
+  def message_to_proto_str(element):
     # type: (PubsubMessage) -> bytes
     if not isinstance(element, PubsubMessage):
       raise TypeError(
@@ -298,13 +304,18 @@ class WriteToPubSub(PTransform):
           'value: %r' % (type(element), element))
     return element._to_proto_str()
 
+  @staticmethod
+  def bytes_to_proto_str(element):
+    # type: (bytes) -> bytes
+    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg.data = element
+    return msg.SerializeToString()
+
   def expand(self, pcoll):
     if self.with_attributes:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.to_proto_str)
-
-    # Without attributes, message data is written as-is. With attributes,
-    # message data + attributes are passed as a serialized protobuf string (see
-    # ``PubsubMessage._to_proto_str`` for exact protobuf message type).
+      pcoll = pcoll | 'ToProtobuf' >> Map(self.message_to_proto_str)
+    else:
+      pcoll = pcoll | 'ToProtobuf' >> Map(self.bytes_to_proto_str)
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
@@ -312,6 +323,16 @@ class WriteToPubSub(PTransform):
     # Required as this is identified by type in PTransformOverrides.
     # TODO(BEAM-3812): Use an actual URN here.
     return self.to_runner_api_pickled(context)
+
+  def display_data(self):
+    return {
+        'topic': DisplayDataItem(self.full_topic, label='Pubsub Topic'),
+        'id_label': DisplayDataItem(self.id_label, label='ID Label Attribute'),
+        'with_attributes': DisplayDataItem(
+            True, label='With Attributes').drop_if_none(),
+        'timestamp_attribute': DisplayDataItem(
+            self.timestamp_attribute, label='Timestamp Attribute'),
+    }
 
 
 PROJECT_ID_REGEXP = '[a-z][-a-z0-9:.]{4,61}[a-z0-9]'
@@ -352,14 +373,14 @@ class _PubSubSource(dataflow_io.NativeSource):
     with_attributes: If False, will fetch just message data. Otherwise,
       fetches ``PubsubMessage`` protobufs.
   """
-
-  def __init__(self,
-               topic=None,  # type: Optional[str]
-               subscription=None,  # type: Optional[str]
-               id_label=None,  # type: Optional[str]
-               with_attributes=False,  # type: bool
-               timestamp_attribute=None  # type: Optional[str]
-              ):
+  def __init__(
+      self,
+      topic=None,  # type: Optional[str]
+      subscription=None,  # type: Optional[str]
+      id_label=None,  # type: Optional[str]
+      with_attributes=False,  # type: bool
+      timestamp_attribute=None  # type: Optional[str]
+  ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -412,17 +433,15 @@ class _PubSubSink(dataflow_io.NativeSink):
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
   """
-
-  def __init__(self,
-               topic,  # type: str
-               id_label,  # type: Optional[str]
-               with_attributes,  # type: bool
-               timestamp_attribute  # type: Optional[str]
-              ):
+  def __init__(
+      self,
+      topic,  # type: str
+      id_label,  # type: Optional[str]
+      timestamp_attribute  # type: Optional[str]
+  ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.id_label = id_label
-    self.with_attributes = with_attributes
     self.timestamp_attribute = timestamp_attribute
 
     self.project, self.topic_name = parse_topic(topic)
@@ -431,16 +450,6 @@ class _PubSubSink(dataflow_io.NativeSink):
   def format(self):
     """Sink format name required for remote execution."""
     return 'pubsub'
-
-  def display_data(self):
-    return {
-        'topic': DisplayDataItem(self.full_topic, label='Pubsub Topic'),
-        'id_label': DisplayDataItem(self.id_label, label='ID Label Attribute'),
-        'with_attributes': DisplayDataItem(
-            self.with_attributes, label='With Attributes').drop_if_none(),
-        'timestamp_attribute': DisplayDataItem(
-            self.timestamp_attribute, label='Timestamp Attribute'),
-    }
 
   def writer(self):
     raise NotImplementedError

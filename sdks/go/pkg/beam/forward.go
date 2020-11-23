@@ -20,6 +20,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/genx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
@@ -37,7 +38,7 @@ import (
 
 // RegisterType inserts "external" types into a global type registry to bypass
 // serialization and preserve full method information. It should be called in
-// init() only.
+// `init()` only.
 // TODO(wcn): the canonical definition of "external" is in v1.proto. We need user
 // facing copy for this important concept.
 func RegisterType(t reflect.Type) {
@@ -47,9 +48,31 @@ func RegisterType(t reflect.Type) {
 // RegisterFunction allows function registration. It is beneficial for performance
 // and is needed for functions -- such as custom coders -- serialized during unit
 // tests, where the underlying symbol table is not available. It should be called
-// in init() only. Returns the external key for the function.
+// in `init()` only.
 func RegisterFunction(fn interface{}) {
 	runtime.RegisterFunction(fn)
+}
+
+// RegisterDoFn is a convenience function to handle registering a DoFn and all
+// related types. Use this instead of calling RegisterType or RegisterFunction.
+// Like all the Register* functions, RegisterDoFn should be called in
+// `init()` only.
+//
+// In particular, it will call RegisterFunction for functional DoFns, and
+// RegisterType for the parameter and return types for that function.
+// StructuralDoFns will have RegisterType called for itself and the parameter and
+// return types.
+//
+// RegisterDoFn will panic if the argument type is not a DoFn.
+//
+// Usage:
+//    func init() {
+//	    beam.RegisterDoFn(FunctionalDoFn)
+//	    beam.RegisterDoFn(reflect.TypeOf((*StructuralDoFn)(nil)).Elem())
+//    }
+//
+func RegisterDoFn(dofn interface{}) {
+	genx.RegisterDoFn(dofn)
 }
 
 // RegisterInit registers an Init hook. Hooks are expected to be able to
@@ -161,6 +184,9 @@ type Z = typex.Z
 // EventTime represents the time of the event that generated an element.
 // This is distinct from the time when an element is processed.
 type EventTime = typex.EventTime
+
+// Window represents the aggregation window of this element. An element can
+// be a part of multiple windows, based on the element's event time.
 type Window = typex.Window
 
 // These are the reflect.Type instances of the universal types, which are used

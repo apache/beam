@@ -39,6 +39,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link BatchingShuffleEntryReader}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class BatchingShuffleEntryReaderTest {
   private static final byte[] KEY = {0xA};
   private static final byte[] SKEY = {0xB};

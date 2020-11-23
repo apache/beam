@@ -22,6 +22,7 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
@@ -172,13 +173,29 @@ public interface FlinkPipelineOptions
   /**
    * State backend to store Beam's state during computation. Note: Only applicable when executing in
    * streaming mode.
+   *
+   * @deprecated Please use setStateBackend below.
    */
+  @Deprecated
   @Description(
       "Sets the state backend factory to use in streaming mode. "
           + "Defaults to the flink cluster's state.backend configuration.")
   Class<? extends FlinkStateBackendFactory> getStateBackendFactory();
 
+  /** @deprecated Please use setStateBackend below. */
+  @Deprecated
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
+
+  void setStateBackend(String stateBackend);
+
+  @Description("State backend to store Beam's state. Use 'rocksdb' or 'filesystem'.")
+  String getStateBackend();
+
+  void setStateBackendStoragePath(String path);
+
+  @Description(
+      "State backend path to persist state backend data. Used to initialize state backend.")
+  String getStateBackendStoragePath();
 
   @Description("Disable Beam metrics in Flink Runner")
   @Default.Boolean(false)
@@ -274,4 +291,15 @@ public interface FlinkPipelineOptions
   Boolean getReIterableGroupByKeyResult();
 
   void setReIterableGroupByKeyResult(Boolean reIterableGroupByKeyResult);
+
+  @Description(
+      "Remove unneeded deep copy between operators. See https://issues.apache.org/jira/browse/BEAM-11146")
+  @Default.Boolean(false)
+  Boolean getFasterCopy();
+
+  void setFasterCopy(Boolean fasterCopy);
+
+  static FlinkPipelineOptions defaults() {
+    return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+  }
 }

@@ -81,6 +81,9 @@ import org.joda.time.Duration;
  *       dedup messages.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
   /** Default maximum number of messages per publish. */
   static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;

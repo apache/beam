@@ -30,6 +30,9 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Some helper classes that derive from {@link FileBasedSink.DynamicDestinations}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DynamicFileDestinations {
   /** Always returns a constant {@link FilenamePolicy}. */
   private static class ConstantFilenamePolicy<UserT, OutputT>
@@ -109,9 +112,8 @@ public class DynamicFileDestinations {
       return emptyDestination;
     }
 
-    @Nullable
     @Override
-    public Coder<Params> getDestinationCoder() {
+    public @Nullable Coder<Params> getDestinationCoder() {
       return ParamsCoder.of();
     }
 

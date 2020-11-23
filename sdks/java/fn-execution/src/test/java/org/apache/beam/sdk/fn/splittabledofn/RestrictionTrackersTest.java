@@ -34,6 +34,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link RestrictionTrackers}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RestrictionTrackersTest {
   @Test
   public void testObservingClaims() {

@@ -127,7 +127,7 @@ class InteractiveRunner(runners.PipelineRunner):
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
-    if not ie.current_env().options.enable_capture_replay:
+    if not ie.current_env().options.enable_recording_replay:
       capture_control.evict_captured_data()
     if self._force_compute:
       ie.current_env().evict_computed_pcollections()

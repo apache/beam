@@ -42,6 +42,9 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
  * {@link BroadcastVariableInitializer} that initializes the broadcast input as a {@code Map} from
  * window to side input.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SideInputInitializer<ViewT>
     implements BroadcastVariableInitializer<WindowedValue<?>, Map<BoundedWindow, ViewT>> {
   private static final Set<String> SUPPORTED_MATERIALIZATIONS =

@@ -37,6 +37,9 @@ import org.junit.Test;
 import scala.Tuple2;
 
 /** Test suite for {@link TransformTranslator}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class TransformTranslatorTest {
 
   @Test

@@ -28,6 +28,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleReadCou
  * shuffleReadCounters created for each shuffle step. Note: There is one ShuffleReadCounter for each
  * GroupingShuffleReader associated with a unique GBK/shuffle.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestShuffleReadCounterFactory extends ShuffleReadCounterFactory {
 
   private TreeMap<String, ShuffleReadCounter> originalShuffleStepToCounter;

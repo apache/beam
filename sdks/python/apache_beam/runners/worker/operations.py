@@ -37,9 +37,11 @@ from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
 from typing import Hashable
+from typing import Iterable
 from typing import Iterator
 from typing import List
-from typing import MutableMapping
+from typing import Mapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -406,6 +408,8 @@ class Operation(object):
     return all_monitoring_infos
 
   def user_monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
     """Returns the user MonitoringInfos collected by this operation."""
     return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
 
@@ -504,8 +508,8 @@ class ImpulseReadOperation(Operation):
       name_context,  # type: Union[str, common.NameContext]
       counter_factory,
       state_sampler,  # type: StateSampler
-      consumers,
-      source,
+      consumers,  # type: Mapping[Any, List[Operation]]
+      source,  # type: iobase.BoundedSource
       output_coder):
     super(ImpulseReadOperation,
           self).__init__(name_context, None, counter_factory, state_sampler)
@@ -565,6 +569,16 @@ class _TaggedReceivers(dict):
     return total
 
 
+OpInputInfo = NamedTuple(
+    'OpInputInfo',
+    [
+        ('transform_id', str),
+        ('main_input_tag', str),
+        ('main_input_coder', coders.WindowedValueCoder),
+        ('outputs', Iterable[str]),
+    ])
+
+
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
@@ -581,7 +595,7 @@ class DoOperation(Operation):
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
-    self.input_info = None  # type: Optional[Tuple[str, str, coders.WindowedValueCoder, MutableMapping[str, str]]]
+    self.input_info = None  # type: Optional[OpInputInfo]
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
@@ -704,8 +718,10 @@ class DoOperation(Operation):
       delayed_application = self.dofn_runner.process(o)
       if delayed_application:
         assert self.execution_context is not None
+        # TODO(BEAM-77746): there's disagreement between subclasses
+        #  of DoFnRunner over the return type annotations of process().
         self.execution_context.delayed_applications.append(
-            (self, delayed_application))
+            (self, delayed_application))  # type: ignore[arg-type]
 
   def finalize_bundle(self):
     # type: () -> None
@@ -738,6 +754,8 @@ class DoOperation(Operation):
     # type: () -> None
     with self.scoped_finish_state:
       self.dofn_runner.teardown()
+    if self.user_state_context:
+      self.user_state_context.reset()
 
   def reset(self):
     # type: () -> None
@@ -895,6 +913,13 @@ class CombineOperation(Operation):
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
+  def setup(self):
+    # type: () -> None
+    with self.scoped_start_state:
+      _LOGGER.debug('Setup called for %s', self)
+      super(CombineOperation, self).setup()
+      self.phased_combine_fn.combine_fn.setup()
+
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -906,6 +931,13 @@ class CombineOperation(Operation):
   def finish(self):
     # type: () -> None
     _LOGGER.debug('Finishing %s', self)
+
+  def teardown(self):
+    # type: () -> None
+    with self.scoped_finish_state:
+      _LOGGER.debug('Teardown called for %s', self)
+      super(CombineOperation, self).teardown()
+      self.phased_combine_fn.combine_fn.teardown()
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -1001,6 +1033,13 @@ class PGBKCVOperation(Operation):
     self.key_count = 0
     self.table = {}
 
+  def setup(self):
+    # type: () -> None
+    with self.scoped_start_state:
+      _LOGGER.debug('Setup called for %s', self)
+      super(PGBKCVOperation, self).setup()
+      self.combine_fn.setup()
+
   def process(self, wkv):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -1042,6 +1081,13 @@ class PGBKCVOperation(Operation):
       self.output_key(wkey, value[0], value[1])
     self.table = {}
     self.key_count = 0
+
+  def teardown(self):
+    # type: () -> None
+    with self.scoped_finish_state:
+      _LOGGER.debug('Teardown called for %s', self)
+      super(PGBKCVOperation, self).teardown()
+      self.combine_fn.teardown()
 
   def output_key(self, wkey, accumulator, timestamp):
     if self.combine_fn_compact is None:

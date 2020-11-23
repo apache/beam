@@ -16,7 +16,6 @@
 package graphx
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -63,7 +62,11 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1pb.MultiEdge, error) {
 	}
 
 	for _, in := range edge.Input {
-		kind := encodeInputKind(in.Kind)
+		kind, err := encodeInputKind(in.Kind)
+		if err != nil {
+			wrapped := errors.Wrap(err, "bad input type")
+			return nil, errors.WithContextf(wrapped, "encoding userfn %v", edge)
+		}
 		t, err := encodeFullType(in.Type)
 		if err != nil {
 			wrapped := errors.Wrap(err, "bad input type")
@@ -241,7 +244,7 @@ func encodeFn(u *graph.Fn) (*v1pb.Fn, error) {
 		typ, err := encodeType(t)
 		if err != nil {
 			wrapped := errors.Wrapf(err, "failed to encode receiver type %T", u.Recv)
-			panic(errors.WithContextf(wrapped, "encoding structural DoFn %v", u))
+			return nil, errors.WithContextf(wrapped, "encoding structural DoFn %v", u)
 		}
 
 		data, err := jsonx.Marshal(u.Recv)
@@ -252,7 +255,7 @@ func encodeFn(u *graph.Fn) (*v1pb.Fn, error) {
 		return &v1pb.Fn{Type: typ, Opt: string(data)}, nil
 
 	default:
-		panic(fmt.Sprintf("Failed to encode DoFn %v, missing fn", u))
+		return nil, errors.Errorf("failed to encode DoFn %v, missing fn", u)
 	}
 }
 
@@ -479,7 +482,11 @@ func encodeType(t reflect.Type) (*v1pb.Type, error) {
 			wrapped := errors.Wrap(err, "bad element type")
 			return nil, errors.WithContextf(wrapped, "encoding channel %v", t)
 		}
-		dir := encodeChanDir(t.ChanDir())
+		dir, err := encodeChanDir(t.ChanDir())
+		if err != nil {
+			wrapped := errors.Wrap(err, "bad channel direction")
+			return nil, errors.WithContextf(wrapped, "encoding channel %v", t)
+		}
 		return &v1pb.Type{Kind: v1pb.Type_CHAN, Element: elm, ChanDir: dir}, nil
 
 	case reflect.Ptr:
@@ -725,16 +732,17 @@ func decodeInts(offsets []int32) []int {
 	return ret
 }
 
-func encodeChanDir(dir reflect.ChanDir) v1pb.Type_ChanDir {
+func encodeChanDir(dir reflect.ChanDir) (v1pb.Type_ChanDir, error) {
 	switch dir {
 	case reflect.RecvDir:
-		return v1pb.Type_RECV
+		return v1pb.Type_RECV, nil
 	case reflect.SendDir:
-		return v1pb.Type_SEND
+		return v1pb.Type_SEND, nil
 	case reflect.BothDir:
-		return v1pb.Type_BOTH
+		return v1pb.Type_BOTH, nil
 	default:
-		panic(fmt.Sprintf("Failed to encode channel direction, invalid value: %v", dir))
+		err := errors.Errorf("invalid value: %v", dir)
+		return v1pb.Type_BOTH, errors.WithContextf(err, "encoding channel direction")
 	}
 }
 
@@ -752,24 +760,25 @@ func decodeChanDir(dir v1pb.Type_ChanDir) (reflect.ChanDir, error) {
 	}
 }
 
-func encodeInputKind(k graph.InputKind) v1pb.MultiEdge_Inbound_InputKind {
+func encodeInputKind(k graph.InputKind) (v1pb.MultiEdge_Inbound_InputKind, error) {
 	switch k {
 	case graph.Main:
-		return v1pb.MultiEdge_Inbound_MAIN
+		return v1pb.MultiEdge_Inbound_MAIN, nil
 	case graph.Singleton:
-		return v1pb.MultiEdge_Inbound_SINGLETON
+		return v1pb.MultiEdge_Inbound_SINGLETON, nil
 	case graph.Slice:
-		return v1pb.MultiEdge_Inbound_SLICE
+		return v1pb.MultiEdge_Inbound_SLICE, nil
 	case graph.Map:
-		return v1pb.MultiEdge_Inbound_MAP
+		return v1pb.MultiEdge_Inbound_MAP, nil
 	case graph.MultiMap:
-		return v1pb.MultiEdge_Inbound_MULTIMAP
+		return v1pb.MultiEdge_Inbound_MULTIMAP, nil
 	case graph.Iter:
-		return v1pb.MultiEdge_Inbound_ITER
+		return v1pb.MultiEdge_Inbound_ITER, nil
 	case graph.ReIter:
-		return v1pb.MultiEdge_Inbound_REITER
+		return v1pb.MultiEdge_Inbound_REITER, nil
 	default:
-		panic(fmt.Sprintf("Failed to encode input kind, invalid value: %v", k))
+		err := errors.Errorf("invalid value: %v", k)
+		return v1pb.MultiEdge_Inbound_MAIN, errors.WithContextf(err, "encoding input kind")
 	}
 }
 

@@ -128,6 +128,10 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  * </ul>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class DynamoDBIO {
   public static <T> Read<T> read() {
     return new AutoValue_DynamoDBIO_Read.Builder().build();
@@ -510,9 +514,7 @@ public final class DynamoDBIO {
                   || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
                 DYNAMO_DB_WRITE_FAILURES.inc();
                 LOG.info(
-                    "Unable to write batch items {} due to {} ",
-                    batchRequest.requestItems().entrySet(),
-                    ex);
+                    "Unable to write batch items {}.", batchRequest.requestItems().entrySet(), ex);
                 throw new IOException("Error writing to DynamoDB (no attempt made to retry)", ex);
               }
 

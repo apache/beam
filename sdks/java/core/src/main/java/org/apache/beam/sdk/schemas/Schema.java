@@ -51,6 +51,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "keyfor",
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class Schema implements Serializable {
   // This is the metadata field used to store the logical type identifier.
   private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";

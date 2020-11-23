@@ -24,6 +24,7 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -57,7 +58,7 @@ def scenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     [
@@ -88,7 +89,7 @@ def scenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
     [
@@ -119,7 +120,7 @@ def scenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
@@ -133,12 +134,12 @@ def loadTest = { scope, triggeringContext ->
   def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+        "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       numberOfWorkers,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, testScenarios, 'CoGBK', 'batch')
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'CoGBK', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

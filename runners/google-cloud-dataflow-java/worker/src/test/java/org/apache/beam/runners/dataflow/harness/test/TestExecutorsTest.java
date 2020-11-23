@@ -33,7 +33,10 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link TestExecutors}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestExecutorsTest {
   @Test
   public void testSuccessfulTermination() throws Throwable {

@@ -41,11 +41,21 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *       Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AfterEachStateMachine extends TriggerStateMachine {
 
   private AfterEachStateMachine(List<TriggerStateMachine> subTriggers) {
     super(subTriggers);
     checkArgument(subTriggers.size() > 1);
+  }
+
+  @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnElement(c.forTrigger(subTrigger));
+    }
   }
 
   /** Returns an {@code AfterEach} {@code Trigger} with the given subtriggers. */
@@ -74,6 +84,13 @@ public class AfterEachStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnMerge(c.forTrigger(subTrigger));
+    }
+  }
+
+  @Override
   public void onMerge(OnMergeContext context) throws Exception {
     // If merging makes a subtrigger no-longer-finished, it will automatically
     // begin participating in shouldFire and onFire appropriately.
@@ -91,6 +108,13 @@ public class AfterEachStateMachine extends TriggerStateMachine {
       }
     }
     updateFinishedState(context);
+  }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchShouldFire(c.forTrigger(subTrigger));
+    }
   }
 
   @Override

@@ -69,9 +69,13 @@ func TestExtractor(t *testing.T) {
 		{name: "vars", files: []string{vars}, pkg: "vars", imports: []string{"strings"},
 			excluded: []string{"runtime.RegisterFunction(strings.MyTitle)", "runtime.RegisterFunction(anonFunction)"},
 		},
+		{name: "registerDoFn", files: []string{pardo, registerDoFn}, pkg: "pardo", imports: []string{"github.com/apache/beam/sdks/go/pkg/beam"},
+			expected: []string{"runtime.RegisterFunction(MyIdent)", "runtime.RegisterFunction(MyOtherDoFn)", "runtime.RegisterType(reflect.TypeOf((*foo)(nil)).Elem())", "funcMakerStringГString", "funcMakerFooГStringFoo"},
+			excluded: []string{"runtime.RegisterFunction(MyDropVal)", "funcMakerIntStringГInt"},
+		},
 	}
 
-	// Some environments (eg. Jenkins) doen't appear to be able to
+	// Some environments (eg. Jenkins) don't appear to be able to
 	// handle the imports in some tests. If a test would fail, for the
 	// environment, it shouldn't be run.
 	imp := importer.Default()
@@ -137,7 +141,26 @@ func MyDropVal(k int,v string) int {
 type foo struct{}
 
 func MyOtherDoFn(v foo) (string,foo) {
-	return "constant"
+	return "constant",  foo{}
+}
+`
+
+const registerDoFn = `
+package pardo
+
+// Hack around the test not properly being able to import
+// the beam package. While this will satisfy the code
+// generator's loose static analysis, it is strongly not
+// advised for use outside this test.
+type dummy struct{}
+
+func (dummy) RegisterDoFn(interface{}) {}
+
+// Should include MyIdent and MyOtherDoFn and not MyDropVal
+func init() {
+	var beam dummy
+	beam.RegisterDoFn(MyIdent)
+	beam.RegisterDoFn(MyOtherDoFn)
 }
 `
 
@@ -163,7 +186,7 @@ import (
 )
 
 func ShouldExist(v beam.T) (beam.X, error) {
-	return nil
+	return nil, nil
 }
 `
 
@@ -249,7 +272,9 @@ func (f *myDoFn) ProcessElement(k, v valType, emit func(int)) {}
 
 func (f *myDoFn) Setup(emit func(int)) {}
 func (f *myDoFn) StartBundle(emit func(int)) {}
-func (f *myDoFn) FinishBundle(emit func(int)) error {}
+func (f *myDoFn) FinishBundle(emit func(int)) error {
+	return nil
+}
 func (f *myDoFn) Teardown(emit func(int)) {}
 
 func (f *myDoFn) NonLifecycleMethod() {}

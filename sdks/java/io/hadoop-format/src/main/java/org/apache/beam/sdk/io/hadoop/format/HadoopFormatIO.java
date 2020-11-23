@@ -296,6 +296,10 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFormatIO {
   private static final Logger LOG = LoggerFactory.getLogger(HadoopFormatIO.class);
 
@@ -364,7 +368,11 @@ public class HadoopFormatIO {
 
     public abstract @Nullable TypeDescriptor<K> getKeyTypeDescriptor();
 
+    public abstract @Nullable Coder<K> getKeyCoder();
+
     public abstract @Nullable TypeDescriptor<V> getValueTypeDescriptor();
+
+    public abstract @Nullable Coder<V> getValueCoder();
 
     public abstract @Nullable TypeDescriptor<?> getinputFormatClass();
 
@@ -384,7 +392,11 @@ public class HadoopFormatIO {
 
       abstract Builder<K, V> setKeyTypeDescriptor(TypeDescriptor<K> keyTypeDescriptor);
 
+      abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
+
       abstract Builder<K, V> setValueTypeDescriptor(TypeDescriptor<V> valueTypeDescriptor);
+
+      abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
 
       abstract Builder<K, V> setInputFormatClass(TypeDescriptor<?> inputFormatClass);
 
@@ -434,7 +446,15 @@ public class HadoopFormatIO {
       return toBuilder()
           .setKeyTranslationFunction(function)
           .setKeyTypeDescriptor(function.getOutputTypeDescriptor())
+          .setKeyCoder(null)
           .build();
+    }
+
+    /** Transforms the keys read from the source using the given key translation function. */
+    public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function, Coder<K> coder) {
+      checkArgument(function != null, "function can not be null");
+      checkArgument(coder != null, "coder can not be null");
+      return withKeyTranslation(function).toBuilder().setKeyCoder(coder).build();
     }
 
     /** Transforms the values read from the source using the given value translation function. */
@@ -444,7 +464,15 @@ public class HadoopFormatIO {
       return toBuilder()
           .setValueTranslationFunction(function)
           .setValueTypeDescriptor(function.getOutputTypeDescriptor())
+          .setValueCoder(null)
           .build();
+    }
+
+    /** Transforms the values read from the source using the given value translation function. */
+    public Read<K, V> withValueTranslation(SimpleFunction<?, V> function, Coder<V> coder) {
+      checkArgument(function != null, "function can not be null");
+      checkArgument(coder != null, "coder can not be null");
+      return withValueTranslation(function).toBuilder().setValueCoder(coder).build();
     }
 
     @Override
@@ -452,8 +480,14 @@ public class HadoopFormatIO {
       validateTransform();
       // Get the key and value coders based on the key and value classes.
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
-      Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
-      Coder<V> valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
+      Coder<K> keyCoder = getKeyCoder();
+      if (keyCoder == null) {
+        keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
+      }
+      Coder<V> valueCoder = getValueCoder();
+      if (valueCoder == null) {
+        valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
+      }
       HadoopInputFormatBoundedSource<K, V> source =
           new HadoopInputFormatBoundedSource<>(
               getConfiguration(),

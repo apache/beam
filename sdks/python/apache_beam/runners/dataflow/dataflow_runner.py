@@ -411,6 +411,33 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
+  @staticmethod
+  def combinefn_visitor():
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+    from apache_beam import core
+
+    class CombineFnVisitor(PipelineVisitor):
+      """Checks if `CombineFn` has non-default setup or teardown methods.
+      If yes, raises `ValueError`.
+      """
+      def visit_transform(self, applied_transform):
+        transform = applied_transform.transform
+        if isinstance(transform, core.ParDo) and isinstance(
+            transform.fn, core.CombineValuesDoFn):
+          if self._overrides_setup_or_teardown(transform.fn.combinefn):
+            raise ValueError(
+                'CombineFn.setup and CombineFn.teardown are '
+                'not supported with non-portable Dataflow '
+                'runner. Please use Dataflow Runner V2 instead.')
+
+      @staticmethod
+      def _overrides_setup_or_teardown(combinefn):
+        # TODO(BEAM-3736): provide an implementation for this method
+        return False
+
+    return CombineFnVisitor()
+
   def _check_for_unsupported_fnapi_features(self, pipeline_proto):
     components = pipeline_proto.components
     for windowing_strategy in components.windowing_strategies.values():
@@ -435,6 +462,9 @@ class DataflowRunner(PipelineRunner):
     # here.
     pipeline.visit(self.group_by_key_input_visitor())
 
+  def _check_for_unsupported_features_on_non_portable_worker(self, pipeline):
+    pipeline.visit(self.combinefn_visitor())
+
   def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Label goog-dataflow-notebook if job is started from notebook.
@@ -458,6 +488,11 @@ class DataflowRunner(PipelineRunner):
 
     self._maybe_add_unified_worker_missing_options(options)
 
+    use_fnapi = apiclient._use_fnapi(options)
+
+    if not use_fnapi:
+      self._check_for_unsupported_features_on_non_portable_worker(pipeline)
+
     # Convert all side inputs into a form acceptable to Dataflow.
     pipeline.visit(
         self.side_input_visitor(
@@ -472,11 +507,9 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
     pipeline.replace_all([WriteToBigQueryPTransformOverride(pipeline, options)])
 
-    if (apiclient._use_fnapi(options) and
-        not apiclient._use_unified_worker(options)):
+    if use_fnapi and not apiclient._use_unified_worker(options):
       pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
 
-    use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments
     if options.view_as(SetupOptions).prebuild_sdk_container_engine:
       # if prebuild_sdk_container_engine is specified we will build a new sdk
@@ -1243,6 +1276,7 @@ class DataflowRunner(PipelineRunner):
         # Setting this property signals Dataflow runner to return full
         # PubsubMessages instead of just the data part of the payload.
         step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+
       if transform.source.timestamp_attribute is not None:
         step.add_property(
             PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
@@ -1344,10 +1378,9 @@ class DataflowRunner(PipelineRunner):
       if transform.sink.id_label:
         step.add_property(
             PropertyNames.PUBSUB_ID_LABEL, transform.sink.id_label)
-      if transform.sink.with_attributes:
-        # Setting this property signals Dataflow runner that the PCollection
-        # contains PubsubMessage objects instead of just raw data.
-        step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+      # Setting this property signals Dataflow runner that the PCollection
+      # contains PubsubMessage objects instead of just raw data.
+      step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
       if transform.sink.timestamp_attribute is not None:
         step.add_property(
             PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,

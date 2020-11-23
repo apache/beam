@@ -45,10 +45,10 @@ public final class PubsubLiteIO {
    * Pipeline p = ...;
    *
    * SubscriptionPath subscriptionPath =
-   *         SubscriptionPaths.newBuilder()
-   *             .setZone(zone)
+   *         SubscriptionPath.newBuilder()
+   *             .setLocation(zone)
    *             .setProjectNumber(projectNum)
-   *             .setSubscriptionName(subscriptionName)
+   *             .setName(subscriptionName)
    *             .build();
    *
    * FlowControlSettings flowControlSettings =
@@ -102,10 +102,10 @@ public final class PubsubLiteIO {
    *
    * <pre>{@code
    * TopicPath topicPath =
-   *         TopicPaths.newBuilder()
+   *         TopicPath.newBuilder()
    *             .setProjectNumber(projectNum)
-   *             .setZone(zone)
-   *             .setTopicName(topicName)
+   *             .setLocation(zone)
+   *             .setName(topicName)
    *             .build();
    *
    * PCollection<Message> messages = ...;

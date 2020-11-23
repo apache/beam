@@ -21,9 +21,11 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   exportJavadoc: false,
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
-  automaticModuleName: 'org.apache.beam.runners.samza')
+  classesTriggerCheckerBugs: [
+    'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
+  automaticModuleName: 'org.apache.beam.runners.samza',
+)
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -105,6 +107,7 @@ task validatesRunner(type: Test) {
     // These tests produce the output but either the pipeline doesn't shutdown or PAssert fails
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testAdditionalOutputUnbounded'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedUnbounded'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded'
   }
 }
