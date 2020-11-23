@@ -35,6 +35,7 @@ import org.apache.http.util.EntityUtils;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.scram.ScramMechanism;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,7 +130,7 @@ public class Utils {
    * @param props username and password for Kafka
    * @return configuration set of parameters for Kafka
    */
-  public static Map<String, Object> configureKafka(Map<String, String> props) {
+  public static Map<String, Object> configureKafka(@Nullable Map<String, String> props) {
     // Create the configuration for Kafka
     Map<String, Object> config = new HashMap<>();
     if (props != null && props.containsKey(USERNAME) && props.containsKey(PASSWORD)) {

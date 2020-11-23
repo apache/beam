@@ -17,16 +17,17 @@
  */
 package org.apache.beam.templates;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import static org.apache.beam.templates.KafkaPubsubConstants.PASSWORD;
+import static org.apache.beam.templates.KafkaPubsubConstants.USERNAME;
+import static org.apache.beam.templates.kafka.consumer.Utils.getKafkaCredentialsFromVault;
+
 import java.util.HashMap;
-import java.util.List;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.templates.transforms.FormatTransform;
-import org.junit.Rule;
+import java.util.Map;
+import org.apache.beam.templates.kafka.consumer.Utils;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.scram.ScramMechanism;
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -34,21 +35,56 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class KafkaToPubsubTest {
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-
-  @Rule public ExpectedException thrown = ExpectedException.none();
-
+  /** Tests configureKafka() with a null input properties. */
   @Test
-  public void testKafkaReadingFailsWrongBootstrapServer() {
-    final String bootstrapServers = "some-server:9092";
-    final List<String> topicsList = new ArrayList<>(Collections.singletonList("TEST-TOPIC"));
-    final HashMap<String, Object> kafkaConfig = new HashMap<>();
-    final HashMap<String, String> sslConfig = new HashMap<>();
+  public void testConfigureKafkaNullProps() {
+    Map<String, Object> config = Utils.configureKafka(null);
+    Assert.assertEquals(new HashMap<>(), config);
+  }
 
-    pipeline.apply(
-        FormatTransform.readFromKafka(bootstrapServers, topicsList, kafkaConfig, sslConfig));
-    thrown.expect(Pipeline.PipelineExecutionException.class);
-    thrown.expectMessage("Failed to construct kafka consumer");
-    pipeline.run();
+  /** Tests configureKafka() without a Password in input properties. */
+  @Test
+  public void testConfigureKafkaNoPassword() {
+    Map<String, String> props = new HashMap<>();
+    props.put(USERNAME, "username");
+    Map<String, Object> config = Utils.configureKafka(props);
+    Assert.assertEquals(new HashMap<>(), config);
+  }
+
+  /** Tests configureKafka() without a Username in input properties. */
+  @Test
+  public void testConfigureKafkaNoUsername() {
+    Map<String, String> props = new HashMap<>();
+    props.put(PASSWORD, "password");
+    Map<String, Object> config = Utils.configureKafka(props);
+    Assert.assertEquals(new HashMap<>(), config);
+  }
+
+  /** Tests configureKafka() with an appropriate input properties. */
+  @Test
+  public void testConfigureKafka() {
+    Map<String, String> props = new HashMap<>();
+    props.put(USERNAME, "username");
+    props.put(PASSWORD, "password");
+
+    Map<String, Object> expectedConfig = new HashMap<>();
+    expectedConfig.put(SaslConfigs.SASL_MECHANISM, ScramMechanism.SCRAM_SHA_512.mechanismName());
+    expectedConfig.put(
+        SaslConfigs.SASL_JAAS_CONFIG,
+        String.format(
+            "org.apache.kafka.common.security.scram.ScramLoginModule required "
+                + "username=\"%s\" password=\"%s\";",
+            props.get(USERNAME), props.get(PASSWORD)));
+
+    Map<String, Object> config = Utils.configureKafka(props);
+    Assert.assertEquals(expectedConfig, config);
+  }
+
+  /** Tests getKafkaCredentialsFromVault() with an invalid url. */
+  @Test
+  public void testGetKafkaCredentialsFromVaultInvalidUrl() {
+    Map<String, Map<String, String>> credentials =
+        getKafkaCredentialsFromVault("some-url", "some-token");
+    Assert.assertEquals(new HashMap<>(), credentials);
   }
 }

@@ -19,7 +19,14 @@ package org.apache.beam.templates.kafka.consumer;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -33,6 +40,8 @@ import org.slf4j.LoggerFactory;
 public class SslConsumerFactoryFn
     implements SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> {
   private final Map<String, String> sslConfig;
+  private static final String TRUSTSTORE_LOCAL_PATH = "/tmp/kafka.truststore.jks";
+  private static final String KEYSTORE_LOCAL_PATH = "/tmp/kafka.keystore.jks";
 
   /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(SslConsumerFactoryFn.class);
@@ -41,12 +50,24 @@ public class SslConsumerFactoryFn
     this.sslConfig = sslConfig;
   }
 
+  @SuppressWarnings("nullness")
   @Override
   public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
     try {
-      checkFileExists(sslConfig.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG));
-      checkFileExists(sslConfig.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG));
-    } catch (IOException | NullPointerException e) {
+      String truststoreLocation = sslConfig.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+      if (truststoreLocation.startsWith("gs://")) {
+        getGcsFileAsLocal(truststoreLocation, TRUSTSTORE_LOCAL_PATH);
+      } else {
+        checkFileExists(truststoreLocation);
+      }
+
+      String keystoreLocation = sslConfig.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
+      if (keystoreLocation.startsWith("gs://")) {
+        getGcsFileAsLocal(keystoreLocation, KEYSTORE_LOCAL_PATH);
+      } else {
+        checkFileExists(keystoreLocation);
+      }
+    } catch (IOException e) {
       LOG.error("Failed to retrieve data for SSL", e);
       return new KafkaConsumer<>(config);
     }
@@ -77,6 +98,28 @@ public class SslConsumerFactoryFn
     } else {
       LOG.error("{} does not exist", f.getAbsolutePath());
       throw new IOException();
+    }
+  }
+
+  /**
+   * Reads a file from GCS and writes it locally.
+   *
+   * @param gcsFilePath path to file in GCS in format "gs://your-bucket/path/to/file"
+   * @param outputFilePath path where to save file locally
+   * @throws IOException thrown if not able to read or write file
+   */
+  public static void getGcsFileAsLocal(String gcsFilePath, String outputFilePath)
+      throws IOException {
+    LOG.info("Reading contents from GCS file: {}", gcsFilePath);
+    Set<StandardOpenOption> options = new HashSet<>(2);
+    options.add(StandardOpenOption.CREATE);
+    options.add(StandardOpenOption.APPEND);
+    // Copy the GCS file into a local file and will throw an I/O exception in case file not found.
+    try (ReadableByteChannel readerChannel =
+        FileSystems.open(FileSystems.matchSingleFileSpec(gcsFilePath).resourceId())) {
+      try (FileChannel writeChannel = FileChannel.open(Paths.get(outputFilePath), options)) {
+        writeChannel.transferFrom(readerChannel, 0, Long.MAX_VALUE);
+      }
     }
   }
 }

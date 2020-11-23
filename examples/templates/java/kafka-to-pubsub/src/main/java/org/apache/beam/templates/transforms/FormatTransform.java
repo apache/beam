@@ -66,9 +66,9 @@ public class FormatTransform {
         .withBootstrapServers(bootstrapServers)
         .withTopics(topicsList)
         .withKeyDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()).getValueCoder())
         .withValueDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()).getValueCoder())
         .withConsumerConfigUpdates(kafkaConfig)
         .withConsumerFactoryFn(new SslConsumerFactoryFn(sslConfig))
         .withoutMetadata();
@@ -91,7 +91,7 @@ public class FormatTransform {
         .withBootstrapServers(bootstrapServers)
         .withTopics(topicsList)
         .withKeyDeserializerAndCoder(
-            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()))
+            StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()).getValueCoder())
         .withValueDeserializerAndCoder(
             TaxiRidesKafkaAvroDeserializer.class, AvroCoder.of(TaxiRide.class))
         .withConsumerConfigUpdates(config)

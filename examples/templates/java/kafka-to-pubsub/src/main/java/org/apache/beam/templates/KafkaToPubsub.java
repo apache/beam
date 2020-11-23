@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  *       --sdk-language "JAVA" \
  *       --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
  *       --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
- *       --jar "build/libs/beam-templates-kafka-to-pubsub-2.25.0-SNAPSHOT-all.jar" \
+ *       --jar "build/libs/beam-templates-kafka-to-pubsub-<version>-all.jar" \
  *       --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
  *
  * # Execute template:
