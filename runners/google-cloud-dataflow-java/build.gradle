@@ -145,6 +145,7 @@ def runnerV2PipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
   "--experiments=beam_fn_api,use_unified_worker,use_runner_v2",
+  "--testTimeoutSeconds=1200",
 ]
 
 def commonLegacyExcludeCategories = [
@@ -227,7 +228,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
             files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonRunnerV2ExcludeCategories.each {
         excludeCategories it
       }
@@ -412,61 +413,67 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
     ],
-    excludedTests: [
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignBounded',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
-      'org.apache.beam.examples.complete.TopWikipediaSessionsTest.testComputeTopUsers',
-      'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
-
-      'org.apache.beam.sdk.io.AvroIOTest.testWriteWindowed',
-      'org.apache.beam.sdk.io.AvroIOTest.testWindowedAvroIOWriteViaSink',
-      'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
-      'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
-
-      'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
-
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
-
-      'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
-
+    includedTests: [
       // TODO(BEAM-11306): Pipeline is hanging for these 3 tests.
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-
-      // TODO(BEAM-8543): streaming timers are not strictly time ordered
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
-
-      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
-
-      'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSameFixedWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithDifferentFixedWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSignalInSlidingWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitInGlobalWindow',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitBoundedInDefaultWindow',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSomeSignalWindowsEmpty',
-
-      // TODO(BEAM-3245): respect ParDo lifecycle.
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-
-      'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits',
-    ]
+    ],
+//    excludedTests: [
+//      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignBounded',
+//      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
+//      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
+//      'org.apache.beam.examples.complete.TopWikipediaSessionsTest.testComputeTopUsers',
+//      'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
+//
+//      'org.apache.beam.sdk.io.AvroIOTest.testWriteWindowed',
+//      'org.apache.beam.sdk.io.AvroIOTest.testWindowedAvroIOWriteViaSink',
+//      'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
+//      'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
+//
+//      'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
+//
+//      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
+//      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
+//
+//      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
+//
+//      'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
+//
+//      // TODO(BEAM-11306): Pipeline is hanging for these 3 tests.
+//      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
+//      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
+//      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
+//
+//      // TODO(BEAM-8543): streaming timers are not strictly time ordered
+//      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate',
+//      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther',
+//      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput',
+//
+//      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
+//
+//      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
+//
+//      'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
+//      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSameFixedWindows',
+//      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithDifferentFixedWindows',
+//      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSignalInSlidingWindows',
+//      'org.apache.beam.sdk.transforms.WaitTest.testWaitInGlobalWindow',
+//      'org.apache.beam.sdk.transforms.WaitTest.testWaitBoundedInDefaultWindow',
+//      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSomeSignalWindowsEmpty',
+//
+//      // TODO(BEAM-3245): respect ParDo lifecycle.
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful',
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup',
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
+//      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
+//
+//      'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits',
+//    ]
   ))
 }
 
