@@ -197,7 +197,8 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
           LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> consumer) {
         LOG.debug("Registering consumer for {}", inputLocation);
 
-        return new DeferredInboundDataClient(clientId, inputLocation, new DecodingFnDataReceiver<T>(coder, consumer));
+        return new DeferredInboundDataClient(
+            clientId, inputLocation, new DecodingFnDataReceiver<T>(coder, consumer));
       }
 
       @Override
