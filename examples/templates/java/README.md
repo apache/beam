@@ -40,7 +40,7 @@ In a simple scenario, the template will create an Apache Beam pipeline that will
 
 ## Requirements
 
-- Java 11
+- Java 8
 - Kafka Bootstrap Server(s) up and running
 - Existing source Kafka topic(s)
 - An existing Pub/Sub destination output topic
@@ -101,8 +101,8 @@ specify a URL to the credentials in HashiCorp Vault and the vault access token:
 ```
 Optionally, to configure secure SSL connection between the Beam pipeline and Kafka,
 specify the parameters:
-- A local path to a truststore file
-- A local path to a keystore file
+- A path to a truststore file (it can be a local path or a GCS path, which should start with `gs://`)
+- A path to a keystore file (it can be a local path or a GCS path, which should start with `gs://`)
 - Truststore password
 - Keystore password
 - Key password
@@ -251,4 +251,4 @@ if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
     }
 ```
 
-_Note: The Kafka to Pub/Sub Dataflow Flex template doesn't support SSL configuration._
+_Note: The Kafka to Pub/Sub Dataflow Flex template supports SSL configuration with the certificate located only in GCS._
