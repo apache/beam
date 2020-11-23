@@ -18,6 +18,7 @@ package main
 import (
     "context"
     "flag"
+
     "github.com/apache/beam/sdks/go/pkg/beam"
     "github.com/apache/beam/sdks/go/pkg/beam/io/synthetic"
     "github.com/apache/beam/sdks/go/pkg/beam/log"
