@@ -132,6 +132,10 @@ import org.slf4j.LoggerFactory;
  * <p>Deidentify This is to de-identify FHIR resources from a source FHIR store and write the result
  * to a destination FHIR store. It is important that the destination store must already exist.
  *
+ * <p>Search This is to search FHIR resources within a given FHIR store. The inputs are individual FHIR
+ * Search queries, represented by KV<resource type, search parameters>. The outputs are results of each
+ * Search, represented as a Json array of FHIR resources in string form, with pagination handled.
+ *
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
  * @see <a
@@ -142,6 +146,8 @@ import org.slf4j.LoggerFactory;
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/export></a>
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/deidentify></a>
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/search></a>
  *     A {@link PCollection} of {@link String} can be ingested into an Fhir store using {@link
  *     FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This
  *     will return a {@link FhirIO.Write.Result} on which you can call {@link
@@ -196,6 +202,11 @@ import org.slf4j.LoggerFactory;
  * String destinationFhirStoreName = ...;
  * DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
  * pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
+ *
+ * // Search FHIR resources.
+ * PCollection<KV<String, Map<String, Object>>> searchQueries = ...;
+ * FhirIO.Search.Result searchResult =
+ *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
  *
  * }***
  * </pre>
