@@ -29,12 +29,18 @@ import (
 )
 
 var (
-	fanout          = flag.Int("fanout", 1, "Fanout")
-	topCount        = flag.Int("top_count", 20, "Top count")
+	fanout          = flag.Int(
+		"fanout",
+		1,
+		"A number of combine operations to perform in parallel.")
+	topCount        = flag.Int(
+		"top_count",
+		20,
+		"A number passed to the combiner.")
 	syntheticConfig = flag.String(
 		"input_options",
 		"",
-		"A JSON object that describes the configuration for synthetic source")
+		"A JSON object that describes the configuration for synthetic source.")
 )
 
 func parseSyntheticConfig() synthetic.SourceConfig {
@@ -46,7 +52,7 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 	}
 }
 
-func CompareLess(key []uint8, value []uint8) bool {
+func CompareLess(key []byte, value []byte) bool {
 	return bytes.Compare(key, value) < 0
 }
 
