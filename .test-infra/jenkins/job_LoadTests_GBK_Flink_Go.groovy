@@ -37,13 +37,10 @@ def batchScenarios = {
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
         influx_measurement : 'go_batch_gbk_1',
-        input_options      : """
-                                   {
-                                     "num_records": 200000000,
-                                     "key_size": 1,
-                                     "value_size": 9
-                                   }
-                           """.trim().replaceAll("\\s", ""),
+        input_options      : '\'{' +
+        '"num_records": 200000000,' +
+        '"key_size": 1,' +
+        '"value_size": 9}\'',
         iterations         : 1,
         fanout             : 1,
         parallelism        : 5,
@@ -60,13 +57,10 @@ def batchScenarios = {
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
         influx_measurement : 'go_batch_gbk_1',
-        input_options      : """
-                                   {
-                                     "num_records": 20000000,
-                                     "key_size": 10,
-                                     "value_size": 90
-                                   }
-                           """.trim().replaceAll("\\s", ""),
+        input_options      : '\'{' +
+        '"num_records": 200000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
         iterations         : 1,
         fanout             : 1,
         parallelism        : 5,
@@ -86,13 +80,10 @@ def batchScenarios = {
         iterations          : 1,
         fanout              : 1,
         parallelism         : 5,
-        input_options       : """
-                                   {
-                                     "num_records": 20000,
-                                     "key_size": 10000,
-                                     "value_size": 90000
-                                   }
-                            """.trim().replaceAll("\\s", ""),
+        input_options      : '\'{' +
+        '"num_records": 20000,' +
+        '"key_size": 10000,' +
+        '"value_size": 90000}\'',
         endpoint            : 'localhost:8099',
         environment_type    : 'DOCKER',
         environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
@@ -109,13 +100,10 @@ def batchScenarios = {
         iterations         : 1,
         fanout             : 4,
         parallelism        : 16,
-        input_options      : """
-                                   {
-                                     "num_records": 5000000,
-                                     "key_size": 10,
-                                     "value_size": 90
-                                   }
-                           """.trim().replaceAll("\\s", ""),
+        input_options      : '\'{' +
+        '"num_records": 5000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
         environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
@@ -132,13 +120,10 @@ def batchScenarios = {
         iterations         : 1,
         fanout             : 8,
         parallelism        : 16,
-        input_options      : """
-                                   {
-                                     "num_records": 5000000,
-                                     "key_size": 10,
-                                     "value_size": 90
-                                   }
-                           """.trim().replaceAll("\\s", ""),
+        input_options      : '\'{' +
+        '"num_records": 5000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
         environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
@@ -155,15 +140,12 @@ def batchScenarios = {
         iterations         : 4,
         fanout             : 1,
         parallelism        : 5,
-        input_options      : """
-                                   {
-                                     "num_records": 5000000,
-                                     "key_size": 10,
-                                     "value_size": 90,
-                                     "num_hot_keys": 200,
-                                     "hot_key_fraction": 1
-                                   }
-                           """.trim().replaceAll("\\s", ""),
+        input_options      : '\'{' +
+        '"num_records": 5000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90,' +
+        '"num_hot_keys": 200,' +
+        '"hot_key_fraction": 1}\'',
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
         environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
@@ -180,15 +162,12 @@ def batchScenarios = {
         iterations         : 4,
         fanout             : 1,
         parallelism        : 5,
-        input_options      : """
-                                   {
-                                     "num_records": 20000000,
-                                     "key_size": 10,
-                                     "value_size": 90,
-                                     "num_hot_keys": 10,
-                                     "hot_key_fraction": 1
-                                   }
-                           """.trim().replaceAll("\\s", ""),
+        input_options      : '\'{' +
+        '"num_records": 20000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90,' +
+        '"num_hot_keys": 10,' +
+        '"hot_key_fraction": 1}\'',
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
         environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
