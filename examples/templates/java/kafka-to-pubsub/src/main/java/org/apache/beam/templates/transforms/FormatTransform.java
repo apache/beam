@@ -32,8 +32,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.templates.avro.TaxiRide;
-import org.apache.beam.templates.avro.TaxiRidesKafkaAvroDeserializer;
+import org.apache.beam.templates.avro.AvroDataClass;
+import org.apache.beam.templates.avro.AvroDataClassKafkaAvroDeserializer;
 import org.apache.beam.templates.kafka.consumer.SslConsumerFactoryFn;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
@@ -75,25 +75,25 @@ public class FormatTransform {
   }
 
   /**
-   * Configures Kafka consumer to read avros to {@link TaxiRide} format.
+   * Configures Kafka consumer to read avros to {@link AvroDataClass} format.
    *
    * @param bootstrapServers Kafka servers to read from
    * @param topicsList Kafka topics to read from
    * @param config configuration for the Kafka consumer
    * @return configured reading from Kafka
    */
-  public static PTransform<PBegin, PCollection<KV<String, TaxiRide>>> readAvrosFromKafka(
+  public static PTransform<PBegin, PCollection<KV<String, AvroDataClass>>> readAvrosFromKafka(
       String bootstrapServers,
       List<String> topicsList,
       Map<String, Object> config,
       Map<String, String> sslConfig) {
-    return KafkaIO.<String, TaxiRide>read()
+    return KafkaIO.<String, AvroDataClass>read()
         .withBootstrapServers(bootstrapServers)
         .withTopics(topicsList)
         .withKeyDeserializerAndCoder(
             StringDeserializer.class, NullableCoder.of(StringUtf8Coder.of()).getValueCoder())
         .withValueDeserializerAndCoder(
-            TaxiRidesKafkaAvroDeserializer.class, AvroCoder.of(TaxiRide.class))
+            AvroDataClassKafkaAvroDeserializer.class, AvroCoder.of(AvroDataClass.class))
         .withConsumerConfigUpdates(config)
         .withConsumerFactoryFn(new SslConsumerFactoryFn(sslConfig))
         .withoutMetadata();

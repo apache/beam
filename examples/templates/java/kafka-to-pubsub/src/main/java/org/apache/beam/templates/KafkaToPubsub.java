@@ -33,7 +33,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.templates.avro.TaxiRide;
+import org.apache.beam.templates.avro.AvroDataClass;
+import org.apache.beam.templates.avro.AvroDataClassKafkaAvroDeserializer;
 import org.apache.beam.templates.options.KafkaToPubsubOptions;
 import org.apache.beam.templates.transforms.FormatTransform;
 import org.slf4j.Logger;
@@ -123,8 +124,8 @@ import org.slf4j.LoggerFactory;
  *
  * To use this example in the specific case, follow the few steps:
  * <ul>
- * <li> Create your own class to describe AVRO schema. As an example use {@link TaxiRide}. Just define necessary fields.
- * <li> Create your own Avro Deserializer class. As an example use {@link org.apache.beam.templates.avro.TaxiRidesKafkaAvroDeserializer}. Just rename it, and put your own Schema class as the necessary types.
+ * <li> Create your own class to describe AVRO schema. As an example use {@link AvroDataClass}. Just define necessary fields.
+ * <li> Create your own Avro Deserializer class. As an example use {@link AvroDataClassKafkaAvroDeserializer}. Just rename it, and put your own Schema class as the necessary types.
  * <li> Modify the {@link FormatTransform}. Put your Schema class and Deserializer to the related parameter.
  * <li> Modify write step in the {@link KafkaToPubsub} by put your Schema class to "writeAvrosToPubSub" step.
  * </ul>
@@ -211,7 +212,7 @@ public class KafkaToPubsub {
               FormatTransform.readAvrosFromKafka(
                   options.getBootstrapServers(), topicsList, kafkaConfig, sslConfig))
           .apply("createValues", Values.create())
-          .apply("writeAvrosToPubSub", PubsubIO.writeAvros(TaxiRide.class));
+          .apply("writeAvrosToPubSub", PubsubIO.writeAvros(AvroDataClass.class));
 
     } else if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
       pipeline

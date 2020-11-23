@@ -23,8 +23,8 @@ import java.util.Map;
 import org.apache.kafka.common.serialization.Deserializer;
 
 /** Example of custom AVRO Deserialize. */
-public class TaxiRidesKafkaAvroDeserializer extends AbstractKafkaAvroDeserializer
-    implements Deserializer<TaxiRide> {
+public class AvroDataClassKafkaAvroDeserializer extends AbstractKafkaAvroDeserializer
+    implements Deserializer<AvroDataClass> {
 
   @Override
   public void configure(Map<String, ?> configs, boolean isKey) {
@@ -32,8 +32,8 @@ public class TaxiRidesKafkaAvroDeserializer extends AbstractKafkaAvroDeserialize
   }
 
   @Override
-  public TaxiRide deserialize(String s, byte[] bytes) {
-    return (TaxiRide) this.deserialize(bytes);
+  public AvroDataClass deserialize(String s, byte[] bytes) {
+    return (AvroDataClass) this.deserialize(bytes);
   }
 
   @Override
