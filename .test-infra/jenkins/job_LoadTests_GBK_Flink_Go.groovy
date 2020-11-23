@@ -204,7 +204,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
   Integer initialParallelism = testScenariosByParallelism.keySet().iterator().next()
   List initialScenarios = testScenariosByParallelism.remove(initialParallelism)
 
-  def flink = new Flink(scope, "beam_LoadTests_Python_Combine_Flink_${mode.capitalize()}")
+  def flink = new Flink(scope, "beam_LoadTests_Go_GBK_Flink_${mode.capitalize()}")
   flink.setUp(
       [
         "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
