@@ -60,9 +60,9 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 	src := synthetic.SourceSingle(s, parseSyntheticConfig())
-	pcoll := beam.ParDo(s, &load.RuntimeMonitor{}, src)
+	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	for i := 0; i < *fanout; i++ {
-		pcoll = beam.GroupByKey(s, src)
+		pcoll := beam.GroupByKey(s, src)
 		beam.ParDo(s, func(key []byte, values func(*[]byte) bool) ([]byte, []byte) {
 			for i := 0; i < *iterations; i++ {
 				var value []byte
