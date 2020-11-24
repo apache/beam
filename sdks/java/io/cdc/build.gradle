@@ -1,0 +1,63 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.cdc',
+        mavenRepositories: [
+                [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
+        ],
+        checkerTooSlowOnTests: true,
+        enableSpotbugs: false,
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: CDC"
+ext.summary = "Library to work with CDC data."
+
+dependencies {
+    compile library.java.vendored_guava_26_0_jre
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile library.java.slf4j_api
+    compile library.java.joda_time
+    provided library.java.jackson_dataformat_csv
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+    testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+
+    // Test dependencies
+    testCompile library.java.junit
+    testRuntimeOnly library.java.slf4j_jdk14
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testCompile project(":runners:google-cloud-dataflow-java")
+
+    // Kafka connect dependencies
+    compile "org.apache.kafka:connect-api:2.5.0"
+    compile "org.apache.kafka:connect-json:2.5.0"
+
+    // Debezium depenedencies
+    compile group: 'io.debezium', name: 'debezium-core', version: '1.3.0.Final'
+    compile group: 'io.debezium', name: 'debezium-connector-mysql', version: '1.3.0.Final'
+}
+
+test {
+    testLogging {
+        outputs.upToDateWhen {false}
+        showStandardStreams = true
+    }
+}
