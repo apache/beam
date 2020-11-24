@@ -29,8 +29,8 @@ job('beam_Publish_Beam_SDK_Snapshots') {
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Runs once per hour during MTV time (9-16 UTC-8 --> 17-23,0-1UTC)
-  commonJobProperties.setAutoJob(delegate, 'H 0-2,17-23 * * *')
+  // Runs once every four hours.
+  commonJobProperties.setAutoJob(delegate, 'H H/4 * * *')
 
   // Use jenkins env var interpolation - leave in single quotes
   def imageRepo = 'gcr.io/apache-beam-testing/beam-sdk'
@@ -48,9 +48,6 @@ job('beam_Publish_Beam_SDK_Snapshots') {
       SUPPORTED_PYTHON_CONTAINER_TASKS.each { taskVer ->
         tasks(":sdks:python:container:${taskVer}:dockerPush")
       }
-      tasks(':sdks:python:container:py36:dockerPush')
-      tasks(':sdks:python:container:py37:dockerPush')
-      tasks(':sdks:python:container:py38:dockerPush')
       switches("-Pdocker-repository-root=${imageRepo}")
       switches("-Pdocker-tag=${imageTag}")
     }
