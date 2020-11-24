@@ -123,7 +123,6 @@ class DeferredFrameTest(unittest.TestCase):
 
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
 
-
   @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
