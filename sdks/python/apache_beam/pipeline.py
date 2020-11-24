@@ -504,12 +504,15 @@ class Pipeline(object):
       if test_runner_api == 'AUTO':
         # Don't pay the cost of a round-trip if we're going to be going through
         # the FnApi anyway...
+        is_fnapi_compatible = self.runner.is_fnapi_compatible() or (
+            # DirectRunner uses the Fn API for batch only
+            self.runner.__class__.__name__ == 'SwitchingDirectRunner' and
+            not self._options.view_as(StandardOptions).streaming)
+
         # The InteractiveRunner relies on a constant pipeline reference, skip
         # it.
         test_runner_api = (
-            not self.runner.is_fnapi_compatible() and (
-                self.runner.__class__.__name__ != 'SwitchingDirectRunner' or
-                self._options.view_as(StandardOptions).streaming) and
+            not is_fnapi_compatible and
             self.runner.__class__.__name__ != 'InteractiveRunner')
 
       # When possible, invoke a round trip through the runner API.
