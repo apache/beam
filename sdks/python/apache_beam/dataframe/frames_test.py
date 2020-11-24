@@ -110,7 +110,7 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df[df.value > 40].groupby(df.group).mean(), df)
     self._run_test(lambda df: df[df.value > 40].groupby(df.group).size(), df)
 
-    # Example from https://pandas.pydata.org/docs/user_guide/groupby.html#grouping-dataframe-with-index-levels-and-columns
+    # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
     arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
               ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
 
