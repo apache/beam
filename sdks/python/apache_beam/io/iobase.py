@@ -891,11 +891,13 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
+      display_data = self.source.display_data() or {}
+      display_data['source'] = self.source.__class__
       return (
           pbegin
           | Impulse()
           | core.Map(lambda _: self.source)
-          | SDFBoundedSourceReader(self.source.display_data()))
+          | SDFBoundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
@@ -1193,7 +1195,7 @@ class _RoundRobinKeyFn(core.DoFn):
 
 
 class RestrictionTracker(object):
-  """Manages concurrent access to a restriction.
+  """Manages access to a restriction.
 
   Keeps track of the restrictions claimed part for a Splittable DoFn.
 
@@ -1236,8 +1238,8 @@ class RestrictionTracker(object):
   def check_done(self):
     """Checks whether the restriction has been fully processed.
 
-    Called by the runner after iterator returned by ``DoFn.process()`` has been
-    fully read.
+    Called by the SDK harness after iterator returned by ``DoFn.process()``
+    has been fully read.
 
     This method must raise a `ValueError` if there is still any unclaimed work
     remaining in the restriction when this method is invoked. Exception raised
@@ -1294,7 +1296,8 @@ class RestrictionTracker(object):
 
   def try_claim(self, position):
     """Attempts to claim the block of work in the current restriction
-    identified by the given position.
+    identified by the given position. Each claimed position MUST be a valid
+    split point.
 
     If this succeeds, the DoFn MUST execute the entire block of work. If it
     fails, the ``DoFn.process()`` MUST return ``None`` without performing any
@@ -1332,7 +1335,8 @@ class RestrictionTracker(object):
 
 class WatermarkEstimator(object):
   """A WatermarkEstimator which is used for estimating output_watermark based on
-  the timestamp of output records or manual modifications.
+  the timestamp of output records or manual modifications. Please refer to
+  ``watermark_estiamtors`` for commonly used watermark estimators.
 
   The base class provides common APIs that are called by the framework, which
   are also accessible inside a DoFn.process() body. Derived watermark estimator
@@ -1586,8 +1590,11 @@ class SDFBoundedSourceReader(PTransform):
 
   def _create_sdf_bounded_source_dofn(self):
     class SDFBoundedSourceDoFn(core.DoFn):
-      def __init__(self):
-        pass
+      def __init__(self, dd):
+        self._dd = dd
+
+      def display_data(self):
+        return self._dd
 
       def process(
           self,
@@ -1601,13 +1608,10 @@ class SDFBoundedSourceReader(PTransform):
             current_restriction.range_tracker())
         return result
 
-    return SDFBoundedSourceDoFn()
+    return SDFBoundedSourceDoFn(self._data_to_display)
 
   def expand(self, pvalue):
     return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
-
-  def display_data(self):
-    return self._data_to_display

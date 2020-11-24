@@ -52,9 +52,12 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import Metrics
+from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
+from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.metrics import monitoring_infos
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -266,7 +269,7 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None):
+  def __init__(self, client=None, temp_dataset_id=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
         credentials=auth.get_service_credentials(),
@@ -281,6 +284,7 @@ class BigQueryWrapper(object):
         'latency_histogram_ms',
         LinearBucket(0, 20, 3000),
         BigQueryWrapper.HISTOGRAM_METRIC_LOGGER)
+    self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
 
   @property
   def unique_row_id(self):
@@ -300,8 +304,11 @@ class BigQueryWrapper(object):
   def _get_temp_table(self, project_id):
     return parse_table_reference(
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
-        dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
+        dataset=self.temp_dataset_id,
         project=project_id)
+
+  def _get_temp_dataset(self):
+    return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -562,14 +569,43 @@ class BigQueryWrapper(object):
             skipInvalidRows=skip_invalid_rows,
             # TODO(silviuc): Should have an option for ignoreUnknownValues?
             rows=rows))
+
+    resource = resource_identifiers.BigQueryTable(
+        project_id, dataset_id, table_id)
+
+    labels = {
+        # TODO(ajamato): Add Ptransform label.
+        monitoring_infos.SERVICE_LABEL: 'BigQuery',
+        # Refer to any method which writes elements to BigQuery in batches
+        # as "BigQueryBatchWrite". I.e. storage API's insertAll, or future
+        # APIs introduced.
+        monitoring_infos.METHOD_LABEL: 'BigQueryBatchWrite',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.BIGQUERY_PROJECT_ID_LABEL: project_id,
+        monitoring_infos.BIGQUERY_DATASET_LABEL: dataset_id,
+        monitoring_infos.BIGQUERY_TABLE_LABEL: table_id,
+    }
+    service_call_metric = ServiceCallMetric(
+        request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        base_labels=labels)
+
     started_millis = int(time.time() * 1000)
+    response = None
     try:
       response = self.client.tabledata.InsertAll(request)
-      # response.insertErrors is not [] if errors encountered.
+      if not response.insertErrors:
+        service_call_metric.call('ok')
+      for insert_error in response.insertErrors:
+        for error in insert_error.errors:
+          service_call_metric.call(error.reason)
+    except HttpError as e:
+      service_call_metric.call(e)
     finally:
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)
-    return not response.insertErrors, response.insertErrors
+    if response:
+      return not response.insertErrors, response.insertErrors
+    return False, []
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -705,26 +741,29 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def create_temporary_dataset(self, project_id, location):
-    dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
+    is_user_configured_dataset = \
+      not self.temp_dataset_id.startswith(self.TEMP_DATASET)
     # Check if dataset exists to make sure that the temporary id is unique
     try:
       self.client.datasets.Get(
           bigquery.BigqueryDatasetsGetRequest(
-              projectId=project_id, datasetId=dataset_id))
-      if project_id is not None:
+              projectId=project_id, datasetId=self.temp_dataset_id))
+      if project_id is not None and not is_user_configured_dataset:
         # Unittests don't pass projectIds so they can be run without error
+        # User configured datasets are allowed to pre-exist.
         raise RuntimeError(
             'Dataset %s:%s already exists so cannot be used as temporary.' %
-            (project_id, dataset_id))
+            (project_id, self.temp_dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
         _LOGGER.warning(
             'Dataset %s:%s does not exist so we will create it as temporary '
             'with location=%s',
             project_id,
-            dataset_id,
+            self.temp_dataset_id,
             location)
-        self.get_or_create_dataset(project_id, dataset_id, location=location)
+        self.get_or_create_dataset(
+            project_id, self.temp_dataset_id, location=location)
       else:
         raise
 

@@ -132,7 +132,7 @@ startLocalJobService.finalizedBy stopLocalJobService
  * Runs Java ValidatesRunner tests against the Universal Local Runner (ULR) aka local_job_service_main
  * with the specified environment type.
  */
-def createUlrValidatesRunnerTask = { name, environmentType ->
+def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = "" ->
   Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
     description "PortableRunner Java docker ValidatesRunner suite"
     classpath = configurations.validatesRunner
@@ -221,7 +221,10 @@ def createUlrValidatesRunnerTask = { name, environmentType ->
   }
 
   if (environmentType == "DOCKER") {
-    vrTask.dependsOn ":sdks:java:container:docker"
+    if(dockerImageTask.isEmpty()) {
+      throw new StopExecutionException("dockerImageTask is required for a Docker environment test task");
+    }
+    vrTask.dependsOn dockerImageTask
   }
 
   if (needsLocalJobService) {
@@ -233,7 +236,7 @@ def createUlrValidatesRunnerTask = { name, environmentType ->
 }
 
 task ulrDockerValidatesRunner {
-  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER")
+  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:java8:docker")
 }
 
 task ulrLoopbackValidatesRunner {

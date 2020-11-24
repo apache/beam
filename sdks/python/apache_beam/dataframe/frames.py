@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import collections
 import inspect
 import math
+import re
 
 import numpy as np
 import pandas as pd
@@ -145,13 +146,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
         def set_index(s, by):
           df = pd.DataFrame(s)
-          df, by = df.align(by, axis=0)
+          df, by = df.align(by, axis=0, join='inner')
           return df.set_index(by).iloc[:, 0]
 
       else:
 
         def set_index(df, by):  # type: ignore
-          df, by = df.align(by, axis=0)
+          df, by = df.align(by, axis=0, join='inner')
           return df.set_index(by)
 
       to_group = expressions.ComputedExpression(
@@ -159,7 +160,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           set_index,  #
           [self._expr, by._expr],
           requires_partition_by=partitionings.Index(),
-          preserves_partition_by=partitionings.Singleton())
+          preserves_partition_by=partitionings.Nothing())
 
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError('order sensitive')
@@ -269,6 +270,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   array = property(frame_base.wont_implement_method('non-deferred value'))
 
+  rename = frame_base._elementwise_method('rename')
   between = frame_base._elementwise_method('between')
 
   def dot(self, other):
@@ -675,9 +677,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return self.loc[key]
 
-    elif (isinstance(key, list) and
-          all(key_column in self._expr.proxy().columns
-              for key_column in key)) or key in self._expr.proxy().columns:
+    elif (
+        (isinstance(key, list) and all(key_column in self._expr.proxy().columns
+                                       for key_column in key)) or
+        key in self._expr.proxy().columns):
       return self._elementwise(lambda df: df[key], 'get_column')
 
     else:
@@ -1083,6 +1086,39 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
+  def _eval_or_query(self, name, expr, inplace, **kwargs):
+    for key in ('local_dict', 'global_dict', 'level', 'target', 'resolvers'):
+      if key in kwargs:
+        raise NotImplementedError(f"Setting '{key}' is not yet supported")
+
+    # look for '@<py identifier>'
+    if re.search(r'\@[^\d\W]\w*', expr, re.UNICODE):
+      raise NotImplementedError("Accessing locals with @ is not yet supported "
+                                "(BEAM-11202)")
+
+    result_expr = expressions.ComputedExpression(
+        name,
+        lambda df: getattr(df, name)(expr, **kwargs),
+        [self._expr],
+        requires_partition_by=partitionings.Nothing(),
+        preserves_partition_by=partitionings.Singleton())
+
+    if inplace:
+      self._expr = result_expr
+    else:
+      return frame_base.DeferredFrame.wrap(result_expr)
+
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def eval(self, expr, inplace, **kwargs):
+    return self._eval_or_query('eval', expr, inplace, **kwargs)
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def query(self, expr, inplace, **kwargs):
+    return self._eval_or_query('query', expr, inplace, **kwargs)
+
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
@@ -1295,8 +1331,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Singleton(),
             preserves_partition_by=partitionings.Singleton()))
 
-  query = frame_base._elementwise_method('query')
-
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.maybe_inplace
   def rename(self, **kwargs):
@@ -1495,8 +1529,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   groups = property(frame_base.wont_implement_method('non-deferred'))
 
 
-def _liftable_agg(meth):
+def _liftable_agg(meth, postagg_meth=None):
   name, func = frame_base.name_and_func(meth)
+
+  if postagg_meth is None:
+    post_agg_name, post_agg_func = name, func
+  else:
+    post_agg_name, post_agg_func = frame_base.name_and_func(postagg_meth)
 
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
@@ -1521,8 +1560,8 @@ def _liftable_agg(meth):
         preserves_partition_by=partitionings.Singleton())
 
     post_agg = expressions.ComputedExpression(
-        'post_combine_' + name,
-        lambda df: func(
+        'post_combine_' + post_agg_name,
+        lambda df: post_agg_func(
             df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
             **kwargs),
         [pre_agg],
@@ -1561,11 +1600,14 @@ def _unliftable_agg(meth):
 
   return wrapper
 
-LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'size', 'sum']
+LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
+LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
 UNLIFTABLE_AGGREGATIONS = ['mean', 'median', 'std', 'var']
 
 for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))
+for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
+  setattr(DeferredGroupBy, meth, _liftable_agg(meth, postagg_meth='sum'))
 for meth in UNLIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
@@ -1885,9 +1927,12 @@ for base in ['add',
       '__i%s__' % base,
       frame_base._elementwise_method('__i%s__' % base, inplace=True))
 
-for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
-  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
+  for p in '%s', '__%s__':
+    # Note that non-underscore name is used for both as the __xxx__ methods are
+    # order-sensitive.
+    setattr(DeferredSeries, p % name, frame_base._elementwise_method(name))
+    setattr(DeferredDataFrame, p % name, frame_base._elementwise_method(name))
 
 for name in ['__neg__', '__pos__', '__invert__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))

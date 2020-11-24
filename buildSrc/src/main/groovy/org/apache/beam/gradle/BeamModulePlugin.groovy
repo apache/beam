@@ -302,23 +302,39 @@ class BeamModulePlugin implements Plugin<Project> {
   class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
     String name = 'validatesCrossLanguageRunner'
-    // Job endpoint to use.
-    String jobEndpoint = 'localhost:8099'
+    // Java pipeline options to use.
+    List<String> javaPipelineOptions = [
+      "--runner=PortableRunner",
+      "--jobEndpoint=localhost:8099",
+      "--environmentCacheMillis=10000",
+      "--experiments=beam_fn_api",
+    ]
+    // Python pipeline options to use.
+    List<String> pythonPipelineOptions = [
+      "--runner=PortableRunner",
+      "--job_endpoint=localhost:8099",
+      "--environment_cache_millis=10000",
+      "--experiments=beam_fn_api",
+    ]
+    // Additional nosetests options
+    List<String> nosetestsOptions = []
     // Job server startup task.
     Task startJobServer
     // Job server cleanup task.
     Task cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
-    // Extra options to pass to TestPipeline
-    String[] pipelineOpts = []
-    // Categories for tests to run.
-    Closure testCategories = {
+    // Whether the pipeline needs --sdk_location option
+    boolean needsSdkLocation = false
+    // Categories for Java tests to run.
+    Closure javaTestCategories = {
       includeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
       // Use the following to include / exclude categories:
       // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
+    // Attribute for Python tests to run.
+    String pythonTestAttr = "UsesCrossLanguageTransforms"
     // classpath for running tests.
     FileCollection classpath
   }
@@ -408,7 +424,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def checkerframework_version = "3.7.0"
     def classgraph_version = "4.8.65"
     def google_clients_version = "1.30.10"
-    def google_cloud_bigdataoss_version = "2.1.5"
+    def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsub_version = "1.108.6"
     def google_cloud_pubsublite_version = "0.4.1"
     def google_code_gson_version = "2.8.6"
@@ -416,7 +432,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.32.2"
     def guava_version = "25.1-jre"
-    def hadoop_version = "2.8.5"
+    def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def jackson_version = "2.10.2"
@@ -564,6 +580,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
+        netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
@@ -590,9 +607,10 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
+        testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
-        testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
+        testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
@@ -1350,6 +1368,14 @@ class BeamModulePlugin implements Plugin<Project> {
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')
                   def dependencyManagementDependencies = dependencyManagementNode.appendNode('dependencies')
+
+                  // Resolve linkage error with guava jre vs android caused by Google Cloud libraries BOM
+                  // https://github.com/GoogleCloudPlatform/cloud-opensource-java/wiki/The-Google-Cloud-Platform-Libraries-BOM#guava-versions--jre-or--android
+                  def guavaDependencyNode = dependencyManagementDependencies.appendNode('dependency')
+                  guavaDependencyNode.appendNode('groupId', 'com.google.guava')
+                  guavaDependencyNode.appendNode('artifactId', 'guava')
+                  guavaDependencyNode.appendNode('version', "$guava_version")
+
                   boms.each {
                     def dependencyNode = dependencyManagementDependencies.appendNode('dependency')
                     dependencyNode.appendNode('groupId', it.group)
@@ -1431,6 +1457,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
     }
+    def cleanUpTask = project.task('cleanUp') {
+      dependsOn ':runners:google-cloud-dataflow-java:cleanUpDockerImages'
+    }
 
     // When applied in a module's build.gradle file, this closure provides task for running
     // IO integration tests.
@@ -1441,7 +1470,7 @@ class BeamModulePlugin implements Plugin<Project> {
       JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
 
       // Task for running integration tests
-      project.task('integrationTest', type: Test) {
+      def itTask = project.task('integrationTest', type: Test) {
 
         // Disable Gradle cache (it should not be used because the IT's won't run).
         outputs.upToDateWhen { false }
@@ -1456,27 +1485,53 @@ class BeamModulePlugin implements Plugin<Project> {
           allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
         }
 
-        if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
-          project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
-          def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-              project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-          def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
-          allOptionsList.addAll([
-            '--workerHarnessContainerImage=',
-            "--dataflowWorkerJar=${dataflowWorkerJar}",
-            "--region=${dataflowRegion}"
-          ])
+        if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
+          if (pipelineOptionsString.contains('use_runner_v2')) {
+            dependsOn ':runners:google-cloud-dataflow-java:buildAndPushDockerContainer'
+          } else {
+            project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+          }
         }
 
-        // Windows handles quotation marks differently
-        if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
-          def allOptionsListFormatted = allOptionsList.collect{ "\"$it\"" }
-          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
-        } else if (pipelineOptionsString) {
-          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
-        }
+        // We construct the pipeline options during task execution time in order to get dockerImageName.
+        doFirst {
+          if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
+            def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+            if (pipelineOptionsString.contains('use_runner_v2')) {
+              def dockerImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerImageName
+              allOptionsList.addAll([
+                "--workerHarnessContainerImage=${dockerImageName}",
+                "--region=${dataflowRegion}"
+              ])
+            } else {
+              def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
+                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+              allOptionsList.addAll([
+                '--workerHarnessContainerImage=',
+                "--dataflowWorkerJar=${dataflowWorkerJar}",
+                "--region=${dataflowRegion}"
+              ])
+            }
+          }
 
-        systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
+          // Windows handles quotation marks differently
+          if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
+            def allOptionsListFormatted = allOptionsList.collect { "\"$it\"" }
+            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
+          } else if (pipelineOptionsString) {
+            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
+          }
+
+          systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
+        }
+      }
+      project.afterEvaluate {
+        // Ensure all tasks which use published docker images run before they are cleaned up
+        project.tasks.each { t ->
+          if (t.dependsOn.contains(":runners:google-cloud-dataflow-java:buildAndPushDockerContainer")) {
+            t.finalizedBy cleanUpTask
+          }
+        }
       }
     }
 
@@ -1848,7 +1903,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
-          dependsOn ':sdks:java:container:docker'
+          dependsOn ':sdks:java:container:java8:docker'
         }
       }
     }
@@ -1881,7 +1936,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
-        dependsOn ':sdks:java:container:docker'
+        dependsOn ':sdks:java:container:java8:docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
@@ -1903,25 +1958,26 @@ class BeamModulePlugin implements Plugin<Project> {
       setupTask.finalizedBy cleanupTask
       config.startJobServer.finalizedBy config.cleanupJobServer
 
-      // Task for running testcases in Java SDK
-      def beamJavaTestPipelineOptions = [
-        "--runner=PortableRunner",
-        "--jobEndpoint=${config.jobEndpoint}",
-        "--environmentCacheMillis=10000",
-        "--experiments=beam_fn_api",
-      ]
-      beamJavaTestPipelineOptions.addAll(config.pipelineOpts)
+      def sdkLocationOpt = []
+      if (config.needsSdkLocation) {
+        setupTask.dependsOn ':sdks:python:sdist'
+        sdkLocationOpt = [
+          "--sdk_location=${pythonDir}/build/apache-beam.tar.gz"
+        ]
+      }
+
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
+        // Task for running testcases in Java SDK
         def javaTask = project.tasks.create(name: config.name+"JavaUsing"+sdk, type: Test) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
-          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamJavaTestPipelineOptions)
+          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
           systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
           classpath = config.classpath
           testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
           maxParallelForks config.numParallelTests
-          useJUnit(config.testCategories)
+          useJUnit(config.javaTestCategories)
           // increase maxHeapSize as this is directly correlated to direct memory,
           // see https://issues.apache.org/jira/browse/BEAM-6698
           maxHeapSize = '4g'
@@ -1934,16 +1990,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Task for running testcases in Python SDK
         def testOpts = [
-          "--attr=UsesCrossLanguageTransforms"
-        ]
-        def pipelineOpts = [
-          "--runner=PortableRunner",
-          "--environment_cache_millis=10000",
-          "--job_endpoint=${config.jobEndpoint}"
+          "--attr=${config.pythonTestAttr}"
         ]
         def beamPythonTestPipelineOptions = [
-          "pipeline_opts": pipelineOpts,
-          "test_opts": testOpts,
+          "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
+          "test_opts": testOpts + config.nosetestsOptions,
           "suite": "xlangValidateRunner"
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
@@ -1965,14 +2016,9 @@ class BeamModulePlugin implements Plugin<Project> {
       def testOpts = [
         "--attr=UsesSqlExpansionService"
       ]
-      def pipelineOpts = [
-        "--runner=PortableRunner",
-        "--environment_cache_millis=10000",
-        "--job_endpoint=${config.jobEndpoint}"
-      ]
       def beamPythonTestPipelineOptions = [
-        "pipeline_opts": pipelineOpts,
-        "test_opts": testOpts,
+        "pipeline_opts": config.pythonPipelineOptions + sdkLocationOpt,
+        "test_opts": testOpts + config.nosetestsOptions,
         "suite": "xlangSqlValidateRunner"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
@@ -1982,7 +2028,7 @@ class BeamModulePlugin implements Plugin<Project> {
         executable 'sh'
         args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
         dependsOn config.startJobServer
-        dependsOn ':sdks:java:container:docker'
+        dependsOn ':sdks:java:container:java8:docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
         dependsOn ":sdks:python:installGcpTest"

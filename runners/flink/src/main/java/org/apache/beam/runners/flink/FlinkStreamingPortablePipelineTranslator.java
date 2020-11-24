@@ -56,6 +56,7 @@ import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.SdfByteBufferKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
@@ -682,10 +683,20 @@ public class FlinkStreamingPortablePipelineTranslator
 
     final boolean stateful =
         stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0;
+    final boolean hasSdfProcessFn =
+        stagePayload.getComponents().getTransformsMap().values().stream()
+            .anyMatch(
+                pTransform ->
+                    pTransform
+                        .getSpec()
+                        .getUrn()
+                        .equals(
+                            PTransformTranslation
+                                .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN));
     Coder keyCoder = null;
     KeySelector<WindowedValue<InputT>, ?> keySelector = null;
-    if (stateful) {
-      // Stateful stages are only allowed of KV input
+    if (stateful || hasSdfProcessFn) {
+      // Stateful/SDF stages are only allowed of KV input.
       Coder valueCoder =
           ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
       if (!(valueCoder instanceof KvCoder)) {
@@ -696,10 +707,28 @@ public class FlinkStreamingPortablePipelineTranslator
                 inputPCollectionId,
                 valueCoder.getClass().getSimpleName()));
       }
-      keyCoder = ((KvCoder) valueCoder).getKeyCoder();
-      keySelector =
-          new KvToByteBufferKeySelector(
-              keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+      if (stateful) {
+        keyCoder = ((KvCoder) valueCoder).getKeyCoder();
+        keySelector =
+            new KvToByteBufferKeySelector(
+                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+      } else {
+        // For an SDF, we know that the input element should be
+        // KV<KV<element, KV<restriction, watermarkState>>, size>. We are going to use the element
+        // as the key.
+        if (!(((KvCoder) valueCoder).getKeyCoder() instanceof KvCoder)) {
+          throw new IllegalStateException(
+              String.format(
+                  Locale.ENGLISH,
+                  "The element coder for splittable DoFn '%s' must be KVCoder(KvCoder, DoubleCoder) but is: %s",
+                  inputPCollectionId,
+                  valueCoder.getClass().getSimpleName()));
+        }
+        keyCoder = ((KvCoder) ((KvCoder) valueCoder).getKeyCoder()).getKeyCoder();
+        keySelector =
+            new SdfByteBufferKeySelector(
+                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+      }
       inputDataStream = inputDataStream.keyBy(keySelector);
     }
 
@@ -738,7 +767,7 @@ public class FlinkStreamingPortablePipelineTranslator
     } else {
       DataStream<RawUnionValue> sideInputStream =
           transformedSideInputs.unionedSideInputs.broadcast();
-      if (stateful) {
+      if (stateful || hasSdfProcessFn) {
         // We have to manually construct the two-input transform because we're not
         // allowed to have only one input keyed, normally. Since Flink 1.5.0 it's
         // possible to use the Broadcast State Pattern which provides a more elegant

@@ -60,7 +60,9 @@ public class WindmillTimerInternalsTest {
           BoundedWindow.TIMESTAMP_MAX_VALUE,
           GlobalWindow.INSTANCE.maxTimestamp(),
           new Instant(0),
-          new Instant(127));
+          new Instant(127),
+          // The encoding of Instant(716000) ends with '+'.
+          new Instant(716001));
 
   private static final List<String> TEST_STATE_FAMILIES = ImmutableList.of("", "F24");
 

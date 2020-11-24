@@ -45,9 +45,20 @@ def cleanupTask = project.tasks.create(name: "fnApiJobServerCleanup", type: Exec
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
-  jobEndpoint: "localhost:${jobPort}",
   numParallelTests: 1,
-  classpath: crossLanguageTestClasspath
+  classpath: crossLanguageTestClasspath,
+  pythonPipelineOptions: [
+    "--runner=PortableRunner",
+    "--job_endpoint=localhost:${jobPort}",
+    "--environment_cache_millis=10000",
+    "--experiments=beam_fn_api",
+  ],
+  javaPipelineOptions: [
+    "--runner=PortableRunner",
+    "--jobEndpoint=localhost:${jobPort}",
+    "--environmentCacheMillis=10000",
+    "--experiments=beam_fn_api",
+  ]
 )
 dependencies {
   permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"

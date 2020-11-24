@@ -50,6 +50,22 @@ public interface StageBundleFactory extends AutoCloseable {
         outputReceiverFactory, null, stateRequestHandler, progressHandler, finalizationHandler);
   }
 
+  default RemoteBundle getBundle(
+      OutputReceiverFactory outputReceiverFactory,
+      StateRequestHandler stateRequestHandler,
+      BundleProgressHandler progressHandler,
+      BundleFinalizationHandler finalizationHandler,
+      BundleCheckpointHandler checkpointHandler)
+      throws Exception {
+    return getBundle(
+        outputReceiverFactory,
+        null,
+        stateRequestHandler,
+        progressHandler,
+        finalizationHandler,
+        checkpointHandler);
+  }
+
   /** Get a new {@link RemoteBundle bundle} for processing the data in an executable stage. */
   default RemoteBundle getBundle(
       OutputReceiverFactory outputReceiverFactory,
@@ -61,12 +77,29 @@ public interface StageBundleFactory extends AutoCloseable {
         outputReceiverFactory, timerReceiverFactory, stateRequestHandler, progressHandler, null);
   }
 
-  RemoteBundle getBundle(
+  default RemoteBundle getBundle(
       OutputReceiverFactory outputReceiverFactory,
       TimerReceiverFactory timerReceiverFactory,
       StateRequestHandler stateRequestHandler,
       BundleProgressHandler progressHandler,
       BundleFinalizationHandler finalizationHandler)
+      throws Exception {
+    return getBundle(
+        outputReceiverFactory,
+        timerReceiverFactory,
+        stateRequestHandler,
+        progressHandler,
+        finalizationHandler,
+        null);
+  }
+
+  RemoteBundle getBundle(
+      OutputReceiverFactory outputReceiverFactory,
+      TimerReceiverFactory timerReceiverFactory,
+      StateRequestHandler stateRequestHandler,
+      BundleProgressHandler progressHandler,
+      BundleFinalizationHandler finalizationHandler,
+      BundleCheckpointHandler checkpointHandler)
       throws Exception;
 
   ProcessBundleDescriptors.ExecutableProcessBundleDescriptor getProcessBundleDescriptor();

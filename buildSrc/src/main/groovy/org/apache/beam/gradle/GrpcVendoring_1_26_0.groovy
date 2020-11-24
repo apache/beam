@@ -26,7 +26,23 @@ class GrpcVendoring_1_26_0 {
   static def guava_version = "26.0-jre"
   static def protobuf_version = "3.11.0"
   static def grpc_version = "1.26.0"
-
+  static def gson_version = "2.8.6"
+  static def netty_version = "4.1.51.Final"
+  static def google_auth_version = "0.18.0"
+  static def proto_google_common_protos_version = "1.12.0"
+  static def opencensus_version = "0.24.0"
+  static def perfmark_version = "0.19.0"
+  static def lzma_java_version = "1.3"
+  static def protobuf_javanano_version = "3.0.0-alpha-5"
+  static def jzlib_version = "1.1.3"
+  static def compress_lzf_version = "1.0.3"
+  static def lz4_version = "1.3.0"
+  static def bouncycastle_version = "1.54"
+  static def conscrypt_version = "2.5.1"
+  static def alpn_api_version = "1.1.2.v20150522"
+  static def npn_api_version = "1.1.1.v20141010"
+  static def jboss_marshalling_version = "1.4.11.Final"
+  static def jboss_modules_version = "1.1.0.Beta1"
   /** Returns the list of compile time dependencies. */
   static List<String> dependencies() {
     return [

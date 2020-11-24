@@ -22,7 +22,7 @@ plugins {
   // Additionally, the plugin checks for updates to Gradle itself.
   //
   // See https://github.com/ben-manes/gradle-versions-plugin for further details.
-  id 'com.github.ben-manes.versions' version '0.29.0'
+  id 'com.github.ben-manes.versions' version '0.33.0'
   // Apply one top level rat plugin to perform any required license enforcement analysis
   id 'org.nosphere.apache.rat' version '0.7.0'
   // Enable gradle-based release management
@@ -107,7 +107,10 @@ rat {
     "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
 
     // JupyterLab extensions
-    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock"
+    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
+
+    // Sample text file for Java quickstart
+    "sdks/java/maven-archetypes/examples/sample.txt"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -141,7 +144,7 @@ task javaPreCommit() {
   dependsOn ":sdks:java:extensions:sql:jdbc:preCommit"
   dependsOn ":sdks:java:javadoc:allJavadoc"
   dependsOn ":runners:direct-java:needsRunnerTests"
-  dependsOn ":sdks:java:container:docker"
+  dependsOn ":sdks:java:container:java8:docker"
 }
 
 task sqlPreCommit() {
@@ -161,13 +164,24 @@ task javaPostCommit() {
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
   dependsOn ":sdks:java:io:kinesis:integrationTest"
-  dependsOn ":sdks:java:io:hadoop-format:hadoopFormatIOElasticTest"
+  dependsOn ":javaHadoopVersionsTest"
+}
+
+task javaHadoopVersionsTest() {
+  dependsOn ":sdks:java:io:hadoop-common:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hadoop-file-system:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hadoop-format:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hcatalog:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:parquet:hadoopVersionsTest"
+  dependsOn ":sdks:java:extensions:sorter:hadoopVersionsTest"
+  dependsOn ":runners:spark:hadoopVersionsTest"
 }
 
 task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
   dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
+  dependsOn ":sdks:java:extensions:sql:hadoopVersionsTest"
 }
 
 task goPreCommit() {

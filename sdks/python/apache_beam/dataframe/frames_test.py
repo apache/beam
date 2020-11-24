@@ -89,10 +89,46 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(new_column, df)
 
   def test_groupby(self):
-    df = pd.DataFrame({'group': ['a', 'a', 'a', 'b'], 'value': [1, 2, 3, 5]})
-    self._run_test(lambda df: df.groupby('group').agg(sum), df)
-    self._run_test(lambda df: df.groupby('group').sum(), df)
-    self._run_test(lambda df: df.groupby('group').median(), df)
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'value': [None if i % 11 == 0 else i for i in range(100)]
+    })
+    self._run_test(
+        lambda df: df.groupby('group').agg(sum), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').sum(), df, distributed=True)
+    self._run_test(
+        lambda df: df.groupby('group').median(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').size(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').count(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').max(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').min(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').mean(), df, distributed=True)
+
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').sum(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').mean(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').size(),
+        df,
+        distributed=True)
+
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).sum(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).mean(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).size(),
+        df,
+        distributed=True)
 
   @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
@@ -218,6 +254,25 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.groupby(level=0).sum(), df, distributed=True)
       self._run_test(
           lambda df: df.groupby(level=0).mean(), df, distributed=True)
+
+  def test_dataframe_eval_query(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df: df.eval('foo = a + b - c'), df, distributed=True)
+    self._run_test(lambda df: df.query('a > b + c'), df, distributed=True)
+
+    def eval_inplace(df):
+      df.eval('foo = a + b - c', inplace=True)
+      return df.foo
+
+    self._run_test(eval_inplace, df, distributed=True)
+
+    # Verify that attempting to access locals raises a useful error
+    deferred_df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(df, df[0:0]))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.eval('foo = a + @b - c'))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
 
 class AllowNonParallelTest(unittest.TestCase):

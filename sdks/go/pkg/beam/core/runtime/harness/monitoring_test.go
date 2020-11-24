@@ -20,34 +20,35 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/metricsx"
 )
 
 func TestGetShortID(t *testing.T) {
 	tests := []struct {
 		id           string
-		urn          mUrn
+		urn          metricsx.Urn
 		labels       metrics.Labels
 		expectedUrn  string
 		expectedType string
 	}{
 		{
 			id:           "1",
-			urn:          urnUserDistInt64,
+			urn:          metricsx.UrnUserDistInt64,
 			expectedUrn:  "beam:metric:user:distribution_int64:v1",
 			expectedType: "beam:metrics:distribution_int64:v1",
 		}, {
 			id:           "2",
-			urn:          urnElementCount,
+			urn:          metricsx.UrnElementCount,
 			expectedUrn:  "beam:metric:element_count:v1",
 			expectedType: "beam:metrics:sum_int64:v1",
 		}, {
 			id:           "3",
-			urn:          urnProgressCompleted,
+			urn:          metricsx.UrnProgressCompleted,
 			expectedUrn:  "beam:metric:ptransform_progress:completed:v1",
 			expectedType: "beam:metrics:progress:v1",
 		}, {
 			id:           "4",
-			urn:          urnUserDistFloat64,
+			urn:          metricsx.UrnUserDistFloat64,
 			expectedUrn:  "beam:metric:user:distribution_double:v1",
 			expectedType: "beam:metrics:distribution_double:v1",
 		}, {
@@ -56,25 +57,25 @@ func TestGetShortID(t *testing.T) {
 			// in the list, or vice versa, this should fail with either
 			// an index out of range panic or a mismatch.
 			id:           "5",
-			urn:          urnTestSentinel,
+			urn:          metricsx.UrnTestSentinel,
 			expectedUrn:  "TestingSentinelUrn",
 			expectedType: "TestingSentinelType",
 		}, {
 			id:           "6",
-			urn:          urnFinishBundle,
+			urn:          metricsx.UrnFinishBundle,
 			expectedUrn:  "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
 			expectedType: "beam:metrics:sum_int64:v1",
 		}, {
 			// This case and the next one validates that different labels
 			// with the same urn are in fact assigned different short ids.
 			id:           "7",
-			urn:          urnUserSumInt64,
+			urn:          metricsx.UrnUserSumInt64,
 			labels:       metrics.UserLabels("myT", "harness", "metricNumber7"),
 			expectedUrn:  "beam:metric:user:sum_int64:v1",
 			expectedType: "beam:metrics:sum_int64:v1",
 		}, {
 			id:           "8",
-			urn:          urnUserSumInt64,
+			urn:          metricsx.UrnUserSumInt64,
 			labels:       metrics.UserLabels("myT", "harness", "metricNumber8"),
 			expectedUrn:  "beam:metric:user:sum_int64:v1",
 			expectedType: "beam:metrics:sum_int64:v1",
@@ -84,13 +85,13 @@ func TestGetShortID(t *testing.T) {
 			// user metrics are unique per label set, but this isn't the layer
 			// to validate that condition.
 			id:           "9",
-			urn:          urnUserTopNFloat64,
+			urn:          metricsx.UrnUserTopNFloat64,
 			labels:       metrics.UserLabels("myT", "harness", "metricNumber7"),
 			expectedUrn:  "beam:metric:user:top_n_double:v1",
 			expectedType: "beam:metrics:top_n_double:v1",
 		}, {
 			id:           "a",
-			urn:          urnElementCount,
+			urn:          metricsx.UrnElementCount,
 			labels:       metrics.PCollectionLabels("myPCol"),
 			expectedUrn:  "beam:metric:element_count:v1",
 			expectedType: "beam:metrics:sum_int64:v1",
@@ -133,7 +134,7 @@ func TestGetShortID(t *testing.T) {
 // is initialized properly.
 func TestShortIdCache_Default(t *testing.T) {
 	defaultShortIDCache.mu.Lock()
-	s := getShortID(metrics.UserLabels("this", "doesn't", "matter"), urnTestSentinel)
+	s := getShortID(metrics.UserLabels("this", "doesn't", "matter"), metricsx.UrnTestSentinel)
 	defaultShortIDCache.mu.Unlock()
 
 	info := shortIdsToInfos([]string{s})[s]
@@ -148,11 +149,11 @@ func TestShortIdCache_Default(t *testing.T) {
 func BenchmarkGetShortID(b *testing.B) {
 	b.Run("new", func(b *testing.B) {
 		l := metrics.UserLabels("this", "doesn't", strconv.FormatInt(-1, 36))
-		last := getShortID(l, urnTestSentinel)
+		last := getShortID(l, metricsx.UrnTestSentinel)
 		for i := int64(0); i < int64(b.N); i++ {
 			// Ensure it's allocated to the stack.
 			l = metrics.UserLabels("this", "doesn't", strconv.FormatInt(i, 36))
-			got := getShortID(l, urnTestSentinel)
+			got := getShortID(l, metricsx.UrnTestSentinel)
 			if got == last {
 				b.Fatalf("short collision: at %s", got)
 			}
@@ -162,9 +163,9 @@ func BenchmarkGetShortID(b *testing.B) {
 	b.Run("amortized", func(b *testing.B) {
 		l := metrics.UserLabels("this", "doesn't", "matter")
 		c := newShortIDCache()
-		want := c.getShortID(l, urnTestSentinel)
+		want := c.getShortID(l, metricsx.UrnTestSentinel)
 		for i := 0; i < b.N; i++ {
-			got := c.getShortID(l, urnTestSentinel)
+			got := c.getShortID(l, metricsx.UrnTestSentinel)
 			if got != want {
 				b.Fatalf("different short ids: got %s, want %s", got, want)
 			}

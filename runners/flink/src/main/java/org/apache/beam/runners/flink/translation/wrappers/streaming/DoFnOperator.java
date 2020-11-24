@@ -64,6 +64,7 @@ import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -1332,7 +1333,7 @@ public class DoFnOperator<InputT, OutputT>
         keyedStateBackend.setCurrentKey(internalTimer.getKey());
         TimerData timer = internalTimer.getNamespace();
         checkInvokeStartBundle();
-        fireTimer(timer);
+        fireTimerInternal((ByteBuffer) internalTimer.getKey(), timer);
       }
     }
 
@@ -1347,16 +1348,13 @@ public class DoFnOperator<InputT, OutputT>
       }
     }
 
-    private void onRemovedEventTimer(TimerData removedTimer) {
+    /** Holds the watermark when there is an sdf timer. */
+    private void onNewSdfTimer(TimerData newTimer) {
       Preconditions.checkState(
-          removedTimer.getDomain() == TimeDomain.EVENT_TIME,
-          "Timer with id %s is not an event time timer!",
-          removedTimer.getTimerId());
-      // Remove the first occurrence of the output timestamp, if cached
-      // Note: There may be duplicate timestamps from other timers, that's ok.
-      if (timerUsesOutputTimestamp(removedTimer)) {
-        keyedStateInternals.removeWatermarkHoldUsage(removedTimer.getOutputTimestamp());
-      }
+          StateAndTimerBundleCheckpointHandler.isSdfTimer(newTimer.getTimerId()));
+      // An SDF timer should hold the watermark for further output.
+      Preconditions.checkState(timerUsesOutputTimestamp(newTimer));
+      keyedStateInternals.addWatermarkHoldUsage(newTimer.getOutputTimestamp());
     }
 
     private void populateOutputTimestampQueue() {
@@ -1369,7 +1367,8 @@ public class DoFnOperator<InputT, OutputT>
               keyedStateBackend.setCurrentKey(key);
               try {
                 for (TimerData timerData : pendingTimersById.values()) {
-                  if (timerData.getDomain() == TimeDomain.EVENT_TIME) {
+                  if (timerData.getDomain() == TimeDomain.EVENT_TIME
+                      || StateAndTimerBundleCheckpointHandler.isSdfTimer(timerData.getTimerId())) {
                     if (timerUsesOutputTimestamp(timerData)) {
                       keyedStateInternals.addWatermarkHoldUsage(timerData.getOutputTimestamp());
                     }
@@ -1441,6 +1440,9 @@ public class DoFnOperator<InputT, OutputT>
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
           timerService.registerProcessingTimeTimer(timer, adjustTimestampForFlink(time));
+          if (StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
+            onNewSdfTimer(timer);
+          }
           break;
         default:
           throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
@@ -1466,8 +1468,11 @@ public class DoFnOperator<InputT, OutputT>
     void onFiredOrDeletedTimer(TimerData timer) {
       try {
         pendingTimersById.remove(getContextTimerId(timer.getTimerId(), timer.getNamespace()));
-        if (timer.getDomain() == TimeDomain.EVENT_TIME) {
-          onRemovedEventTimer(timer);
+        if (timer.getDomain() == TimeDomain.EVENT_TIME
+            || StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
+          if (timerUsesOutputTimestamp(timer)) {
+            keyedStateInternals.removeWatermarkHoldUsage(timer.getOutputTimestamp());
+          }
         }
       } catch (Exception e) {
         throw new RuntimeException("Failed to cleanup pending timers state.", e);

@@ -31,9 +31,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/apache/beam/sdks/go/examples/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
@@ -89,8 +88,7 @@ func main() {
 	col := beam.ParDo(s, extractFn, lines)
 
 	// Using the cross-language transform
-	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	counted := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:count", nil, *expansionAddr, col, outputType)
+	counted := xlang.Count(s, *expansionAddr, col)
 
 	formatted := beam.ParDo(s, formatFn, counted)
 	passert.Equals(s, formatted, "a:4", "b:4", "c:5")

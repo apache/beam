@@ -670,6 +670,23 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
 
+  def test_with_sharded_key_in_global_window(self):
+    with TestPipeline() as pipeline:
+      collection = (
+          pipeline
+          | beam.Create(GroupIntoBatchesTest._create_test_data())
+          | util.GroupIntoBatches.WithShardedKey(
+              GroupIntoBatchesTest.BATCH_SIZE))
+      num_batches = collection | beam.combiners.Count.Globally()
+      assert_that(
+          num_batches,
+          equal_to([
+              int(
+                  math.ceil(
+                      GroupIntoBatchesTest.NUM_ELEMENTS /
+                      GroupIntoBatchesTest.BATCH_SIZE))
+          ]))
+
   def test_buffering_timer_in_fixed_window_streaming(self):
     window_duration = 6
     max_buffering_duration_secs = 100

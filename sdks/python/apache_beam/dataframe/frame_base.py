@@ -276,10 +276,10 @@ def _proxy_function(
 
       return actual_func(*full_args, **full_kwargs)
 
-    if any(isinstance(arg.proxy(), pd.core.generic.NDFrame) for arg in
-           deferred_exprs) and not requires_partition_by.is_subpartitioning_of(
-               partitionings.Index()):
-      # Implicit join on index.
+    if (not requires_partition_by.is_subpartitioning_of(partitionings.Index())
+        and sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+                for arg in deferred_exprs) > 1):
+      # Implicit join on index if there is more than one indexed input.
       actual_requires_partition_by = partitionings.Index()
     else:
       actual_requires_partition_by = requires_partition_by
@@ -307,14 +307,14 @@ def _agg_method(func):
 
 
 def wont_implement_method(msg):
-  def wrapper(self, *args, **kwargs):
+  def wrapper(*args, **kwargs):
     raise WontImplementError(msg)
 
   return wrapper
 
 
 def not_implemented_method(op, jira='BEAM-9547'):
-  def wrapper(self, *args, **kwargs):
+  def wrapper(*args, **kwargs):
     raise NotImplementedError("'%s' is not yet supported (%s)" % (op, jira))
 
   return wrapper

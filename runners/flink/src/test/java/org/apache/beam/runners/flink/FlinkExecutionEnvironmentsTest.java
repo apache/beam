@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,7 +34,9 @@ import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -464,6 +467,63 @@ public class FlinkExecutionEnvironmentsTest {
     // subject to change with https://issues.apache.org/jira/browse/FLINK-11048
     assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
     assertThat(getSavepointPath(sev), is(path));
+  }
+
+  @Test
+  public void shouldFailOnUnknownStateBackend() {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setStateBackend("unknown");
+    options.setStateBackendStoragePath("/path");
+
+    assertThrows(
+        "State backend was set to 'unknown' but no storage path was provided.",
+        IllegalArgumentException.class,
+        () ->
+            FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+                options, Collections.emptyList()));
+  }
+
+  @Test
+  public void shouldFailOnNoStoragePathProvided() {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setStateBackend("unknown");
+
+    assertThrows(
+        "State backend was set to 'unknown' but no storage path was provided.",
+        IllegalArgumentException.class,
+        () ->
+            FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+                options, Collections.emptyList()));
+  }
+
+  @Test
+  public void shouldCreateFileSystemStateBackend() {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setStateBackend("fileSystem");
+    options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(sev.getStateBackend(), instanceOf(FsStateBackend.class));
+  }
+
+  @Test
+  public void shouldCreateRocksDbStateBackend() {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setStateBackend("rocksDB");
+    options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(sev.getStateBackend(), instanceOf(RocksDBStateBackend.class));
   }
 
   private void checkHostAndPort(Object env, String expectedHost, int expectedPort) {

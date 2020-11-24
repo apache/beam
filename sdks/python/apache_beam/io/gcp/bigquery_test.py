@@ -51,6 +51,7 @@ from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
@@ -435,6 +436,50 @@ class TestReadFromBigQuery(unittest.TestCase):
             'DEBUG:apache_beam.io.gcp.bigquery_read_internal:gcs_location is '
             'empty, using temp_location instead'
         ])
+
+  @mock.patch.object(BigQueryWrapper, '_delete_dataset')
+  @mock.patch('apache_beam.io.gcp.internal.clients.bigquery.BigqueryV2')
+  def test_temp_dataset_location_is_configurable(self, api, delete_dataset):
+    temp_dataset = bigquery.DatasetReference(
+        projectId='temp-project', datasetId='bq_dataset')
+    bq = BigQueryWrapper(client=api, temp_dataset_id=temp_dataset.datasetId)
+    gcs_location = 'gs://gcs_location'
+
+    # bq.get_or_create_dataset.return_value = temp_dataset
+    c = beam.io.gcp.bigquery._CustomBigQuerySource(
+        query='select * from test_table',
+        gcs_location=gcs_location,
+        validate=True,
+        pipeline_options=beam.options.pipeline_options.PipelineOptions(),
+        job_name='job_name',
+        step_name='step_name',
+        project='execution_project',
+        **{'temp_dataset': temp_dataset})
+
+    api.datasets.Get.side_effect = HttpError({
+        'status_code': 404, 'status': 404
+    },
+                                             '',
+                                             '')
+
+    c._setup_temporary_dataset(bq)
+    api.datasets.Insert.assert_called_with(
+        bigquery.BigqueryDatasetsInsertRequest(
+            dataset=bigquery.Dataset(datasetReference=temp_dataset),
+            projectId=temp_dataset.projectId))
+
+    api.datasets.Get.return_value = temp_dataset
+    api.datasets.Get.side_effect = None
+    bq.clean_up_temporary_dataset(temp_dataset.projectId)
+    delete_dataset.assert_called_with(
+        temp_dataset.projectId, temp_dataset.datasetId, True)
+
+    self.assertEqual(
+        bq._get_temp_table(temp_dataset.projectId),
+        bigquery.TableReference(
+            projectId=temp_dataset.projectId,
+            datasetId=temp_dataset.datasetId,
+            tableId=BigQueryWrapper.TEMP_TABLE + bq._temporary_table_suffix))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

@@ -16,11 +16,21 @@
  * limitations under the License.
  */
 
+import java.util.stream.Collectors
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
+
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2101": "2.10.1",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 def hive_version = "2.1.0"
 
@@ -67,5 +77,31 @@ dependencies {
   testCompile "org.apache.hive:hive-common:$hive_version"
   testCompile "org.apache.hive:hive-cli:$hive_version"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+  }
 }
 
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs HCatalog tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs HCatalog tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
+}

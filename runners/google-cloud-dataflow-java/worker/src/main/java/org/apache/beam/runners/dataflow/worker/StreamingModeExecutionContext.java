@@ -344,7 +344,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * The caller is responsible for the reader and should appropriately close it as required.
    */
   public UnboundedSource.UnboundedReader<?> getCachedReader() {
-    return readerCache.acquireReader(getComputationKey(), getWork().getCacheToken());
+    return readerCache.acquireReader(
+        getComputationKey(), getWork().getCacheToken(), getWork().getWorkToken());
   }
 
   public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
@@ -429,7 +430,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       }
       outputBuilder.setSourceBacklogBytes(backlogBytes);
 
-      readerCache.cacheReader(getComputationKey(), getWork().getCacheToken(), activeReader);
+      readerCache.cacheReader(
+          getComputationKey(), getWork().getCacheToken(), getWork().getWorkToken(), activeReader);
       activeReader = null;
     }
     return callbacks;
