@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
@@ -47,6 +48,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * on the schema.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on getter methods. */
   @VisibleForTesting
@@ -59,11 +64,6 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           .filter(ReflectUtils::isGetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forGetter)
-          .map(
-              t -> {
-                SchemaFieldName fieldName = t.getMethod().getAnnotation(SchemaFieldName.class);
-                return (fieldName != null) ? t.withName(fieldName.value()) : t;
-              })
           .collect(Collectors.toList());
     }
 
@@ -89,6 +89,22 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           .filter(ReflectUtils::isSetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forSetter)
+          .map(
+              t -> {
+                if (t.getMethod().getAnnotation(SchemaFieldName.class) != null) {
+                  throw new RuntimeException(
+                      String.format(
+                          "@SchemaFieldName can only be used on getters in Java Beans. Found on setter '%s'",
+                          t.getMethod().getName()));
+                }
+                if (t.getMethod().getAnnotation(SchemaCaseFormat.class) != null) {
+                  throw new RuntimeException(
+                      String.format(
+                          "@SchemaCaseFormat can only be used on getters in Java Beans. Found on setter '%s'",
+                          t.getMethod().getName()));
+                }
+                return t;
+              })
           .collect(Collectors.toList());
     }
 
@@ -110,12 +126,13 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
             typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
 
     // If there are no creator methods, then validate that we have setters for every field.
-    // Otherwise, we will have not way of creating the class.
+    // Otherwise, we will have no way of creating instances of the class.
     if (ReflectUtils.getAnnotatedCreateMethod(typeDescriptor.getRawType()) == null
         && ReflectUtils.getAnnotatedConstructor(typeDescriptor.getRawType()) == null) {
       JavaBeanUtils.validateJavaBean(
           GetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
-          SetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema));
+          SetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
+          schema);
     }
     return schema;
   }

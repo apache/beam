@@ -48,6 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * level is INFO, the default location is a file named dataflow-json.log within the system temporary
  * directory and the default file size is 1 GB.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowWorkerLoggingInitializer {
   private static final String ROOT_LOGGER_NAME = "";
 

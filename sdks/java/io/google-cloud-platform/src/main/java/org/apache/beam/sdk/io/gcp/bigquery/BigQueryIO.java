@@ -455,6 +455,9 @@ import org.slf4j.LoggerFactory;
  * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
  * </a> for security and permission related information specific to BigQuery.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryIO {
 
   /**
@@ -823,17 +826,14 @@ public class BigQueryIO {
 
     abstract @Nullable String getKmsKey();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract TypeDescriptor<T> getTypeDescriptor();
+    abstract @Nullable TypeDescriptor<T> getTypeDescriptor();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract ToBeamRowFunction<T> getToBeamRowFn();
+    abstract @Nullable ToBeamRowFunction<T> getToBeamRowFn();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract FromBeamRowFunction<T> getFromBeamRowFn();
+    abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
     abstract Boolean getUseAvroLogicalTypes();
 

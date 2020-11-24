@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses a random temporary Pubsub topic for synchronization.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestPubsubSignal implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(TestPubsubSignal.class);
   private static final String RESULT_TOPIC_NAME = "result";

@@ -43,6 +43,9 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> the type of the elements read from the source
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InMemoryReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryReader.class);
 
@@ -170,9 +173,8 @@ public class InMemoryReader<T> extends NativeReader<T> {
           SourceTranslationUtils.cloudPositionToReaderPosition(splitPosition));
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() {
+    public @Nullable DynamicSplitResult requestCheckpoint() {
       if (!tracker.trySplitAtPosition(lastReturnedIndex + 1)) {
         return null;
       }

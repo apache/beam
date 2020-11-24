@@ -30,6 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An implementation of the Beam Fn Logging Service over gRPC. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GrpcLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
     implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcLoggingService.class);

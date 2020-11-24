@@ -50,6 +50,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
@@ -66,6 +69,9 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
+    if (tableRef.getProjectId() == null) {
+      throw new NullPointerException(String.format("tableRef is missing projectId: %s", tableRef));
+    }
     return getTable(tableRef, null);
   }
 

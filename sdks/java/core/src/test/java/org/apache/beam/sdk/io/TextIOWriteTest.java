@@ -88,6 +88,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TextIO.Write}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TextIOWriteTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
@@ -122,9 +125,8 @@ public class TextIOWriteTest {
       return "";
     }
 
-    @Nullable
     @Override
-    public Coder<String> getDestinationCoder() {
+    public @Nullable Coder<String> getDestinationCoder() {
       return StringUtf8Coder.of();
     }
 
@@ -466,9 +468,8 @@ public class TextIOWriteTest {
   private static Function<List<String>, List<String>> removeHeaderAndFooter(
       final String header, final String footer) {
     return new Function<List<String>, List<String>>() {
-      @Nullable
       @Override
-      public List<String> apply(List<String> lines) {
+      public @Nullable List<String> apply(List<String> lines) {
         ArrayList<String> newLines = Lists.newArrayList(lines);
         if (header != null) {
           newLines.remove(0);

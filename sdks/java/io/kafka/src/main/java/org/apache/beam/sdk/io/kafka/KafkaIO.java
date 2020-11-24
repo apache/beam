@@ -43,6 +43,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
@@ -57,6 +59,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -69,6 +72,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -392,6 +396,10 @@ import org.slf4j.LoggerFactory;
  * incompatibility.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaIO {
 
   /**
@@ -471,6 +479,8 @@ public class KafkaIO {
    * usage and configuration.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
@@ -1221,9 +1231,22 @@ public class KafkaIO {
    * A {@link PTransform} to read from {@link KafkaSourceDescriptor}. See {@link KafkaIO} for more
    * information on usage and configuration. See {@link ReadFromKafkaDoFn} for more implementation
    * details.
+   *
+   * <p>During expansion, if {@link ReadSourceDescriptors#isCommitOffsetEnabled()} is {@code true},
+   * the transform will expand to:
+   *
+   * <pre>{@code
+   * PCollection<KafkaSourceDescriptor> --> ParDo(ReadFromKafkaDoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord>>) --> Reshuffle() --> Map(output KafkaRecord)
+   *                                                                                                                                         |
+   *                                                                                                                                         --> KafkaCommitOffset
+   * }</pre>
+   *
+   * . Note that this expansion is not supported when running with x-lang on Dataflow.
    */
   @Experimental(Kind.PORTABILITY)
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class ReadSourceDescriptors<K, V>
       extends PTransform<PCollection<KafkaSourceDescriptor>, PCollection<KafkaRecord<K, V>>> {
 
@@ -1231,35 +1254,28 @@ public class KafkaIO {
 
     abstract Map<String, Object> getConsumerConfig();
 
-    @Nullable
-    abstract Map<String, Object> getOffsetConsumerConfig();
+    abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
 
-    @Nullable
-    abstract DeserializerProvider getKeyDeserializerProvider();
+    abstract @Nullable DeserializerProvider getKeyDeserializerProvider();
 
-    @Nullable
-    abstract DeserializerProvider getValueDeserializerProvider();
+    abstract @Nullable DeserializerProvider getValueDeserializerProvider();
 
-    @Nullable
-    abstract Coder<K> getKeyCoder();
+    abstract @Nullable Coder<K> getKeyCoder();
 
-    @Nullable
-    abstract Coder<V> getValueCoder();
+    abstract @Nullable Coder<V> getValueCoder();
 
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
-    @Nullable
-    abstract SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
+    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
+        getExtractOutputTimestampFn();
 
-    @Nullable
-    abstract SerializableFunction<Instant, WatermarkEstimator<Instant>>
+    abstract @Nullable SerializableFunction<Instant, WatermarkEstimator<Instant>>
         getCreateWatermarkEstimatorFn();
 
     abstract boolean isCommitOffsetEnabled();
 
-    @Nullable
-    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
+    abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
 
@@ -1620,14 +1636,43 @@ public class KafkaIO {
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
-      Coder<KafkaRecord<K, V>> outputCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
-      PCollection<KafkaRecord<K, V>> output =
-          input.apply(ParDo.of(new ReadFromKafkaDoFn<K, V>(this))).setCoder(outputCoder);
-      // TODO(BEAM-10123): Add CommitOffsetTransform to expansion.
-      if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
-        throw new IllegalStateException("Offset committed is not supported yet");
+      Coder<KafkaRecord<K, V>> recordCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
+
+      try {
+        PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor =
+            input
+                .apply(ParDo.of(new ReadFromKafkaDoFn<K, V>(this)))
+                .setCoder(
+                    KvCoder.of(
+                        input
+                            .getPipeline()
+                            .getSchemaRegistry()
+                            .getSchemaCoder(KafkaSourceDescriptor.class),
+                        recordCoder));
+        if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
+          outputWithDescriptor =
+              outputWithDescriptor
+                  .apply(Reshuffle.viaRandomKey())
+                  .setCoder(
+                      KvCoder.of(
+                          input
+                              .getPipeline()
+                              .getSchemaRegistry()
+                              .getSchemaCoder(KafkaSourceDescriptor.class),
+                          recordCoder));
+          PCollection<Void> unused = outputWithDescriptor.apply(new KafkaCommitOffset<K, V>(this));
+          unused.setCoder(VoidCoder.of());
+        }
+        PCollection<KafkaRecord<K, V>> output =
+            outputWithDescriptor
+                .apply(
+                    MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {})
+                        .via(element -> element.getValue()))
+                .setCoder(recordCoder);
+        return output;
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e.getMessage());
       }
-      return output;
     }
 
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
@@ -1696,6 +1741,8 @@ public class KafkaIO {
    * more information on usage and configuration.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class WriteRecords<K, V>
       extends PTransform<PCollection<ProducerRecord<K, V>>, PDone> {
     // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
@@ -1980,6 +2027,8 @@ public class KafkaIO {
    * information on usage and configuration.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
     // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
     // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,

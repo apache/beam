@@ -65,6 +65,9 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** Integration Test utility for KafkaTableProvider implementations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 
@@ -79,9 +82,9 @@ public abstract class KafkaTableProviderIT {
 
   protected static final Schema TEST_TABLE_SCHEMA =
       Schema.builder()
-          .addNullableField("f_long", Schema.FieldType.INT64)
-          .addNullableField("f_int", Schema.FieldType.INT32)
-          .addNullableField("f_string", Schema.FieldType.STRING)
+          .addInt64Field("f_long")
+          .addInt32Field("f_int")
+          .addStringField("f_string")
           .build();
 
   protected abstract ProducerRecord<String, byte[]> generateProducerRecord(int i);
@@ -115,7 +118,7 @@ public abstract class KafkaTableProviderIT {
     Assert.assertTrue(rate2 > rate1);
   }
 
-  private String getKafkaPropertiesString() {
+  protected String getKafkaPropertiesString() {
     return "{ "
         + (getPayloadFormat() == null ? "" : "\"format\" : \"" + getPayloadFormat() + "\",")
         + "\"bootstrap.servers\" : \""
@@ -131,17 +134,16 @@ public abstract class KafkaTableProviderIT {
   public void testFake() throws InterruptedException {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     String createTableString =
-        "CREATE EXTERNAL TABLE kafka_table(\n"
-            + "f_long BIGINT, \n"
-            + "f_int INTEGER, \n"
-            + "f_string VARCHAR \n"
-            + ") \n"
-            + "TYPE 'kafka' \n"
-            + "LOCATION '"
-            + "'\n"
-            + "TBLPROPERTIES '"
-            + getKafkaPropertiesString()
-            + "'";
+        String.format(
+            "CREATE EXTERNAL TABLE kafka_table(\n"
+                + "f_long BIGINT NOT NULL, \n"
+                + "f_int INTEGER NOT NULL, \n"
+                + "f_string VARCHAR NOT NULL \n"
+                + ") \n"
+                + "TYPE 'kafka' \n"
+                + "LOCATION ''\n"
+                + "TBLPROPERTIES '%s'",
+            getKafkaPropertiesString());
     TableProvider tb = new KafkaTableProvider();
     BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
 

@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.hadoop.format;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -33,13 +36,24 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
 import org.elasticsearch.hadoop.mr.LinkedMapWritable;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * A test of {@link org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO.Read} on an independent
@@ -57,7 +71,8 @@ import org.junit.runners.JUnit4;
  *  "--elasticServerIp=1.2.3.4",
  *  "--elasticServerPort=port",
  *  "--elasticUserName=user",
- *  "--elasticPassword=mypass" ]'
+ *  "--elasticPassword=mypass",
+ *  "--withESContainer=false" ]'
  *  --tests org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOElasticIT
  *  -DintegrationTestRunner=direct
  * </pre>
@@ -67,6 +82,9 @@ import org.junit.runners.JUnit4;
  * invocation pipeline options.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFormatIOElasticIT implements Serializable {
 
   private static final String TRUE = "true";
@@ -74,10 +92,22 @@ public class HadoopFormatIOElasticIT implements Serializable {
   private static HadoopFormatIOTestOptions options;
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
+  private static ElasticsearchContainer elasticsearch;
+
   @BeforeClass
-  public static void setUp() {
+  public static void setUp() throws IOException {
     PipelineOptionsFactory.register(HadoopFormatIOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HadoopFormatIOTestOptions.class);
+    if (options.isWithTestcontainers()) {
+      setElasticsearchContainer();
+    }
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    if (elasticsearch != null) {
+      elasticsearch.stop();
+    }
   }
 
   /**
@@ -209,5 +239,54 @@ public class HadoopFormatIOElasticIT implements Serializable {
     conf.set("es.scroll.size", "400");
     conf.set("es.batch.size.bytes", "8mb");
     return conf;
+  }
+
+  private static void setElasticsearchContainer() throws IOException {
+    elasticsearch =
+        new ElasticsearchContainer(
+            DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch")
+                .withTag("7.9.2"));
+    elasticsearch.start();
+    options.setElasticUserName("");
+    options.setElasticPassword("");
+    options.setElasticServerIp(elasticsearch.getContainerIpAddress());
+    options.setElasticServerPort(elasticsearch.getMappedPort(9200));
+    prepareElasticIndex();
+  }
+
+  private static Map<String, String> createElasticRow(Integer i) {
+    Map<String, String> data = new HashMap<>();
+    data.put("User_Name", "User_Name" + i);
+    data.put("Item_Code", "" + i);
+    data.put("Txn_ID", "" + i);
+    data.put("Item_ID", "" + i);
+    data.put("last_updated", "" + (i * 1000));
+    data.put("Price", "" + i);
+    data.put("Title", "Title" + i);
+    data.put("Description", "Description" + i);
+    data.put("Age", "" + i);
+    data.put("Item_Name", "Item_Name" + i);
+    data.put("Item_Price", "" + i);
+    data.put("Availability", "" + (i % 2 == 0));
+    data.put("Batch_Num", "" + i);
+    data.put(
+        "Last_Ordered",
+        new DateTime(Instant.ofEpochSecond(i))
+            .toString(DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.000-0000")));
+    data.put("City", "City" + i);
+    return data;
+  }
+
+  private static void prepareElasticIndex() throws IOException {
+    RestHighLevelClient client =
+        new RestHighLevelClient(
+            RestClient.builder(
+                new HttpHost(
+                    options.getElasticServerIp(), options.getElasticServerPort(), "http")));
+
+    for (int i = 0; i < 1000; i++) {
+      IndexRequest request = new IndexRequest(ELASTIC_INDEX_NAME).source(createElasticRow(i));
+      client.index(request, RequestOptions.DEFAULT);
+    }
   }
 }

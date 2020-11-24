@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Use getSupportedUrns to get all urns this class supports.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ExecutionTimeMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 

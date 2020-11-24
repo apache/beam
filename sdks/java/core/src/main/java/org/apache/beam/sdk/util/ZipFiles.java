@@ -45,6 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
  * again.
  */
 @Internal
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class ZipFiles {
   private ZipFiles() {}
 

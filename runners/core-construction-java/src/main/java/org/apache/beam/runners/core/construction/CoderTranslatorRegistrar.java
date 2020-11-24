@@ -21,6 +21,9 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 
 /** A registrar of {@link Coder} URNs to the associated {@link CoderTranslator}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface CoderTranslatorRegistrar {
   /**
    * Returns a mapping of coder classes to the URN representing that coder.

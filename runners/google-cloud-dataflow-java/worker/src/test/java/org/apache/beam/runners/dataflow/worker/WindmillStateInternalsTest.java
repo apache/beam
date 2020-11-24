@@ -82,6 +82,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WindmillStateInternals}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindmillStateInternalsTest {
 
   private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");

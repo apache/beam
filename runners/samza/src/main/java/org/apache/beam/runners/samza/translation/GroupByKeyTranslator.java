@@ -53,6 +53,7 @@ import org.apache.samza.operators.MessageStream;
 import org.apache.samza.serializers.KVSerde;
 
 /** Translates {@link GroupByKey} to Samza {@link GroupByKeyOp}. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class GroupByKeyTranslator<K, InputT, OutputT>
     implements TransformTranslator<
         PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {

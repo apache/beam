@@ -98,6 +98,10 @@ import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 /** Supports translation between a Beam transform, and Spark's operations on DStreams. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class StreamingTransformTranslator {
 
   private StreamingTransformTranslator() {}
@@ -245,7 +249,7 @@ public final class StreamingTransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
-        Map<TupleTag<?>, PValue> pcs = context.getInputs(transform);
+        Map<TupleTag<?>, PCollection<?>> pcs = context.getInputs(transform);
         // since this is a streaming pipeline, at least one of the PCollections to "flatten" are
         // unbounded, meaning it represents a DStream.
         // So we could end up with an unbounded unified DStream.
@@ -460,7 +464,7 @@ public final class StreamingTransformTranslator {
                           sideInputMapping));
                 });
 
-        Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+        Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
           // Caching can cause Serialization, we need to code to bytes
           // more details in https://issues.apache.org/jira/browse/BEAM-2669
@@ -472,7 +476,7 @@ public final class StreamingTransformTranslator {
                   .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
         }
 
-        for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+        for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
           @SuppressWarnings("unchecked")
           JavaPairDStream<TupleTag<?>, WindowedValue<?>> filtered =
               all.filter(new TranslationUtils.TupleTagFilter(output.getKey()));

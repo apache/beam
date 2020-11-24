@@ -92,6 +92,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to RexNodes.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExpressionConverter {
 
   // Constants of pre-defined functions.
@@ -159,15 +162,15 @@ public class ExpressionConverter {
   private final RelOptCluster cluster;
   private final QueryParameters queryParams;
   private int nullParamCount = 0;
-  private final Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions;
+  final UserFunctionDefinitions userFunctionDefinitions;
 
   public ExpressionConverter(
       RelOptCluster cluster,
       QueryParameters params,
-      Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions) {
+      UserFunctionDefinitions userFunctionDefinitions) {
     this.cluster = cluster;
     this.queryParams = params;
-    this.userDefinedFunctions = userDefinedFunctions;
+    this.userFunctionDefinitions = userFunctionDefinitions;
   }
 
   /** Extract expressions from a project scan node. */
@@ -432,7 +435,7 @@ public class ExpressionConverter {
   public RexCall convertTableValuedFunction(
       RelNode input,
       TableValuedFunction tvf,
-      List<ResolvedNodes.ResolvedTVFArgument> argumentList,
+      List<ResolvedNodes.ResolvedFunctionArgument> argumentList,
       List<ResolvedColumn> inputTableColumns) {
     ResolvedColumn wmCol;
     // Handle builtin windowing TVF.
@@ -662,8 +665,8 @@ public class ExpressionConverter {
             convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
     } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
-      String fullName = functionCall.getFunction().getFullName();
-      ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(fullName);
+      ResolvedCreateFunctionStmt createFunctionStmt =
+          userFunctionDefinitions.sqlScalarFunctions.get(functionCall.getFunction().getNamePath());
       ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
       ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {

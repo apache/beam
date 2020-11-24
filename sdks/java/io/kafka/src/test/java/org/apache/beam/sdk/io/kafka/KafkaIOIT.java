@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
@@ -33,6 +34,8 @@ import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
@@ -44,6 +47,7 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -68,6 +72,9 @@ import org.junit.runners.JUnit4;
  * topic so that we could read them back after writing.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaIOIT {
 
   private static final String READ_TIME_METRIC_NAME = "read_time";
@@ -75,6 +82,8 @@ public class KafkaIOIT {
   private static final String WRITE_TIME_METRIC_NAME = "write_time";
 
   private static final String RUN_TIME_METRIC_NAME = "run_time";
+
+  private static final String READ_ELEMENT_METRIC_NAME = "kafka_read_element_count";
 
   private static final String NAMESPACE = KafkaIOIT.class.getName();
 
@@ -98,12 +107,7 @@ public class KafkaIOIT {
   public static void setup() throws IOException {
     options = IOITHelper.readIOTestPipelineOptions(Options.class);
     sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-    // Map of hashes of set size collections with 100b records - 10b key, 90b values.
-    Map<Long, String> expectedHashes =
-        ImmutableMap.of(
-            1000L, "4507649971ee7c51abbb446e65a5c660",
-            100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
-    expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
+
     settings =
         InfluxDBSettings.builder()
             .withHost(options.getInfluxHost())
@@ -113,7 +117,46 @@ public class KafkaIOIT {
   }
 
   @Test
-  public void testKafkaIOReadsAndWritesCorrectly() throws IOException {
+  public void testKafkaIOReadsAndWritesCorrectlyInStreaming() throws IOException {
+    // Use batch pipeline to write records.
+    writePipeline
+        .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply("Write to Kafka", writeToKafka());
+
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    readPipeline
+        .apply("Read from unbounded Kafka", readFromKafka())
+        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+        .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
+        .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    cancelIfTimeouted(readResult, readState);
+
+    assertEquals(
+        sourceOptions.numRecords,
+        readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+    Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
+    IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+    IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
+  }
+
+  @Test
+  public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException {
+    // Map of hashes of set size collections with 100b records - 10b key, 90b values.
+    Map<Long, String> expectedHashes =
+        ImmutableMap.of(
+            1000L, "4507649971ee7c51abbb446e65a5c660",
+            100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
+    expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
@@ -121,7 +164,7 @@ public class KafkaIOIT {
 
     PCollection<String> hashcode =
         readPipeline
-            .apply("Read from Kafka", readFromKafka())
+            .apply("Read from bounded Kafka", readFromBoundedKafka())
             .apply(
                 "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
             .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
@@ -141,6 +184,11 @@ public class KafkaIOIT {
     Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
     IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
     IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
+  }
+
+  private long readElementMetric(PipelineResult result, String namespace, String name) {
+    MetricsReader metricsReader = new MetricsReader(result, namespace);
+    return metricsReader.getCounterMetric(name);
   }
 
   private Set<NamedTestResult> readMetrics(PipelineResult writeResult, PipelineResult readResult) {
@@ -180,14 +228,30 @@ public class KafkaIOIT {
         .withValueSerializer(ByteArraySerializer.class);
   }
 
+  private KafkaIO.Read<byte[], byte[]> readFromBoundedKafka() {
+    return readFromKafka().withMaxNumRecords(sourceOptions.numRecords);
+  }
+
   private KafkaIO.Read<byte[], byte[]> readFromKafka() {
     return KafkaIO.readBytes()
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-        .withTopic(options.getKafkaTopic())
-        .withMaxNumRecords(sourceOptions.numRecords);
+        .withTopic(options.getKafkaTopic());
   }
 
+  private static class CountingFn extends DoFn<String, Void> {
+
+    private final Counter elementCounter;
+
+    CountingFn(String namespace, String name) {
+      elementCounter = Metrics.counter(namespace, name);
+    }
+
+    @ProcessElement
+    public void processElement() {
+      elementCounter.inc(1L);
+    }
+  }
   /** Pipeline options specific for this test. */
   public interface Options extends IOTestPipelineOptions, StreamingOptions {
 

@@ -25,6 +25,9 @@ import org.slf4j.LoggerFactory;
 
 /** Contains the configuration for the external library. */
 @DefaultCoder(AvroCoder.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExecutableFile {
 
   String fileName;

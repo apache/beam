@@ -23,6 +23,9 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beam
 import org.apache.commons.csv.CSVFormat;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaTableProviderCSVIT extends KafkaTableProviderIT {
   @Override
   protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {

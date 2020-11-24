@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -32,8 +34,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.Queue;
 import java.util.ServiceLoader;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
@@ -42,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
 
 /** Utilities for working with with {@link Class Classes} and {@link Method Methods}. */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReflectHelpers {
 
   private static final Joiner COMMA_SEPARATOR = Joiner.on(", ");
@@ -272,5 +277,61 @@ public class ReflectHelpers {
       it = it.getParent();
     }
     return false;
+  }
+
+  public static Collection<Method> declaredMethodsWithAnnotation(
+      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
+    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_METHODS);
+  }
+
+  public static Collection<Field> declaredFieldsWithAnnotation(
+      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
+    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_FIELDS);
+  }
+
+  private interface MemberGetter<MemberT> {
+    MemberT[] getMembers(Class<?> clazz);
+  }
+
+  private static final MemberGetter<Method> GET_METHODS = Class::getDeclaredMethods;
+
+  private static final MemberGetter<Field> GET_FIELDS = Class::getDeclaredFields;
+
+  private static <MemberT extends AnnotatedElement>
+      Collection<MemberT> declaredMembersWithAnnotation(
+          Class<? extends Annotation> anno,
+          Class<?> startClass,
+          Class<?> stopClass,
+          MemberGetter<MemberT> getter) {
+    Collection<MemberT> matches = new ArrayList<>();
+
+    Class<?> clazz = startClass;
+    LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
+
+    // First, find all declared methods on the startClass and parents (up to stopClass)
+    while (clazz != null && !clazz.equals(stopClass)) {
+      for (MemberT member : getter.getMembers(clazz)) {
+        if (member.isAnnotationPresent(anno)) {
+          matches.add(member);
+        }
+      }
+
+      // Add all interfaces, including transitive
+      for (TypeDescriptor<?> iface : TypeDescriptor.of(clazz).getInterfaces()) {
+        interfaces.add(iface.getRawType());
+      }
+
+      clazz = clazz.getSuperclass();
+    }
+
+    // Now, iterate over all the discovered interfaces
+    for (Class<?> iface : interfaces) {
+      for (MemberT member : getter.getMembers(iface)) {
+        if (member.isAnnotationPresent(anno)) {
+          matches.add(member);
+        }
+      }
+    }
+    return matches;
   }
 }

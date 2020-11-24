@@ -51,6 +51,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link PrimitiveBoundedRead SplittableParDo.PrimitiveBoundedRead} {@link PTransform}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   /**
    * The required minimum size of a source to dynamically split. Produced {@link TransformEvaluator

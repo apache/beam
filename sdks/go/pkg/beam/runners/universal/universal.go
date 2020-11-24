@@ -39,30 +39,31 @@ import (
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("universal", Execute)
+	beam.RegisterRunner("PortableRunner", Execute)
 }
 
 // Execute executes the pipeline on a universal beam runner.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	if !beam.Initialized() {
 		panic(fmt.Sprint("Beam has not been initialized. Call beam.Init() before pipeline construction."))
 	}
 
 	if *jobopts.Strict {
 		log.Info(ctx, "Strict mode enabled, applying additional validation.")
-		if err := vet.Execute(ctx, p); err != nil {
-			return errors.Wrap(err, "strictness check failed")
+		if _, err := vet.Execute(ctx, p); err != nil {
+			return nil, errors.Wrap(err, "strictness check failed")
 		}
 		log.Info(ctx, "Strict mode validation passed.")
 	}
 
 	endpoint, err := jobopts.GetEndpoint()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	edges, _, err := p.Build()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	envUrn := jobopts.GetEnvironmentUrn(ctx)
 	getEnvCfg := jobopts.GetEnvironmentConfig
@@ -71,7 +72,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		// TODO(BEAM-10610): Allow user configuration of this port, rather than kernel selected.
 		srv, err := extworker.StartLoopback(ctx, 0)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer srv.Stop(ctx)
 		getEnvCfg = srv.EnvironmentConfig
@@ -79,21 +80,15 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	enviroment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
 	if err != nil {
-		return errors.WithContextf(err, "generating model pipeline")
+		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
 	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
 	if err != nil {
-		return errors.WithContextf(err, "generating model pipeline")
+		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
 
 	// Fetch all dependencies for cross-language transforms
 	xlangx.ResolveArtifacts(ctx, edges, pipeline)
-
-	// Remap outputs of expanded transforms to be the inputs for all downstream consumers
-	xlangx.PurgeOutputInput(edges, pipeline)
-
-	// Merge the expanded components into the existing pipeline
-	xlangx.MergeExpandedWithPipeline(edges, pipeline)
 
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
@@ -102,7 +97,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Experiments:  jobopts.GetExperiments(),
 		Worker:       *jobopts.WorkerBinary,
 		RetainDocker: *jobopts.RetainDockerContainers,
+		Parallelism:  *jobopts.Parallelism,
 	}
-	_, err = runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
-	return err
+	presult, err := runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
+	return presult, err
 }

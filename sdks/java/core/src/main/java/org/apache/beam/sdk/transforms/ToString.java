@@ -29,6 +29,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
  * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
  * {@link ProcessFunction} using {@link MapElements#via(ProcessFunction)}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class ToString {
   private ToString() {
     // do not instantiate

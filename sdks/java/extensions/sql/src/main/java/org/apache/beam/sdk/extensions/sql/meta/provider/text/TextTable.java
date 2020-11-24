@@ -44,6 +44,9 @@ import org.slf4j.LoggerFactory;
  * <p>{@link CSVFormat} itself has many dialects, check its javadoc for more info.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TextTable extends SchemaBaseBeamTable {
 
   private final PTransform<PCollection<String>, PCollection<Row>> readConverter;

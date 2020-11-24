@@ -114,6 +114,10 @@ import org.joda.time.Instant;
 import org.slf4j.LoggerFactory;
 
 /** Run a single Nexmark query using a given configuration. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);
@@ -1097,10 +1101,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     Collections.sort(counts);
     int n = counts.size();
     if (n < 5) {
-      NexmarkUtils.console("Query%s: only %d samples", model.configuration.query, n);
+      NexmarkUtils.console("Query %s: only %d samples", model.configuration.query, n);
     } else {
       NexmarkUtils.console(
-          "Query%d: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
+          "Query %s: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
           model.configuration.query,
           n,
           counts.get(0),

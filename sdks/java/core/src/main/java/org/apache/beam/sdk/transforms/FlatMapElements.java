@@ -38,6 +38,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code PTransform}s for mapping a simple function that returns iterables over the elements of a
  * {@link PCollection} and merging the results.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlatMapElements<InputT, OutputT>
     extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   private final transient @Nullable TypeDescriptor<InputT> inputType;

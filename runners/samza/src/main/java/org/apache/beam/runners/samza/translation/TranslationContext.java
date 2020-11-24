@@ -65,6 +65,11 @@ import org.slf4j.LoggerFactory;
  * MessageStream}. It also provides other context data such as input and output of a {@link
  * PTransform}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class TranslationContext {
   private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
   private final StreamApplicationDescriptor appDescriptor;

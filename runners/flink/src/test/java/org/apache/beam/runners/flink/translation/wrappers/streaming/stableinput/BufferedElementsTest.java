@@ -35,6 +35,9 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for {@link BufferedElements}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class BufferedElementsTest {
 
   @Test

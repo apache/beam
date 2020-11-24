@@ -35,6 +35,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Implemen
 /** Implement {@link AggregateFunction} to take a {@link CombineFn} as UDAF. */
 @Experimental
 @Internal
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {
   private CombineFn<InputT, AccumT, OutputT> combineFn;

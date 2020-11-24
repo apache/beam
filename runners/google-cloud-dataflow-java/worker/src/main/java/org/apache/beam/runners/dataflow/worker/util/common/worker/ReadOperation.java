@@ -42,6 +42,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Its start() method iterates through all elements of the source and emits them on its output.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReadOperation extends Operation {
   private static final Logger LOG = LoggerFactory.getLogger(ReadOperation.class);
 

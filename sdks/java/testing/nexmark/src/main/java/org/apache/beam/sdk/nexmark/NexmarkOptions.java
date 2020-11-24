@@ -93,22 +93,22 @@ public interface NexmarkOptions
   void setOutputPath(String outputPath);
 
   @Description("Base name of pubsub topic to publish to in streaming mode.")
-  @Nullable
   @Default.String("nexmark")
+  @Nullable
   String getPubsubTopic();
 
   void setPubsubTopic(String pubsubTopic);
 
   @Description("Base name of pubsub subscription to read from in streaming mode.")
-  @Nullable
   @Default.String("nexmark")
+  @Nullable
   String getPubsubSubscription();
 
   void setPubsubSubscription(String pubsubSubscription);
 
   @Description("Base name of BigQuery table name if using BigQuery output.")
-  @Nullable
   @Default.String("nexmark")
+  @Nullable
   String getBigQueryTable();
 
   void setBigQueryTable(String bigQueryTable);
@@ -349,7 +349,7 @@ public interface NexmarkOptions
   @Nullable
   Integer getMaxAuctionsWaitingTime();
 
-  void setMaxAuctionsWaitingTime(Integer fanout);
+  void setMaxAuctionsWaitingTime(Integer maxAuctionsWaitingTime);
 
   @Description("Length of occasional delay to impose on events (in seconds).")
   @Nullable
@@ -414,28 +414,6 @@ public interface NexmarkOptions
   void setRunningTimeMinutes(Long value);
 
   @Description(
-      "If set and --monitorJobs is true, check that the system watermark is never more "
-          + "than this far behind real time")
-  @Nullable
-  Long getMaxSystemLagSeconds();
-
-  void setMaxSystemLagSeconds(Long value);
-
-  @Description(
-      "If set and --monitorJobs is true, check that the data watermark is never more "
-          + "than this far behind real time")
-  @Nullable
-  Long getMaxDataLagSeconds();
-
-  void setMaxDataLagSeconds(Long value);
-
-  @Description("Only start validating watermarks after this many seconds")
-  @Nullable
-  Long getWatermarkValidationDelaySeconds();
-
-  void setWatermarkValidationDelaySeconds(Long value);
-
-  @Description(
       "Specify 'sql' to use Calcite SQL queries "
           + "or 'zetasql' to use ZetaSQL queries."
           + "Otherwise Java transforms will be used")
@@ -445,15 +423,15 @@ public interface NexmarkOptions
   void setQueryLanguage(String value);
 
   @Description("Base name of Kafka events topic in streaming mode.")
-  @Nullable
   @Default.String("nexmark")
+  @Nullable
   String getKafkaTopic();
 
   void setKafkaTopic(String value);
 
   @Description("Base name of Kafka results topic in streaming mode.")
-  @Nullable
   @Default.String("nexmark-results")
+  @Nullable
   String getKafkaResultsTopic();
 
   void setKafkaResultsTopic(String value);
@@ -480,12 +458,6 @@ public interface NexmarkOptions
 
   void setNexmarkParallel(int value);
 
-  @Description("InfluxDB measurement to publish results to.")
-  @Nullable
-  String getInfluxMeasurement();
-
-  void setInfluxMeasurement(@Nullable String measurement);
-
   @Description("InfluxDB host.")
   @Nullable
   String getInfluxHost();
@@ -505,8 +477,8 @@ public interface NexmarkOptions
   void setExportSummaryToInfluxDB(boolean exportSummaryToInfluxDB);
 
   @Description("Base name of measurement name if using InfluxDB output.")
-  @Nullable
   @Default.String("nexmark")
+  @Nullable
   String getBaseInfluxMeasurement();
 
   void setBaseInfluxMeasurement(String influxDBMeasurement);

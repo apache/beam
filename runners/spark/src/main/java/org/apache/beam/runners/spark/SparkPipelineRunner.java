@@ -66,6 +66,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runs a portable pipeline on Apache Spark. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SparkPipelineRunner implements PortablePipelineRunner {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);

@@ -54,6 +54,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table;
  * <p>{@link Empty} is an override used in {@link JdbcDriver#connect(TableProvider,
  * org.apache.beam.sdk.options.PipelineOptions)} to avoid loading all available table providers.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BeamCalciteSchemaFactory {
 
   /**

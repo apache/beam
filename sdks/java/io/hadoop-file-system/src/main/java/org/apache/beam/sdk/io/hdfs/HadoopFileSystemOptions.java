@@ -41,7 +41,10 @@ import org.slf4j.LoggerFactory;
  * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration} for the
  * {@link HadoopFileSystem}.
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({
+  "WeakerAccess",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 @Experimental(Kind.FILESYSTEM)
 public interface HadoopFileSystemOptions extends PipelineOptions {
   @Description(
