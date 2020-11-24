@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.unnest;
 
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;

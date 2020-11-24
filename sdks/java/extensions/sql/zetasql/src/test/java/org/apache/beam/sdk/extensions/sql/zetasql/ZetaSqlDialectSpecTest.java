@@ -2504,7 +2504,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testUnnestArrayFieldOfNestedStructColumn() {
+  public void testUnnestStructOfStructOfArray() {
     String sql =
         "SELECT int_col, s FROM table_with_struct_of_struct_of_array, UNNEST(struct_col.struct.arr) as s";
 
@@ -2518,6 +2518,49 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(10L, "1").build(),
             Row.withSchema(schema).addValues(20L, "2").build(),
             Row.withSchema(schema).addValues(20L, "3").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestArrayOfStructOfStructColumn() {
+    String sql = "SELECT s.row FROM table_with_array_of_struct_of_struct, UNNEST(array_col) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addRowField("row", TestInput.STRUCT_SCHEMA).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(1L, "1").build())
+                .build(),
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(2L, "2").build())
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestArrayOfStructOfStructLiteral() {
+    String sql =
+        "SELECT s.row FROM UNNEST([STRUCT(STRUCT(1, '1') as row), STRUCT(STRUCT(2, '2'))]) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addRowField("row", TestInput.STRUCT_SCHEMA).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(1L, "1").build())
+                .build(),
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(2L, "2").build())
+                .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

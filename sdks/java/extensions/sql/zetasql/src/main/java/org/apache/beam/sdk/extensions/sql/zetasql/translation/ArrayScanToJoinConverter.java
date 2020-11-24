@@ -23,7 +23,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedColumnRef;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlUnnest;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.ZetaSqlUnnest;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.CorrelationId;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
