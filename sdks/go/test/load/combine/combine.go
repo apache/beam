@@ -56,7 +56,7 @@ func compareLess(key []byte, value []byte) bool {
 	return bytes.Compare(key, value) < 0
 }
 
-func getElement(ctx context.Context, key []byte, value []byte, emit func([]byte, []byte)) {
+func getElement(key []byte, value [][]byte, emit func([]byte, [][]byte)) {
 	emit(key, value)
 }
 
