@@ -116,6 +116,9 @@ class Index(Partitioning):
       yield key, df[hashes % num_partitions == key]
 
   def check(self, dfs):
+    # TODO(BEAM-11324): This check should be stronger, it should verify that
+    # running partition_fn on the concatenation of dfs yields the same
+    # partitions.
     if self._levels is None:
 
       def get_index_set(df):
