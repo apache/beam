@@ -1403,14 +1403,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def reset_index(self, level=None, **kwargs):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
-
     if level is None or len(level) == self._expr.proxy().index.nlevels:
       # TODO: Could do distributed re-index with offsets.
       requires_partition_by = partitionings.Singleton()
     else:
       requires_partition_by = partitionings.Nothing()
-
-
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'reset_index',
