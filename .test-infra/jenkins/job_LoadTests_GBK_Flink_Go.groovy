@@ -35,7 +35,7 @@ def batchScenarios = {
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
-        influx_namespace: 'flink',
+        influx_namespace   : 'flink',
         influx_measurement : 'go_batch_gbk_1',
         input_options      : '\'{' +
         '"num_records": 200000000,' +
@@ -55,7 +55,7 @@ def batchScenarios = {
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-2-${now}",
-        influx_namespace: 'flink',
+        influx_namespace   : 'flink',
         influx_measurement : 'go_batch_gbk_2',
         input_options      : '\'{' +
         '"num_records": 200000000,' +
@@ -75,12 +75,12 @@ def batchScenarios = {
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name            : "load-tests-go-flink-batch-gbk-3-${now}",
-        influx_namespace: 'flink',
+        influx_namespace    : 'flink',
         influx_measurement  : 'go_batch_gbk_3',
         iterations          : 1,
         fanout              : 1,
         parallelism         : 5,
-        input_options      : '\'{' +
+        input_options       : '\'{' +
         '"num_records": 20000,' +
         '"key_size": 10000,' +
         '"value_size": 90000}\'',
@@ -95,7 +95,7 @@ def batchScenarios = {
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-4-${now}",
-        influx_namespace: 'flink',
+        influx_namespace   : 'flink',
         influx_measurement : 'go_batch_gbk_4',
         iterations         : 1,
         fanout             : 4,
@@ -115,7 +115,7 @@ def batchScenarios = {
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-5-${now}",
-        influx_namespace: 'flink',
+        influx_namespace   : 'flink',
         influx_measurement : 'go_batch_gbk_5',
         iterations         : 1,
         fanout             : 8,
@@ -135,7 +135,7 @@ def batchScenarios = {
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-6-${now}",
-        influx_namespace: 'flink',
+        influx_namespace   : 'flink',
         influx_measurement : 'go_batch_gbk_6',
         iterations         : 4,
         fanout             : 1,
@@ -157,7 +157,7 @@ def batchScenarios = {
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-7-${now}",
-        influx_namespace: 'flink',
+        influx_namespace   : 'flink',
         influx_measurement : 'go_batch_gbk_7',
         iterations         : 4,
         fanout             : 1,
