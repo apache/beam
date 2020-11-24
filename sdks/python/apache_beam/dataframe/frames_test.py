@@ -30,7 +30,7 @@ from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(self, func, *args, distributed=False):
+  def _run_test(self, func, *args, distributed=True):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
@@ -93,42 +93,36 @@ class DeferredFrameTest(unittest.TestCase):
         'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
         'value': [None if i % 11 == 0 else i for i in range(100)]
     })
-    self._run_test(
-        lambda df: df.groupby('group').agg(sum), df, distributed=True)
-    self._run_test(lambda df: df.groupby('group').sum(), df, distributed=True)
-    self._run_test(
-        lambda df: df.groupby('group').median(), df, distributed=True)
-    self._run_test(lambda df: df.groupby('group').size(), df, distributed=True)
-    self._run_test(lambda df: df.groupby('group').count(), df, distributed=True)
-    self._run_test(lambda df: df.groupby('group').max(), df, distributed=True)
-    self._run_test(lambda df: df.groupby('group').min(), df, distributed=True)
-    self._run_test(lambda df: df.groupby('group').mean(), df, distributed=True)
+    self._run_test(lambda df: df.groupby('group').agg(sum), df)
+    self._run_test(lambda df: df.groupby('group').sum(), df)
+    self._run_test(lambda df: df.groupby('group').median(), df)
+    self._run_test(lambda df: df.groupby('group').size(), df)
+    self._run_test(lambda df: df.groupby('group').count(), df)
+    self._run_test(lambda df: df.groupby('group').max(), df)
+    self._run_test(lambda df: df.groupby('group').min(), df)
+    self._run_test(lambda df: df.groupby('group').mean(), df)
 
-    self._run_test(
-        lambda df: df[df.value > 30].groupby('group').sum(),
-        df,
-        distributed=True)
-    self._run_test(
-        lambda df: df[df.value > 30].groupby('group').mean(),
-        df,
-        distributed=True)
-    self._run_test(
-        lambda df: df[df.value > 30].groupby('group').size(),
-        df,
-        distributed=True)
+    self._run_test(lambda df: df[df.value > 30].groupby('group').sum(), df)
+    self._run_test(lambda df: df[df.value > 30].groupby('group').mean(), df)
+    self._run_test(lambda df: df[df.value > 30].groupby('group').size(), df)
 
-    self._run_test(
-        lambda df: df[df.value > 40].groupby(df.group).sum(),
-        df,
-        distributed=True)
-    self._run_test(
-        lambda df: df[df.value > 40].groupby(df.group).mean(),
-        df,
-        distributed=True)
-    self._run_test(
-        lambda df: df[df.value > 40].groupby(df.group).size(),
-        df,
-        distributed=True)
+    # Grouping by a series is not currently supported
+    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).sum(), df)
+    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).mean(), df)
+    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).size(), df)
+
+    # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
+    arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
+              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
+
+    index = pd.MultiIndex.from_arrays(arrays, names=['first', 'second'])
+
+    df = pd.DataFrame({
+        'A': [1, 1, 1, 1, 2, 2, 3, 3], 'B': np.arange(8)
+    },
+                      index=index)
+
+    self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
 
   @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
@@ -160,24 +154,24 @@ class DeferredFrameTest(unittest.TestCase):
 
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
-    self._run_test(lambda s: s[...], s, distributed=True)
-    self._run_test(lambda s: s[:], s, distributed=True)
-    self._run_test(lambda s: s[s < 10], s, distributed=True)
-    self._run_test(lambda s: s[lambda s: s < 10], s, distributed=True)
+    self._run_test(lambda s: s[...], s)
+    self._run_test(lambda s: s[:], s)
+    self._run_test(lambda s: s[s < 10], s)
+    self._run_test(lambda s: s[lambda s: s < 10], s)
 
     s.index = s.index.map(float)
-    self._run_test(lambda s: s[1.5:6], s, distributed=True)
+    self._run_test(lambda s: s[1.5:6], s)
 
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
-    self._run_test(lambda df: df['A'], df, distributed=True)
-    self._run_test(lambda df: df[['A', 'B']], df, distributed=True)
+    self._run_test(lambda df: df['A'], df)
+    self._run_test(lambda df: df[['A', 'B']], df)
 
-    self._run_test(lambda df: df[:], df, distributed=True)
-    self._run_test(lambda df: df[df.A < 10], df, distributed=True)
+    self._run_test(lambda df: df[:], df)
+    self._run_test(lambda df: df[df.A < 10], df)
 
     df.index = df.index.map(float)
-    self._run_test(lambda df: df[1.5:4], df, distributed=True)
+    self._run_test(lambda df: df[1.5:4], df)
 
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
@@ -222,27 +216,23 @@ class DeferredFrameTest(unittest.TestCase):
     for s in [pd.Series([1, 2, 3]),
               pd.Series(range(100)),
               pd.Series([x**3 for x in range(-50, 50)])]:
-      self._run_test(lambda s: s.std(), s, distributed=True)
-      self._run_test(lambda s: s.corr(s), s, distributed=True)
-      self._run_test(lambda s: s.corr(s + 1), s, distributed=True)
-      self._run_test(lambda s: s.corr(s * s), s, distributed=True)
-      self._run_test(lambda s: s.cov(s * s), s, distributed=True)
+      self._run_test(lambda s: s.std(), s)
+      self._run_test(lambda s: s.corr(s), s)
+      self._run_test(lambda s: s.corr(s + 1), s)
+      self._run_test(lambda s: s.corr(s * s), s)
+      self._run_test(lambda s: s.cov(s * s), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     df.loc[df.index[:5], 'a'] = np.nan
     df.loc[df.index[5:10], 'b'] = np.nan
-    self._run_test(lambda df: df.corr().round(8), df, distributed=True)
-    self._run_test(lambda df: df.cov().round(8), df, distributed=True)
+    self._run_test(lambda df: df.corr().round(8), df)
+    self._run_test(lambda df: df.cov().round(8), df)
+    self._run_test(lambda df: df.corr(min_periods=12).round(8), df)
+    self._run_test(lambda df: df.cov(min_periods=12).round(8), df)
+    self._run_test(lambda df: df.corrwith(df.a).round(8), df)
     self._run_test(
-        lambda df: df.corr(min_periods=12).round(8), df, distributed=True)
-    self._run_test(
-        lambda df: df.cov(min_periods=12).round(8), df, distributed=True)
-    self._run_test(lambda df: df.corrwith(df.a).round(8), df, distributed=True)
-    self._run_test(
-        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8),
-        df,
-        distributed=True)
+        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8), df)
 
   def test_categorical_groupby(self):
     df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
@@ -251,10 +241,8 @@ class DeferredFrameTest(unittest.TestCase):
     # TODO(BEAM-11190): These aggregations can be done in index partitions, but
     # it will require a little more complex logic
     with beam.dataframe.allow_non_parallel_operations():
-      self._run_test(lambda df: df.groupby(level=0).sum(), df, distributed=True)
-      self._run_test(
-          lambda df: df.groupby(level=0).mean(), df, distributed=True)
-
+      self._run_test(lambda df: df.groupby(level=0).sum(), df)
+      self._run_test(lambda df: df.groupby(level=0).mean(), df)
 
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
