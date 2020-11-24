@@ -30,19 +30,17 @@ String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 def batchScenarios = {
   [
     [
-      title          : 'Load test: 2GB of 10B records',
+      title          : 'Group By Key Go Load test: 2GB of 10B records',
       test           : 'combine',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
         job_name             : "load-tests-go-flink-batch-combine-1-${now}",
+        influx_namespace     : 'flink',
         influx_measurement   : 'go_batch_combine_1',
-        input_options        : """
-                                   {
-                                     "num_records": 200000000,
-                                     "key_size": 1,
-                                     "value_size": 9
-                                   }
-                               """.trim().replaceAll("\\s", ""),
+        input_options        : '\'{' +
+        '"num_records": 200000000,' +
+        '"key_size": 1,' +
+        '"value_size": 9}\'',
         fanout               : 1,
         top_count            : 20,
         parallelism          : 5,
@@ -52,19 +50,17 @@ def batchScenarios = {
       ]
     ],
     [
-      title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+      title          : 'Group By Key Go Load test: fanout 4 times with 2GB 10-byte records total',
       test           : 'combine',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name             : "load-tests-go-flink-batch-combine-1-${now}",
-        influx_measurement   : 'go_batch_combine_1',
-        input_options        : """
-                                   {
-                                     "num_records": 5000000,
-                                     "key_size": 10,
-                                     "value_size": 90
-                                   }
-                               """.trim().replaceAll("\\s", ""),
+        job_name             : "load-tests-go-flink-batch-combine-2-${now}",
+        influx_namespace     : 'flink',
+        influx_measurement   : 'go_batch_combine_2',
+        input_options        : '\'{' +
+        '"num_records": 5000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
         fanout               : 4,
         top_count            : 20,
         parallelism          : 16,
@@ -74,22 +70,20 @@ def batchScenarios = {
       ]
     ],
     [
-      title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+      title          : 'Group By Key Go Load test: fanout 8 times with 2GB 10-byte records total',
       test           : 'combine',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name             : "load-tests-go-flink-batch-combine-1-${now}",
-        influx_measurement   : 'go_batch_combine_1',
+        job_name             : "load-tests-go-flink-batch-combine-3-${now}",
+        influx_namespace     : 'flink',
+        influx_measurement   : 'go_batch_combine_3',
         fanout               : 8,
         top_count            : 20,
         parallelism          : 16,
-        input_options        : """
-                                   {
-                                     "num_records": 2500000,
-                                     "key_size": 10,
-                                     "value_size": 90
-                                   }
-                               """.trim().replaceAll("\\s", ""),
+        input_options        : '\'{' +
+        '"num_records": 2500000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
         endpoint             : 'localhost:8099',
         environment_type     : 'DOCKER',
         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
@@ -99,17 +93,28 @@ def batchScenarios = {
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
-  def numberOfWorkers = 5
+  Map<Integer, List> testScenariosByParallelism = batchScenarios().groupBy { test ->
+    test.pipelineOptions.parallelism
+  }
+  Integer initialParallelism = testScenariosByParallelism.keySet().iterator().next()
+  List initialScenarios = testScenariosByParallelism.remove(initialParallelism)
 
-  Flink flink = new Flink(scope, "beam_LoadTests_Go_Combine_Flink_${mode.capitalize()}")
+  def flink = new Flink(scope, "beam_LoadTests_Go_Combine_Flink_${mode.capitalize()}")
   flink.setUp(
       [
         "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
       ],
-      numberOfWorkers,
+      initialParallelism,
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, batchScenarios(), 'combine', mode)
+  // Execute all scenarios connected with initial parallelism.
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, initialScenarios, 'combine', mode)
+
+  // Execute the rest of scenarios.
+  testScenariosByParallelism.each { parallelism, scenarios ->
+    flink.scaleCluster(parallelism)
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, scenarios, 'combine', mode)
+  }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
