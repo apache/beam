@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.gson.JsonParser;
 import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.pubsub.*;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.joda.time.Duration;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -41,7 +43,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 @RunWith(Parameterized.class)
@@ -52,7 +53,7 @@ public class FhirIOSearchIT {
 
     @Parameters(name = "{0}")
     public static Collection<String> versions() {
-        return Arrays.asList("DSTU2", "STU3", "R4");
+        return Arrays.asList("R4");
     }
 
     @Rule
@@ -66,7 +67,7 @@ public class FhirIOSearchIT {
     private transient HealthcareApiClient client;
     private static String healthcareDataset;
     private static final String BASE_STORE_ID =
-            "FHIR_store_search" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
+            "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
     private String fhirStoreId;
     private PubsubClient pubsub;
     private TestPubsubOptions pipelineOptions;
@@ -126,8 +127,8 @@ public class FhirIOSearchIT {
     @AfterClass
     public static void teardown() throws IOException {
         HealthcareApiClient client = new HttpHealthcareApiClient();
-        for (String  version : versions()) {
-            client.deleteFhirStore(BASE_STORE_ID + version);
+        for (String version : versions()) {
+            client.deleteFhirStore(healthcareDataset + "/fhirStores/" + BASE_STORE_ID + version);
         }
     }
 
@@ -139,8 +140,8 @@ public class FhirIOSearchIT {
         FhirIO.Read.Result resources = pipeline
                 .apply(PubsubIO.readStrings().fromSubscription(pubsubSubscription))
                 .apply(FhirIO.readResources());
-        HashMap<String, String> searchParameters = new HashMap<String, String>();
-        searchParameters.put("_count", Integer.toString(5)); // Ensure that pagination is tested
+        HashMap<String, String> searchParameters = new HashMap<>();
+        searchParameters.put("_count", Integer.toString(100)); // Ensure that pagination is tested
         PCollection<KV<String, Map<String, String>>> searchConfigs = resources.getResources().apply("ExtractResourceTypes",
                 MapElements.into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.maps(TypeDescriptors.strings(), TypeDescriptors.strings())))
                         .via((String resource) -> KV.of(JsonParser.parseString(resource).getAsJsonObject().get("resourceType").getAsString(), searchParameters)));
@@ -158,6 +159,6 @@ public class FhirIOSearchIT {
                             return null;
                         });
 
-        pipeline.run().waitUntilFinish();
+        pipeline.run().waitUntilFinish(Duration.standardMinutes(3));
     }
 }
