@@ -29,14 +29,14 @@ import (
 )
 
 var (
-	fanout          = flag.Int(
+	fanout = flag.Int(
 		"fanout",
 		1,
 		"A number of combine operations to perform in parallel.")
-	topCount        = flag.Int(
+	topCount = flag.Int(
 		"top_count",
 		20,
-		"A number passed to the combiner.")
+		"A number of greatest elements to extract from the PCollection.")
 	syntheticConfig = flag.String(
 		"input_options",
 		"",
@@ -52,8 +52,12 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 	}
 }
 
-func CompareLess(key []byte, value []byte) bool {
+func compareLess(key []byte, value []byte) bool {
 	return bytes.Compare(key, value) < 0
+}
+
+func getElement(ctx context.Context, key []byte, value []byte, emit func([]byte, []byte)) {
+	emit(key, value)
 }
 
 func main() {
@@ -66,7 +70,9 @@ func main() {
 	src := synthetic.SourceSingle(s, parseSyntheticConfig())
 	pcoll := beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	for i := 0; i < *fanout; i++ {
-		pcoll = top.LargestPerKey(s, pcoll, *topCount, CompareLess)
+		pcoll = top.LargestPerKey(s, pcoll, *topCount, compareLess)
+		pcoll = beam.ParDo(s, getElement, pcoll)
+		pcoll = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	}
 
 	presult, err := beamx.RunWithMetrics(ctx, p)

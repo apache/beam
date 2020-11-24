@@ -30,7 +30,7 @@ String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 def batchScenarios = {
   [
     [
-      title          : 'Group By Key Go Load test: 2GB of 10B records',
+      title          : 'Combine Go Load test: 2GB of 10B records',
       test           : 'combine',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
@@ -50,13 +50,13 @@ def batchScenarios = {
       ]
     ],
     [
-      title          : 'Group By Key Go Load test: fanout 4 times with 2GB 10-byte records total',
+      title          : 'Combine Go Load test: fanout 4 times with 2GB 10-byte records total',
       test           : 'combine',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name             : "load-tests-go-flink-batch-combine-2-${now}",
+        job_name             : "load-tests-go-flink-batch-combine-4-${now}",
         influx_namespace     : 'flink',
-        influx_measurement   : 'go_batch_combine_2',
+        influx_measurement   : 'go_batch_combine_4',
         input_options        : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
@@ -70,13 +70,13 @@ def batchScenarios = {
       ]
     ],
     [
-      title          : 'Group By Key Go Load test: fanout 8 times with 2GB 10-byte records total',
+      title          : 'Combine Go Load test: fanout 8 times with 2GB 10-byte records total',
       test           : 'combine',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name             : "load-tests-go-flink-batch-combine-3-${now}",
+        job_name             : "load-tests-go-flink-batch-combine-5-${now}",
         influx_namespace     : 'flink',
-        influx_measurement   : 'go_batch_combine_3',
+        influx_measurement   : 'go_batch_combine_5',
         fanout               : 8,
         top_count            : 20,
         parallelism          : 16,
@@ -127,7 +127,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Go_Combine_Flink_Batch', 'H 10 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Go_Combine_Flink_Batch', 'H 8 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
