@@ -244,6 +244,7 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.groupby(level=0).sum(), df)
       self._run_test(lambda df: df.groupby(level=0).mean(), df)
 
+
 class AllowNonParallelTest(unittest.TestCase):
   def _use_non_parallel_operation(self):
     _ = frame_base.DeferredFrame.wrap(
