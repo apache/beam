@@ -23,11 +23,11 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderMalfunctionError;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.Formatter;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -86,7 +86,7 @@ class JulHandlerPrintStreamAdapterFactory {
       this.logger = Logger.getLogger(loggerName);
       this.buffer = new StringBuilder();
       this.decoder =
-          Charset.defaultCharset()
+          StandardCharsets.UTF_8
               .newDecoder()
               .onMalformedInput(CodingErrorAction.REPLACE)
               .onUnmappableCharacter(CodingErrorAction.REPLACE);

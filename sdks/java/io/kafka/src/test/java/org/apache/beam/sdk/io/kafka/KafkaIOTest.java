@@ -41,7 +41,7 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1408,7 +1408,7 @@ public class KafkaIOTest {
         assertEquals(1, headersArray.length);
         assertEquals(header.getKey(), headersArray[0].key());
         assertEquals(
-            header.getValue(), new String(headersArray[0].value(), Charset.defaultCharset()));
+            header.getValue(), new String(headersArray[0].value(), StandardCharsets.UTF_8));
       }
     }
   }
@@ -1491,7 +1491,7 @@ public class KafkaIOTest {
         headers =
             Arrays.asList(
                 new RecordHeader(
-                    header.getKey(), header.getValue().getBytes(Charset.defaultCharset())));
+                    header.getKey(), header.getValue().getBytes(StandardCharsets.UTF_8)));
       }
       if (isSingleTopic) {
         ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue(), headers));
