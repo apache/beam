@@ -33,9 +33,9 @@ def batchScenarios = {
       title          : 'Group By Key Go Load test: 2GB of 10B records',
       test           : 'group_by_key',
       runner         : CommonTestProperties.Runner.FLINK,
-      influx_namespace: 'flink',
       pipelineOptions: [
         job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
+        influx_namespace: 'flink',
         influx_measurement : 'go_batch_gbk_1',
         input_options      : '\'{' +
         '"num_records": 200000000,' +
@@ -53,10 +53,10 @@ def batchScenarios = {
       title          : 'Group By Key Go Load test: 2GB of 100B records',
       test           : 'group_by_key',
       runner         : CommonTestProperties.Runner.FLINK,
-      influx_namespace: 'flink',
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
-        influx_measurement : 'go_batch_gbk_1',
+        job_name           : "load-tests-go-flink-batch-gbk-2-${now}",
+        influx_namespace: 'flink',
+        influx_measurement : 'go_batch_gbk_2',
         input_options      : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 10,' +
@@ -73,10 +73,10 @@ def batchScenarios = {
       title          : 'Group By Key Go Load test: 2GB of 100kB records',
       test           : 'group_by_key',
       runner         : CommonTestProperties.Runner.FLINK,
-      influx_namespace: 'flink',
       pipelineOptions: [
-        job_name            : "load-tests-go-flink-batch-gbk-1-${now}",
-        influx_measurement  : 'go_batch_gbk_1',
+        job_name            : "load-tests-go-flink-batch-gbk-3-${now}",
+        influx_namespace: 'flink',
+        influx_measurement  : 'go_batch_gbk_3',
         iterations          : 1,
         fanout              : 1,
         parallelism         : 5,
@@ -93,10 +93,10 @@ def batchScenarios = {
       title          : 'Group By Key Go Load test: fanout 4 times with 2GB 10-byte records total',
       test           : 'group_by_key',
       runner         : CommonTestProperties.Runner.FLINK,
-      influx_namespace: 'flink',
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
-        influx_measurement : 'go_batch_gbk_1',
+        job_name           : "load-tests-go-flink-batch-gbk-4-${now}",
+        influx_namespace: 'flink',
+        influx_measurement : 'go_batch_gbk_4',
         iterations         : 1,
         fanout             : 4,
         parallelism        : 16,
@@ -113,10 +113,10 @@ def batchScenarios = {
       title          : 'Group By Key Go Load test: fanout 8 times with 2GB 10-byte records total',
       test           : 'group_by_key',
       runner         : CommonTestProperties.Runner.FLINK,
-      influx_namespace: 'flink',
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
-        influx_measurement : 'go_batch_gbk_1',
+        job_name           : "load-tests-go-flink-batch-gbk-5-${now}",
+        influx_namespace: 'flink',
+        influx_measurement : 'go_batch_gbk_5',
         iterations         : 1,
         fanout             : 8,
         parallelism        : 16,
@@ -133,10 +133,10 @@ def batchScenarios = {
       title          : 'Group By Key Go Load test: reiterate 4 times 10kB values',
       test           : 'group_by_key',
       runner         : CommonTestProperties.Runner.FLINK,
-      influx_namespace: 'flink',
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
-        influx_measurement : 'go_batch_gbk_1',
+        job_name           : "load-tests-go-flink-batch-gbk-6-${now}",
+        influx_namespace: 'flink',
+        influx_measurement : 'go_batch_gbk_6',
         iterations         : 4,
         fanout             : 1,
         parallelism        : 5,
@@ -155,10 +155,10 @@ def batchScenarios = {
       title          : 'Group By Key Go Load test: reiterate 4 times 2MB values',
       test           : 'group_by_key',
       runner         : CommonTestProperties.Runner.FLINK,
-      influx_namespace: 'flink',
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-gbk-1-${now}",
-        influx_measurement : 'go_batch_gbk_1',
+        job_name           : "load-tests-go-flink-batch-gbk-7-${now}",
+        influx_namespace: 'flink',
+        influx_measurement : 'go_batch_gbk_7',
         iterations         : 4,
         fanout             : 1,
         parallelism        : 5,
