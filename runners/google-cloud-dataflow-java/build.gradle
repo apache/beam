@@ -114,9 +114,9 @@ dependencies {
   googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
 }
 
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
-def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
+ext.dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+ext.dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+ext.dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
 def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
@@ -318,40 +318,6 @@ task validatesRunnerStreaming {
     ]
   ))
 }
-
-task setupXVR {
-  dependsOn buildAndPushDockerContainer
-}
-
-createCrossLanguageValidatesRunnerTask(
-  startJobServer: setupXVR,
-  cleanupJobServer: cleanUpDockerImages,
-  classpath: configurations.validatesRunner,
-  numParallelTests: Integer.MAX_VALUE,
-  needsSdkLocation: true,
-  pythonPipelineOptions: [
-    "--runner=TestDataflowRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
-    "--sdk_harness_container_image_overrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=use_runner_v2",
-  ],
-  javaPipelineOptions: [
-    "--runner=TestDataflowRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
-    "--tempRoot=${dataflowValidatesTempRoot}",
-    "--sdkHarnessContainerImageOverrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=use_runner_v2",
-  ],
-  nosetestsOptions: [
-    "--nocapture",
-    "--processes=8",
-    "--process-timeout=4500",
-    // TODO: enable after fixing BEAM-10507
-    "--exclude=test_xlang_parquetio_write|test_flatten",
-  ]
-)
 
 task validatesRunnerV2 {
   group = "Verification"
