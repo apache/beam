@@ -68,9 +68,9 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 	src := synthetic.SourceSingle(s, parseSyntheticConfig())
-	pcoll := beam.ParDo(s, &load.RuntimeMonitor{}, src)
+	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	for i := 0; i < *fanout; i++ {
-		pcoll = top.LargestPerKey(s, pcoll, *topCount, compareLess)
+		pcoll := top.LargestPerKey(s, src, *topCount, compareLess)
 		pcoll = beam.ParDo(s, getElement, pcoll)
 		pcoll = beam.ParDo(s, &load.RuntimeMonitor{}, pcoll)
 	}
