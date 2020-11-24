@@ -56,8 +56,8 @@ func compareLess(key []byte, value []byte) bool {
 	return bytes.Compare(key, value) < 0
 }
 
-func getElement(key []byte, value [][]byte, emit func([]byte, [][]byte)) {
-	emit(key, value)
+func getElement(key []byte, value [][]byte, emit func([]byte, []byte)) {
+	emit(key, value[0])
 }
 
 func main() {
