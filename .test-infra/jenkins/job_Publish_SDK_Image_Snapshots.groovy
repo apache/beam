@@ -17,36 +17,39 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import static PythonTestProperties.SUPPORTED_CONTAINER_TASKS
+import static JavaTestProperties.SUPPORTED_CONTAINER_TASKS as SUPPORTED_JAVA_CONTAINER_TASKS
+import static PythonTestProperties.SUPPORTED_CONTAINER_TASKS as SUPPORTED_PYTHON_CONTAINER_TASKS
 
-job('beam_Publish_Docker_Snapshots') {
-  description('Builds SDK harness images and job server images for testing purposes.')
+// This job publishes regular snapshots of the SDK harness containers for
+// testing purposes. It builds and pushes the SDK container to the
+// specified GCR repo, tagged at the current Git commit.
+job('beam_Publish_Beam_SDK_Snapshots') {
+  description('Builds SDK harness images snapshots regularly for testing purposes.')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Allows triggering this build against pull requests.
-  commonJobProperties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Beam Publish Docker Snapshots',
-      'Publish Docker Snapshots',
-      false
-      )
+  // Runs once every four hours.
+  commonJobProperties.setAutoJob(delegate, 'H H/4 * * *')
 
-  // Runs once per day.
-  commonJobProperties.setAutoJob(delegate, 'H 10 * * *')
+  // Use jenkins env var interpolation - leave in single quotes
+  def imageRepo = 'gcr.io/apache-beam-testing/beam-sdk'
+  def imageTag = '${GIT_COMMIT}'
 
   steps {
+    shell("echo 'Pushing SDK snapshots to ${imageRepo} at tag: ${imageTag}'")
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
-      SUPPORTED_CONTAINER_TASKS.each { taskVer ->
+      tasks(':sdks:go:container:dockerPush')
+      SUPPORTED_JAVA_CONTAINER_TASKS.each { taskVer ->
+        tasks(":sdks:java:container:${taskVer}:dockerPush")
+      }
+      SUPPORTED_PYTHON_CONTAINER_TASKS.each { taskVer ->
         tasks(":sdks:python:container:${taskVer}:dockerPush")
       }
-      tasks(':sdks:go:container:dockerPush')
-      tasks(':runners:flink:1.10:job-server-container:dockerPush')
-      switches("-Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability")
-      switches("-Pdocker-tag=latest")
+      switches("-Pdocker-repository-root=${imageRepo}")
+      switches("-Pdocker-tag=${imageTag}")
     }
   }
 }
