@@ -259,6 +259,11 @@ Integer values in the `TableRow` objects are encoded as strings to match
 BigQuery's exported JSON format.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+***Note:*** `BigQuerySource()` is deprecated as of Beam SDK 2.25.0. Before 2.25.0, to read from
+a BigQuery table using the Beam SDK, you will apply a `Read` transform on a `BigQuerySource`. For example,
+`beam.io.Read(beam.io.BigQuerySource(table_spec))`.
+{{< /paragraph >}}
 
 ### Reading from a table
 
