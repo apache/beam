@@ -237,6 +237,8 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
+                # Grouping by a series is not supported
+                'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.reindex': ['*'],
         },
