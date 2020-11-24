@@ -17,15 +17,17 @@
  */
 
 class PythonTestProperties {
-  final static String LOWEST_SUPPORTED = '3.6'
-  final static String HIGHEST_SUPPORTED = '3.8'
+  // Indicates all supported Python versions.
+  // This must be sorted in ascending order.
+  final static List<String> ALL_SUPPORTED_VERSIONS = [
+    '3.6',
+    '3.7',
+    '3.8'
+  ]
+  final static String LOWEST_SUPPORTED = ALL_SUPPORTED_VERSIONS[0]
+  final static String HIGHEST_SUPPORTED = ALL_SUPPORTED_VERSIONS[-1]
   final static List<String> ESSENTIAL_VERSIONS = [
     LOWEST_SUPPORTED,
-    HIGHEST_SUPPORTED
-  ]
-  final static List<String> ALL_SUPPORTED_VERSIONS = [
-    LOWEST_SUPPORTED,
-    '3.7',
     HIGHEST_SUPPORTED
   ]
   final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS = ESSENTIAL_VERSIONS
