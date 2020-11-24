@@ -48,6 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  *     {@code InProcessJobBundleFactory} and inline the creation of the environment if appropriate.
  */
 @Deprecated
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFactory {
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
@@ -159,7 +162,8 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
         TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
-        BundleFinalizationHandler finalizationHandler) {
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler) {
       Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
       for (Map.Entry<String, Coder> remoteOutputCoder :
           descriptor.getRemoteOutputCoders().entrySet()) {
@@ -192,7 +196,8 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
           timerReceivers,
           stateRequestHandler,
           progressHandler,
-          finalizationHandler);
+          finalizationHandler,
+          checkpointHandler);
     }
 
     @Override

@@ -107,12 +107,13 @@ ConstructorFn = Callable[[Optional[Any], List['Coder'], 'PipelineContext'], Any]
 def serialize_coder(coder):
   from apache_beam.internal import pickler
   return b'%s$%s' % (
-      coder.__class__.__name__.encode('utf-8'), pickler.dumps(coder))
+      coder.__class__.__name__.encode('utf-8'),
+      pickler.dumps(coder, use_zlib=True))
 
 
 def deserialize_coder(serialized):
   from apache_beam.internal import pickler
-  return pickler.loads(serialized.split(b'$', 1)[1])
+  return pickler.loads(serialized.split(b'$', 1)[1], use_zlib=True)
 
 
 # pylint: enable=wrong-import-order, wrong-import-position
@@ -312,11 +313,12 @@ class Coder(object):
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Optional[Type[T]]
-                   fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: Optional[Type[T]]
+      fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
+  ):
     # type: (...) -> None
     pass
 
@@ -951,6 +953,9 @@ class ProtoCoder(FastCoder):
           'Expected a subclass of google.protobuf.message.Message'
           ', but got a %s' % typehint))
 
+  def to_type_hint(self):
+    return self.proto_message_type
+
 
 class DeterministicProtoCoder(ProtoCoder):
   """A deterministic Coder for Google Protocol Buffers.
@@ -1453,6 +1458,42 @@ class StateBackedIterableCoder(FastCoder):
         write_state=context.iterable_state_write,
         write_state_threshold=int(payload)
         if payload else StateBackedIterableCoder.DEFAULT_WRITE_THRESHOLD)
+
+
+class ShardedKeyCoder(FastCoder):
+  """A coder for sharded key."""
+  def __init__(self, key_coder):
+    # type: (Coder) -> None
+    self._key_coder = key_coder
+
+  def _get_component_coders(self):
+    # type: () -> List[Coder]
+    return [self._key_coder]
+
+  def _create_impl(self):
+    return coder_impl.ShardedKeyCoderImpl(self._key_coder.get_impl())
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return self._key_coder.is_deterministic()
+
+  def as_cloud_object(self, coders_context=None):
+    return {
+        '@type': 'kind:sharded_key',
+        'component_encodings': [
+            self._key_coder.as_cloud_object(coders_context)
+        ],
+    }
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self._key_coder == other._key_coder
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._key_coder)
+
+
+Coder.register_structured_urn(
+    common_urns.coders.SHARDED_KEY.urn, ShardedKeyCoder)
 
 
 class CoderElementType(typehints.TypeConstraint):

@@ -62,6 +62,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 
 /** DoFn function. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DoFnFunction<OutputT, InputT>
     implements ComputeCollectorFunc<RawUnionValue, Iterator<WindowedValue<InputT>>> {
   private static final Logger LOG = Logger.getLogger(DoFnFunction.class.getName());

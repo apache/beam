@@ -38,6 +38,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * Pipeline visitor for translating a Beam pipeline into equivalent Spark operations. Used for
  * debugging purposes using {@link SparkRunnerDebugger}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   private final List<NativeTransform> transforms;
   private final List<String> knownCompositesPackages =

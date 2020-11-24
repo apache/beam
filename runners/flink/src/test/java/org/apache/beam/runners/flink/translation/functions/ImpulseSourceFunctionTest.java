@@ -45,6 +45,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ImpulseSourceFunction}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ImpulseSourceFunctionTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(ImpulseSourceFunctionTest.class);

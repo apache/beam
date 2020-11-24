@@ -357,6 +357,10 @@ class RuntimeState(object):
     # The default implementation here does nothing.
     pass
 
+  def finalize(self):
+    # type: () -> None
+    pass
+
 
 class ReadModifyWriteRuntimeState(RuntimeState):
   def read(self):

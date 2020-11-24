@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.snowflake.crosslanguage;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 
 /** Parameters abstract class to expose the transforms to an external SDK. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class CrossLanguageConfiguration {
   private String serverName;
   private String username;

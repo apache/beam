@@ -29,6 +29,11 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** Utils to handle late data. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class LateDataUtils {
   private LateDataUtils() {}
 

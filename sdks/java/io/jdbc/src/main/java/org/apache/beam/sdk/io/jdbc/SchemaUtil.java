@@ -61,6 +61,9 @@ import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SchemaUtil {
   /**
    * Interface implemented by functions that extract values of different types from a JDBC

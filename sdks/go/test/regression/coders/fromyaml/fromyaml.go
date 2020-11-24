@@ -44,6 +44,7 @@ import (
 var unimplementedCoders = map[string]bool{
 	"beam:coder:param_windowed_value:v1": true,
 	"beam:coder:timer:v1":                true,
+	"beam:coder:sharded_key:v1":          true,
 }
 
 // Coder is a representation a serialized beam coder.

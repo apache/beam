@@ -30,6 +30,9 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  *
  * @param <T>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface ErrorContainer<T> extends Serializable {
   void add(
       List<ValueInSingleWindow<T>> failedInserts,

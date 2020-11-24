@@ -36,6 +36,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * Adds a {@link DirectRunner}-specific {@link WriteView} step for each {@link PCollectionView} for
  * scheduling materialization of side inputs.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
 
   /** Private URN for identifying {@link DirectRunner}-specific view writing transform. */

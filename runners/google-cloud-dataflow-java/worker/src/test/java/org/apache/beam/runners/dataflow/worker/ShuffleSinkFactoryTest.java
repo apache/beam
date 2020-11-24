@@ -40,7 +40,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ShuffleSinkFactory. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ShuffleSinkFactoryTest {
 
   private ShuffleSink runTestCreateShuffleSinkHelper(

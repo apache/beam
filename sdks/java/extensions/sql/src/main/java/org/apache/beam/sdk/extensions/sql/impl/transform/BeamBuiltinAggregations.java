@@ -45,6 +45,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamBuiltinAggregations {
 
   public static final Map<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>
@@ -59,7 +63,7 @@ public class BeamBuiltinAggregations {
               .put("AVG", BeamBuiltinAggregations::createAvg)
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
-              // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
+              .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -187,13 +191,13 @@ public class BeamBuiltinAggregations {
         String.format("[%s] is not supported in BIT_OR", fieldType));
   }
 
-  //  static CombineFn createBitAnd(Schema.FieldType fieldType) {
-  //    if (fieldType.getTypeName() == TypeName.INT64) {
-  //      return new BitAnd();
-  //    }
-  //    throw new UnsupportedOperationException(
-  //        String.format("[%s] is not supported in BIT_AND", fieldType));
-  //  }
+  static CombineFn createBitAnd(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitAnd();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_AND", fieldType));
+  }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
     @Override
@@ -388,94 +392,45 @@ public class BeamBuiltinAggregations {
   }
 
   /**
-   * NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)
+   * Bitwise AND function implementation.
    *
-   * <p>Comment the following implementation for BitAnd class for now.
+   * <p>Note: null values are ignored when mixed with non-null values.
+   * (https://issues.apache.org/jira/browse/BEAM-10379)
    */
-  //  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
-  //    // Indicate if input only contains null value.
-  //    private boolean isEmpty = true;
-  //
-  //    @Override
-  //    public Long createAccumulator() {
-  //      return -1L;
-  //    }
-  //
-  //    @Override
-  //    public Long addInput(Long accum, T input) {
-  //      if (input != null) {
-  //        this.isEmpty = false;
-  //        return accum & input.longValue();
-  //      } else {
-  //        return null;
-  //      }
-  //    }
-  //
-  //    @Override
-  //    public Long mergeAccumulators(Iterable<Long> accums) {
-  //      Long merged = createAccumulator();
-  //      for (Long accum : accums) {
-  //        merged = merged & accum;
-  //      }
-  //      return merged;
-  //    }
-  //
-  //    @Override
-  //    public Long extractOutput(Long accum) {
-  //      if (this.isEmpty) {
-  //        return null;
-  //      }
-  //      return accum;
-  //    }
-  //  }
+  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
+    // Indicate if input only contains null value.
+    private boolean isEmpty = true;
 
-  //  static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
-  //    public static class Accum {
-  //      long val = -1L;
-  //      boolean isEmpty = true;
-  //      boolean seenNull = false;
-  //    }
-  //
-  //    @Override
-  //    public Accum createAccumulator() {
-  //      return new Accum();
-  //    }
-  //
-  //    @Override
-  //    public Accum addInput(Accum accum, T input) {
-  //      if (input == null) {
-  //        accum.seenNull = true;
-  //      } else {
-  //        accum.isEmpty = false;
-  //        accum.val = accum.val & input.longValue();
-  //      }
-  //      return accum;
-  //    }
-  //
-  //    @Override
-  //    public Accum mergeAccumulators(Iterable<Accum> accums) {
-  //      Accum merged = createAccumulator();
-  //      for (Accum accum : accums) {
-  //        if (accum.isEmpty) {
-  //          merged.isEmpty = true;
-  //          break;
-  //        }
-  //        if (accum.seenNull) {
-  //          merged.seenNull = true;
-  //          break;
-  //        }
-  //        merged.val = merged.val & accum.val;
-  //      }
-  //      return merged;
-  //    }
-  //
-  //    @Override
-  //    @Nullable
-  //    public Long extractOutput(Accum accum) {
-  //      if (accum.isEmpty || accum.seenNull) {
-  //        return null;
-  //      }
-  //      return accum.val;
-  //    }
-  //  }
+    @Override
+    public Long createAccumulator() {
+      return -1L;
+    }
+
+    @Override
+    public Long addInput(Long accum, T input) {
+      if (input != null) {
+        this.isEmpty = false;
+        return accum & input.longValue();
+      } else {
+        return null;
+      }
+    }
+
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accums) {
+      Long merged = createAccumulator();
+      for (Long accum : accums) {
+        merged = merged & accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Long extractOutput(Long accum) {
+      if (this.isEmpty) {
+        return null;
+      }
+      return accum;
+    }
+  }
 }

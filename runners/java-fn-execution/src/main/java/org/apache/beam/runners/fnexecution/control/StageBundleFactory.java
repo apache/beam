@@ -27,6 +27,9 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
  * <p>Closing a StageBundleFactory signals that the stage has completed and any resources bound to
  * its lifetime can be cleaned up.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface StageBundleFactory extends AutoCloseable {
   /** Get a new {@link RemoteBundle bundle} for processing the data in an executable stage. */
   default RemoteBundle getBundle(
@@ -47,6 +50,22 @@ public interface StageBundleFactory extends AutoCloseable {
         outputReceiverFactory, null, stateRequestHandler, progressHandler, finalizationHandler);
   }
 
+  default RemoteBundle getBundle(
+      OutputReceiverFactory outputReceiverFactory,
+      StateRequestHandler stateRequestHandler,
+      BundleProgressHandler progressHandler,
+      BundleFinalizationHandler finalizationHandler,
+      BundleCheckpointHandler checkpointHandler)
+      throws Exception {
+    return getBundle(
+        outputReceiverFactory,
+        null,
+        stateRequestHandler,
+        progressHandler,
+        finalizationHandler,
+        checkpointHandler);
+  }
+
   /** Get a new {@link RemoteBundle bundle} for processing the data in an executable stage. */
   default RemoteBundle getBundle(
       OutputReceiverFactory outputReceiverFactory,
@@ -58,12 +77,29 @@ public interface StageBundleFactory extends AutoCloseable {
         outputReceiverFactory, timerReceiverFactory, stateRequestHandler, progressHandler, null);
   }
 
-  RemoteBundle getBundle(
+  default RemoteBundle getBundle(
       OutputReceiverFactory outputReceiverFactory,
       TimerReceiverFactory timerReceiverFactory,
       StateRequestHandler stateRequestHandler,
       BundleProgressHandler progressHandler,
       BundleFinalizationHandler finalizationHandler)
+      throws Exception {
+    return getBundle(
+        outputReceiverFactory,
+        timerReceiverFactory,
+        stateRequestHandler,
+        progressHandler,
+        finalizationHandler,
+        null);
+  }
+
+  RemoteBundle getBundle(
+      OutputReceiverFactory outputReceiverFactory,
+      TimerReceiverFactory timerReceiverFactory,
+      StateRequestHandler stateRequestHandler,
+      BundleProgressHandler progressHandler,
+      BundleFinalizationHandler finalizationHandler,
+      BundleCheckpointHandler checkpointHandler)
       throws Exception;
 
   ProcessBundleDescriptors.ExecutableProcessBundleDescriptor getProcessBundleDescriptor();

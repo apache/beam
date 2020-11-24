@@ -18,18 +18,17 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.ByteString;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubSubscription;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubTopic;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages.ParsePayloadAsPubsubMessageProto;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -109,23 +108,6 @@ public final class ExternalRead implements ExternalTransformRegistrar {
         readBuilder.setTimestampAttribute(config.timestampAttribute);
       }
       return readBuilder.build();
-    }
-  }
-
-  // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
-  private static class ParsePayloadAsPubsubMessageProto
-      implements SerializableFunction<PubsubMessage, byte[]> {
-    @Override
-    public byte[] apply(PubsubMessage input) {
-      Map<String, String> attributes = input.getAttributeMap();
-      com.google.pubsub.v1.PubsubMessage.Builder message =
-          com.google.pubsub.v1.PubsubMessage.newBuilder()
-              .setData(ByteString.copyFrom(input.getPayload()));
-      // TODO(BEAM-8085) this should not be null
-      if (attributes != null) {
-        message.putAllAttributes(attributes);
-      }
-      return message.build().toByteArray();
     }
   }
 }

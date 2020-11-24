@@ -64,6 +64,9 @@ import org.slf4j.LoggerFactory;
  *
  * ...
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySourceBase.class);
 
@@ -225,9 +228,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   }
 
   private static class TableSchemaFunction implements Serializable, Function<String, TableSchema> {
-    @Nullable
     @Override
-    public TableSchema apply(@Nullable String input) {
+    public @Nullable TableSchema apply(@Nullable String input) {
       return BigQueryHelpers.fromJsonString(input, TableSchema.class);
     }
   }

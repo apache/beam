@@ -42,6 +42,9 @@ import org.joda.time.Duration;
  * {@link #NUM_THREADS} polling that queue and making requests to WMS in batches of size {@link
  * #MAX_READS_PER_BATCH}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricTrackingWindmillServerStub {
 
   private final AtomicInteger activeSideInputs = new AtomicInteger();

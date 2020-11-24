@@ -55,6 +55,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Samza operator for {@link org.apache.beam.sdk.transforms.GroupByKey}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupByKeyOp<K, InputT, OutputT>
     implements Op<KeyedWorkItem<K, InputT>, KV<K, OutputT>, K> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyOp.class);

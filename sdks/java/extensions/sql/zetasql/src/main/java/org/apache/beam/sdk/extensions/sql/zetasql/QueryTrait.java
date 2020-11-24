@@ -30,6 +30,9 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
 
 /** QueryTrait. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class QueryTrait {
   public Map<String, ResolvedWithEntry> withEntries = new HashMap<>();
 

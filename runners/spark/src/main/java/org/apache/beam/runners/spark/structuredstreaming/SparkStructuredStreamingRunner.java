@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  * SparkStructuredStreamingPipelineResult result = (SparkStructuredStreamingPipelineResult) p.run();
  * }
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SparkStructuredStreamingRunner
     extends PipelineRunner<SparkStructuredStreamingPipelineResult> {
 

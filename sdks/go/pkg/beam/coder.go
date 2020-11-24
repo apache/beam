@@ -16,10 +16,12 @@
 package beam
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
+	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
@@ -283,6 +285,74 @@ func jsonDec(t reflect.Type, in []byte) (T, error) {
 
 func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
 	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid coder")
+	}
+	return c, nil
+}
+
+// These maps and mutexes are actuated per element, which can be expensive.
+var (
+	encMu      sync.Mutex
+	schemaEncs = map[reflect.Type]func(interface{}, io.Writer) error{}
+
+	decMu      sync.Mutex
+	schemaDecs = map[reflect.Type]func(io.Reader) (interface{}, error){}
+)
+
+// schemaEnc encodes the supplied value as beam schema.
+func schemaEnc(t reflect.Type, in T) ([]byte, error) {
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		t = t.Elem()
+	}
+	encMu.Lock()
+	enc, ok := schemaEncs[t]
+	if !ok {
+		var err error
+		enc, err = coder.RowEncoderForStruct(t)
+		if err != nil {
+			encMu.Unlock()
+			return nil, err
+		}
+		schemaEncs[t] = enc
+	}
+	encMu.Unlock()
+	var buf bytes.Buffer
+	if err := enc(in, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// schemaDec decodes the supplied beam schema into an instance of the supplied type.
+func schemaDec(t reflect.Type, in []byte) (T, error) {
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		t = t.Elem()
+	}
+	decMu.Lock()
+	dec, ok := schemaDecs[t]
+	if !ok {
+		var err error
+		dec, err = coder.RowDecoderForStruct(t)
+		if err != nil {
+			decMu.Unlock()
+			return nil, err
+		}
+		schemaDecs[t] = dec
+	}
+	decMu.Unlock()
+	buf := bytes.NewBuffer(in)
+	val, err := dec(buf)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func newSchemaCoder(t reflect.Type) (*coder.CustomCoder, error) {
+	c, err := coder.NewCustomCoder("schema", t, schemaEnc, schemaDec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid coder")
 	}

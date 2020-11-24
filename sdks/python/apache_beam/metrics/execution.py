@@ -55,6 +55,7 @@ if TYPE_CHECKING:
   from apache_beam.metrics.cells import GaugeData
   from apache_beam.metrics.cells import DistributionData
   from apache_beam.metrics.cells import MetricCell
+  from apache_beam.metrics.cells import MetricCellFactory
   from apache_beam.metrics.metricbase import MetricName
   from apache_beam.portability.api import metrics_pb2
 
@@ -162,24 +163,28 @@ class _MetricsEnvironment(object):
       return None
     return sampler.current_state().metrics_container
 
+  def process_wide_container(self):
+    """Returns the MetricsContainer for process wide metrics, e.g. memory."""
+    return PROCESS_WIDE_METRICS_CONTAINER
+
 
 MetricsEnvironment = _MetricsEnvironment()
 
 
 class _TypedMetricName(object):
   """Like MetricName, but also stores the cell type of the metric."""
-  def __init__(self,
-               cell_type,  # type: Type[MetricCell]
-               metric_name  # type: Union[str, MetricName]
-              ):
+  def __init__(
+      self,
+      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
+      metric_name  # type: Union[str, MetricName]
+  ):
     # type: (...) -> None
     self.cell_type = cell_type
     self.metric_name = metric_name
     if isinstance(metric_name, str):
       self.fast_name = metric_name
     else:
-      self.fast_name = '%d_%s%s' % (
-          len(metric_name.name), metric_name.name, metric_name.namespace)
+      self.fast_name = metric_name.fast_name()
     # Cached for speed, as this is used as a key for every counter update.
     self._hash = hash((cell_type, self.fast_name))
 
@@ -193,6 +198,9 @@ class _TypedMetricName(object):
   def __hash__(self):
     return self._hash
 
+  def __str__(self):
+    return '%s %s' % (self.cell_type, self.metric_name)
+
   def __reduce__(self):
     return _TypedMetricName, (self.cell_type, self.metric_name)
 
@@ -202,33 +210,43 @@ _DEFAULT = None  # type: Any
 
 class MetricUpdater(object):
   """A callable that updates the metric as quickly as possible."""
-  def __init__(self,
-               cell_type,  # type: Type[MetricCell]
-               metric_name,  # type: Union[str, MetricName]
-               default=None):
+  def __init__(
+      self,
+      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
+      metric_name,  # type: Union[str, MetricName]
+      default_value=None,
+      process_wide=False):
+    self.process_wide = process_wide
     self.typed_metric_name = _TypedMetricName(cell_type, metric_name)
-    self.default = default
+    self.default_value = default_value
 
   def __call__(self, value=_DEFAULT):
     # type: (Any) -> None
     if value is _DEFAULT:
-      if self.default is _DEFAULT:
+      if self.default_value is _DEFAULT:
         raise ValueError(
             'Missing value for update of %s' % self.typed_metric_name.fast_name)
-      value = self.default
-    tracker = get_current_tracker()
-    if tracker is not None:
-      tracker.update_metric(self.typed_metric_name, value)
+      value = self.default_value
+    if self.process_wide:
+      MetricsEnvironment.process_wide_container().get_metric_cell(
+          self.typed_metric_name).update(value)
+    else:
+      tracker = get_current_tracker()
+      if tracker is not None:
+        tracker.update_metric(self.typed_metric_name, value)
 
   def __reduce__(self):
     return MetricUpdater, (
         self.typed_metric_name.cell_type,
         self.typed_metric_name.metric_name,
-        self.default)
+        self.default_value)
 
 
 class MetricsContainer(object):
-  """Holds the metrics of a single step and a single bundle."""
+  """Holds the metrics of a single step and a single bundle.
+
+  Or the metrics associated with the process/SDK harness. I.e. memory usage.
+  """
   def __init__(self, step_name):
     self.step_name = step_name
     self.metrics = dict()  # type: Dict[_TypedMetricName, MetricCell]
@@ -295,12 +313,15 @@ class MetricsContainer(object):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     """Returns a list of MonitoringInfos for the metrics in this container."""
-    all_user_metrics = [
+    all_metrics = [
         cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
         for key,
         cell in self.metrics.items()
     ]
-    return {monitoring_infos.to_key(mi): mi for mi in all_user_metrics}
+    return {
+        monitoring_infos.to_key(mi): mi
+        for mi in all_metrics if mi is not None
+    }
 
   def reset(self):
     # type: () -> None
@@ -311,6 +332,9 @@ class MetricsContainer(object):
     raise NotImplementedError
 
 
+PROCESS_WIDE_METRICS_CONTAINER = MetricsContainer(None)
+
+
 class MetricUpdates(object):
   """Contains updates for several metrics.
 
@@ -318,11 +342,12 @@ class MetricUpdates(object):
   For Distribution metrics, it is DistributionData, and for Counter metrics,
   it's an int.
   """
-  def __init__(self,
-               counters=None,  # type: Optional[Dict[MetricKey, int]]
-               distributions=None,  # type: Optional[Dict[MetricKey, DistributionData]]
-               gauges=None  # type: Optional[Dict[MetricKey, GaugeData]]
-              ):
+  def __init__(
+      self,
+      counters=None,  # type: Optional[Dict[MetricKey, int]]
+      distributions=None,  # type: Optional[Dict[MetricKey, DistributionData]]
+      gauges=None  # type: Optional[Dict[MetricKey, GaugeData]]
+  ):
     # type: (...) -> None
 
     """Create a MetricUpdates object.

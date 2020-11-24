@@ -29,6 +29,7 @@ and displayed as part of their pipeline execution.
 
 from __future__ import absolute_import
 
+import logging
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Dict
@@ -52,6 +53,8 @@ if TYPE_CHECKING:
   from apache_beam.metrics.metricbase import Metric
 
 __all__ = ['Metrics', 'MetricsFilter']
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Metrics(object):
@@ -120,10 +123,14 @@ class Metrics(object):
 
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name):
-      # type: (MetricName) -> None
+    def __init__(self, metric_name, process_wide=False):
+      # type: (MetricName, bool) -> None
       super(Metrics.DelegatingCounter, self).__init__(metric_name)
-      self.inc = MetricUpdater(cells.CounterCell, metric_name, default=1)  # type: ignore[assignment]
+      self.inc = MetricUpdater(  # type: ignore[assignment]
+          cells.CounterCell,
+          metric_name,
+          default_value=1,
+          process_wide=process_wide)
 
   class DelegatingDistribution(Distribution):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
@@ -230,6 +237,8 @@ class MetricsFilter(object):
   sets. No execution/matching logic is added to this object, so that it may
   be used to construct arguments as an RPC request. It is left for runners
   to implement matching logic by themselves.
+
+  Note: This class only supports user defined metrics.
   """
   def __init__(self):
     # type: () -> None
@@ -254,9 +263,9 @@ class MetricsFilter(object):
 
   def with_metric(self, metric):
     # type: (Metric) -> MetricsFilter
-    return (
-        self.with_name(metric.metric_name.name).with_namespace(
-            metric.metric_name.namespace))
+    name = metric.metric_name.name or ''
+    namespace = metric.metric_name.namespace or ''
+    return self.with_name(name).with_namespace(namespace)
 
   def with_name(self, name):
     # type: (str) -> MetricsFilter

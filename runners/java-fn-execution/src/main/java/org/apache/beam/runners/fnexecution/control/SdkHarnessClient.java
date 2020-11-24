@@ -64,6 +64,10 @@ import org.slf4j.LoggerFactory;
  * <p>This provides a Java-friendly wrapper around {@link InstructionRequestHandler} and {@link
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
 
@@ -188,19 +192,22 @@ public class SdkHarnessClient implements AutoCloseable {
         Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
-        BundleFinalizationHandler finalizationHandler) {
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler) {
       return newBundle(
           outputReceivers,
           timerReceivers,
           stateRequestHandler,
           progressHandler,
           BundleSplitHandler.unsupported(),
-          request -> {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "The %s does not have a registered bundle checkpoint handler.",
-                    ActiveBundle.class.getSimpleName()));
-          },
+          checkpointHandler == null
+              ? request -> {
+                throw new UnsupportedOperationException(
+                    String.format(
+                        "The %s does not have a registered bundle checkpoint handler.",
+                        ActiveBundle.class.getSimpleName()));
+              }
+              : checkpointHandler,
           finalizationHandler == null
               ? bundleId -> {
                 throw new UnsupportedOperationException(

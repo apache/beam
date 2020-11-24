@@ -78,6 +78,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
@@ -130,6 +131,10 @@ import org.mockito.ArgumentMatcher;
 
 /** Tests for DataflowPipelineTranslator. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -1119,17 +1124,28 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
-  @Test
-  public void testStreamingGroupIntoBatchesTranslation() throws Exception {
+  private Map<String, Object> runGroupIntoBatchesAndGetStepProperties(
+      Boolean withShardedKey, Boolean usesFnApi) throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(Arrays.asList("enable_streaming_auto_sharding"));
+    options.setExperiments(
+        Arrays.asList(
+            "enable_streaming_auto_sharding",
+            GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+            GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    if (usesFnApi) {
+      options.setExperiments(Arrays.asList("beam_fn_api"));
+    }
     options.setStreaming(true);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     Pipeline pipeline = Pipeline.create(options);
-    pipeline
-        .apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))))
-        .apply(GroupIntoBatches.ofSize(2));
+    PCollection<KV<Integer, String>> input =
+        pipeline.apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))));
+    if (withShardedKey) {
+      input.apply(GroupIntoBatches.<Integer, String>ofSize(3).withShardedKey());
+    } else {
+      input.apply(GroupIntoBatches.ofSize(3));
+    }
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
@@ -1141,40 +1157,37 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .getJob();
     List<Step> steps = job.getSteps();
     Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
+    return shardedStateStep.getProperties();
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesTranslation() throws Exception {
+    Map<String, Object> properties = runGroupIntoBatchesAndGetStepProperties(false, false);
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyTranslation() throws Exception {
+    Map<String, Object> properties = runGroupIntoBatchesAndGetStepProperties(true, false);
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
     assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
     assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
   }
 
   @Test
   public void testStreamingGroupIntoBatchesTranslationFnApi() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(Arrays.asList("enable_windmill_auto_sharding"));
-    options.setExperiments(Arrays.asList("beam_fn_api"));
-    options.setStreaming(true);
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline
-        .apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))))
-        .apply(GroupIntoBatches.ofSize(2));
-
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    SdkComponents sdkComponents = createSdkComponents(options);
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-    Job job =
-        translator
-            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
-            .getJob();
-    List<Step> steps = job.getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
+    Map<String, Object> properties = runGroupIntoBatchesAndGetStepProperties(true, true);
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    // "allows_shardable_state" is currently unsupported for portable jobs.
     assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
   }
 
   @Test

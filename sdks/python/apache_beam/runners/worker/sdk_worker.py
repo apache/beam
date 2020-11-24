@@ -59,6 +59,7 @@ from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
@@ -327,6 +328,31 @@ class SdkHarness(object):
   def _request_finalize_bundle(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._request_execute(request)
+
+  def _request_harness_monitoring_infos(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    process_wide_monitoring_infos = MetricsEnvironment.process_wide_container(
+    ).to_runner_api_monitoring_infos(None).values()
+    self._execute(
+        lambda: beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id,
+            harness_monitoring_infos=(
+                beam_fn_api_pb2.HarnessMonitoringInfosResponse(
+                    monitoring_data={
+                        SHORT_ID_CACHE.getShortId(info): info.payload
+                        for info in process_wide_monitoring_infos
+                    }))),
+        request)
+
+  def _request_monitoring_infos(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    self._execute(
+        lambda: beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id,
+            monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
+                monitoring_info=SHORT_ID_CACHE.getInfos(
+                    request.monitoring_infos.monitoring_info_id))),
+        request)
 
   def _request_execute(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
@@ -732,18 +758,6 @@ class SdkWorker(object):
                 SHORT_ID_CACHE.getShortId(info): info.payload
                 for info in monitoring_infos
             }))
-
-  def monitoring_infos_request(
-      self,
-      request,  # type: beam_fn_api_pb2.MonitoringInfosMetadataRequest
-      instruction_id  # type: str
-  ):
-    # type: (...) -> beam_fn_api_pb2.InstructionResponse
-    return beam_fn_api_pb2.InstructionResponse(
-        instruction_id=instruction_id,
-        monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
-            monitoring_info=SHORT_ID_CACHE.getInfos(
-                request.monitoring_info_id)))
 
   def finalize_bundle(
       self,

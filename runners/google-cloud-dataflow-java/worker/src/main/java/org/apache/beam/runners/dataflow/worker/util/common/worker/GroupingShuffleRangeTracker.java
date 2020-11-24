@@ -37,6 +37,9 @@ import org.slf4j.LoggerFactory;
  */
 // Likely real bugs - https://issues.apache.org/jira/browse/BEAM-6563
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupingShuffleRangeTracker implements RangeTracker<ShufflePosition> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleRangeTracker.class);
 

@@ -128,12 +128,8 @@ except ImportError:
   cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
-    # Apache Avro does not follow semantic versioning, so we should not auto
-    # upgrade on minor versions. Due to AVRO-2429, Dataflow still
-    # requires Avro 1.8.x.
-    'avro>=1.8.1,<1.10.0; python_version < "3.0"',
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
-    'avro-python3>=1.8.1,!=1.9.2,<1.10.0; python_version >= "3.0"',
+    'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
     'crcmod>=1.7,<2.0',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
@@ -142,9 +138,7 @@ REQUIRED_PACKAGES = [
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'fastavro>=0.21.4,<2',
-    'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.18.2,<1.0.0',
-    'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.18.0',
@@ -153,17 +147,11 @@ REQUIRED_PACKAGES = [
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
-     'platform_system != "Windows"'),
+    'pyarrow>=0.15.1,<3.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
-    # [BEAM-5628] Beam VCF IO is not supported in Python 3.
-    'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
-    # fixes and additions have been made since typing 3.5
     'requests>=2.24.0,<3.0.0',
-    'typing>=3.7.0,<3.8.0; python_full_version < "3.5.3"',
     'typing-extensions>=3.7.0,<3.8.0',
     ]
 
@@ -177,11 +165,8 @@ REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
-    'pandas>=0.24.2,<2; python_full_version < "3.5.3"',
-    'pandas>=0.25.2,<2; python_full_version >= "3.5.3"',
+    'pandas>=1.0,<2',
     'parameterized>=0.7.1,<0.8.0',
-    # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
-    # See: https://github.com/hamcrest/PyHamcrest/issues/131.
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',
     'requests_mock>=1.7,<2.0',
@@ -189,13 +174,9 @@ REQUIRED_TEST_PACKAGES = [
     'pytest>=4.4.0,<5.0',
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
-    'rsa<4.1; python_version < "3.0"',
-    # sqlalchemy is used only for running xlang jdbc test so limit to Py3
-    'sqlalchemy>=1.3,<2.0; python_version >= "3.5"',
-    # psycopg is used only for running xlang jdbc test so limit to Py3
-    'psycopg2-binary>=2.8.5,<3.0.0; python_version >= "3.5"',
-    # testcontainers is used only for running xlang jdbc test so limit to Py3
-    'testcontainers>=3.0.3,<4.0.0; python_version >= "3.5"',
+    'sqlalchemy>=1.3,<2.0',
+    'psycopg2-binary>=2.8.5,<3.0.0',
+    'testcontainers>=3.0.3,<4.0.0',
     ]
 
 GCP_REQUIREMENTS = [
@@ -216,7 +197,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
     # GCP packages required by prebuild sdk container functionality.
-    'google-cloud-build>=2.0.0,<3; python_version >= "3.6"',
+    'google-cloud-build>=2.0.0,<3',
 ]
 
 INTERACTIVE_BEAM = [

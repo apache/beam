@@ -44,7 +44,11 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 
 /** Base setup for ClickHouse containers. */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BaseClickHouseTest {
 
   public static Network network;

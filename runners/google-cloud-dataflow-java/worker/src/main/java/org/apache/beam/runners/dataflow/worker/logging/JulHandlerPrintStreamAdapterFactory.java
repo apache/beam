@@ -42,6 +42,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
  * A {@link PrintStream} factory that creates {@link PrintStream}s which output to the specified JUL
  * {@link Handler} at the specified {@link Level}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class JulHandlerPrintStreamAdapterFactory {
   private static final AtomicBoolean outputWarning = new AtomicBoolean(false);
 

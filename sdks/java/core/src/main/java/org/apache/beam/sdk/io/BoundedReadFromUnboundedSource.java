@@ -51,6 +51,9 @@ import org.joda.time.Instant;
  * {@link PTransform} that reads a bounded amount of data from an {@link UnboundedSource}, specified
  * as one or both of a maximum number of elements or a maximum period of time to read.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private final UnboundedSource<T, ?> source;
   private final long maxNumRecords;

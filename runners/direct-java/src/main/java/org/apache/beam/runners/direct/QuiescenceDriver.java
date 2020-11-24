@@ -46,6 +46,11 @@ import org.slf4j.LoggerFactory;
  * Pushes additional work onto a {@link BundleProcessor} based on the fact that a pipeline has
  * quiesced.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class QuiescenceDriver implements ExecutionDriver {
   private static final Logger LOG = LoggerFactory.getLogger(QuiescenceDriver.class);
 

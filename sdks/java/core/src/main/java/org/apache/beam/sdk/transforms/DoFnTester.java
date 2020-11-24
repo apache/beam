@@ -61,6 +61,9 @@ import org.slf4j.LoggerFactory;
 
 /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
 @Deprecated
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnTester.class);

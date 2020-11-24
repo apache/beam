@@ -33,6 +33,9 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 /** * */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Shard.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DynamicCheckpointGeneratorTest {
 
   @Mock private SimplifiedKinesisClient kinesisClient;

@@ -114,6 +114,9 @@ import org.joda.time.Instant;
  * separated with line feeds.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MongoDbGridFSIO {
 
   /** Callback for the parser to use to submit data. */

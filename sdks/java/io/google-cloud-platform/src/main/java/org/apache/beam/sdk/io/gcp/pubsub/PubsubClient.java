@@ -36,6 +36,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class PubsubClient implements Closeable {
   /** Factory for creating clients. */
   public interface PubsubClientFactory extends Serializable {

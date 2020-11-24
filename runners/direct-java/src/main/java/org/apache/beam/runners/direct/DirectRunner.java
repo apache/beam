@@ -64,6 +64,9 @@ import org.joda.time.Duration;
  * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
  * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   enum Enforcement {

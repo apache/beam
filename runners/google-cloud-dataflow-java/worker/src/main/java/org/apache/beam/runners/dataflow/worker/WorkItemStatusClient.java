@@ -61,6 +61,9 @@ import org.slf4j.LoggerFactory;
  */
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WorkItemStatusClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);
@@ -188,12 +191,12 @@ public class WorkItemStatusClient {
     return false;
   }
 
-  private @Nullable synchronized WorkItemServiceState execute(WorkItemStatus status)
+  private synchronized @Nullable WorkItemServiceState execute(WorkItemStatus status)
       throws IOException {
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
       nextReportIndex = result.getNextReportIndex();
-      if (nextReportIndex == null) {
+      if (nextReportIndex == null && !status.getCompleted()) {
         LOG.error("Missing next work index in {} when reporting {}.", result, status);
       }
       commitMetrics();
@@ -359,5 +362,9 @@ public class WorkItemStatusClient {
     }
 
     executionContext.commitMetricUpdates();
+  }
+
+  public BatchModeExecutionContext getExecutionContext() {
+    return this.executionContext;
   }
 }
