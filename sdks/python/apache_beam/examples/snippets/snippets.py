@@ -1117,7 +1117,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [START model_bigqueryio_read_table]
   max_temperatures = (
       p
-      | 'ReadTable' >> beam.io.Read(beam.io.ReadFromBigQuery(table_spec))
+      | 'ReadTable' >> beam.io.ReadFromBigQuery(table_spec)
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_table]
@@ -1125,9 +1125,9 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [START model_bigqueryio_read_query]
   max_temperatures = (
       p
-      | 'QueryTable' >> beam.io.Read(beam.io.ReadFromBigQuery(
+      | 'QueryTable' >> beam.io.ReadFromBigQuery(
           query='SELECT max_temperature FROM '\
-                '[clouddataflow-readonly:samples.weather_stations]'))
+                '[clouddataflow-readonly:samples.weather_stations]')
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query]
@@ -1135,10 +1135,10 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [START model_bigqueryio_read_query_std_sql]
   max_temperatures = (
       p
-      | 'QueryTableStdSQL' >> beam.io.Read(beam.io.ReadFromBigQuery(
+      | 'QueryTableStdSQL' >> beam.io.ReadFromBigQuery(
           query='SELECT max_temperature FROM '\
                 '`clouddataflow-readonly.samples.weather_stations`',
-          use_standard_sql=True))
+          use_standard_sql=True)
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query_std_sql]
