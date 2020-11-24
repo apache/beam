@@ -39,6 +39,7 @@ import (
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("universal", Execute)
+	beam.RegisterRunner("PortableRunner", Execute)
 }
 
 // Execute executes the pipeline on a universal beam runner.
@@ -96,6 +97,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		Experiments:  jobopts.GetExperiments(),
 		Worker:       *jobopts.WorkerBinary,
 		RetainDocker: *jobopts.RetainDockerContainers,
+		Parallelism:  *jobopts.Parallelism,
 	}
 	presult, err := runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 	return presult, err

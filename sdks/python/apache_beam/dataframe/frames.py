@@ -146,13 +146,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
         def set_index(s, by):
           df = pd.DataFrame(s)
-          df, by = df.align(by, axis=0)
+          df, by = df.align(by, axis=0, join='inner')
           return df.set_index(by).iloc[:, 0]
 
       else:
 
         def set_index(df, by):  # type: ignore
-          df, by = df.align(by, axis=0)
+          df, by = df.align(by, axis=0, join='inner')
           return df.set_index(by)
 
       to_group = expressions.ComputedExpression(
@@ -160,7 +160,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           set_index,  #
           [self._expr, by._expr],
           requires_partition_by=partitionings.Index(),
-          preserves_partition_by=partitionings.Singleton())
+          preserves_partition_by=partitionings.Nothing())
 
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError('order sensitive')
@@ -270,6 +270,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   array = property(frame_base.wont_implement_method('non-deferred value'))
 
+  rename = frame_base._elementwise_method('rename')
   between = frame_base._elementwise_method('between')
 
   def dot(self, other):

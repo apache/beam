@@ -76,6 +76,7 @@ var (
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("dataflow", Execute)
+	beam.RegisterRunner("DataflowRunner", Execute)
 
 	perf.RegisterProfCaptureHook("gcs_profile_writer", gcsRecorderHook)
 }

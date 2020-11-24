@@ -21,7 +21,8 @@
 class CommonTestProperties {
   enum SDK {
     PYTHON,
-    JAVA
+    JAVA,
+    GO,
   }
 
   enum Runner {
@@ -47,7 +48,14 @@ class CommonTestProperties {
         TEST_DATAFLOW: "TestDataflowRunner",
         DIRECT: "DirectRunner",
         PORTABLE: "PortableRunner"
-      ]
+      ],
+      GO: [
+        DATAFLOW: "DataflowRunner",
+        SPARK: "SparkRunner",
+        FLINK: "FlinkRunner",
+        DIRECT: "DirectRunner",
+        PORTABLE: "PortableRunner",
+      ],
     ]
 
     private final String option

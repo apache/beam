@@ -34,6 +34,7 @@ import (
 
 func init() {
 	beam.RegisterRunner("direct", Execute)
+	beam.RegisterRunner("DirectRunner", Execute)
 }
 
 // Execute runs the pipeline in-process.

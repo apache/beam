@@ -104,6 +104,32 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group').min(), df, distributed=True)
     self._run_test(lambda df: df.groupby('group').mean(), df, distributed=True)
 
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').sum(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').mean(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 30].groupby('group').size(),
+        df,
+        distributed=True)
+
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).sum(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).mean(),
+        df,
+        distributed=True)
+    self._run_test(
+        lambda df: df[df.value > 40].groupby(df.group).size(),
+        df,
+        distributed=True)
+
   @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
