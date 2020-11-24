@@ -32,9 +32,10 @@ Users may want to customize container images for many reasons, including:
  This guide describes how to create and use customized containers for the Beam SDK.
 
 ### Prerequisites
-You will need to have [Docker installed](https://docs.docker.com/get-docker/).
 
-In addition, you will need to have a container registry accessible by your execution engine or runner to host a custom container image. Options include [Docker Hub](https://hub.docker.com/) or a "self-hosted" repository, including cloud-specific container registries.
+* You will need to have a version of the Beam SDK >= 2.21.0.
+* You will need to have [Docker installed](https://docs.docker.com/get-docker/).
+* You will need to have a container registry accessible by your execution engine or runner to host a custom container image. Options include [Docker Hub](https://hub.docker.com/) or a "self-hosted" repository, including cloud-specific container registries.
 
 >  **NOTE**: On Nov 20, 2020, Docker Hub put [rate limits](https://www.docker.com/increase-rate-limits) into effect for anonymous and free authenticated use, which may impact larger pipelines that pull containers several times.
 
@@ -205,7 +206,6 @@ python -m apache_beam.examples.wordcount \
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
-# Run a pipeline on Dataflow
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
 
@@ -213,6 +213,9 @@ export GCS_PATH="gs://my-gcs-bucket"
 export GCP_PROJECT="my-gcp-project"
 export REGION="us-central1"
 
+# Run a pipeline on Dataflow.
+# This is a Python batch pipeline, so to run on Dataflow Runner V2
+# you must specify the experiment "use_runner_v2"
 python -m apache_beam.examples.wordcount \
   --input gs://dataflow-samples/shakespeare/kinglear.txt \
   --output "${GCS_PATH}/counts" \
