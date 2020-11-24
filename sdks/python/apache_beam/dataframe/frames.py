@@ -142,25 +142,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     elif isinstance(by, DeferredSeries):
 
-      if isinstance(self, DeferredSeries):
-
-        def set_index(s, by):
-          df = pd.DataFrame(s)
-          df, by = df.align(by, axis=0, join='inner')
-          return df.set_index(by).iloc[:, 0]
-
-      else:
-
-        def set_index(df, by):  # type: ignore
-          df, by = df.align(by, axis=0, join='inner')
-          return df.set_index(by)
-
-      to_group = expressions.ComputedExpression(
-          'set_index',
-          set_index,  #
-          [self._expr, by._expr],
-          requires_partition_by=partitionings.Index(),
-          preserves_partition_by=partitionings.Nothing())
+      raise NotImplementedError("grouping by a Series is not yet implemented. You can group by a DataFrame column by specifying its name.")
 
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError('order sensitive')
