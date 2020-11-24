@@ -33,10 +33,7 @@ import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.*;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -542,7 +539,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   public HttpBody searchFhirResource(
           String fhirStore,
           String resourceType,
-          @Nullable Map<String, Object> parameters,
+          @Nullable Map<String, String> parameters,
           String pageToken)
           throws IOException {
     SearchResourcesRequest request = new SearchResourcesRequest().setResourceType(resourceType);
@@ -556,8 +553,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     if (parameters != null && !parameters.isEmpty()) {
       parameters.forEach(search::set);
     }
-    if (!pageToken.isEmpty()) {
-      search.set("_page_token", pageToken);
+    if (pageToken != null && !pageToken.isEmpty()) {
+      search.set("_page_token", URLDecoder.decode(pageToken, "UTF-8"));
     }
     return search.execute();
   }
@@ -776,7 +773,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
     private final String fhirStore;
     private final String resourceType;
-    private final Map<String, Object> parameters;
+    private final Map<String, String> parameters;
     private transient HealthcareApiClient client;
 
     /**
@@ -791,7 +788,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             HealthcareApiClient client,
             String fhirStore,
             String resourceType,
-            @Nullable Map<String, Object> parameters) {
+            @Nullable Map<String, String> parameters) {
       this.client = client;
       this.fhirStore = fhirStore;
       this.resourceType = resourceType;
@@ -813,7 +810,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             HealthcareApiClient client,
             String fhirStore,
             String resourceType,
-            @Nullable Map<String, Object> parameters,
+            @Nullable Map<String, String> parameters,
             String pageToken)
             throws IOException {
       return client.searchFhirResource(fhirStore, resourceType, parameters, pageToken);
@@ -830,7 +827,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
       private final String fhirStore;
       private final String resourceType;
-      private final Map<String, Object> parameters;
+      private final Map<String, String> parameters;
       private HealthcareApiClient client;
       private String pageToken;
       private boolean isFirstRequest;
@@ -838,8 +835,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
       /**
        * Instantiates a new Fhir resource pages iterator.
-       *
-       * @param client the client
+       *  @param client the client
        * @param fhirStore the Fhir store
        * @param resourceType the Fhir resource type to search for
        * @param parameters the search parameters
@@ -848,7 +844,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
               HealthcareApiClient client,
               String fhirStore,
               String resourceType,
-              @Nullable Map<String, Object> parameters) {
+              @Nullable Map<String, String> parameters) {
         this.client = client;
         this.fhirStore = fhirStore;
         this.resourceType = resourceType;
@@ -864,7 +860,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
           return this.pageToken != null;
         }
         try {
-          HttpBody response = makeSearchRequest(client, fhirStore, resourceType, parameters, pageToken);
+          HttpBody response = makeSearchRequest(client, fhirStore, resourceType, parameters, this.pageToken);
           JsonObject jsonResponse = JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
           JsonArray resources = jsonResponse.getAsJsonArray("entry");
           return resources.size() != 0;
@@ -879,7 +875,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       @Override
       public JsonArray next() throws NoSuchElementException {
         try {
-          HttpBody response = makeSearchRequest(client, fhirStore, resourceType, parameters, pageToken);
+          HttpBody response = makeSearchRequest(client, fhirStore, resourceType, parameters, this.pageToken);
           this.isFirstRequest = false;
           JsonObject jsonResponse = JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
           JsonArray links = jsonResponse.getAsJsonArray("link");

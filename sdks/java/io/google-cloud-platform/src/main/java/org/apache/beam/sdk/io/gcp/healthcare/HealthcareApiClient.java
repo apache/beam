@@ -179,7 +179,7 @@ public interface HealthcareApiClient {
    * @throws IOException
    */
   HttpBody searchFhirResource(String fhirStore, String resourceType,
-                              @Nullable Map<String, Object> parameters, String pageToken) throws IOException;
+                              @Nullable Map<String, String> parameters, String pageToken) throws IOException;
 
   /**
    * Create hl 7 v 2 store hl 7 v 2 store.

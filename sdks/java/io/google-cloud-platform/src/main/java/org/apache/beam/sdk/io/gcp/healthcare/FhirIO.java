@@ -1412,7 +1412,7 @@ public class FhirIO {
   }
 
   /** The type Search. */
-  public static class Search extends PTransform<PCollection<KV<String, Map<String, Object>>>, FhirIO.Search.Result> {
+  public static class Search extends PTransform<PCollection<KV<String, Map<String, String>>>, FhirIO.Search.Result> {
     private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
@@ -1508,15 +1508,15 @@ public class FhirIO {
             new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, Object>>> input) {
+    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, String>>> input) {
       return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
     }
 
     /**
-     * DoFn to fetch a resource from an Google Cloud Healthcare FHIR store based on resourceID
+     * DoFn to fetch resources from an Google Cloud Healthcare FHIR store based on search request
      *
-     * <p>This DoFn consumes a {@link PCollection} of notifications {@link String}s from the FHIR
-     * store, and fetches the actual {@link String} object based on the id in the notification and
+     * <p>This DoFn consumes a {@link PCollection} of search requests consisting of resource type
+     * and search parameters, and fetches all matching resources based on the search criteria and
      * will output a {@link PCollectionTuple} which contains the output and dead-letter {@link
      * PCollection}*.
      *
@@ -1531,7 +1531,7 @@ public class FhirIO {
      * </ul>
      */
     static class SearchResourcesJsonString
-            extends PTransform<PCollection<KV<String, Map<String, Object>>>, FhirIO.Search.Result> {
+            extends PTransform<PCollection<KV<String, Map<String, String>>>, FhirIO.Search.Result> {
 
       private final ValueProvider<String> fhirStore;
 
@@ -1541,7 +1541,7 @@ public class FhirIO {
       }
 
       @Override
-      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, Object>>> resourceIds) {
+      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, String>>> resourceIds) {
         return new FhirIO.Search.Result(
                 resourceIds.apply(
                         ParDo.of(new SearchResourcesFn(this.fhirStore))
@@ -1549,7 +1549,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      static class SearchResourcesFn extends DoFn<KV<String, Map<String, Object>>, String> {
+      static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, String> {
 
         private Counter failedSearches =
                 Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
@@ -1581,7 +1581,7 @@ public class FhirIO {
          */
         @ProcessElement
         public void processElement(ProcessContext context) {
-          KV<String, Map<String, Object>> elementValues = context.element();
+          KV<String, Map<String, String>> elementValues = context.element();
           try {
             context.output(searchResources(
                     this.client, this.fhirStore.toString(), elementValues.getKey(), elementValues.getValue()));
@@ -1597,7 +1597,7 @@ public class FhirIO {
         }
 
         private String searchResources(HealthcareApiClient client, String fhirStore, String resourceType,
-                                       @Nullable Map<String, Object> parameters)
+                                       @Nullable Map<String, String> parameters)
                 throws IllegalArgumentException {
           long startTime = System.currentTimeMillis();
 
