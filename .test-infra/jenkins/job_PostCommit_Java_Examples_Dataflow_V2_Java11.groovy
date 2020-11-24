@@ -44,7 +44,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
           switches '-PdisableSpotlessCheck=true'
           switches '-PcompileAndRunTestsWithJava11'
           switches '-PskipCheckerFramework'
-          switches "-Pjava11Home=${properties.JAVA_11_HOME}"
+          switches "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
         }
       }
     }
