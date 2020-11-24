@@ -18,6 +18,7 @@ from __future__ import absolute_import
 
 import contextlib
 import threading
+import random
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -111,17 +112,22 @@ class PartitioningSession(Session):
             # Choose any single session.
             return next(iter(parts.values())).evaluate(expr)
 
-        input_partitioning = expr.requires_partition_by()
+        # Store random state so it can be re-used for each execution, in case
+        # the expression is part of a test that relies on the random seed.
+        random_state = random.getstate()
 
-        while input_partitioning is not None:
+        for input_partitioning in set([expr.requires_partition_by(),
+                                       partitionings.Nothing(),
+                                       partitionings.Index(),
+                                       partitionings.Singleton()]):
+          if not input_partitioning.is_subpartitioning_of(
+              expr.requires_partition_by()):
+            continue
+
+          random.setstate(random_state)
+
+          # TODO(BEAM-11324): Consider verifying result is always the same
           result = evaluate_with(input_partitioning)
-
-          if input_partitioning == partitionings.Nothing():
-            input_partitioning = partitionings.Index()
-          elif isinstance(input_partitioning, partitionings.Index):
-            input_partitioning = partitionings.Singleton()
-          else:  # partitionings.Singleton()
-            input_partitioning = None
 
         self._bindings[expr] = result
     return self._bindings[expr]
