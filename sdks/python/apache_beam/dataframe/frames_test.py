@@ -112,12 +112,13 @@ class DeferredFrameTest(unittest.TestCase):
 
     # Example from https://pandas.pydata.org/docs/user_guide/groupby.html#grouping-dataframe-with-index-levels-and-columns
     arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
-           ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
+              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
 
     index = pd.MultiIndex.from_arrays(arrays, names=['first', 'second'])
 
-    df = pd.DataFrame({'A': [1, 1, 1, 1, 2, 2, 3, 3],
-                       'B': np.arange(8)},
+    df = pd.DataFrame({
+        'A': [1, 1, 1, 1, 2, 2, 3, 3], 'B': np.arange(8)
+    },
                       index=index)
 
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
