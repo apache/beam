@@ -23,10 +23,10 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedColumnRef;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.ZetaSqlUnnest;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.CorrelationId;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncollect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
@@ -89,7 +89,8 @@ class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
     // If they aren't true we need the Project to reorder columns.
     assert zetaNode.getElementColumn().getId() == 1;
     assert !ordinality || zetaNode.getArrayOffsetColumn().getColumn().getId() == 2;
-    Uncollect uncollectNode = Uncollect.create(projectNode.getTraitSet(), projectNode, ordinality);
+    ZetaSqlUnnest uncollectNode =
+        ZetaSqlUnnest.create(projectNode.getTraitSet(), projectNode, ordinality);
 
     List<RexInputRef> rightProjects = new ArrayList<>();
     List<String> rightNames = new ArrayList<>();

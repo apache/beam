@@ -178,6 +178,32 @@ class UserPipelineTrackerTest(unittest.TestCase):
     user_pipelines = set(p for p in ut)
     self.assertSetEqual(set([user1, user2]), user_pipelines)
 
+  def test_can_evict_user_pipeline(self):
+    ut = UserPipelineTracker()
+
+    user1 = beam.Pipeline()
+    derived11 = beam.Pipeline()
+    derived12 = beam.Pipeline()
+
+    ut.add_derived_pipeline(user1, derived11)
+    ut.add_derived_pipeline(user1, derived12)
+
+    user2 = beam.Pipeline()
+    derived21 = beam.Pipeline()
+    derived22 = beam.Pipeline()
+
+    ut.add_derived_pipeline(user2, derived21)
+    ut.add_derived_pipeline(user2, derived22)
+
+    ut.evict(user1)
+
+    self.assertIsNone(ut.get_user_pipeline(user1))
+    self.assertIsNone(ut.get_user_pipeline(derived11))
+    self.assertIsNone(ut.get_user_pipeline(derived12))
+
+    self.assertIs(user2, ut.get_user_pipeline(derived21))
+    self.assertIs(user2, ut.get_user_pipeline(derived22))
+
 
 if __name__ == '__main__':
   unittest.main()

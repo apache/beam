@@ -50,8 +50,8 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_EQUAL, // $equal
           FunctionSignatureId.FN_STRING_LIKE, // $like
           FunctionSignatureId.FN_BYTE_LIKE, // $like
-          // FunctionSignatureId.FN_IN, // $in
-          // FunctionSignatureId.FN_IN_ARRAY, // $in_array
+          FunctionSignatureId.FN_IN, // $in
+          FunctionSignatureId.FN_IN_ARRAY, // $in_array
           // FunctionSignatureId.FN_BETWEEN, // $between
           FunctionSignatureId.FN_IS_NULL, // $is_null
           FunctionSignatureId.FN_IS_TRUE, // $is_true

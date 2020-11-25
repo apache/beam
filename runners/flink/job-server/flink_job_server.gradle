@@ -151,7 +151,8 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
       } else {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        // Larger keys are possible, but they require more memory.
+        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
@@ -182,6 +183,8 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
     testFilter: {
       // TODO(BEAM-10016)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+      // TODO(BEAM-11310)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
     },
   )
 }

@@ -115,6 +115,26 @@ class Index(Partitioning):
     for key in range(num_partitions):
       yield key, df[hashes % num_partitions == key]
 
+  def check(self, dfs):
+    # TODO(BEAM-11324): This check should be stronger, it should verify that
+    # running partition_fn on the concatenation of dfs yields the same
+    # partitions.
+    if self._levels is None:
+
+      def get_index_set(df):
+        return set(df.index)
+    else:
+
+      def get_index_set(df):
+        return set(zip(df.index.level[level] for level in self._levels))
+
+    index_sets = [get_index_set(df) for df in dfs]
+    for i, index_set in enumerate(index_sets[:-1]):
+      if not index_set.isdisjoint(set.union(*index_sets[i + 1:])):
+        return False
+
+    return True
+
 
 class Singleton(Partitioning):
   """A partitioning of all the data into a single partition.
@@ -133,6 +153,9 @@ class Singleton(Partitioning):
 
   def partition_fn(self, df, num_partitions):
     yield None, df
+
+  def check(self, dfs):
+    return len(dfs) <= 1
 
 
 class Nothing(Partitioning):
@@ -162,3 +185,6 @@ class Nothing(Partitioning):
     part = pd.Series(shuffled(range(len(df))), index=df.index) % num_partitions
     for k in range(num_partitions):
       yield k, df[part == k]
+
+  def check(self, dfs):
+    return True
