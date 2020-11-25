@@ -510,6 +510,21 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
+  def test_sdf_with_dofn_as_restriction_provider(self):
+    class ExpandingStringsDoFn(beam.DoFn, ExpandStringsProvider):
+      def process(
+          self, element, restriction_tracker=beam.DoFn.RestrictionParam()):
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield element[cur]
+          cur += 1
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
   def test_sdf_with_check_done_failed(self):
     class ExpandingStringsDoFn(beam.DoFn):
       def process(

@@ -546,9 +546,10 @@ class _DoFnParam(object):
 
 class _RestrictionDoFnParam(_DoFnParam):
   """Restriction Provider DoFn parameter."""
-  def __init__(self, restriction_provider):
-    # type: (RestrictionProvider) -> None
-    if not isinstance(restriction_provider, RestrictionProvider):
+  def __init__(self, restriction_provider=None):
+    # type: (typing.Optional[RestrictionProvider]) -> None
+    if (restriction_provider is not None and
+        not isinstance(restriction_provider, RestrictionProvider)):
       raise ValueError(
           'DoFn.RestrictionParam expected RestrictionProvider object.')
     self.restriction_provider = restriction_provider
