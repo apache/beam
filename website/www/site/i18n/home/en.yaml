@@ -28,8 +28,6 @@
   translation: "Go Quickstart"
 - id: home-hero-blog-title
   translation: "The latest from the blog"
-- id: home-logos-title
-  translation: "Works with"
 - id: home-cards-title
   translation: "Testimonials"
 - id: home-cards-body

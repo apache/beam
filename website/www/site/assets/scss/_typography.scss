@@ -23,6 +23,17 @@
   font-style: normal;
   line-height: 1.1;
   letter-spacing: normal;
+  margin: 0;
+  color: $color-gray;
+}
+
+.component-large-header {
+  font-size: 30px;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 1.4;
+  letter-spacing: normal;
+  margin: 0;
   color: $color-gray;
 }
 
@@ -32,6 +43,17 @@
   font-style: normal;
   line-height: 1.45;
   letter-spacing: 0.43px;
+  margin: 0;
+  color: $color-gray;
+}
+
+.component-small-header {
+  font-size: 18px;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 1.56;
+  letter-spacing: 0.43px;
+  margin: 0;
   color: $color-gray;
 }
 
@@ -41,14 +63,36 @@
   font-style: normal;
   line-height: 1.63;
   letter-spacing: 0.43px;
+  margin: 0;
   color: $color-gray;
+}
+
+.component-label {
+  font-size: 16px;
+  font-weight: bold;
+  font-stretch: normal;
+  font-style: normal;
+  line-height: 1.5;
+  letter-spacing: 0.43px;
+  margin: 0;
+  color: $color-gray;
+}
+
+.component-tag {
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1.63;
+  letter-spacing: 0.43px;
+  margin: 0;
+  color: $color-smoke;
 }
 
 @media (max-width: $tablet) {
   .component-title {
     font-size: 28px;
   }
-  .component-header {
-    font-weight: normal;
+  .component-large-header {
+    font-size: 24px;
   }
 }
