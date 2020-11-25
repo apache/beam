@@ -15,22 +15,57 @@
  *  limitations under the License.
  */
 
-.logos
-  text-align: center
-  margin: $pad-xl 0
+@import "media";
 
-  .logos__title
-    +type-h2
-    margin-bottom: $pad-md
+.logos {
+  padding: $pad-l $pad;
 
-  .logos__logos
-    display: flex
-    justify-content: center
+  .logos-title {
+    @extend .component-title;
 
-    .logos__logos__logo
-      line-height: 0
-      margin: 0 $pad
-      +md
-        margin: 0 $pad-md
-      img
-        max-height: 70px
+    text-align: center;
+  }
+
+  .logos-logos {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 1111px;
+    margin: 70px auto 60px;
+
+    .logos-logo {
+      line-height: 0;
+
+      img {
+        max-height: 70px;
+      }
+    }
+  }
+}
+
+@media (max-width: $tablet) {
+  .logos {
+    padding: $pad-md $pad-s;
+
+    .logos-logos {
+      max-width: 360px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 50px auto 20px;
+
+      .logos-logo {
+        margin-right: 60px;
+        margin-bottom: 50px;
+
+        img {
+          max-height: 45px;
+        }
+      }
+
+      :nth-child(3),
+      :last-child {
+        margin-right: 0;
+      }
+    }
+  }
+}
