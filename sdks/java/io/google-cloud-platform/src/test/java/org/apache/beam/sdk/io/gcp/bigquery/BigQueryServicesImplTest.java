@@ -602,7 +602,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
         .thenReturn(toStream(new TableDataInsertAllResponse()));
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("quotaExceeded");
+    thrown.expectMessage("Encountered too many BigQuery insertAll rate limit or quota errors.");
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
@@ -610,8 +610,8 @@ public class BigQueryServicesImplTest {
         ref,
         rows,
         null,
-        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
-        TEST_BACKOFF,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), // backoff for all errors
+        TEST_BACKOFF, // Separate longer backoff for rate limit/quota errors
         new MockSleeper(),
         InsertRetryPolicy.alwaysRetry(),
         null,
@@ -732,8 +732,8 @@ public class BigQueryServicesImplTest {
   }
 
   /**
-   * Tests that {@link DatasetServiceImpl#insertAll} will not retry other non-rate-limited,
-   * non-quota-exceeded attempts.
+   * Tests that {@link DatasetServiceImpl#insertAll} will retry all other errors (not rate limit or
+   * quota).
    */
   @Test
   public void testFailInsertOtherRetry() throws Exception {
@@ -743,8 +743,7 @@ public class BigQueryServicesImplTest {
     rows.add(wrapValue(new TableRow()));
 
     // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
-    // but should not
-    // be invoked.
+    // and should be invoked, after a retry is attempted.
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
     when(response.getStatusCode()).thenReturn(403).thenReturn(200);
     when(response.getContent())
@@ -752,27 +751,76 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(new TableDataInsertAllResponse()));
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("actually forbidden");
-    try {
-      dataService.insertAll(
-          ref,
-          rows,
-          null,
-          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
-          TEST_BACKOFF,
-          new MockSleeper(),
-          InsertRetryPolicy.alwaysRetry(),
-          null,
-          null,
-          false,
-          false,
-          false);
-    } finally {
-      verify(response, times(1)).getStatusCode();
-      verify(response, times(1)).getContent();
-      verify(response, times(1)).getContentType();
-    }
+    // thrown.expect(RuntimeException.class);
+    // thrown.expectMessage("actually forbidden");
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
+        new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        false,
+        false,
+        false);
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} will retry all other errors (not rate limit or
+   * quota) until the number of retried specieid in the backoff is exhausted.
+   */
+  @Test
+  public void testFailInsertOtherRetryUntilBackoffHit() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    // All responses are 403 non-{rate-limited, quota-exceeded}.
+    when(response.getContentType())
+        .thenReturn(Json.MEDIA_TYPE)
+        .thenReturn(Json.MEDIA_TYPE)
+        .thenReturn(Json.MEDIA_TYPE)
+        .thenReturn(Json.MEDIA_TYPE)
+        .thenReturn(Json.MEDIA_TYPE);
+    // Should call 4 times (3 retried).
+    when(response.getStatusCode())
+        .thenReturn(403)
+        .thenReturn(403)
+        .thenReturn(403)
+        .thenReturn(403)
+        .thenReturn(403);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
+        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
+        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
+        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
+        .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)));
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
+        new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        false,
+        false,
+        false);
+    verify(response, times(4)).getStatusCode();
+    verify(response, times(4)).getContent();
+    verify(response, times(4)).getContentType();
   }
 
   /**

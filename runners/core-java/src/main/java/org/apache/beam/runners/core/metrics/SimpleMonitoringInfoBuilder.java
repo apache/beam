@@ -23,6 +23,7 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
+import static org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.Timestamps.fromMillis;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
@@ -30,6 +31,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 
 /**
  * Simplified building of MonitoringInfo fields, allows setting one field at a time with simpler
@@ -150,6 +152,11 @@ public class SimpleMonitoringInfoBuilder {
   /** Sets the MonitoringInfo label to the given name and value. */
   public SimpleMonitoringInfoBuilder setLabel(String labelName, String labelValue) {
     this.builder.putLabels(labelName, labelValue);
+    return this;
+  }
+
+  public SimpleMonitoringInfoBuilder setStartTime(DateTime startTime) {
+    this.builder.setStartTime(fromMillis(startTime.getMillis()));
     return this;
   }
 

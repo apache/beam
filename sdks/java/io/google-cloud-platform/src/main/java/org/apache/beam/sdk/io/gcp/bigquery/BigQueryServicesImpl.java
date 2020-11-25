@@ -37,6 +37,7 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
+import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -83,6 +84,8 @@ import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Int64Value;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -98,9 +101,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -131,8 +134,18 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"})
+
+// TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BigQueryServicesImpl implements BigQueryServices {
+
+  // This exception is thrown, if all of the backoff retries have been exhausted
+  // after encountering rate limit or quota errors in insertAll().
+  public static class RateLimitErrorRetriesExhausted extends Exception {
+    public RateLimitErrorRetriesExhausted(String errorMessage, Exception cause) {
+      super(errorMessage, cause);
+    }
+  }
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
@@ -447,8 +460,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @VisibleForTesting
   static class DatasetServiceImpl implements DatasetService {
+    // Backoff: 200ms * 1.5 ^ n, n=[1,10]
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
-        FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
+        FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(10);
 
     // A backoff for rate limit exceeded errors. Only retry upto approximately 2 minutes
     // and propagate errors afterward. Otherwise, Dataflow UI cannot display rate limit
@@ -467,24 +481,6 @@ class BigQueryServicesImpl implements BigQueryServices {
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private ExecutorService executor;
-
-    protected static final Map<Integer, String> CANONICAL_STATUS_MAP =
-        ImmutableMap.<Integer, String>builder()
-            .put(200, "ok")
-            .put(400, "out_of_range")
-            .put(401, "unauthenticated")
-            .put(403, "permission_denied")
-            .put(404, "not_found")
-            .put(409, "already_exists")
-            .put(429, "resource_exhausted")
-            .put(499, "cancelled")
-            .put(500, "internal")
-            .put(501, "not_implemented")
-            .put(503, "unavailable")
-            .put(504, "deadline_exceeded")
-            .build();
-
-    protected static final String CANONICAL_STATUS_UNKNOWN = "unknown";
 
     @VisibleForTesting
     DatasetServiceImpl(
@@ -843,21 +839,29 @@ class BigQueryServicesImpl implements BigQueryServices {
       }
 
       long retTotalDataSize = 0;
-      List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
+      List<TableDataInsertAllResponse.InsertErrors> rowsFailedToInsertErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
       List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowsToPublish = rowList;
       List<String> idsToPublish = null;
+
       if (!ignoreInsertIds) {
         idsToPublish = insertIdList;
       }
+
+      List<List<FailsafeValueInSingleWindow<TableRow, TableRow>>> rowsToPublishForEachRequest =
+          new ArrayList<>();
+
+      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowsToPublishForRequest =
+          new ArrayList<>();
       while (true) {
+        int backoffCount = 0;
         List<FailsafeValueInSingleWindow<TableRow, TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
 
         int strideIndex = 0;
         // Upload in batches.
-        List<TableDataInsertAllRequest.Rows> rows = new ArrayList<>();
+        List<TableDataInsertAllRequest.Rows> rowsToInsertForRequest = new ArrayList<>();
         long dataSize = 0L;
 
         List<Future<List<TableDataInsertAllResponse.InsertErrors>>> futures = new ArrayList<>();
@@ -872,7 +876,8 @@ class BigQueryServicesImpl implements BigQueryServices {
             out.setInsertId(idsToPublish.get(i));
           }
           out.setJson(row.getUnknownKeys());
-          rows.add(out);
+          rowsToInsertForRequest.add(out);
+          rowsToPublishForRequest.add(rowsToPublish.get(i));
 
           try {
             dataSize += TableRowJsonCoder.of().getEncodedElementByteSize(row);
@@ -881,12 +886,29 @@ class BigQueryServicesImpl implements BigQueryServices {
           }
 
           if (dataSize >= maxRowBatchSize
-              || rows.size() >= maxRowsPerBatch
+              || rowsToInsertForRequest.size() >= maxRowsPerBatch
               || i == rowsToPublish.size() - 1) {
             TableDataInsertAllRequest content = new TableDataInsertAllRequest();
-            content.setRows(rows);
+            content.setRows(rowsToInsertForRequest);
             content.setSkipInvalidRows(skipInvalidRows);
             content.setIgnoreUnknownValues(ignoreUnkownValues);
+
+            HashMap<String, String> baseLabels = new HashMap<String, String>();
+            // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
+            // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
+            baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+            baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+            baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+            baseLabels.put(
+                MonitoringInfoConstants.Labels.RESOURCE,
+                ResourceIdentifiers.bigQueryTable(
+                    ref.getProjectId(), ref.getDatasetId(), ref.getTableId()));
+            baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, ref.getProjectId());
+            baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, ref.getDatasetId());
+            baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, ref.getTableId());
+
+            ServiceCallMetric serviceCallMetric =
+                new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
 
             final Bigquery.Tabledata.InsertAll insert =
                 client
@@ -894,29 +916,42 @@ class BigQueryServicesImpl implements BigQueryServices {
                     .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content)
                     .setPrettyPrint(false);
 
+            rowsToPublishForEachRequest.add(rowsToPublishForRequest);
+            rowsToPublishForRequest = new ArrayList<>();
+            // Create final reference (which cannot change).
+            // So the lamba expression can refer to rowsInsertedForRequest to use on error.
             futures.add(
                 executor.submit(
                     () -> {
                       // A backoff for rate limit exceeded errors.
-                      BackOff backoff1 =
+                      BackOff backoffForRateLimit =
                           BackOffAdapter.toGcpBackOff(rateLimitBackoffFactory.backoff());
                       long totalBackoffMillis = 0L;
                       while (true) {
                         try {
-                          return insert.execute().getInsertErrors();
+                          List<TableDataInsertAllResponse.InsertErrors> response =
+                              insert.execute().getInsertErrors();
+                          if (response.isEmpty()) {
+                            serviceCallMetric.call("ok");
+                          } else {
+                            for (TableDataInsertAllResponse.InsertErrors insertErrors : response) {
+                              for (ErrorProto insertError : insertErrors.getErrors()) {
+                                serviceCallMetric.call(insertError.getReason());
+                              }
+                            }
+                          }
+                          return response;
                         } catch (IOException e) {
-                          recordError(e);
                           GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
                           if (errorInfo == null) {
+                            serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
                             throw e;
                           }
-                          /**
-                           * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
-                           * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
-                           * GoogleCloudDataproc/hadoop-connectors
-                           */
+                          serviceCallMetric.call(errorInfo.getReason());
+                          // Retry for all errors, until we hit the backoff limit.
                           if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
                               && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
+                            // throws for any error which is not rate limit or quota.
                             throw e;
                           }
                           LOG.info(
@@ -924,9 +959,11 @@ class BigQueryServicesImpl implements BigQueryServices {
                                   "BigQuery insertAll error, retrying: %s",
                                   ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
                           try {
-                            long nextBackOffMillis = backoff1.nextBackOffMillis();
+                            long nextBackOffMillis = backoffForRateLimit.nextBackOffMillis();
                             if (nextBackOffMillis == BackOff.STOP) {
-                              throw e;
+                              throw new RateLimitErrorRetriesExhausted(
+                                  "Encountered too many BigQuery insertAll rate limit or quota errors.",
+                                  e);
                             }
                             sleeper.sleep(nextBackOffMillis);
                             totalBackoffMillis += nextBackOffMillis;
@@ -946,24 +983,28 @@ class BigQueryServicesImpl implements BigQueryServices {
 
             dataSize = 0L;
             strideIndex = i + 1;
-            rows = new ArrayList<>();
+            rowsToInsertForRequest = new ArrayList<>();
           }
         }
 
-        try {
-          for (int i = 0; i < futures.size(); i++) {
+        for (int i = 0; i < futures.size(); i++) {
+          try {
             List<TableDataInsertAllResponse.InsertErrors> errors = futures.get(i).get();
             if (errors == null) {
               continue;
             }
             for (TableDataInsertAllResponse.InsertErrors error : errors) {
               if (error.getIndex() == null) {
-                throw new IOException("Insert failed: " + error + ", other errors: " + allErrors);
+                throw new IOException(
+                    "Insert failed: " + error + ", other errors: " + rowsFailedToInsertErrors);
               }
 
               int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
-                allErrors.add(error);
+                rowsFailedToInsertErrors.add(error);
+                // TODO (BEAM-12139): Select the retry rows(using errorIndex) from the batch of rows
+                // which
+                // attempted insertion in this call. Not the entire set of rows in rowsToPublish.
                 retryRows.add(rowsToPublish.get(errorIndex));
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
@@ -972,23 +1013,36 @@ class BigQueryServicesImpl implements BigQueryServices {
                 errorContainer.add(failedInserts, error, ref, rowsToPublish.get(errorIndex));
               }
             }
+            // Accumulate the longest throttled time across all parallel threads
+            throttlingMsecs.inc(maxThrottlingMsec.get());
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            StringWriter errors = new StringWriter();
+            e.printStackTrace(new PrintWriter(errors));
+            throw new IOException("Interrupted while inserting " + rowsToPublish);
+          } catch (ExecutionException e) {
+            // TODO add all the rows attempted in this call to retryRows
+            // All of the rows failed, add them all to retry.
+            retryRows.addAll(rowsToPublishForEachRequest.get(i));
+            StringWriter errors = new StringWriter();
+            e.printStackTrace(new PrintWriter(errors));
+            // If the ExecutionException was caused by an IOException, this means
+            // the insert.execute() request failed. Retry this using backoff.
+            if (!(e.getCause() instanceof IOException)) {
+              // Other errors are critical, throw a RuntimeException to fail the bundle.
+              throw new RuntimeException(e.getCause());
+            }
           }
-          // Accumulate the longest throttled time across all parallel threads
-          throttlingMsecs.inc(maxThrottlingMsec.get());
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IOException("Interrupted while inserting " + rowsToPublish);
-        } catch (ExecutionException e) {
-          throw new RuntimeException(e.getCause());
         }
 
-        if (allErrors.isEmpty()) {
+        if (rowsFailedToInsertErrors.isEmpty() && retryRows.isEmpty()) {
           break;
         }
         long nextBackoffMillis = backoff.nextBackOffMillis();
         if (nextBackoffMillis == BackOff.STOP) {
           break;
         }
+        backoffCount++;
         try {
           sleeper.sleep(nextBackoffMillis);
         } catch (InterruptedException e) {
@@ -997,11 +1051,12 @@ class BigQueryServicesImpl implements BigQueryServices {
         }
         rowsToPublish = retryRows;
         idsToPublish = retryIds;
-        allErrors.clear();
+        rowsFailedToInsertErrors.clear();
+
         LOG.info("Retrying {} failed inserts to BigQuery", rowsToPublish.size());
       }
-      if (!allErrors.isEmpty()) {
-        throw new IOException("Insert failed: " + allErrors);
+      if (!rowsFailedToInsertErrors.isEmpty()) {
+        throw new IOException("Insert failed: " + rowsFailedToInsertErrors);
       } else {
         return retTotalDataSize;
       }
@@ -1041,23 +1096,6 @@ class BigQueryServicesImpl implements BigQueryServices {
       GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
       GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
       return errorInfo;
-    }
-
-    protected void recordError(IOException e) {
-      if (e instanceof GoogleJsonResponseException) {
-        int errorCode = ((GoogleJsonResponseException) e).getDetails().getCode();
-        String canonicalGcpStatus =
-            CANONICAL_STATUS_MAP.getOrDefault(errorCode, CANONICAL_STATUS_UNKNOWN);
-        LabeledMetrics.counter(
-                MonitoringInfoMetricName.named(
-                    MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
-                    ImmutableMap.<String, String>builder()
-                        .putAll(API_METRIC_LABEL)
-                        .put(MonitoringInfoConstants.Labels.STATUS, canonicalGcpStatus)
-                        .build()),
-                true)
-            .inc();
-      }
     }
 
     @Override

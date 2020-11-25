@@ -25,7 +25,9 @@ import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
+import org.apache.beam.fn.harness.control.MonitoringInfoShortIdCache;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
+import org.apache.beam.fn.harness.control.ProcessWideInstructionHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -37,6 +39,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -45,6 +48,7 @@ import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
@@ -222,6 +226,10 @@ public class FnHarness {
                     }
                   });
 
+      MetricsEnvironment.setProcessWideContainer(new MetricsContainerImpl(null));
+
+      MonitoringInfoShortIdCache.newShortIdCache();
+
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options,
@@ -247,6 +255,13 @@ public class FnHarness {
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
           processBundleHandler::trySplit);
+      handlers.put(
+          InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
+          ProcessWideInstructionHandler::harnessMonitoringInfos);
+      handlers.put(
+          InstructionRequest.RequestCase.MONITORING_INFOS,
+          ProcessWideInstructionHandler::monitoringInfoMetadata);
+
       BeamFnControlClient control =
           new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 

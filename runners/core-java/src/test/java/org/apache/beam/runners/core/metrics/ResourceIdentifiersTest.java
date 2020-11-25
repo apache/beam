@@ -17,30 +17,15 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import java.io.Serializable;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTime;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
- * specific metric name in a single context.
- *
- * @param <DataT> The type of metric data stored (and extracted) from this cell.
- */
-public interface MetricCell<DataT> extends Serializable {
-  /**
-   * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.
-   */
-  DirtyState getDirty();
-
-  /** Return the cumulative value of this metric. */
-  DataT getCumulative();
-
-  /** Reset this metric. */
-  void reset();
-
-  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
-  default @Nullable DateTime getStartTime() {
-    return null;
+public class ResourceIdentifiersTest {
+  @Test
+  public void testBigQueryTable() {
+    String resource = ResourceIdentifiers.bigQueryTable("myProject", "myDataset", "myTableId");
+    Assert.assertEquals(
+        "//bigquery.googleapis.com/projects/myProject/datasets/myDataset/tables/myTableId",
+        resource);
   }
 }

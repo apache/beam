@@ -98,7 +98,8 @@ public class JetMetricsContainer implements MetricsContainer {
       UpdateT value = cell.getValue();
       if (value != null) {
         MetricKey key = MetricKey.create(stepName, cell.getName());
-        MetricUpdates.MetricUpdate<UpdateT> update = MetricUpdates.MetricUpdate.create(key, value);
+        MetricUpdates.MetricUpdate<UpdateT> update =
+            MetricUpdates.MetricUpdate.create(key, value, null);
         updates.add(update);
       }
     }

@@ -17,30 +17,19 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import java.io.Serializable;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTime;
-
 /**
- * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
- * specific metric name in a single context.
+ * Helper functions to generate resource labels strings for GCP entitites These can be used on
+ * MonitoringInfo 'resource' labels. See example entities:
  *
- * @param <DataT> The type of metric data stored (and extracted) from this cell.
+ * <p>https://s.apache.org/beam-gcp-debuggability For GCP entities, populate the RESOURCE label with
+ * the aip.dev/122 format: https://google.aip.dev/122 If an official GCP format does not exist, try
+ * to use the following format. //whatever.googleapis.com/parents/{parentId}/whatevers/{whateverId}
  */
-public interface MetricCell<DataT> extends Serializable {
-  /**
-   * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.
-   */
-  DirtyState getDirty();
+public class ResourceIdentifiers {
 
-  /** Return the cumulative value of this metric. */
-  DataT getCumulative();
-
-  /** Reset this metric. */
-  void reset();
-
-  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
-  default @Nullable DateTime getStartTime() {
-    return null;
+  public static String bigQueryTable(String projectId, String datasetId, String tableId) {
+    return String.format(
+        "//bigquery.googleapis.com/projects/%s/datasets/%s/tables/%s",
+        projectId, datasetId, tableId);
   }
 }

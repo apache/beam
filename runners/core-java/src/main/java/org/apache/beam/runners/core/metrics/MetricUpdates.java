@@ -22,6 +22,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 
 /** Representation of multiple metric updates. */
 @AutoValue
@@ -46,9 +48,12 @@ public abstract class MetricUpdates {
     public abstract MetricKey getKey();
     /** The value of the update. */
     public abstract T getUpdate();
+    /* The startTime of the first metric update. */
+    public abstract @Nullable DateTime getStartTime();
 
-    public static <T> MetricUpdate<T> create(MetricKey key, T update) {
-      return new AutoValue_MetricUpdates_MetricUpdate(key, update);
+    public static <T> MetricUpdate<T> create(
+        MetricKey key, T update, @Nullable DateTime startTime) {
+      return new AutoValue_MetricUpdates_MetricUpdate(key, update, startTime);
     }
   }
 
