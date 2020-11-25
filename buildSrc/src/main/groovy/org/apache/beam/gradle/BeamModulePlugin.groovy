@@ -1914,6 +1914,11 @@ class BeamModulePlugin implements Plugin<Project> {
     // Method to create the crossLanguageValidatesRunnerTask.
     // The method takes crossLanguageValidatesRunnerConfiguration as parameter.
     project.ext.createCrossLanguageValidatesRunnerTask = {
+      // This task won't work if the python build file doesn't exist.
+      if (!project.project(":sdks:python").buildFile.exists()) {
+        System.err.println 'Python build file not found. Skipping createCrossLanguageValidatesRunnerTask.'
+        return
+      }
       def config = it ? it as CrossLanguageValidatesRunnerConfiguration : new CrossLanguageValidatesRunnerConfiguration()
 
       project.evaluationDependsOn(":sdks:python")
