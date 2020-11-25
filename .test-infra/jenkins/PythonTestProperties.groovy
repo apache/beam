@@ -24,7 +24,9 @@ class PythonTestProperties {
     '3.7',
     '3.8'
   ]
-  final static List<String> SUPPORTED_CONTAINER_TASKS = ['py36', 'py37', 'py38']
+  final static List<String> SUPPORTED_CONTAINER_TASKS = ALL_SUPPORTED_VERSIONS.stream().map {
+    "py${it.replace('.', '')}"
+  }.collect()
   final static String LOWEST_SUPPORTED = ALL_SUPPORTED_VERSIONS[0]
   final static String HIGHEST_SUPPORTED = ALL_SUPPORTED_VERSIONS[-1]
   final static List<String> ESSENTIAL_VERSIONS = [
