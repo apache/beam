@@ -270,13 +270,14 @@ class Recording:
 
 class RecordingManager:
   """Manages recordings of PCollections for a given pipeline."""
-  def __init__(self, user_pipeline, pipeline_var=None):
-    # type: (beam.Pipeline, str) -> None
+  def __init__(self, user_pipeline, pipeline_var=None, test_limiters=None):
+    # type: (beam.Pipeline, str, list[Limiter]) -> None
 
     self.user_pipeline = user_pipeline  # type: beam.Pipeline
     self.pipeline_var = pipeline_var if pipeline_var else ''  # type: str
     self._recordings = set()  # type: set[Recording]
     self._start_time_sec = 0  # type: float
+    self._test_limiters = test_limiters if test_limiters else []
 
   def _watch(self, pcolls):
     # type: (List[beam.pvalue.PCollection]) -> None
@@ -315,8 +316,11 @@ class RecordingManager:
     source_pcolls = getattr(cache_manager, 'capture_keys', set())
     to_clear = all_cached - source_pcolls
 
-    for cache_key in to_clear:
-      cache_manager.clear('full', cache_key)
+    self._clear_pcolls(cache_manager, set(to_clear))
+
+  def _clear_pcolls(self, cache_manager, pcolls):
+    for pc in pcolls:
+      cache_manager.clear('full', pc)
 
   def clear(self):
     # type: () -> None
@@ -374,6 +378,7 @@ class RecordingManager:
       runner = runner._underlying_runner
 
     # Make sure that sources without a user reference are still cached.
+    ie.current_env().add_user_pipeline(self.user_pipeline)
     pi.watch_sources(self.user_pipeline)
 
     # Attempt to run background caching job to record any sources.
@@ -384,7 +389,10 @@ class RecordingManager:
           '<pipeline>.options will not be supported',
           category=DeprecationWarning)
     if bcj.attempt_to_run_background_caching_job(
-        runner, self.user_pipeline, options=self.user_pipeline.options):
+        runner,
+        self.user_pipeline,
+        options=self.user_pipeline.options,
+        limiters=self._test_limiters):
       self._start_time_sec = time.time()
       return True
     return False
@@ -411,8 +419,6 @@ class RecordingManager:
     # watch it. No validation is needed here because the watch logic can handle
     # arbitrary variables.
     self._watch(pcolls)
-    pipeline_instrument = pi.PipelineInstrument(self.user_pipeline)
-
     pipeline_instrument = pi.PipelineInstrument(self.user_pipeline)
     self.record_pipeline()
 

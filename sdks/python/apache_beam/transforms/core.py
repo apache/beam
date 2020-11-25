@@ -226,13 +226,14 @@ class RestrictionProvider(object):
   for the following methods:
   * create_tracker()
   * initial_restriction()
+  * restriction_size()
 
   Optionally, ``RestrictionProvider`` may override default implementations of
   following methods:
   * restriction_coder()
-  * restriction_size()
   * split()
   * split_and_size()
+  * truncate()
 
   ** Pausing and resuming processing of an element **
 
@@ -240,12 +241,10 @@ class RestrictionProvider(object):
   ``DoFn.process()`` method, a Splittable ``DoFn`` may return an object of type
   ``ProcessContinuation``.
 
-  If provided, ``ProcessContinuation`` object specifies that runner should
-  later re-invoke ``DoFn.process()`` method to resume processing the current
-  element and the manner in which the re-invocation should be performed. A
-  ``ProcessContinuation`` object must only be specified as the last element of
-  the iterator. If a ``ProcessContinuation`` object is not provided the runner
-  will assume that the current input element has been fully processed.
+  If restriction_tracker.defer_remander is called in the ```DoFn.process()``, it
+  means that runner should later re-invoke ``DoFn.process()`` method to resume
+  processing the current element and the manner in which the re-invocation
+  should be performed.
 
   ** Updating output watermark **
 
@@ -282,7 +281,13 @@ class RestrictionProvider(object):
     raise NotImplementedError
 
   def split(self, element, restriction):
-    """Splits the given element and restriction.
+    """Splits the given element and restriction initially.
+
+    This method enables runners to perform bulk splitting initially allowing for
+    a rapid increase in parallelism. Note that initial split is a different
+    concept from the split during element processing time. Please refer to
+    ``iobase.RestrictionTracker.try_split`` for details about splitting when the
+    current element and restriction are actively being processed.
 
     Returns an iterator of restrictions. The total set of elements produced by
     reading input element for each of the returned restrictions should be the
@@ -290,6 +295,9 @@ class RestrictionProvider(object):
     the input restriction.
 
     This API is optional if ``split_and_size`` has been implemented.
+
+    If this method is not override, there is no initial splitting happening on
+    each restriction.
 
     """
     yield restriction
@@ -337,6 +345,10 @@ class RestrictionProvider(object):
     Return a truncated finite restriction if further processing is required
     otherwise return None to represent that no further processing of this
     restriction is required.
+
+    The default behavior when a pipeline is being drained is that bounded
+    restrictions process entirely while unbounded restrictions process till a
+    checkpoint is possible.
     """
     restriction_tracker = self.create_tracker(restriction)
     if restriction_tracker.is_bounded():

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.CASE_FORMAT_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ENUMERATION;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
@@ -30,10 +32,13 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ITERABLE;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_NESTED_ARRAY_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -42,6 +47,8 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
@@ -52,6 +59,8 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NullablePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoNoCreateOption;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithCaseFormat;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum.Color;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithIterable;
@@ -656,5 +665,51 @@ public class JavaFieldSchemaTest {
     assertEquals(new PojoWithEnum(Color.RED, allColorsJava), fromRow.apply(redRow));
     assertEquals(new PojoWithEnum(Color.GREEN, allColorsJava), fromRow.apply(greenRow));
     assertEquals(new PojoWithEnum(Color.BLUE, allColorsJava), fromRow.apply(blueRow));
+  }
+
+  @Test
+  public void testCaseFormat() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(PojoWithCaseFormat.class);
+
+    assertThat(schema, equivalentTo(CASE_FORMAT_POJO_SCHEMA));
+
+    PojoWithCaseFormat pojo = new PojoWithCaseFormat("hunter", 23, false);
+    Row row =
+        Row.withSchema(CASE_FORMAT_POJO_SCHEMA)
+            .withFieldValue("user", "hunter")
+            .withFieldValue("age_in_years", 23)
+            .withFieldValue("KnowsJavascript", false)
+            .build();
+
+    Row output = registry.getToRowFunction(PojoWithCaseFormat.class).apply(pojo);
+    assertThat(output, equivalentTo(row));
+    assertEquals(registry.getFromRowFunction(PojoWithCaseFormat.class).apply(row), pojo);
+  }
+
+  @Test
+  public void testNoCreateOptionThrows() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> {
+              registry
+                  .getFromRowFunction(PojoNoCreateOption.class)
+                  .apply(
+                      Row.withSchema(Schema.of(Field.of("user", FieldType.STRING)))
+                          .withFieldValue("user", "foo")
+                          .build());
+            });
+
+    assertThat(
+        "Message should suggest using @SchemaCreate.",
+        thrown.getMessage(),
+        containsString("@SchemaCreate"));
+    assertThat(
+        "Message should suggest using zero-argument constructor.",
+        thrown.getMessage(),
+        containsString("zero-argument constructor"));
   }
 }

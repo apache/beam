@@ -174,7 +174,7 @@ class Stage(object):
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
             self.environment, other.environment),
-        parent=_lowest_common_ancestor(self.name, other.name, context),
+        parent=_parent_for_fused_stages([self.name, other.name], context),
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
@@ -492,6 +492,7 @@ class TransformContext(object):
         for child in transform.subtransforms
     }
 
+
 def leaf_transform_stages(
     root_ids,  # type: Iterable[str]
     components,  # type: beam_runner_api_pb2.Components
@@ -792,10 +793,7 @@ def eliminate_common_key_with_none(stages, context):
         only_element(stage.transforms[0].outputs.values())
         for stage in sibling_stages
     ]
-    parent = functools.reduce(
-        lambda a,
-        b: _lowest_common_ancestor(a, b, context),
-        [s.name for s in sibling_stages])
+    parent = _parent_for_fused_stages([s.name for s in sibling_stages], context)
     for to_delete_pcoll_id in output_pcoll_ids[1:]:
       pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
       del context.components.pcollections[to_delete_pcoll_id]
@@ -1210,6 +1208,27 @@ def _lowest_common_ancestor(a, b, context):
     if b_ancestor in a_ancestors:
       return b_ancestor
   return None
+
+
+def _parent_for_fused_stages(stages, context):
+  # type: (Iterable[Optional[str]], TransformContext) -> Optional[str]
+
+  '''Returns the name of the new parent for the fused stages.
+
+  The new parent is the lowest common ancestor of the fused stages that is not
+  contained in the set of stages to be fused. The provided context is used to
+  compute ancestors of stages.
+  '''
+  def reduce_fn(a, b):
+    # type: (Optional[str], Optional[str]) -> Optional[str]
+    if a is None or b is None:
+      return None
+    return _lowest_common_ancestor(a, b, context)
+
+  result = functools.reduce(reduce_fn, stages)
+  if result in stages:
+    result = context.parents_map().get(result)
+  return result
 
 
 def expand_sdf(stages, context):

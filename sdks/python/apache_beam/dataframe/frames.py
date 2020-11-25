@@ -138,29 +138,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           'map_index',
           map_index, [self._expr],
           requires_partition_by=partitionings.Nothing(),
-          preserves_partition_by=partitionings.Singleton())
+          preserves_partition_by=partitionings.Nothing())
 
     elif isinstance(by, DeferredSeries):
 
-      if isinstance(self, DeferredSeries):
-
-        def set_index(s, by):
-          df = pd.DataFrame(s)
-          df, by = df.align(by, axis=0)
-          return df.set_index(by).iloc[:, 0]
-
-      else:
-
-        def set_index(df, by):  # type: ignore
-          df, by = df.align(by, axis=0)
-          return df.set_index(by)
-
-      to_group = expressions.ComputedExpression(
-          'set_index',
-          set_index,  #
-          [self._expr, by._expr],
-          requires_partition_by=partitionings.Index(),
-          preserves_partition_by=partitionings.Singleton())
+      raise NotImplementedError(
+          "grouping by a Series is not yet implemented. You can group by a "
+          "DataFrame column by specifying its name.")
 
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError('order sensitive')
@@ -270,6 +254,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   array = property(frame_base.wont_implement_method('non-deferred value'))
 
+  rename = frame_base._elementwise_method('rename')
   between = frame_base._elementwise_method('between')
 
   def dot(self, other):
@@ -468,9 +453,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       # We're only handling a single column.
       base_func = func[0] if isinstance(func, list) else func
       if _is_associative(base_func) and not args and not kwargs:
-        intermediate = expressions.elementwise_expression(
+        intermediate = expressions.ComputedExpression(
             'pre_aggregate',
-            lambda s: s.agg([base_func], *args, **kwargs), [self._expr])
+            lambda s: s.agg([base_func], *args, **kwargs), [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Nothing())
         allow_nonparallel_final = True
       else:
         intermediate = self._expr
@@ -676,9 +663,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return self.loc[key]
 
-    elif (isinstance(key, list) and
-          all(key_column in self._expr.proxy().columns
-              for key_column in key)) or key in self._expr.proxy().columns:
+    elif (
+        (isinstance(key, list) and all(key_column in self._expr.proxy().columns
+                                       for key_column in key)) or
+        key in self._expr.proxy().columns):
       return self._elementwise(lambda df: df[key], 'get_column')
 
     else:
@@ -1409,7 +1397,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             'reset_index',
             lambda df: df.reset_index(level=level, **kwargs),
             [self._expr],
-            preserves_partition_by=partitionings.Singleton(),
+            preserves_partition_by=partitionings.Nothing(),
             requires_partition_by=requires_partition_by))
 
   round = frame_base._elementwise_method('round')
@@ -1527,8 +1515,13 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   groups = property(frame_base.wont_implement_method('non-deferred'))
 
 
-def _liftable_agg(meth):
+def _liftable_agg(meth, postagg_meth=None):
   name, func = frame_base.name_and_func(meth)
+
+  if postagg_meth is None:
+    post_agg_name, post_agg_func = name, func
+  else:
+    post_agg_name, post_agg_func = frame_base.name_and_func(postagg_meth)
 
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
@@ -1553,8 +1546,8 @@ def _liftable_agg(meth):
         preserves_partition_by=partitionings.Singleton())
 
     post_agg = expressions.ComputedExpression(
-        'post_combine_' + name,
-        lambda df: func(
+        'post_combine_' + post_agg_name,
+        lambda df: post_agg_func(
             df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
             **kwargs),
         [pre_agg],
@@ -1593,11 +1586,14 @@ def _unliftable_agg(meth):
 
   return wrapper
 
-LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'size', 'sum']
+LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
+LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
 UNLIFTABLE_AGGREGATIONS = ['mean', 'median', 'std', 'var']
 
 for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))
+for meth in LIFTABLE_WITH_SUM_AGGREGATIONS:
+  setattr(DeferredGroupBy, meth, _liftable_agg(meth, postagg_meth='sum'))
 for meth in UNLIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
@@ -1917,9 +1913,12 @@ for base in ['add',
       '__i%s__' % base,
       frame_base._elementwise_method('__i%s__' % base, inplace=True))
 
-for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
-  setattr(DeferredDataFrame, name, frame_base._elementwise_method(name))
+for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
+  for p in '%s', '__%s__':
+    # Note that non-underscore name is used for both as the __xxx__ methods are
+    # order-sensitive.
+    setattr(DeferredSeries, p % name, frame_base._elementwise_method(name))
+    setattr(DeferredDataFrame, p % name, frame_base._elementwise_method(name))
 
 for name in ['__neg__', '__pos__', '__invert__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))

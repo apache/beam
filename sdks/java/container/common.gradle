@@ -1,0 +1,104 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Build script containing common build tasks for Java SDK Docker images.
+ * Should be applied as a script plugin per supported Java version.
+ * (see java$VER/build.gradle)
+ */
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'base'
+applyDockerNature()
+
+if (!project.hasProperty('imageJavaVersion')) {
+    throw new GradleException('imageJavaVersion project property must be set')
+}
+def imageJavaVersion = project.findProperty('imageJavaVersion')
+
+description = "Apache Beam :: SDKs :: Java :: Container :: Java ${imageJavaVersion} Container"
+
+configurations {
+    dockerDependency
+    sdkHarnessLauncher
+    pulledLicenses
+}
+
+dependencies {
+    pulledLicenses project(path: ":sdks:java:container", configuration: "pulledLicenses")
+    dockerDependency project(path: ":sdks:java:container", configuration: "dockerDependency")
+    sdkHarnessLauncher project(path: ":sdks:java:container", configuration: "sdkHarnessLauncher")
+}
+
+task copyDockerfileDependencies(type: Copy) {
+    from configurations.dockerDependency
+    rename "slf4j-api.*", "slf4j-api.jar"
+    rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
+    rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
+    rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
+    rename 'kafka-clients.*.jar', 'kafka-clients.jar'
+    into "build/target"
+}
+
+task copySdkHarnessLauncher(type: Copy) {
+    from configurations.sdkHarnessLauncher
+    into "build/target"
+}
+
+task copyPulledLicenses(type: Copy) {
+    from configurations.pulledLicenses
+    into "build/target"
+}
+
+task copyGolangLicenses(type: Copy) {
+    from "${project(':release:go-licenses:java').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:java:createLicenses'
+}
+
+task skipPullLicenses(type: Exec) {
+    executable "sh"
+    args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+}
+
+docker {
+    name containerImageName(
+            name: "${project.docker_image_default_repo_prefix}java${imageJavaVersion}_sdk",
+            root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                    project.rootProject["docker-repository-root"] :
+                    project.docker_image_default_repo_root,
+            tag: project.rootProject.hasProperty(["docker-tag"]) ?
+                    project.rootProject["docker-tag"] : project.sdk_version)
+    dockerfile project.file("../Dockerfile")
+    files "./build/"
+    buildArgs([
+            'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+                    project.rootProject.hasProperty(["isRelease"]),
+            'java_version': imageJavaVersion,
+    ])
+}
+
+if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+        project.rootProject.hasProperty(["isRelease"])) {
+    dockerPrepare.dependsOn copyPulledLicenses
+    dockerPrepare.dependsOn copyGolangLicenses
+} else {
+    dockerPrepare.dependsOn skipPullLicenses
+}
+dockerPrepare.dependsOn copySdkHarnessLauncher
+dockerPrepare.dependsOn copyDockerfileDependencies

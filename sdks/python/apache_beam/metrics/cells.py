@@ -121,7 +121,11 @@ class CounterCell(MetricCell):
   def update(self, value):
     if cython.compiled:
       ivalue = value
-      # We hold the GIL, no need for another lock.
+      # Since We hold the GIL, no need for another lock.
+      # And because the C threads won't preempt and interleave
+      # each other.
+      # Assuming there is no code trying to access the counters
+      # directly by circumventing the GIL.
       self.value += ivalue
     else:
       with self._lock:
@@ -134,11 +138,17 @@ class CounterCell(MetricCell):
 
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
-    return monitoring_infos.int64_user_counter(
-        name.namespace,
-        name.name,
-        self.get_cumulative(),
-        ptransform=transform_id)
+    if not name.urn:
+      # User counter case.
+      return monitoring_infos.int64_user_counter(
+          name.namespace,
+          name.name,
+          self.get_cumulative(),
+          ptransform=transform_id)
+    else:
+      # Arbitrary URN case.
+      return monitoring_infos.int64_counter(
+          name.urn, self.get_cumulative(), labels=name.labels)
 
 
 class DistributionCell(MetricCell):
