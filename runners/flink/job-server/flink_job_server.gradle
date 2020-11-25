@@ -239,30 +239,6 @@ createCrossLanguageValidatesRunnerTask(
   ]
 )
 
-def addTestJavaJarCreator(String pyVersion) {
-  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
-  project.tasks.create(name: "testJavaJarCreatorPy${pyBuildPath}") {
-    dependsOn shadowJar
-    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
-    doLast{
-      exec {
-        executable "sh"
-        def options = [
-                "--runner FlinkRunner",
-                "--job_server_jar ${shadowJar.archivePath}",
-                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-                "--python_root_dir ${project.rootDir}/sdks/python",
-                "--python_version ${pyVersion}",
-                "--python_container_image ${project.docker_image_default_repo_root}/"
-                        + "${project.docker_image_default_repo_prefix}"
-                        + "python${pyVersion}_sdk:${project.sdk_version}",
-        ]
-        args "-c", "../../../portability/test_pipeline_jar.sh ${options.join(' ')}"
-      }
-    }
-  }
-}
-
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.
 task miniCluster(type: Jar, dependsOn: shadowJar) {
   archiveBaseName = "${project.archivesBaseName}-mini-cluster"
@@ -280,46 +256,4 @@ task miniCluster(type: Jar, dependsOn: shadowJar) {
     attributes('Main-Class': 'org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint')
   }
   zip64 true // jar needs to contain more than 65535 files
-}
-
-def addTestFlinkUberJarPy(String pyVersion, boolean saveMainSession) {
-  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
-  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}${saveMainSession ? 'saveMainSession' : ''}") {
-    dependsOn miniCluster
-    dependsOn shadowJar
-    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
-    doLast{
-      exec {
-        executable "sh"
-        def options = [
-                "--flink_job_server_jar ${shadowJar.archivePath}",
-                "--flink_mini_cluster_jar ${miniCluster.archivePath}",
-                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-                "--python_root_dir ${project.rootDir}/sdks/python",
-                "--python_version ${pyVersion}",
-                "--python_container_image ${project.docker_image_default_repo_root}/"
-                        + "${project.docker_image_default_repo_prefix}"
-                        + "python${pyVersion}_sdk:${project.sdk_version}",
-        ]
-        if (saveMainSession) {
-          options.add('--save_main_session')
-        }
-        args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
-      }
-    }
-  }
-}
-
-["2.7", "3.5", "3.6", "3.7"].each{ pyVersion ->
-  addTestJavaJarCreator(pyVersion)
-  addTestFlinkUberJarPy(pyVersion, false)
-  addTestFlinkUberJarPy(pyVersion, true)
-}
-
-task testPipelineJar() {
-  dependsOn testJavaJarCreatorPy37
-  dependsOn testFlinkUberJarPy36
-  dependsOn testFlinkUberJarPy36saveMainSession
-  dependsOn testFlinkUberJarPy37
-  dependsOn testFlinkUberJarPy37saveMainSession
 }
