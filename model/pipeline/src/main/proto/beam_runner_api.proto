@@ -188,6 +188,13 @@ message PTransform {
   // Transforms that are required to be implemented by a runner must omit this.
   // All other transforms are required to specify this.
   string environment_id = 7;
+
+  // (Optional) A map from URNs designating a type of annotation, to the
+  // annotation in binary format. For example, an annotation could indicate
+  // that this PTransform has specific resource preferences.
+  //
+  // A runner MAY ignore types of annotations it doesn't understand.
+  map<string, bytes> annotations = 8;
 }
 
 message StandardPTransforms {
