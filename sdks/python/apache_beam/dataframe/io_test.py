@@ -26,6 +26,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from io import StringIO
 
 import pandas as pd
 from pandas.testing import assert_frame_equal
@@ -34,6 +35,7 @@ from parameterized import parameterized
 import apache_beam as beam
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
+from apache_beam.io import restriction_trackers
 from apache_beam.testing.util import assert_that
 
 
@@ -159,6 +161,45 @@ class IOTest(unittest.TestCase):
         except:
           os.system('head -n 100 ' + dest + '*')
           raise
+
+  def _run_truncating_file_handle_test(
+      self, s, splits, delim=' ', chunk_size=10):
+    split_results = []
+    next_range = restriction_trackers.OffsetRange(0, len(s))
+    for split in list(splits) + [None]:
+      tracker = restriction_trackers.OffsetRestrictionTracker(next_range)
+      handle = io._TruncatingFileHandle(
+          StringIO(s), tracker, delim=delim, chunk_size=chunk_size)
+      data = ''
+      chunk = handle.read(1)
+      if split is not None:
+        _, next_range = tracker.try_split(split)
+      while chunk:
+        data += chunk
+        chunk = handle.read(7)
+      split_results.append(data)
+    return split_results
+
+  def test_truncating_filehandle(self):
+    self.assertEqual(
+        self._run_truncating_file_handle_test('a b c d e', [0.5]),
+        ['a b c ', 'd e'])
+    self.assertEqual(
+        self._run_truncating_file_handle_test('aaaaaaaaaaaaaaXaaa b', [0.5]),
+        ['aaaaaaaaaaaaaaXaaa ', 'b'])
+    self.assertEqual(
+        self._run_truncating_file_handle_test(
+            'aa bbbbbbbbbbbbbbbbbbbbbbbbbb ccc ', [0.01, 0.5]),
+        ['aa ', 'bbbbbbbbbbbbbbbbbbbbbbbbbb ', 'ccc '])
+
+    numbers = 'x'.join(str(k) for k in range(1000))
+    splits = self._run_truncating_file_handle_test(
+        numbers, [0.1] * 20, delim='x')
+    self.assertEqual(numbers, ''.join(splits))
+    self.assertTrue(s.endswith(x) for s in splits[:-1])
+    self.assertLess(max(len(s) for s in splits), len(numbers) * 0.9 + 10)
+    self.assertGreater(
+        min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
 
 
 if __name__ == '__main__':
