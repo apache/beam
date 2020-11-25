@@ -19,7 +19,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
  */
 
 def pythonRootDir = "${rootDir}/sdks/python"
-def pythonVersionSuffix = project.ext.pythonVersion == '2.7' ? '2' : project.ext.pythonVersion.replace('.', '')
+def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 
 ext {
   pythonContainerTask = ":sdks:python:container:py${pythonVersionSuffix}:docker"
@@ -192,4 +192,71 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
       args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
     }
   }
+}
+
+def addTestJavaJarCreator(String runner, Task jobServerJarTask) {
+  project.tasks.create(name: "testJavaJarCreator${runner}") {
+    dependsOn jobServerJarTask
+    dependsOn pythonContainerTask
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+            "--runner ${runner}",
+            "--job_server_jar ${jobServerJarTask.archivePath}",
+            "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+            "--python_root_dir ${project.rootDir}/sdks/python",
+            "--python_version ${project.ext.pythonVersion}",
+            "--python_container_image ${project.docker_image_default_repo_root}/"
+                + "${project.docker_image_default_repo_prefix}"
+                + "python${project.ext.pythonVersion}_sdk:${project.sdk_version}",
+        ]
+        args "-c", "${project.rootDir}/runners/portability/test_pipeline_jar.sh ${options.join(' ')}"
+      }
+    }
+  }
+}
+
+// TODO(BEAM-11333) Update and test multiple Flink versions.
+addTestJavaJarCreator("FlinkRunner", tasks.getByPath(":runners:flink:1.10:job-server:shadowJar"))
+addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:job-server:shadowJar"))
+
+def addTestFlinkUberJar(boolean saveMainSession) {
+  project.tasks.create(name: "testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {
+    dependsOn ':runners:flink:1.10:job-server:shadowJar'
+    dependsOn ':runners:flink:1.10:job-server:miniCluster'
+    dependsOn pythonContainerTask
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+            "--flink_job_server_jar ${tasks.getByPath(':runners:flink:1.10:job-server:shadowJar').archivePath}",
+            "--flink_mini_cluster_jar ${tasks.getByPath(':runners:flink:1.10:job-server:miniCluster').archivePath}",
+            "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+            "--python_root_dir ${project.rootDir}/sdks/python",
+            "--python_version ${project.ext.pythonVersion}",
+            "--python_container_image ${project.docker_image_default_repo_root}/"
+                + "${project.docker_image_default_repo_prefix}"
+                + "python${project.ext.pythonVersion}_sdk:${project.sdk_version}",
+        ]
+        if (saveMainSession) {
+          options.add('--save_main_session')
+        }
+        args "-c", "${project.rootDir}/runners/portability/test_flink_uber_jar.sh ${options.join(' ')}"
+      }
+    }
+  }
+}
+
+addTestFlinkUberJar(false)
+addTestFlinkUberJar(true)
+
+task testPipelineJarSparkRunner() {
+  dependsOn testJavaJarCreatorSparkRunner
+}
+
+task testPipelineJarFlinkRunner() {
+  dependsOn testJavaJarCreatorFlinkRunner
+  dependsOn testUberJarFlinkRunner
+  dependsOn testUberJarFlinkRunnerSaveMainSession
 }
