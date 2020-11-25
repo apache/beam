@@ -48,7 +48,7 @@ dependencies {
   compile library.java.joda_time
   compile library.java.jsr305
   compile library.java.vendored_grpc_1_26_0
-  compile "org.slf4j:slf4j-api:1.7.3"
+  compile library.java.slf4j_api
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.mockito_core

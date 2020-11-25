@@ -32,7 +32,7 @@ dependencies {
   compile "com.google.auth:google-auth-library-credentials:0.19.0"
   compile "org.checkerframework:checker-qual:2.0.0"
   compile library.java.vendored_guava_26_0_jre
-  compile "org.slf4j:slf4j-api:1.7.30"
+  compile library.java.slf4j_api
   compile project(path: ":sdks:java:core", configuration: "shadow")
   provided project(":sdks:java:extensions:sql")
 

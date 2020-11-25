@@ -45,7 +45,7 @@ dependencies {
     compile library.java.vendored_grpc_1_26_0
     compile "org.checkerframework:checker-qual:2.0.0"
     compile "org.mortbay.jetty:jetty-util:6.1.26"
-    compile "org.slf4j:slf4j-api:1.7.30"
+    compile library.java.slf4j_api
     compile "org.twister2:comms-api-java:0.6.0"
     compile "org.twister2:config-api-java:0.6.0"
     compile "org.twister2:dataset-api-java:0.6.0"

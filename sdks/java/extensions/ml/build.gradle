@@ -37,7 +37,7 @@ dependencies {
     compile 'com.google.api:gax:1.57.1'
     compile 'com.google.protobuf:protobuf-java:3.11.1'
     compile 'org.checkerframework:checker-qual:2.0.0'
-    compile 'org.slf4j:slf4j-api:1.7.30'
+    compile library.java.slf4j_api
     provided library.java.junit
     testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     compile 'com.google.cloud:google-cloud-vision:1.99.3'
