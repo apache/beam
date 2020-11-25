@@ -37,7 +37,7 @@ To share a very large list across all threads of each worker in a DoFn::
   # references but can add support through subclassing:
   # https://docs.python.org/3/library/weakref.html
   class WeakRefList(list):
-  	pass
+    pass
 
   class GetNthStringFn(beam.DoFn):
     def __init__(self, shared_handle):
