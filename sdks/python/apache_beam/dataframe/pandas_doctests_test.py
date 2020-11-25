@@ -234,6 +234,8 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
+                # Grouping by a series is not supported
+                'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.reindex': ['*'],
         },
@@ -260,7 +262,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
-            'pandas.core.series.Series.rename': ['*'],
             'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
             'pandas.core.series.Series.reset_index': ['*'],

@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -33,7 +32,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -542,7 +540,7 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.NewWatermarkEstimator.class, fnClass, false);
 
     Collection<Method> onTimerMethods =
-        declaredMethodsWithAnnotation(DoFn.OnTimer.class, fnClass, DoFn.class);
+        ReflectHelpers.declaredMethodsWithAnnotation(DoFn.OnTimer.class, fnClass, DoFn.class);
     HashMap<String, DoFnSignature.OnTimerMethod> onTimerMethodMap =
         Maps.newHashMapWithExpectedSize(onTimerMethods.size());
     for (Method onTimerMethod : onTimerMethods) {
@@ -569,7 +567,7 @@ public class DoFnSignatures {
 
     // Check for TimerFamily
     Collection<Method> onTimerFamilyMethods =
-        declaredMethodsWithAnnotation(DoFn.OnTimerFamily.class, fnClass, DoFn.class);
+        ReflectHelpers.declaredMethodsWithAnnotation(DoFn.OnTimerFamily.class, fnClass, DoFn.class);
     HashMap<String, DoFnSignature.OnTimerFamilyMethod> onTimerFamilyMethodMap =
         Maps.newHashMapWithExpectedSize(onTimerFamilyMethods.size());
 
@@ -1867,7 +1865,8 @@ public class DoFnSignatures {
   private static ImmutableMap<String, TimerFamilyDeclaration> analyzeTimerFamilyDeclarations(
       ErrorReporter errors, Class<?> fnClazz) {
     Map<String, TimerFamilyDeclaration> declarations = new HashMap<>();
-    for (Field field : declaredFieldsWithAnnotation(DoFn.TimerFamily.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.TimerFamily.class, fnClazz, DoFn.class)) {
       // TimerSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
       String id =
@@ -1882,7 +1881,8 @@ public class DoFnSignatures {
   private static ImmutableMap<String, TimerDeclaration> analyzeTimerDeclarations(
       ErrorReporter errors, Class<?> fnClazz) {
     Map<String, DoFnSignature.TimerDeclaration> declarations = new HashMap<>();
-    for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
       // TimerSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
       // Add fixed prefix to avoid key collision with TimerFamily.
@@ -2200,66 +2200,11 @@ public class DoFnSignatures {
     return DoFnSignature.GetSizeMethod.create(m, windowT, methodContext.getExtraParameters());
   }
 
-  private static Collection<Method> declaredMethodsWithAnnotation(
-      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
-    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_METHODS);
-  }
-
-  private static Collection<Field> declaredFieldsWithAnnotation(
-      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
-    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_FIELDS);
-  }
-
-  private interface MemberGetter<MemberT> {
-    MemberT[] getMembers(Class<?> clazz);
-  }
-
-  private static final MemberGetter<Method> GET_METHODS = Class::getDeclaredMethods;
-
-  private static final MemberGetter<Field> GET_FIELDS = Class::getDeclaredFields;
-
-  private static <MemberT extends AnnotatedElement>
-      Collection<MemberT> declaredMembersWithAnnotation(
-          Class<? extends Annotation> anno,
-          Class<?> startClass,
-          Class<?> stopClass,
-          MemberGetter<MemberT> getter) {
-    Collection<MemberT> matches = new ArrayList<>();
-
-    Class<?> clazz = startClass;
-    LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
-
-    // First, find all declared methods on the startClass and parents (up to stopClass)
-    while (clazz != null && !clazz.equals(stopClass)) {
-      for (MemberT member : getter.getMembers(clazz)) {
-        if (member.isAnnotationPresent(anno)) {
-          matches.add(member);
-        }
-      }
-
-      // Add all interfaces, including transitive
-      for (TypeDescriptor<?> iface : TypeDescriptor.of(clazz).getInterfaces()) {
-        interfaces.add(iface.getRawType());
-      }
-
-      clazz = clazz.getSuperclass();
-    }
-
-    // Now, iterate over all the discovered interfaces
-    for (Class<?> iface : interfaces) {
-      for (MemberT member : getter.getMembers(iface)) {
-        if (member.isAnnotationPresent(anno)) {
-          matches.add(member);
-        }
-      }
-    }
-    return matches;
-  }
-
   private static Map<String, DoFnSignature.FieldAccessDeclaration> analyzeFieldAccessDeclaration(
       ErrorReporter errors, Class<?> fnClazz) {
     Map<String, FieldAccessDeclaration> fieldAccessDeclarations = new HashMap<>();
-    for (Field field : declaredFieldsWithAnnotation(DoFn.FieldAccess.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.FieldAccess.class, fnClazz, DoFn.class)) {
       field.setAccessible(true);
       DoFn.FieldAccess fieldAccessAnnotation = field.getAnnotation(DoFn.FieldAccess.class);
       if (!Modifier.isFinal(field.getModifiers())) {
@@ -2286,7 +2231,8 @@ public class DoFnSignatures {
 
     Map<String, DoFnSignature.StateDeclaration> declarations = new HashMap<>();
 
-    for (Field field : declaredFieldsWithAnnotation(DoFn.StateId.class, fnClazz, DoFn.class)) {
+    for (Field field :
+        ReflectHelpers.declaredFieldsWithAnnotation(DoFn.StateId.class, fnClazz, DoFn.class)) {
       // StateSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
       String id = field.getAnnotation(DoFn.StateId.class).value();
@@ -2349,7 +2295,8 @@ public class DoFnSignatures {
 
   private static @Nullable Method findAnnotatedMethod(
       ErrorReporter errors, Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
-    Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
+    Collection<Method> matches =
+        ReflectHelpers.declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
     if (matches.isEmpty()) {
       errors.checkArgument(!required, "No method annotated with @%s found", format(anno));

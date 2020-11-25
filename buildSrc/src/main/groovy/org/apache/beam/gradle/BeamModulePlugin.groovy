@@ -425,7 +425,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def checkerframework_version = "3.7.0"
     def classgraph_version = "4.8.65"
     def google_clients_version = "1.30.10"
-    def google_cloud_bigdataoss_version = "2.1.5"
+    def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsub_version = "1.108.6"
     def google_cloud_pubsublite_version = "0.4.1"
     def google_code_gson_version = "2.8.6"
@@ -581,6 +581,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
+        netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
@@ -607,9 +608,10 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
+        testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
-        testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
+        testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
@@ -1367,6 +1369,14 @@ class BeamModulePlugin implements Plugin<Project> {
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')
                   def dependencyManagementDependencies = dependencyManagementNode.appendNode('dependencies')
+
+                  // Resolve linkage error with guava jre vs android caused by Google Cloud libraries BOM
+                  // https://github.com/GoogleCloudPlatform/cloud-opensource-java/wiki/The-Google-Cloud-Platform-Libraries-BOM#guava-versions--jre-or--android
+                  def guavaDependencyNode = dependencyManagementDependencies.appendNode('dependency')
+                  guavaDependencyNode.appendNode('groupId', 'com.google.guava')
+                  guavaDependencyNode.appendNode('artifactId', 'guava')
+                  guavaDependencyNode.appendNode('version', "$guava_version")
+
                   boms.each {
                     def dependencyNode = dependencyManagementDependencies.appendNode('dependency')
                     dependencyNode.appendNode('groupId', it.group)
@@ -1894,7 +1904,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
-          dependsOn ':sdks:java:container:docker'
+          dependsOn ':sdks:java:container:java8:docker'
         }
       }
     }
@@ -1927,7 +1937,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
-        dependsOn ':sdks:java:container:docker'
+        dependsOn ':sdks:java:container:java8:docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
@@ -2019,7 +2029,7 @@ class BeamModulePlugin implements Plugin<Project> {
         executable 'sh'
         args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
         dependsOn config.startJobServer
-        dependsOn ':sdks:java:container:docker'
+        dependsOn ':sdks:java:container:java8:docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
         dependsOn ":sdks:python:installGcpTest"

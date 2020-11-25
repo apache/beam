@@ -121,7 +121,8 @@ class BackgroundCachingJob(object):
       return self._pipeline_result.state
 
 
-def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
+def attempt_to_run_background_caching_job(
+    runner, user_pipeline, options=None, limiters=None):
   """Attempts to run a background source recording job for a user-defined
   pipeline.
 
@@ -146,10 +147,13 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
         runner,
         options).run()
 
-    limiters = ie.current_env().options.capture_control.limiters()
+    recording_limiters = (
+        limiters
+        if limiters else ie.current_env().options.capture_control.limiters())
     ie.current_env().set_background_caching_job(
         user_pipeline,
-        BackgroundCachingJob(background_caching_job_result, limiters=limiters))
+        BackgroundCachingJob(
+            background_caching_job_result, limiters=recording_limiters))
     return True
   return False
 
@@ -316,6 +320,7 @@ def is_source_to_cache_changed(
     ie.current_env().cleanup(user_pipeline)
     ie.current_env().set_cached_source_signature(
         user_pipeline, current_signature)
+    ie.current_env().add_user_pipeline(user_pipeline)
   return is_changed
 
 

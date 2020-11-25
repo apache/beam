@@ -143,6 +143,45 @@ class TranslationsTest(unittest.TestCase):
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
         pipeline_proto, [], known_runner_urns=frozenset(), partial=True)
+    # Tests that Pipeline.from_runner_api() does not throw an exception.
+    runner = runners.DirectRunner()
+    beam.Pipeline.from_runner_api(
+        optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
+
+  def test_optimize_single_combine_globally(self):
+    pipeline = beam.Pipeline()
+    vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+    _ = pipeline | Create(vals) | combiners.Count.Globally()
+    pipeline_proto = pipeline.to_runner_api()
+    optimized_pipeline_proto = translations.optimize_pipeline(
+        pipeline_proto,
+        [
+            translations.eliminate_common_key_with_none,
+            translations.pack_combiners,
+        ],
+        known_runner_urns=frozenset(),
+        partial=True)
+    # Tests that Pipeline.from_runner_api() does not throw an exception.
+    runner = runners.DirectRunner()
+    beam.Pipeline.from_runner_api(
+        optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
+
+  def test_optimize_multiple_combine_globally(self):
+    pipeline = beam.Pipeline()
+    vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+    pcoll = pipeline | Create(vals)
+    _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
+    _ = pcoll | 'count-globally' >> combiners.Count.Globally()
+    pipeline_proto = pipeline.to_runner_api()
+    optimized_pipeline_proto = translations.optimize_pipeline(
+        pipeline_proto,
+        [
+            translations.eliminate_common_key_with_none,
+            translations.pack_combiners,
+        ],
+        known_runner_urns=frozenset(),
+        partial=True)
+    # Tests that Pipeline.from_runner_api() does not throw an exception.
     runner = runners.DirectRunner()
     beam.Pipeline.from_runner_api(
         optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())

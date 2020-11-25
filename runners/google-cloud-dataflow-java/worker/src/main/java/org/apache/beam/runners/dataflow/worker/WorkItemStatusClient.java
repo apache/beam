@@ -196,7 +196,7 @@ public class WorkItemStatusClient {
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
       nextReportIndex = result.getNextReportIndex();
-      if (nextReportIndex == null) {
+      if (nextReportIndex == null && !status.getCompleted()) {
         LOG.error("Missing next work index in {} when reporting {}.", result, status);
       }
       commitMetrics();

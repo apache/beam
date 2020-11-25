@@ -196,17 +196,17 @@ class TestInput {
                   .addValues(3L, "2019-01-15 13:21:03")
                   .build());
 
-  private static final Schema structSchema =
+  public static final Schema STRUCT_SCHEMA =
       Schema.builder().addInt64Field("row_id").addStringField("data").build();
   private static final Schema structTableSchema =
-      Schema.builder().addRowField("rowCol", structSchema).build();
+      Schema.builder().addRowField("rowCol", STRUCT_SCHEMA).build();
 
   public static final TestBoundedTable TABLE_WITH_STRUCT_TWO =
       TestBoundedTable.of(structTableSchema)
-          .addRows(Row.withSchema(structSchema).addValues(1L, "data1").build())
-          .addRows(Row.withSchema(structSchema).addValues(2L, "data2").build())
-          .addRows(Row.withSchema(structSchema).addValues(3L, "data2").build())
-          .addRows(Row.withSchema(structSchema).addValues(3L, "data3").build());
+          .addRows(Row.withSchema(STRUCT_SCHEMA).addValues(1L, "data1").build())
+          .addRows(Row.withSchema(STRUCT_SCHEMA).addValues(2L, "data2").build())
+          .addRows(Row.withSchema(STRUCT_SCHEMA).addValues(3L, "data2").build())
+          .addRows(Row.withSchema(STRUCT_SCHEMA).addValues(3L, "data3").build());
 
   public static final TestBoundedTable TABLE_WITH_ARRAY =
       TestBoundedTable.of(Schema.builder().addArrayField("array_col", FieldType.STRING).build())
@@ -221,11 +221,24 @@ class TestInput {
           .addRows(14L, Arrays.asList(14L, 18L))
           .addRows(18L, Arrays.asList(22L, 24L));
 
+  public static final TestBoundedTable TABLE_WITH_ARRAY_OF_STRUCT =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("int_col")
+                  .addArrayField("array_col", FieldType.row(STRUCT_SCHEMA))
+                  .build())
+          .addRows(10L, ImmutableList.of(Row.withSchema(STRUCT_SCHEMA).addValues(1L, "1").build()))
+          .addRows(
+              20L,
+              Arrays.asList(
+                  Row.withSchema(STRUCT_SCHEMA).addValues(2L, "2").build(),
+                  Row.withSchema(STRUCT_SCHEMA).addValues(3L, "3").build()));
+
   private static final Schema STRUCT_OF_ARRAY =
       Schema.builder().addArrayField("arr", FieldType.STRING).build();
   private static final Schema STRUCT_OF_STRUCT_OF_ARRAY =
       Schema.builder().addRowField("struct", STRUCT_OF_ARRAY).build();
-  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_ARRAY =
+  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_STRUCT_OF_ARRAY =
       TestBoundedTable.of(
               Schema.builder()
                   .addInt64Field("int_col")
@@ -242,6 +255,41 @@ class TestInput {
                   .addValue(Row.withSchema(STRUCT_OF_ARRAY).addArray("2", "3").build())
                   .build());
 
+  private static final Schema STRUCT_OF_STRUCT =
+      Schema.builder().addRowField("row", STRUCT_SCHEMA).build();
+  public static final TestBoundedTable TABLE_WITH_ARRAY_OF_STRUCT_OF_STRUCT =
+      TestBoundedTable.of(
+              Schema.builder().addArrayField("array_col", FieldType.row(STRUCT_OF_STRUCT)).build())
+          .addRows(
+              Arrays.asList(
+                  Row.withSchema(STRUCT_OF_STRUCT)
+                      .addValues(Row.withSchema(STRUCT_SCHEMA).addValues(1L, "1").build())
+                      .build(),
+                  Row.withSchema(STRUCT_OF_STRUCT)
+                      .addValues(Row.withSchema(STRUCT_SCHEMA).addValues(2L, "2").build())
+                      .build()));
+
+  private static final Schema STRUCT_OF_ARRAY_OF_STRUCT =
+      Schema.builder().addArrayField("arr", FieldType.row(STRUCT_SCHEMA)).build();
+  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_ARRAY_OF_STRUCT =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("int_col")
+                  .addRowField("struct_col", STRUCT_OF_ARRAY_OF_STRUCT)
+                  .build())
+          .addRows(
+              10L,
+              Row.withSchema(STRUCT_OF_ARRAY_OF_STRUCT)
+                  .addArray(Row.withSchema(STRUCT_SCHEMA).addValues(1L, "1").build())
+                  .build())
+          .addRows(
+              20L,
+              Row.withSchema(STRUCT_OF_ARRAY_OF_STRUCT)
+                  .addArray(
+                      Row.withSchema(STRUCT_SCHEMA).addValues(2L, "2").build(),
+                      Row.withSchema(STRUCT_SCHEMA).addValues(3L, "3").build())
+                  .build());
+
   public static final TestBoundedTable TABLE_FOR_CASE_WHEN =
       TestBoundedTable.of(
               Schema.builder().addInt64Field("f_int").addStringField("f_string").build())
@@ -253,13 +301,13 @@ class TestInput {
   private static final Schema TABLE_WITH_MAP_SCHEMA =
       Schema.builder()
           .addMapField("map_field", FieldType.STRING, FieldType.STRING)
-          .addRowField("row_field", structSchema)
+          .addRowField("row_field", STRUCT_SCHEMA)
           .build();
   public static final TestBoundedTable TABLE_WITH_MAP =
       TestBoundedTable.of(TABLE_WITH_MAP_SCHEMA)
           .addRows(
               ImmutableMap.of("MAP_KEY_1", "MAP_VALUE_1"),
-              Row.withSchema(structSchema).addValues(1L, "data1").build());
+              Row.withSchema(STRUCT_SCHEMA).addValues(1L, "data1").build());
 
   private static final Schema TABLE_WITH_DATE_SCHEMA =
       Schema.builder()
