@@ -888,6 +888,20 @@ class BigQueryServicesImpl implements BigQueryServices {
             content.setSkipInvalidRows(skipInvalidRows);
             content.setIgnoreUnknownValues(ignoreUnkownValues);
 
+            String urn = MonitoringInfoConstants.Urns.API_REQUEST_COUNT;
+            HashMap<String, String> labels = new HashMap<String, String>();
+            // TODO add step name?
+            labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+            labels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+            labels.put(MonitoringInfoConstants.Labels.RESOURCE, "TODO");
+            labels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, ref.getProjectId());
+            labels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, ref.getDatasetId());
+            labels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, ref.getTableId());
+            labels.put(MonitoringInfoConstants.Labels.STATUS, "ok"); // TODO move the ServiceCallMetric class
+
+            MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+            Counter counter = LabeledMetrics.counter(name, true);
+
             final Bigquery.Tabledata.InsertAll insert =
                 client
                     .tabledata()
@@ -903,7 +917,9 @@ class BigQueryServicesImpl implements BigQueryServices {
                       long totalBackoffMillis = 0L;
                       while (true) {
                         try {
-                          return insert.execute().getInsertErrors();
+                          List<TableDataInsertAllResponse.InsertErrors> response = insert.execute().getInsertErrors();
+                          counter.inc(1);
+                          return response;
                         } catch (IOException e) {
                           recordError(e);
                           GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);

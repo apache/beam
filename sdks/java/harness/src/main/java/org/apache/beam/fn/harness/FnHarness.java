@@ -22,10 +22,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
-import org.apache.beam.fn.harness.control.BeamFnControlClient;
-import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
-import org.apache.beam.fn.harness.control.ProcessBundleHandler;
+
+import org.apache.beam.fn.harness.control.*;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -222,6 +220,9 @@ public class FnHarness {
                     }
                   });
 
+      // TODO consider clearing this when we leave the block?
+      ShortIdCache.initializeShortIdCache();
+
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options,
@@ -247,6 +248,18 @@ public class FnHarness {
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
           processBundleHandler::trySplit);
+
+      ProcessWideInstructionHandler processWideInstructionHandler =
+        new ProcessWideInstructionHandler();
+
+      handlers.put(
+          InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
+          processWideInstructionHandler::harnessMonitoringInfos);
+
+      handlers.put(
+          InstructionRequest.RequestCase.MONITORING_INFOS,
+          processWideInstructionHandler::monitoringInfoMetadata);
+
       BeamFnControlClient control =
           new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 

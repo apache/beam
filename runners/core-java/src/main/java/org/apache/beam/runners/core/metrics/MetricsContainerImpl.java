@@ -259,6 +259,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  @Override
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();

@@ -331,7 +331,7 @@ public class ProcessBundleHandler {
         // Extract MonitoringInfos that come from the metrics container registry.
         response.addAllMonitoringInfos(
             bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
-        // Add any additional monitoring infos that the "runners" report explicitly.
+        // Add any additional monitoring infos that the "getMonitoringInfosrunners" report explicitly.
         for (ProgressRequestCallback progressRequestCallback :
             bundleProcessor.getProgressRequestCallbacks()) {
           response.addAllMonitoringInfos(progressRequestCallback.getMonitoringInfos());
@@ -385,6 +385,7 @@ public class ProcessBundleHandler {
     // Extract all other MonitoringInfos other than the execution time monitoring infos.
     response.addAllMonitoringInfos(
         bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
+
     // Add any additional monitoring infos that the "runners" report explicitly.
     for (ProgressRequestCallback progressRequestCallback :
         bundleProcessor.getProgressRequestCallbacks()) {
