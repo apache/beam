@@ -17,10 +17,6 @@
  */
 
 def basePath = '..'
-def flink_clients_version = "1.11.1"
-def flink_annotations_version = "1.11.1"
-def flink_optimizer_version = "1.11.1"
-def checker_qual_version = "2.0.0"
 /* All properties required for loading the Flink build script */
 project.ext {
   // Set the version of all Flink-related dependencies here.
@@ -35,19 +31,3 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/flink_runner.gradle"
-
-dependencies {
-  permitUnusedDeclared library.java.jackson_annotations
-  permitUnusedDeclared "org.apache.flink:flink-clients_2.11:$flink_clients_version"
-  compile library.java.jackson_databind
-  compile library.java.jsr305
-  compile "org.apache.flink:flink-annotations:$flink_annotations_version"
-  compile "org.apache.flink:flink-optimizer_2.11:$flink_optimizer_version"
-  compile "org.checkerframework:checker-qual:$checker_qual_version"
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:job-management:", configuration: "shadow")
-  compile project(":sdks:java:fn-execution")
-  compile project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
-}
