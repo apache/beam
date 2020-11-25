@@ -63,7 +63,7 @@ func main() {
 	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 	for i := 0; i < *fanout; i++ {
 		pcoll := beam.GroupByKey(s, src)
-		beam.ParDo(s, func(key []byte, values func(*[]byte) bool) ([]byte, []byte) {
+		pcoll = beam.ParDo(s, func(key []byte, values func(*[]byte) bool) ([]byte, []byte) {
 			for i := 0; i < *iterations; i++ {
 				var value []byte
 				for values(&value) {
@@ -74,6 +74,7 @@ func main() {
 			}
 			return key, []byte{0}
 		}, pcoll)
+		pcoll = beam.ParDo(s, &load.RuntimeMonitor{}, pcoll)
 	}
 
 	presult, err := beamx.RunWithMetrics(ctx, p)
