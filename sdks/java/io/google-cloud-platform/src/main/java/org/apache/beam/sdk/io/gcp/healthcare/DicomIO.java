@@ -177,7 +177,7 @@ public class DicomIO {
           // TODO [BEAM-11259] Change to non-blocking async calls
           String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
           context.output(METADATA, responseData);
-        } catch (Exception e) {
+        } catch (IOException e) {
           String errorMessage = e.getMessage();
           if (errorMessage != null) {
             context.output(ERROR_MESSAGE, errorMessage);
