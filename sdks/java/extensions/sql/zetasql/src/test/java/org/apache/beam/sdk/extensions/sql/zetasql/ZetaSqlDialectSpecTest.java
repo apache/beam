@@ -3931,14 +3931,18 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   @Test
   public void testCountIfZetaSQLDialect() {
 
-    String sql = "SELECT COUNTIF(x<0) AS num_negative, COUNTIF(x>0) AS num_positive\n" +
+    String sql = "SELECT COUNTIF(x>0) AS num_positive\n" +
             "FROM UNNEST([5, -2, 3, 6, -10, -7, 4, 0]) AS x";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    //PAssert to do
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream)
+            .containsInAnyOrder(
+                    Row.withSchema(schema).addValue(4L).build());
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 

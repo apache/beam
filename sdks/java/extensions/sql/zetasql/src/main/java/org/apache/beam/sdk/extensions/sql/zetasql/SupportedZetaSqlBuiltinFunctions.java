@@ -462,7 +462,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_VAR_SAMP_NUMERIC, // var_samp
           // FunctionSignatureId.FN_VAR_SAMP_BIGNUMERIC, // var_samp
 
-           FunctionSignatureId.FN_COUNTIF// countif
+           FunctionSignatureId.FN_COUNTIF,// countif
 
           // Approximate quantiles functions that produce or consume intermediate
           // sketches. All found in the "kll_quantiles.*" namespace.

@@ -2,10 +2,6 @@ package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import org.apache.beam.sdk.transforms.Combine;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-
 public class CountIf {
 
     private CountIf(){}
@@ -43,16 +39,6 @@ public class CountIf {
             return accumulator;
         }
 
-        // To convert an input string expression to mathematical representation and evaluates it to true or false
-        public Integer evaluateExpression(String expression) throws ScriptException {
-            Integer count = 0;
-            ScriptEngineManager mgr = new ScriptEngineManager();
-            ScriptEngine engine = mgr.getEngineByName("JavaScript");
-            if (((boolean) engine.eval(String.valueOf(expression)))){
-                count+=1;
-            }
-            return count;
-        }
     }
 
 }

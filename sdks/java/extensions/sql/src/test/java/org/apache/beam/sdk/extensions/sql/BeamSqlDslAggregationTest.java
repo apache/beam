@@ -607,7 +607,6 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
->>>>>>> 9054c7a8f3ca48b4ea75e5b01e18ca8e9f773354
 
   private static class CheckerBigDecimalDivide
       implements SerializableFunction<Iterable<Row>, Void> {
