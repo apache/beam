@@ -783,7 +783,17 @@ class BigQueryWrapper(object):
         return
       else:
         raise
-    self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+    try:
+      self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+    except HttpError as exn:
+      if exn.status_code == 403:
+        _LOGGER.warning(
+            'Permission denied to delete temporary dataset %s:%s for clean up',
+            temp_table.projectId,
+            temp_table.datasetId)
+        return
+      else:
+        raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
