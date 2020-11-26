@@ -214,7 +214,7 @@ public class KafkaToPubsub {
           .apply("createValues", Values.create())
           .apply("writeAvrosToPubSub", PubsubIO.writeAvros(AvroDataClass.class));
 
-    } else if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
+    } else {
       pipeline
           .apply(
               "readFromKafka",

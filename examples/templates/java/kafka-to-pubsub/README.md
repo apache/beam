@@ -157,7 +157,7 @@ on your project's [Container Registry](https://cloud.google.com/container-regist
 
 To execute the template you need to create the template spec file containing all
 the necessary information to run the job. This template already has the following
-[metadata file](kafka-to-pubsub/src/main/resources/kafka_to_pubsub_metadata.json) in resources.
+[metadata file](src/main/resources/kafka_to_pubsub_metadata.json) in resources.
 
 Navigate to the template folder:
 
@@ -176,6 +176,7 @@ gcloud dataflow flex-template build ${TEMPLATE_PATH} \
        --jar "build/libs/beam-examples-templates-java-kafka-to-pubsub-<version>-all.jar" \
        --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
 ```
+Visit to Dataflow [documentation](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates) page to get more information
 
 ### Create Dataflow Job Using the Apache Kafka to Google Pub/Sub Dataflow Flex Template
 
@@ -228,13 +229,17 @@ You can do this in 3 different ways:
     ```
 
 ## AVRO format transferring.
-This template contains an example Class to deserialize AVRO from Kafka and serialize it to AVRO in Pub/Sub.
+
+This template contains an example demonstrating AVRO format support:
+- Define custom Class to deserialize AVRO from Kafka [provided in example]
+- Create custom data serialization in Apache Beam
+- Serialize data to AVRO in Pub/Sub [provided in example].
 
 To use this example in the specific case, follow these steps:
 
-- Create your own class to describe AVRO schema. As an example use [AvroDataClass](kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/AvroDataClass.java). Just define necessary fields.
-- Create your own Avro Deserializer class. As an example use [AvroDataClassKafkaAvroDeserializer class](kafka-to-pubsub/src/main/java/org/apache/beam/templates/avro/AvroDataClassKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
-- Modify the [FormatTransform.readAvrosFromKafka method](kafka-to-pubsub/src/main/java/org/apache/beam/templates/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
+- Create your own class to describe AVRO schema. As an example use [AvroDataClass](src/main/java/org/apache/beam/templates/avro/AvroDataClass.java). Just define necessary fields.
+- Create your own Avro Deserializer class. As an example use [AvroDataClassKafkaAvroDeserializer class](src/main/java/org/apache/beam/templates/avro/AvroDataClassKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
+- Modify the [FormatTransform.readAvrosFromKafka method](src/main/java/org/apache/beam/templates/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
 ```java
 return KafkaIO.<String, AvroDataClass>read()
         ...
@@ -242,7 +247,9 @@ return KafkaIO.<String, AvroDataClass>read()
             AvroDataClassKafkaAvroDeserializer.class, AvroCoder.of(AvroDataClass.class)) // put your classes here
         ...
 ```
-- Modify the write step in the [KafkaToPubsub class](kafka-to-pubsub/src/main/java/org/apache/beam/templates/KafkaToPubsub.java) by putting your Schema class to "writeAvrosToPubSub" step.
+- [OPTIONAL TO IMPLEMENT] Add [Beam Transform](https://beam.apache.org/documentation/programming-guide/#transforms) if it necessary in your case.
+- Modify the write step in the [KafkaToPubsub class](src/main/java/org/apache/beam/templates/KafkaToPubsub.java) by putting your Schema class to "writeAvrosToPubSub" step.
+    - NOTE: if it changed during the transform, you suold use changed one class definition.
 ```java
 if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
       ...
