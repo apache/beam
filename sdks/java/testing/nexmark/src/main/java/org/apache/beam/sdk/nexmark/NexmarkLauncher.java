@@ -1101,10 +1101,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     Collections.sort(counts);
     int n = counts.size();
     if (n < 5) {
-      NexmarkUtils.console("Query%s: only %d samples", model.configuration.query, n);
+      NexmarkUtils.console("Query %s: only %d samples", model.configuration.query, n);
     } else {
       NexmarkUtils.console(
-          "Query%d: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
+          "Query %s: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
           model.configuration.query,
           n,
           counts.get(0),

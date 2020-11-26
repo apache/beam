@@ -23,6 +23,7 @@ from __future__ import absolute_import
 
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
+from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.testing.test_stream import TestStream
 
 
@@ -96,10 +97,12 @@ class PipelineFragment(object):
 
   def deduce_fragment(self):
     """Deduce the pipeline fragment as an apache_beam.Pipeline instance."""
-    return beam.pipeline.Pipeline.from_runner_api(
+    fragment = beam.pipeline.Pipeline.from_runner_api(
         self._runner_pipeline.to_runner_api(use_fake_coders=True),
         self._runner_pipeline.runner,
         self._options)
+    ie.current_env().add_derived_pipeline(self._runner_pipeline, fragment)
+    return fragment
 
   def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
@@ -117,10 +120,12 @@ class PipelineFragment(object):
       self._runner_pipeline.runner._blocking = preserved_blocking
 
   def _build_runner_pipeline(self):
-    return beam.pipeline.Pipeline.from_runner_api(
+    runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
         self._user_pipeline.to_runner_api(use_fake_coders=True),
         self._user_pipeline.runner,
         self._options)
+    ie.current_env().add_derived_pipeline(self._user_pipeline, runner_pipeline)
+    return runner_pipeline
 
   def _calculate_target_pcoll_ids(self):
     pcoll_id_to_target_pcoll = {}
