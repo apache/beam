@@ -65,15 +65,15 @@ func main() {
     // elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
 
     src := synthetic.SourceSingle(s, syntheticConfig)
-    pcoll := beam.ParDo(s, func (key []byte, value []byte) []byte {
-        return key
-    }, src)
+    // pcoll := beam.ParDo(s, func (key []byte, value []byte) []byte {
+    //    return key
+    // }, src)
 
     // beam.ParDo0(s, func(_ []byte, kv func (key *[]byte) bool) {
-    beam.ParDo0(s, func(_ []byte, kv func (key *[]byte) bool) {
+    beam.ParDo0(s, func(_ []byte, values func(*[]byte, *[]byte) bool) {
         return
     }, beam.Impulse(s),
-        beam.SideInput{Input: pcoll})
+        beam.SideInput{Input: src})
 
     if err := beamx.Run(ctx, p); err != nil {
         log.Exitf(ctx, "Failed to execute job: %v", err)
