@@ -11,47 +11,19 @@
 */}}
 
 {{ define "hero-section" }}
-  <div class="hero-bg">
-    <div class="hero section">
-      <div class="hero__cols">
-        <div class="hero__cols__col">
-          <div class="hero__cols__col__content">
-            <div class="hero__title">
-              {{ T "home-hero-title" }}
-            </div>
-            <div class="hero__subtitle">
-              {{ T "home-hero-subtitle" }}
-            </div>
-            <div class="hero__ctas hero__ctas--first">
-              <a class="button button--primary" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "home-learn-more" }}</a>
-              <a class="button button--primary" href={{ "/get-started/try-apache-beam/" | relLangURL }}>{{ T "home-try-beam" }}</a>
-              <a class="button button--primary" href={{ "/get-started/downloads/" | relLangURL }}>{{ T "home-download-beam" . }}</a>
-            </div>
-            <div class="hero__ctas">
-              <a class="button" href="/get-started/quickstart-java/">{{ T "home-java-quickstart" }}</a>
-              <a class="button" href="/get-started/quickstart-py/">{{ T "home-python-quickstart" }}</a>
-              <a class="button" href="/get-started/quickstart-go/">{{ T "home-go-quickstart" }}</a>
-            </div>
-          </div>
-        </div>
-        <div class="hero__cols__col">
-          <div class="hero__blog">
-            <div class="hero__blog__title">
-              {{ T "home-hero-blog-title" }}
-            </div>
-            <div class="hero__blog__cards">
-
-              {{ range ( where site.RegularPages "Section" "blog" | first 3 ) }}
-                  <a class="hero__blog__cards__card" href="{{ .RelPermalink }}">
-                    <div class="hero__blog__cards__card__title">{{ .Title }}</div>
-                    <div class="hero__blog__cards__card__date">{{ .Date.Format "Jan 2, 2006" }}</div>
-                  </a>
-              {{ end }}
-
-            </div>
-          </div>
-        </div>
-      </div>
+  <div id="hero-desktop" class="hero-desktop">
+    <div class="hero-content">
+      <h3>{{ T "home-hero-title" }}</h3>
+      <h1>{{ T "home-hero-heading" }}</h1>
+      <h2>{{ T "home-hero-subheading" }}</h2>
+      <button><span>{{ T "home-hero-button" }}</span></button>
+    </div>
+  </div>
+  <div id="hero-mobile" class="hero-mobile">
+    <div class="hero-content">
+      <h3>{{ T "home-hero-title" }}</h3>
+      <h1>{{ T "home-hero-heading" }}</h1>
+      <h2>{{ T "home-hero-subheading" }}</h2>
     </div>
   </div>
 {{ end }}
