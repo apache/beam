@@ -18,7 +18,7 @@ package main
 import (
     "context"
     "flag"
-
+    "fmt"
     "github.com/apache/beam/sdks/go/pkg/beam"
     "github.com/apache/beam/sdks/go/pkg/beam/io/synthetic"
     "github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -26,8 +26,6 @@ import (
 )
 
 var (
-    sideInputType = flag.String("side_input_type", "iter",
-        "Specifies how the side input will be materialized in ParDo operation. One of [dict, iter, list].")
     windowCount = flag.Int("window_count", 1,
         "The number of fixed sized windows to subdivide the side input into.")
     accessPercentage = flag.Int("access_percentage", 100,
@@ -70,27 +68,37 @@ func (fn *syntheticSDFAsSource) ProcessElement (ctx context.Context, _ []int) be
         beam.SideInput{Input: beam.Create(fn.s, parseSyntheticSourceConfig())})
 }
 
-type doFn struct {
-    s beam.Scope
-}
-
-type innerDoFn struct {}
-
-func (fn *innerDoFn) ProcessElement (ctx context.Context, test []uint8) {
-    //fmt.Println(test)
-}
-
 type sequenceSideInputTestDoFn struct {
     s beam.Scope
     elementsToAccess int
 }
 
-func (fn *doFn) ProcessElement (ctx context.Context, inner beam.PCollection) {
-    beam.ParDo0(fn.s, &innerDoFn{}, inner)
+type doFn struct {
+    s beam.Scope
+    elementsToAccess int
 }
 
-func (fn *sequenceSideInputTestDoFn) ProcessElement (ctx context.Context, _ []uint8, collection beam.PCollection) {
-    beam.ParDo0(fn.s, &doFn{s: fn.s}, collection)
+type innerDoFn struct {
+    elementsToAccess int
+}
+
+func (fn *sequenceSideInputTestDoFn) ProcessElement (ctx context.Context, _ []byte, collection beam.PCollection) {
+    beam.ParDo0(fn.s, &doFn{s: fn.s, elementsToAccess: fn.elementsToAccess}, collection)
+}
+
+func (fn *doFn) ProcessElement (ctx context.Context, inner beam.PCollection) {
+    beam.ParDo0(fn.s, &innerDoFn{elementsToAccess: fn.elementsToAccess}, inner)
+}
+
+func (fn *innerDoFn) ProcessElement (ctx context.Context, key []uint8) {
+    i := 0
+    for true {
+        // if i >= fn.elementsToAccess {
+        //    break
+        // }
+        fmt.Println(key[i])
+        i += 1
+    }
 }
 
 
