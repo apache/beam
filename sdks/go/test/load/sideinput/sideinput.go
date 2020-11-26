@@ -25,10 +25,6 @@ import (
 )
 
 var (
-    windowCount = flag.Int(
-        "window_count",
-        1,
-        "The number of fixed sized windows to subdivide the side input into.")
     accessPercentage = flag.Int(
         "access_percentage",
         100,
@@ -42,7 +38,7 @@ var (
         "A JSON object that describes the configuration for synthetic source")
 )
 
-func parseSyntheticSourceConfig() synthetic.SourceConfig {
+func parseSyntheticConfig() synthetic.SourceConfig {
     if *syntheticSourceConfig == "" {
         panic("--input_options not provided")
     } else {
@@ -65,14 +61,14 @@ func main() {
     ctx := context.Background()
     p, s := beam.NewPipelineWithRoot()
 
-    syntheticSourceConfig := parseSyntheticSourceConfig()
-    // elementsPerWindow := syntheticSourceConfig.NumElements / *windowCount
-    // elementsToAccess := elementsPerWindow * *accessPercentage / 100
+    syntheticConfig := parseSyntheticConfig()
+    // elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
 
+    // beam.ParDo0(s, func(_ []byte, kv func (key *[]byte) bool) {
     beam.ParDo0(s, func(_ []byte, kv func (key *[]byte) bool) {
         return
     }, beam.Impulse(s),
-        beam.SideInput{Input: synthetic.SourceSingle(s, syntheticSourceConfig)})
+        beam.SideInput{Input: synthetic.SourceSingle(s, syntheticConfig)})
 
     if err := beamx.Run(ctx, p); err != nil {
         log.Exitf(ctx, "Failed to execute job: %v", err)
