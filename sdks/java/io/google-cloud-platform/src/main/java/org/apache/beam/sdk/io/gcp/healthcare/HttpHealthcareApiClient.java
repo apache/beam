@@ -205,24 +205,12 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
   @Override
   public String retrieveDicomStudyMetadata(String dicomWebPath) throws IOException {
-    String[] webPathSplit;
-    webPathSplit = dicomWebPath.split("/dicomWeb/");
-    if (webPathSplit.length != 2) {
-      throw new IOException("Invalid Web Path");
-    }
+    WebPathParser parser = new WebPathParser();
+    WebPathParser.DicomWebPath parsedDicomWebPath = parser.parseDicomWebpath(dicomWebPath);
 
-    String dicomStorePath = webPathSplit[0];
+    String searchQuery = String.format("studies/%s/metadata", parsedDicomWebPath.studyId);
 
-    String[] searchParameters;
-    searchParameters = webPathSplit[1].split("/");
-    if (searchParameters.length < 2) {
-      throw new IOException("Invalid DICOM web path");
-    }
-    String studyId = searchParameters[1];
-
-    String searchQuery = String.format("studies/%s/metadata", studyId);
-
-    return makeRetrieveStudyMetadataRequest(dicomStorePath, searchQuery);
+    return makeRetrieveStudyMetadataRequest(parsedDicomWebPath.dicomStorePath, searchQuery);
   }
 
   @Override
