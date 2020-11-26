@@ -19,17 +19,18 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import java.io.IOException;
 
+@SuppressWarnings({"StringSplitter"})
 public class WebPathParser {
 
-  public class DicomWebPath {
-    public String studyId;
-    public String seriesId;
-    public String instanceId;
-    public String dicomStorePath;
-    public String project;
-    public String location;
-    public String dataset;
-    public String storeId;
+  public static class DicomWebPath {
+    public String studyId = "";
+    public String seriesId = "";
+    public String instanceId = "";
+    public String dicomStorePath = "";
+    public String project = "";
+    public String location = "";
+    public String dataset = "";
+    public String storeId = "";
   }
 
   public DicomWebPath parseDicomWebpath(String unparsedWebpath) throws IOException {
