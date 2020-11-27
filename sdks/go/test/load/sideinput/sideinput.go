@@ -18,6 +18,7 @@ package main
 import (
     "context"
     "flag"
+    "fmt"
     "github.com/apache/beam/sdks/go/pkg/beam"
     "github.com/apache/beam/sdks/go/pkg/beam/io/synthetic"
     "github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -47,11 +48,9 @@ func parseSyntheticConfig() synthetic.SourceConfig {
     }
 }
 
-type doFn struct {
-    elementsToAccess int
-}
-
-func (fn *doFn) ProcessElement(key []byte){
+type keyValue struct {
+    key []byte
+    value []byte
 }
 
 
@@ -65,15 +64,21 @@ func main() {
     // elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
 
     src := synthetic.SourceSingle(s, syntheticConfig)
-    // pcoll := beam.ParDo(s, func (key []byte, value []byte) []byte {
-    //    return key
-    // }, src)
+    src = beam.ParDo(s, func (key []byte, value []byte) []byte {
+        return key
+    }, src)
 
-    // beam.ParDo0(s, func(_ []byte, kv func (key *[]byte) bool) {
-    beam.ParDo0(s, func(_ []byte, values func(*[]byte, *[]byte) bool) {
-        return
-    }, beam.Impulse(s),
-        beam.SideInput{Input: src})
+    beam.ParDo0(s, func(_ []byte, values func(*[]byte) bool) {
+        var value []byte
+        for values(&value) {
+            fmt.Println(value)
+        }
+    }, beam.Impulse(s), beam.SideInput{Input: src})
+
+    // beam.ParDo0(s, func(_ []byte, values func(*[]byte, *[]byte) bool) {
+    //    return
+    // }, beam.Impulse(s),
+    //    beam.SideInput{Input: src})
 
     if err := beamx.Run(ctx, p); err != nil {
         log.Exitf(ctx, "Failed to execute job: %v", err)
