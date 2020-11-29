@@ -16,71 +16,65 @@
 package main
 
 import (
-    "context"
-    "flag"
-    "fmt"
-    "github.com/apache/beam/sdks/go/pkg/beam"
-    "github.com/apache/beam/sdks/go/pkg/beam/io/synthetic"
-    "github.com/apache/beam/sdks/go/pkg/beam/log"
-    "github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"context"
+	"flag"
+	"fmt"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/synthetic"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
 
 var (
-    accessPercentage = flag.Int(
-        "access_percentage",
-        100,
-        "Specifies the percentage of elements in the side input to be accessed.")
-    syntheticSourceConfig = flag.String(
-        "input_options",
-        "{"+
-            "\"num_records\": 300, "+
-            "\"key_size\": 5, "+
-            "\"value_size\": 15}",
-        "A JSON object that describes the configuration for synthetic source")
+	accessPercentage = flag.Int(
+		"access_percentage",
+		100,
+		"Specifies the percentage of elements in the side input to be accessed.")
+	syntheticSourceConfig = flag.String(
+		"input_options",
+		"{"+
+			"\"num_records\": 300, "+
+			"\"key_size\": 5, "+
+			"\"value_size\": 15}",
+		"A JSON object that describes the configuration for synthetic source")
 )
 
 func parseSyntheticConfig() synthetic.SourceConfig {
-    if *syntheticSourceConfig == "" {
-        panic("--input_options not provided")
-    } else {
-        encoded := []byte(*syntheticSourceConfig)
-        return synthetic.DefaultSourceConfig().BuildFromJSON(encoded)
-    }
+	if *syntheticSourceConfig == "" {
+		panic("--input_options not provided")
+	} else {
+		encoded := []byte(*syntheticSourceConfig)
+		return synthetic.DefaultSourceConfig().BuildFromJSON(encoded)
+	}
 }
-
-type keyValue struct {
-    key []byte
-    value []byte
-}
-
 
 func main() {
-    flag.Parse()
-    beam.Init()
-    ctx := context.Background()
-    p, s := beam.NewPipelineWithRoot()
+	flag.Parse()
+	beam.Init()
+	ctx := context.Background()
+	p, s := beam.NewPipelineWithRoot()
 
-    syntheticConfig := parseSyntheticConfig()
-    // elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
+	syntheticConfig := parseSyntheticConfig()
+	elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
 
-    src := synthetic.SourceSingle(s, syntheticConfig)
-    src = beam.ParDo(s, func (key []byte, value []byte) []byte {
-        return key
-    }, src)
+	src := synthetic.SourceSingle(s, syntheticConfig)
 
-    beam.ParDo0(s, func(_ []byte, values func(*[]byte) bool) {
-        var value []byte
-        for values(&value) {
-            fmt.Println(value)
-        }
-    }, beam.Impulse(s), beam.SideInput{Input: src})
+	beam.ParDo0(s, func(_ []byte, values func(*[]byte, *[]byte) bool) {
+		var key []byte
+		var value []byte
+		i := 0
+		for values(&key, &value) {
+			if i == elementsToAccess {
+				break
+			}
+			fmt.Println(key)
+			fmt.Println(value)
+			i += 1
+		}
+	}, beam.Impulse(s), beam.SideInput{Input: src})
 
-    // beam.ParDo0(s, func(_ []byte, values func(*[]byte, *[]byte) bool) {
-    //    return
-    // }, beam.Impulse(s),
-    //    beam.SideInput{Input: src})
-
-    if err := beamx.Run(ctx, p); err != nil {
-        log.Exitf(ctx, "Failed to execute job: %v", err)
-    }
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
 }
