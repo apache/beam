@@ -18,12 +18,12 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/synthetic"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/test/load"
 )
 
 var (
@@ -59,8 +59,9 @@ func main() {
 	elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
 
 	src := synthetic.SourceSingle(s, syntheticConfig)
+	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 
-	beam.ParDo0(s, func(_ []byte, values func(*[]byte, *[]byte) bool) {
+	src = beam.ParDo(s, func(_ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
 		var key []byte
 		var value []byte
 		i := 0
@@ -68,11 +69,12 @@ func main() {
 			if i == elementsToAccess {
 				break
 			}
-			fmt.Println(key)
-			fmt.Println(value)
+			emit(key, value)
 			i += 1
 		}
 	}, beam.Impulse(s), beam.SideInput{Input: src})
+
+	beam.ParDo(s, &load.RuntimeMonitor{}, src)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)
