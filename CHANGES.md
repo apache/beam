@@ -57,7 +57,7 @@
 * ReadFromMongoDB can now be used with MongoDB Atlas (Python) ([BEAM-11266](https://issues.apache.org/jira/browse/BEAM-11266).)
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * There is a new transform `ReadAllFromBigQuery` that can receive multiple requests to read data from BigQuery at pipeline runtime. See [PR 13170](https://github.com/apache/beam/pull/13170), and [BEAM-9650](https://issues.apache.org/jira/browse/BEAM-9650).
-* New IO connector for Reading Study Metadata using the Google Cloud Healthcare DICOM API (Java) (([BEAM-11073]) https://issues.apache.org/jira/browse/BEAM-11073).
+* New IO connector for Reading Study Metadata using the Google Cloud Healthcare DICOM API (Java) ([BEAM-11073](https://issues.apache.org/jira/browse/BEAM-11073)).
 
 ## New Features / Improvements
 
