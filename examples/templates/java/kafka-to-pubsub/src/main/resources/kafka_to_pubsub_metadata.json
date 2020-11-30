@@ -79,6 +79,14 @@
       "regexes": [],
       "paramType": "TEXT",
       "isOptional": true
+    },
+    {
+      "name": "keyPassword",
+      "label": "Key Password",
+      "helpText": "The store password for the key store password",
+      "regexes": [],
+      "paramType": "TEXT",
+      "isOptional": true
     }
   ]
 }
