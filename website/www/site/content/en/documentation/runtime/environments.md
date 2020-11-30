@@ -209,12 +209,14 @@ python -m apache_beam.examples.wordcount \
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
-export IMAGE="my-repo/beam_python_sdk_custom"
-export TAG="X.Y.Z"
-
 export GCS_PATH="gs://my-gcs-bucket"
 export GCP_PROJECT="my-gcp-project"
 export REGION="us-central1"
+
+# By default, the Dataflow runner will have access to the GCR images
+# under the same project.
+export IMAGE="gcr.io/$GCP_PROJECT/beam_python_sdk_custom"
+export TAG="X.Y.Z"
 
 # Run a pipeline on Dataflow.
 # This is a Python batch pipeline, so to run on Dataflow Runner V2
