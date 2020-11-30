@@ -168,7 +168,11 @@ public class KafkaToPubsub {
               + "Trying to initiate an unauthorized connection.");
     }
 
-    if (isSslSpecified(options)) {
+    if (sslConfig == null) {
+      sslConfig = new HashMap<>();
+    }
+
+    if (isSslSpecified(options) && sslConfig.isEmpty()) {
       sslConfig.putAll(configureSsl(options));
     } else {
       LOG.info(
