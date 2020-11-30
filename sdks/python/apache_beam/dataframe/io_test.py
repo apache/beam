@@ -26,9 +26,11 @@ import shutil
 import sys
 import tempfile
 import unittest
+from io import BytesIO
 from io import StringIO
 
 import pandas as pd
+import pandas.testing
 from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
@@ -77,6 +79,7 @@ class IOTest(unittest.TestCase):
 
   @parameterized.expand([
       ('csv', dict(index_col=0)),
+      ('csv', dict(index_col=0, splittable=True)),
       ('json', dict(orient='index'), dict(orient='index')),
       ('json', dict(orient='columns'), dict(orient='columns')),
       ('json', dict(orient='split'), dict(orient='split')),
@@ -200,6 +203,89 @@ class IOTest(unittest.TestCase):
     self.assertLess(max(len(s) for s in splits), len(numbers) * 0.9 + 10)
     self.assertGreater(
         min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
+
+  @parameterized.expand([
+      ('defaults', dict()),
+      ('header', dict(header=1)),
+      ('multi_header', dict(header=[0, 1])),
+      ('multi_header', dict(header=[0, 1, 4])),
+      ('names', dict(names=('m', 'n', 'o'))),
+      ('names_and_header', dict(names=('m', 'n', 'o'), header=0)),
+      ('skip_blank_lines', dict(header=4, skip_blank_lines=True)),
+      ('skip_blank_lines', dict(header=4, skip_blank_lines=False)),
+      ('comment', dict(comment='X', header=4)),
+      ('comment', dict(comment='X', header=[0, 3])),
+      ('skiprows', dict(skiprows=0, header=[0, 1])),
+      ('skiprows', dict(skiprows=[1], header=[0, 3], skip_blank_lines=False)),
+      ('skiprows', dict(skiprows=[0, 1], header=[0, 1], comment='X')),
+  ])
+  def test_csv_splitter(self, name, kwargs):
+    def assert_frame_equal(expected, actual):
+      try:
+        pd.testing.assert_frame_equal(expected, actual)
+      except AssertionError:
+        print("Expected:\n", expected)
+        print("Actual:\n", actual)
+        raise
+
+    def read_truncated_csv(start, stop):
+      return pd.read_csv(
+          io._TruncatingFileHandle(
+              BytesIO(contents.encode('ascii')),
+              restriction_trackers.OffsetRestrictionTracker(
+                  restriction_trackers.OffsetRange(start, stop)),
+              splitter=io._CsvSplitter((), kwargs, read_chunk_size=7)),
+          index_col=0,
+          **kwargs)
+
+    contents = '''
+    a0, a1, a2
+    b0, b1, b2
+
+X     , c1, c2
+    e0, e1, e2
+    f0, f1, f2
+    w, daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaata, w
+    x, daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaata, x
+    y, daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaata, y
+    z, daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaata, z
+    '''.strip()
+    expected = pd.read_csv(StringIO(contents), index_col=0, **kwargs)
+
+    one_shard = read_truncated_csv(0, len(contents))
+    assert_frame_equal(expected, one_shard)
+
+    equal_shards = pd.concat([
+        read_truncated_csv(0, len(contents) // 2),
+        read_truncated_csv(len(contents) // 2, len(contents)),
+    ])
+    assert_frame_equal(expected, equal_shards)
+
+    three_shards = pd.concat([
+        read_truncated_csv(0, len(contents) // 3),
+        read_truncated_csv(len(contents) // 3, len(contents) * 2 // 3),
+        read_truncated_csv(len(contents) * 2 // 3, len(contents)),
+    ])
+    assert_frame_equal(expected, three_shards)
+
+    # https://github.com/pandas-dev/pandas/issues/38292
+    if not isinstance(kwargs.get('header'), list):
+      split_in_header = pd.concat([
+          read_truncated_csv(0, 1),
+          read_truncated_csv(1, len(contents)),
+      ])
+      assert_frame_equal(expected, split_in_header)
+
+    if not kwargs:
+      # Make sure we're correct as we cross the header boundary.
+      # We don't need to do this for every permutation.
+      header_end = contents.index('a2') + 3
+      for split in range(header_end - 2, header_end + 2):
+        split_at_header = pd.concat([
+            read_truncated_csv(0, split),
+            read_truncated_csv(split, len(contents)),
+        ])
+        assert_frame_equal(expected, split_at_header)
 
 
 if __name__ == '__main__':

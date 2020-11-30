@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from io import BytesIO
 from io import StringIO
 from io import TextIOWrapper
+import itertools
+import re
 
 import pandas as pd
 
@@ -31,7 +33,7 @@ _DEFAULT_LINES_CHUNKSIZE = 10_000
 _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 
-def read_csv(path, *args, **kwargs):
+def read_csv(path, *args, splittable=False, **kwargs):
   """Emulates `pd.read_csv` from Pandas, but as a Beam PTransform.
 
   Use this as
@@ -39,8 +41,20 @@ def read_csv(path, *args, **kwargs):
       df = p | beam.dataframe.io.read_csv(...)
 
   to get a deferred Beam dataframe representing the contents of the file.
+
+  If your files are large and records do not contain quoted newlines, you may
+  pass the extra argument splittable=True to enable dynamic splitting for this
+  read.
   """
-  return _ReadFromPandas(pd.read_csv, path, args, kwargs, incremental=True)
+  if 'nrows' in kwargs:
+    raise ValueError('nrows not yet supported')
+  return _ReadFromPandas(
+      pd.read_csv,
+      path,
+      args,
+      kwargs,
+      incremental=True,
+      splitter=_CsvSplitter(args, kwargs) if splittable else None)
 
 
 def _as_pc(df):
@@ -65,7 +79,8 @@ def read_json(path, *args, **kwargs):
       args,
       kwargs,
       incremental=kwargs.get('lines', False),
-      splittable=kwargs.get('lines', False),
+      splitter=_DelimSplitter(b'\n', _DEFAULT_BYTES_CHUNKSIZE) if kwargs.get(
+          'lines', False) else None,
       binary=False)
 
 
@@ -152,9 +167,9 @@ class _ReadFromPandas(beam.PTransform):
       path,
       args,
       kwargs,
+      binary=True,
       incremental=False,
-      splittable=False,
-      binary=True):
+      splitter=False):
     if 'compression' in kwargs:
       raise NotImplementedError('compression')
     if not isinstance(path, str):
@@ -163,9 +178,9 @@ class _ReadFromPandas(beam.PTransform):
     self.path = path
     self.args = args
     self.kwargs = kwargs
-    self.incremental = incremental
-    self.splittable = splittable
     self.binary = binary
+    self.incremental = incremental
+    self.splitter = splitter
 
   def expand(self, root):
     # TODO(robertwb): Handle streaming (with explicit schema).
@@ -192,9 +207,9 @@ class _ReadFromPandas(beam.PTransform):
                 self.reader,
                 self.args,
                 self.kwargs,
+                self.binary,
                 self.incremental,
-                self.splittable,
-                self.binary)))
+                self.splitter)))
     from apache_beam.dataframe import convert
     return convert.to_dataframe(
         pcoll, proxy=_prefix_range_index_with(':', sample[:0]))
@@ -241,6 +256,85 @@ class _DelimSplitter(_Splitter):
           buffered += chunk
 
 
+def _maybe_encode(str_or_bytes):
+  if isinstance(str_or_bytes, str):
+    return str_or_bytes.encode('utf-8')
+  else:
+    return str_or_bytes
+
+
+class _CsvSplitter(_DelimSplitter):
+  """Splitter for dynamically sharding CSV files.
+
+  Currently does not handle quoted newlines, so is off by default, but such
+  support could be added in the future.
+  """
+  def __init__(self, args, kwargs, read_chunk_size=_DEFAULT_BYTES_CHUNKSIZE):
+    if args:
+      # TODO(robertwb): Automatically populate kwargs as we do for df methods.
+      raise ValueError(
+          'Non-path arguments must be passed by keyword '
+          'for splittable csv reads.')
+    if kwargs.get('skipfooter', 0):
+      raise ValueError('Splittablility incompatible with skipping footers.')
+    super(_CsvSplitter, self).__init__(
+        _maybe_encode(kwargs.get('lineterminator', b'\n')),
+        _DEFAULT_BYTES_CHUNKSIZE)
+    self._kwargs = kwargs
+
+  def read_header(self, handle):
+    if self._kwargs.get('header', 'infer') == 'infer':
+      if 'names' in self._kwargs:
+        header = None
+      else:
+        header = 0
+    else:
+      header = self._kwargs['header']
+
+    if header is None:
+      return self._empty, self._empty
+
+    if isinstance(header, int):
+      max_header = header
+    else:
+      max_header = max(header)
+
+    skiprows = self._kwargs.get('skiprows', 0)
+    if isinstance(skiprows, int):
+      is_skiprow = lambda ix: ix < skiprows
+    elif callable(skiprows):
+      is_skiprow = skiprows
+    elif skiprows is None:
+      is_skiprow = lambda ix: False
+    else:
+      is_skiprow = lambda ix: ix in skiprows
+
+    comment = _maybe_encode(self._kwargs.get('comment', None))
+    if comment:
+      import logging
+      is_comment = lambda line: line.startswith(comment)
+    else:
+      is_comment = lambda line: False
+
+    skip_blank_lines = self._kwargs.get('skip_blank_lines', True)
+    if skip_blank_lines:
+      is_blank = lambda line: re.match(b'^\s*$', line)
+    else:
+      is_blank = lambda line: False
+
+    text_header = b''
+    rest = b''
+    skipped = 0
+    for ix in itertools.count():
+      line, rest = self.read_to_record_boundary(rest, handle)
+      text_header += line
+      if is_skiprow(ix) or is_blank(line) or is_comment(line):
+        skipped += 1
+        continue
+      if ix - skipped == max_header:
+        return text_header, rest
+
+
 class _TruncatingFileHandle(object):
   """A wrapper of a file-like object representing the restriction of the
   underling handle according to the given SDF restriction tracker, breaking
@@ -256,16 +350,24 @@ class _TruncatingFileHandle(object):
   def __init__(self, underlying, tracker, splitter):
     self._underlying = underlying
     self._tracker = tracker
-    self._buffer_start_pos = self._tracker.current_restriction().start
     self._splitter = splitter
 
-    self._buffer = self._empty = self._splitter.empty_buffer()
+    self._empty = self._splitter.empty_buffer()
     self._done = False
-    if self._buffer_start_pos > 0:
-      # Seek to first delimiter after the start position.
-      self._underlying.seek(self._buffer_start_pos)
+    self._header, self._buffer = self._splitter.read_header(self._underlying)
+    self._buffer_start_pos = len(self._header)
+    start = self._tracker.current_restriction().start
+    # Seek to first delimiter after the start position.
+    if start > len(self._header):
+      if start > len(self._header) + len(self._buffer):
+        self._buffer_start_pos = start
+        self._buffer = self._empty
+        self._underlying.seek(start)
+      else:
+        self._buffer_start_pos = start
+        self._buffer = self._buffer[start - len(self._header):]
       skip, self._buffer = self._splitter.read_to_record_boundary(
-          self._empty, self._underlying)
+          self._buffer, self._underlying)
       self._buffer_start_pos += len(skip)
 
   def readable(self):
@@ -286,7 +388,11 @@ class _TruncatingFileHandle(object):
     raise NotImplementedError()
 
   def read(self, size=-1):
-    if self._done:
+    if self._header:
+      res = self._header
+      self._header = None
+      return res
+    elif self._done:
       return self._empty
     elif size == -1:
       self._buffer += self._underlying.read()
@@ -303,24 +409,27 @@ class _TruncatingFileHandle(object):
       self._buffer_start_pos += len(res)
     else:
       offset = self._tracker.current_restriction().stop - self._buffer_start_pos
-      rest, _ = self._splitter.read_to_record_boundary(
-          self._buffer[offset:], self._underlying)
-      res = self._buffer[:offset] + rest
+      if offset <= 0:
+        res = self._empty
+      else:
+        rest, _ = self._splitter.read_to_record_boundary(
+            self._buffer[offset:], self._underlying)
+        res = self._buffer[:offset] + rest
       self._done = True
     return res
 
 
 class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
-  def __init__(self, reader, args, kwargs, incremental, splittable, binary):
+  def __init__(self, reader, args, kwargs, binary, incremental, splitter):
     # avoid pickling issues
     if reader.__module__.startswith('pandas.'):
       reader = reader.__name__
     self.reader = reader
     self.args = args
     self.kwargs = kwargs
-    self.incremental = incremental
-    self.splittable = splittable
     self.binary = binary
+    self.incremental = incremental
+    self.splitter = splitter
 
   def initial_restriction(self, readable_file):
     return beam.io.restriction_trackers.OffsetRange(
@@ -331,7 +440,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
 
   def create_tracker(self, restriction):
     tracker = beam.io.restriction_trackers.OffsetRestrictionTracker(restriction)
-    if self.splittable:
+    if self.splitter:
       return tracker
     else:
       return beam.io.restriction_trackers.UnsplittableRestrictionTracker(
@@ -351,7 +460,8 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
         handle = _TruncatingFileHandle(
             handle,
             tracker,
-            splitter=_DelimSplitter(b'\n', _DEFAULT_BYTES_CHUNKSIZE))
+            splitter=self.splitter or
+            _DelimSplitter(b'\n', _DEFAULT_BYTES_CHUNKSIZE))
       if not self.binary:
         handle = TextIOWrapper(handle)
       if self.incremental:
