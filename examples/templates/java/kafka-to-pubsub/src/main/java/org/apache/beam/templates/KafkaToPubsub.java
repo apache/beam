@@ -161,18 +161,13 @@ public class KafkaToPubsub {
       Map<String, Map<String, String>> credentials =
           getKafkaCredentialsFromVault(options.getSecretStoreUrl(), options.getVaultToken());
       kafkaConfig = configureKafka(credentials.get(KafkaPubsubConstants.KAFKA_CREDENTIALS));
-      sslConfig = credentials.get(KafkaPubsubConstants.SSL_CREDENTIALS);
     } else {
       LOG.warn(
           "No information to retrieve Kafka credentials was provided. "
               + "Trying to initiate an unauthorized connection.");
     }
 
-    if (sslConfig == null) {
-      sslConfig = new HashMap<>();
-    }
-
-    if (isSslSpecified(options) && sslConfig.isEmpty()) {
+    if (isSslSpecified(options)) {
       sslConfig.putAll(configureSsl(options));
     } else {
       LOG.info(
