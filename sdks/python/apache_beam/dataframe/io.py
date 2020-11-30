@@ -200,6 +200,47 @@ class _ReadFromPandas(beam.PTransform):
         pcoll, proxy=_prefix_range_index_with(':', sample[:0]))
 
 
+class _Splitter:
+  def empty_buffer(self):
+    raise NotImplementedError(self)
+
+  def read_header(self, handle):
+    raise NotImplementedError(self)
+
+  def read_to_record_boundary(self, buffered, handle):
+    raise NotImplementedError(self)
+
+
+class _DelimSplitter(_Splitter):
+  def __init__(self, delim, read_chunk_size=_DEFAULT_BYTES_CHUNKSIZE):
+    # Multi-char delimiters would require more care across chunk boundaries.
+    assert len(delim) == 1
+    self._delim = delim
+    self._empty = delim[:0]
+    self._read_chunk_size = read_chunk_size
+
+  def empty_buffer(self):
+    return self._empty
+
+  def read_header(self, handle):
+    return self._empty, self._empty
+
+  def read_to_record_boundary(self, buffered, handle):
+    if self._delim in buffered:
+      ix = buffered.index(self._delim) + len(self._delim)
+      return buffered[:ix], buffered[ix:]
+    else:
+      while True:
+        chunk = handle.read(self._read_chunk_size)
+        if self._delim in chunk:
+          ix = chunk.index(self._delim) + len(self._delim)
+          return buffered + chunk[:ix], chunk[ix:]
+        elif not chunk:
+          return buffered, self._empty
+        else:
+          buffered += chunk
+
+
 class _TruncatingFileHandle(object):
   """A wrapper of a file-like object representing the restriction of the
   underling handle according to the given SDF restriction tracker, breaking
@@ -212,29 +253,20 @@ class _TruncatingFileHandle(object):
 
   As with all SDF trackers, the endpoint may change dynamically during reading.
   """
-  def __init__(
-      self,
-      underlying,
-      tracker,
-      delim=b'\n',
-      chunk_size=_DEFAULT_BYTES_CHUNKSIZE):
+  def __init__(self, underlying, tracker, splitter):
     self._underlying = underlying
     self._tracker = tracker
     self._buffer_start_pos = self._tracker.current_restriction().start
-    self._delim = delim
-    self._chunk_size = chunk_size
+    self._splitter = splitter
 
-    self._buffer = self._empty = self._delim[:0]
+    self._buffer = self._empty = self._splitter.empty_buffer()
     self._done = False
     if self._buffer_start_pos > 0:
       # Seek to first delimiter after the start position.
       self._underlying.seek(self._buffer_start_pos)
-      if self.buffer_to_delim():
-        line_start = self._buffer.index(self._delim) + len(self._delim)
-        self._buffer_start_pos += line_start
-        self._buffer = self._buffer[line_start:]
-      else:
-        self._done = True
+      skip, self._buffer = self._splitter.read_to_record_boundary(
+          self._empty, self._underlying)
+      self._buffer_start_pos += len(skip)
 
   def readable(self):
     return True
@@ -253,20 +285,6 @@ class _TruncatingFileHandle(object):
     # For pandas is_file_like.
     raise NotImplementedError()
 
-  def buffer_to_delim(self, offset=0):
-    """Read enough of the file such that the buffer contains the delimiter, or
-    end-of-file is reached.
-    """
-    if self._delim in self._buffer[offset:]:
-      return True
-    while True:
-      chunk = self._underlying.read(self._chunk_size)
-      self._buffer += chunk
-      if self._delim in chunk:
-        return True
-      elif not chunk:
-        return False
-
   def read(self, size=-1):
     if self._done:
       return self._empty
@@ -275,17 +293,19 @@ class _TruncatingFileHandle(object):
     elif not self._buffer:
       self._buffer = self._underlying.read(size)
 
+    if not self._buffer:
+      self._done = True
+      return self._empty
+
     if self._tracker.try_claim(self._buffer_start_pos + len(self._buffer)):
       res = self._buffer
       self._buffer = self._empty
       self._buffer_start_pos += len(res)
     else:
       offset = self._tracker.current_restriction().stop - self._buffer_start_pos
-      if self.buffer_to_delim(offset):
-        end_of_line = self._buffer.index(self._delim, offset)
-        res = self._buffer[:end_of_line + len(self._delim)]
-      else:
-        res = self._buffer
+      rest, _ = self._splitter.read_to_record_boundary(
+          self._buffer[offset:], self._underlying)
+      res = self._buffer[:offset] + rest
       self._done = True
     return res
 
@@ -323,13 +343,15 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       reader = getattr(pd, self.reader)
     with readable_file.open() as handle:
       if self.incremental:
-        # We can get progress even if we can't split.
         # TODO(robertwb): We could consider trying to get progress for
         # non-incremental sources that are read linearly, as long as they
         # don't try to seek.  This could be deceptive as progress would
         # advance to 100% the instant the (large) read was done, discounting
         # any downstream processing.
-        handle = _TruncatingFileHandle(handle, tracker)
+        handle = _TruncatingFileHandle(
+            handle,
+            tracker,
+            splitter=_DelimSplitter(b'\n', _DEFAULT_BYTES_CHUNKSIZE))
       if not self.binary:
         handle = TextIOWrapper(handle)
       if self.incremental:

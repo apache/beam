@@ -169,7 +169,7 @@ class IOTest(unittest.TestCase):
     for split in list(splits) + [None]:
       tracker = restriction_trackers.OffsetRestrictionTracker(next_range)
       handle = io._TruncatingFileHandle(
-          StringIO(s), tracker, delim=delim, chunk_size=chunk_size)
+          StringIO(s), tracker, splitter=io._DelimSplitter(delim, chunk_size))
       data = ''
       chunk = handle.read(1)
       if split is not None:
