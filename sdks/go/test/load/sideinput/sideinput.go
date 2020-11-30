@@ -70,7 +70,7 @@ func main() {
 				break
 			}
 			emit(key, value)
-			i += 1
+			i++
 		}
 	}, beam.Impulse(s), beam.SideInput{Input: src})
 
