@@ -57,6 +57,7 @@ public class SslConsumerFactoryFn
       String truststoreLocation = sslConfig.get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
       if (truststoreLocation.startsWith("gs://")) {
         getGcsFileAsLocal(truststoreLocation, TRUSTSTORE_LOCAL_PATH);
+        sslConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, TRUSTSTORE_LOCAL_PATH);
       } else {
         checkFileExists(truststoreLocation);
       }
@@ -64,6 +65,7 @@ public class SslConsumerFactoryFn
       String keystoreLocation = sslConfig.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
       if (keystoreLocation.startsWith("gs://")) {
         getGcsFileAsLocal(keystoreLocation, KEYSTORE_LOCAL_PATH);
+        sslConfig.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, KEYSTORE_LOCAL_PATH);
       } else {
         checkFileExists(keystoreLocation);
       }
