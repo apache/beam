@@ -58,7 +58,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.util.ChainedSqlOperatorTable;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSet;
@@ -236,7 +236,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         .ruleSets(ruleSets.toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
-        .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
+        .operatorTable(SqlOperatorTables.chain(opTab0, catalogReader))
         .build();
   }
 }

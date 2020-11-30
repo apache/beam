@@ -192,7 +192,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
    * <p>Any available implementation of {@link QueryPlanner} can be used as the query planner in
    * {@link SqlTransform}. An implementation can be specified globally for the entire pipeline with
    * {@link BeamSqlPipelineOptions#getPlannerName()}. The global planner can be overridden
-   * per-transform with {@link #withQueryPlannerClass(Class<? extends QueryPlanner>)}.
+   * per-transform with {@link #withQueryPlannerClass}(Class<? extends {@link QueryPlanner}>).
    */
   public static SqlTransform query(String queryString) {
     return builder()
