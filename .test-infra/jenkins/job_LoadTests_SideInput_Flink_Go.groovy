@@ -38,6 +38,7 @@ def batchScenarios = {
         '"num_records": 10000000,' +
         '"key_size": 100,' +
         '"value_size": 900}\'',
+        access_percentage  : 1,
         parallelism        : 10,
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
