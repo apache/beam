@@ -20,13 +20,14 @@ package org.apache.beam.sdk.extensions.sql.jdbc;
 import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.buildArgs;
 import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.toLines;
 import static org.hamcrest.CoreMatchers.everyItem;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.oneOf;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import org.hamcrest.collection.IsIn;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -93,8 +94,9 @@ public class BeamSqlLineTest {
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
-        Arrays.asList(Arrays.asList("3", "hello", "2018-05-28")),
-        everyItem(IsIn.isOneOf(lines.toArray())));
+        Arrays.asList(
+            Arrays.asList("3", "hello", "2018-05-28")),
+        everyItem(is(oneOf(lines.toArray()))));
   }
 
   @Test
@@ -114,7 +116,7 @@ public class BeamSqlLineTest {
         Arrays.asList(
             Arrays.asList("col_a", "col_b", "col_c", "col_x", "col_y", "col_z"),
             Arrays.asList("a", "b", "c", "1", "2", "3")),
-        everyItem(IsIn.isOneOf(lines.toArray())));
+        everyItem(is(oneOf(lines))));
   }
 
   @Test
@@ -130,7 +132,9 @@ public class BeamSqlLineTest {
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
-        Arrays.asList(Arrays.asList("3", "hello")), everyItem(IsIn.isOneOf(lines.toArray())));
+        Arrays.asList(
+            Arrays.asList("3", "hello")),
+        everyItem(is(oneOf(lines.toArray()))));
   }
 
   @Test
@@ -148,8 +152,10 @@ public class BeamSqlLineTest {
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
-        Arrays.asList(Arrays.asList("3", "2"), Arrays.asList("4", "1")),
-        everyItem(IsIn.isOneOf(lines.toArray())));
+        Arrays.asList(
+            Arrays.asList("3", "2"),
+            Arrays.asList("4", "1")),
+        everyItem(is(oneOf(lines.toArray()))));
   }
 
   @Test
@@ -168,8 +174,9 @@ public class BeamSqlLineTest {
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
         Arrays.asList(
-            Arrays.asList("2018-07-01 21:26:06", "1"), Arrays.asList("2018-07-01 21:26:07", "1")),
-        everyItem(IsIn.isOneOf(lines.toArray())));
+            Arrays.asList("2018-07-01 21:26:06", "1"),
+            Arrays.asList("2018-07-01 21:26:07", "1")),
+        everyItem(is(oneOf(lines.toArray()))));
   }
 
   @Test
@@ -195,6 +202,6 @@ public class BeamSqlLineTest {
             Arrays.asList("2018-07-01 21:26:09", "2"),
             Arrays.asList("2018-07-01 21:26:10", "2"),
             Arrays.asList("2018-07-01 21:26:11", "1")),
-        everyItem(IsIn.isOneOf(lines.toArray())));
+        everyItem(is(oneOf(lines.toArray()))));
   }
 }
