@@ -114,6 +114,9 @@ refresh a side input coming from BigQuery. This would work like so:::
 
 **Note**: This transform is supported on Portable and Dataflow v2 runners.
 
+**Note**: This transform does not currently clean up temporary datasets
+created for its execution. (BEAM-11359)
+
 Writing Data to BigQuery
 ========================
 
