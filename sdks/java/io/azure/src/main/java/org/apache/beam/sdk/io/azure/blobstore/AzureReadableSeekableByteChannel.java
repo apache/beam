@@ -17,23 +17,27 @@
  */
 package org.apache.beam.sdk.io.azure.blobstore;
 
+import static com.microsoft.azure.storage.core.SR.MARK_EXPIRED;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.specialized.BlobInputStream;
 import java.io.IOException;
+import java.lang.RuntimeException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 
 class AzureReadableSeekableByteChannel implements SeekableByteChannel {
 
+  private final BlobClient blobClient;
   private final BlobInputStream inputStream;
   private boolean closed;
   private final Long contentLength;
   private long position = 0;
 
   public AzureReadableSeekableByteChannel(BlobClient blobClient) {
+    this.blobClient = blobClient;
     inputStream = blobClient.openInputStream();
     contentLength = blobClient.getProperties().getBlobSize();
     inputStream.mark(contentLength.intValue());
@@ -86,7 +90,16 @@ class AzureReadableSeekableByteChannel implements SeekableByteChannel {
 
     Long bytesToSkip = newPosition - position;
     if (bytesToSkip < 0) {
-      inputStream.reset();
+      try {
+        inputStream.reset();
+      } catch (RuntimeException e) {
+        if (e.getMessage.equals(MARK_EXPIRED)) {
+	  close();
+	  return new AzureReadableSeekableByteChannel(blobClient).position(newPosition);
+	} else {
+	  throw e;
+	}
+      }
       bytesToSkip = newPosition;
     }
     Long n = inputStream.skip(bytesToSkip);
