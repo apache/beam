@@ -62,25 +62,6 @@ def loadTestConfigurations = { mode ->
         '"value_size": 900}\'',
       ]
     ],
-    [
-      name: '1gb-1kb-10workers-1window-first-list',
-      testSpecificOptions: [
-        input_options    : '\'{' +
-        '"num_records": 1000000,' +
-        '"key_size": 100,' +
-        '"value_size": 900}\'',
-        access_percentage: 1,
-      ]
-    ],
-    [
-      name: '1gb-1kb-10workers-1window-list',
-      testSpecificOptions: [
-        input_options    : '\'{' +
-        '"num_records": 1000000,' +
-        '"key_size": 100,' +
-        '"value_size": 900}\'',
-      ]
-    ],
   ].indexed().collect { index, it ->
     fromTemplate(mode, it.name, index + 1, it.testSpecificOptions << additionalPipelineArgs)
   }
