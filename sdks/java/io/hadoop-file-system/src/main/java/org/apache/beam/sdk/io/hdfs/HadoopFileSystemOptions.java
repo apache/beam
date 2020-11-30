@@ -70,8 +70,6 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
     }
 
     private List<Configuration> readConfigurationFromHadoopYarnConfigDirs() {
-      // Linkedin: we notice deployment failure due configurationList contians two same elements.
-      // Change to use set to avoid duplicates.
       Set<Configuration> configurationSet = Sets.newHashSet();
 
       /*
