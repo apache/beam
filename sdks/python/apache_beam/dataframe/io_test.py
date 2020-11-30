@@ -196,7 +196,7 @@ class IOTest(unittest.TestCase):
     splits = self._run_truncating_file_handle_test(
         numbers, [0.1] * 20, delim='x')
     self.assertEqual(numbers, ''.join(splits))
-    self.assertTrue(s.endswith(x) for s in splits[:-1])
+    self.assertTrue(s.endswith('x') for s in splits[:-1])
     self.assertLess(max(len(s) for s in splits), len(numbers) * 0.9 + 10)
     self.assertGreater(
         min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
