@@ -33,10 +33,7 @@ var (
 		"Specifies the percentage of elements in the side input to be accessed.")
 	syntheticSourceConfig = flag.String(
 		"input_options",
-		"{"+
-			"\"num_records\": 300, "+
-			"\"key_size\": 5, "+
-			"\"value_size\": 15}",
+		"",
 		"A JSON object that describes the configuration for synthetic source")
 )
 
@@ -76,7 +73,13 @@ func main() {
 
 	beam.ParDo(s, &load.RuntimeMonitor{}, src)
 
-	if err := beamx.Run(ctx, p); err != nil {
-		log.Exitf(ctx, "Failed to execute job: %v", err)
+	presult, err := beamx.RunWithMetrics(ctx, p)
+	if err != nil {
+		log.Fatalf(ctx, "Failed to execute job: %v", err)
+	}
+
+	if presult != nil {
+		metrics := presult.Metrics().AllMetrics()
+		load.PublishMetrics(metrics)
 	}
 }
