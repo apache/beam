@@ -138,7 +138,7 @@ public class SqlOperators {
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
           new SqlIdentifier("CAST", SqlParserPos.ZERO),
-          (SqlKind) null,
+          SqlKind.OTHER_FUNCTION,
           null,
           null,
           null,
