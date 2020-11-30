@@ -178,6 +178,8 @@ dependencies {
   runtimeOnly project(":sdks:java:harness")
   if (flink_version.startsWith('1.10')) {
       compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.10-lyft20200508"
+      compile "com.amazonaws:aws-java-sdk-s3:1.10.6"
+      compile "org.apache.hadoop:hadoop-aws:2.8.3"
       compile "com.lyft:streamingplatform-kinesis:2.1-SNAPSHOT"
       compile("com.lyft:streamingplatform-kafka:2.1-SNAPSHOT") {
         exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"

@@ -402,6 +402,16 @@ public class LyftFlinkStreamingPortableTranslations {
       S3Config s3Config = getS3Config(userS3Config);
       List<EventConfig> eventConfigs = getEventConfigs(events);
 
+      // in case of default, [kinesis_parallelism = job_parallelism - s3.parallelism]
+      if (kinesisConfig.getParallelism() < 1) {
+        int parallelism = context.getExecutionEnvironment().getConfig().getParallelism();
+        KinesisConfig.Builder builder = new KinesisConfig.Builder(kinesisConfig.getStreamName());
+        builder.withStreamStartMode(kinesisConfig.getStreamStartMode());
+        builder.withProperties(kinesisConfig.getProperties());
+        builder.withParallelism(parallelism - s3Config.parallelism);
+        kinesisConfig = builder.build();
+      }
+
       SourceContext sourceContext =
           new SourceContext.Builder()
               .withStreamConfig(kinesisConfig)
@@ -444,12 +454,13 @@ public class LyftFlinkStreamingPortableTranslations {
       EventConfig.Builder builder = new EventConfig.Builder(node.get("name").asText());
 
       // Add lateness in sec
-      JsonNode latenessInSec = node.get("lateness_in_sec");
-      if (latenessInSec != null) {
-        builder = builder.withLatenessInSec(latenessInSec.asLong());
+      // TODO : refactor the builder to use a standard name.
+      JsonNode maxOutOfOrdernessMillis = node.get("max_out_of_orderness_millis");
+      if (maxOutOfOrdernessMillis != null) {
+        builder = builder.withLatenessInSec(maxOutOfOrdernessMillis.asLong() / 1000);
       }
 
-      // Add lookback hours
+      // Add lookback days
       JsonNode lookbackDays = node.get("lookback_days");
       if (lookbackDays != null) {
         builder = builder.withLookbackInDays(lookbackDays.asInt());
@@ -472,7 +483,7 @@ public class LyftFlinkStreamingPortableTranslations {
     }
 
     // Add s3 lookback hours
-    JsonNode lookbackHours = userS3Config.get("lookback_hours");
+    JsonNode lookbackHours = userS3Config.get("lookback_threshold_hours");
     if (lookbackHours != null) {
       builder = builder.withLookbackHours(lookbackHours.asInt());
     }
@@ -490,9 +501,8 @@ public class LyftFlinkStreamingPortableTranslations {
         new KinesisConfig.Builder(userKinesisConfig.get("stream").asText());
     // Add kinesis parallelism
     JsonNode kinesisParallelism = userKinesisConfig.get("parallelism");
-    if (kinesisParallelism != null) {
-      builder = builder.withParallelism(kinesisParallelism.asInt());
-    }
+    builder = builder.withParallelism(kinesisParallelism.asInt());
+
     // Add kinesis properties
     Map<String, String> kinesisProps =
         mapper.convertValue(
