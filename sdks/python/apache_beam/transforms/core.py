@@ -605,10 +605,13 @@ class _BundleFinalizerParam(_DoFnParam):
 
 
 class _WatermarkEstimatorParam(_DoFnParam):
-  """WatermarkEstomator DoFn parameter."""
-  def __init__(self, watermark_estimator_provider):
-    # type: (WatermarkEstimatorProvider) -> None
-    if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
+  """WatermarkEstimator DoFn parameter."""
+  def __init__(
+      self,
+      watermark_estimator_provider: typing.
+      Optional[WatermarkEstimatorProvider] = None):
+    if (watermark_estimator_provider is not None and not isinstance(
+        watermark_estimator_provider, WatermarkEstimatorProvider)):
       raise ValueError(
           'DoFn._WatermarkEstimatorParam expected'
           'WatermarkEstimatorProvider object.')
