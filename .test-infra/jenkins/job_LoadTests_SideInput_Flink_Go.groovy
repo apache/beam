@@ -22,6 +22,8 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def batchScenarios = {
