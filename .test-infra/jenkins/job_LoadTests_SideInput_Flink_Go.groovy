@@ -24,47 +24,45 @@ import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def fromTemplate = { mode, name, id, testSpecificOptions ->
-  [
-    title          : "SideInput Go Load test: ${name}",
-    test           : 'sideinput',
-    runner         : CommonTestProperties.Runner.FLINK,
-    pipelineOptions: [
-      job_name           : "load-tests-go-flink-${mode}-sideinput-${id}-${now}",
-      influx_namespace   : 'flink',
-      influx_measurement : "go_${mode}_sideinput_${id}_${now}",
-      parallelism        : 10,
-      endpoint           : 'localhost:8099',
-      environment_type   : 'DOCKER',
-      environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-    ] << testSpecificOptions
-  ]
-}
-
-def loadTestConfigurations = { mode ->
+def batchScenarios = {
   [
     [
-      name: '10gb-1kb-10workers-1window-first-iterable',
-      testSpecificOptions: [
-        input_options    : '\'{' +
+      title          : 'SideInput Go Load test: 10gb-1kb-10workers-1window-first-iterable',
+      test           : 'sideinput',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name           : "load-tests-go-flink-batch-sideinput-1-${now}",
+        influx_namespace   : 'flink',
+        influx_measurement : 'go_batch_sideinput_1',
+        input_options      : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
         '"value_size": 900}\'',
-        access_percentage: 1,
+        parallelism        : 10,
+        endpoint           : 'localhost:8099',
+        environment_type   : 'DOCKER',
+        environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
-      name: '10gb-1kb-10workers-1window-iterable',
-      testSpecificOptions: [
-        input_options    : '\'{' +
+      title          : 'SideInput Go Load test: 10gb-1kb-10workers-1window-iterable',
+      test           : 'sideinput',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name           : "load-tests-go-flink-batch-sideinput-2-${now}",
+        influx_namespace   : 'flink',
+        influx_measurement : 'go_batch_sideinput_2',
+        input_options      : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
         '"value_size": 900}\'',
+        parallelism        : 10,
+        endpoint           : 'localhost:8099',
+        environment_type   : 'DOCKER',
+        environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
-  ].indexed().collect { index, it ->
-    fromTemplate(mode, it.name, index + 1, it.testSpecificOptions << additionalPipelineArgs)
-  }
+  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
@@ -79,7 +77,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
       "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO,
-      loadTestConfigurations(mode), 'SideInput', mode)
+      batchScenarios(), 'SideInput', mode)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
