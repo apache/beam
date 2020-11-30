@@ -60,6 +60,7 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
+  @Ignore
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =
