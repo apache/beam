@@ -220,7 +220,10 @@ class RestrictionProvider(object):
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
   method of that class should have exactly one parameter whose default value is
-  an instance of ``RestrictionProvider``.
+  an instance of ``RestrictionParam``. This ``RestrictionParam`` can either be
+  constructed with an explicit ``RestrictionProvider``, or, if no
+  ``RestrictionProvider`` is provided, the ``DoFn`` itself must be a
+  ``RestrictionProvider``.
 
   The provided ``RestrictionProvider`` instance must provide suitable overrides
   for the following methods:
@@ -503,8 +506,11 @@ class WatermarkEstimatorProvider(object):
   information within an SDF.
 
   In order to make an SDF.process() access to the typical WatermarkEstimator,
-  the SDF author should pass a DoFn.WatermarkEstimatorParam with a default value
-  of one WatermarkEstimatorProvider instance.
+  the SDF author should have an argument whose default value is a
+  DoFn.WatermarkEstimatorParam instance.  This DoFn.WatermarkEstimatorParam
+  can either be constructed with an explicit WatermarkEstimatorProvider,
+  or, if no WatermarkEstimatorProvider is provided, the DoFn itself must
+  be a WatermarkEstimatorProvider.
   """
   def initial_estimator_state(self, element, restriction):
     """Returns the initial state of the WatermarkEstimator with given element
@@ -613,7 +619,7 @@ class _WatermarkEstimatorParam(_DoFnParam):
     if (watermark_estimator_provider is not None and not isinstance(
         watermark_estimator_provider, WatermarkEstimatorProvider)):
       raise ValueError(
-          'DoFn._WatermarkEstimatorParam expected'
+          'DoFn.WatermarkEstimatorParam expected'
           'WatermarkEstimatorProvider object.')
     self.watermark_estimator_provider = watermark_estimator_provider
     self.param_id = 'WatermarkEstimatorProvider'
