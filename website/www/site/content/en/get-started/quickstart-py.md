@@ -29,7 +29,7 @@ The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last relea
 
 ### Check your Python version
 
-The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
+The Beam SDK requires Python users to use Python version 3.6 or higher. Check your version by running:
 
 {{< highlight >}}
 python --version
