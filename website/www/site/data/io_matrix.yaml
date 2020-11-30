@@ -388,3 +388,9 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.splunk.SplunkIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html
+      - transform: DicomIO
+        description: An IO for Reading Study Metadata using the Google Cloud Healthcare DICOM API.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.DicomIO
+            url: https://beam.apache.org/releases/javadoc/2.25.0/org/apache/beam/sdk/io/gcp/healthcare/DicomIO.html
