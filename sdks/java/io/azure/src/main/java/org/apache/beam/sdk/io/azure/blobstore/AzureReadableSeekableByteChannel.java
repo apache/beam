@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.specialized.BlobInputStream;
 import java.io.IOException;
-import java.lang.RuntimeException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
@@ -94,11 +93,11 @@ class AzureReadableSeekableByteChannel implements SeekableByteChannel {
         inputStream.reset();
       } catch (RuntimeException e) {
         if (e.getMessage.equals(MARK_EXPIRED)) {
-	  close();
-	  return new AzureReadableSeekableByteChannel(blobClient).position(newPosition);
-	} else {
-	  throw e;
-	}
+          close();
+          return new AzureReadableSeekableByteChannel(blobClient).position(newPosition);
+        } else {
+          throw e;
+        }
       }
       bytesToSkip = newPosition;
     }
