@@ -177,7 +177,7 @@ class UnsplittableRestrictionTracker(RestrictionTracker):
   # __getattribute__ is used rather than __getattr__ to override the
   # stubs in the baseclass.
   def __getattribute__(self, name):
-    if name.startswith('_') or name in ('try_split',):
+    if name.startswith('_') or name in ('try_split', ):
       return super(UnsplittableRestrictionTracker, self).__getattribute__(name)
     else:
       return getattr(self._underling_tracker, name)
