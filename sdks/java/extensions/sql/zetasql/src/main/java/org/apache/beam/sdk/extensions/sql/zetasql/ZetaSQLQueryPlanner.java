@@ -34,6 +34,10 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.BeamZetaSqlUncollectRule;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.BeamZetaSqlUnnestRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
@@ -119,6 +123,10 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
           continue;
         } else if (rule instanceof BeamCalcRule) {
           bd.add(BeamZetaSqlCalcRule.INSTANCE);
+        } else if (rule instanceof BeamUnnestRule) {
+          bd.add(BeamZetaSqlUnnestRule.INSTANCE);
+        } else if (rule instanceof BeamUncollectRule) {
+          bd.add(BeamZetaSqlUncollectRule.INSTANCE);
         } else {
           bd.add(rule);
         }

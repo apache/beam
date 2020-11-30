@@ -101,6 +101,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           .put(DOUBLE_NAN_WRAPPER, "CAST('NaN' AS FLOAT64)")
           .build();
   public static final String NUMERIC_LITERAL_WRAPPER = "numeric_literal";
+  public static final String IN_ARRAY_OPERATOR = "$in_array";
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -184,6 +185,9 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           break;
         } else if (EXTRACT_FUNCTIONS.containsKey(funName)) {
           unparseExtractFunctions(writer, call, leftPrec, rightPrec);
+          break;
+        } else if (IN_ARRAY_OPERATOR.equals(funName)) {
+          unparseInArrayOperator(writer, call, leftPrec, rightPrec);
           break;
         } // fall through
       default:
@@ -336,6 +340,13 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       tz.unparse(writer, leftPrec, rightPrec);
     }
     writer.endFunCall(frame);
+  }
+
+  private void unparseInArrayOperator(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+    call.operand(0).unparse(writer, leftPrec, rightPrec);
+    writer.literal("IN UNNEST(");
+    call.operand(1).unparse(writer, leftPrec, rightPrec);
+    writer.literal(")");
   }
 
   private TimeUnit validate(TimeUnit timeUnit) {

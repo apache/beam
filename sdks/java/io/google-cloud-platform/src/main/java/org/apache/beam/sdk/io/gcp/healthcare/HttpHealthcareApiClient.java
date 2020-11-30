@@ -53,6 +53,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
@@ -184,6 +185,81 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Empty deleteFhirStore(String name) throws IOException {
     return client.projects().locations().datasets().fhirStores().delete(name).execute();
+  }
+
+  @Override
+  public String retrieveDicomStudyMetadata(String dicomWebPath) throws IOException {
+    WebPathParser parser = new WebPathParser();
+    WebPathParser.DicomWebPath parsedDicomWebPath = parser.parseDicomWebpath(dicomWebPath);
+
+    String searchQuery = String.format("studies/%s/metadata", parsedDicomWebPath.studyId);
+
+    return makeRetrieveStudyMetadataRequest(parsedDicomWebPath.dicomStorePath, searchQuery);
+  }
+
+  @Override
+  public DicomStore createDicomStore(String dataset, String name) throws IOException {
+    return createDicomStore(dataset, name, null);
+  }
+
+  @Override
+  public Empty deleteDicomStore(String name) throws IOException {
+    return client.projects().locations().datasets().dicomStores().delete(name).execute();
+  }
+
+  @Override
+  public Empty uploadToDicomStore(String webPath, String filePath)
+      throws IOException, URISyntaxException {
+    byte[] dcmFile = Files.readAllBytes(Paths.get(filePath));
+    ByteArrayEntity requestEntity = new ByteArrayEntity(dcmFile);
+
+    String uri = String.format("%sv1/%s/dicomWeb/studies", client.getRootUrl(), webPath);
+    URIBuilder uriBuilder =
+        new URIBuilder(uri)
+            .setParameter("access_token", credentials.getAccessToken().getTokenValue());
+    HttpUriRequest request =
+        RequestBuilder.post(uriBuilder.build())
+            .setEntity(requestEntity)
+            .addHeader("Content-Type", "application/dicom")
+            .build();
+    HttpResponse response = httpClient.execute(request);
+    return new Empty();
+  }
+
+  @Override
+  public DicomStore createDicomStore(String dataset, String name, @Nullable String pubsubTopic)
+      throws IOException {
+    DicomStore store = new DicomStore();
+
+    if (pubsubTopic != null) {
+      NotificationConfig notificationConfig = new NotificationConfig();
+      notificationConfig.setPubsubTopic(pubsubTopic);
+      store.setNotificationConfig(notificationConfig);
+    }
+
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .dicomStores()
+        .create(dataset, store)
+        .setDicomStoreId(name)
+        .execute();
+  }
+
+  private String makeRetrieveStudyMetadataRequest(String dicomStorePath, String searchQuery)
+      throws IOException {
+    CloudHealthcare.Projects.Locations.Datasets.DicomStores.Studies.RetrieveMetadata request =
+        this.client
+            .projects()
+            .locations()
+            .datasets()
+            .dicomStores()
+            .studies()
+            .retrieveMetadata(dicomStorePath, searchQuery);
+    com.google.api.client.http.HttpResponse response = request.executeUnparsed();
+
+    return response.parseAsString();
   }
 
   @Override
