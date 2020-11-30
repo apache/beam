@@ -25,18 +25,21 @@ Prebuilt SDK container images are released per supported language during Beam re
 
 You may want to customize container images for many reasons, including:
 
-* Pre-installing additional dependencies,
-* Launching third-party software
+* Pre-installing additional dependencies
+* Launching third-party software in the worker environment
+* Launching third-party software in the background
 * Further customizing the execution environment
 
  This guide describes how to create and use customized containers for the Beam SDK.
 
 ### Prerequisites
 
-* You will need to have [Docker installed](https://docs.docker.com/get-docker/).
+* You will need to use Docker, either by [installing Docker tools locally](https://docs.docker.com/get-docker/) or using build services that can run Docker, such as [Google Cloud Build](https://cloud.google.com/cloud-build/docs/building/build-containers).
 * You will need to have a container registry accessible by your execution engine or runner to host a custom container image. Options include [Docker Hub](https://hub.docker.com/) or a "self-hosted" repository, including cloud-specific container registries like [Google Container Registry](https://cloud.google.com/container-registry) (GCR) or [Amazon Elastic Container Registry](https://aws.amazon.com/ecr/) (ECR).
 
 >  **NOTE**: On Nov 20, 2020, Docker Hub put [rate limits](https://www.docker.com/increase-rate-limits) into effect for anonymous and free authenticated use, which may impact larger pipelines that pull containers several times.
+
+For optimal user experience, we also recommend you use the latest released version of Beam.
 
 ### Building and pushing custom containers
 
@@ -161,8 +164,6 @@ By default, no licenses/notices are added to the docker images.
 
 The common method for providing a container image requires using the PortableRunner and setting the `--environment_config` flag to a given image path.
 Other runners, such as Dataflow, support specifying containers with different flags.
-
->  **NOTE**: The Dataflow runner requires Beam SDK version >= 2.21.0.
 
 {{< highlight class="runner-direct" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
