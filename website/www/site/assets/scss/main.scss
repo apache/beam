@@ -20,12 +20,12 @@
 
 // Globals.
 @import "_vars.sass";
+@import "_media.scss";
 @import "_breakpoints.sass";
 @import "_type.sass";
 @import "_global.sass";
-@import "_navbar.sass";
+@import "_navbar-mobile.sass";
 @import "_typography.scss";
-@import "_media.scss";
 
 // Components.
 @import "_button.sass";
@@ -45,3 +45,4 @@
 @import "_calendar.scss";
 @import "_quotes.scss";
 @import "_quotes-mobile.scss";
+@import "navbar-desktop.scss";

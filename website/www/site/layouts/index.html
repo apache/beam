@@ -16,7 +16,16 @@
       <h3>{{ T "home-hero-title" }}</h3>
       <h1>{{ T "home-hero-heading" }}</h1>
       <h2>{{ T "home-hero-subheading" }}</h2>
-      <button><span>{{ T "home-hero-button" }}</span></button>
+      <a href={{ "/get-started/downloads/" | relLangURL }}>
+        <button>
+          <span>
+            {{ with resources.Get "icons/install-button-icon.svg" }}
+              {{ .Content | safeHTML }}
+            {{ end }}
+          </span>&nbsp;&nbsp;
+          <span>{{ T "home-hero-button" }}</span>
+        </button>
+      </a>
     </div>
   </div>
   <div id="hero-mobile" class="hero-mobile">

@@ -10,18 +10,18 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
-<nav class="header navbar navbar-fixed-top">
+<nav class="navigation-bar-mobile header navbar navbar-fixed-top">
     <div class="navbar-header">
+      <a href={{ "/" | relLangURL }} class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+
       <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
         <span class="sr-only">{{ T "nav-toggle-navigation" }}</span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-
-      <a href={{ "/" | relLangURL }} class="navbar-brand" >
-        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
-      </a>
     </div>
 
     <div class="navbar-mask closed"></div>
@@ -53,7 +53,7 @@
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
-          <div style="width: 300px;">
+          <div style="width: 250px;">
             <script>
               (function() {
                 var cx = '012923275103528129024:4emlchv9wzi';
@@ -91,4 +91,50 @@
         </li>
       </ul>
     </div>
+</nav>
+
+<nav class="navigation-bar-desktop">
+  <a href={{ "/" | relLangURL }} class="navbar-logo" >
+    <img src="/images/beam_logo_navbar.png" alt="Beam Logo">
+  </a>
+  <div class="navbar-links">
+    <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
+    <li class="dropdown navbar-dropdown navbar-dropdown-documentation">
+      <a class="navbar-link" href="#" class="dropdown-toggle" role="button" aria-haspopup="true" aria-expanded="false">
+        Documentation
+        <span>
+          {{ with resources.Get "icons/navbar-documentation-icon.svg" }}
+            {{ .Content | safeHTML }}
+          {{ end }}
+        </span>
+      </a>
+      <ul class="dropdown-menu">
+        <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
+        <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
+        <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
+      </ul>
+    </li>
+    <a class="navbar-link" href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
+    <a class="navbar-link" href={{ "/community/contact-us/" | relLangURL }}>{{ T "nav-community" }}</a>
+    <a class="navbar-link" href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
+    <a class="navbar-link" href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a>
+  </div>
+  <li class="dropdown navbar-dropdown navbar-dropdown-apache">
+    <a href="#" class="dropdown-toggle" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;">
+      &nbsp;Apache
+      <span class="arrow-icon">
+        {{ with resources.Get "icons/navbar-arrow-icon.svg" }}
+          {{ .Content | safeHTML }}
+        {{ end }}
+      </span>
+    </a>
+    <ul class="dropdown-menu">
+      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
+    </ul>
+  </li>
 </nav>
