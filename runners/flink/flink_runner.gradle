@@ -216,7 +216,25 @@ dependencies {
   //LYFT CUSTOM
   // Required for embedded fn execution
   runtimeOnly project(":sdks:java:harness")
-  implementation "com.lyft:streamingplatform-events-source:2.4.0-20231106.192652-1"
+  implementation ("com.lyft:streamingplatform-events-source:2.4.0-20231106.192652-1") {
+    exclude group: "com.lyft", module: "streamingplatform-kinesis"
+    exclude group: "com.google.guava", module: "guava"
+    exclude group: "com.google.protobuf", module: "protobuf-java"
+    exclude group: "co.cask.tephra", module: "tephra-api"
+    exclude group: "co.cask.tephra", module: "tephra-core"
+    exclude group: "co.cask.tephra", module: "tephra-hbase-compat-1.0"
+    exclude group: "com.jolbox", module: "bonecp"
+    exclude group: "com.zaxxer", module: "HikariCP"
+    exclude group: "javolution", module: "javolution"
+    exclude group: "org.antlr", module: "antlr-runtime"
+    exclude group: "org.apache.hadoop", module: "hadoop-common"
+    exclude group: "org.apache.hadoop", module: "hadoop-hdfs"
+    exclude group: "org.apache.hadoop", module: "hadoop-mapreduce-client-core"
+    exclude group: "org.apache.hbase", module: "hbase-client"
+    exclude group: "org.datanucleus", module: "datanucleus-api-jdo"
+    exclude group: "org.datanucleus", module: "datanucleus-core"
+    exclude group: "org.datanucleus", module: "datanucleus-rdbms"
+  }
   implementation "org.apache.flink:flink-connector-kafka:1.17-lyft202310191697699075"
   implementation "com.lyft:streamingplatform-kinesis:2.4.0-20231106.192652-1"
   implementation ("com.lyft:streamingplatform-kafka:2.4.0-20231106.192652-1") {

@@ -2,13 +2,13 @@
   "events": [
     {
       "name": "test_event",
-      "lateness_in_sec": 5,
+      "max_out_of_orderness_millis": 5000,
       "lookback_days": 1
     }
   ],
   "s3": {
     "parallelism": 1,
-    "lookback_hours": 12
+    "lookback_threshold_hours": 12
   },
   "kinesis": {
     "stream": "kinesis_stream",
