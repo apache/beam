@@ -393,4 +393,4 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.gcp.healthcare.DicomIO
-            url: https://beam.apache.org/releases/javadoc/2.25.0/org/apache/beam/sdk/io/gcp/healthcare/DicomIO.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/DicomIO.html
