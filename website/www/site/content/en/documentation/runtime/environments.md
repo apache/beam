@@ -15,46 +15,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Container Environments
+# Container environments
 
 The Beam SDK runtime environment is [containerized](https://www.docker.com/resources/what-container) with [Docker](https://www.docker.com/) to isolate it from other runtime systems. This means any execution engine can run the Beam SDK. To learn more about the container environment, read the Beam [SDK Harness container contract](https://s.apache.org/beam-fn-api-container-contract).
 
-Prebuilt SDK container images are released per supported language version during Beam releases and and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
+Prebuilt SDK container images are released per supported language during Beam releases and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
 
-## Custom Containers
+## Custom containers
 
-Users may want to customize container images for many reasons, including:
+You may want to customize container images for many reasons, including:
 
-* pre-installing additional dependencies,
-* launching third-party software
-* further customizing the execution environment
+* Pre-installing additional dependencies,
+* Launching third-party software
+* Further customizing the execution environment
 
  This guide describes how to create and use customized containers for the Beam SDK.
 
 ### Prerequisites
 
-* You will need to have a version of the Beam SDK >= 2.21.0.
 * You will need to have [Docker installed](https://docs.docker.com/get-docker/).
-* You will need to have a container registry accessible by your execution engine or runner to host a custom container image. Options include [Docker Hub](https://hub.docker.com/) or a "self-hosted" repository, including cloud-specific container registries.
+* You will need to have a container registry accessible by your execution engine or runner to host a custom container image. Options include [Docker Hub](https://hub.docker.com/) or a "self-hosted" repository, including cloud-specific container registries like [Google Container Registry](https://cloud.google.com/container-registry) (GCR) or [Amazon Elastic Container Registry](https://aws.amazon.com/ecr/) (ECR).
 
 >  **NOTE**: On Nov 20, 2020, Docker Hub put [rate limits](https://www.docker.com/increase-rate-limits) into effect for anonymous and free authenticated use, which may impact larger pipelines that pull containers several times.
 
 ### Building and pushing custom containers
 
-Beam builds prebuilt images from [Dockerfiles](https://docs.docker.com/engine/reference/builder/). Users can build customized containers in one of two ways:
+Beam [SDK container images](https://hub.docker.com/search?q=apache%2Fbeam&type=image) are built from Dockerfiles checked into the [Github](https://github.com/apache/beam) repository and published to Docker Hub for every release. You can build customized containers in one of two ways:
 
-1. **[Writing a new](#writing-new-dockerfiles) Dockerfile based on an existing prebuilt container**. This is sufficient for simple additions to the image, such as adding artifacts or environment variables.
-2. **[Modifying](#modifying-dockerfiles) an existing Dockerfile in [Beam source](https://github.com/apache/beam)**. This method requires building from Beam source but allows for greater customization of the container (including replacement of artifacts or base OS/language versions).
+1. **[Writing a new](#writing-new-dockerfiles) Dockerfile based on an existing prebuilt container image**. This is sufficient for simple additions to the image, such as adding artifacts or environment variables.
+2. **[Modifying](#modifying-dockerfiles) a source Dockerfile in [Beam](https://github.com/apache/beam)**. This method requires building from Beam source but allows for greater customization of the container (including replacement of artifacts or base OS/language versions).
 
-#### Writing new Dockerfiles on top of the original {#writing-new-dockerfiles}
+#### Writing a new Dockerfile based on an existing published container image {#writing-new-dockerfiles}
 
 Steps:
 
-1. Create a new Dockerfile that designates a base image using the [FROM instruction](https://docs.docker.com/engine/reference/builder/#from)
-
-2. Once you have a created a custom Dockerfile, [build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker:
-
-As an example, this `Dockerfile`:
+1. Create a new Dockerfile that designates a base image using the [FROM instruction](https://docs.docker.com/engine/reference/builder/#from). As an example, this `Dockerfile`:
 
 ```
 FROM apache/beam_python3.7_sdk:2.25.0
@@ -65,22 +60,28 @@ COPY /src/path/to/file /dest/path/to/file/
 
 uses the prebuilt Python 3.7 SDK container image [`beam_python3.7_sdk`](https://hub.docker.com/r/apache/beam_python3.7_sdk) tagged at (SDK version) `2.25.0`, and adds an additional environment variable and file to the image.
 
+
+2. [Build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker.
+
+
 ```
 export BASE_IMAGE="apache/beam_python3.7_sdk:2.25.0"
 export IMAGE_NAME="myremoterepo/mybeamsdk"
 export TAG="latest"
 
-# Optional but recommended pull step to pull the base image into your local Docker daemon.
+# Optional - pull the base image into your local Docker daemon to ensure
+# you have the most up-to-date version of the base image locally.
 docker pull "${BASE_IMAGE}"
+
 docker build -f Dockerfile -t "${IMAGE_NAME}:${TAG}" .
 docker push "${IMAGE_NAME}:${TAG}"
 ```
 
 **NOTE**: After pushing a container image, you should verify the remote image ID and digest should match the local image ID and digest, output from `docker build` or `docker images`.
 
-#### Modifying the original Dockerfile {#modifying-dockerfiles} in Beam source
+#### Modifying a source Dockerfile {#modifying-dockerfiles} in Beam
 
-This method will require building image artifacts from Beam source - see the [Contribution guide](contribute/#development-setup) for additional instructions on setting up your development environment.
+This method will require building image artifacts from Beam source. For additional instructions on setting up your development environment, see the [Contribution guide](contribute/#development-setup).
 
 1. Clone the `beam` repository.
 
@@ -88,7 +89,7 @@ This method will require building image artifacts from Beam source - see the [Co
 git clone https://github.com/apache/beam.git
 ```
 
-2. Customize the `Dockerfile` for a given language. This file is typically in the `sdks/<language>/container` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile).. If you're adding dependencies from [PyPI](https://pypi.org/), use [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) instead.
+2. Customize the `Dockerfile` for a given language. This file is typically in the `sdks/<language>/container` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile). If you're adding dependencies from [PyPI](https://pypi.org/), use [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) instead.
 
 3. Navigate to the root directory of the local copy of your Apache Beam.
 
@@ -133,7 +134,7 @@ docker push "${IMAGE_NAME}:${TAG}"
 
 **NOTE**: After pushing a container image, verify the remote image ID and digest matches the local image ID and digest output from `docker_images`
 
-##### Additional Build Parameters
+##### Additional build parameters
 
 The docker Gradle task defines a default image repository and [tag](https://docs.docker.com/engine/reference/commandline/tag/) is the SDK version defined at [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties). The default repository is the Docker Hub `apache` namespace, and the default tag is the [SDK version](https://github.com/apache/beam/blob/master/gradle.properties) defined at gradle.properties. With these settings, the
 `docker` command-line tool will implicitly try to push the container to the Docker Hub Apache repository.
@@ -146,7 +147,7 @@ You can specify a different repository or tag for built images by providing para
 
 builds the Python 3.6 container and tags it as `example-repo/beam_python3.6_sdk:2019-10-04`.
 
-From 2.21.0, a `docker-pull-licenses` flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:
+From Beam 2.21.0 and later, a `docker-pull-licenses` flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:
 
 ```
 ./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses
@@ -156,10 +157,12 @@ creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_
 By default, no licenses/notices are added to the docker images.
 
 
-## Using Container Images in Pipelines
+## Using container images in pipelines
 
 The common method for providing a container image requires using the PortableRunner and setting the `--environment_config` flag to a given image path.
 Other runners, such as Dataflow, support specifying containers with different flags.
+
+>  **NOTE**: The Dataflow runner requires Beam SDK version >= 2.21.0.
 
 {{< highlight class="runner-direct" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
@@ -216,6 +219,7 @@ export REGION="us-central1"
 # Run a pipeline on Dataflow.
 # This is a Python batch pipeline, so to run on Dataflow Runner V2
 # you must specify the experiment "use_runner_v2"
+
 python -m apache_beam.examples.wordcount \
   --input gs://dataflow-samples/shakespeare/kinglear.txt \
   --output "${GCS_PATH}/counts" \
