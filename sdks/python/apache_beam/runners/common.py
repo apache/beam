@@ -218,10 +218,11 @@ class MethodWrapper(object):
       elif core.DoFn.KeyParam == v:
         self.key_arg_name = kw
       elif isinstance(v, core.DoFn.RestrictionParam):
-        self.restriction_provider = v.restriction_provider
+        self.restriction_provider = v.restriction_provider or obj_to_invoke
         self.restriction_provider_arg_name = kw
       elif isinstance(v, core.DoFn.WatermarkEstimatorParam):
-        self.watermark_estimator_provider = v.watermark_estimator_provider
+        self.watermark_estimator_provider = (
+            v.watermark_estimator_provider or obj_to_invoke)
         self.watermark_estimator_provider_arg_name = kw
 
     # Create NoOpWatermarkEstimatorProvider if there is no
