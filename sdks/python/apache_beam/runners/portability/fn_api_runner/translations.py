@@ -558,9 +558,9 @@ def pipeline_from_stages(
         copy_output_pcollections(components.transforms[parent])
         del components.transforms[parent].subtransforms[:]
       # Ensure that child is the last item in the parent's subtransforms.
-      # If the stages was sorted into topological order using sort_stages,
-      # this ensures that the parent transforms are also sorted into
-      # topological order.
+      # If the stages were previously sorted into topological order using
+      # sort_stages, this ensures that the parent transforms are also
+      # added in topological order.
       if child in components.transforms[parent].subtransforms:
         components.transforms[parent].subtransforms.remove(child)
       components.transforms[parent].subtransforms.append(child)
