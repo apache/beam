@@ -1383,10 +1383,10 @@ limitations under the License.
 &lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/nav>
-&lt;p>The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8371">BEAM-8371&lt;/a>). For best results, use Beam with Python 3.&lt;/p>
+&lt;p>The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last release with support for Python 2.7 and 3.5.&lt;/p>
 &lt;h2 id="set-up-your-environment">Set up your environment&lt;/h2>
 &lt;h3 id="check-your-python-version">Check your Python version&lt;/h3>
-&lt;p>The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:&lt;/p>
+&lt;p>The Beam SDK requires Python users to use Python version 3.6 or higher. Check your version by running:&lt;/p>
 &lt;pre>&lt;code>python --version&lt;/code>&lt;/pre>
 &lt;h3 id="install-pip">Install pip&lt;/h3>
 &lt;p>Install &lt;a href="https://pip.pypa.io/en/stable/installing/">pip&lt;/a>, Python&amp;rsquo;s package manager. Check that you have version 7.0.0 or newer by running:&lt;/p>
