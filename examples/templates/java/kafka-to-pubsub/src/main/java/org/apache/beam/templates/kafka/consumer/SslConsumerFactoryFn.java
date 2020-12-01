@@ -94,6 +94,7 @@ public class SslConsumerFactoryFn
   }
 
   private void checkFileExists(String filePath) throws IOException {
+    LOG.info("Trying to get file: {} locally. Local files don't support when in using distribute runner", filePath);
     File f = new File(filePath);
     if (f.exists()) {
       LOG.debug("{} exists", f.getAbsolutePath());
