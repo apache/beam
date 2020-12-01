@@ -25,7 +25,11 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.junit.*;
+import org.junit.Test;
+import org.junit.Rule;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Assert;
 
 @SuppressWarnings({"nullness", "rawtypes", "uninitialized"})
 public class DicomIOReadIT {
@@ -56,7 +60,6 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
-  @Ignore
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =
