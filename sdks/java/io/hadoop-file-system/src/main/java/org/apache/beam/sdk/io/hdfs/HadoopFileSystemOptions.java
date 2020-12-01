@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io.hdfs;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
@@ -70,7 +70,7 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
     }
 
     private List<Configuration> readConfigurationFromHadoopYarnConfigDirs() {
-      Set<Configuration> configurationSet = Sets.newHashSet();
+      List<Configuration> configurationList = Lists.newArrayList();
 
       /*
        * If we find a configuration in HADOOP_CONF_DIR and YARN_CONF_DIR,
@@ -110,9 +110,13 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
         }
       }
 
-      // Load the configuration from paths found (if exists)
+      // Set used to dedup same config paths
+      Set<java.nio.file.Path> confPaths = Sets.newHashSet();
+      // Load the configuration from paths found (if exists and not loaded yet)
       for (String confDir : explodedConfDirs) {
-        if (new File(confDir).exists()) {
+        java.nio.file.Path path = Paths.get(confDir).normalize();
+        if (new File(confDir).exists() && !confPaths.contains(path)) {
+          confPaths.add(path);
           Configuration conf = new Configuration(false);
           boolean confLoaded = false;
           for (String confName : Lists.newArrayList("core-site.xml", "hdfs-site.xml")) {
@@ -124,11 +128,11 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
             }
           }
           if (confLoaded) {
-            configurationSet.add(conf);
+            configurationList.add(conf);
           }
         }
       }
-      return configurationSet.stream().collect(Collectors.toList());
+      return configurationList;
     }
 
     @VisibleForTesting
