@@ -536,6 +536,16 @@ class DataflowRunner(PipelineRunner):
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=self._default_environment)
+      
+    self.proto_pipeline = translations.optimize_pipeline(
+        self.proto_pipeline,
+        phases=[
+          translations.eliminate_common_key_with_none,
+          translations.pack_combiners,
+          translations.sort_stages,
+        ],
+        known_runner_urns=frozenset(),
+        partial=True)
 
     if use_fnapi:
       self._check_for_unsupported_fnapi_features(self.proto_pipeline)
