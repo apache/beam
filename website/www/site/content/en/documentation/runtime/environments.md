@@ -17,9 +17,9 @@ limitations under the License.
 
 # Container environments
 
-The Beam SDK runtime environment is [containerized](https://www.docker.com/resources/what-container) with [Docker](https://www.docker.com/) to isolate it from other runtime systems. This means any execution engine can run the Beam SDK. To learn more about the container environment, read the Beam [SDK Harness container contract](https://s.apache.org/beam-fn-api-container-contract).
+The Beam SDK runtime environment can be [containerized](https://www.docker.com/resources/what-container) with [Docker](https://www.docker.com/) to isolate it from other runtime systems. To learn more about the container environment, read the Beam [SDK Harness container contract](https://s.apache.org/beam-fn-api-container-contract).
 
-Prebuilt SDK container images are released per supported language during Beam releases and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
+Prebuilt SDK container images are released per supported language during Beam releases and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
 
 ## Custom containers
 
@@ -27,7 +27,6 @@ You may want to customize container images for many reasons, including:
 
 * Pre-installing additional dependencies
 * Launching third-party software in the worker environment
-* Launching third-party software in the background
 * Further customizing the execution environment
 
  This guide describes how to create and use customized containers for the Beam SDK.
@@ -45,7 +44,7 @@ For optimal user experience, we also recommend you use the latest released versi
 
 Beam [SDK container images](https://hub.docker.com/search?q=apache%2Fbeam&type=image) are built from Dockerfiles checked into the [Github](https://github.com/apache/beam) repository and published to Docker Hub for every release. You can build customized containers in one of two ways:
 
-1. **[Writing a new](#writing-new-dockerfiles) Dockerfile based on an existing prebuilt container image**. This is sufficient for simple additions to the image, such as adding artifacts or environment variables.
+1. **[Writing a new](#writing-new-dockerfiles) Dockerfile based on a released container image**. This is sufficient for simple additions to the image, such as adding artifacts or environment variables.
 2. **[Modifying](#modifying-dockerfiles) a source Dockerfile in [Beam](https://github.com/apache/beam)**. This method requires building from Beam source but allows for greater customization of the container (including replacement of artifacts or base OS/language versions).
 
 #### Writing a new Dockerfile based on an existing published container image {#writing-new-dockerfiles}
