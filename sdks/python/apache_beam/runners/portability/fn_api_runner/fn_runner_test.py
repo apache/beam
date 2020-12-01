@@ -570,6 +570,38 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    class ExpandingStringsDoFn(beam.DoFn, beam.WatermarkEstimatorProvider):
+      def initial_estimator_state(self, element, restriction):
+        return None
+
+      def create_watermark_estimator(self, state):
+        return beam.io.watermark_estimators.ManualWatermarkEstimator(state)
+
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider()),
+          watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+              ManualWatermarkEstimator.default_provider())):
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          watermark_estimator.set_watermark(timestamp.Timestamp(cur))
+          assert (
+              watermark_estimator.current_watermark() == timestamp.Timestamp(
+                  cur))
+          yield element[cur]
+          if cur % 2 == 1:
+            restriction_tracker.defer_remainder(timestamp.Duration(micros=5))
+            return
+          cur += 1
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
   def run_sdf_initiated_checkpointing(self, is_drain=False):
     counter = beam.metrics.Metrics.counter('ns', 'my_counter')
 
