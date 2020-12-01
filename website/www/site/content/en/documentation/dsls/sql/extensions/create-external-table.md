@@ -283,7 +283,7 @@ Not all existing column families and qualifiers have to be provided to the schem
 
 ### Write Mode
 
-Not supported.
+Supported for flat schema only.
 
 ### Example
 
@@ -328,6 +328,12 @@ LOCATION 'googleapis.com/bigtable/projects/beam/instances/beamInstance/tables/fl
 TBLPROPERTIES '{
   "columnsMapping": "f:boolColumn,f:longColumn,f:stringColumn,f2:doubleColumn,f2:binaryColumn"
 }'
+```
+
+Write example:
+```
+INSERT INTO writeTable(key, boolColumn, longColumn, stringColumn, doubleColumn)
+  VALUES ('key', TRUE, 10, 'stringValue', 5.5)
 ```
 
 ## Pub/Sub
