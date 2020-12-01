@@ -81,7 +81,7 @@ docker push "${IMAGE_NAME}:${TAG}"
 
 **NOTE**: After pushing a container image, you should verify the remote image ID and digest should match the local image ID and digest, output from `docker build` or `docker images`.
 
-#### Modifying a source Dockerfile {#modifying-dockerfiles} in Beam
+#### Modifying a source Dockerfile in Beam {#modifying-dockerfiles}
 
 This method will require building image artifacts from Beam source. For additional instructions on setting up your development environment, see the [Contribution guide](contribute/#development-setup).
 
