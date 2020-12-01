@@ -37,9 +37,9 @@ def batchScenarios = {
         influx_namespace   : 'flink',
         influx_measurement : 'go_batch_sideinput_3',
         input_options      : '\'{' +
-        '"num_records": 10000000,' +
-        '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"num_records": 100,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
         access_percentage  : 1,
         parallelism        : 10,
         endpoint           : 'localhost:8099',
@@ -56,9 +56,9 @@ def batchScenarios = {
         influx_namespace   : 'flink',
         influx_measurement : 'go_batch_sideinput_4',
         input_options      : '\'{' +
-        '"num_records": 10000000,' +
-        '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"num_records": 100,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
         parallelism        : 10,
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
