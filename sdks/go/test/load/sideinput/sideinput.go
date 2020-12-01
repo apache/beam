@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"flag"
+	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/synthetic"
@@ -25,6 +26,12 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/test/load"
 )
+
+func init() {
+	beam.RegisterDoFn(reflect.TypeOf((*doFn)(nil)))
+	// beam.RegisterDoFn(doFn)
+	// beam.RegisterType(reflect.TypeOf((*doFn)(nil)).Elem())
+}
 
 var (
 	accessPercentage = flag.Int(
