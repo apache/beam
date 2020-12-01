@@ -24,7 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 
-public class BigtableRowToBeamRowFn extends SimpleFunction<com.google.bigtable.v2.Row, Row> {
+class BigtableRowToBeamRowFn extends SimpleFunction<com.google.bigtable.v2.Row, Row> {
 
   protected final Schema schema;
 

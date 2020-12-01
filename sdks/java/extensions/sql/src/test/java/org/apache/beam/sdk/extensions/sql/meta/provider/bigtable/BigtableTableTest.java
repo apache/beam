@@ -47,7 +47,7 @@ public abstract class BigtableTableTest {
   @ClassRule
   public static final BigtableEmulatorRule BIGTABLE_EMULATOR = BigtableEmulatorRule.create();
 
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPipeline readPipeline = TestPipeline.create();
 
   private static BigtableEmulatorWrapper emulatorWrapper;
 
@@ -55,41 +55,40 @@ public abstract class BigtableTableTest {
   public static void setUp() throws Exception {
     emulatorWrapper =
         new BigtableEmulatorWrapper(BIGTABLE_EMULATOR.getPort(), "fakeProject", "fakeInstance");
-    setupTable();
   }
 
-  protected static String getLocation() {
+  protected static void createTable(String table) {
+    emulatorWrapper.createTable(table, FAMILY_TEST);
+  }
+
+  protected static void createReadTable(String table) throws Exception {
+    createTable(table);
+    writeRow(KEY1, table);
+    writeRow(KEY2, table);
+  }
+
+  protected static String getLocation(String table) {
     return String.format(
-        "localhost:%s/bigtable/projects/fakeProject/instances/fakeInstance/tables/beamTable",
-        BIGTABLE_EMULATOR.getPort());
+        "localhost:%s/bigtable/projects/fakeProject/instances/fakeInstance/tables/%s",
+        BIGTABLE_EMULATOR.getPort(), table);
   }
 
-  private static void setupTable() throws Exception {
-    emulatorWrapper.createTable("beamTable", FAMILY_TEST);
-    writeRow(KEY1);
-    writeRow(KEY2);
-  }
-
-  private static void writeRow(String key) throws Exception {
+  private static void writeRow(String key, String table) throws Exception {
+    emulatorWrapper.writeRow(key, table, FAMILY_TEST, BOOL_COLUMN, booleanToByteArray(true), NOW);
     emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, BOOL_COLUMN, booleanToByteArray(true), NOW);
+        key, table, FAMILY_TEST, BOOL_COLUMN, booleanToByteArray(false), LATER);
     emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, BOOL_COLUMN, booleanToByteArray(false), LATER);
+        key, table, FAMILY_TEST, STRING_COLUMN, "string1".getBytes(UTF_8), NOW);
     emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, STRING_COLUMN, "string1".getBytes(UTF_8), NOW);
+        key, table, FAMILY_TEST, STRING_COLUMN, "string2".getBytes(UTF_8), LATER);
+    emulatorWrapper.writeRow(key, table, FAMILY_TEST, LONG_COLUMN, Longs.toByteArray(1L), NOW);
+    emulatorWrapper.writeRow(key, table, FAMILY_TEST, LONG_COLUMN, Longs.toByteArray(2L), LATER);
+    emulatorWrapper.writeRow(key, table, FAMILY_TEST, DOUBLE_COLUMN, doubleToByteArray(1.10), NOW);
     emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, STRING_COLUMN, "string2".getBytes(UTF_8), LATER);
+        key, table, FAMILY_TEST, DOUBLE_COLUMN, doubleToByteArray(2.20), LATER);
     emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, LONG_COLUMN, Longs.toByteArray(1L), NOW);
+        key, table, FAMILY_TEST, BINARY_COLUMN, "blob1".getBytes(UTF_8), LATER);
     emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, LONG_COLUMN, Longs.toByteArray(2L), LATER);
-    emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, DOUBLE_COLUMN, doubleToByteArray(1.10), NOW);
-    emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, DOUBLE_COLUMN, doubleToByteArray(2.20), LATER);
-    emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, BINARY_COLUMN, "blob1".getBytes(UTF_8), LATER);
-    emulatorWrapper.writeRow(
-        key, "beamTable", FAMILY_TEST, BINARY_COLUMN, "blob2".getBytes(UTF_8), LATER);
+        key, table, FAMILY_TEST, BINARY_COLUMN, "blob2".getBytes(UTF_8), LATER);
   }
 }

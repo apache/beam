@@ -42,7 +42,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Bigtable reference: <a
  * href=https://cloud.google.com/bigtable/docs/reference/data/rpc/google.bigtable.v2></a>.
  *
- * <p>Bigtable row is mapped to Beam row in the following way:
+ * <p>Bigtable {@link com.google.bigtable.v2.Row} is mapped to Beam {@link Row} in the following
+ * way:
  *
  * <p>row: key, columnFamily[] -> BEAM_ROW
  *
@@ -52,14 +53,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>cell: value, timestampMicros, labels -> VALUE
  *
- * <p>Mapped Beam row:
+ * <p>Mapped Beam {@link Row}:
  *
  * <p>BEAM_ROW: ROW<key STRING, [familyName FAMILY]+>
  *
  * <p>FAMILY: ROW<[columnName ARRAY<VALUE> or VALUE]+>
  *
- * <p>VALUE: one of the following types: Simple SQL types except for ARRAY, DECIMAL, ITERABLE, MAP,
- * ROW and ROW_CELL
+ * <p>VALUE:ROW_CELL or {@link Schema} type except for: ARRAY, DECIMAL, ITERABLE, MAP, ROW
  *
  * <p>ROW_CELL: ROW<val VALUE [, timestampMicros INT64] [, labels ARRAY<STRING>]>
  *

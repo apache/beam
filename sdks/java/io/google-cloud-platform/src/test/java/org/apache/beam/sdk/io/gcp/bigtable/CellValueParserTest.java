@@ -36,6 +36,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.bigtable.v2.Cell;
 import com.google.protobuf.ByteString;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.Test;
 
 public class CellValueParserTest {
@@ -186,6 +187,88 @@ public class CellValueParserTest {
     IllegalArgumentException exception =
         assertThrows(IllegalArgumentException.class, () -> PARSER.getCellValue(cell(value), MAP));
     checkMessage(exception.getMessage(), "Unsupported cell value type 'MAP'.");
+  }
+
+  @Test
+  public void shouldEncodeBooleanTrue() {
+    ByteString expected = byteString(new byte[] {1});
+    ByteString actual = PARSER.valueToByteString(true, BOOLEAN);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeBooleanFalse() {
+    ByteString expected = byteString(new byte[] {0});
+    ByteString actual = PARSER.valueToByteString(false, BOOLEAN);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeLong() {
+    ByteString expected = byteString(new byte[] {0, 0, 0, 0, 0, 0, 0, 22});
+    ByteString actual = PARSER.valueToByteString(22L, INT64);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeInt() {
+    ByteString expected = byteString(new byte[] {0, 0, 0, 15});
+    ByteString actual = PARSER.valueToByteString(15, INT32);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeShort() {
+    ByteString expected = byteString(new byte[] {0, 5});
+    ByteString actual = PARSER.valueToByteString((short) 5, INT16);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeByte() {
+    ByteString expected = byteString(new byte[] {5});
+    ByteString actual = PARSER.valueToByteString((byte) 5, BYTE);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeDouble() {
+    ByteString expected = byteString(new byte[] {64, 21, 51, 51, 51, 51, 51, 51});
+    ByteString actual = PARSER.valueToByteString(5.3d, DOUBLE);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeFloat() {
+    ByteString expected = byteString(new byte[] {64, 0, 0, 0});
+    ByteString actual = PARSER.valueToByteString(2.0f, FLOAT);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeUtf8String() {
+    ByteString expected = byteString(new byte[] {'b', 'e', 'a', 'm'});
+    ByteString actual = PARSER.valueToByteString("beam", STRING);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeByteArray() {
+    ByteString expected = byteString(new byte[] {0, 2, 1});
+    ByteString actual = PARSER.valueToByteString(new byte[] {0, 2, 1}, BYTES);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldEncodeDateTime() {
+    ByteString expected = byteString("2020-12-06T00:00:00.000Z".getBytes(UTF_8));
+    ByteString actual =
+        PARSER.valueToByteString(new DateTime(2020, 12, 6, 0, 0, 0, DateTimeZone.UTC), DATETIME);
+    assertEquals(expected, actual);
+  }
+
+  private ByteString byteString(byte[] bytes) {
+    return ByteString.copyFrom(bytes);
   }
 
   private Cell cell(byte[] value) {

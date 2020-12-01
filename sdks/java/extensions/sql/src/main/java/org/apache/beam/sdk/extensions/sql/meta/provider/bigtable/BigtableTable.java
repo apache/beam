@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
+import org.apache.beam.sdk.io.gcp.bigtable.BeamRowToBigtableMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableRowToBeamRow;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableRowToBeamRowFlat;
@@ -111,7 +112,16 @@ public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
-    throw new UnsupportedOperationException("Write to Cloud Bigtable is not yet supported");
+    if (!useFlatSchema) {
+      throw new UnsupportedOperationException(
+          "Write to Cloud Bigtable is supported for flat schema only.");
+    }
+    BigtableIO.Write write =
+        BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId);
+    if (!emulatorHost.isEmpty()) {
+      write = write.withEmulator(emulatorHost);
+    }
+    return input.apply(new BeamRowToBigtableMutation(columnsMapping)).apply(write);
   }
 
   @Override
