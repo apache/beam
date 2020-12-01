@@ -25,12 +25,12 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.junit.Test;
-import org.junit.Rule;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
 
 @SuppressWarnings({"nullness", "rawtypes", "uninitialized"})
 public class DicomIOReadIT {
