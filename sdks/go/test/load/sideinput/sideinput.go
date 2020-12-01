@@ -29,8 +29,6 @@ import (
 
 func init() {
 	beam.RegisterDoFn(reflect.TypeOf((*doFn)(nil)))
-	// beam.RegisterDoFn(doFn)
-	// beam.RegisterType(reflect.TypeOf((*doFn)(nil)).Elem())
 }
 
 var (
