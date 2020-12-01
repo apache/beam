@@ -1041,6 +1041,11 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           testCompile.extendsFrom shadowTest
         }
+
+        // Ensure build task depends on shadowJar (required for shadow plugin >=4.0.4)
+        project.tasks.named('build').configure {
+          dependsOn project.tasks.named('shadowJar')
+        }
       }
 
       project.jar {
