@@ -46,6 +46,26 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 	}
 }
 
+type emitFn func([]byte, []byte)
+type valuesFn func(*[]byte, *[]byte) bool
+
+type doFn struct {
+	elementsToAccess int
+}
+
+func (fn *doFn) ProcessElement(ctx context.Context, _ []byte, values valuesFn, emit emitFn) {
+	var key []byte
+	var value []byte
+	i := 0
+	for values(&key, &value) {
+		if i >= fn.elementsToAccess {
+			break
+		}
+		emit(key, value)
+		i++
+	}
+}
+
 func main() {
 	flag.Parse()
 	beam.Init()
@@ -58,18 +78,11 @@ func main() {
 	src := synthetic.SourceSingle(s, syntheticConfig)
 	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 
-	src = beam.ParDo(s, func(_ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
-		var key []byte
-		var value []byte
-		i := 0
-		for values(&key, &value) {
-			if i == elementsToAccess {
-				break
-			}
-			emit(key, value)
-			i++
-		}
-	}, beam.Impulse(s), beam.SideInput{Input: src})
+	src = beam.ParDo(
+		s,
+		&doFn{elementsToAccess: elementsToAccess},
+		beam.Impulse(s),
+		beam.SideInput{Input: src})
 
 	beam.ParDo(s, &load.RuntimeMonitor{}, src)
 
