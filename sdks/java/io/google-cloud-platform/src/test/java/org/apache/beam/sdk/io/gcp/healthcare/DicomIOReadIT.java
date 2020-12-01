@@ -30,6 +30,7 @@ import org.junit.Rule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Assert;
+import org.junit.Ignore;
 
 @SuppressWarnings({"nullness", "rawtypes", "uninitialized"})
 public class DicomIOReadIT {
@@ -60,6 +61,7 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
+  @Ignore
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =
