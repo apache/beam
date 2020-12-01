@@ -557,13 +557,14 @@ def pipeline_from_stages(
             pipeline_proto.components.transforms[parent])
         copy_output_pcollections(components.transforms[parent])
         del components.transforms[parent].subtransforms[:]
-      # Ensure that child is the lsat item in the parent's subtransforms.
-      # This is required to maintain topological order with sort_stages.
+      # Ensure that child is the last item in the parent's subtransforms.
+      # If the stages was sorted into topological order using sort_stages,
+      # this ensures that the parent transforms are also sorted into
+      # topological order.
       if child in components.transforms[parent].subtransforms:
         components.transforms[parent].subtransforms.remove(child)
       components.transforms[parent].subtransforms.append(child)
       add_parent(parent, parents.get(parent))
-      
 
   def copy_subtransforms(transform):
     for subtransform_id in transform.subtransforms:

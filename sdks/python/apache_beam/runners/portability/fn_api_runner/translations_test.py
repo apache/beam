@@ -186,26 +186,25 @@ class TranslationsTest(unittest.TestCase):
     beam.Pipeline.from_runner_api(
         optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
 
-
   def test_pipeline_from_sorted_stages_is_toplogically_ordered(self):
     pipeline = beam.Pipeline()
     side = pipeline | 'side' >> Create([3, 4])
-    
+
     class CreateAndMultiplyBySide(beam.PTransform):
       def expand(self, pcoll):
-        return (pcoll | 'main' >> Create([1, 2]) | 'compute' >> beam.FlatMap(
-          lambda x, s: [x * y for y in s], beam.pvalue.AsIter(side)))
+        return (
+            pcoll | 'main' >> Create([1, 2]) | 'compute' >> beam.FlatMap(
+                lambda x, s: [x * y for y in s], beam.pvalue.AsIter(side)))
 
     _ = pipeline | 'create-and-multiply-by-side' >> CreateAndMultiplyBySide()
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
-          pipeline_proto,
-          [
-              lambda stages, _: reversed(list(stages)),
-              translations.sort_stages,
-          ],
-          known_runner_urns=frozenset(),
-          partial=True)
+        pipeline_proto, [
+            (lambda stages, _: reversed(list(stages))),
+            translations.sort_stages,
+        ],
+        known_runner_urns=frozenset(),
+        partial=True)
 
     def assert_is_topologically_sorted(transform_id, visited_pcolls):
       transform = optimized_pipeline_proto.components.transforms[transform_id]
@@ -215,7 +214,8 @@ class TranslationsTest(unittest.TestCase):
         assert_is_topologically_sorted(subtransform, visited_pcolls)
 
     self.assertEqual(len(optimized_pipeline_proto.root_transform_ids), 1)
-    assert_is_topologically_sorted(optimized_pipeline_proto.root_transform_ids[0], set())
+    assert_is_topologically_sorted(
+        optimized_pipeline_proto.root_transform_ids[0], set())
 
 
 if __name__ == '__main__':
