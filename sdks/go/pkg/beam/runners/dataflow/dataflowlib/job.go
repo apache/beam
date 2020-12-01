@@ -125,7 +125,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			ServiceAccountEmail: opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
-				Version: "0.5.0",
+				Version: "2.26.0",
 			}),
 			Version: newMsg(version{
 				JobType: apiJobType,
