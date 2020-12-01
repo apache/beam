@@ -18,8 +18,8 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -30,10 +30,12 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -459,27 +461,28 @@ public class DefaultJobBundleFactoryTest {
       verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
 
       long tms = System.currentTimeMillis();
-      AtomicBoolean closed = new AtomicBoolean();
-      // close to free up environment for another bundle
-      TimerTask closeBundleTask =
-          new TimerTask() {
-            @Override
-            public void run() {
-              try {
-                b2.close();
-                closed.set(true);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            }
-          };
-      new Timer().schedule(closeBundleTask, 100);
+      ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+      ScheduledFuture<Optional<Exception>> closingFuture =
+          executor.schedule(
+              () -> {
+                try {
+                  b2.close();
+                  return Optional.empty();
+                } catch (Exception e) {
+                  return Optional.of(e);
+                }
+              },
+              100,
+              TimeUnit.MILLISECONDS);
 
+      // This call should block until closingFuture has finished closing b2
       RemoteBundle b3 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
 
-      // ensure we waited for close
+      // ensure the previous call waited for close
       Assert.assertThat(System.currentTimeMillis() - tms, greaterThanOrEqualTo(100L));
-      Assert.assertThat(closed.get(), is(true));
+      // This assertion includes a small delay to give the forked thread a chance to finish if it's
+      // been blocked
+      Assert.assertThat(closingFuture.get(1, TimeUnit.MILLISECONDS), equalTo(Optional.empty()));
 
       verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
       b3.close();
