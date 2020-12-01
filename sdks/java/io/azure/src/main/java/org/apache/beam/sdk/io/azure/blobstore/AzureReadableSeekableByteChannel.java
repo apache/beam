@@ -92,7 +92,8 @@ class AzureReadableSeekableByteChannel implements SeekableByteChannel {
       try {
         inputStream.reset();
       } catch (RuntimeException e) {
-        if (e.getMessage.equals(MARK_EXPIRED)) {
+        String msg = e.getMessage() == null ? "" : e.getMessage();
+        if (msg.equals(MARK_EXPIRED)) {
           close();
           return new AzureReadableSeekableByteChannel(blobClient).position(newPosition);
         } else {
