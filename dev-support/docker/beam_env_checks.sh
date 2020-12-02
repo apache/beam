@@ -119,3 +119,8 @@ failIfUserIsRoot
 . "/scripts/bashcolors.sh"
 . "/usr/lib/git-core/git-sh-prompt"
 export PS1='\['${IBlue}${On_Black}'\] \u@\['${IWhite}${On_Red}'\][Beam Build Env.]\['${IBlue}${On_Black}'\]:\['${Cyan}${On_Black}'\]\w$(declare -F __git_ps1 &>/dev/null && __git_ps1 " \['${BIPurple}'\]{\['${BIGreen}'\]%s\['${BIPurple}'\]}")\['${BIBlue}'\] ]\['${Color_Off}'\]\n$ '
+
+# Configure pyenv and pyenv-virtualenv
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+. "/opt/pyenv/completions/pyenv.bash"

@@ -47,6 +47,7 @@ RUN apt -q update \
         bash-completion \
         build-essential \
         bzip2 \
+        wget \
         curl \
         docker.io \
         g++ \
@@ -66,7 +67,22 @@ RUN apt -q update \
         python3.7 \
         python3.8 \
         virtualenv \
-        tox
+        tox \
+        # Needed for pyenv:
+        make \
+        libssl-dev \
+        zlib1g-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        llvm \
+        libncurses5-dev \
+        libncursesw5-dev \
+        xz-utils \
+        tk-dev \
+        libffi-dev \
+        liblzma-dev \
+        python-openssl
 
 ###
 # Set the locale ( see https://stackoverflow.com/a/28406007/114196 )
@@ -87,6 +103,28 @@ RUN alias python=python3.6
 # Install grpcio-tools mypy-protobuf for `python3 sdks/python/setup.py sdist` to work
 ###
 RUN pip3 install grpcio-tools mypy-protobuf
+
+###
+# Install pyenv and pyenv-virtualenv
+###
+ENV DOWNLOAD_PYENV_VERSION=v1.2.21
+ENV DOWNLOAD_PYENV_VIRTUALENV_VERSION=v1.1.5
+
+RUN git clone https://github.com/pyenv/pyenv.git /opt/pyenv && \
+    cd /opt/pyenv && \
+    chmod a+rwX -R . && \
+    git checkout "${DOWNLOAD_PYENV_VERSION}"
+
+RUN git clone https://github.com/pyenv/pyenv-virtualenv.git /opt/pyenv/plugins/pyenv-virtualenv && \
+    cd /opt/pyenv/plugins/pyenv-virtualenv && \
+    chmod a+rwX -R . && \
+    git checkout "${DOWNLOAD_PYENV_VIRTUALENV_VERSION}"
+
+ENV PYENV_ROOT /opt/pyenv
+ENV PATH $PYENV_ROOT/bin:$PATH
+RUN pyenv install 3.6.12
+RUN pyenv install 3.7.9
+RUN pyenv install 3.8.6
 
 ###
 # Install Go
