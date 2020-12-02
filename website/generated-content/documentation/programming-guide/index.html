@@ -2835,6 +2835,10 @@ to annotate the <code>DoFn</code>.</p><div class=language-java><div class=highli
   <span class=k>def</span> <span class=nf>process</span><span class=p>(</span>
       <span class=bp>self</span><span class=p>,</span>
       <span class=n>file_name</span><span class=p>,</span>
+      <span class=c1># Alternatively, we can let FileToWordsFn itself inherit from</span>
+      <span class=c1># RestrictionProvider, implement the required methods and let</span>
+      <span class=c1># tracker=beam.DoFn.RestrictionParam() which will use self as</span>
+      <span class=c1># the provider.</span>
       <span class=n>tracker</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=o>.</span><span class=n>RestrictionParam</span><span class=p>(</span><span class=n>FileToWordsRestrictionProvider</span><span class=p>())):</span>
     <span class=k>with</span> <span class=nb>open</span><span class=p>(</span><span class=n>file_name</span><span class=p>)</span> <span class=k>as</span> <span class=n>file_handle</span><span class=p>:</span>
       <span class=n>file_handle</span><span class=o>.</span><span class=n>seek</span><span class=p>(</span><span class=n>tracker</span><span class=o>.</span><span class=n>current_restriction</span><span class=o>.</span><span class=n>start</span><span class=p>())</span>

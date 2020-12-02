@@ -307,6 +307,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="developing-io-connectors-for-java">Developing I/O connectors for Java&lt;/h1>
+&lt;p>&lt;strong>IMPORTANT:&lt;/strong> Use &lt;code>Splittable DoFn&lt;/code> to develop your new I/O. For more details, read the
+&lt;a href="/documentation/io/developing-io-overview/">new I/O connector overview&lt;/a>.&lt;/p>
 &lt;p>To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,
@@ -655,6 +657,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="developing-io-connectors-for-python">Developing I/O connectors for Python&lt;/h1>
+&lt;p>&lt;strong>IMPORTANT:&lt;/strong> Please use &lt;code>Splittable DoFn&lt;/code> to develop your new I/O. For more details, please read
+the &lt;a href="/documentation/io/developing-io-overview/">new I/O connector overview&lt;/a>.&lt;/p>
 &lt;p>To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,
@@ -7105,6 +7109,10 @@ to annotate the &lt;code>DoFn&lt;/code>.&lt;/p>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">file_name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="c1"># Alternatively, we can let FileToWordsFn itself inherit from&lt;/span>
+&lt;span class="c1"># RestrictionProvider, implement the required methods and let&lt;/span>
+&lt;span class="c1"># tracker=beam.DoFn.RestrictionParam() which will use self as&lt;/span>
+&lt;span class="c1"># the provider.&lt;/span>
 &lt;span class="n">tracker&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RestrictionParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FileToWordsRestrictionProvider&lt;/span>&lt;span class="p">())):&lt;/span>
 &lt;span class="k">with&lt;/span> &lt;span class="nb">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file_name&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">file_handle&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="n">file_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">seek&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">current_restriction&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">start&lt;/span>&lt;span class="p">())&lt;/span>
