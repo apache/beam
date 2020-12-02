@@ -1,0 +1,72 @@
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* License); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an AS IS BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        publish: false,
+        archivesBaseName: 'beam-sdks-java-io-hbase-tests'
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: HBase :: Tests"
+ext.summary = "Tests for HBaseIO with client version 2.x"
+
+sourceSets {
+    String sharedTestDir = project(':sdks:java:io:hbase').file("src/test/java")
+    test {
+        java.srcDir sharedTestDir
+    }
+}
+
+test {
+    systemProperty "log4j.configuration", "log4j-test.properties"
+    jvmArgs "-XX:-UseGCOverheadLimit"
+    if (System.getProperty("beamSurefireArgline")) {
+        jvmArgs System.getProperty("beamSurefireArgline")
+    }
+    jvmArgs "-Dtest.build.data.basedirectory=build/test-data"
+    ignoreFailures = true
+
+    // 2.12.2020
+    // since 2.0 hbase introduced the new, combined dependency for testing purposes -> hbase-testing-util
+    // due to missing shading (in some places) there are problems with starting embedded HBase instance
+    // fix is already merged to master
+    // https://github.com/apache/hbase/commit/eface7440722e4e85f7848cdbc1f975f4785f334
+    // With next hbase release this exclusion can be removed
+    exclude "**/HBaseIOTest.class"
+}
+
+def hbase_version = "2.3.3"
+
+dependencies {
+    compile "org.apache.hbase:hbase-shaded-client:$hbase_version"
+    testCompile project(path: ":sdks:java:core", configuration: "shadow")
+    testCompile project(":sdks:java:io:hbase")
+    testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+    testCompile library.java.junit
+    testCompile library.java.hamcrest_core
+    testCompile library.java.hamcrest_library
+    testCompile library.java.hadoop_common
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testCompile("org.apache.hbase:hbase-testing-util:$hbase_version") {
+        // hbase-testing-util has hbase-client which is unshaded
+        exclude group: "org.apache.hbase", module: "hbase-client"
+    }
+}
