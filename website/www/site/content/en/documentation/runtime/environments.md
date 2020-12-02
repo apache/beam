@@ -85,13 +85,19 @@ docker push "${IMAGE_NAME}:${TAG}"
 
 This method will require building image artifacts from Beam source. For additional instructions on setting up your development environment, see the [Contribution guide](contribute/#development-setup).
 
-1. Clone the `beam` repository.
+1. Clone the `beam` repository. It is recommended that you start from a stable
+   release branch rather than from master for both customizing the Dockerfile
+   and building image artifacts, and that you use the same version of the SDK
+   to run your pipeline with a custom container.
 
 ```
+export BEAM_SDK_VERSION="2.26.0"
+
 git clone https://github.com/apache/beam.git
+git checkout origin/release-$BEAM_SDK_VERSION
 ```
 
-2. Customize the `Dockerfile` for a given language. This file is typically in the `sdks/<language>/container` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile). If you're adding dependencies from [PyPI](https://pypi.org/), use [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) instead.
+3. Customize the `Dockerfile` for a given language. This file is typically in the `sdks/<language>/container` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile). If you're adding dependencies from [PyPI](https://pypi.org/), use [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) instead.
 
 3. Navigate to the root directory of the local copy of your Apache Beam.
 
@@ -127,8 +133,9 @@ apache/beam_go_sdk                 latest              ...                 1 min
 If you did not provide a custom repo/tag as additional parameters (see below), you can retag the image and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker to a remote repository.
 
 ```
+export BEAM_SDK_VERSION="2.26.0"
 export IMAGE_NAME="myrepo/mybeamsdk"
-export TAG="latest"
+export TAG="${BEAM_SDK_VERSION}-custom"
 
 docker tag apache/beam_python3.6_sdk "${IMAGE_NAME}:${TAG}"
 docker push "${IMAGE_NAME}:${TAG}"
@@ -138,16 +145,15 @@ docker push "${IMAGE_NAME}:${TAG}"
 
 ##### Additional build parameters
 
-The docker Gradle task defines a default image repository and [tag](https://docs.docker.com/engine/reference/commandline/tag/) is the SDK version defined at [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties). The default repository is the Docker Hub `apache` namespace, and the default tag is the [SDK version](https://github.com/apache/beam/blob/master/gradle.properties) defined at gradle.properties. With these settings, the
-`docker` command-line tool will implicitly try to push the container to the Docker Hub Apache repository.
+The docker Gradle task defines a default image repository and [tag](https://docs.docker.com/engine/reference/commandline/tag/) is the SDK version defined at [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties). The default repository is the Docker Hub `apache` namespace, and the default tag is the [SDK version](https://github.com/apache/beam/blob/master/gradle.properties) defined at gradle.properties.
 
 You can specify a different repository or tag for built images by providing parameters to the build task. For example:
 
 ```
-./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo -Pdocker-tag=2019-10-04
+./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root="example-repo" -Pdocker-tag="2.26.0-custom"
 ```
 
-builds the Python 3.6 container and tags it as `example-repo/beam_python3.6_sdk:2019-10-04`.
+builds the Python 3.6 container and tags it as `example-repo/beam_python3.6_sdk:2.26.0-custom`.
 
 From Beam 2.21.0 and later, a `docker-pull-licenses` flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:
 
