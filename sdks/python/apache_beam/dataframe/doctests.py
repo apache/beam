@@ -48,6 +48,7 @@ import re
 import sys
 import traceback
 from io import StringIO
+from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import List
@@ -71,6 +72,23 @@ class FakePandasObject(object):
     self._test_env = test_env
 
   def __call__(self, *args, **kwargs):
+    # Sometimes arguments are themselves pandas objects (e.g. the Series in
+    # pd.DataFrame({'col': pd.Series(..)})), and we replaced it with a
+    # DeferredBase. This logic ensures we sub the original value in for the
+    # DeferredBase.
+    def fix_arg(arg):
+      if isinstance(arg, DeferredBase) and arg._expr in self._test_env._inputs:
+        return self._test_env._inputs[arg._expr]
+      if isinstance(arg, list):
+        return [fix_arg(sub_arg) for sub_arg in arg]
+      if isinstance(arg, tuple):
+        return tuple(fix_arg(sub_arg) for sub_arg in arg)
+      if isinstance(arg, dict):
+        return {k: fix_arg(sub_arg) for (k, sub_arg) in arg.items()}
+      return arg
+
+    args = fix_arg(args)
+    kwargs = fix_arg(kwargs)
     result = self._pandas_obj(*args, **kwargs)
     if type(result) in DeferredBase._pandas_type_map.keys():
       placeholder = expressions.PlaceholderExpression(result[0:0])
