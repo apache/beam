@@ -537,6 +537,7 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=self._default_environment)
 
+    # Optimize the pipeline if it not streaming and the experiment has not been set.
     if (not options.view_as(StandardOptions).streaming and
         not debug_options.lookup_experiment(
             "disable_optimize_pipeline_for_dataflow")):
