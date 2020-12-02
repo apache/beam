@@ -917,7 +917,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'checkstyle'
       project.tasks.withType(Checkstyle) {
         configFile = project.project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-        configProperties = ["checkstyle.suppressions.file": project.project(":").relativePath("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
+        configProperties = ["checkstyle.suppressions.file": project.project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
         showViolations = true
         maxErrors = 0
       }
