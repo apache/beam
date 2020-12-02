@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -467,8 +468,8 @@ public class Join {
     }
   }
 
-  private static class EventTimeEquijoinFn<K, V1, V2>
-      extends DoFn<KV<K, KV<V1, V2>>, KV<K, KV<V1, V2>>> {
+  @VisibleForTesting
+  static class EventTimeEquijoinFn<K, V1, V2> extends DoFn<KV<K, KV<V1, V2>>, KV<K, KV<V1, V2>>> {
     private static final String LEFT_STATE = "left";
     private static final String RIGHT_STATE = "right";
     private static final String LAST_EVICTION_STATE = "lastEviction";

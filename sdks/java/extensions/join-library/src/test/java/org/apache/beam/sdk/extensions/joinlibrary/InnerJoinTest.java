@@ -20,12 +20,15 @@ package org.apache.beam.sdk.extensions.joinlibrary;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.joinlibrary.Join.EventTimeEquijoinFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -332,6 +335,37 @@ public class InnerJoinTest {
 
     PCollection<KV<String, KV<String, String>>> output =
         Join.eventTimeBoundedInnerjoin("Join", leftCollection, rightCollection, temporalBound);
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  public void testEventTimeEquijoinFnEvictionTrigger() {
+    TestStream<KV<String, KV<Long, String>>> input =
+        TestStream.create(
+                KvCoder.of(
+                    StringUtf8Coder.of(),
+                    KvCoder.of(
+                        NullableCoder.of(VarLongCoder.of()),
+                        NullableCoder.of(StringUtf8Coder.of()))))
+            .advanceWatermarkTo(new Instant(0L))
+            .addElements(KV.of("key", KV.of(0L, null)))
+            .advanceWatermarkTo(new Instant(2000L))
+            .addElements(KV.of("key", KV.of(null, "zero")))
+            .advanceWatermarkTo(new Instant(4000))
+            .addElements(KV.of("key", KV.of(null, "one")))
+            .advanceWatermarkToInfinity();
+
+    PCollection<KV<String, KV<Long, String>>> a = p.apply(input);
+    PCollection<KV<String, KV<Long, String>>> output =
+        a.apply(
+            ParDo.of(
+                new EventTimeEquijoinFn<>(
+                    VarLongCoder.of(), StringUtf8Coder.of(), Duration.millis(3000))));
+
+    List<KV<String, KV<Long, String>>> expected = new ArrayList<>();
+    expected.add(KV.of("key", KV.of(0L, "zero")));
+
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
