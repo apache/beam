@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import java.util.*;
-
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -60,15 +59,15 @@ public class FhirIOTest {
   public void test_FhirIO_failedSearches() {
     List<KV<String, Map<String, String>>> input = Arrays.asList(KV.of("resource-type-1", null));
     FhirIO.Search.Result searchResult =
-            pipeline.apply(Create.of(input)).apply(FhirIO.searchResources("bad-store"));
+        pipeline.apply(Create.of(input)).apply(FhirIO.searchResources("bad-store"));
 
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
     PCollection<String> resources = searchResult.getResources();
 
     PCollection<String> failedMsgIds =
-            failed.apply(
-                    MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
+        failed.apply(
+            MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
 
     PAssert.that(failedMsgIds).containsInAnyOrder(Arrays.asList("bad-store"));
     PAssert.that(resources).empty();
