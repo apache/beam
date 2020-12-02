@@ -83,6 +83,11 @@ sudo apt-get install \
    docker-ce
 ```
 
+On some systems (like Ubuntu 20.04) these need to be installed also
+```
+pip3 install grpcio-tools mypy-protobuf
+```
+
 You also need to [install Go](https://golang.org/doc/install).
 
 Once Go is installed, install goavro:
