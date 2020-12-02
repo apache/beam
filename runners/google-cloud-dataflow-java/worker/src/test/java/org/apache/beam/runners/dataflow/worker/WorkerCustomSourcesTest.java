@@ -502,7 +502,7 @@ public class WorkerCustomSourcesTest {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry(null);
-    ReaderCache readerCache = new ReaderCache();
+    ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
