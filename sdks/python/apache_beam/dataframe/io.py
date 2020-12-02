@@ -206,7 +206,7 @@ class _TruncatingFileHandle(object):
   the file only after the given delimiter.
 
   For example, if the underling restriction is [103, 607) and each line were
-  exactly 10 characters long (i.e. every 10th charcter was a newline), than this
+  exactly 10 characters long (i.e. every 10th charcter was a newline), then this
   would give a view of a 500-byte file consisting of bytes bytes 110 to 609
   (inclusive) of the underlying file.
 
@@ -324,8 +324,11 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
     with readable_file.open() as handle:
       if self.incremental:
         # We can get progress even if we can't split.
-        # We could do this for all sources that are read linearly, as long
-        # as they don't try to seek.
+        # TODO(robertwb): We could consider trying to get progress for
+        # non-incremental sources that are read linearly, as long as they
+        # don't try to seek.  This could be deceptive as progress would
+        # advance to 100% the instant the (large) read was done, discounting
+        # any downstream processing.
         handle = _TruncatingFileHandle(handle, tracker)
       if not self.binary:
         handle = TextIOWrapper(handle)
@@ -339,6 +342,8 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
         yield _prefix_range_index_with(readable_file.metadata.path + ':', df)
       if not self.incremental:
         # Satisfy the SDF contract by claiming the whole range.
+        # Do this after emitting the frames to avoid advancing progress to 100%
+        # prior to that.
         tracker.try_claim(tracker.current_restriction().stop)
 
 
