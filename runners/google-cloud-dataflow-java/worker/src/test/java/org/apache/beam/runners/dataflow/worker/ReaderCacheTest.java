@@ -61,7 +61,7 @@ public class ReaderCacheTest {
 
   @Before
   public void setUp() {
-    readerCache = new ReaderCache();
+    readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
     MockitoAnnotations.initMocks(this);
   }
 
@@ -152,7 +152,7 @@ public class ReaderCacheTest {
     Duration cacheDuration = Duration.millis(10);
 
     // Create a cache with short expiry period.
-    ReaderCache readerCache = new ReaderCache(cacheDuration);
+    ReaderCache readerCache = new ReaderCache(cacheDuration, Runnable::run);
 
     readerCache.cacheReader(
         WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 0, reader1);
@@ -172,7 +172,7 @@ public class ReaderCacheTest {
 
   @Test
   public void testReaderCacheRetries() throws IOException, InterruptedException {
-    ReaderCache readerCache = new ReaderCache();
+    ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
 
     readerCache.cacheReader(
         WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 1, reader1);
