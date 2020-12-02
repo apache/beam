@@ -1238,8 +1238,14 @@ public class StreamingDataflowWorker {
     final String computationId = computationState.getComputationId();
     final ByteString key = workItem.getKey();
     work.setState(State.PROCESSING);
-    DataflowWorkerLoggingMDC.setWorkId(
-        TextFormat.escapeBytes(key) + "-" + Long.toString(workItem.getWorkToken()));
+    {
+      StringBuilder workIdBuilder = new StringBuilder(33);
+      workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
+      workIdBuilder.append('-');
+      workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
+      DataflowWorkerLoggingMDC.setWorkId(workIdBuilder.toString());
+    }
+
     DataflowWorkerLoggingMDC.setStageName(computationId);
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
