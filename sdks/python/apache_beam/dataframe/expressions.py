@@ -74,6 +74,23 @@ class PartitioningSession(Session):
       else:
         scaler_args = [arg for arg in expr.args() if is_scalar(arg)]
 
+        def get_expected_output_partitioning(
+            input_partitioning, preserves_partition_by):
+          # Singleton partitionining is always trivially preserved
+          # Nothing has nothing to preserve
+          if input_partitioning in (partitionings.Singleton(),
+                                    partitionings.Nothing()):
+            return input_partitioning
+          else:
+            if input_partitioning.is_subpartitioning_of(preserves_partition_by):
+              return preserves_partition_by
+            else:
+              return input_partitioning
+
+        # Store random state so it can be re-used for each execution, in case
+        # the expression is part of a test that relies on the random seed.
+        random_state = random.getstate()
+
         def evaluate_with(input_partitioning):
           parts = collections.defaultdict(
               lambda: Session({arg: self.evaluate(arg)
@@ -86,15 +103,18 @@ class PartitioningSession(Session):
           if not parts:
             parts[None]  # Create at least one entry.
 
+          # Note we restore the random state _after_ running test_partition_fn,
+          # since sometimes it consumes random numbers
+          random.setstate(random_state)
+
           results = []
           for session in parts.values():
             if any(len(session.lookup(arg)) for arg in expr.args()
                    if not is_scalar(arg)):
               results.append(session.evaluate(expr))
 
-          expected_output_partitioning = expr.preserves_partition_by(
-          ) if input_partitioning.is_subpartitioning_of(
-              expr.preserves_partition_by()) else input_partitioning
+          expected_output_partitioning = get_expected_output_partitioning(
+              input_partitioning, expr.preserves_partition_by())
 
           if not expected_output_partitioning.check(results):
             raise AssertionError(
@@ -112,10 +132,6 @@ class PartitioningSession(Session):
             # Choose any single session.
             return next(iter(parts.values())).evaluate(expr)
 
-        # Store random state so it can be re-used for each execution, in case
-        # the expression is part of a test that relies on the random seed.
-        random_state = random.getstate()
-
         for input_partitioning in set([expr.requires_partition_by(),
                                        partitionings.Nothing(),
                                        partitionings.Index(),
@@ -123,8 +139,6 @@ class PartitioningSession(Session):
           if not input_partitioning.is_subpartitioning_of(
               expr.requires_partition_by()):
             continue
-
-          random.setstate(random_state)
 
           # TODO(BEAM-11324): Consider verifying result is always the same
           result = evaluate_with(input_partitioning)
