@@ -589,7 +589,7 @@ public class LyftFlinkStreamingPortableTranslations {
     private byte[] getBytes(Event event) {
       ObjectMapper mapper = new ObjectMapper();
       try {
-        return mapper.writeValueAsBytes(event);
+        return mapper.writeValueAsBytes(event.getAll());
       } catch (JsonProcessingException e) {
         LOG.warn(
             "Unable to convert event json to byte[]: "
