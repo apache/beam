@@ -17,25 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.api.gax.rpc.ApiException;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 
-/**
- * The TopicBacklogReader uses the TopicStats API to aggregate the backlog, or the distance between
- * the current cursor and HEAD for a single {subscription, partition} pair.
- */
-public interface TopicBacklogReader extends AutoCloseable {
-  /**
-   * Compute and aggregate message statistics for message between the provided start offset and
-   * HEAD. This method is blocking.
-   *
-   * @param offset The current offset of the subscriber.
-   * @return A ComputeMessageStatsResponse with the aggregated statistics for messages in the
-   *     backlog.
-   */
-  ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException;
+/** A representation of progress through a Pub/Sub lite partition. */
+@AutoValue
+abstract class OffsetByteProgress {
+  static OffsetByteProgress of(Offset lastOffset, long batchBytes) {
+    return new AutoValue_OffsetByteProgress(lastOffset, batchBytes);
+  }
+  /** The last offset of the messages received. */
+  abstract Offset lastOffset();
 
-  @Override
-  void close();
+  abstract long batchBytes();
 }
