@@ -393,7 +393,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     LyftFlinkStreamingPortableTranslations translations =
         new LyftFlinkStreamingPortableTranslations();
     ObjectMapper mapper = new ObjectMapper();
-    Map<?, ?> jsonMap = getJsonMap(mapper);
+    Map<?, ?> jsonMap = getJsonMap(mapper, "/s3_and_kinesis_config.json");
     List<Map<String, JsonNode>> events =
         mapper.convertValue(
             jsonMap.get("events"), new TypeReference<List<Map<String, JsonNode>>>() {});
@@ -412,7 +412,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     LyftFlinkStreamingPortableTranslations translations =
         new LyftFlinkStreamingPortableTranslations();
     ObjectMapper mapper = new ObjectMapper();
-    Map<?, ?> jsonMap = getJsonMap(mapper);
+    Map<?, ?> jsonMap = getJsonMap(mapper, "/s3_and_kinesis_config.json");
     Map<String, JsonNode> userKinesisConfig =
         mapper.convertValue(jsonMap.get("kinesis"), new TypeReference<Map<String, JsonNode>>() {});
 
@@ -429,7 +429,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     LyftFlinkStreamingPortableTranslations translations =
         new LyftFlinkStreamingPortableTranslations();
     ObjectMapper mapper = new ObjectMapper();
-    Map<?, ?> jsonMap = getJsonMap(mapper);
+    Map<?, ?> jsonMap = getJsonMap(mapper, "/s3_and_kinesis_config.json");
     Map<String, JsonNode> userS3Config =
         mapper.convertValue(jsonMap.get("s3"), new TypeReference<Map<String, JsonNode>>() {});
 
@@ -438,9 +438,22 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     assertEquals(12, s3Config.lookbackHours);
   }
 
-  private Map<?, ?> getJsonMap(ObjectMapper mapper) throws IOException {
-    URL url =
-        LyftFlinkStreamingPortableTranslationsTest.class.getResource("/s3_and_kinesis_config.json");
+  @Test
+  public void testGetS3WithoutKinesisConfig() throws IOException {
+    LyftFlinkStreamingPortableTranslations translations =
+        new LyftFlinkStreamingPortableTranslations();
+    ObjectMapper mapper = new ObjectMapper();
+    Map<?, ?> jsonMap = getJsonMap(mapper, "/s3_config.json");
+    Map<String, JsonNode> userS3Config =
+        mapper.convertValue(jsonMap.get("s3"), new TypeReference<Map<String, JsonNode>>() {});
+
+    S3Config s3Config = translations.getS3Config(userS3Config);
+    assertEquals(2, s3Config.parallelism);
+    assertEquals(14, s3Config.lookbackHours);
+  }
+
+  private Map<?, ?> getJsonMap(ObjectMapper mapper, String resourceName) throws IOException {
+    URL url = LyftFlinkStreamingPortableTranslationsTest.class.getResource(resourceName);
     String eventsStr = Resources.toString(url, StandardCharsets.UTF_8);
     JsonNode jsonNode = mapper.readTree(eventsStr);
     return mapper.convertValue(jsonNode, Map.class);
