@@ -1,6 +1,6 @@
 package org.apache.beam.validate.runner;
 
-import net.sf.json.JSONObject;
+import net.sf.json.JSONArray;
 import org.apache.beam.validate.runner.service.BatchTestService;
 import org.apache.beam.validate.runner.service.StreamTestService;
 import org.slf4j.Logger;
@@ -15,15 +15,15 @@ public class Main {
         try {
             final Logger logger = LoggerFactory.getLogger(Main.class);
 
-            JSONObject outputDetails = new JSONObject();
+            JSONArray outputDetails = new JSONArray();
 
             logger.info("Processing Batch Jobs:");
             BatchTestService batchTestService = new BatchTestService();
-            outputDetails.put("batch", batchTestService.getBatchTests());
+            outputDetails.add(batchTestService.getBatchTests());
 
             logger.info("Processing Stream Jobs:");
             StreamTestService streamTestService = new StreamTestService();
-            outputDetails.put("stream", streamTestService.getStreamTests());
+            outputDetails.add(streamTestService.getStreamTests());
 
             try (FileWriter file = new FileWriter("out.json")) {
                 file.write(outputDetails.toString(3));

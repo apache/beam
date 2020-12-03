@@ -17,9 +17,9 @@
  */
 
 //plugins { id 'org.apache.beam.module' }
-plugins {
-    id 'java'
-}
+apply plugin : "application"
+mainClassName = 'org.apache.beam.validate.runner.Main'
+
 group 'org.apache.beam'
 //version '1.0-SNAPSHOT'
 description = "Apache Beam :: Validate :: Runner"
@@ -43,9 +43,3 @@ dependencies {
     compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.11.3'
     compile 'org.slf4j:slf4j-simple:1.7.9'
 }
-
-
-
-//wrapper {
-//    gradleVersion = '5.0'
-//}
