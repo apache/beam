@@ -6,6 +6,10 @@ import org.apache.beam.validate.runner.model.Configuration;
 
 import java.io.InputStream;
 
+/**
+ * Reads the input configurations from the configuration.yaml file
+ * and passes as a {@link Configuration} object for processing.
+ */
 public class FileReaderUtil {
 
     private static final String FILE_PATH = "/configuration.yaml";
