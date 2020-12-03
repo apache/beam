@@ -1539,7 +1539,7 @@ public class FhirIO {
       static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, String> {
 
         private Distribution searchLatencyMs =
-                Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
+            Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
         private Counter failedSearches =
             Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
         private static final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
