@@ -1,0 +1,13 @@
+{
+  "events": [
+    {
+      "name": "test_event",
+      "lateness_in_sec": 5,
+      "lookback_days": 1
+    }
+  ],
+  "s3": {
+    "parallelism": 2,
+    "lookback_threshold_hours": 14
+  }
+}

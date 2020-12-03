@@ -32,6 +32,7 @@ import com.lyft.streamingplatform.LyftKafkaProducerBuilder;
 import com.lyft.streamingplatform.analytics.Event;
 import com.lyft.streamingplatform.analytics.EventField;
 import com.lyft.streamingplatform.eventssource.KinesisAndS3EventSource;
+import com.lyft.streamingplatform.eventssource.S3EventSource;
 import com.lyft.streamingplatform.eventssource.config.EventConfig;
 import com.lyft.streamingplatform.eventssource.config.KinesisConfig;
 import com.lyft.streamingplatform.eventssource.config.S3Config;
@@ -98,6 +99,7 @@ public class LyftFlinkStreamingPortableTranslations {
   private static final String FLINK_KAFKA_SINK_URN = "lyft:flinkKafkaSink";
   private static final String FLINK_KINESIS_URN = "lyft:flinkKinesisInput";
   private static final String FLINK_S3_AND_KINESIS_URN = "lyft:flinkS3AndKinesisInput";
+  private static final String FLINK_S3_URN = "lyft:flinkS3Input";
   private static final String BYTES_ENCODING = "bytes";
   private static final String LYFT_BASE64_ZLIB_JSON = "lyft-base64-zlib-json";
 
@@ -109,7 +111,8 @@ public class LyftFlinkStreamingPortableTranslations {
           || FLINK_KAFKA_SINK_URN.equals(PTransformTranslation.urnForTransformOrNull(pTransform))
           || FLINK_KINESIS_URN.equals(PTransformTranslation.urnForTransformOrNull(pTransform))
           || FLINK_S3_AND_KINESIS_URN.equals(
-              PTransformTranslation.urnForTransformOrNull(pTransform));
+              PTransformTranslation.urnForTransformOrNull(pTransform))
+          || FLINK_S3_URN.equals(PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }
 
@@ -120,6 +123,7 @@ public class LyftFlinkStreamingPortableTranslations {
     translatorMap.put(FLINK_KAFKA_SINK_URN, this::translateKafkaSink);
     translatorMap.put(FLINK_KINESIS_URN, this::translateKinesisInput);
     translatorMap.put(FLINK_S3_AND_KINESIS_URN, this::translateS3AndKinesisInputs);
+    translatorMap.put(FLINK_S3_URN, this::translateS3Inputs);
   }
 
   @VisibleForTesting
@@ -421,6 +425,63 @@ public class LyftFlinkStreamingPortableTranslations {
               .build();
 
       KinesisAndS3EventSource source = new KinesisAndS3EventSource();
+      StreamExecutionEnvironment environment = context.getExecutionEnvironment();
+      Map<String, DataStream<Event>> eventStreams =
+          source.getEventStreams(environment, sourceContext);
+
+      LOG.info("Unioning all the event streams");
+      DataStream<Event> unionedStream = eventStreams.remove(eventConfigs.get(0).eventName);
+      for (Map.Entry<String, DataStream<Event>> entry : eventStreams.entrySet()) {
+        unionedStream = unionedStream.union(entry.getValue());
+      }
+
+      DataStream<WindowedValue<byte[]>> windowedStream =
+          unionedStream
+              .map(new EventToWindowedValue())
+              .name("windowed_value_stream")
+              .uid("windowed_value_stream");
+
+      context.addDataStream(
+          Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+          windowedStream.rebalance());
+
+    } catch (IOException e) {
+      throw new RuntimeException("Could not parse provided source json");
+    }
+  }
+
+  private void translateS3Inputs(
+      String id,
+      RunnerApi.Pipeline pipeline,
+      FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context) {
+    RunnerApi.PTransform pTransform = pipeline.getComponents().getTransformsOrThrow(id);
+
+    ObjectMapper mapper = new ObjectMapper();
+
+    try {
+      JsonNode params = mapper.readTree(pTransform.getSpec().getPayload().toByteArray());
+      Map<?, ?> jsonMap = mapper.convertValue(params, Map.class);
+      String sourceName = (String) jsonMap.get("source_name");
+      Preconditions.checkNotNull(sourceName, "Source name has to be set");
+
+      Map<String, JsonNode> userS3Config =
+          mapper.convertValue(jsonMap.get("s3"), new TypeReference<Map<String, JsonNode>>() {});
+
+      List<Map<String, JsonNode>> events =
+          mapper.convertValue(
+              jsonMap.get("events"), new TypeReference<List<Map<String, JsonNode>>>() {});
+
+      S3Config s3Config = getS3Config(userS3Config);
+      List<EventConfig> eventConfigs = getEventConfigs(events);
+
+      SourceContext sourceContext =
+          new SourceContext.Builder()
+              .withS3Config(s3Config)
+              .withEventConfigs(eventConfigs)
+              .withSourceName(sourceName)
+              .build();
+
+      S3EventSource source = new S3EventSource();
       StreamExecutionEnvironment environment = context.getExecutionEnvironment();
       Map<String, DataStream<Event>> eventStreams =
           source.getEventStreams(environment, sourceContext);
