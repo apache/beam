@@ -191,3 +191,5 @@ include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")
 include "beam-test-jenkins"
 project(":beam-test-jenkins").dir = file(".test-infra/jenkins")
+include "beam-validate-runner"
+project(":beam-validate-runner").dir = file(".test-infra/validate-runner")
