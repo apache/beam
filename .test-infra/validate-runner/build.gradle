@@ -16,12 +16,9 @@
  * limitations under the License.
  */
 
-//plugins { id 'org.apache.beam.module' }
 apply plugin : "application"
-mainClassName = 'org.apache.beam.validate.runner.Main'
 
 group 'org.apache.beam'
-//version '1.0-SNAPSHOT'
 description = "Apache Beam :: Validate :: Runner"
 
 repositories {
@@ -42,4 +39,16 @@ dependencies {
     compile group: 'org.yaml', name: 'snakeyaml', version: '1.8'
     compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.11.3'
     compile 'org.slf4j:slf4j-simple:1.7.9'
+}
+ext.javaMainClass = "org.apache.beam.validate.runner.Main"
+if (project.hasProperty("args")) {
+    ext.cmdargs = project.getProperty("args")
+} else {
+    ext.cmdargs = ""
+}
+
+task runner(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    main = "org.apache.beam.validate.runner.Main"
+    args cmdargs.split()
 }
