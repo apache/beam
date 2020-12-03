@@ -15,6 +15,14 @@ public class Main {
         try {
             final Logger logger = LoggerFactory.getLogger(Main.class);
 
+            String outputFile;
+            if (args.length == 0) {
+                logger.info("Output file name missing. Output will be saved to output.json");
+                outputFile = "output";
+            } else {
+                outputFile = args[0];
+                logger.info("Output will be saved to {} .json", outputFile);
+            }
             JSONArray outputDetails = new JSONArray();
 
             logger.info("Processing Batch Jobs:");
@@ -25,7 +33,7 @@ public class Main {
             StreamTestService streamTestService = new StreamTestService();
             outputDetails.add(streamTestService.getStreamTests());
 
-            try (FileWriter file = new FileWriter("out.json")) {
+            try (FileWriter file = new FileWriter(outputFile + ".json")) {
                 file.write(outputDetails.toString(3));
                 file.flush();
             } catch (IOException e) {
