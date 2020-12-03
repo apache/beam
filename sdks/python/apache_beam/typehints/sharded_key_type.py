@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from apache_beam.coders import typecoders
 from apache_beam.coders.coders import ShardedKeyCoder
 from apache_beam.typehints import typehints
+from apache_beam.typehints.typehints import match_type_variables
 from apache_beam.utils.sharded_key import ShardedKey
 
 
@@ -48,12 +49,17 @@ class ShardedKeyTypeConstraint(typehints.TypeConstraint):
       typehints.check_constraint(self.key_type, instance.key)
     except (typehints.CompositeTypeHintError, typehints.SimpleTypeHintError):
       raise typehints.CompositeTypeHintError(
-          "%s hint type-constraint violated. The type of key in 'ShardedKey'"
-          "is incorrect. Expected an instance of type %s, "
-          "instead received an instance of type %s." % (
+          "%s type-constraint violated. The type of key in 'ShardedKey' "
+          "is incorrect. Expected an instance of type '%s', "
+          "instead received an instance of type '%s'." % (
               repr(self),
               typehints._unified_repr(self.key_type),
               instance.key.__class__.__name__))
+
+  def match_type_variables(self, concrete_type):
+    if isinstance(concrete_type, ShardedKeyTypeConstraint):
+      return match_type_variables(self.key_type, concrete_type.key_type)
+    return {}
 
   def __eq__(self, other):
     return isinstance(
@@ -63,7 +69,7 @@ class ShardedKeyTypeConstraint(typehints.TypeConstraint):
     return hash(self.key_type)
 
   def __repr__(self):
-    return 'ShardedKey(%s)' % self.key_type
+    return 'ShardedKey(%s)' % typehints._unified_repr(self.key_type)
 
 
 typecoders.registry.register_coder(ShardedKeyTypeConstraint, ShardedKeyCoder)
