@@ -28,7 +28,7 @@
     border: none;
   }
 
-  .quotes-content {
+  .quotes-desktop {
     display: flex;
     justify-content: center;
 
@@ -53,7 +53,7 @@
 
         margin: 108px 0 20px 0;
       }
-      
+
       img {
         width: 172px;
       }
@@ -63,10 +63,121 @@
       margin-right: 0;
     }
   }
+  
+  // Sliding feature is only displayed on mobile version
+  .keen-slider {
+    display: none;
+  }
+
+  .dots {
+    display: none;
+  }
+
+  .keen-slider {
+    width: 327px;
+    margin: 0 auto;
+    border-radius: 16px;
+    background-color: $color-white;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
+      0 4px 4px 0 rgba(0, 0, 0, 0.06);
+
+    .keen-slider__slide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+      max-width: 327px;
+      height: 468px;
+      padding: 55px 24px 24px 24px;
+
+      .quote-text {
+        @extend .component-quote;
+
+        margin: 108px 0 20px 0;
+      }
+
+      img {
+        width: 172px;
+      }
+    }
+  }
+
+  .dots {
+    display: none;
+    padding: 10px 0;
+    justify-content: center;
+    margin-top: 46px;
+  }
+
+  .dot {
+    border: none;
+    width: 13px;
+    height: 13px;
+    background: $color-smoke;
+    border-radius: 50%;
+    margin: 0 5px;
+    padding: 4px;
+    cursor: pointer;
+  }
+
+  .dot:focus {
+    outline: none;
+  }
+
+  .dot--active {
+    background: $color-sun;
+  }
 }
 
 @media (max-width: $tablet) {
   .quotes {
-    display: none;
+    .quotes-title {
+      margin-bottom: 64px;
+    }
+
+    .quotes-desktop {
+      display: none;
+    }
+
+    .keen-slider {
+      display: flex;
+    }
+
+    .dots {
+      display: flex;
+    }
   }
+}
+
+/*# sourceMappingURL=keen-slider.min.css.map */
+// This is pulled from "https://cdn.jsdelivr.net/npm/keen-slider@5.3.2/keen-slider.min.css" to serve the consistency
+.keen-slider {
+  display: flex;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -khtml-user-select: none;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.keen-slider,
+.keen-slider__slide {
+  overflow: hidden;
+  position: relative;
+}
+.keen-slider__slide {
+  width: 100%;
+  min-height: 100%;
+}
+.keen-slider[data-keen-slider-v] {
+  flex-wrap: wrap;
+}
+.keen-slider[data-keen-slider-v] .keen-slider__slide {
+  width: 100%;
+}
+.keen-slider[data-keen-slider-moves] * {
+  pointer-events: none;
 }

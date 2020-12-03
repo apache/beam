@@ -138,23 +138,20 @@
 {{ define "quotes-section" }}
   <div class="quotes">
     <div class="quotes-title">
-      They tried it out
+      {{ T "home-quotes-title" }}
     </div>
-    <div class="quotes-content">
+
+    <div class="quotes-desktop">
       {{ $data := index $.Site.Data .Site.Language.Lang }}
       {{ range $quote := $data.quotes }}
           {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
       {{ end }}
     </div>
-  </div>
-{{ end }}
-
-{{ define "quotes-mobile-section" }}
-  <div class="quotes-mobile">
-    <div class="quotes-mobile-title">
-      They tried it out
-    </div>
-    <div id="my-keen-slider" class="keen-slider">
+    
+    {{/*
+      The id "my-keen-slider" and "dots" should be named as defaults to make the external library (Keen Slider) works well
+    */}}
+    <div id="my-keen-slider" class="keen-slider quote-mobile">
       {{ $data := index $.Site.Data .Site.Language.Lang }}
       {{ range $quote := $data.quotes }}
           {{ partial "quotes/quote-mobile.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
