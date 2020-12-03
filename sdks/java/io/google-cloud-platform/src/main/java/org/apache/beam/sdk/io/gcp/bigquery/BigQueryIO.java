@@ -2657,7 +2657,7 @@ public class BigQueryIO {
             rowWriterFactory.getOutputType() == RowWriterFactory.OutputType.JsonTableRow,
             "Avro output is not supported when method == STREAMING_INSERTS");
         checkArgument(
-            getSchemaUpdateOptions() == null,
+            getSchemaUpdateOptions() == null || getSchemaUpdateOptions().isEmpty(),
             "SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
 
         RowWriterFactory.TableRowWriterFactory<ElementT, DestinationT> tableRowWriterFactory =
