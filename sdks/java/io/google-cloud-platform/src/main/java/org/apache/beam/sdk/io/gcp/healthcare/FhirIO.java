@@ -53,6 +53,7 @@ import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -1537,6 +1538,8 @@ public class FhirIO {
       /** DoFn for searching messages from the Fhir store with error handling. */
       static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, String> {
 
+        private Distribution searchLatencyMs =
+                Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
         private Counter failedSearches =
             Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
         private static final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
@@ -1603,6 +1606,7 @@ public class FhirIO {
           while (iter.hasNext()) {
             result.addAll(iter.next());
           }
+          searchLatencyMs.update(System.currentTimeMillis() - startTime);
           this.successfulSearches.inc();
           return result.toString();
         }
