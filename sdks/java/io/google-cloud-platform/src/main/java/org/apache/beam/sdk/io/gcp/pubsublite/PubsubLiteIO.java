@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
@@ -64,8 +64,8 @@ public final class PubsubLiteIO {
    *     .build()), "read");
    * }</pre>
    */
-  public static Read.Unbounded<SequencedMessage> read(SubscriberOptions options) {
-    return Read.from(new PubsubLiteUnboundedSource(options));
+  public static PTransform<PBegin, PCollection<SequencedMessage>> read(SubscriberOptions options) {
+    return new SubscribeTransform(options);
   }
 
   /**
