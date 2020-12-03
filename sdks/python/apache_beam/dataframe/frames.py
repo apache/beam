@@ -143,8 +143,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     elif isinstance(by, DeferredSeries):
 
       raise NotImplementedError(
-          "grouping by a Series is not yet implemented. You can group by a "
-          "DataFrame column by specifying its name.")
+          "grouping by a Series is not yet implemented (BEAM-11393). You can "
+          "group by a DataFrame column by specifying its name.")
 
     elif isinstance(by, np.ndarray):
       raise frame_base.WontImplementError('order sensitive')
