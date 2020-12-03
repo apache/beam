@@ -2035,13 +2035,9 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testSchemaUpdateOptionsFailsStreamingInserts() throws Exception {
     Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION);
-    try {
-      schemaUpdateOptionsTest(BigQueryIO.Write.Method.STREAMING_INSERTS, options);
-      fail();
-    } catch (IllegalArgumentException e) {
-      assertThat(
-          e.getMessage(),
-          is("SchemaUpdateOptions are not supported when method == STREAMING_INSERTS"));
-    }
+    p.enableAbandonedNodeEnforcement(false);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.STREAMING_INSERTS, options);
   }
 }
