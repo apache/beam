@@ -106,11 +106,6 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df[df.value > 30].groupby('group').mean(), df)
     self._run_test(lambda df: df[df.value > 30].groupby('group').size(), df)
 
-    # Grouping by a series is not currently supported
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).sum(), df)
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).mean(), df)
-    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).size(), df)
-
     # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
     arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
               ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
@@ -123,6 +118,33 @@ class DeferredFrameTest(unittest.TestCase):
                       index=index)
 
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
+
+  @unittest.skip('BEAM-11393')
+  def test_groupby_series(self):
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'value': [None if i % 11 == 0 else i for i in range(100)]
+    })
+
+    self._run_test(lambda df: df[df.value > 40].groupby(df.group).sum(), df)
+    self._run_test(lambda df: df[df.value > 40].groupby(df.group).mean(), df)
+    self._run_test(lambda df: df[df.value > 40].groupby(df.group).size(), df)
+
+    ser = pd.Series([390., 350., 30., 20., 370, 15, 400, 25],
+                    index=[
+                        'Falcon',
+                        'Falcon',
+                        'Parrot',
+                        'Parrot',
+                        'Falcon',
+                        'Parrot',
+                        'Falcon',
+                        'Parrot'
+                    ],
+                    name="Max Speed")
+
+    # Reliably produces the issue described in BEAM-11393
+    self._run_test(lambda s: s.groupby(s > 100), ser)
 
   @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
