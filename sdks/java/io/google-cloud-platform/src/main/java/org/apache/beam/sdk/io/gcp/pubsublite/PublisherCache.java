@@ -60,7 +60,7 @@ class PublisherCache {
             }
           },
           listenerExecutor);
-      publisher.startAsync();
+      publisher.startAsync().awaitRunning();
       return publisher;
     }
   }
