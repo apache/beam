@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -110,9 +110,7 @@ public class OffsetByteRangeTrackerTest {
   @Test
   public void cannotClaimSplitRange() {
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), 10)));
-    assertNotNull(tracker.trySplit(IGNORED_FRACTION));
-    assertThrows(
-        IllegalStateException.class,
-        () -> tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 10)));
+    assertTrue(tracker.trySplit(IGNORED_FRACTION) != null);
+    assertFalse(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 10)));
   }
 }
