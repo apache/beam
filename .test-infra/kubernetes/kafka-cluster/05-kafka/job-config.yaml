@@ -32,7 +32,7 @@ spec:
             defaultMode: 0744
       containers:
         - name: kafka-config
-          image: "confluentinc/cp-kafka:5.5.5"
+          image: "confluentinc/cp-kafka:5.0.1"
           command: ["/usr/local/script/runtimeConfig.sh"]
           volumeMounts:
             - name: config-volume

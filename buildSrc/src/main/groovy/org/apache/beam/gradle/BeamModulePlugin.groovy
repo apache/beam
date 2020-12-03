@@ -438,7 +438,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
-    def kafka_version = "2.4.1"
+    def kafka_version = "1.0.0"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
     def postgres_version = "42.2.16"

@@ -58,7 +58,7 @@ spec:
           mountPath: /opt/kafka/libs/extensions
       containers:
       - name: broker
-        image: solsson/kafka:2.4.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
+        image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
         env:
         - name: CLASSPATH
           value: /opt/kafka/libs/extensions/*
