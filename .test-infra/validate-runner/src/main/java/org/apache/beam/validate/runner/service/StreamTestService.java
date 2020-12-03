@@ -15,8 +15,13 @@ import java.util.Set;
 
 
 public class StreamTestService implements TestService {
+
+    // Stores all the tests which are run across runners in stream mode
     private static Set<Pair<String, String>> streamTests = new HashSet<>();
+
+    //Stores the tests which are run for the particular runner.
     private HashMap<String, Set<CaseResult>> map = new HashMap<>();
+
     public JSONObject getStreamTests() {
         try {
             Configuration configuration = FileReaderUtil.readConfiguration();
