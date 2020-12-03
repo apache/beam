@@ -15,8 +15,13 @@ import java.util.Map;
 import java.util.Set;
 
 public class BatchTestService implements TestService {
+
+    // Stores all the tests which are run across runners in batch mode
     private static Set<Pair<String, String>> batchTests = new HashSet<>();
+
+    //Stores the tests which are run for the particular runner.
     private HashMap<String, Set<CaseResult>> map = new HashMap<>();
+
     public JSONObject getBatchTests() {
         try {
             Configuration configuration = FileReaderUtil.readConfiguration();
