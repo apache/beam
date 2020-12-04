@@ -17,10 +17,10 @@
  */
 package org.apache.beam.examples.options;
 
+import org.apache.beam.examples.transforms.FormatTransform;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.examples.transforms.FormatTransform;
 
 public interface KafkaToPubsubOptions extends PipelineOptions {
   @Description(
