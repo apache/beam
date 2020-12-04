@@ -28,7 +28,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.sdk.io.gcp.pubsub.*;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubGrpcClient;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.PAssert;
@@ -38,7 +42,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
-import org.junit.*;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -54,7 +62,8 @@ public class FhirIOSearchIT {
     return Arrays.asList("R4");
   }
 
-  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
+  @Rule
+  public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private final String pubsubTopic;
