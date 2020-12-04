@@ -93,7 +93,7 @@ Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.26.0
 [SHA-512](https://downloads.apache.org/beam/2.26.0/apache-beam-2.26.0-source-release.zip.sha512).
 [signature](https://downloads.apache.org/beam/2.26.0/apache-beam-2.26.0-source-release.zip.asc).
 
-[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347147).
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12348833).
 [Blog post](/blog/beam-2.26.0).
 
 ### 2.25.0 (2020-10-23)
