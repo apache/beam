@@ -235,24 +235,26 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.timeout = Duration().FromSeconds(seconds=1800)
 
     now = time.time()
-    _LOGGER.info(
-        'Building sdk container with google cloud build, this may '
-        'take a few minutes...')
     operation = client.create_build(project_id=project_id, build=build)
-    # if build fails exception will be raised and stops the job submission.
-    try:
-      result = operation.result()
-    except Exception as e:
-      build_lists = client.list_builds(
-          project_id=project_id,
-          filter="source.storage_source.bucket=\"%s\" AND source"
-          ".storage_source.object=\"%s\"" % (gcs_bucket, gcs_object))
-      for build in build_lists:
-        _LOGGER.error("Build failed, check log at %s" % build.log_url)
-      raise e
     _LOGGER.info(
-        "Python SDK container pre-build finished in %.2f seconds, "
-        "check build log at %s" % (time.time() - now, result.log_url))
+      'Building sdk container with google cloud build, this may '
+      'take a few minutes...')
+    # TODO: we shouldn't need to query build log url with list_builds if log
+    #  url is included in operation or build object.
+    build_lists = client.list_builds(
+      project_id=project_id,
+      filter="source.storage_source.bucket=\"%s\" AND source"
+             ".storage_source.object=\"%s\"" % (gcs_bucket, gcs_object))
+    for build in build_lists:
+      _LOGGER.info("Check google cloud build log at %s" % build.log_url)
+
+    # block until build finish, if build fails exception will be raised and
+    # stops the job submission.
+    operation.result()
+
+    _LOGGER.info(
+        "Python SDK container pre-build finished in %.2f seconds" % (
+            time.time() - now))
     _LOGGER.info(
         "Python SDK container built and pushed as %s." % container_image_name)
 
