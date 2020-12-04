@@ -105,8 +105,9 @@ RUN alias python=python3.6
 RUN pip3 install grpcio-tools mypy-protobuf
 
 ###
-# Avoid https://github.com/pypa/virtualenv/issues/2006
-RUN pip3 install distlib==0.3.1
+# Install useful tools
+# Install distlib to avoid https://github.com/pypa/virtualenv/issues/2006
+RUN pip3 install distlib==0.3.1 yapf==0.29.0 pytest
 ###
 
 ###
