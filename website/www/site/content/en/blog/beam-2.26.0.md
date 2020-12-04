@@ -48,11 +48,11 @@ For more information on changes in 2.26.0, check out the
 According to git shortlog, the following people contributed to the 2.26.0 release. Thank you to all contributors!
 
 Abhishek Yadav, AbhiY98, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko,
-Andrew Pilloud, Ankur Goenka, Boyuan Zhang, Brian Hulette, Chad Dombrova, 
+Andrew Pilloud, Ankur Goenka, Boyuan Zhang, Brian Hulette, Chad Dombrova,
 Chamikara Jayalath, Curtis "Fjord" Hawthorne, Damon Douglas, dandy10, Daniel Oliveira,
-David Cavazos, dennis, Derrick Qin, dpcollins-google, Dylan Hercher, emily, Esun Kim, 
-Gleb Kanterov, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jean-Baptiste Onofré, Jing, 
-Jozef Vilcek, Justin White, Kamil Wasilewski, Kenneth Knowles, kileys, Kyle Weaver, 
+David Cavazos, dennis, Derrick Qin, dpcollins-google, Dylan Hercher, emily, Esun Kim,
+Gleb Kanterov, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jean-Baptiste Onofré, Jing,
+Jozef Vilcek, Justin White, Kamil Wasilewski, Kenneth Knowles, kileys, Kyle Weaver,
 lostluck, Luke Cwik, Mark, Maximilian Michels, Milan Cermak, Mohammad Hossein Sekhavat,
 Nelson Osacky, Neville Li, Ning Kang, pabloem, Pablo Estrada, pawelpasterz,
 Pawel Pasterz, Piotr Szuberski, PoojaChandak, purbanow, rarokni, Ravi Magham,
@@ -60,5 +60,5 @@ Reuben van Ammers, Reuven Lax, Reza Rokni, Robert Bradshaw, Robert Burke,
 Romain Manni-Bucau, Rui Wang, rworley-monster, Sam Rohde, Sam Whittle, shollyman,
 Simone Primarosa, Siyuan Chen, Steve Niemitz, Steven van Rossum, sychen, Teodor Spæren,
 Tim Clemons, Tim Robertson, Tobiasz Kędzierski, tszerszen, Tudor Marian, tvalentyn,
-Tyson Hamilton, Udi Meiri, Vasu Gupta, xasm83, Yichi Zhang, yichuan66, Yifan Mai, 
+Tyson Hamilton, Udi Meiri, Vasu Gupta, xasm83, Yichi Zhang, yichuan66, Yifan Mai,
 yoshiki.obata, Yueyang Qiu, yukihira1992
