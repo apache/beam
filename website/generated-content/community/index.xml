@@ -581,4 +581,5 @@ limitations under the License.
 Apache Beam pipelines within the Google Cloud Platform ecosystem.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://www.tensorflow.org/tfx">TensorFlow Extended (TFX)&lt;/a>:&lt;/strong> TensorFlow Extended (TFX) is an end-to-end platform
 for deploying production ML pipelines.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>:&lt;/strong> Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/li>
 &lt;/ul></description></item></channel></rss>
