@@ -67,22 +67,7 @@ RUN apt -q update \
         python3.7 \
         python3.8 \
         virtualenv \
-        tox \
-        # Needed for pyenv:
-        make \
-        libssl-dev \
-        zlib1g-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        llvm \
-        libncurses5-dev \
-        libncursesw5-dev \
-        xz-utils \
-        tk-dev \
-        libffi-dev \
-        liblzma-dev \
-        python-openssl
+        tox
 
 ###
 # Set the locale ( see https://stackoverflow.com/a/28406007/114196 )
@@ -109,29 +94,6 @@ RUN pip3 install grpcio-tools mypy-protobuf
 # Install distlib to avoid https://github.com/pypa/virtualenv/issues/2006
 RUN pip3 install distlib==0.3.1 yapf==0.29.0 pytest
 ###
-
-###
-# Install pyenv and pyenv-virtualenv
-###
-ENV DOWNLOAD_PYENV_VERSION=v1.2.21
-ENV DOWNLOAD_PYENV_VIRTUALENV_VERSION=v1.1.5
-
-RUN git clone https://github.com/pyenv/pyenv.git /opt/pyenv && \
-    cd /opt/pyenv && \
-    git checkout "${DOWNLOAD_PYENV_VERSION}" && \
-    chmod a+rwX -R .
-
-RUN git clone https://github.com/pyenv/pyenv-virtualenv.git /opt/pyenv/plugins/pyenv-virtualenv && \
-    cd /opt/pyenv/plugins/pyenv-virtualenv && \
-    git checkout "${DOWNLOAD_PYENV_VIRTUALENV_VERSION}" && \
-    chmod a+rwX -R .
-
-ENV PYENV_ROOT /opt/pyenv
-ENV PATH $PYENV_ROOT/bin:$PATH
-RUN pyenv install 3.6.12
-RUN pyenv install 3.7.9
-RUN pyenv install 3.8.6
-RUN chmod a+rwX -R /opt/pyenv
 
 ###
 # Install Go
