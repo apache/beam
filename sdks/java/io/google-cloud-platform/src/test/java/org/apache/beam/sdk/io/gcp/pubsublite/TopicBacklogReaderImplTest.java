@@ -65,7 +65,7 @@ public final class TopicBacklogReaderImplTest {
     when(mockClient.computeMessageStats(
             example(TopicPath.class),
             example(Partition.class),
-            Offset.of(10),
+            example(Offset.class),
             Offset.of(Integer.MAX_VALUE)))
         .thenReturn(
             ApiFutures.immediateFailedFuture(new CheckedApiException(Code.UNAVAILABLE).underlying));
@@ -76,7 +76,7 @@ public final class TopicBacklogReaderImplTest {
   }
 
   @Test
-  public void computeMessageStats_validResponseCached() throws Exception {
+  public void computeMessageStats_validResponseCached() {
     Timestamp minEventTime = Timestamp.newBuilder().setSeconds(1000).setNanos(10).build();
     Timestamp minPublishTime = Timestamp.newBuilder().setSeconds(1001).setNanos(11).build();
     ComputeMessageStatsResponse response =
@@ -90,7 +90,7 @@ public final class TopicBacklogReaderImplTest {
     when(mockClient.computeMessageStats(
             example(TopicPath.class),
             example(Partition.class),
-            Offset.of(10),
+            example(Offset.class),
             Offset.of(Integer.MAX_VALUE)))
         .thenReturn(ApiFutures.immediateFuture(response));
 
