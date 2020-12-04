@@ -924,7 +924,8 @@ class BigQueryWrapper(object):
 
     # If table exists already then handle the semantics for WRITE_EMPTY and
     # WRITE_TRUNCATE write dispositions.
-    if found_table:
+    if found_table and write_disposition in (
+        BigQueryDisposition.WRITE_EMPTY, BigQueryDisposition.WRITE_TRUNCATE):
       table_empty = self._is_table_empty(project_id, dataset_id, table_id)
       if (not table_empty and
           write_disposition == BigQueryDisposition.WRITE_EMPTY):
