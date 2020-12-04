@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.beam.io.cdc.KafkaSourceConsumerFn.OffsetHolder;
-import org.apache.beam.io.debezium.DebeziumIO;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -42,24 +41,24 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CounterSourceConnectorTest {
 
-  @Test
-  public void testQuickCount() {
-    Pipeline p = Pipeline.create();
-    PCollection<Integer> counts = p.apply(
-        Create
-            .of(Lists.newArrayList((Map<String, String>) ImmutableMap.of(
-                "from", "1",
-                "to", "10",
-                "delay", "0.4",
-                "topic", "any")))
-            .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-        .apply(ParDo.of(new KafkaSourceConsumerFn<Integer>(
-            CounterSourceConnector.class, record -> (Integer) record.value())))
-        .setCoder(VarIntCoder.of());
-
-    PAssert.that(counts).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9 ,10);
-    p.run().waitUntilFinish();
-  }
+//  @Test
+//  public void testQuickCount() {
+//    Pipeline p = Pipeline.create();
+//    PCollection<Integer> counts = p.apply(
+//        Create
+//            .of(Lists.newArrayList((Map<String, String>) ImmutableMap.of(
+//                "from", "1",
+//                "to", "10",
+//                "delay", "0.4",
+//                "topic", "any")))
+//            .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
+//        .apply(ParDo.of(new KafkaSourceConsumerFn<Integer>(
+//            CounterSourceConnector.class, record -> (Integer) record.value())))
+//        .setCoder(VarIntCoder.of());
+//
+//    PAssert.that(counts).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9 ,10);
+//    p.run().waitUntilFinish();
+//  }
 
   public static class SDFDatabaseHistory extends AbstractDatabaseHistory {
 
@@ -113,34 +112,34 @@ public class CounterSourceConnectorTest {
     }
   }
 
-  @Test
-  public void testDebeziumConnector() {
-    Pipeline p = Pipeline.create();
-    PCollection<String> counts = p.apply(
-        Create
-            .of(Lists.newArrayList(
-                (Map<String, String>) ImmutableMap.<String, String>builder()
-                  .put("connector.class", "io.debezium.connector.mysql.MySqlConnector")
-                  .put("database.hostname", "127.0.0.1")
-                  .put("database.port", "3306")
-                  .put("database.user", "debezium")
-                  .put("database.password", "dbz")
-                  .put("database.server.id", "184054")
-                  .put("database.server.name", "dbserver1")
-                  .put("database.include.list", "inventory")
-                  .put("database.history", SDFDatabaseHistory.class.getName())
-                  .put("include.schema.changes", "false")
-        .build()))
-            .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-        .apply(ParDo.of(new KafkaSourceConsumerFn<String>(MySqlConnector.class, record -> {
-          System.out.println("GOT RECORD - " + record.toString());
-          return record.toString();
-        })))
-        .setCoder(StringUtf8Coder.of());
-
-    PAssert.that(counts).containsInAnyOrder();
-    p.run().waitUntilFinish();
-  }
+//  @Test
+//  public void testDebeziumConnector() {
+//    Pipeline p = Pipeline.create();
+//    PCollection<String> counts = p.apply(
+//        Create
+//            .of(Lists.newArrayList(
+//                (Map<String, String>) ImmutableMap.<String, String>builder()
+//                  .put("connector.class", "io.debezium.connector.mysql.MySqlConnector")
+//                  .put("database.hostname", "127.0.0.1")
+//                  .put("database.port", "3306")
+//                  .put("database.user", "debezium")
+//                  .put("database.password", "dbz")
+//                  .put("database.server.id", "184054")
+//                  .put("database.server.name", "dbserver1")
+//                  .put("database.include.list", "inventory")
+//                  .put("database.history", SDFDatabaseHistory.class.getName())
+//                  .put("include.schema.changes", "false")
+//        .build()))
+//            .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
+//        .apply(ParDo.of(new KafkaSourceConsumerFn<String>(MySqlConnector.class, record -> {
+//          System.out.println("GOT RECORD - " + record.toString());
+//          return record.toString();
+//        })))
+//        .setCoder(StringUtf8Coder.of());
+//
+//    PAssert.that(counts).containsInAnyOrder();
+//    p.run().waitUntilFinish();
+//  }
   
   @Test
   public void testWordCountExample1() {
@@ -172,10 +171,21 @@ public class CounterSourceConnectorTest {
 	  Pipeline p = Pipeline.create(options);
 	  p.apply(DebeziumIO.<String>read().
 			  withConnectorConfiguration(
-					  DebeziumIO.ConnectorConfiguration.
-					  create(MySqlConnector.class, "hostname")
-					  .withUsername("weer")
-					  .withPassword("pwd")))
+					  DebeziumIO.ConnectorConfiguration.create()
+                      .withUsername("debezium")
+                      .withPassword("dbz")
+                      .withConnectorClass(MySqlConnector.class)
+                      .withHostName("127.0.0.1")
+                      .withPort("3306")
+                      .withConnectionProperties(ImmutableMap.<String,String>builder()
+                              .put("database.server.id", "184054")
+                              .put("database.server.name", "dbserver1")
+                              .put("database.include.list", "inventory")
+                              .put("database.history", SDFDatabaseHistory.class.getName())
+                              .put("include.schema.changes", "false").build()
+                      )
+              )
+      )
 	  .apply(TextIO.write().to("test"));
 	  System.out.println("Hi!");
 	  p.run().waitUntilFinish();

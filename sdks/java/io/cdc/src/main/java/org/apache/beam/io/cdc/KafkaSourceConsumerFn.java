@@ -27,7 +27,7 @@ import org.apache.kafka.connect.source.SourceTaskContext;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.joda.time.Duration;
 
-public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
+public class KafkaSourceConsumerFn<T> extends DoFn<SourceConnector, T> {
 
   static class OffsetHolder implements Serializable {
     @Nullable
@@ -79,14 +79,11 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   }
 
   public static final String BEAM_INSTANCE_PROPERTY = "beam.parent.instance";
-  private final Class<? extends SourceConnector> connectorClass;
   private final SerializableFunction<SourceRecord, T> fn;
   protected static final Map<String, RestrictionTracker<OffsetHolder,  Map<String, Object>>>
       restrictionTrackers = new ConcurrentHashMap<>();
 
-  KafkaSourceConsumerFn(Class<? extends SourceConnector> connectorClass,
-                        SerializableFunction<SourceRecord, T> fn) {
-    this.connectorClass = connectorClass;
+  public KafkaSourceConsumerFn(SerializableFunction<SourceRecord, T> fn) {
     this.fn = fn;
   }
 
@@ -107,17 +104,13 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
   @DoFn.ProcessElement
   public ProcessContinuation process(
-      @Element Map<String, String> element,
+      @Element SourceConnector conn,
       RestrictionTracker<OffsetHolder, Map<String, Object>> tracker,
       OutputReceiver<T> receiver)
       throws IllegalAccessException, InstantiationException, InterruptedException, NoSuchMethodException, InvocationTargetException {
-    Map<String, String> configuration = new HashMap<>(element);
+
     // Adding the current restriction to the class object to be found by the database history
     restrictionTrackers.put(Integer.toString(System.identityHashCode(this)), tracker);
-    configuration.put(BEAM_INSTANCE_PROPERTY,
-        Integer.toString(System.identityHashCode(this)));
-    SourceConnector conn = connectorClass.getDeclaredConstructor().newInstance();
-    conn.start(configuration);
 
     SourceTask task = (SourceTask) conn.taskClass().getDeclaredConstructor().newInstance();
     Map<String, String> taskConfig = conn.taskConfigs(1).get(0);

@@ -1,10 +1,12 @@
-package org.apache.beam.io.debezium;
+package org.apache.beam.io.cdc;
 
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import java.util.Map;
 
+import io.debezium.connector.mysql.MySqlConnector;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -46,17 +48,16 @@ public class DebeziumIO {
 	@AutoValue
 	public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
-		abstract @Nullable SerializableFunction<Void, SourceConnector> getConnectorProviderFn();
-		 
+		abstract @Nullable ConnectorConfiguration getConnectorConfiguration();
+
 		abstract @Nullable Coder<T> getCoder();
 
 		abstract Builder<T> toBuilder();
 		  
 		@AutoValue.Builder
 		abstract static class Builder<T> {
-			
-			abstract Builder<T> setConnectorProviderFn(SerializableFunction<Void, SourceConnector> dataSourceProviderFn);
-			
+
+			abstract Builder<T> setConnectorConfiguration(ConnectorConfiguration config);
 			abstract Builder<T> setCoder(Coder<T> coder);
 			
 			abstract Read<T> build();
@@ -64,11 +65,7 @@ public class DebeziumIO {
 		}
 		  
 		public Read<T> withConnectorConfiguration(final ConnectorConfiguration config) {
-			return withConnectorProviderFn(null);
-		}
-		  
-		public Read<T> withConnectorProviderFn(SerializableFunction<Void, SourceConnector> connectorProviderFn) {
-			return toBuilder().setConnectorProviderFn(connectorProviderFn).build();
+			return toBuilder().setConnectorConfiguration(config).build();
 		}
 		  
 		public Read<T> withCoder(Coder<T> coder) {
@@ -79,8 +76,7 @@ public class DebeziumIO {
 		@Override
 		public PCollection<T> expand(PBegin input){
 			LOG.info("Hello world from log.");
-			
-			//return input.apply("Create", Create.of((Void) null)).apply("ReadAll", readAll());
+
 			return (PCollection<T>) input.apply("Read", Create.ofProvider(ValueProvider.StaticValueProvider.of("sd"), StringUtf8Coder.of()));
 		}
 		  
@@ -104,7 +100,7 @@ public class DebeziumIO {
 
 		@ProcessElement
 		public void processElement(ProcessContext context) throws Exception {
-			
+
 			LOG.info("Helloa....");
 		}
 	}
@@ -125,8 +121,10 @@ public class DebeziumIO {
 		abstract @Nullable ValueProvider<String> getUsername();
 		
 		abstract @Nullable ValueProvider<String> getPassword();
-		
-		abstract @Nullable ValueProvider<String> getConnectionProperties();
+
+		abstract @Nullable ValueProvider<SourceConnector> getSourceConnector();
+
+		abstract @Nullable ValueProvider<Map<String,String>> getConnectionProperties();
 		
 		abstract Builder builder();
 		
@@ -142,30 +140,17 @@ public class DebeziumIO {
 			abstract Builder setUsername(ValueProvider<String> username);
 			
 			abstract Builder setPassword(ValueProvider<String> password);
-			
-			abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
+
+			abstract Builder setConnectionProperties(ValueProvider<Map<String,String>> connectionProperties);
+
+			abstract Builder setSourceConnector(ValueProvider<SourceConnector> sourceConnector);
 
 			abstract ConnectorConfiguration build();
 		      
 		}
 		
-		public static ConnectorConfiguration create(Class<?> connectorClass, String hostname) {
-			checkArgument(connectorClass != null, "connectorClass can not be null");
-		    checkArgument(hostname != null, "hostname can not be null");
-		    return create(
-		    		ValueProvider.StaticValueProvider.of(connectorClass),
-		            ValueProvider.StaticValueProvider.of(hostname)); 
-		}
-		
-		public static ConnectorConfiguration create(
-				ValueProvider<Class<?>> connectorClass, ValueProvider<String> hostname)
-		{
-			checkArgument(connectorClass != null, "connectorClass can not be null");
-		    checkArgument(hostname != null, "hostname can not be null");
-		    return new AutoValue_DebeziumIO_ConnectorConfiguration
-		    		.Builder()
-		    		.setConnectorClass(connectorClass)
-		    		.setHostName(hostname)
+		public static ConnectorConfiguration create() {
+		    return new AutoValue_DebeziumIO_ConnectorConfiguration.Builder()
 		    		.build();
 		}
 		
@@ -215,14 +200,49 @@ public class DebeziumIO {
 	    }
 	    
 	    //ConnectionProperties
-	    public ConnectorConfiguration withConnectionProperties(String connectionProperties) {
+	    public ConnectorConfiguration withConnectionProperties(Map<String,String> connectionProperties) {
 	      return withConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties));
 	    }
 
-	    public ConnectorConfiguration withConnectionProperties(ValueProvider<String> connectionProperties) {
+	    public ConnectorConfiguration withConnectionProperties(ValueProvider<Map<String,String>> connectionProperties) {
 	      return builder().setConnectionProperties(connectionProperties).build();
 	    }
-		
+
+	    //Source Connector
+	    public ConnectorConfiguration withSourceConnector(SourceConnector sourceConnector) {
+	      return withSourceConnector(ValueProvider.StaticValueProvider.of(sourceConnector));
+	    }
+
+	    public ConnectorConfiguration withSourceConnector(ValueProvider<SourceConnector> sourceConnector) {
+	      return builder().setSourceConnector(sourceConnector).build();
+	    }
+
+
+		public SourceConnector buildConnector() {
+			if (getSourceConnector() != null) {
+				return getSourceConnector().get();
+			}
+
+			BasicConnector basicConnector = new BasicConnector();
+			if (getConnectorClass() != null) {
+				basicConnector.setConnectorClass(getConnectorClass().getClass());
+			}
+			if (getUsername() != null) {
+				basicConnector.setUsername(getUsername().get());
+			}
+			if (getPassword() != null) {
+				basicConnector.setPassword(getPassword().get());
+			}
+			if (getHostName() != null) {
+				basicConnector.setHost(getHostName().get());
+			}
+			if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
+				basicConnector.setConnectionProperties(getConnectionProperties().get());
+			}
+
+			basicConnector.initConnector();
+			return basicConnector.getConnector();
+		}
 	}
 	
 }
