@@ -52,6 +52,7 @@ include ":release:go-licenses:py"
 
 include ":examples:java"
 include ":examples:kotlin"
+include ":examples:kafka-to-pubsub"
 include ":model:fn-execution"
 include ":model:job-management"
 include ":model:pipeline"
@@ -216,6 +217,3 @@ include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")
 include "beam-test-jenkins"
 project(":beam-test-jenkins").dir = file(".test-infra/jenkins")
-include ':examples:templates:java'
-include ':examples:templates:java:kafka-to-pubsub'
-
