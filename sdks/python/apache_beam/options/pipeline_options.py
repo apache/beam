@@ -1176,6 +1176,12 @@ class JobServerOptions(PipelineOptions):
         default=0,
         help='Port to use for artifact staging. 0 to use a '
         'dynamic port.')
+    parser.add_argument(
+        '--java_launcher',
+        default='java',
+        help='The Java Application Launcher executable file to use for '
+        'starting a Java job server. If unset, `java` from the '
+        'environment\'s $PATH is used.')
 
 
 class FlinkRunnerOptions(PipelineOptions):
