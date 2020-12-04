@@ -8,20 +8,31 @@ import io.debezium.relational.history.AbstractDatabaseHistory;
 import io.debezium.relational.history.DatabaseHistoryException;
 import io.debezium.relational.history.HistoryRecord;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.beam.io.cdc.KafkaSourceConsumerFn.OffsetHolder;
+import org.apache.beam.io.debezium.DebeziumIO;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Test;
@@ -130,4 +141,44 @@ public class CounterSourceConnectorTest {
     PAssert.that(counts).containsInAnyOrder();
     p.run().waitUntilFinish();
   }
+  
+  @Test
+  public void testWordCountExample1() {
+    // Create a PipelineOptions object. This object lets us set various execution
+    // options for our pipeline, such as the runner you wish to use. This example
+    // will run with the DirectRunner by default, based on the class path configured
+    // in its dependencies.
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(TextIO.read().from("file:///Users/osvaldo.salinas/Documents/TextFile.txt"))
+            .apply("ExtractWords", FlatMapElements
+                    .into(TypeDescriptors.strings())
+                    .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
+            .apply(Filter.by((String word) -> !word.isEmpty()))
+            .apply(Count.<String>perElement())
+            .apply("FormatResults", MapElements
+                    .into(TypeDescriptors.strings())
+                    .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
+            .apply(TextIO.write().to("wordcounts"));
+    System.out.println("Hi!");
+    p.run().waitUntilFinish();
+
+  }
+  
+  @Test
+  public void testDebeziumIO() {
+	  PipelineOptions options = PipelineOptionsFactory.create();
+	  Pipeline p = Pipeline.create(options);
+	  p.apply(DebeziumIO.<String>read().
+			  withConnectorConfiguration(
+					  DebeziumIO.ConnectorConfiguration.
+					  create(MySqlConnector.class, "hostname")
+					  .withUsername("weer")
+					  .withPassword("pwd")))
+	  .apply(TextIO.write().to("test"));
+	  System.out.println("Hi!");
+	  p.run().waitUntilFinish();
+  }
+  
 }
