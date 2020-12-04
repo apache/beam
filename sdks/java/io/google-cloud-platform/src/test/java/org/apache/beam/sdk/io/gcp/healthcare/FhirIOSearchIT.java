@@ -29,12 +29,12 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubGrpcClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -62,8 +62,7 @@ public class FhirIOSearchIT {
     return Arrays.asList("R4");
   }
 
-  @Rule
-  public transient TestPubsubSignal signal = TestPubsubSignal.create();
+  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private final String pubsubTopic;
