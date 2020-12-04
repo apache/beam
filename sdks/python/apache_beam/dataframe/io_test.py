@@ -222,7 +222,7 @@ class IOTest(unittest.TestCase):
   def test_csv_splitter(self, name, kwargs):
     def assert_frame_equal(expected, actual):
       try:
-        pd.testing.assert_frame_equal(expected, actual)
+        pandas.testing.assert_frame_equal(expected, actual)
       except AssertionError:
         print("Expected:\n", expected)
         print("Actual:\n", actual)

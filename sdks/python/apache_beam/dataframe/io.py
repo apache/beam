@@ -318,7 +318,7 @@ class _CsvSplitter(_DelimSplitter):
 
     skip_blank_lines = self._kwargs.get('skip_blank_lines', True)
     if skip_blank_lines:
-      is_blank = lambda line: re.match(b'^\s*$', line)
+      is_blank = lambda line: re.match(rb'^\s*$', line)
     else:
       is_blank = lambda line: False
 
