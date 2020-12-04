@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.ZetaSQLFunction.FunctionSignatureId;
-import java.util.List;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+
+import java.util.List;
 
 /**
  * List of ZetaSQL builtin functions supported by Beam ZetaSQL. Keep this list in sync with
@@ -395,7 +396,7 @@ class SupportedZetaSqlBuiltinFunctions {
 
           // Aggregate functions.
           FunctionSignatureId.FN_ANY_VALUE, // any_value
-          // FunctionSignatureId.FN_ARRAY_AGG, // array_agg
+          FunctionSignatureId.FN_ARRAY_AGG, // array_agg
           // FunctionSignatureId.FN_ARRAY_CONCAT_AGG, // array_concat_agg
           FunctionSignatureId.FN_AVG_INT64, // avg
           FunctionSignatureId.FN_AVG_DOUBLE, // avg
