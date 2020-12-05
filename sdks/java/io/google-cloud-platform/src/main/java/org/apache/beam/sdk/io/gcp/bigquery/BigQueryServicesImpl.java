@@ -81,7 +81,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -132,6 +134,11 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
   private static final String QUOTA_EXCEEDED = "quotaExceeded";
+
+  private static final Map<String, String> API_METRIC_LABEL =
+      ImmutableMap.of(
+          MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
+          MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
 
   @Override
   public JobService getJobService(BigQueryOptions options) {
@@ -852,6 +859,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
+                          recordError(e);
                           GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
                           if (errorInfo == null) {
                             throw e;
@@ -989,6 +997,65 @@ class BigQueryServicesImpl implements BigQueryServices {
       return errorInfo;
     }
 
+    protected void recordError(IOException e) {
+      if (e instanceof GoogleJsonResponseException) {
+        GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
+        int errorCode = ((GoogleJsonResponseException) e).getDetails().getCode();
+        String canonicalGcpStatus;
+        switch (errorCode) {
+          case 200:
+            canonicalGcpStatus = "ok";
+            break;
+          case 400:
+            canonicalGcpStatus = "out_of_range";
+            break;
+          case 401:
+            canonicalGcpStatus = "unauthenticated";
+            break;
+          case 403:
+            canonicalGcpStatus = "permission_denied";
+            break;
+          case 404:
+            canonicalGcpStatus = "not_found";
+            break;
+          case 409:
+            canonicalGcpStatus = "already_exists";
+            break;
+          case 429:
+            canonicalGcpStatus = "resource_exhausted";
+            break;
+          case 499:
+            canonicalGcpStatus = "cancelled";
+            break;
+          case 500:
+            canonicalGcpStatus = "internal";
+            break;
+          case 501:
+            canonicalGcpStatus = "not_implemented";
+            break;
+          case 503:
+            canonicalGcpStatus = "unavailable";
+            break;
+          case 504:
+            canonicalGcpStatus = "deadline_exceeded";
+            break;
+          default:
+            canonicalGcpStatus =
+                String.format(
+                    "%s(%s)", errorInfo != null ? errorInfo.getReason() : "unknown", errorCode);
+        }
+        LabeledMetrics.counter(
+                MonitoringInfoMetricName.named(
+                    MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
+                    ImmutableMap.<String, String>builder()
+                        .putAll(API_METRIC_LABEL)
+                        .put(MonitoringInfoConstants.Labels.STATUS, canonicalGcpStatus)
+                        .build()),
+                true)
+            .inc();
+      }
+    }
+
     @Override
     public Table patchTableDescription(
         TableReference tableReference, @Nullable String tableDescription)
@@ -1069,11 +1136,7 @@ class BigQueryServicesImpl implements BigQueryServices {
             ? new NullCredentialInitializer()
             : new HttpCredentialsAdapter(credential));
 
-    initBuilder.add(
-        new LatencyRecordingHttpRequestInitializer(
-            ImmutableMap.of(
-                MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
-                MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite")));
+    initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
 
     initBuilder.add(httpRequestInitializer);
     HttpRequestInitializer chainInitializer =

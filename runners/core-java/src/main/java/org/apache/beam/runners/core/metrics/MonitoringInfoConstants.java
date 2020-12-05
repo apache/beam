@@ -54,6 +54,8 @@ public final class MonitoringInfoConstants {
     public static final String WORK_REMAINING = extractUrn(MonitoringInfoSpecs.Enum.WORK_REMAINING);
     public static final String DATA_CHANNEL_READ_INDEX =
         extractUrn(MonitoringInfoSpecs.Enum.DATA_CHANNEL_READ_INDEX);
+    public static final String API_REQUEST_COUNT =
+        extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_COUNT);
   }
 
   /** Standardised MonitoringInfo labels that can be utilized by runners. */
@@ -67,6 +69,7 @@ public final class MonitoringInfoConstants {
     public static final String NAME = "NAME";
     public static final String SERVICE = "SERVICE";
     public static final String METHOD = "METHOD";
+    public static final String STATUS = "STATUS";
 
     static {
       checkArgument(PTRANSFORM.equals(extractLabel(MonitoringInfoLabels.TRANSFORM)));
@@ -79,6 +82,7 @@ public final class MonitoringInfoConstants {
       checkArgument(NAME.equals(extractLabel(MonitoringInfoLabels.NAME)));
       checkArgument(SERVICE.equals(extractLabel(MonitoringInfoLabels.SERVICE)));
       checkArgument(METHOD.equals(extractLabel(MonitoringInfoLabels.METHOD)));
+      checkArgument(STATUS.equals(extractLabel(MonitoringInfoLabels.STATUS)));
     }
   }
 
