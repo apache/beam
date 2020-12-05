@@ -15,9 +15,13 @@ Software Foundation (ASF).</li></ul><p>To install these in a Debian-based distri
    virtualenv \
    tox \
    docker-ce
+</code></pre><p>On some systems (like Ubuntu 20.04) these need to be installed also</p><pre><code>pip3 install grpcio-tools mypy-protobuf
 </code></pre><p>You also need to <a href=https://golang.org/doc/install>install Go</a>.</p><p>Once Go is installed, install goavro:</p><pre><code>$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
 $ go get github.com/linkedin/goavro
-</code></pre><p>gLinux users should configure their machines for sudoless Docker.</p><h3 id=connect-with-the-beam-community>Connect With the Beam community</h3><ol><li>Consider subscribing to the <a href=/community/contact-us/>dev@ mailing list</a>, especially
+</code></pre><p>gLinux users should configure their machines for sudoless Docker.</p><p>Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
+into a container meeting the requirements above.</p><p>You can start this container using the <a href=https://github.com/apache/beam/blob/master/start-build-env.sh>start-build-env.sh</a>
+script which is part of the Beam repo:</p><pre><code>./start-build-env.sh
+</code></pre><h3 id=connect-with-the-beam-community>Connect With the Beam community</h3><ol><li>Consider subscribing to the <a href=/community/contact-us/>dev@ mailing list</a>, especially
 if you plan to make more than one change or the change will be large. All decisions happen on the
 public dev list.</li><li>(Optionally) Join the <a href=/community/contact-us/>#beam channel of the ASF slack</a>.</li><li>Create an account on <a href=https://issues.apache.org/jira/projects/BEAM/issues>Beam issue tracker (JIRA)</a>
 (anyone can do this).</li></ol><h3 id=share-your-intent>Share your intent</h3><ol><li>Find or create an issue in the <a href=https://issues.apache.org/jira/projects/BEAM/issues>Beam issue tracker (JIRA)</a>.
