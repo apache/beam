@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.extensions.gcp.util.LatencyRecordingHttpRequestInitializer;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
@@ -69,6 +72,15 @@ class StreamingWriteFn<ErrorT, ElementT>
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
+
+  private Set<KV<String, String>> metricFilter =
+      ImmutableSet.of(
+          KV.of(
+              LatencyRecordingHttpRequestInitializer.HISTOGRAM_URN.split(":", 2)[0],
+              LatencyRecordingHttpRequestInitializer.HISTOGRAM_URN.split(":", 2)[1]),
+          KV.of(
+              MonitoringInfoConstants.Urns.API_REQUEST_COUNT.split(":", 2)[0],
+              MonitoringInfoConstants.Urns.API_REQUEST_COUNT.split(":", 2)[1]));
 
   StreamingWriteFn(
       BigQueryServices bqServices,
@@ -146,9 +158,8 @@ class StreamingWriteFn<ErrorT, ElementT>
     if (processWideContainer instanceof MetricsLogger) {
       MetricsLogger processWideMetricsLogger = (MetricsLogger) processWideContainer;
       processWideMetricsLogger.tryLoggingMetrics(
-          "BigQuery HTTP API Metrics: ",
-          LatencyRecordingHttpRequestInitializer.HISTOGRAM_URN.split(":", 2)[0],
-          LatencyRecordingHttpRequestInitializer.HISTOGRAM_URN.split(":", 2)[1],
+          "BigQuery HTTP API Metrics: \n",
+          metricFilter,
           options.getBqStreamingApiLoggingFrequencySec() * 1000L,
           true);
     }

@@ -31,6 +31,7 @@ import org.apache.beam.sdk.util.HistogramData;
 
 /** HttpRequestInitializer for recording request to response latency of Http-based API calls. */
 public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitializer {
+  // TODO: Import the URN from MonitoringInfoConstants.Urns when it's available
   public static final String HISTOGRAM_URN = " beam:metric:io:api_request_latencies:v1";
   public static final HistogramData.BucketType HISTOGRAM_BUCKET_TYPE =
       // record latency upto 60 seconds in the resolution of 20ms
