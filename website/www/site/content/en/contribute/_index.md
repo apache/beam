@@ -83,6 +83,11 @@ sudo apt-get install \
    docker-ce
 ```
 
+On some systems (like Ubuntu 20.04) these need to be installed also
+```
+pip3 install grpcio-tools mypy-protobuf
+```
+
 You also need to [install Go](https://golang.org/doc/install).
 
 Once Go is installed, install goavro:
@@ -93,6 +98,15 @@ $ go get github.com/linkedin/goavro
 ```
 
 gLinux users should configure their machines for sudoless Docker.
+
+Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
+into a container meeting the requirements above.
+
+You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh)
+script which is part of the Beam repo:
+```
+./start-build-env.sh
+```
 
 ### Connect With the Beam community
 
