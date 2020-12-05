@@ -173,18 +173,20 @@ Other runners, such as Dataflow, support specifying containers with different fl
 {{< highlight class="runner-direct" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
+export IMAGE_URL = "${IMAGE}:${TAG}"
 
 python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output /path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=embed \
---environment_config="${IMAGE}:${TAG}"
+--environment_options=docker_container_image=$IMAGE_URL
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
+export IMAGE_URL = "${IMAGE}:${TAG}"
 
 # Start a Flink job server on localhost:8099
 ./gradlew :runners:flink:1.8:job-server:runShadow
@@ -195,12 +197,13 @@ python -m apache_beam.examples.wordcount \
 --output=/path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
---environment_config="${IMAGE}:${TAG}"
+--environment_options=docker_container_image=$IMAGE_URL
 {{< /highlight >}}
 
 {{< highlight class="runner-spark-local" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
+export IMAGE_URL = "${IMAGE}:${TAG}"
 
 # Start a Spark job server on localhost:8099
 ./gradlew :runners:spark:job-server:runShadow
@@ -211,7 +214,7 @@ python -m apache_beam.examples.wordcount \
 --output=path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
---environment_config="${IMAGE}:${TAG}"
+--environment_options=docker_container_image=$IMAGE_URL
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -221,8 +224,9 @@ export REGION="us-central1"
 
 # By default, the Dataflow runner will have access to the GCR images
 # under the same project.
-export IMAGE="gcr.io/$GCP_PROJECT/beam_python_sdk_custom"
+export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
+export IMAGE_URL = "${IMAGE}:${TAG}"
 
 # Run a pipeline on Dataflow.
 # This is a Python batch pipeline, so to run on Dataflow Runner V2
@@ -236,6 +240,6 @@ python -m apache_beam.examples.wordcount \
   --region $REGION \
   --temp_location "${GCS_PATH}/tmp/" \
   --experiment=use_runner_v2 \
-  --worker_harness_container_image="${IMAGE}:${TAG}"
+  --worker_harness_container_image=$IMAGE_URL
 
 {{< /highlight >}}
