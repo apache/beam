@@ -17,11 +17,11 @@ public class Main {
 
             String outputFile;
             if (args.length == 0) {
-                logger.info("Output file name missing. Output will be saved to output.json");
-                outputFile = "output";
+                logger.info("Output file name missing. Output will be saved to capability.json");
+                outputFile = "capability";
             } else {
                 outputFile = args[0];
-                logger.info("Output will be saved to {} .json", outputFile);
+                logger.info("Output will be saved to {}.json", outputFile);
             }
             JSONArray outputDetails = new JSONArray();
 
