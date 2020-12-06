@@ -146,10 +146,10 @@ Schema.Field Field() :
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
  */
-SqlCreate SqlCreateExternalTable() :
+SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
 {
-    final Span s = Span.of();
-    final boolean replace = false;
+<#--    final Span s = Span.of();-->
+<#--    final boolean replace = false;-->
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
@@ -160,7 +160,7 @@ SqlCreate SqlCreateExternalTable() :
 }
 {
 
-    <CREATE> <EXTERNAL> <TABLE> {
+    <EXTERNAL> <TABLE> {
         s.add(this);
     }
 
