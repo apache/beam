@@ -23,29 +23,29 @@ import static PythonTestProperties.ALL_SUPPORTED_VERSIONS
 
 // This job defines the Python postcommit tests.
 ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
-    def versionSuffix = pythonVersion.replace('.', '')
-    PostcommitJobBuilder.postCommitJob("beam_PostCommit_Python${versionSuffix}",
-        "Run Python ${pythonVersion} PostCommit",
-        "Python${versionSuffix}_PC(\"Run Python ${pythonVersion} PostCommit\")", this) {
-            description('Runs Python postcommit tests using Python ${pythonVersion}.')
+  def versionSuffix = pythonVersion.replace('.', '')
+  PostcommitJobBuilder.postCommitJob("beam_PostCommit_Python${versionSuffix}",
+      "Run Python ${pythonVersion} PostCommit",
+      "Python${versionSuffix}_PC(\"Run Python ${pythonVersion} PostCommit\")", this) {
+        description('Runs Python postcommit tests using Python ${pythonVersion}.')
 
-            previousNames('/beam_PostCommit_Python3_Verify/')
+        previousNames('/beam_PostCommit_Python3_Verify/')
 
-            // Set common parameters.
-            commonJobProperties.setTopLevelMainJobProperties(delegate)
+        // Set common parameters.
+        commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-            publishers {
-                archiveJunit('**/nosetests*.xml')
-            }
-
-            // Execute shell command to test Python SDK.
-            steps {
-                gradle {
-                rootBuildScriptDir(commonJobProperties.checkoutDir)
-                tasks(":python${versionSuffix}PostCommit")
-                commonJobProperties.setGradleSwitches(delegate)
-            }
+        publishers {
+          archiveJunit('**/nosetests*.xml')
         }
-    }
+
+        // Execute shell command to test Python SDK.
+        steps {
+          gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            tasks(":python${versionSuffix}PostCommit")
+            commonJobProperties.setGradleSwitches(delegate)
+          }
+        }
+      }
 }
 
