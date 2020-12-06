@@ -94,8 +94,7 @@ public class BeamSqlLineTest {
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
-        Arrays.asList(
-            Arrays.asList("3", "hello", "2018-05-28")),
+        Arrays.asList(Arrays.asList("3", "hello", "2018-05-28")),
         everyItem(is(oneOf(lines.toArray()))));
   }
 
@@ -131,10 +130,7 @@ public class BeamSqlLineTest {
     BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
-    assertThat(
-        Arrays.asList(
-            Arrays.asList("3", "hello")),
-        everyItem(is(oneOf(lines.toArray()))));
+    assertThat(Arrays.asList(Arrays.asList("3", "hello")), everyItem(is(oneOf(lines.toArray()))));
   }
 
   @Test
@@ -152,9 +148,7 @@ public class BeamSqlLineTest {
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
-        Arrays.asList(
-            Arrays.asList("3", "2"),
-            Arrays.asList("4", "1")),
+        Arrays.asList(Arrays.asList("3", "2"), Arrays.asList("4", "1")),
         everyItem(is(oneOf(lines.toArray()))));
   }
 
@@ -174,8 +168,7 @@ public class BeamSqlLineTest {
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
         Arrays.asList(
-            Arrays.asList("2018-07-01 21:26:06", "1"),
-            Arrays.asList("2018-07-01 21:26:07", "1")),
+            Arrays.asList("2018-07-01 21:26:06", "1"), Arrays.asList("2018-07-01 21:26:07", "1")),
         everyItem(is(oneOf(lines.toArray()))));
   }
 
