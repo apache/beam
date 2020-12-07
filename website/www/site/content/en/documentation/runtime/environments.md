@@ -167,8 +167,16 @@ By default, no licenses/notices are added to the docker images.
 
 ## Using container images in pipelines
 
-The common method for providing a container image requires using the PortableRunner and setting the `--environment_config` flag to a given image path.
+The common method for providing a container image requires using the
+PortableRunner flag `--environment_config` as supported by the Portable
+Runner or by runners supported PortableRunner flags.
 Other runners, such as Dataflow, support specifying containers with different flags.
+
+<!--
+TODO(emilymye): Should be updated to PortableRunner flag --environment_options
+ (added in 2.25.0) - once this flags has been ported to DataflowRunner and
+ validated for use with other runners.
+-->
 
 {{< highlight class="runner-direct" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
@@ -180,7 +188,8 @@ python -m apache_beam.examples.wordcount \
 --output /path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=embed \
---environment_options=docker_container_image=$IMAGE_URL
+--environment_type="DOCKER" \
+--environment_config="${IMAGE_URL}"
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -188,16 +197,13 @@ export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
 export IMAGE_URL = "${IMAGE}:${TAG}"
 
-# Start a Flink job server on localhost:8099
-./gradlew :runners:flink:1.8:job-server:runShadow
-
-# Run a pipeline on the Flink job server
+# Run a pipeline using the FlinkRunner which starts a Flink job server.
 python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
---output=/path/to/write/counts \
---runner=PortableRunner \
---job_endpoint=localhost:8099 \
---environment_options=docker_container_image=$IMAGE_URL
+--output=path/to/write/counts \
+--runner=FlinkRunner \
+--environment_type="DOCKER" \
+--environment_config="${IMAGE_URL}"
 {{< /highlight >}}
 
 {{< highlight class="runner-spark-local" >}}
@@ -205,16 +211,13 @@ export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
 export IMAGE_URL = "${IMAGE}:${TAG}"
 
-# Start a Spark job server on localhost:8099
-./gradlew :runners:spark:job-server:runShadow
-
-# Run a pipeline on the Spark job server
+# Run a pipeline using the SparkRunner which starts the Spark job server
 python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output=path/to/write/counts \
---runner=PortableRunner \
---job_endpoint=localhost:8099 \
---environment_options=docker_container_image=$IMAGE_URL
+--runner=SparkRunner \
+--environment_type="DOCKER" \
+--environment_config="${IMAGE_URL}"
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
