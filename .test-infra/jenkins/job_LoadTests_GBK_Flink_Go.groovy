@@ -180,7 +180,7 @@ def batchScenarios = {
   ]
   .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
   .collectMany { test ->
-    TESTS_TO_SKIP.any { element -> test.pipelineOptions.job_name.startsWith(element) } ? [] : [test]
+    TESTS_TO_SKIP.any { element -> test.pipelineOptions.job_name.startsWith(element) } ? []: [test]
   }
 }
 
