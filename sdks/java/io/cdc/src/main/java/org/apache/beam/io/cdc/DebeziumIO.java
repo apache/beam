@@ -9,6 +9,7 @@ import java.util.Map;
 import io.debezium.connector.mysql.MySqlConnector;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -18,6 +19,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,8 +78,17 @@ public class DebeziumIO {
 		@Override
 		public PCollection<T> expand(PBegin input){
 			LOG.info("Hello world from log.");
-
-			return (PCollection<T>) input.apply("Read", Create.ofProvider(ValueProvider.StaticValueProvider.of("sd"), StringUtf8Coder.of()));
+			
+			return (PCollection<T>) input
+					.apply(Create.of(
+							Lists.newArrayList(getConnectorConfiguration().getConfigurationMap()))
+							.withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
+					.apply(ParDo.of(new KafkaSourceConsumerFn<String>((Class<? extends SourceConnector>) getConnectorConfiguration().getConnectorClass().get(),
+					record -> {
+			          System.out.println("GOT RECORD - " + record.toString());
+			          return record.toString();
+			        })));
+			//return (PCollection<T>) input.apply("Read", Create.ofProvider(ValueProvider.StaticValueProvider.of("sd"), StringUtf8Coder.of()));
 		}
 		  
 	}
@@ -218,14 +229,14 @@ public class DebeziumIO {
 	    }
 
 
-		public SourceConnector buildConnector() {
+		public SourceConnector buildConnector() throws Exception {
 			if (getSourceConnector() != null) {
 				return getSourceConnector().get();
 			}
 
 			BasicConnector basicConnector = new BasicConnector();
 			if (getConnectorClass() != null) {
-				basicConnector.setConnectorClass(getConnectorClass().getClass());
+				basicConnector.setConnectorClass(getConnectorClass().get());
 			}
 			if (getUsername() != null) {
 				basicConnector.setUsername(getUsername().get());
@@ -242,6 +253,27 @@ public class DebeziumIO {
 
 			basicConnector.initConnector();
 			return basicConnector.getConnector();
+		}
+		
+		public Map<String, String> getConfigurationMap() 
+		{
+			BasicConnector basicConnector = new BasicConnector();
+			if (getConnectorClass() != null) {
+				basicConnector.setConnectorClass(getConnectorClass().get());
+			}
+			if (getUsername() != null) {
+				basicConnector.setUsername(getUsername().get());
+			}
+			if (getPassword() != null) {
+				basicConnector.setPassword(getPassword().get());
+			}
+			if (getHostName() != null) {
+				basicConnector.setHost(getHostName().get());
+			}
+			if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
+				basicConnector.setConnectionProperties(getConnectionProperties().get());
+			}
+			return basicConnector.getConfiguration();
 		}
 	}
 	

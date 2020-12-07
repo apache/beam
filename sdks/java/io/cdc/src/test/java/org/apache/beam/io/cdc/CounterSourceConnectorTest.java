@@ -185,9 +185,9 @@ public class CounterSourceConnectorTest {
                               .put("include.schema.changes", "false").build()
                       )
               )
-      )
-	  .apply(TextIO.write().to("test"));
-	  System.out.println("Hi!");
+      ).setCoder(StringUtf8Coder.of());
+	  //.apply(TextIO.write().to("test"));
+
 	  p.run().waitUntilFinish();
   }
   

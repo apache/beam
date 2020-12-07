@@ -1,6 +1,5 @@
 package org.apache.beam.io.cdc;
 
-import io.debezium.connector.mysql.MySqlConnector;
 import org.apache.kafka.connect.source.SourceConnector;
 
 import java.util.HashMap;
@@ -68,7 +67,7 @@ public class BasicConnector {
         this.connectionProperties = connectionProperties;
     }
 
-    private Map<String, String> getConfiguration() {
+    public Map<String, String> getConfiguration() {
         if(this.configuration != null) {
             return this.configuration;
         }
@@ -88,10 +87,10 @@ public class BasicConnector {
         return configuration;
     }
 
-    public void initConnector() {
+    public void initConnector() throws Exception {
         // TODO: create source connectors from source connector name
         if(this.connector == null) {
-            this.connector = new MySqlConnector();
+            this.connector = (SourceConnector) getConnectorClass().getDeclaredConstructor().newInstance();
         }
 
         this.connector.start(this.getConfiguration());
