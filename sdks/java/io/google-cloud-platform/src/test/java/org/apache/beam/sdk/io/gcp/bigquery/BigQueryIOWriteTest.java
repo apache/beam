@@ -242,6 +242,12 @@ public class BigQueryIOWriteTest implements Serializable {
     writeDynamicDestinations(true, true);
   }
 
+  @Test
+  public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
+    options.as(BigQueryOptions.class).setEnableStreamingAutoSharding(true);
+    writeDynamicDestinations(true, true);
+  }
+
   public void writeDynamicDestinations(boolean streaming, boolean schemas) throws Exception {
     final Schema schema =
         Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
@@ -860,6 +866,16 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStreamingWrite() throws Exception {
+    streamingWrite();
+  }
+
+  @Test
+  public void testStreamingWriteWithAutoSharding() throws Exception {
+    options.as(BigQueryOptions.class).setEnableStreamingAutoSharding(true);
+    streamingWrite();
+  }
+
+  private void streamingWrite() throws Exception {
     p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
