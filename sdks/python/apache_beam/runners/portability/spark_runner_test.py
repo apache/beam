@@ -168,6 +168,10 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Spark runner supports bundle finalization.
     raise unittest.SkipTest("BEAM-7233")
 
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    # Skip until Spark runner supports SDF and self-checkpoint.
+    raise unittest.SkipTest("BEAM-7222")
+
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
     # https://jira.apache.org/jira/browse/BEAM-7236
