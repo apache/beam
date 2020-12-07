@@ -926,16 +926,15 @@ class BigQueryWrapper(object):
     # WRITE_TRUNCATE write dispositions.
     if found_table and write_disposition in (
         BigQueryDisposition.WRITE_EMPTY, BigQueryDisposition.WRITE_TRUNCATE):
-      table_empty = self._is_table_empty(project_id, dataset_id, table_id)
-      if (not table_empty and
-          write_disposition == BigQueryDisposition.WRITE_EMPTY):
-        raise RuntimeError(
-            'Table %s:%s.%s is not empty but write disposition is WRITE_EMPTY.'
-            % (project_id, dataset_id, table_id))
       # Delete the table and recreate it (later) if WRITE_TRUNCATE was
       # specified.
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
         self._delete_table(project_id, dataset_id, table_id)
+      elif (not self._is_table_empty(project_id, dataset_id, table_id) and
+          write_disposition == BigQueryDisposition.WRITE_EMPTY):
+        raise RuntimeError(
+            'Table %s:%s.%s is not empty but write disposition is WRITE_EMPTY.'
+            % (project_id, dataset_id, table_id))
 
     # Create a new table potentially reusing the schema from a previously
     # found table in case the schema was not specified.
