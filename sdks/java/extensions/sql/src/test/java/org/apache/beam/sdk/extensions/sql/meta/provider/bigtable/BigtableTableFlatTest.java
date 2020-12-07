@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.COLUMNS_MAPPING;
+import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.KEY;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.KEY1;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.KEY2;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.TEST_FLAT_SCHEMA;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -97,12 +99,12 @@ public class BigtableTableFlatTest extends BigtableTableTest {
 
     String query =
         "SELECT \n"
-            + "  ft.key, \n"
-            + "  ft.boolColumn, \n"
-            + "  ft.longColumn, \n"
-            + "  ft.stringColumn, \n"
-            + "  ft.doubleColumn \n"
-            + "FROM flatTable ft";
+            + "  key, \n"
+            + "  boolColumn, \n"
+            + "  longColumn, \n"
+            + "  stringColumn, \n"
+            + "  doubleColumn \n"
+            + "FROM flatTable";
 
     sqlEnv.parseQuery(query);
     PCollection<Row> queryOutput =
@@ -111,6 +113,24 @@ public class BigtableTableFlatTest extends BigtableTableTest {
     assertThat(queryOutput.getSchema(), equalTo(TEST_FLAT_SCHEMA));
 
     PAssert.that(queryOutput).containsInAnyOrder(row(KEY1), row(KEY2));
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSelectFlatKeyRegexQuery() throws Exception {
+    createReadTable("regexTable");
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());
+    sqlEnv.executeDdl(createFlatTableString("regexTable"));
+
+    String query = "SELECT key FROM regexTable WHERE key LIKE '^key[0134]{1}'";
+
+    sqlEnv.parseQuery(query);
+    PCollection<Row> queryOutput =
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(query));
+
+    assertThat(queryOutput.getSchema(), equalTo(filterSchema()));
+
+    PAssert.that(queryOutput).containsInAnyOrder(filterRow(KEY1));
     readPipeline.run().waitUntilFinish();
   }
 
@@ -134,6 +154,14 @@ public class BigtableTableFlatTest extends BigtableTableTest {
 
     PAssert.that(bigTableRows).containsInAnyOrder(bigTableRow());
     readPipeline.run().waitUntilFinish();
+  }
+
+  private Schema filterSchema() {
+    return Schema.builder().addStringField(KEY).build();
+  }
+
+  private Row filterRow(String key) {
+    return Row.withSchema(filterSchema()).attachValues(key);
   }
 
   private static class ReplaceCellTimestamp
