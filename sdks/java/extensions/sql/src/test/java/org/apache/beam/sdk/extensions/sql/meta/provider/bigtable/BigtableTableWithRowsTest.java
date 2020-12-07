@@ -71,7 +71,7 @@ public class BigtableTableWithRowsTest extends BigtableTableTest {
         + ") \n"
         + "TYPE bigtable \n"
         + "LOCATION '"
-        + getLocation()
+        + getLocation("beamTable")
         + "'";
   }
 
@@ -89,7 +89,8 @@ public class BigtableTableWithRowsTest extends BigtableTableTest {
   }
 
   @Test
-  public void testSimpleSelect() {
+  public void testSimpleSelect() throws Exception {
+    createReadTable("beamTable");
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());
     sqlEnv.executeDdl(createTableString());
     String query =
@@ -105,7 +106,7 @@ public class BigtableTableWithRowsTest extends BigtableTableTest {
             + "FROM beamTable bt";
     sqlEnv.parseQuery(query);
     PCollection<Row> queryOutput =
-        BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(query));
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(query));
 
     assertThat(queryOutput.getSchema(), equalTo(expectedSchema()));
 
@@ -114,7 +115,7 @@ public class BigtableTableWithRowsTest extends BigtableTableTest {
 
     PAssert.that(sorted)
         .containsInAnyOrder(row(expectedSchema(), KEY1), row(expectedSchema(), KEY2));
-    pipeline.run().waitUntilFinish();
+    readPipeline.run().waitUntilFinish();
   }
 
   private static Schema expectedSchema() {

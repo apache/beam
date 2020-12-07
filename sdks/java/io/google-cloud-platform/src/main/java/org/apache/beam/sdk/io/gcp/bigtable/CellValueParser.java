@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.bigtable.v2.Cell;
@@ -65,6 +66,37 @@ class CellValueParser implements Serializable {
         throw new IllegalArgumentException(
             String.format("Unsupported cell value type '%s'.", type));
     }
+  }
+
+  ByteString valueToByteString(Object value, Schema.TypeName type) {
+    switch (type) {
+      case BOOLEAN:
+        return byteString(((Boolean) value) ? new byte[] {1} : new byte[] {0});
+      case FLOAT:
+        return byteString(Ints.toByteArray(Float.floatToIntBits((Float) value)));
+      case DOUBLE:
+        return byteString(Longs.toByteArray(Double.doubleToLongBits((Double) value)));
+      case BYTE:
+        return byteString(new byte[] {(Byte) value});
+      case INT16:
+        return byteString(Shorts.toByteArray((Short) value));
+      case INT32:
+        return byteString(Ints.toByteArray((Integer) value));
+      case INT64:
+        return byteString(Longs.toByteArray((Long) value));
+      case STRING:
+        return byteString(((String) value).getBytes(UTF_8));
+      case BYTES:
+        return byteString((byte[]) value);
+      case DATETIME:
+        return byteString(value.toString().getBytes(UTF_8));
+      default:
+        throw new IllegalStateException("Unsupported type: " + type);
+    }
+  }
+
+  private ByteString byteString(byte[] value) {
+    return ByteString.copyFrom(value);
   }
 
   private String message(String type, int byteSize) {

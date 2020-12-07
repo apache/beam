@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.FAMILY_TEST;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.LATER;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.NOW;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.booleanToByteArray;
@@ -25,7 +27,10 @@ import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.doubleToByteA
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
+import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
+import java.util.List;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 
@@ -35,6 +40,27 @@ public class TestUtils {
     return com.google.bigtable.v2.Row.newBuilder()
         .setKey(ByteString.copyFromUtf8("key" + i))
         .addFamilies(bigtableFamily())
+        .build();
+  }
+
+  static KV<ByteString, Iterable<Mutation>> rowMutation(long i) {
+    List<Mutation> mutations =
+        ImmutableList.of(
+            mutation("boolColumn", ByteString.copyFrom(booleanToByteArray(false))),
+            mutation("doubleColumn", ByteString.copyFrom(doubleToByteArray(5.5))),
+            mutation("longColumn", ByteString.copyFrom(Longs.toByteArray(2L))),
+            mutation("stringColumn", ByteString.copyFromUtf8("value1")));
+    return KV.of(ByteString.copyFrom(("key" + i).getBytes(UTF_8)), mutations);
+  }
+
+  private static Mutation mutation(String column, ByteString value) {
+    return Mutation.newBuilder()
+        .setSetCell(
+            Mutation.SetCell.newBuilder()
+                .setFamilyName(FAMILY_TEST)
+                .setColumnQualifier(ByteString.copyFromUtf8(column))
+                .setValue(value)
+                .build())
         .build();
   }
 
