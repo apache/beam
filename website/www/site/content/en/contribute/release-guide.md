@@ -575,7 +575,7 @@ For this step, we recommend you using automation script to create a RC, but you 
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run -it --entrypoint=/bin/bash apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
