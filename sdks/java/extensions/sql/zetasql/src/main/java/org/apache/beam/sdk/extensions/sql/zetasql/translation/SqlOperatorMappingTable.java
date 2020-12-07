@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
-import java.util.Map;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+
+import java.util.Map;
 
 /** SqlOperatorMappingTable. */
 class SqlOperatorMappingTable {
@@ -76,6 +77,7 @@ class SqlOperatorMappingTable {
           // https://issues.apache.org/jira/browse/BEAM-10379
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
+          .put("bit_xor", SqlOperators.BIT_XOR)
           .put("ceil", SqlStdOperatorTable.CEIL)
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)

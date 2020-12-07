@@ -17,32 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.util.Map;
-import java.util.function.Function;
-import org.apache.beam.sdk.coders.BigDecimalCoder;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.Sample;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.Map;
+import java.util.function.Function;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 @SuppressWarnings({
@@ -62,6 +54,7 @@ public class BeamBuiltinAggregations {
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
+              .put("BIT_XOR", BeamBuiltinAggregations::createBitXOr)
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
@@ -433,4 +426,43 @@ public class BeamBuiltinAggregations {
       return accum;
     }
   }
+
+  public  static CombineFn createBitXOr(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitXOr();
+    }
+    throw new UnsupportedOperationException(String.format("[%s] is not supported in BIT_XOR", fieldType));
+  }
+
+  public static class BitXOr extends CombineFn<Integer, Integer, Integer> {
+
+    @Override
+    public Integer createAccumulator() {
+      return 0;
+    }
+
+    @Override
+    public Integer addInput(Integer mutableAccumulator, Integer input) {
+      if (input != null) {
+        return mutableAccumulator ^ input;
+      }else {
+        return 0;
+      }
+    }
+
+    @Override
+    public Integer mergeAccumulators(Iterable<Integer> accumulators) {
+      Integer merged = createAccumulator();
+      for (Integer accum : accumulators) {
+        merged = merged ^ accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Integer extractOutput(Integer accumulator) {
+      return accumulator;
+    }
+  }
+
 }
