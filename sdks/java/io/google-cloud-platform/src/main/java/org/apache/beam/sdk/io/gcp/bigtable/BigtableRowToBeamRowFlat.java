@@ -35,7 +35,8 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>Requires a mapping which column family corresponds to which column
  *
- * <p>Bigtable row is mapped to Beam row in the following way:
+ * <p>Bigtable {@link com.google.bigtable.v2.Row} is mapped to Beam {@link Row} in the following
+ * way:
  *
  * <p>row: key, columnFamily[] -> BEAM_ROW
  *
@@ -45,11 +46,11 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>cell: value, timestampMicros, labels -> VALUE
  *
- * <p>Mapped Beam row:
+ * <p>Mapped Beam {@link Row}:
  *
  * <p>BEAM_ROW: ROW<key STRING, [columnQualifier VALUE]+>
  *
- * <p>VALUE: SQL type except for ARRAY, DECIMAL, ITERABLE, MAP, ROW
+ * <p>VALUE: Beam {@link Schema} type except for ARRAY, DECIMAL, ITERABLE, MAP, ROW
  */
 public class BigtableRowToBeamRowFlat
     extends PTransform<PCollection<com.google.bigtable.v2.Row>, PCollection<Row>> {

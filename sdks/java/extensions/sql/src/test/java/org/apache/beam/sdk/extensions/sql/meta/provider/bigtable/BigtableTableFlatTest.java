@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.COLUMNS_MAPPING;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.KEY1;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.KEY2;
 import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.TEST_FLAT_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.bigTableRow;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.setFixedTimestamp;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -33,9 +35,14 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.junit.Rule;
 import org.junit.Test;
 
 @SuppressWarnings({
@@ -43,8 +50,12 @@ import org.junit.Test;
 })
 public class BigtableTableFlatTest extends BigtableTableTest {
 
-  private String createFlatTableString() {
-    return "CREATE EXTERNAL TABLE flatTable( \n"
+  @Rule public TestPipeline writePipeline = TestPipeline.create();
+
+  private String createFlatTableString(String table) {
+    return "CREATE EXTERNAL TABLE "
+        + table
+        + "( \n"
         + "  key VARCHAR NOT NULL, \n"
         + "  boolColumn BOOLEAN NOT NULL, \n"
         + "  longColumn BIGINT NOT NULL, \n"
@@ -53,11 +64,11 @@ public class BigtableTableFlatTest extends BigtableTableTest {
         + ") \n"
         + "TYPE bigtable \n"
         + "LOCATION '"
-        + getLocation()
+        + getLocation(table)
         + "' \n"
         + "TBLPROPERTIES '{ \n"
         + "  \"columnsMapping\": \""
-        + getColumnsMappingString()
+        + columnsMappingString()
         + "\"}'";
   }
 
@@ -67,7 +78,7 @@ public class BigtableTableFlatTest extends BigtableTableTest {
     metaStore.registerProvider(new BigtableTableProvider());
 
     BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
-    cli.execute(createFlatTableString());
+    cli.execute(createFlatTableString("flatTable"));
 
     Table table = metaStore.getTables().get("flatTable");
     assertNotNull(table);
@@ -75,13 +86,14 @@ public class BigtableTableFlatTest extends BigtableTableTest {
 
     JSONObject properties = table.getProperties();
     assertTrue(properties.containsKey(COLUMNS_MAPPING));
-    assertEquals(getColumnsMappingString(), properties.getString(COLUMNS_MAPPING));
+    assertEquals(columnsMappingString(), properties.getString(COLUMNS_MAPPING));
   }
 
   @Test
-  public void testSimpleSelectFlat() {
+  public void testSimpleSelectFlat() throws Exception {
+    createReadTable("flatTable");
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());
-    sqlEnv.executeDdl(createFlatTableString());
+    sqlEnv.executeDdl(createFlatTableString("flatTable"));
 
     String query =
         "SELECT \n"
@@ -94,20 +106,58 @@ public class BigtableTableFlatTest extends BigtableTableTest {
 
     sqlEnv.parseQuery(query);
     PCollection<Row> queryOutput =
-        BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(query));
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(query));
 
     assertThat(queryOutput.getSchema(), equalTo(TEST_FLAT_SCHEMA));
 
     PAssert.that(queryOutput).containsInAnyOrder(row(KEY1), row(KEY2));
-    pipeline.run().waitUntilFinish();
+    readPipeline.run().waitUntilFinish();
   }
 
-  private String getColumnsMappingString() {
+  @Test
+  public void testSimpleInsert() {
+    createTable("beamWriteTable");
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());
+    sqlEnv.executeDdl(createFlatTableString("beamWriteTable"));
+
+    String query =
+        "INSERT INTO beamWriteTable(key, boolColumn, longColumn, stringColumn, doubleColumn) "
+            + "VALUES ('key', TRUE, 10, 'stringValue', 5.5)";
+
+    BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(query));
+    writePipeline.run().waitUntilFinish();
+
+    PCollection<com.google.bigtable.v2.Row> bigTableRows =
+        readPipeline
+            .apply(readTransform("beamWriteTable"))
+            .apply(MapElements.via(new ReplaceCellTimestamp()));
+
+    PAssert.that(bigTableRows).containsInAnyOrder(bigTableRow());
+    readPipeline.run().waitUntilFinish();
+  }
+
+  private static class ReplaceCellTimestamp
+      extends SimpleFunction<com.google.bigtable.v2.Row, com.google.bigtable.v2.Row> {
+    @Override
+    public com.google.bigtable.v2.Row apply(com.google.bigtable.v2.Row input) {
+      return setFixedTimestamp(input);
+    }
+  }
+
+  private String columnsMappingString() {
     return "familyTest:boolColumn,familyTest:longColumn,familyTest:doubleColumn,"
         + "familyTest:stringColumn";
   }
 
   private static Row row(String key) {
     return Row.withSchema(TEST_FLAT_SCHEMA).attachValues(key, false, 2L, "string2", 2.20);
+  }
+
+  private static BigtableIO.Read readTransform(String table) {
+    return BigtableIO.read()
+        .withProjectId("fakeProject")
+        .withInstanceId("fakeInstance")
+        .withTableId(table)
+        .withEmulator("localhost:" + BIGTABLE_EMULATOR.getPort());
   }
 }
