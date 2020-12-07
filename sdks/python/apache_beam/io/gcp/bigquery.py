@@ -1127,6 +1127,11 @@ class BigQueryWriteFn(DoFn):
     self.test_client = test_client
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
+    if write_disposition in (BigQueryDisposition.WRITE_EMPTY,
+                             BigQueryDisposition.WRITE_TRUNCATE):
+      raise ValueError(
+          'Write disposition %s is not supported for'
+          ' streaming inserts to BigQuery' % write_disposition)
     self._rows_buffer = []
     self._reset_rows_buffer()
 
