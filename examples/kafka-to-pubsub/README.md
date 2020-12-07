@@ -17,7 +17,7 @@
     under the License.
 -->
 
-# Apache Beam Template to ingest data from Apache Kafka to Google Cloud Pub/Sub
+# Apache Beam pipeline example to ingest data from Apache Kafka to Google Cloud Pub/Sub
 
 This directory contains an [Apache Beam](https://beam.apache.org/) pipeline example that creates a pipeline
 to read data from a single or multiple topics from
@@ -36,7 +36,7 @@ Supported input source configurations:
 Supported destination configuration:
 - Single Google Cloud Pub/Sub topic.
 
-In a simple scenario, the template will create an Apache Beam pipeline that will read messages from a source Kafka server with a source topic, and stream the text messages into specified Pub/Sub destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed over plain text or SSL encrypted connection. The template supports using a single Kafka user account to authenticate in the provided source Kafka servers and topics. To support SASL authenticaton over SSL the template will need an SSL certificate location and access to a secrets vault service with Kafka username and password, currently supporting HashiCorp Vault.
+In a simple scenario, the example will create an Apache Beam pipeline that will read messages from a source Kafka server with a source topic, and stream the text messages into specified Pub/Sub destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed over plain text or SSL encrypted connection. The example supports using a single Kafka user account to authenticate in the provided source Kafka servers and topics. To support SASL authenticaton over SSL the example will need an SSL certificate location and access to a secrets vault service with Kafka username and password, currently supporting HashiCorp Vault.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ In a simple scenario, the template will create an Apache Beam pipeline that will
 
 ## Getting Started
 
-This section describes what is needed to get the template up and running.
+This section describes what is needed to get the exaple up and running.
 - Assembling the Uber-JAR
 - Local execution
 - Google Dataflow Template
@@ -61,7 +61,7 @@ This section describes what is needed to get the template up and running.
 
 ## Assembling the Uber-JAR
 
-To run this template the template Java project should be built into
+To run this example the Java project should be built into
 an Uber JAR file.
 
 Navigate to the Beam folder:
@@ -129,16 +129,16 @@ This example also exists as Google Dataflow Template, see its [README.md](https:
 
 ## AVRO format transferring.
 
-This template contains an example demonstrating AVRO format support:
+This example contains an example demonstrating AVRO format support:
 - Define custom Class to deserialize AVRO from Kafka [provided in example]
 - Create custom data serialization in Apache Beam
 - Serialize data to AVRO in Pub/Sub [provided in example].
 
 To use this example in the specific case, follow these steps:
 
-- Create your own class to describe AVRO schema. As an example use [AvroDataClass](src/main/java/org/apache/beam/templates/avro/AvroDataClass.java). Just define necessary fields.
-- Create your own Avro Deserializer class. As an example use [AvroDataClassKafkaAvroDeserializer class](src/main/java/org/apache/beam/templates/avro/AvroDataClassKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
-- Modify the [FormatTransform.readAvrosFromKafka method](src/main/java/org/apache/beam/templates/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
+- Create your own class to describe AVRO schema. As an example use [AvroDataClass](src/main/java/org/apache/beam/examples/avro/AvroDataClass.java). Just define necessary fields.
+- Create your own Avro Deserializer class. As an example use [AvroDataClassKafkaAvroDeserializer class](src/main/java/org/apache/beam/examples/avro/AvroDataClassKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
+- Modify the [FormatTransform.readAvrosFromKafka method](src/main/java/org/apache/beam/examples/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
 ```java
 return KafkaIO.<String, AvroDataClass>read()
         ...
@@ -147,7 +147,7 @@ return KafkaIO.<String, AvroDataClass>read()
         ...
 ```
 - [OPTIONAL TO IMPLEMENT] Add [Beam Transform](https://beam.apache.org/documentation/programming-guide/#transforms) if it necessary in your case.
-- Modify the write step in the [KafkaToPubsub class](src/main/java/org/apache/beam/templates/KafkaToPubsub.java) by putting your Schema class to "writeAvrosToPubSub" step.
+- Modify the write step in the [KafkaToPubsub class](src/main/java/org/apache/beam/examples/KafkaToPubsub.java) by putting your Schema class to "writeAvrosToPubSub" step.
     - NOTE: if it changed during the transform, you should use changed one class definition.
 ```java
 if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
