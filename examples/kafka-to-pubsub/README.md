@@ -19,7 +19,7 @@
 
 # Apache Beam Template to ingest data from Apache Kafka to Google Cloud Pub/Sub
 
-This directory contains an [Apache Beam](https://beam.apache.org/) Template that creates a pipeline
+This directory contains an [Apache Beam](https://beam.apache.org/) pipeline example that creates a pipeline
 to read data from a single or multiple topics from
 [Apache Kafka](https://kafka.apache.org/) and write data into a single topic
 in [Google Cloud Pub/Sub](https://cloud.google.com/pubsub).
