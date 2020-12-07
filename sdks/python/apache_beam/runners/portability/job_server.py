@@ -129,7 +129,7 @@ class JavaJarJobServer(SubprocessJobServer):
     self._artifact_port = options.artifact_port
     self._expansion_port = options.expansion_port
     self._artifacts_dir = options.artifacts_dir
-    self._java_launcher = options.java_launcher
+    self._java_launcher = options.job_server_java_launcher
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):
