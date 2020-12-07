@@ -98,14 +98,10 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	if presultErr != nil {
 		if err != nil {
 			return presult, errors.Wrap(err, presultErr.Error())
-		} else {
-			return presult, presultErr
 		}
-	} else {
-		presult = res
+		return presult, presultErr
 	}
-
-	return presult, err
+	return res, err
 }
 
 type universalPipelineResult struct {
