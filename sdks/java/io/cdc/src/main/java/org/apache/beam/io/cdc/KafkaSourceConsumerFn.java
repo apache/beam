@@ -84,9 +84,9 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   protected static final Map<String, RestrictionTracker<OffsetHolder,  Map<String, Object>>>
       restrictionTrackers = new ConcurrentHashMap<>();
 
-  KafkaSourceConsumerFn(Class<? extends SourceConnector> connectorClass,
+  KafkaSourceConsumerFn(Class<?> connectorClass,
                         SerializableFunction<SourceRecord, T> fn) {
-    this.connectorClass = connectorClass;
+    this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
   }
 

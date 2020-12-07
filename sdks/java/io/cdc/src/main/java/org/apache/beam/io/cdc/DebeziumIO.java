@@ -4,16 +4,18 @@ package org.apache.beam.io.cdc;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 
-import io.debezium.connector.mysql.MySqlConnector;
+import javax.sql.DataSource;
+
 import org.apache.kafka.connect.source.SourceConnector;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -39,9 +41,9 @@ public class DebeziumIO {
 		return new AutoValue_DebeziumIO_Read.Builder<T>().build();
 	}
 	
-	public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
-		return new AutoValue_DebeziumIO_ReadAll.Builder<ParameterT, OutputT>().build();
-	}
+//	public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
+//		return new AutoValue_DebeziumIO_ReadAll.Builder<ParameterT, OutputT>().build();
+//	}
 	
 	/** Disallow construction of utility class. */
 	private DebeziumIO() {}
@@ -51,6 +53,8 @@ public class DebeziumIO {
 	public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
 		abstract @Nullable ConnectorConfiguration getConnectorConfiguration();
+		
+		abstract @Nullable SerializableFunction<SourceRecord, T> getFormatFunction();
 
 		abstract @Nullable Coder<T> getCoder();
 
@@ -61,7 +65,7 @@ public class DebeziumIO {
 
 			abstract Builder<T> setConnectorConfiguration(ConnectorConfiguration config);
 			abstract Builder<T> setCoder(Coder<T> coder);
-			
+			abstract Builder<T> setFormatFunction(SerializableFunction<SourceRecord, T> mapperFn);
 			abstract Read<T> build();
 			  
 		}
@@ -69,52 +73,57 @@ public class DebeziumIO {
 		public Read<T> withConnectorConfiguration(final ConnectorConfiguration config) {
 			return toBuilder().setConnectorConfiguration(config).build();
 		}
+		
+		public Read<T> withFormatFunction(SerializableFunction<SourceRecord, T> mapperFn) {
+			return toBuilder().setFormatFunction(mapperFn).build();
+		}
 		  
 		public Read<T> withCoder(Coder<T> coder) {
 			checkArgument(coder != null, "coder can not be null");
 		    return toBuilder().setCoder(coder).build();
 		}
 		
+		
+		
 		@Override
 		public PCollection<T> expand(PBegin input){
 			LOG.info("Hello world from log.");
-			
-			return (PCollection<T>) input
+			return input
 					.apply(Create.of(
 							Lists.newArrayList(getConnectorConfiguration().getConfigurationMap()))
 							.withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-					.apply(ParDo.of(new KafkaSourceConsumerFn<String>((Class<? extends SourceConnector>) getConnectorConfiguration().getConnectorClass().get(),
-					record -> {
-			          System.out.println("GOT RECORD - " + record.toString());
-			          return record.toString();
-			        })));
+					.apply(ParDo.of(
+							new KafkaSourceConsumerFn<T>(
+									getConnectorConfiguration().getConnectorClass().get(),
+									getFormatFunction()))
+							);
 			//return (PCollection<T>) input.apply("Read", Create.ofProvider(ValueProvider.StaticValueProvider.of("sd"), StringUtf8Coder.of()));
 		}
 		  
 	}
-	/** Implementation of {@link #readAll}. */
-	@AutoValue
-	public abstract static class ReadAll<ParameterT, OutputT>
-		extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
-		@AutoValue.Builder
-		abstract static class Builder<ParameterT, OutputT> {
-			abstract ReadAll<ParameterT, OutputT> build();
-		}
-		@Override
-		public PCollection<OutputT> expand(PCollection<ParameterT> input) {
-			PCollection<OutputT> output = input.apply("Read", ParDo.of(new ReadFn<>()));
-			return output;
-		}
-	}
-	
-	private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
-
-		@ProcessElement
-		public void processElement(ProcessContext context) throws Exception {
-
-			LOG.info("Helloa....");
-		}
-	}
+//	/** Implementation of {@link #readAll}. */
+//	@AutoValue
+//	public abstract static class ReadAll<ParameterT, OutputT>
+//		extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
+//		@AutoValue.Builder
+//		abstract static class Builder<ParameterT, OutputT> {
+//			abstract ReadAll<ParameterT, OutputT> build();
+//		}
+//		@Override
+//		public PCollection<OutputT> expand(PCollection<ParameterT> input) {
+//			PCollection<OutputT> output = input.apply("Read", ParDo.of(new ReadFn<>()));
+//			return output;
+//		}
+//	}
+//	
+//	private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
+//
+//		@ProcessElement
+//		public void processElement(ProcessContext context) throws Exception {
+//
+//			LOG.info("Helloa....");
+//		}
+//	}
 	
 	
 	/**
@@ -162,6 +171,8 @@ public class DebeziumIO {
 		
 		public static ConnectorConfiguration create() {
 		    return new AutoValue_DebeziumIO_ConnectorConfiguration.Builder()
+		    		.setConnectionProperties(
+		    				ValueProvider.StaticValueProvider.of(new HashMap<String, String>()))
 		    		.build();
 		}
 		
@@ -218,6 +229,13 @@ public class DebeziumIO {
 	    public ConnectorConfiguration withConnectionProperties(ValueProvider<Map<String,String>> connectionProperties) {
 	      return builder().setConnectionProperties(connectionProperties).build();
 	    }
+	    
+	    //ConnectionProperty
+	    public ConnectorConfiguration withConnectionProperty(String key, String value) {
+	    	ConnectorConfiguration config = builder().build();
+	    	config.getConnectionProperties().get().putIfAbsent(key, value);
+	    	return config;
+	    }
 
 	    //Source Connector
 	    public ConnectorConfiguration withSourceConnector(SourceConnector sourceConnector) {
@@ -227,54 +245,26 @@ public class DebeziumIO {
 	    public ConnectorConfiguration withSourceConnector(ValueProvider<SourceConnector> sourceConnector) {
 	      return builder().setSourceConnector(sourceConnector).build();
 	    }
-
-
-		public SourceConnector buildConnector() throws Exception {
-			if (getSourceConnector() != null) {
-				return getSourceConnector().get();
-			}
-
-			BasicConnector basicConnector = new BasicConnector();
-			if (getConnectorClass() != null) {
-				basicConnector.setConnectorClass(getConnectorClass().get());
-			}
-			if (getUsername() != null) {
-				basicConnector.setUsername(getUsername().get());
-			}
-			if (getPassword() != null) {
-				basicConnector.setPassword(getPassword().get());
-			}
-			if (getHostName() != null) {
-				basicConnector.setHost(getHostName().get());
-			}
-			if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
-				basicConnector.setConnectionProperties(getConnectionProperties().get());
-			}
-
-			basicConnector.initConnector();
-			return basicConnector.getConnector();
-		}
 		
-		public Map<String, String> getConfigurationMap() 
-		{
-			BasicConnector basicConnector = new BasicConnector();
-			if (getConnectorClass() != null) {
-				basicConnector.setConnectorClass(getConnectorClass().get());
-			}
-			if (getUsername() != null) {
-				basicConnector.setUsername(getUsername().get());
-			}
-			if (getPassword() != null) {
-				basicConnector.setPassword(getPassword().get());
-			}
-			if (getHostName() != null) {
-				basicConnector.setHost(getHostName().get());
-			}
-			if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
-				basicConnector.setConnectionProperties(getConnectionProperties().get());
-			}
-			return basicConnector.getConfiguration();
-		}
+	    /**
+	     * 
+	     * @return Configuration Map.
+	     */
+		public Map<String, String> getConfigurationMap() {
+
+	        HashMap<String,String> configuration = new HashMap<>();
+
+	        configuration.computeIfAbsent("connector.class", k -> getConnectorClass().get().getCanonicalName());
+	        configuration.computeIfAbsent("database.hostname", k -> getHostName().get());
+	        configuration.computeIfAbsent("database.port", k -> getPort().get());
+	        configuration.computeIfAbsent("database.user", k -> getUsername().get());
+	        configuration.computeIfAbsent("database.password", k -> getPassword().get());
+
+	        for (Map.Entry<String, String> entry: getConnectionProperties().get().entrySet()) {
+	            configuration.computeIfAbsent(entry.getKey(), k -> entry.getValue());
+	        }
+	        return configuration;
+	    }
 	}
 	
 }

@@ -169,22 +169,24 @@ public class CounterSourceConnectorTest {
   public void testDebeziumIO() {
 	  PipelineOptions options = PipelineOptionsFactory.create();
 	  Pipeline p = Pipeline.create(options);
-	  p.apply(DebeziumIO.<String>read().
-			  withConnectorConfiguration(
-					  DebeziumIO.ConnectorConfiguration.create()
-                      .withUsername("debezium")
-                      .withPassword("dbz")
-                      .withConnectorClass(MySqlConnector.class)
-                      .withHostName("127.0.0.1")
-                      .withPort("3306")
-                      .withConnectionProperties(ImmutableMap.<String,String>builder()
-                              .put("database.server.id", "184054")
-                              .put("database.server.name", "dbserver1")
-                              .put("database.include.list", "inventory")
-                              .put("database.history", SDFDatabaseHistory.class.getName())
-                              .put("include.schema.changes", "false").build()
-                      )
-              )
+	  p.apply(
+			  DebeziumIO.<String>read().
+			  		withConnectorConfiguration(
+						DebeziumIO.ConnectorConfiguration.create()
+							.withUsername("debezium")
+							.withPassword("dbz")
+							.withConnectorClass(MySqlConnector.class)
+							.withHostName("127.0.0.1")
+							.withPort("3306")
+							.withConnectionProperty("database.server.id", "184054")
+							.withConnectionProperty("database.server.name", "dbserver1")
+							.withConnectionProperty("database.include.list", "inventory")
+							.withConnectionProperty("database.history", SDFDatabaseHistory.class.getName())
+							.withConnectionProperty("include.schema.changes", "false")
+              ).withFormatFunction(record -> {
+		          System.out.println("GOT RECORD - " + record.toString());
+		          return record.toString();
+		        })
       ).setCoder(StringUtf8Coder.of());
 	  //.apply(TextIO.write().to("test"));
 
