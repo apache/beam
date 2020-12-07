@@ -57,6 +57,7 @@ This section describes what is needed to get the template up and running.
   - Creating the Dataflow Flex Template
   - Create a Dataflow job to ingest data using the template.
 - Avro format transferring.
+- E2E tests (TBD)
 
 ## Assembling the Uber-JAR
 
@@ -155,5 +156,8 @@ if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
 
     }
 ```
+
+## End to end tests 
+TBD
 
 _Note: The Kafka to Pub/Sub job executed with a distributed runner supports SSL configuration with the certificate located only in GCS._
