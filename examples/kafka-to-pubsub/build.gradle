@@ -37,7 +37,7 @@ repositories {
 }
 
 dependencies {
-    compile library.java.kafka_clients
+    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.6.0'
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":sdks:java:extensions:google-cloud-platform-core")
     compile project(":sdks:java:io:google-cloud-platform")
