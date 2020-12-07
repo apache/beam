@@ -24,6 +24,7 @@ import java.util.Arrays;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.function.Strict;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -82,10 +83,11 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       parameterArray = {TypeName.BYTES},
       returnType = TypeName.BYTES)
   @Strict
-  public byte[] reverseBytes(byte[] bytes) {
+  public ByteString reverseBytes(ByteString byteString) {
+    byte[] bytes = byteString.getBytes();
     byte[] ret = Arrays.copyOf(bytes, bytes.length);
     ArrayUtils.reverse(ret);
-    return ret;
+    return new ByteString(ret);
   }
 
   @UDF(
@@ -93,9 +95,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       parameterArray = {TypeName.STRING},
       returnType = TypeName.BYTES)
   @Strict
-  public byte[] fromHex(String str) {
+  public ByteString fromHex(String str) {
     try {
-      return Hex.decodeHex(str.toCharArray());
+      return new ByteString(Hex.decodeHex(str.toCharArray()));
     } catch (DecoderException e) {
       throw new RuntimeException(e);
     }
@@ -106,8 +108,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       parameterArray = {TypeName.BYTES},
       returnType = TypeName.STRING)
   @Strict
-  public String toHex(byte[] bytes) {
-    return Hex.encodeHexString(bytes);
+  public String toHex(ByteString bytes) {
+    return Hex.encodeHexString(bytes.getBytes());
   }
 
   @UDF(
@@ -144,8 +146,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       parameterArray = {TypeName.BYTES, TypeName.INT64},
       returnType = TypeName.BYTES)
   @Strict
-  public byte[] lpad(byte[] originalValue, Long returnLength) {
-    return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
+  public ByteString lpad(ByteString originalValue, Long returnLength) {
+    return new ByteString(lpad(originalValue.getBytes(), returnLength, " ".getBytes(UTF_8)));
   }
 
   @UDF(
@@ -153,7 +155,11 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
       returnType = TypeName.BYTES)
   @Strict
-  public byte[] lpad(byte[] originalValue, Long returnLength, byte[] pattern) {
+  public ByteString lpad(ByteString originalValue, Long returnLength, ByteString pattern) {
+    return new ByteString(lpad(originalValue.getBytes(), returnLength, pattern.getBytes()));
+  }
+
+  private byte[] lpad(byte[] originalValue, Long returnLength, byte[] pattern) {
     if (returnLength < -1 || pattern.length == 0) {
       throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
     }
@@ -215,8 +221,8 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       parameterArray = {TypeName.BYTES, TypeName.INT64},
       returnType = TypeName.BYTES)
   @Strict
-  public byte[] rpad(byte[] originalValue, Long returnLength) {
-    return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
+  public ByteString rpad(ByteString originalValue, Long returnLength) {
+    return new ByteString(lpad(originalValue.getBytes(), returnLength, " ".getBytes(UTF_8)));
   }
 
   @UDF(
@@ -224,7 +230,11 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
       parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
       returnType = TypeName.BYTES)
   @Strict
-  public byte[] rpad(byte[] originalValue, Long returnLength, byte[] pattern) {
+  public ByteString rpad(ByteString originalValue, Long returnLength, ByteString pattern) {
+    return new ByteString(rpad(originalValue.getBytes(), returnLength, pattern.getBytes()));
+  }
+
+  private byte[] rpad(byte[] originalValue, Long returnLength, byte[] pattern) {
     if (returnLength < -1 || pattern.length == 0) {
       throw new IllegalArgumentException("returnLength cannot be 0 or pattern cannot be empty.");
     }

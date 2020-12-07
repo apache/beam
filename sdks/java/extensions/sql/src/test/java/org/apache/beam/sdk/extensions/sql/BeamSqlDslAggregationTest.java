@@ -767,7 +767,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     exceptions.expectCause(
         hasMessage(
             containsString(
-                "Cannot apply 'TUMBLE' to arguments of type 'TUMBLE(<BIGINT>, <INTERVAL HOUR>)'")));
+                "Cannot apply '$TUMBLE' to arguments of type '$TUMBLE(<BIGINT>, <INTERVAL HOUR>)'")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql =

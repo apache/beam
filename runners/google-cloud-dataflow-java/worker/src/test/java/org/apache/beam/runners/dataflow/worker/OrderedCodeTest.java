@@ -148,7 +148,7 @@ public class OrderedCodeTest {
    * Convert a string of hex digits (e.g. "3fbf") to a byte[] (e.g. { (byte) 0x3f, (byte) 0xbf }).
    */
   private static byte[] bytesFromHexString(String hexDigits) {
-    return BaseEncoding.base16().lowerCase().decode(hexDigits);
+    return new ByteString(BaseEncoding.base16().lowerCase().decode(hexDigits));
   }
 
   /**
