@@ -931,7 +931,7 @@ class BigQueryWrapper(object):
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
         self._delete_table(project_id, dataset_id, table_id)
       elif (not self._is_table_empty(project_id, dataset_id, table_id) and
-          write_disposition == BigQueryDisposition.WRITE_EMPTY):
+            write_disposition == BigQueryDisposition.WRITE_EMPTY):
         raise RuntimeError(
             'Table %s:%s.%s is not empty but write disposition is WRITE_EMPTY.'
             % (project_id, dataset_id, table_id))
