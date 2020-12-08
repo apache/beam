@@ -10,9 +10,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- quote: "A framework that delivers the flexibility and advanced functionality our customers need."
-  name: –Talend
-- quote: "Apache Beam has powerful semantics that solve real-world challenges of stream processing."
-  name: –PayPal
-- quote: "Apache Beam represents a principled approach for analyzing data streams."
-  name: –data Artisans
+- id: home-hero-title
+  translation: Introducing Apache Beam
+- id: home-hero-heading
+  translation: An advanced unified programming model
+- id: home-hero-subheading
+  translation: Implement batch and streaming data processing jobs that run on any execution engine.
+- id: home-hero-button
+  translation: Install Beam

@@ -23,6 +23,7 @@
 
   .navbar-header
     margin-left: $pad
+    float: none
 
   .navbar-brand
     +md
@@ -40,16 +41,17 @@
       color: $color-dark-gray
 
   .navbar-toggle
-    float: left
+    margin-right: 24px
 
     .icon-bar
-      background-color: $color-dark-gray
+      background-color: $color-sun
+      height: 3px
 
-    @media (max-width: $ak-breakpoint-lg)
+    @media (max-width: $tablet)
       display: block
 
   .navbar-container
-    @media (max-width: $ak-breakpoint-lg)
+    @media (max-width: $tablet)
       background-color: $color-white
       bottom: 0
       min-height: 100vh
@@ -59,12 +61,13 @@
       top: 0
       transition: transform 100ms linear
       width: calc(100% - 32px)
+      right: 0
 
       .navbar-nav > li
         width: 100%
 
       &.closed
-        transform: translateX(-100%)
+        transform: translateX(100%)
 
       &.open
         transform: translateX(0)
@@ -78,7 +81,7 @@
     top: 0
     transition: opacity 200ms
 
-    @media (max-width: $ak-breakpoint-lg)
+    @media (max-width: $tablet)
       display: block
 
       &.closed
@@ -89,6 +92,6 @@
         opacity: 0.5
         width: 100%
 
-  @media (max-width: $ak-breakpoint-lg)
+  @media (max-width: $tablet)
     .navbar-right
       margin-right: -15px
