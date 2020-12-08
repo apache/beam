@@ -953,7 +953,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       @Override
       public boolean hasNext() throws NoSuchElementException {
         if (!isFirstRequest) {
-          return this.pageToken != null;
+          return this.pageToken != null && !this.pageToken.isEmpty();
         }
         try {
           HttpBody response =

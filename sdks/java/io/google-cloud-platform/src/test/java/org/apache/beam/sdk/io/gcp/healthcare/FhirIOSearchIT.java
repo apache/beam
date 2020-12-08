@@ -20,29 +20,26 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 import static org.junit.Assert.assertNotEquals;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubGrpcClient;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubOptions;
-import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptors;
-import org.joda.time.Duration;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Rule;
@@ -62,41 +59,25 @@ public class FhirIOSearchIT {
     return Arrays.asList("R4");
   }
 
-  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
-  private final String pubsubTopic;
-  private final String pubsubSubscription;
   private final String project;
   private transient HealthcareApiClient client;
   private static String healthcareDataset;
   private static final String BASE_STORE_ID =
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private String fhirStoreId;
-  private PubsubClient pubsub;
-  private TestPubsubOptions pipelineOptions;
+  private List<KV<String, Map<String, String>>> input = new ArrayList<>();
 
   public String version;
 
   public FhirIOSearchIT(String version) {
     this.version = version;
-    long testTime = System.currentTimeMillis();
     this.fhirStoreId = BASE_STORE_ID + version;
     this.project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
             .getStoreProjectId();
-    this.pubsubTopic =
-        "projects/"
-            + project
-            + "/topics/FhirIO-IT-"
-            + version
-            + "-notifications-"
-            + testTime
-            + "-"
-            + (new SecureRandom().nextInt(32));
-    this.pubsubSubscription = pubsubTopic.replaceAll("topic", "subscription");
-    pipelineOptions = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
   }
 
   @Before
@@ -105,27 +86,26 @@ public class FhirIOSearchIT {
     if (client == null) {
       this.client = new HttpHealthcareApiClient();
     }
-    pubsub = PubsubGrpcClient.FACTORY.newClient(null, null, pipelineOptions);
-    TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
-    pubsub.createTopic(topicPath);
-    SubscriptionPath subscriptionPath = PubsubClient.subscriptionPathFromPath(pubsubSubscription);
-    pubsub.createSubscription(topicPath, subscriptionPath, 60);
-    client.createFhirStore(healthcareDataset, fhirStoreId, version, pubsubTopic);
+    client.createFhirStore(healthcareDataset, fhirStoreId, version, "");
 
-    // Execute bundles to trigger FHIR notifications to input topic.
+    List<String> bundles = FhirIOTestUtil.BUNDLES.get(version);
     FhirIOTestUtil.executeFhirBundles(
-        client,
-        healthcareDataset + "/fhirStores/" + fhirStoreId,
-        FhirIOTestUtil.BUNDLES.get(version));
-  }
+        client, healthcareDataset + "/fhirStores/" + fhirStoreId, bundles);
 
-  @After
-  public void deletePubsub() throws IOException {
-    TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
-    SubscriptionPath subscriptionPath = PubsubClient.subscriptionPathFromPath(pubsubSubscription);
-    pubsub.deleteSubscription(subscriptionPath);
-    pubsub.deleteTopic(topicPath);
-    pubsub.close();
+    JsonArray fhirResources =
+        JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
+    HashMap<String, String> searchParameters = new HashMap<>();
+    searchParameters.put("_count", Integer.toString(100));
+    for (JsonElement resource : fhirResources) {
+      input.add(
+          KV.of(
+              resource
+                  .getAsJsonObject()
+                  .getAsJsonObject("resource")
+                  .get("resourceType")
+                  .getAsString(),
+              searchParameters));
+    }
   }
 
   @AfterClass
@@ -137,34 +117,17 @@ public class FhirIOSearchIT {
   }
 
   @Test
-  public void testFhirIOSearch() throws Exception {
+  public void testFhirIOSearch() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    FhirIO.Read.Result resources =
-        pipeline
-            .apply(PubsubIO.readStrings().fromSubscription(pubsubSubscription))
-            .apply(FhirIO.readResources());
-    HashMap<String, String> searchParameters = new HashMap<>();
-    searchParameters.put("_count", Integer.toString(100)); // Ensure that pagination is tested
     PCollection<KV<String, Map<String, String>>> searchConfigs =
-        resources
-            .getResources()
-            .apply(
-                "ExtractResourceTypes",
-                MapElements.into(
-                        TypeDescriptors.kvs(
-                            TypeDescriptors.strings(),
-                            TypeDescriptors.maps(
-                                TypeDescriptors.strings(), TypeDescriptors.strings())))
-                    .via(
-                        (String resource) ->
-                            KV.of(
-                                JsonParser.parseString(resource)
-                                    .getAsJsonObject()
-                                    .get("resourceType")
-                                    .getAsString(),
-                                searchParameters)));
+        pipeline.apply(
+            Create.of(input)
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
@@ -176,16 +139,11 @@ public class FhirIOSearchIT {
         .satisfies(
             input -> {
               for (String resource : input) {
-                assertNotEquals(
-                    JsonParser.parseString(resource)
-                        .getAsJsonObject()
-                        .getAsJsonArray("entry")
-                        .size(),
-                    0);
+                assertNotEquals(JsonParser.parseString(resource).getAsJsonArray().size(), 0);
               }
               return null;
             });
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(3));
+    pipeline.run().waitUntilFinish();
   }
 }
