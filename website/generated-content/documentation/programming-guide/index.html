@@ -7,7 +7,7 @@ the Beam SDK classes to build and test your pipeline. It is not intended as an
 exhaustive reference, but as a language-agnostic, high-level guide to
 programmatically building your Beam pipeline. As the programming guide is filled
 out, the text will include code samples in multiple languages to help illustrate
-how to implement Beam concepts in your pipelines.</p><nav class=language-switcher><strong>Adapt for:</strong><ul><li data-type=language-java class=active>Java SDK</li><li data-type=language-py>Python SDK</li></ul></nav><p class=language-py>The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 (<a href=https://issues.apache.org/jira/browse/BEAM-8371>BEAM-8371</a>). For best results, use Beam with Python 3.</p><h2 id=overview>1. Overview</h2><p>To use Beam, you need to first create a driver program using the classes in one
+how to implement Beam concepts in your pipelines.</p><nav class=language-switcher><strong>Adapt for:</strong><ul><li data-type=language-java class=active>Java SDK</li><li data-type=language-py>Python SDK</li></ul></nav><p class=language-py>The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.</p><h2 id=overview>1. Overview</h2><p>To use Beam, you need to first create a driver program using the classes in one
 of the Beam SDKs. Your driver program <em>defines</em> your pipeline, including all of
 the inputs, transforms, and outputs; it also sets execution options for your
 pipeline (typically passed in using command-line options). These include the
