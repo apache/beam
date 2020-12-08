@@ -27,6 +27,7 @@ import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
+// TODO(BEAM-9761): Skipping some cases because they are too slow or have memory errors.
 def TESTS_TO_SKIP = [
   'load-tests-go-flink-batch-gbk-7',
 ]
