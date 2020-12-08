@@ -1936,6 +1936,8 @@ public class BigQueryIO {
     /**
      * An enumeration type for the BigQuery schema update options strings.
      *
+     * <p>Not supported for {@link Method#STREAMING_INSERTS}.
+     *
      * <p>Note from the BigQuery API doc -- Schema update options are supported in two cases: when
      * writeDisposition is WRITE_APPEND; when writeDisposition is WRITE_TRUNCATE and the destination
      * table is a partition of a table, specified by partition decorators.
@@ -2654,6 +2656,9 @@ public class BigQueryIO {
         checkArgument(
             rowWriterFactory.getOutputType() == RowWriterFactory.OutputType.JsonTableRow,
             "Avro output is not supported when method == STREAMING_INSERTS");
+        checkArgument(
+            getSchemaUpdateOptions() == null || getSchemaUpdateOptions().isEmpty(),
+            "SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
 
         RowWriterFactory.TableRowWriterFactory<ElementT, DestinationT> tableRowWriterFactory =
             (RowWriterFactory.TableRowWriterFactory<ElementT, DestinationT>) rowWriterFactory;

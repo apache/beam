@@ -51,6 +51,7 @@ golang {
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/combine github.com/apache/beam/sdks/go/test/load/combine'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/group_by_key github.com/apache/beam/sdks/go/test/load/group_by_key'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/sideinput github.com/apache/beam/sdks/go/test/load/sideinput'
+    go 'build -o ./build/bin/${GOOS}_${GOARCH}/cogbk github.com/apache/beam/sdks/go/test/load/cogbk'
   }
 }
 

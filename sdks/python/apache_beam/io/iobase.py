@@ -1206,8 +1206,6 @@ class RestrictionTracker(object):
   See following documents for more details.
   * https://s.apache.org/splittable-do-fn
   * https://s.apache.org/splittable-do-fn-python-sdk
-
-  Experimental; no backwards-compatibility guarantees.
   """
   def current_restriction(self):
     """Returns the current restriction.
@@ -1373,10 +1371,7 @@ class WatermarkEstimator(object):
 
 
 class RestrictionProgress(object):
-  """Used to record the progress of a restriction.
-
-  Experimental; no backwards-compatibility guarantees.
-  """
+  """Used to record the progress of a restriction."""
   def __init__(self, **kwargs):
     # Only accept keyword arguments.
     self._fraction = kwargs.pop('fraction', None)
@@ -1498,7 +1493,8 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     if not isinstance(restriction, _SDFBoundedSourceRestriction):
       raise ValueError(
           'Initializing SDFBoundedSourceRestrictionTracker'
-          ' requires a _SDFBoundedSourceRestriction')
+          ' requires a _SDFBoundedSourceRestriction. Got %s instead.' %
+          restriction)
     self.restriction = restriction
 
   def current_progress(self):
@@ -1545,13 +1541,12 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
           'SDFBoundedSourceRestrictionProvider can only utilize BoundedSource')
 
   def initial_restriction(self, element_source: BoundedSource):
-    src = element_source
-    self._check_source(src)
-    range_tracker = src.get_range_tracker(None, None)
+    self._check_source(element_source)
+    range_tracker = element_source.get_range_tracker(None, None)
     return _SDFBoundedSourceRestriction(
         SourceBundle(
             None,
-            src,
+            element_source,
             range_tracker.start_position(),
             range_tracker.stop_position()))
 
@@ -1615,3 +1610,6 @@ class SDFBoundedSourceReader(PTransform):
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
+
+  def display_data(self):
+    return self._data_to_display

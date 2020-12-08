@@ -263,6 +263,8 @@ class SdkWorkerTest(unittest.TestCase):
         responses['monitoring_infos_metadata'].monitoring_infos.monitoring_info)
     found = False
     for mi in short_id_to_mi.values():
+      # Clear the timestamp before comparing
+      mi.ClearField("start_time")
       if mi == expected_monitoring_info:
         found = True
     self.assertTrue(found, str(responses['monitoring_infos_metadata']))
