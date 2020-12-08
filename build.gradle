@@ -82,6 +82,9 @@ rat {
     "website/www/site/themes",
     "website/www/yarn.lock",
     "website/www/package.json",
+    "website/www/site/static/js/hero/lottie-light.min.js",
+    "website/www/site/static/js/keen-slider.min.js",
+    "website/www/site/assets/scss/_keen-slider.scss",
 
     // Ignore ownership files
     "ownership/**/*",

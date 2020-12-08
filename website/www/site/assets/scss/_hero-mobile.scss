@@ -15,28 +15,48 @@
  *  limitations under the License.
  */
 
-$color-brand: #FF6D00
-$color-dark: #37424B
-$color-white: #FFF
-$color-light-gray: #F7F7F7
-$color-dark-gray: #555
-$color-gray: #333333
-$color-smoke: #8C8B8E
-$color-sun: #F26628
-$color-silver: #C4C4C4
-$color-medium-gray: #FBFBFB
+@import "media";
 
-$color-dropdown-link-hover-text: #E65D21
-$color-dropdown-link-hover-bg: #FFEDE5
+.hero-mobile {
+  position: relative;
+  margin-bottom: 0;
+  display: none;
 
-$pad-sm: 15px
-$pad-s: 24px
-$pad: 30px
-$pad-md: 60px
-$pad-l: 84px
-$pad-xl: 100px
+  .hero-content {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 100%;
+    max-width: 506px;
 
-$box-shadow: 0px 3px 20px 0 rgba(0,0,0,0.075)
-$box-shadow-hover: 0px 3px 50px 0 rgba(0,0,0,0.075)
-$font-weight-semibold: 500
-$font-weight-bold: 600
+    h3 {
+      @extend .hero-title;
+
+      text-transform: uppercase;
+      margin: 0 auto 16px auto;
+    }
+
+    h1 {
+      @extend .hero-heading;
+
+      width: 300px;
+      margin: 0 auto 24px auto;
+    }
+
+    h2 {
+      @extend .hero-subheading;
+
+      width: 300px;
+      margin: 0 auto;
+    }
+  }
+}
+
+@media (max-width: $mobile) {
+  .hero-mobile {
+    display: inherit;
+  }
+}
