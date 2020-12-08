@@ -52,7 +52,7 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 }
 
 type doFn struct {
-	elementsToAccess int
+	ElementsToAccess int
 }
 
 func (fn *doFn) ProcessElement(_ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
@@ -60,7 +60,7 @@ func (fn *doFn) ProcessElement(_ []byte, values func(*[]byte, *[]byte) bool, emi
 	var value []byte
 	i := 0
 	for values(&key, &value) {
-		if i >= fn.elementsToAccess {
+		if i >= fn.ElementsToAccess {
 			break
 		}
 		emit(key, value)
@@ -82,7 +82,7 @@ func main() {
 
 	src = beam.ParDo(
 		s,
-		&doFn{elementsToAccess: elementsToAccess},
+		&doFn{ElementsToAccess: elementsToAccess},
 		beam.Impulse(s),
 		beam.SideInput{Input: src})
 
