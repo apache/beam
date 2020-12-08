@@ -67,6 +67,7 @@ public class FhirIOSearchIT {
   private static final String BASE_STORE_ID =
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private String fhirStoreId;
+  private static final int MAX_NUM_OF_SEARCHES = 100;
   private List<KV<String, Map<String, String>>> input = new ArrayList<>();
 
   public String version;
@@ -96,6 +97,7 @@ public class FhirIOSearchIT {
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
     HashMap<String, String> searchParameters = new HashMap<>();
     searchParameters.put("_count", Integer.toString(100));
+    int searches = 0;
     for (JsonElement resource : fhirResources) {
       input.add(
           KV.of(
@@ -105,6 +107,10 @@ public class FhirIOSearchIT {
                   .get("resourceType")
                   .getAsString(),
               searchParameters));
+      searches++;
+      if (searches > MAX_NUM_OF_SEARCHES) {
+        break;
+      }
     }
   }
 
