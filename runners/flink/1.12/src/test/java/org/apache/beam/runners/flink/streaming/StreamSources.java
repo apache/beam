@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -29,7 +30,13 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
-/** {@link StreamSource} utilities, that bridge incompatibilities between Flink releases. */
+/**
+ * {@link StreamSource} utilities, that bridge incompatibilities between Flink releases.
+ *
+ * <p>This change is becauses RecordWriter is wrapped in RecordWriterDelegate in 1.10, please refer
+ * to https://github.com/apache/flink/commit/2c8b4ef572f05bf4740b7e204af1e5e709cd945c for more
+ * details.
+ */
 public class StreamSources {
 
   /**
@@ -40,7 +47,7 @@ public class StreamSources {
    * @return Input transformation.
    */
   public static Transformation<?> getOnlyInput(OneInputTransformation<?, ?> source) {
-    return source.getInput();
+    return Iterables.getOnlyElement(source.getInputs());
   }
 
   public static <OutT, SrcT extends SourceFunction<OutT>> void run(
@@ -56,7 +63,7 @@ public class StreamSources {
   private static OperatorChain<?, ?> createOperatorChain(AbstractStreamOperator<?> operator) {
     return new OperatorChain<>(
         operator.getContainingTask(),
-        StreamTask.createRecordWriters(
+        StreamTask.createRecordWriterDelegate(
             operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
   }
 }

@@ -844,10 +844,10 @@ public class DoFnOperator<InputT, OutputT>
    * of finishing a bundle in snapshot() first.
    *
    * <p>In order to avoid having {@link DoFnRunner#processElement(WindowedValue)} or {@link
-   * DoFnRunner#onTimer(String, BoundedWindow, Instant, TimeDomain)} not between StartBundle and
-   * FinishBundle, this method needs to be called in each processElement and each processWatermark
-   * and onProcessingTime. Do not need to call in onEventTime, because it has been guaranteed in the
-   * processWatermark.
+   * DoFnRunner#onTimer(String, String, Object, BoundedWindow, Instant, Instant, TimeDomain)} not
+   * between StartBundle and FinishBundle, this method needs to be called in each processElement and
+   * each processWatermark and onProcessingTime. Do not need to call in onEventTime, because it has
+   * been guaranteed in the processWatermark.
    */
   private void checkInvokeStartBundle() {
     if (!bundleStarted) {
@@ -1160,7 +1160,7 @@ public class DoFnOperator<InputT, OutputT>
   /** Coder for KV of id and value. It will be serialized in Flink checkpoint. */
   private static class TaggedKvCoder extends StructuredCoder<KV<Integer, WindowedValue<?>>> {
 
-    private Map<Integer, Coder<WindowedValue<?>>> idsToCoders;
+    private final Map<Integer, Coder<WindowedValue<?>>> idsToCoders;
 
     TaggedKvCoder(Map<Integer, Coder<WindowedValue<?>>> idsToCoders) {
       this.idsToCoders = idsToCoders;
@@ -1201,10 +1201,10 @@ public class DoFnOperator<InputT, OutputT>
   public static class MultiOutputOutputManagerFactory<OutputT>
       implements OutputManagerFactory<OutputT> {
 
-    private TupleTag<OutputT> mainTag;
-    private Map<TupleTag<?>, Integer> tagsToIds;
-    private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
-    private Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders;
+    private final TupleTag<OutputT> mainTag;
+    private final Map<TupleTag<?>, Integer> tagsToIds;
+    private final Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
+    private final Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders;
     private final SerializablePipelineOptions pipelineOptions;
 
     // There is no side output.
