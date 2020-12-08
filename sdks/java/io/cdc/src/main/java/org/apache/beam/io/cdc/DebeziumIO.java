@@ -7,8 +7,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.sql.DataSource;
-
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.beam.sdk.coders.Coder;
@@ -21,6 +19,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -52,6 +51,8 @@ public class DebeziumIO {
 	@AutoValue
 	public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
+		private static final long serialVersionUID = 1L;
+
 		abstract @Nullable ConnectorConfiguration getConnectorConfiguration();
 		
 		abstract @Nullable SerializableFunction<SourceRecord, T> getFormatFunction();
@@ -69,12 +70,15 @@ public class DebeziumIO {
 			abstract Read<T> build();
 			  
 		}
-		  
+		
+		//ConnectorConfiguration
 		public Read<T> withConnectorConfiguration(final ConnectorConfiguration config) {
+			checkArgument(config != null, "config can not be null");
 			return toBuilder().setConnectorConfiguration(config).build();
 		}
 		
 		public Read<T> withFormatFunction(SerializableFunction<SourceRecord, T> mapperFn) {
+			checkArgument(mapperFn != null, "mapperFn can not be null");
 			return toBuilder().setFormatFunction(mapperFn).build();
 		}
 		  
@@ -83,11 +87,8 @@ public class DebeziumIO {
 		    return toBuilder().setCoder(coder).build();
 		}
 		
-		
-		
 		@Override
 		public PCollection<T> expand(PBegin input){
-			LOG.info("Hello world from log.");
 			return input
 					.apply(Create.of(
 							Lists.newArrayList(getConnectorConfiguration().getConfigurationMap()))
@@ -97,7 +98,6 @@ public class DebeziumIO {
 									getConnectorConfiguration().getConnectorClass().get(),
 									getFormatFunction()))
 							);
-			//return (PCollection<T>) input.apply("Read", Create.ofProvider(ValueProvider.StaticValueProvider.of("sd"), StringUtf8Coder.of()));
 		}
 		  
 	}
@@ -131,6 +131,8 @@ public class DebeziumIO {
 	*/
 	@AutoValue
 	public abstract static class ConnectorConfiguration implements Serializable {
+		
+		private static final long serialVersionUID = 1L;
 		  
 		abstract @Nullable ValueProvider<Class<?>> getConnectorClass();
 
@@ -178,72 +180,89 @@ public class DebeziumIO {
 		
 		//ConnectorClass
 		public ConnectorConfiguration withConnectorClass(Class<?> connectorClass) {
+			checkArgument(connectorClass != null, "connectorClass can not be null");
 			return withConnectorClass(ValueProvider.StaticValueProvider.of(connectorClass));
 		}
 		
 		public ConnectorConfiguration withConnectorClass(ValueProvider<Class<?>> connectorClass) {
+			checkArgument(connectorClass != null, "connectorClass can not be null");
 			return builder().setConnectorClass(connectorClass).build();
 		}
 		
 		//HostName
 		public ConnectorConfiguration withHostName(String hostName) {
+			checkArgument(hostName != null, "hostName can not be null");
 			return withHostName(ValueProvider.StaticValueProvider.of(hostName));
 		}
 		
 		public ConnectorConfiguration withHostName(ValueProvider<String> hostName) {
+			checkArgument(hostName != null, "hostName can not be null");
 			return builder().setHostName(hostName).build();
 		}
 		
 		//Port
 		public ConnectorConfiguration withPort(String port) {
+			checkArgument(port != null, "port can not be null");
 			return withPort(ValueProvider.StaticValueProvider.of(port));
 		}
 		
 		public ConnectorConfiguration withPort(ValueProvider<String> port) {
+			checkArgument(port != null, "port can not be null");
 			return builder().setPort(port).build();
 		}
 		
 		//Username
 		public ConnectorConfiguration withUsername(String username) {
-	      return withUsername(ValueProvider.StaticValueProvider.of(username));
+			checkArgument(username != null, "username can not be null");
+			return withUsername(ValueProvider.StaticValueProvider.of(username));
 	    }
 
 	    public ConnectorConfiguration withUsername(ValueProvider<String> username) {
-	      return builder().setUsername(username).build();
+	    	checkArgument(username != null, "username can not be null");
+	    	return builder().setUsername(username).build();
 	    }
 
 	    //Password
 	    public ConnectorConfiguration withPassword(String password) {
-	      return withPassword(ValueProvider.StaticValueProvider.of(password));
+	    	checkArgument(password != null, "password can not be null");
+	    	return withPassword(ValueProvider.StaticValueProvider.of(password));
 	    }
 
 	    public ConnectorConfiguration withPassword(ValueProvider<String> password) {
-	      return builder().setPassword(password).build();
+	    	checkArgument(password != null, "password can not be null");
+	    	return builder().setPassword(password).build();
 	    }
 	    
 	    //ConnectionProperties
 	    public ConnectorConfiguration withConnectionProperties(Map<String,String> connectionProperties) {
-	      return withConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties));
+	    	checkArgument(connectionProperties != null, "connectionProperties can not be null");
+	    	return withConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties));
 	    }
 
 	    public ConnectorConfiguration withConnectionProperties(ValueProvider<Map<String,String>> connectionProperties) {
-	      return builder().setConnectionProperties(connectionProperties).build();
+	    	checkArgument(connectionProperties != null, "connectionProperties can not be null");
+	    	return builder().setConnectionProperties(connectionProperties).build();
 	    }
 	    
 	    //ConnectionProperty
 	    public ConnectorConfiguration withConnectionProperty(String key, String value) {
+	    	checkArgument(key != null, "key can not be null");
+	    	checkArgument(value != null, "value can not be null");
 	    	ConnectorConfiguration config = builder().build();
+	    	checkArgument(getConnectionProperties().get() != null, "connectionProperties can not be null");
 	    	config.getConnectionProperties().get().putIfAbsent(key, value);
 	    	return config;
 	    }
 
 	    //Source Connector
 	    public ConnectorConfiguration withSourceConnector(SourceConnector sourceConnector) {
-	      return withSourceConnector(ValueProvider.StaticValueProvider.of(sourceConnector));
+	    	checkArgument(sourceConnector != null, "sourceConnector can not be null");
+	    	return withSourceConnector(ValueProvider.StaticValueProvider.of(sourceConnector));
 	    }
 
 	    public ConnectorConfiguration withSourceConnector(ValueProvider<SourceConnector> sourceConnector) {
-	      return builder().setSourceConnector(sourceConnector).build();
+	    	checkArgument(sourceConnector != null, "sourceConnector can not be null");
+	    	return builder().setSourceConnector(sourceConnector).build();
 	    }
 		
 	    /**
@@ -253,7 +272,7 @@ public class DebeziumIO {
 		public Map<String, String> getConfigurationMap() {
 
 	        HashMap<String,String> configuration = new HashMap<>();
-
+	        
 	        configuration.computeIfAbsent("connector.class", k -> getConnectorClass().get().getCanonicalName());
 	        configuration.computeIfAbsent("database.hostname", k -> getHostName().get());
 	        configuration.computeIfAbsent("database.port", k -> getPort().get());
@@ -263,6 +282,10 @@ public class DebeziumIO {
 	        for (Map.Entry<String, String> entry: getConnectionProperties().get().entrySet()) {
 	            configuration.computeIfAbsent(entry.getKey(), k -> entry.getValue());
 	        }
+	        
+	        String stringProperties = Joiner.on('\n').withKeyValueSeparator(" -> ").join(configuration);
+	        LOG.info("Connector configuration: "+stringProperties);
+	        
 	        return configuration;
 	    }
 	}
