@@ -94,13 +94,14 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	}
 	err = WaitForCompletion(ctx, client, jobID)
 
-	res, err := newUniversalPipelineResult(ctx, jobID, client)
-	if err != nil {
-		return presult, err
+	res, presultErr := newUniversalPipelineResult(ctx, jobID, client)
+	if presultErr != nil {
+		if err != nil {
+			return presult, errors.Wrap(err, presultErr.Error())
+		}
+		return presult, presultErr
 	}
-	presult = res
-
-	return presult, err
+	return res, err
 }
 
 type universalPipelineResult struct {
