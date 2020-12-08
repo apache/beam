@@ -117,7 +117,7 @@ specify the parameters:
 --keystorePassword=your-keystore-password
 --keyPassword=your-key-password
 ```
-To change the runner, specify:
+By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
 ```bash
 --runner=YOUR_SELECTED_RUNNER
 ```
