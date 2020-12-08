@@ -170,7 +170,7 @@ creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_
 By default, no licenses/notices are added to the docker images.
 
 
-## Running pipelines with custom container images
+## Running pipelines with custom container images {#running-pipelines}
 
 The common method for providing a container image requires using the
 PortableRunner flag `--environment_config` as supported by the Portable
