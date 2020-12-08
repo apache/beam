@@ -170,7 +170,7 @@ creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_
 By default, no licenses/notices are added to the docker images.
 
 
-## Using container images in pipelines
+## Running pipelines with custom container images
 
 The common method for providing a container image requires using the
 PortableRunner flag `--environment_config` as supported by the Portable
@@ -182,6 +182,11 @@ Other runners, such as Dataflow, support specifying containers with different fl
  (added in 2.25.0) once this flags has been validated and ported over to all
  runners
 -->
+
+>**NOTE**: Differences in language and SDK version between the container SDK and
+pipeline SDK may result in unexpected errors due to incompatibility. For best
+results, make sure to use the same stable SDK version for your base container
+and when running your pipeline.
 
 {{< highlight class="runner-direct" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
