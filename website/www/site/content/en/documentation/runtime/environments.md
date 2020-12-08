@@ -85,7 +85,7 @@ This `Dockerfile`: uses the prebuilt Python 3.7 SDK container image [`beam_pytho
 
 #### Modifying a source Dockerfile in Beam {#modifying-dockerfiles}
 
-This method will require building image artifacts from Beam source. For additional instructions on setting up your development environment, see the [Contribution guide](contribute/#development-setup).
+This method will require building image artifacts from Beam source. For additional instructions on setting up your development environment, see the [Contribution guide](/contribute/#development-setup).
 
 >**NOTE**: It is recommended that you start from a stable release branch (`release-X.XX.X`) corresponding to the same version of the SDK to run your pipeline. Differences in SDK version may result in unexpected errors.
 
