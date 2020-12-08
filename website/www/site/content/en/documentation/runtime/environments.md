@@ -183,11 +183,6 @@ Other runners, such as Dataflow, support specifying containers with different fl
  runners
 -->
 
->**NOTE**: Differences in language and SDK version between the container SDK and
-pipeline SDK may result in unexpected errors due to incompatibility. For best
-results, make sure to use the same stable SDK version for your base container
-and when running your pipeline.
-
 {{< highlight class="runner-direct" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
@@ -256,3 +251,21 @@ python -m apache_beam.examples.wordcount \
   --worker_harness_container_image=$IMAGE_URL
 
 {{< /highlight >}}
+
+
+### Troubleshooting/TIps
+
+* Differences in language and SDK version between the container SDK and
+  pipeline SDK may result in unexpected errors due to incompatibility. For best
+  results, make sure to use the same stable SDK version for your base container
+  and when running your pipeline.
+* If you are running into unexpected errors when using remote containers,
+  make sure that your container exists in the remote repository and can be
+  accesses. Local runners will attempt to pull remote images and default to
+  local images if it exists locally. If an image cannot be pulled by the local
+  docker daemon, you may see an log message like:
+
+  ```
+  Error response from daemon: manifest for remote.repo/beam_python3.7_sdk:2.25.0-custom not found: manifest unknown: ...
+  INFO:apache_beam.runners.portability.fn_api_runner.worker_handlers:Unable to pull image...
+  ```
