@@ -138,6 +138,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.EvictingQueue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -397,8 +399,11 @@ public class StreamingDataflowWorker {
       new WeightedBoundedQueue<>(
           MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
 
-  // Map of tokens to commit callbacks.
-  private final ConcurrentMap<Long, Runnable> commitCallbacks = new ConcurrentHashMap<>();
+  // Cache of tokens to commit callbacks.
+  // Using Cache with time eviction policy helps us to prevent memory leak when callback ids are
+  // discarded by Dataflow service and calling commitCallback is best-effort.
+  private final Cache<Long, Runnable> commitCallbacks =
+      CacheBuilder.newBuilder().expireAfterWrite(5L, TimeUnit.MINUTES).build();
 
   // Map of user state names to system state names.
   // TODO(drieber): obsolete stateNameMap. Use transformUserNameToStateFamily in
@@ -1200,12 +1205,13 @@ public class StreamingDataflowWorker {
 
   private void callFinalizeCallbacks(Windmill.WorkItem work) {
     for (Long callbackId : work.getSourceState().getFinalizeIdsList()) {
-      final Runnable callback = commitCallbacks.remove(callbackId);
+      final Runnable callback = commitCallbacks.getIfPresent(callbackId);
       // NOTE: It is possible the same callback id may be removed twice if
       // windmill restarts.
       // TODO: It is also possible for an earlier finalized id to be lost.
       // We should automatically discard all older callbacks for the same computation and key.
       if (callback != null) {
+        commitCallbacks.invalidate(callbackId);
         workUnitExecutor.forceExecute(
             () -> {
               try {
