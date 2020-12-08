@@ -1658,6 +1658,10 @@ def sdf_basic_example():
     def process(
         self,
         file_name,
+        # Alternatively, we can let FileToWordsFn itself inherit from
+        # RestrictionProvider, implement the required methods and let
+        # tracker=beam.DoFn.RestrictionParam() which will use self as
+        # the provider.
         tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
       with open(file_name) as file_handle:
         file_handle.seek(tracker.current_restriction.start())

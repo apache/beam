@@ -455,6 +455,17 @@ public class BigtableIO {
       return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.Read} that will use an official Bigtable emulator.
+     *
+     * <p>This is used for testing.
+     */
+    @VisibleForTesting
+    public Read withEmulator(String emulatorHost) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       getBigtableConfig().validate();
@@ -684,6 +695,17 @@ public class BigtableIO {
     Write withBigtableService(BigtableService bigtableService) {
       BigtableConfig config = getBigtableConfig();
       return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} that will use an official Bigtable emulator.
+     *
+     * <p>This is used for testing.
+     */
+    @VisibleForTesting
+    public Write withEmulator(String emulatorHost) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
     }
 
     /**

@@ -38,9 +38,9 @@ public interface AwsOptions extends PipelineOptions {
   /** AWS region used by the AWS client. */
   @Description("AWS region used by the AWS client")
   @Validation.Required
-  String getRegion();
+  String getAwsRegion();
 
-  void setRegion(String value);
+  void setAwsRegion(String value);
 
   /** The AWS service endpoint used by the AWS client. */
   @Description("AWS service endpoint used by the AWS client")
