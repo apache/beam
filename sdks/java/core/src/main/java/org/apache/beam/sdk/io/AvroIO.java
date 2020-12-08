@@ -652,9 +652,9 @@ public class AvroIO {
      * interval, until the given termination condition is reached. The returned {@link PCollection}
      * is unbounded.
      *
-     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public Read<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
@@ -877,7 +877,6 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public ReadAll<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
@@ -1009,7 +1008,6 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public Parse<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
@@ -1189,7 +1187,6 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public ParseAll<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(

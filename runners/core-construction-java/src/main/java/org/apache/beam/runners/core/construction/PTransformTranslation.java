@@ -77,6 +77,7 @@ public class PTransformTranslation {
   public static final String TEST_STREAM_TRANSFORM_URN = "beam:transform:teststream:v1";
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
+  public static final String TO_STRING_TRANSFORM_URN = "beam:transform:to_string:v1";
 
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
