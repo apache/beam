@@ -744,9 +744,10 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     # type: () -> None
     with SUBPROCESS_LOCK:
       try:
+        _LOGGER.info('Attempting to pull image %s', self._container_image)
         subprocess.check_call(['docker', 'pull', self._container_image])
       except Exception:
-        _LOGGER.info('Unable to pull image %s' % self._container_image)
+        _LOGGER.info('Unable to pull image %s, defaulting to local image if it exists' % self._container_image)
       self._container_id = subprocess.check_output([
           'docker',
           'run',
