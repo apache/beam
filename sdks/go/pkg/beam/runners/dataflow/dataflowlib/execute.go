@@ -35,7 +35,7 @@ import (
 // Execute submits a pipeline as a Dataflow job.
 func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL, endpoint string, async bool) (*dataflowPipelineResult, error) {
 	// (1) Upload Go binary to GCS.
-	presult := &dataflowPipelineResult{JobID: ""}
+	presult := &dataflowPipelineResult{}
 
 	bin := opts.Worker
 	if bin == "" {
@@ -108,7 +108,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", opts.Project, upd.Id)
 
-	presult.JobID = upd.Id
+	presult.jobID = upd.Id
 
 	if async {
 		return presult, nil
@@ -137,7 +137,7 @@ func PrintJob(ctx context.Context, job *df.Job) {
 }
 
 type dataflowPipelineResult struct {
-	JobID   string
+	jobID   string
 	metrics *metrics.Results
 }
 
@@ -152,4 +152,8 @@ func newDataflowPipelineResult(ctx context.Context, client *df.Service, job *df.
 
 func (pr dataflowPipelineResult) Metrics() metrics.Results {
 	return *pr.metrics
+}
+
+func (pr dataflowPipelineResult) JobID() string {
+	return pr.jobID
 }

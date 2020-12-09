@@ -47,8 +47,7 @@ func groupByType(allMetrics []*df.MetricUpdate, job *df.Job, tentative bool) (
 
 	for _, metric := range allMetrics {
 		isTentative := metric.Name.Context["tentative"] == "true"
-		// Returns true when variables differ (exclusive or)
-		if (isTentative || tentative) && (!isTentative || !tentative) {
+		if isTentative != tentative {
 			continue
 		}
 
@@ -112,7 +111,7 @@ func extractCounterValue(obj interface{}) (int64, error) {
 func extractDistributionValue(obj interface{}) (metrics.DistributionValue, error) {
 	m := obj.(map[string]interface{})
 	propertiesToVisit := []string{"count", "sum", "min", "max"}
-	values := make([]int64, 4)
+	var values [4]int64
 
 	for i, p := range propertiesToVisit {
 		v, ok := m[p].(float64)
