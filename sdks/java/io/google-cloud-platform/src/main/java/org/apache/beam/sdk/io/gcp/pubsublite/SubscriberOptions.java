@@ -76,7 +76,9 @@ public abstract class SubscriberOptions implements Serializable {
 
   SubscriberFactory getSubscriberFactory(Partition partition) {
     SubscriberFactory factory = subscriberFactory();
-    if (factory != null) return factory;
+    if (factory != null) {
+      return factory;
+    }
     return consumer ->
         SubscriberBuilder.newBuilder()
             .setMessageConsumer(consumer)
@@ -88,7 +90,9 @@ public abstract class SubscriberOptions implements Serializable {
 
   Committer getCommitter(Partition partition) {
     SerializableSupplier<Committer> supplier = committerSupplier();
-    if (supplier != null) return supplier.get();
+    if (supplier != null) {
+      return supplier.get();
+    }
     return CommitterBuilder.newBuilder()
         .setSubscriptionPath(subscriptionPath())
         .setPartition(partition)
@@ -97,7 +101,9 @@ public abstract class SubscriberOptions implements Serializable {
 
   TopicBacklogReader getBacklogReader() {
     SerializableSupplier<TopicBacklogReader> supplier = backlogReaderSupplier();
-    if (supplier != null) return supplier.get();
+    if (supplier != null) {
+      return supplier.get();
+    }
     return TopicBacklogReaderSettings.newBuilder()
         .setTopicPathFromSubscriptionPath(subscriptionPath())
         .build()
@@ -130,7 +136,9 @@ public abstract class SubscriberOptions implements Serializable {
 
     @SuppressWarnings("CheckReturnValue")
     public SubscriberOptions build() throws ApiException {
-      if (!partitions().isEmpty()) return autoBuild();
+      if (!partitions().isEmpty()) {
+        return autoBuild();
+      }
 
       if (partitions().isEmpty()) {
         int partitionCount = PartitionLookupUtils.numPartitions(subscriptionPath());
