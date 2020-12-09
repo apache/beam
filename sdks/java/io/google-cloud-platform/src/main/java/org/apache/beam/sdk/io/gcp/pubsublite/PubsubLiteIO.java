@@ -51,16 +51,8 @@ public final class PubsubLiteIO {
    *             .setName(subscriptionName)
    *             .build();
    *
-   * FlowControlSettings flowControlSettings =
-   *         FlowControlSettings.builder()
-   *             // Set outstanding bytes to 10 MiB per partition.
-   *             .setBytesOutstanding(10 * 1024 * 1024L)
-   *             .setMessagesOutstanding(Long.MAX_VALUE)
-   *             .build();
-   *
    * PCollection<SequencedMessage> messages = p.apply(PubsubLiteIO.read(SubscriberOptions.newBuilder()
    *     .setSubscriptionPath(subscriptionPath)
-   *     .setFlowControlSettings(flowControlSettings)
    *     .build()), "read");
    * }</pre>
    */
