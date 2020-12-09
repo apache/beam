@@ -41,14 +41,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 /** Test Coverage for the IO. */
-@Ignore("[BEAM-7794] DynamoDBIOTest is blocking forever")
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
