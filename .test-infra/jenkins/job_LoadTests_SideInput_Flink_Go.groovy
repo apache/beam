@@ -26,6 +26,12 @@ import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
+// TODO(BEAM-11427): Tests of side inputs > 2GB would fail on portable runners due to GRPC size limitations.
+def TESTS_TO_SKIP = [
+  'load-tests-go-flink-batch-sideinput-3',
+  'load-tests-go-flink-batch-sideinput-4',
+]
+
 def batchScenarios = {
   [
     [
@@ -37,9 +43,9 @@ def batchScenarios = {
         influx_namespace   : 'flink',
         influx_measurement : 'go_batch_sideinput_3',
         input_options      : '\'{' +
-        '"num_records": 100,' +
-        '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"num_records": 1000000,' +
+        '"key_size": 100,' +
+        '"value_size": 900}\'',
         access_percentage  : 1,
         parallelism        : 10,
         endpoint           : 'localhost:8099',
@@ -56,16 +62,57 @@ def batchScenarios = {
         influx_namespace   : 'flink',
         influx_measurement : 'go_batch_sideinput_4',
         input_options      : '\'{' +
-        '"num_records": 100,' +
-        '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"num_records": 1000000,' +
+        '"key_size": 100,' +
+        '"value_size": 900}\'',
         parallelism        : 10,
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
         environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
-  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+    [
+      title          : 'SideInput Go Load test: 2gb-1kb-10workers-1window-first-iterable',
+      test           : 'sideinput',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name           : "load-tests-go-flink-batch-sideinput-5-${now}",
+        influx_namespace   : 'flink',
+        influx_measurement : 'go_batch_sideinput_5',
+        input_options      : '\'{' +
+        '"num_records": 200000,' +
+        '"key_size": 100,' +
+        '"value_size": 900}\'',
+        access_percentage  : 1,
+        parallelism        : 10,
+        endpoint           : 'localhost:8099',
+        environment_type   : 'DOCKER',
+        environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+    [
+      title          : 'SideInput Go Load test: 2gb-1kb-10workers-1window-iterable',
+      test           : 'sideinput',
+      runner         : CommonTestProperties.Runner.FLINK,
+      pipelineOptions: [
+        job_name           : "load-tests-go-flink-batch-sideinput-6-${now}",
+        influx_namespace   : 'flink',
+        influx_measurement : 'go_batch_sideinput_6',
+        input_options      : '\'{' +
+        '"num_records": 200000,' +
+        '"key_size": 100,' +
+        '"value_size": 900}\'',
+        parallelism        : 10,
+        endpoint           : 'localhost:8099',
+        environment_type   : 'DOCKER',
+        environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+      ]
+    ],
+  ]
+  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  .collectMany { test ->
+    TESTS_TO_SKIP.any { element -> test.pipelineOptions.job_name.startsWith(element) } ? []: [test]
+  }
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
