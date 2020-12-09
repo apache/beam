@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.math.BigDecimal;
 import java.math.MathContext;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 
@@ -35,7 +33,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
  *
  * <p>The growable range is marked as done by claiming {@code Long.MAX_VALUE}.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

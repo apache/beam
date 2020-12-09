@@ -1861,3 +1861,20 @@ def create_map_windows(
 
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, MapWindows())
+
+
+@BeamTransformFactory.register_urn(common_urns.primitives.TO_STRING.urn, None)
+def create_to_string_fn(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
+    consumers  # type: Dict[str, List[operations.Operation]]
+):
+  class ToString(beam.DoFn):
+    def process(self, element):
+      key, value = element
+      return [(key, str(value))]
+
+  return _create_simple_pardo_operation(
+      factory, transform_id, transform_proto, consumers, ToString())
