@@ -72,15 +72,15 @@ def batchScenarios = {
       ]
     ],
     [
-      title          : 'SideInput Go Load test: 2gb-1kb-10workers-1window-first-iterable',
+      title          : 'SideInput Go Load test: 500mb-1kb-10workers-1window-first-iterable',
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-sideinput-5-${now}",
+        job_name           : "load-tests-go-flink-batch-sideinput-7-${now}",
         influx_namespace   : 'flink',
-        influx_measurement : 'go_batch_sideinput_5',
+        influx_measurement : 'go_batch_sideinput_7',
         input_options      : '\'{' +
-        '"num_records": 200000,' +
+        '"num_records": 500000,' +
         '"key_size": 100,' +
         '"value_size": 900}\'',
         access_percentage  : 1,
@@ -91,15 +91,15 @@ def batchScenarios = {
       ]
     ],
     [
-      title          : 'SideInput Go Load test: 2gb-1kb-10workers-1window-iterable',
+      title          : 'SideInput Go Load test: 500mb-1kb-10workers-1window-iterable',
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-sideinput-6-${now}",
+        job_name           : "load-tests-go-flink-batch-sideinput-8-${now}",
         influx_namespace   : 'flink',
-        influx_measurement : 'go_batch_sideinput_6',
+        influx_measurement : 'go_batch_sideinput_8',
         input_options      : '\'{' +
-        '"num_records": 200000,' +
+        '"num_records": 500000,' +
         '"key_size": 100,' +
         '"value_size": 900}\'',
         parallelism        : 10,
