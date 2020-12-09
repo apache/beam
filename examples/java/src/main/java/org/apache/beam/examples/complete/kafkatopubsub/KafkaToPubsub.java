@@ -55,67 +55,72 @@ import org.slf4j.LoggerFactory;
  *   <li>Kafka Topic(s) exists.
  *   <li>The PubSub output topic exists.
  *   <li>(Optional) An existing HashiCorp Vault secret storage
+ *   <li>(Optional) A configured secure SSL connection for Kafka
  * </ul>
  *
  * <p><b>Example Usage</b>
  *
  * <pre>
- * # Set the pipeline vars
- * PROJECT=id-of-my-project
- * BUCKET_NAME=my-bucket
+ * # Gradle preparation
  *
- * # Set containerization vars
- * IMAGE_NAME=my-image-name
- * TARGET_GCR_IMAGE=gcr.io/${PROJECT}/${IMAGE_NAME}
- * BASE_CONTAINER_IMAGE=my-base-container-image
- * TEMPLATE_PATH="gs://${BUCKET_NAME}/templates/kafka-pubsub.json"
+ * To run this example your {@code build.gradle} file should contain the following task
+ * to execute the pipeline:
+ * {@code
+ * task execute (type:JavaExec) {
+ *     main = System.getProperty("mainClass")
+ *     classpath = sourceSets.main.runtimeClasspath
+ *     systemProperties System.getProperties()
+ *     args System.getProperty("exec.args", "").split()
+ * }
+ * }
  *
- * # Create bucket in the cloud storage
- * gsutil mb gs://${BUCKET_NAME}
+ * This task allows to run the pipeline via the following command:
+ * {@code
+ * gradle clean execute -DmainClass=org.apache.beam.examples.complete.kafkatopubsub.KafkaToPubsub \
+ *      -Dexec.args="--<argument>=<value> --<argument>=<value>"
+ * }
  *
- * # Go to the beam folder
- * cd /path/to/beam
+ * # Running the pipeline
+ * To execute this pipeline, specify the parameters:
  *
- * <b>FLEX TEMPLATE</b>
- * # Assemble uber-jar
- * ./gradlew -p templates/kafka-to-pubsub clean shadowJar
+ * - Kafka Bootstrap servers
+ * - Kafka input topics
+ * - Pub/Sub output topic
+ * - Output format
  *
- * # Go to the template folder
- * cd /path/to/beam/templates/kafka-to-pubsub
+ * in the following format:
+ * {@code
+ * --bootstrapServers=host:port \
+ * --inputTopics=your-input-topic \
+ * --outputTopic=projects/your-project-id/topics/your-topic-pame \
+ * --outputFormat=AVRO|PUBSUB
+ * }
  *
- * # Build the flex template
- * gcloud dataflow flex-template build ${TEMPLATE_PATH} \
- *       --image-gcr-path "${TARGET_GCR_IMAGE}" \
- *       --sdk-language "JAVA" \
- *       --flex-template-base-image ${BASE_CONTAINER_IMAGE} \
- *       --metadata-file "src/main/resources/kafka_to_pubsub_metadata.json" \
- *       --jar "build/libs/beam-templates-kafka-to-pubsub-<version>-all.jar" \
- *       --env FLEX_TEMPLATE_JAVA_MAIN_CLASS="org.apache.beam.templates.KafkaToPubsub"
+ * Optionally, to retrieve Kafka credentials for SASL/SCRAM,
+ * specify a URL to the credentials in HashiCorp Vault and the vault access token:
+ * {@code
+ * --secretStoreUrl=http(s)://host:port/path/to/credentials
+ * --vaultToken=your-token
+ * }
  *
- * # Execute template:
- *    API_ROOT_URL="https://dataflow.googleapis.com"
- *    TEMPLATES_LAUNCH_API="${API_ROOT_URL}/v1b3/projects/${PROJECT}/locations/${REGION}/flexTemplates:launch"
- *    JOB_NAME="kafka-to-pubsub-`date +%Y%m%d-%H%M%S-%N`"
- *
- *    time curl -X POST -H "Content-Type: application/json" \
- *            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
- *            -d '
- *             {
- *                 "launch_parameter": {
- *                     "jobName": "'$JOB_NAME'",
- *                     "containerSpecGcsPath": "'$TEMPLATE_PATH'",
- *                     "parameters": {
- *                         "bootstrapServers": "broker_1:9091, broker_2:9092",
- *                         "inputTopics": "topic1, topic2",
- *                         "outputTopic": "projects/'$PROJECT'/topics/your-topic-name",
- *                         "secretStoreUrl": "http(s)://host:port/path/to/credentials",
- *                         "vaultToken": "your-token"
- *                     }
- *                 }
- *             }
- *            '
- *            "${TEMPLATES_LAUNCH_API}"
- * </pre>
+ * Optionally, to configure secure SSL connection between the Beam pipeline and Kafka,
+ * specify the parameters:
+ * - A path to a truststore file (it can be a local path or a GCS path, which should start with `gs://`)
+ * - A path to a keystore file (it can be a local path or a GCS path, which should start with `gs://`)
+ * - Truststore password
+ * - Keystore password
+ * - Key password
+ * {@code
+ * --truststorePath=path/to/kafka.truststore.jks
+ * --keystorePath=path/to/kafka.keystore.jks
+ * --truststorePassword=your-truststore-password
+ * --keystorePassword=your-keystore-password
+ * --keyPassword=your-key-password
+ * }
+ * By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
+ * {@code
+ * --runner=YOUR_SELECTED_RUNNER
+ * }
  *
  * <p><b>Example Avro usage</b>
  *
