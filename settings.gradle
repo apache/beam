@@ -52,7 +52,6 @@ include ":release:go-licenses:py"
 
 include ":examples:java"
 include ":examples:kotlin"
-include ":examples:kafka-to-pubsub"
 include ":model:fn-execution"
 include ":model:job-management"
 include ":model:pipeline"

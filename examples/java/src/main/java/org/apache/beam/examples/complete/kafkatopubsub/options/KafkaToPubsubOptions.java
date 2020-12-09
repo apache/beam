@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.options;
+package org.apache.beam.examples.complete.kafkatopubsub.options;
 
-import org.apache.beam.examples.transforms.FormatTransform;
+import org.apache.beam.examples.complete.kafkatopubsub.transforms.FormatTransform;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;

@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
+package org.apache.beam.examples.complete.kafkatopubsub;
 
-import static org.apache.beam.examples.kafka.consumer.Utils.configureKafka;
-import static org.apache.beam.examples.kafka.consumer.Utils.configureSsl;
-import static org.apache.beam.examples.kafka.consumer.Utils.getKafkaCredentialsFromVault;
-import static org.apache.beam.examples.kafka.consumer.Utils.isSslSpecified;
+import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.configureKafka;
+import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.configureSsl;
+import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.getKafkaCredentialsFromVault;
+import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.isSslSpecified;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -28,10 +28,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.examples.avro.AvroDataClass;
-import org.apache.beam.examples.avro.AvroDataClassKafkaAvroDeserializer;
-import org.apache.beam.examples.options.KafkaToPubsubOptions;
-import org.apache.beam.examples.transforms.FormatTransform;
+import org.apache.beam.examples.complete.kafkatopubsub.avro.AvroDataClass;
+import org.apache.beam.examples.complete.kafkatopubsub.avro.AvroDataClassKafkaAvroDeserializer;
+import org.apache.beam.examples.complete.kafkatopubsub.options.KafkaToPubsubOptions;
+import org.apache.beam.examples.complete.kafkatopubsub.transforms.FormatTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;

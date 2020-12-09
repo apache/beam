@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.kafka.consumer;
+package org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer;
 
 import java.io.File;
 import java.io.IOException;

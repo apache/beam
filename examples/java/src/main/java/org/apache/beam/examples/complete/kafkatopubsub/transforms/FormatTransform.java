@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.transforms;
+package org.apache.beam.examples.complete.kafkatopubsub.transforms;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.examples.avro.AvroDataClass;
-import org.apache.beam.examples.avro.AvroDataClassKafkaAvroDeserializer;
-import org.apache.beam.examples.kafka.consumer.SslConsumerFactoryFn;
-import org.apache.beam.examples.options.KafkaToPubsubOptions;
+import org.apache.beam.examples.complete.kafkatopubsub.avro.AvroDataClass;
+import org.apache.beam.examples.complete.kafkatopubsub.avro.AvroDataClassKafkaAvroDeserializer;
+import org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.SslConsumerFactoryFn;
+import org.apache.beam.examples.complete.kafkatopubsub.options.KafkaToPubsubOptions;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;

@@ -15,15 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
 
-/** Constant variables that are used across the template's parts. */
-public class KafkaPubsubConstants {
-
-  /* Config keywords */
-  public static final String KAFKA_CREDENTIALS = "kafka";
-  public static final String SSL_CREDENTIALS = "ssl";
-  public static final String USERNAME = "username";
-  public static final String PASSWORD = "password";
-  public static final String BUCKET = "bucket";
-}
+/** Kafka to Pubsub template. */
+package org.apache.beam.examples.complete.kafkatopubsub.avro;

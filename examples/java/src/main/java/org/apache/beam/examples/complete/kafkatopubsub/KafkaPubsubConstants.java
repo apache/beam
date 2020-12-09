@@ -15,27 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.avro;
+package org.apache.beam.examples.complete.kafkatopubsub;
 
-import io.confluent.kafka.serializers.AbstractKafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
-import java.util.Map;
-import org.apache.kafka.common.serialization.Deserializer;
+/** Constant variables that are used across the template's parts. */
+public class KafkaPubsubConstants {
 
-/** Example of custom AVRO Deserialize. */
-public class AvroDataClassKafkaAvroDeserializer extends AbstractKafkaAvroDeserializer
-    implements Deserializer<AvroDataClass> {
-
-  @Override
-  public void configure(Map<String, ?> configs, boolean isKey) {
-    configure(new KafkaAvroDeserializerConfig(configs));
-  }
-
-  @Override
-  public AvroDataClass deserialize(String s, byte[] bytes) {
-    return (AvroDataClass) this.deserialize(bytes);
-  }
-
-  @Override
-  public void close() {}
+  /* Config keywords */
+  public static final String KAFKA_CREDENTIALS = "kafka";
+  public static final String SSL_CREDENTIALS = "ssl";
+  public static final String USERNAME = "username";
+  public static final String PASSWORD = "password";
+  public static final String BUCKET = "bucket";
 }

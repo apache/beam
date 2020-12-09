@@ -17,4 +17,4 @@
  */
 
 /** Kafka to Pubsub template. */
-package org.apache.beam.examples.transforms;
+package org.apache.beam.examples.complete.kafkatopubsub.options;

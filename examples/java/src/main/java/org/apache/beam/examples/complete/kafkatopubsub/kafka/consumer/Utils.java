@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.kafka.consumer;
+package org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer;
 
-import static org.apache.beam.examples.KafkaPubsubConstants.KAFKA_CREDENTIALS;
-import static org.apache.beam.examples.KafkaPubsubConstants.PASSWORD;
-import static org.apache.beam.examples.KafkaPubsubConstants.USERNAME;
+import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.KAFKA_CREDENTIALS;
+import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.PASSWORD;
+import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.USERNAME;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.examples.options.KafkaToPubsubOptions;
+import org.apache.beam.examples.complete.kafkatopubsub.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonParser;
 import org.apache.http.HttpResponse;

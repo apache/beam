@@ -15,17 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
+package org.apache.beam.examples.complete.kafkatopubsub;
 
-import static org.apache.beam.examples.KafkaPubsubConstants.PASSWORD;
-import static org.apache.beam.examples.KafkaPubsubConstants.USERNAME;
-import static org.apache.beam.examples.kafka.consumer.Utils.getKafkaCredentialsFromVault;
+import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.PASSWORD;
+import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.USERNAME;
+import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.getKafkaCredentialsFromVault;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.examples.kafka.consumer.Utils;
+import org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils;
 import org.apache.kafka.common.config.SaslConfigs;
-import org.apache.kafka.common.security.scram.ScramMechanism;
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
