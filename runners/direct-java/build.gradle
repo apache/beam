@@ -95,14 +95,28 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadowTest")
 }
 
+// windows handles quotes differently from linux,
+// on linux, the pipeline option string looks like
+// "--runner=DirectRunner", "--runnerDeterminedSharding=false"
+// on windows, the pipeline option string needs to be
+// "\"--runner=DirectRunner\"", "\"--runnerDeterminedSharding=false\""
+// to achieve the same effect
+static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
+  if (System.properties['os.name'].toLowerCase().contains('windows')) {
+    return JsonOutput.toJson(options.collect { "\"$it\"" })
+  } else {
+    return JsonOutput.toJson(options)
+  }
+}
+
 task needsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
 
   testLogging.showStandardStreams = true
 
-  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
+  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
   classpath = configurations.needsRunner
   // NOTE: We only add to the test class dirs to ensure that the direct runner
@@ -131,8 +145,8 @@ task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Direct runner"
 
-  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
+  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
   classpath = configurations.validatesRunner
   // NOTE: We only add to the test class dirs to ensure that the direct runner

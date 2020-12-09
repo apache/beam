@@ -68,7 +68,6 @@ dependencies {
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile library.java.junit
-  permitUnusedDeclared "com.google.auto.value:auto-value-annotations:1.7.2"
   permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 
   // Add dependencies for the PreCommit configurations

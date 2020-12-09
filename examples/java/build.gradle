@@ -69,7 +69,6 @@ dependencies {
   compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
   compile library.java.jsr305
   compile "com.google.oauth-client:google-oauth-client:1.31.0"
-  permitUnusedDeclared "com.google.auto.value:auto-value-annotations:1.7.2"
   permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")

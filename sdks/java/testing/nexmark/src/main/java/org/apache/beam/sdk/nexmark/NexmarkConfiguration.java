@@ -320,7 +320,7 @@ public class NexmarkConfiguration implements Serializable {
       fanout = options.getFanout();
     }
     if (options.getMaxAuctionsWaitingTime() != null) {
-      fanout = options.getMaxAuctionsWaitingTime();
+      maxAuctionsWaitingTime = options.getMaxAuctionsWaitingTime();
     }
     if (options.getOccasionalDelaySec() != null) {
       occasionalDelaySec = options.getOccasionalDelaySec();

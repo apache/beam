@@ -69,7 +69,7 @@ dependencies {
 
 test {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-      '--region=us-west-2',
+      '--awsRegion=us-west-2',
       '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
   ])
   // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.

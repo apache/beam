@@ -349,7 +349,7 @@ public interface NexmarkOptions
   @Nullable
   Integer getMaxAuctionsWaitingTime();
 
-  void setMaxAuctionsWaitingTime(Integer fanout);
+  void setMaxAuctionsWaitingTime(Integer maxAuctionsWaitingTime);
 
   @Description("Length of occasional delay to impose on events (in seconds).")
   @Nullable
@@ -414,28 +414,6 @@ public interface NexmarkOptions
   void setRunningTimeMinutes(Long value);
 
   @Description(
-      "If set and --monitorJobs is true, check that the system watermark is never more "
-          + "than this far behind real time")
-  @Nullable
-  Long getMaxSystemLagSeconds();
-
-  void setMaxSystemLagSeconds(Long value);
-
-  @Description(
-      "If set and --monitorJobs is true, check that the data watermark is never more "
-          + "than this far behind real time")
-  @Nullable
-  Long getMaxDataLagSeconds();
-
-  void setMaxDataLagSeconds(Long value);
-
-  @Description("Only start validating watermarks after this many seconds")
-  @Nullable
-  Long getWatermarkValidationDelaySeconds();
-
-  void setWatermarkValidationDelaySeconds(Long value);
-
-  @Description(
       "Specify 'sql' to use Calcite SQL queries "
           + "or 'zetasql' to use ZetaSQL queries."
           + "Otherwise Java transforms will be used")
@@ -479,12 +457,6 @@ public interface NexmarkOptions
   int getNexmarkParallel();
 
   void setNexmarkParallel(int value);
-
-  @Description("InfluxDB measurement to publish results to.")
-  @Nullable
-  String getInfluxMeasurement();
-
-  void setInfluxMeasurement(@Nullable String measurement);
 
   @Description("InfluxDB host.")
   @Nullable

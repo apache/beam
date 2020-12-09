@@ -38,7 +38,7 @@ class UserPipelineTracker:
   derived pipelines.
   """
   def __init__(self):
-    self._user_pipelines: set[beam.Pipeline] = set()
+    self._user_pipelines: dict[beam.Pipeline, list[beam.Pipeline]] = {}
     self._derived_pipelines: dict[beam.Pipeline] = {}
     self._pid_to_pipelines: dict[beam.Pipeline] = {}
 
@@ -49,6 +49,20 @@ class UserPipelineTracker:
 
   def _key(self, pipeline: beam.Pipeline) -> str:
     return str(id(pipeline))
+
+  def evict(self, pipeline: beam.Pipeline) -> None:
+    """Evicts the pipeline.
+
+    Removes the given pipeline and derived pipelines if a user pipeline.
+    Otherwise, removes the given derived pipeline.
+    """
+    user_pipeline = self.get_user_pipeline(pipeline)
+    if user_pipeline:
+      for d in self._user_pipelines[user_pipeline]:
+        del self._derived_pipelines[d]
+      del self._user_pipelines[user_pipeline]
+    elif pipeline in self._derived_pipelines:
+      del self._derived_pipelines[pipeline]
 
   def clear(self) -> None:
     """Clears the tracker of all user and derived pipelines."""
@@ -68,7 +82,7 @@ class UserPipelineTracker:
     user_pipeline = self.get_user_pipeline(p)
     if not user_pipeline:
       user_pipeline = p
-      self._user_pipelines.add(p)
+      self._user_pipelines[p] = []
 
     return user_pipeline
 
@@ -113,6 +127,7 @@ class UserPipelineTracker:
 
     # Map the derived pipeline to the user pipeline.
     self._derived_pipelines[derived_pipeline] = user
+    self._user_pipelines[user].append(derived_pipeline)
 
   def get_user_pipeline(self, p: beam.Pipeline) -> Optional[beam.Pipeline]:
     """Returns the user pipeline of the given pipeline.
