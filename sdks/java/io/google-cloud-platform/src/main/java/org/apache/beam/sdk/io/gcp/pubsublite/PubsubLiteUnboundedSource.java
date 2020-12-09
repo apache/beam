@@ -17,22 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import static com.google.cloud.pubsublite.internal.Preconditions.checkState;
 import static java.lang.Math.min;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.internal.BufferingPullSubscriber;
-import com.google.cloud.pubsublite.internal.wire.Committer;
-import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import io.grpc.StatusException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -72,16 +67,12 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
       if (partitionSubset.isEmpty()) {
         continue;
       }
-      try {
-        builder.add(
-            new PubsubLiteUnboundedSource(
-                subscriberOptions
-                    .toBuilder()
-                    .setPartitions(ImmutableSet.copyOf(partitionSubset))
-                    .build()));
-      } catch (StatusException e) {
-        throw e.getStatus().asRuntimeException();
-      }
+      builder.add(
+          new PubsubLiteUnboundedSource(
+              subscriberOptions
+                  .toBuilder()
+                  .setPartitions(ImmutableSet.copyOf(partitionSubset))
+                  .build()));
     }
     return builder.build();
   }
@@ -90,23 +81,19 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
   public UnboundedReader<SequencedMessage> createReader(
       PipelineOptions options, @Nullable OffsetCheckpointMark checkpointMark) throws IOException {
     try {
-      Map<Partition, SubscriberFactory> subscriberFactories =
-          subscriberOptions.getSubscriberFactories();
-      Map<Partition, Committer> committers = subscriberOptions.getCommitters();
       ImmutableMap.Builder<Partition, PubsubLiteUnboundedReader.SubscriberState> statesBuilder =
           ImmutableMap.builder();
-      for (Partition partition : subscriberFactories.keySet()) {
-        checkState(committers.containsKey(partition));
+      for (Partition partition : subscriberOptions.partitions()) {
         PubsubLiteUnboundedReader.SubscriberState state =
             new PubsubLiteUnboundedReader.SubscriberState();
-        state.committer = committers.get(partition);
+        state.committer = subscriberOptions.getCommitter(partition);
         if (checkpointMark != null && checkpointMark.partitionOffsetMap.containsKey(partition)) {
           Offset checkpointed = checkpointMark.partitionOffsetMap.get(partition);
           state.lastDelivered = Optional.of(checkpointed);
           state.subscriber =
               new TranslatingPullSubscriber(
                   new BufferingPullSubscriber(
-                      subscriberFactories.get(partition),
+                      subscriberOptions.getSubscriberFactory(partition),
                       subscriberOptions.flowControlSettings(),
                       SeekRequest.newBuilder()
                           .setCursor(Cursor.newBuilder().setOffset(checkpointed.value()))
@@ -115,16 +102,15 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
           state.subscriber =
               new TranslatingPullSubscriber(
                   new BufferingPullSubscriber(
-                      subscriberFactories.get(partition), subscriberOptions.flowControlSettings()));
+                      subscriberOptions.getSubscriberFactory(partition),
+                      subscriberOptions.flowControlSettings()));
         }
         statesBuilder.put(partition, state);
       }
       return new PubsubLiteUnboundedReader(
-          this,
-          statesBuilder.build(),
-          TopicBacklogReader.create(subscriberOptions.topicBacklogReaderSettings()));
-    } catch (StatusException e) {
-      throw new IOException(e);
+          this, statesBuilder.build(), subscriberOptions.getBacklogReader());
+    } catch (Throwable t) {
+      throw new IOException(t);
     }
   }
 

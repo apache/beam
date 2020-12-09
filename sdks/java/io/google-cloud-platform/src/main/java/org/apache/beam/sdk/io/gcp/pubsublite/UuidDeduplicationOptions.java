@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import static com.google.cloud.pubsublite.internal.Preconditions.checkArgument;
+import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Deduplicate;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.joda.time.Duration;
 
 /** Options for deduplicating Pub/Sub Lite messages based on the UUID they were published with. */
@@ -36,7 +37,7 @@ import org.joda.time.Duration;
 public abstract class UuidDeduplicationOptions implements Serializable {
   private static final long serialVersionUID = 9837489720893L;
 
-  public static final SerializableStatusFunction<SequencedMessage, Uuid> DEFAULT_UUID_EXTRACTOR =
+  public static final SerializableFunction<SequencedMessage, Uuid> DEFAULT_UUID_EXTRACTOR =
       message -> {
         checkArgument(
             message.getMessage().getAttributesMap().containsKey(Uuid.DEFAULT_ATTRIBUTE),
@@ -53,12 +54,9 @@ public abstract class UuidDeduplicationOptions implements Serializable {
   public static final Duration DEFAULT_DEDUPLICATE_DURATION = Duration.standardDays(1);
 
   // All parameters are optional.
-  public abstract SerializableStatusFunction<SequencedMessage, Uuid> uuidExtractor();
+  public abstract SerializableFunction<SequencedMessage, Uuid> uuidExtractor();
 
   public abstract Deduplicate.KeyedValues<Uuid, SequencedMessage> deduplicate();
-
-  // The number of partitions to hash values into.
-  public abstract int hashPartitions();
 
   @SuppressWarnings("CheckReturnValue")
   public static Builder newBuilder() {
@@ -68,14 +66,13 @@ public abstract class UuidDeduplicationOptions implements Serializable {
         Deduplicate.<Uuid, SequencedMessage>keyedValues()
             .withTimeDomain(DEFAULT_TIME_DOMAIN)
             .withDuration(DEFAULT_DEDUPLICATE_DURATION));
-    builder.setHashPartitions(DEFAULT_HASH_PARTITIONS);
     return builder;
   }
 
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setUuidExtractor(
-        SerializableStatusFunction<SequencedMessage, Uuid> uuidExtractor);
+        SerializableFunction<SequencedMessage, Uuid> uuidExtractor);
 
     /**
      * Set the deduplication transform.
@@ -88,8 +85,6 @@ public abstract class UuidDeduplicationOptions implements Serializable {
      */
     public abstract Builder setDeduplicate(
         Deduplicate.KeyedValues<Uuid, SequencedMessage> deduplicate);
-
-    public abstract Builder setHashPartitions(int partitions);
 
     public abstract UuidDeduplicationOptions build();
   }
