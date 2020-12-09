@@ -505,7 +505,11 @@ class DataflowRunner(PipelineRunner):
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
     from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
-    pipeline.replace_all([WriteToBigQueryPTransformOverride(pipeline, options)])
+    from apache_beam.runners.dataflow.ptransform_overrides import GroupIntoBatchesWithShardedKeyPTransformOverride
+    pipeline.replace_all([
+        WriteToBigQueryPTransformOverride(pipeline, options),
+        GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)
+    ])
 
     if use_fnapi and not apiclient._use_unified_worker(options):
       pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
@@ -726,6 +730,18 @@ class DataflowRunner(PipelineRunner):
     else:
       window_coder = None
     return self._get_typehint_based_encoding(element_type, window_coder)
+
+  def get_pcoll_with_auto_sharding(self):
+    if not hasattr(self, '_pcoll_with_auto_sharding'):
+      return set()
+    return self._pcoll_with_auto_sharding
+
+  def add_pcoll_with_auto_sharding(self, applied_ptransform):
+    if not hasattr(self, '_pcoll_with_auto_sharding'):
+      self.__setattr__('_pcoll_with_auto_sharding', set())
+    output = DataflowRunner._only_element(applied_ptransform.outputs.keys())
+    self._pcoll_with_auto_sharding.add(
+        applied_ptransform.outputs[output]._unique_name())
 
   def _add_step(self, step_kind, step_label, transform_node, side_tags=()):
     """Creates a Step object and adds it to the cache."""
@@ -1111,6 +1127,20 @@ class DataflowRunner(PipelineRunner):
           DoFnSignature(transform.dofn).is_stateful_dofn())
       if is_stateful_dofn:
         step.add_property(PropertyNames.USES_KEYED_STATE, 'true')
+
+        # Also checks whether the step allows shardable keyed states.
+        # TODO(BEAM-11360): remove this when migrated to portable job
+        #  submission since we only consider supporting the property in runner
+        #  v2.
+        for pcoll in transform_node.outputs.values():
+          if pcoll._unique_name() in self.get_pcoll_with_auto_sharding():
+            step.add_property(PropertyNames.ALLOWS_SHARDABLE_STATE, 'true')
+            # Currently we only allow auto-sharding to be enabled through the
+            # GroupIntoBatches transform. So we also add the following property
+            # which GroupIntoBatchesDoFn has, to allow the backend to perform
+            # graph optimization.
+            step.add_property(PropertyNames.PRESERVES_KEYS, 'true')
+            break
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):

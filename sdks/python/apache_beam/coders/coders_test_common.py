@@ -30,11 +30,14 @@ import pytest
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.typehints import sharded_key_type
+from apache_beam.typehints import typehints
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 from apache_beam.utils.sharded_key import ShardedKey
@@ -595,6 +598,20 @@ class CodersTest(unittest.TestCase):
       # Test unnested
       self.check_coder(coder, ShardedKey(key, b''))
       self.check_coder(coder, ShardedKey(key, b'123'))
+
+      # Test type hints
+      self.assertTrue(
+          isinstance(
+              coder.to_type_hint(), sharded_key_type.ShardedKeyTypeConstraint))
+      key_type = coder.to_type_hint().key_type
+      if isinstance(key_type, typehints.TupleConstraint):
+        self.assertEqual(key_type.tuple_types, (type(key[0]), type(key[1])))
+      else:
+        self.assertEqual(key_type, type(key))
+      self.assertEqual(
+          coders.ShardedKeyCoder.from_type_hint(
+              coder.to_type_hint(), typecoders.CoderRegistry()),
+          coder)
 
       for other_key, _, other_key_coder in key_and_coders:
         other_coder = coders.ShardedKeyCoder(other_key_coder)

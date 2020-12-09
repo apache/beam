@@ -19,6 +19,8 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+import static PythonTestProperties.VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS
+
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
@@ -35,8 +37,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
       // Execute shell command to test Python SDK.
       // TODO: Parallel the script run with Jenkins DSL or Gradle.
       steps {
-        shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python36')
-        shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python37')
-        shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python38')
+        VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS.each {
+          pythonVersion = it.replace('.', '')
+          shell('cd ' + commonJobProperties.checkoutDir + " && bash sdks/python/container/run_validatescontainer.sh python${pythonVersion}")
+        }
       }
     }

@@ -171,6 +171,7 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesOrderedListState',
         'org.apache.beam.sdk.testing.UsesTestStream',
         'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
+        'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
@@ -358,26 +359,16 @@ task validatesRunnerV2 {
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
     excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+      'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
+      'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
     ],
     excludedTests: [
       'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
 
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointBounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicBounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedBounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsBounded',
-
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
-      'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalization',
-      'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithSideInputs',
-      'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithState',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
       'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testValueStateTaggedOutput',
@@ -418,10 +409,6 @@ task validatesRunnerV2Streaming {
     name: 'validatesRunnerV2TestStreaming',
     pipelineOptions: runnerV2PipelineOptions + ['--streaming=true'],
     excludedCategories: [
-      // Not supported in Dataflow streaming mode.
-      'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-      // Timeouts, need investigation.
-      'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
     ],
@@ -445,6 +432,11 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
 
       'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
+
+      // TODO(BEAM-11306): Pipeline is hanging for these 3 tests.
+      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
+      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
+      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
 
       // TODO(BEAM-8543): streaming timers are not strictly time ordered
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate',

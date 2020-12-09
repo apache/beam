@@ -63,9 +63,6 @@ def print_with_message(msg):
 
 
 class InteractiveRunnerTest(unittest.TestCase):
-  def setUp(self):
-    ie.new_env()
-
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_basic(self):
     p = beam.Pipeline(

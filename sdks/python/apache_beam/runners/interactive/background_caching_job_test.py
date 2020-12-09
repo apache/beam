@@ -24,6 +24,7 @@ import sys
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
@@ -61,10 +62,7 @@ def _build_a_test_stream_pipeline():
 
 
 def _build_an_empty_stream_pipeline():
-  from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import StandardOptions
-  pipeline_options = PipelineOptions()
-  pipeline_options.view_as(StandardOptions).streaming = True
+  pipeline_options = PipelineOptions(streaming=True)
   p = beam.Pipeline(
       interactive_runner.InteractiveRunner(), options=pipeline_options)
   ib.watch({'pipeline': p})
@@ -103,9 +101,30 @@ class BackgroundCachingJobTest(unittest.TestCase):
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
       '.InteractiveEnvironment.cleanup',
-      lambda x: None)
+      lambda x,
+      y: None)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
-    p = _build_a_test_stream_pipeline()
+
+    # Create a fake PipelineResult and PipelineRunner. This is because we want
+    # to test whether the BackgroundCachingJob can be started without having to
+    # rely on a real pipeline run.
+    class FakePipelineResult(beam.runners.runner.PipelineResult):
+      def wait_until_finish(self):
+        return
+
+    class FakePipelineRunner(beam.runners.PipelineRunner):
+      def run_pipeline(self, pipeline, options):
+        return FakePipelineResult(beam.runners.runner.PipelineState.RUNNING)
+
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(FakePipelineRunner()),
+        options=PipelineOptions(streaming=True))
+
+    # pylint: disable=possibly-unused-variable
+    elems = p | 'Read' >> beam.io.ReadFromPubSub(subscription=_FOO_PUBSUB_SUB)
+
+    ib.watch(locals())
+
     _setup_test_streaming_cache(p)
     p.run()
     self.assertIsNotNone(ie.current_env().get_background_caching_job(p))
@@ -121,7 +140,10 @@ class BackgroundCachingJobTest(unittest.TestCase):
       '.has_source_to_cache',
       lambda x: False)
   def test_background_caching_job_not_start_for_batch_pipeline(self):
-    p = _build_a_test_stream_pipeline()
+    p = beam.Pipeline()
+
+    # pylint: disable=expression-not-assigned
+    p | beam.Create([])
     p.run()
     self.assertIsNone(ie.current_env().get_background_caching_job(p))
 
@@ -133,7 +155,8 @@ class BackgroundCachingJobTest(unittest.TestCase):
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
       '.InteractiveEnvironment.cleanup',
-      lambda x: None)
+      lambda x,
+      y: None)
   def test_background_caching_job_not_start_when_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
     _setup_test_streaming_cache(p)
@@ -157,7 +180,8 @@ class BackgroundCachingJobTest(unittest.TestCase):
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
       '.InteractiveEnvironment.cleanup',
-      lambda x: None)
+      lambda x,
+      y: None)
   def test_background_caching_job_not_start_when_such_job_is_done(self):
     p = _build_a_test_stream_pipeline()
     _setup_test_streaming_cache(p)

@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -34,7 +32,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * of workers and/or splitting may result if the progress is an inaccurate representation of the
  * known amount of completed and remaining work.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 @SuppressWarnings({
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })

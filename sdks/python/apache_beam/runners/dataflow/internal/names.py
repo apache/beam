@@ -69,6 +69,8 @@ class PropertyNames(object):
 
   Property strings as they are expected in the CloudWorkflow protos.
   """
+  # If uses_keyed_state, whether the state can be sharded.
+  ALLOWS_SHARDABLE_STATE = 'allows_shardable_state'
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
   BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'
@@ -98,6 +100,9 @@ class PropertyNames(object):
   OUTPUT_NAME = 'output_name'
   PARALLEL_INPUT = 'parallel_input'
   PIPELINE_PROTO_TRANSFORM_ID = 'pipeline_proto_transform_id'
+  # If the input element is a key/value pair, then the output element(s) all
+  # have the same key as the input.
+  PRESERVES_KEYS = 'preserves_keys'
   PUBSUB_ID_LABEL = 'pubsub_id_label'
   PUBSUB_SERIALIZED_ATTRIBUTES_FN = 'pubsub_serialized_attributes_fn'
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
