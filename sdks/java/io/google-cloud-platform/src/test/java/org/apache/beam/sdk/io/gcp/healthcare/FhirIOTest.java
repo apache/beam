@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import com.google.gson.JsonArray;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -69,7 +71,6 @@ public class FhirIOTest {
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
     PCollection<JsonArray> resources = searchResult.getResources();
-
     PCollection<String> failedMsgIds =
         failed.apply(
             MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
