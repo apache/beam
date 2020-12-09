@@ -1431,7 +1431,7 @@ public class FhirIO {
     }
 
     public static class Result implements POutput, PInput {
-      private PCollection<String> resources;
+      private PCollection<JsonArray> resources;
 
       private PCollection<HealthcareIOError<String>> failedSearches;
       PCollectionTuple pct;
@@ -1476,7 +1476,7 @@ public class FhirIO {
        *
        * @return the resources
        */
-      public PCollection<String> getResources() {
+      public PCollection<JsonArray> getResources() {
         return resources;
       }
 
@@ -1496,7 +1496,7 @@ public class FhirIO {
     }
 
     /** The tag for the main output of Fhir Messages. */
-    public static final TupleTag<String> OUT = new TupleTag<String>() {};
+    public static final TupleTag<JsonArray> OUT = new TupleTag<JsonArray>() {};
     /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
@@ -1543,7 +1543,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, String> {
+      static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, JsonArray> {
 
         private Distribution searchLatencyMs =
             Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
@@ -1597,7 +1597,7 @@ public class FhirIO {
           }
         }
 
-        private String searchResources(
+        private JsonArray searchResources(
             HealthcareApiClient client,
             String fhirStore,
             String resourceType,
@@ -1615,7 +1615,7 @@ public class FhirIO {
           }
           searchLatencyMs.update(System.currentTimeMillis() - startTime);
           this.successfulSearches.inc();
-          return result.toString();
+          return result;
         }
       }
     }
