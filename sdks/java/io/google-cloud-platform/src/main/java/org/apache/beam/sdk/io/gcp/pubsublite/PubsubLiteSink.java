@@ -104,7 +104,9 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   public synchronized void processElement(@Element PubSubMessage message)
       throws CheckedApiException {
     ++outstanding;
-    if (publisherOrError.getKind() == Kind.ERROR) throw publisherOrError.error();
+    if (publisherOrError.getKind() == Kind.ERROR) {
+      throw publisherOrError.error();
+    }
     ApiFuture<PublishMetadata> future =
         publisherOrError.publisher().publish(Message.fromProto(message));
     // cannot declare in inner class since 'this' means something different.
