@@ -840,7 +840,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         True, ['--enable_streaming_engine'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
     self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
-    self.assertNotIn(PropertyNames.PRESERVES_KEYS,properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 
     # JRH
     properties = self._run_group_into_batches_and_get_step_properties(
