@@ -33,5 +33,4 @@ dependencies {
   testCompile library.java.jaxb_api
   testCompile library.java.junit
   testCompile library.java.hadoop_client
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

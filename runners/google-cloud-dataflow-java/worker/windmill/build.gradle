@@ -40,5 +40,4 @@ artifacts {
 dependencies {
     compile "com.google.guava:guava:28.1-android"
     permitUnusedDeclared library.java.vendored_grpc_1_26_0
-    permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

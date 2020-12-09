@@ -33,6 +33,5 @@ ext.summary = "Expansion service serving KinesisIO"
 
 dependencies {
   runtime library.java.slf4j_jdk14
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 

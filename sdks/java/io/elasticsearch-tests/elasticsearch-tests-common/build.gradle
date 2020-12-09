@@ -51,5 +51,4 @@ dependencies {
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

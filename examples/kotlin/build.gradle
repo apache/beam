@@ -68,7 +68,6 @@ dependencies {
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile library.java.junit
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.

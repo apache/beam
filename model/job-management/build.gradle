@@ -33,6 +33,5 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "unshaded")
   runtime project(path: ":model:pipeline", configuration: "shadow")
   permitUnusedDeclared library.java.vendored_grpc_1_26_0
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
   compile "com.google.guava:guava:28.1-android"
 }

@@ -32,5 +32,4 @@ dependencies {
   compile library.java.jackson_core
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

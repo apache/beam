@@ -27,7 +27,6 @@ ext.summary = "Performance tests for SQL IO sources"
 dependencies {
     testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
     testCompile project(path: ":sdks:java:extensions:sql", configuration: "testRuntime")
-    permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 
 

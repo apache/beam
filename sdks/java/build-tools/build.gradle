@@ -23,5 +23,4 @@ description = "Apache Beam :: SDKs :: Java :: Build Tools"
 
 dependencies {
     compile library.java.jsr305
-    permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

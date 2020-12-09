@@ -95,7 +95,6 @@ dependencies {
   // SqlTransform
   runtimeOnly project(":sdks:java:extensions:sql:expansion-service")
   permitUnusedDeclared project(":runners:flink:1.8")
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run

@@ -34,7 +34,6 @@ dependencies {
   testRuntimeOnly project(":examples:java")
   testRuntimeOnly project(path: ":examples:java", configuration: "testRuntime")
   testRuntimeOnly project(":runners:google-cloud-dataflow-java")
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'

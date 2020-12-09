@@ -34,5 +34,4 @@ dependencies {
     testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
     testCompile project(":sdks:java:io:synthetic")
     testCompile library.java.junit
-    permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

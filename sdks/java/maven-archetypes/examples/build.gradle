@@ -75,7 +75,3 @@ sourceSets {
   output.dir('src', builtBy: 'generateSources')
  }
 }
-
-dependencies {
-    permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
-}

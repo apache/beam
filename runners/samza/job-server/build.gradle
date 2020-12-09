@@ -34,7 +34,6 @@ applyJavaNature(
 dependencies {
   runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   runtime library.java.slf4j_simple
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 
 runShadow {

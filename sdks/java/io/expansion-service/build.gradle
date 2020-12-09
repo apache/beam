@@ -35,5 +35,4 @@ dependencies {
   //compile library.java.postgres
   runtime library.java.kafka_clients
   runtime library.java.slf4j_jdk14
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }

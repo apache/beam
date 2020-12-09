@@ -28,7 +28,6 @@ dependencies {
   testCompile library.java.kafka
   testCompile "org.apache.zookeeper:zookeeper:3.5.6"
   testRuntimeOnly library.java.slf4j_log4j12
-  permitUnusedDeclared "org.checkerframework:checker-qual:3.7.0"
 }
 
 task runTestKafkaService (type: JavaExec) {
