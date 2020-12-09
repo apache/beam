@@ -48,7 +48,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 /** Test Coverage for the IO. */
-@Ignore("[BEAM-7794] DynamoDBIOTest is blocking forever")
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
