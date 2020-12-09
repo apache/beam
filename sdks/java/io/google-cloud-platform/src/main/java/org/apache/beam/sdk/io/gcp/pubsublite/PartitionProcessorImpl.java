@@ -1,0 +1,130 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.gcp.pubsublite;
+
+import com.google.api.core.ApiService.Listener;
+import com.google.api.core.ApiService.State;
+import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.internal.CheckedApiException;
+import com.google.cloud.pubsublite.internal.ExtractStatus;
+import com.google.cloud.pubsublite.internal.wire.Committer;
+import com.google.cloud.pubsublite.internal.wire.Subscriber;
+import com.google.cloud.pubsublite.proto.FlowControlRequest;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
+import com.google.protobuf.util.Timestamps;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+
+class PartitionProcessorImpl extends Listener implements PartitionProcessor {
+  private final RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
+  private final OutputReceiver<SequencedMessage> receiver;
+  private final Committer committer;
+  private final Subscriber subscriber;
+  private final SettableFuture<Void> completionFuture = SettableFuture.create();
+
+  @SuppressWarnings("methodref.receiver.bound.invalid")
+  PartitionProcessorImpl(
+      RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
+      OutputReceiver<SequencedMessage> receiver,
+      Committer committer,
+      Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory) {
+    this.tracker = tracker;
+    this.receiver = receiver;
+    this.committer = committer;
+    this.subscriber = subscriberFactory.apply(this::onMessages);
+  }
+
+  @Override
+  public void start() {
+    this.committer.addListener(this, MoreExecutors.directExecutor());
+    this.subscriber.addListener(this, MoreExecutors.directExecutor());
+    this.committer.startAsync();
+    this.subscriber.startAsync();
+    this.committer.awaitRunning();
+    this.subscriber.awaitRunning();
+  }
+
+  private void onMessages(List<SequencedMessage> messages) {
+    Offset lastOffset = Offset.of(Iterables.getLast(messages).getCursor().getOffset());
+    long byteSize = messages.stream().mapToLong(SequencedMessage::getSizeBytes).sum();
+    if (tracker.tryClaim(OffsetByteProgress.of(lastOffset, byteSize))) {
+      messages.forEach(
+          message ->
+              receiver.outputWithTimestamp(
+                  message, new Instant(Timestamps.toMillis(message.getPublishTime()))));
+      try {
+        subscriber.allowFlow(
+            FlowControlRequest.newBuilder()
+                .setAllowedBytes(byteSize)
+                .setAllowedMessages(messages.size())
+                .build());
+        // Do not wait for commits to complete.
+        Future<?> unused = committer.commitOffset(Offset.of(lastOffset.value() + 1));
+      } catch (CheckedApiException e) {
+        completionFuture.setException(e);
+      }
+    } else {
+      completionFuture.set(null);
+    }
+  }
+
+  @Override
+  public void failed(State from, Throwable failure) {
+    completionFuture.setException(ExtractStatus.toCanonical(failure));
+  }
+
+  @Override
+  public void close() {
+    try {
+      subscriber.stopAsync().awaitTerminated();
+    } finally {
+      committer.stopAsync().awaitTerminated();
+    }
+  }
+
+  @Override
+  @SuppressWarnings("argument.type.incompatible")
+  public ProcessContinuation waitForCompletion(Duration duration) {
+    try {
+      completionFuture.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      // CompletionFuture set with null when tryClaim returned false.
+      return ProcessContinuation.stop();
+    } catch (TimeoutException ignored) {
+      // Timed out waiting, yield to the runtime.
+      return ProcessContinuation.resume();
+    } catch (ExecutionException e) {
+      throw ExtractStatus.toCanonical(e.getCause()).underlying;
+    } catch (Throwable t) {
+      throw ExtractStatus.toCanonical(t).underlying;
+    }
+  }
+}
