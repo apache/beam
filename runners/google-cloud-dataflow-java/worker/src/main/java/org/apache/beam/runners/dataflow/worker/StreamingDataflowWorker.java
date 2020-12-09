@@ -1131,7 +1131,8 @@ public class StreamingDataflowWorker {
 
     @Override
     public String toString() {
-      return String.format("%s-%d", TextFormat.escapeBytes(key()), shardingKey());
+      return String.format(
+          "%016x-%s", shardingKey(), TextFormat.escapeBytes(key().substring(0, 100)));
     }
   }
 
@@ -2263,20 +2264,28 @@ public class StreamingDataflowWorker {
       Work nextWork;
       synchronized (activeWork) {
         Queue<Work> queue = activeWork.get(shardedKey);
-        Preconditions.checkNotNull(queue);
+        if (queue == null) {
+          // Work may have been completed due to clearing of stuck commits.
+          LOG.warn(
+              "Unable to complete inactive work for key {} and token {}.", shardedKey, workToken);
+          return;
+        }
         Work completedWork = queue.peek();
-        // avoid Preconditions.checkNotNull and checkState here to prevent eagerly evaluating the
+        // avoid Preconditions.checkState here to prevent eagerly evaluating the
         // format string parameters for the error message.
         if (completedWork == null) {
-          throw new NullPointerException(
-              String.format(
-                  "No active state for key %s, expected token %s", shardedKey, workToken));
-        }
-        if (completedWork.getWorkItem().getWorkToken() != workToken) {
           throw new IllegalStateException(
               String.format(
-                  "Token mismatch for key %s: %s and %s",
-                  shardedKey, completedWork.getWorkItem().getWorkToken(), workToken));
+                  "Active key %s without work, expected token %d", shardedKey, workToken));
+        }
+        if (completedWork.getWorkItem().getWorkToken() != workToken) {
+          // Work may have been completed due to clearing of stuck commits.
+          LOG.warn(
+              "Unable to complete due to token mismatch for key {} and token {}, actual token was {}.",
+              shardedKey,
+              workToken,
+              completedWork.getWorkItem().getWorkToken());
+          return;
         }
         queue.remove(); // We consumed the matching work item.
         nextWork = queue.peek();
@@ -2300,8 +2309,9 @@ public class StreamingDataflowWorker {
           if (work.getState() == State.COMMITTING
               && work.getStateStartTime().isBefore(stuckCommitDeadline)) {
             LOG.error(
-                "Detected key with sharding key {} stuck in COMMITTING state, completing it with error.",
-                work.workItem.getShardingKey());
+                "Detected key with sharding key 0x{} stuck in COMMITTING state since {}, completing it with error.",
+                shardedKey,
+                work.getStateStartTime());
             stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());
           }
         }
