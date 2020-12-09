@@ -76,9 +76,9 @@ def batchScenarios = {
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-sideinput-7-${now}",
+        job_name           : "load-tests-go-flink-batch-sideinput-11-${now}",
         influx_namespace   : 'flink',
-        influx_measurement : 'go_batch_sideinput_7',
+        influx_measurement : 'go_batch_sideinput_11',
         input_options      : '\'{' +
         '"num_records": 400000,' +
         '"key_size": 100,' +
@@ -95,9 +95,9 @@ def batchScenarios = {
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        job_name           : "load-tests-go-flink-batch-sideinput-8-${now}",
+        job_name           : "load-tests-go-flink-batch-sideinput-12-${now}",
         influx_namespace   : 'flink',
-        influx_measurement : 'go_batch_sideinput_8',
+        influx_measurement : 'go_batch_sideinput_12',
         input_options      : '\'{' +
         '"num_records": 400000,' +
         '"key_size": 100,' +
