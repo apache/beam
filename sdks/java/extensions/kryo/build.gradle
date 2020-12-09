@@ -40,7 +40,7 @@ description = 'Apache Beam :: SDKs :: Java :: Extensions :: Kryo'
 
 dependencies {
     compile "com.esotericsoftware:kryo:${kryoVersion}"
-    compile "com.fasterxml.jackson.core:jackson-annotations:2.10.2"
+    compile library.java.jackson_annotations
     compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
     compile "org.objenesis:objenesis:2.5.1"
     shadow project(path: ':sdks:java:core', configuration: 'shadow')

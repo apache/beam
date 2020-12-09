@@ -76,7 +76,7 @@ dependencies {
   permitUnusedDeclared library.java.vendored_grpc_1_26_0
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
-  compile "com.fasterxml.jackson.core:jackson-databind:2.10.2"
+  compile library.java.jackson_databind
   compile library.java.jsr305
   provided library.java.hamcrest_core
   provided library.java.junit
