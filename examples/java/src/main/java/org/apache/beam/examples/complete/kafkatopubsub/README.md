@@ -74,14 +74,14 @@ In order to create Uber JAR with Gradle, [Shadow plugin](https://github.com/john
 is used. It creates the `shadowJar` task that builds the Uber JAR:
 
 ```
-./gradlew -p examples/kafka-to-pubsub clean shadowJar
+./gradlew -p examples/java clean shadowJar
 ```
 
 ℹ️ An **Uber JAR** - also known as **fat JAR** - is a single JAR file that contains
 both target package *and* all its dependencies.
 
 The result of the `shadowJar` task execution is a `.jar` file that is generated
-under the `build/libs/` folder in kafka-to-pubsub directory.
+under the `build/libs/` folder in examples/java directory.
 
 ## Local execution
 To execute this pipeline locally, specify the parameters:
@@ -136,9 +136,9 @@ This example contains an example demonstrating AVRO format support:
 
 To use this example in the specific case, follow these steps:
 
-- Create your own class to describe AVRO schema. As an example use [AvroDataClass](src/main/java/org/apache/beam/examples/avro/AvroDataClass.java). Just define necessary fields.
-- Create your own Avro Deserializer class. As an example use [AvroDataClassKafkaAvroDeserializer class](src/main/java/org/apache/beam/examples/avro/AvroDataClassKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
-- Modify the [FormatTransform.readAvrosFromKafka method](src/main/java/org/apache/beam/examples/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
+- Create your own class to describe AVRO schema. As an example use [AvroDataClass](src/main/java/org/apache/beam/examples/complete/kafkatopubsub/avro/AvroDataClass.java). Just define necessary fields.
+- Create your own Avro Deserializer class. As an example use [AvroDataClassKafkaAvroDeserializer class](src/main/java/org/apache/beam/examples/complete/kafkatopubsub/avro/AvroDataClassKafkaAvroDeserializer.java). Just rename it, and put your own Schema class as the necessary types.
+- Modify the [FormatTransform.readAvrosFromKafka method](src/main/java/org/apache/beam/examples/complete/kafkatopubsub/transforms/FormatTransform.java). Put your Schema class and Deserializer to the related parameter.
 ```java
 return KafkaIO.<String, AvroDataClass>read()
         ...
@@ -147,7 +147,7 @@ return KafkaIO.<String, AvroDataClass>read()
         ...
 ```
 - [OPTIONAL TO IMPLEMENT] Add [Beam Transform](https://beam.apache.org/documentation/programming-guide/#transforms) if it necessary in your case.
-- Modify the write step in the [KafkaToPubsub class](src/main/java/org/apache/beam/examples/KafkaToPubsub.java) by putting your Schema class to "writeAvrosToPubSub" step.
+- Modify the write step in the [KafkaToPubsub class](src/main/java/org/apache/beam/examples/complete/kafkatopubsub/KafkaToPubsub.java) by putting your Schema class to "writeAvrosToPubSub" step.
     - NOTE: if it changed during the transform, you should use changed one class definition.
 ```java
 if (options.getOutputFormat() == FormatTransform.FORMAT.AVRO) {
