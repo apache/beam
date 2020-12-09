@@ -42,6 +42,7 @@ deprecated_primitives = StandardPTransforms.DeprecatedPrimitives
 composites = StandardPTransforms.Composites
 combine_components = StandardPTransforms.CombineComponents
 sdf_components = StandardPTransforms.SplittableParDoComponents
+group_into_batches_components = StandardPTransforms.GroupIntoBatchesComponents
 
 side_inputs = StandardSideInputTypes.Enum
 coders = StandardCoders.Enum
