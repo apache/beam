@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import io.grpc.StatusException;
+import com.google.cloud.pubsublite.internal.CheckedApiException;
 import java.util.Map;
 
 /** An internal interface for finalizing offsets. */
 interface OffsetFinalizer {
-  void finalizeOffsets(Map<Partition, Offset> offsets) throws StatusException;
+  void finalizeOffsets(Map<Partition, Offset> offsets) throws CheckedApiException;
 }
