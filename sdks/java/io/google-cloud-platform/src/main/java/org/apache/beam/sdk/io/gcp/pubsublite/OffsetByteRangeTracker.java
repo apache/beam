@@ -29,6 +29,17 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
+/**
+ * OffsetByteRangeTracker is an unbounded restriction tracker for Pub/Sub lite partitions that
+ * tracks offsets for checkpointing and bytes for progress.
+ *
+ * Any valid instance of an OffsetByteRangeTracker tracks one of exactly two types of ranges:
+ *   - Unbounded ranges whose last offset is Long.MAX_VALUE
+ *   - Completed ranges that are either empty (From == To) or fully claimed (lastClaimed == To - 1)
+ *
+ * TODO(dpcollins-google): make this restrict splits until a certain number of bytes have been
+ * processed or wall time has passed
+ */
 public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteProgress>
     implements HasProgress {
   private final TopicBacklogReader backlogReader;

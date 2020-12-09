@@ -20,20 +20,19 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
 
 import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.internal.BufferingPullSubscriber;
-import com.google.cloud.pubsublite.internal.PullSubscriber;
-import com.google.cloud.pubsublite.proto.Cursor;
-import com.google.cloud.pubsublite.proto.SeekRequest;
+import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -47,19 +46,31 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     this.options = options;
   }
 
-  private PullSubscriber<SequencedMessage> newPullSubscriber(Partition partition, Offset offset)
+  private Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> consumer)
       throws ApiException {
     try {
-      return new TranslatingPullSubscriber(
-          new BufferingPullSubscriber(
-              options.getSubscriberFactory(partition),
-              options.flowControlSettings(),
-              SeekRequest.newBuilder()
-                  .setCursor(Cursor.newBuilder().setOffset(offset.value()))
-                  .build()));
+      return options
+          .getSubscriberFactory(partition)
+          .newSubscriber(
+              messages ->
+                  consumer.accept(
+                      messages.stream()
+                          .map(message -> message.toProto())
+                          .collect(Collectors.toList())));
     } catch (Throwable t) {
       throw toCanonical(t).underlying;
     }
+  }
+
+  private PartitionProcessor newPartitionProcessor(
+      Partition partition,
+      RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
+      OutputReceiver<SequencedMessage> receiver) {
+    return new PartitionProcessorImpl(
+        tracker,
+        receiver,
+        options.getCommitter(partition),
+        consumer -> newSubscriber(partition, consumer));
   }
 
   private RestrictionTracker<OffsetRange, OffsetByteProgress> newRestrictionTracker(
@@ -76,10 +87,8 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
         ParDo.of(
             new PerPartitionSdf(
                 MAX_SLEEP_TIME,
-                this::newPullSubscriber,
-                options::getCommitter,
-                () -> Sleeper.DEFAULT,
                 options::getInitialOffsetReader,
-                this::newRestrictionTracker)));
+                this::newRestrictionTracker,
+                this::newPartitionProcessor)));
   }
 }

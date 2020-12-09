@@ -42,12 +42,21 @@ public abstract class SubscriberOptions implements Serializable {
 
   private static final Framework FRAMEWORK = Framework.of("BEAM");
 
+  private static final long MEBIBYTE = 1L << 20;
+
+  public static final FlowControlSettings DEFAULT_FLOW_CONTROL =
+      FlowControlSettings.builder()
+          .setMessagesOutstanding(Long.MAX_VALUE)
+          .setBytesOutstanding(100 * MEBIBYTE)
+          .build();
+
   // Required parameters.
   public abstract SubscriptionPath subscriptionPath();
 
+  // Optional parameters.
+  /** Per-partition flow control parameters for this subscription. */
   public abstract FlowControlSettings flowControlSettings();
 
-  // Optional parameters.
   /** A set of partitions. If empty, retrieve the set of partitions using an admin client. */
   public abstract Set<Partition> partitions();
 
@@ -77,7 +86,7 @@ public abstract class SubscriberOptions implements Serializable {
 
   public static Builder newBuilder() {
     Builder builder = new AutoValue_SubscriberOptions.Builder();
-    return builder.setPartitions(ImmutableSet.of());
+    return builder.setPartitions(ImmutableSet.of()).setFlowControlSettings(DEFAULT_FLOW_CONTROL);
   }
 
   public abstract Builder toBuilder();
