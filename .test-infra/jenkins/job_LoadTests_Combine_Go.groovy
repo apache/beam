@@ -20,10 +20,8 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import Flink
 import InfluxDBCredentialsHelper
 
-import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
@@ -32,10 +30,14 @@ def batchScenarios = {
     [
       title          : 'Combine Go Load test: 2GB of 10B records',
       test           : 'combine',
-      runner         : CommonTestProperties.Runner.FLINK,
+      runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : "load-tests-go-flink-batch-combine-1-${now}",
-        influx_namespace     : 'flink',
+        job_name             : "load-tests-go-dataflow-batch-combine-1-${now}",
+        project              : 'apache-beam-testing',
+        region               : 'us-central1',
+        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
+        staging_location     : 'gs://temp-storage-for-perf-tests/loadtests',
+        influx_namespace     : 'dataflow',
         influx_measurement   : 'go_batch_combine_1',
         input_options        : '\'{' +
         '"num_records": 200000000,' +
@@ -43,19 +45,21 @@ def batchScenarios = {
         '"value_size": 9}\'',
         fanout               : 1,
         top_count            : 20,
-        parallelism          : 5,
-        endpoint             : 'localhost:8099',
-        environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        num_workers          : 5,
+        autoscaling_algorithm: 'NONE',
       ]
     ],
     [
       title          : 'Combine Go Load test: fanout 4 times with 2GB 10-byte records total',
       test           : 'combine',
-      runner         : CommonTestProperties.Runner.FLINK,
+      runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : "load-tests-go-flink-batch-combine-4-${now}",
-        influx_namespace     : 'flink',
+        job_name             : "load-tests-go-dataflow-batch-combine-4-${now}",
+        project              : 'apache-beam-testing',
+        region               : 'us-central1',
+        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
+        staging_location     : 'gs://temp-storage-for-perf-tests/loadtests',
+        influx_namespace     : 'dataflow',
         influx_measurement   : 'go_batch_combine_4',
         input_options        : '\'{' +
         '"num_records": 5000000,' +
@@ -63,71 +67,50 @@ def batchScenarios = {
         '"value_size": 90}\'',
         fanout               : 4,
         top_count            : 20,
-        parallelism          : 16,
-        endpoint             : 'localhost:8099',
-        environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        num_workers          : 16,
+        autoscaling_algorithm: 'NONE',
       ]
     ],
     [
       title          : 'Combine Go Load test: fanout 8 times with 2GB 10-byte records total',
       test           : 'combine',
-      runner         : CommonTestProperties.Runner.FLINK,
+      runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : "load-tests-go-flink-batch-combine-5-${now}",
-        influx_namespace     : 'flink',
+        job_name             : "load-tests-go-dataflow-batch-combine-5-${now}",
+        project              : 'apache-beam-testing',
+        region               : 'us-central1',
+        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
+        staging_location     : 'gs://temp-storage-for-perf-tests/loadtests',
+        influx_namespace     : 'dataflow',
         influx_measurement   : 'go_batch_combine_5',
-        fanout               : 8,
-        top_count            : 20,
-        parallelism          : 16,
         input_options        : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
         '"value_size": 90}\'',
-        endpoint             : 'localhost:8099',
-        environment_type     : 'DOCKER',
-        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        fanout               : 8,
+        top_count            : 20,
+        num_workers          : 16,
+        autoscaling_algorithm: 'NONE',
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
-  Map<Integer, List> testScenariosByParallelism = batchScenarios().groupBy { test ->
-    test.pipelineOptions.parallelism
-  }
-  Integer initialParallelism = testScenariosByParallelism.keySet().iterator().next()
-  List initialScenarios = testScenariosByParallelism.remove(initialParallelism)
-
-  def flink = new Flink(scope, "beam_LoadTests_Go_Combine_Flink_${mode.capitalize()}")
-  flink.setUp(
-      [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
-      ],
-      initialParallelism,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
-
-  // Execute all scenarios connected with initial parallelism.
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, initialScenarios, 'combine', mode)
-
-  // Execute the rest of scenarios.
-  testScenariosByParallelism.each { parallelism, scenarios ->
-    flink.scaleCluster(parallelism)
-    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, scenarios, 'combine', mode)
-  }
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, batchScenarios(), 'combine', mode)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-    'beam_LoadTests_Go_Combine_Flink_Batch',
-    'Run Load Tests Go Combine Flink Batch',
-    'Load Tests Go Combine Flink Batch suite',
+    'beam_LoadTests_Go_Combine_Dataflow_Batch',
+    'Run Load Tests Go Combine Dataflow Batch',
+    'Load Tests Go Combine Dataflow Batch suite',
     this
     ) {
       additionalPipelineArgs = [:]
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Go_Combine_Flink_Batch', 'H 8 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Go_Combine_Dataflow_Batch', 'H 8 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
