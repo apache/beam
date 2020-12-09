@@ -244,7 +244,7 @@ class DockerEnvironment(Environment):
       self.container_image = container_image
     else:
       logging.info(
-          'No container_image given, inferring default Python SDK image')
+          'No image given, using default Python SDK image')
       self.container_image = self.default_docker_image()
 
     logging.info(
