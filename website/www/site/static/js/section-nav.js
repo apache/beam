@@ -24,7 +24,7 @@ $(document).ready(function () {
         var CONST = {
             ACTIVE_CLASS: "active",
             EXPANDED_CLASS: "expanded",
-            DESKTOP_BREAKPOINT: 1024,
+            DESKTOP_BREAKPOINT: 1280,
             OPEN_CLASS: "open"
         };
 

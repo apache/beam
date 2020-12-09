@@ -15,10 +15,48 @@
  *  limitations under the License.
  */
 
-.table-wrapper
-  > table
-    @extend .table
+@import "media";
 
-.table-bordered-wrapper
-  > table
-    @extend .table-bordered
+.hero-mobile {
+  position: relative;
+  margin-bottom: 0;
+  display: none;
+
+  .hero-content {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 100%;
+    max-width: 506px;
+
+    h3 {
+      @extend .hero-title;
+
+      text-transform: uppercase;
+      margin: 0 auto 16px auto;
+    }
+
+    h1 {
+      @extend .hero-heading;
+
+      width: 300px;
+      margin: 0 auto 24px auto;
+    }
+
+    h2 {
+      @extend .hero-subheading;
+
+      width: 300px;
+      margin: 0 auto;
+    }
+  }
+}
+
+@media (max-width: $mobile) {
+  .hero-mobile {
+    display: inherit;
+  }
+}

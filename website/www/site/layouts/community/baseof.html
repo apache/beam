@@ -11,30 +11,30 @@
 */}}
 
 <!DOCTYPE html>
- <html lang="{{ .Site.Language.Lang }}" class="no-js">
- <head>
-   {{ partial "head.html" . }}
- </head>
- <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-   {{ partial "header.html" . }}
-   <div class="clearfix container-main-content">
-     <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-       <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-       <nav>
-         <ul class="section-nav-list" data-section-nav>
-           {{ partial (printf "section-menu/%s/community.html" .Lang) . }}
-         </ul>
-       </nav>
-     </div>
-
-     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-       {{ .TableOfContents }}
-     </nav>
-
-     <div class="body__contained body__section-nav">
-       {{ .Content }}
-     </div>
-   </div>
- {{ partial "footer.html" . }}
- </body>
- </html>
+<html lang="{{ .Site.Language.Lang }}" class="no-js">
+  <head>
+    {{ partial "head.html" . }}
+  </head>
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    {{ partial "header.html" . }}
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            {{ partial (printf "section-menu/%s/community.html" .Lang) . }}
+          </ul>
+        </nav>
+      </div>
+ 
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        {{ .TableOfContents }}
+      </nav>
+ 
+      <div class="body__contained body__section-nav">
+        {{ .Content }}
+      </div>
+    </div>
+  {{ partial "footer.html" . }}
+  </body>
+</html>

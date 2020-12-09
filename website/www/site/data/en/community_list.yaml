@@ -1,0 +1,27 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- title: Join Beam Community
+  body: Here you will find real life cases.
+  icon: icons/community/bee-icon.svg 
+- title: Contact us!
+  body: You want to know what is going on? Raise a bug? Propose a feature request? Here you will find all of them info all of the info on who to contact.
+  icon: icons/community/envelope-icon.svg
+- title: Keep up with Beam
+  body: Check out our social media and be first to know about any updates.
+  icon: icons/community/message-icon.svg
+- title: Meet up with us!
+  body: Want to meet us in person? (or monitor-person). This is the place to go.
+  icon: icons/community/calendar-icon.svg
+- title: Promotion
+  body: Need some marketing materials? Here you will find it all.
+  icon: icons/community/box-icon.svg
