@@ -121,6 +121,7 @@ import org.slf4j.LoggerFactory;
  * {@code
  * --runner=YOUR_SELECTED_RUNNER
  * }
+ * </pre>
  *
  * <p><b>Example Avro usage</b>
  *

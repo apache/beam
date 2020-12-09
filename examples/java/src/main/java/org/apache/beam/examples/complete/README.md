@@ -35,7 +35,7 @@ This directory contains end-to-end example pipelines that perform complex data p
   <li><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/kafkatopubsub/KafkaToPubsub.java">KafkaToPubsub</a>
   &mdash; A streaming pipeline example that creates a pipeline to read data
   from a single or multiple topics from Apache Kafka and write data into a single topic
-  in Google Cloud Pub/Sub. 
+  in Google Cloud Pub/Sub.
   </li>
   <li><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/TfIdf.java">TfIdf</a>
   &mdash; An example that computes a basic TF-IDF search table for a directory or
