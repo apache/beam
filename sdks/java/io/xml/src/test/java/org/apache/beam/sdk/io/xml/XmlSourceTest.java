@@ -158,6 +158,14 @@ public class XmlSourceTest {
           + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
           + "</trains>";
 
+  private String trainXMLWithTrainTagsTemplate =
+      "<trains>"
+          + "<trainTags>%trainTags%</trainTags>"
+          + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
+          + "<train><name>Henry</name><number>3</number><color>green</color></train>"
+          + "<train><name>Toby</name><number>7</number><color>brown</color></train>"
+          + "</trains>";
+
   @XmlRootElement
   static class TinyTrain {
     TinyTrain(String name) {
@@ -871,6 +879,46 @@ public class XmlSourceTest {
             .withRecordClass(Train.class)
             .createSource();
     assertSplitAtFractionExhaustive(source, options);
+  }
+
+  @Test
+  public void testNoBufferOverflowThrown() throws IOException {
+    // The magicNumber was found imperatively and will be different for different xml content.
+    // Test with the current setup causes BufferOverflow in
+    // XMLReader#getFirstOccurenceOfRecordElement method,
+    // if the specific corner case is not handled
+    final int magicNumber = 183;
+    StringBuilder sb = new StringBuilder();
+    for (int j = 0; j < magicNumber; j++) {
+      // tags which start the same way as the record element, trigger
+      // a special flow, which could end up with BufferOverflow
+      // exception
+      sb.append("<trainTag></trainTag>");
+    }
+    File file = tempFolder.newFile("trainXMLWithTags");
+
+    String xmlWithNoise = trainXMLWithTrainTagsTemplate.replace("%trainTags%", sb.toString());
+    Files.write(file.toPath(), xmlWithNoise.getBytes(StandardCharsets.UTF_8));
+
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
+            .withRootElement("trains")
+            .withRecordElement("train")
+            .withRecordClass(Train.class)
+            .withMinBundleSize(1024)
+            .createSource();
+
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas", 1, "blue", null),
+            new Train("Henry", 3, "green", null),
+            new Train("Toby", 7, "brown", null));
+
+    assertThat(
+        trainsToStrings(expectedResults),
+        containsInAnyOrder(
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
