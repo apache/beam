@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.PullSubscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import io.grpc.StatusException;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -36,9 +38,14 @@ class TranslatingPullSubscriber implements PullSubscriber<SequencedMessage> {
   }
 
   @Override
-  public List<SequencedMessage> pull() throws StatusException {
+  public List<SequencedMessage> pull() throws CheckedApiException {
     List<com.google.cloud.pubsublite.SequencedMessage> messages = underlying.pull();
     return messages.stream().map(m -> m.toProto()).collect(Collectors.toList());
+  }
+
+  @Override
+  public Optional<Offset> nextOffset() {
+    return underlying.nextOffset();
   }
 
   @Override
