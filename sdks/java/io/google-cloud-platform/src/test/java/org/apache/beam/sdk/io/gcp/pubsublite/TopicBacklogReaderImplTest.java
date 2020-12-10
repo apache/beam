@@ -23,19 +23,18 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.CloudZone;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.ProjectNumber;
 import com.google.cloud.pubsublite.TopicName;
 import com.google.cloud.pubsublite.TopicPath;
+import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import com.google.protobuf.Timestamp;
-import io.grpc.Status;
-import io.grpc.Status.Code;
-import io.grpc.StatusException;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
@@ -59,7 +58,7 @@ public final class TopicBacklogReaderImplTest {
   private TopicBacklogReader reader;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     this.topicPath =
         TopicPath.newBuilder()
             .setProject(ProjectNumber.of(4))
@@ -71,7 +70,7 @@ public final class TopicBacklogReaderImplTest {
 
   @SuppressWarnings("incompatible")
   @Test
-  public void computeMessageStats_partialFailure() throws Exception {
+  public void computeMessageStats_partialFailure() {
     ComputeMessageStatsResponse partition1 = ComputeMessageStatsResponse.getDefaultInstance();
 
     when(mockClient.computeMessageStats(
@@ -79,15 +78,14 @@ public final class TopicBacklogReaderImplTest {
         .thenReturn(ApiFutures.immediateFuture(partition1));
     when(mockClient.computeMessageStats(
             topicPath, Partition.of(2), Offset.of(20), Offset.of(Integer.MAX_VALUE)))
-        .thenReturn(ApiFutures.immediateFailedFuture(new StatusException(Status.UNAVAILABLE)));
+        .thenReturn(ApiFutures.immediateFailedFuture(new CheckedApiException(Code.UNAVAILABLE)));
 
-    ImmutableMap.Builder<Partition, Offset> builder = ImmutableMap.builder();
     ApiFuture<ComputeMessageStatsResponse> future =
         reader.computeMessageStats(
             ImmutableMap.of(Partition.of(1), Offset.of(10), Partition.of(2), Offset.of(20)));
 
     ExecutionException ex = assertThrows(ExecutionException.class, future::get);
-    assertEquals(Code.UNAVAILABLE, ExtractStatus.extract(ex.getCause()).get().getCode());
+    assertEquals(Code.UNAVAILABLE, ExtractStatus.extract(ex.getCause()).get().code());
   }
 
   @Test
@@ -103,7 +101,6 @@ public final class TopicBacklogReaderImplTest {
             topicPath, Partition.of(2), Offset.of(20), Offset.of(Integer.MAX_VALUE)))
         .thenReturn(ApiFutures.immediateFuture(partition2));
 
-    ImmutableMap.Builder<Partition, Offset> builder = ImmutableMap.builder();
     ApiFuture<ComputeMessageStatsResponse> future =
         reader.computeMessageStats(
             ImmutableMap.of(Partition.of(1), Offset.of(10), Partition.of(2), Offset.of(20)));
@@ -132,7 +129,6 @@ public final class TopicBacklogReaderImplTest {
             topicPath, Partition.of(2), Offset.of(20), Offset.of(Integer.MAX_VALUE)))
         .thenReturn(ApiFutures.immediateFuture(partition2));
 
-    ImmutableMap.Builder<Partition, Offset> builder = ImmutableMap.builder();
     ApiFuture<ComputeMessageStatsResponse> future =
         reader.computeMessageStats(
             ImmutableMap.of(Partition.of(1), Offset.of(10), Partition.of(2), Offset.of(20)));
@@ -173,7 +169,6 @@ public final class TopicBacklogReaderImplTest {
             topicPath, Partition.of(2), Offset.of(20), Offset.of(Integer.MAX_VALUE)))
         .thenReturn(ApiFutures.immediateFuture(partition2));
 
-    ImmutableMap.Builder<Partition, Offset> builder = ImmutableMap.builder();
     ApiFuture<ComputeMessageStatsResponse> future =
         reader.computeMessageStats(
             ImmutableMap.of(Partition.of(1), Offset.of(10), Partition.of(2), Offset.of(20)));
