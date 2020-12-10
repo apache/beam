@@ -314,9 +314,8 @@ class MetricsContainer(object):
 
     """Returns a list of MonitoringInfos for the metrics in this container."""
     all_metrics = [
-        cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
-        for key,
-        cell in self.metrics.items()
+        self.metrics[key].to_runner_api_monitoring_info(
+            key.metric_name, transform_id) for key in list(self.metrics.keys())
     ]
     return {
         monitoring_infos.to_key(mi): mi
