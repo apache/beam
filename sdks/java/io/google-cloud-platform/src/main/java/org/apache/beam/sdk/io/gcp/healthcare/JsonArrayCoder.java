@@ -17,33 +17,32 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 @SuppressWarnings({
-        "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class JsonArrayCoder extends CustomCoder<JsonArray> {
-    private static final JsonArrayCoder CODER = new JsonArrayCoder();
-    private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+  private static final JsonArrayCoder CODER = new JsonArrayCoder();
+  private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
 
-    public static JsonArrayCoder of() {
-        return CODER;
-    }
+  public static JsonArrayCoder of() {
+    return CODER;
+  }
 
-    @Override
-    public void encode(JsonArray value, OutputStream outStream) throws IOException {
-        STRING_CODER.encode(value.toString(), outStream);
-    }
+  @Override
+  public void encode(JsonArray value, OutputStream outStream) throws IOException {
+    STRING_CODER.encode(value.toString(), outStream);
+  }
 
-    @Override
-    public JsonArray decode(InputStream inStream) throws IOException {
-        return JsonParser.parseString(STRING_CODER.decode(inStream)).getAsJsonArray();
-    }
+  @Override
+  public JsonArray decode(InputStream inStream) throws IOException {
+    return JsonParser.parseString(STRING_CODER.decode(inStream)).getAsJsonArray();
+  }
 }

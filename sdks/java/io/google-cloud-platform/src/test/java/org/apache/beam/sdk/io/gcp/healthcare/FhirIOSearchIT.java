@@ -144,13 +144,13 @@ public class FhirIOSearchIT {
     PCollection<JsonArray> resources = result.getResources();
     resources.setCoder(JsonArrayCoder.of());
     PAssert.that(resources)
-            .satisfies(
-                    input -> {
-                        for (JsonArray resource : input) {
-                          assertNotEquals(resource.size(), 0);
-                        }
-                        return null;
-                      });
+        .satisfies(
+            input -> {
+              for (JsonArray resource : input) {
+                assertNotEquals(resource.size(), 0);
+              }
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
   }
