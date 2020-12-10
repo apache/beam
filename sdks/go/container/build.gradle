@@ -47,12 +47,14 @@ golang {
   }
 }
 
+def defaultTag = project.rootProject.hasProperty(["docker-tag"]) ? [project.rootProject["docker-tag"], 'latest'] : ['latest']
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "go_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
                   project.docker_image_default_repo_root)
+  tags defaultTag as String[]
   files "./build/"
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])

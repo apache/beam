@@ -76,14 +76,15 @@ task skipPullLicenses(type: Exec) {
     args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
 }
 
+def defaultTag = project.rootProject.hasProperty(["docker-tag"]) ? project.rootProject["docker-tag"] : project.sdk_version
 docker {
     name containerImageName(
             name: "${project.docker_image_default_repo_prefix}java${imageJavaVersion}_sdk",
             root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                     project.rootProject["docker-repository-root"] :
                     project.docker_image_default_repo_root,
-            tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                    project.rootProject["docker-tag"] : project.sdk_version)
+            tag: defaultTag)
+    tags defaultTag, 'latest'
     dockerfile project.file("../Dockerfile")
     files "./build/"
     buildArgs([
