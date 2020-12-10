@@ -23,7 +23,6 @@ import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
-import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
@@ -32,7 +31,6 @@ import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -50,7 +48,6 @@ import org.joda.time.Instant;
 class PartitionProcessorImpl extends Listener implements PartitionProcessor {
   private final RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
   private final OutputReceiver<SequencedMessage> receiver;
-  private final Committer committer;
   private final Subscriber subscriber;
   private final SettableFuture<Void> completionFuture = SettableFuture.create();
   private final FlowControlSettings flowControlSettings;
@@ -59,12 +56,10 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
   PartitionProcessorImpl(
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver,
-      Committer committer,
       Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory,
       FlowControlSettings flowControlSettings) {
     this.tracker = tracker;
     this.receiver = receiver;
-    this.committer = committer;
     this.subscriber = subscriberFactory.apply(this::onMessages);
     this.flowControlSettings = flowControlSettings;
   }
@@ -72,11 +67,8 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
   @Override
   @SuppressWarnings("argument.type.incompatible")
   public void start() throws CheckedApiException {
-    this.committer.addListener(this, MoreExecutors.directExecutor());
     this.subscriber.addListener(this, MoreExecutors.directExecutor());
-    this.committer.startAsync();
     this.subscriber.startAsync();
-    this.committer.awaitRunning();
     this.subscriber.awaitRunning();
     try {
       this.subscriber
@@ -112,8 +104,6 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
                 .setAllowedBytes(byteSize)
                 .setAllowedMessages(messages.size())
                 .build());
-        // Do not wait for commits to complete.
-        Future<?> unused = committer.commitOffset(Offset.of(lastOffset.value() + 1));
       } catch (CheckedApiException e) {
         completionFuture.setException(e);
       }
@@ -129,11 +119,7 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
 
   @Override
   public void close() {
-    try {
-      subscriber.stopAsync().awaitTerminated();
-    } finally {
-      committer.stopAsync().awaitTerminated();
-    }
+    subscriber.stopAsync().awaitTerminated();
   }
 
   @Override

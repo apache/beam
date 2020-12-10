@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -28,7 +27,7 @@ interface PartitionProcessorFactory extends Serializable {
   long serialVersionUID = 765145146544654L;
 
   PartitionProcessor newProcessor(
-      Partition partition,
+      SubscriptionPartition subscriptionPartition,
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver);
 }

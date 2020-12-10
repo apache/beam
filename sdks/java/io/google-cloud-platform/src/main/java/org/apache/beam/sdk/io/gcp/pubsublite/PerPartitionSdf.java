@@ -18,52 +18,116 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
+import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
-class PerPartitionSdf extends DoFn<Partition, SequencedMessage> {
+class PerPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
   private final Duration maxSleepTime;
   private final PartitionProcessorFactory processorFactory;
-  private final SerializableFunction<Partition, InitialOffsetReader> offsetReaderFactory;
+  private final SerializableFunction<SubscriptionPartition, InitialOffsetReader>
+      offsetReaderFactory;
   private final SerializableBiFunction<
-          Partition, OffsetRange, RestrictionTracker<OffsetRange, OffsetByteProgress>>
+          SubscriptionPartition, OffsetRange, RestrictionTracker<OffsetRange, OffsetByteProgress>>
       trackerFactory;
+  private final SerializableFunction<SubscriptionPartition, Committer> committerFactory;
 
   PerPartitionSdf(
       Duration maxSleepTime,
-      SerializableFunction<Partition, InitialOffsetReader> offsetReaderFactory,
+      SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory,
       SerializableBiFunction<
-              Partition, OffsetRange, RestrictionTracker<OffsetRange, OffsetByteProgress>>
+              SubscriptionPartition,
+              OffsetRange,
+              RestrictionTracker<OffsetRange, OffsetByteProgress>>
           trackerFactory,
-      PartitionProcessorFactory processorFactory) {
+      PartitionProcessorFactory processorFactory,
+      SerializableFunction<SubscriptionPartition, Committer> committerFactory) {
     this.maxSleepTime = maxSleepTime;
     this.processorFactory = processorFactory;
     this.offsetReaderFactory = offsetReaderFactory;
     this.trackerFactory = trackerFactory;
+    this.committerFactory = committerFactory;
+  }
+
+  private static final class WrappedTracker
+      extends RestrictionTracker<OffsetRange, OffsetByteProgress> {
+    private final RestrictionTracker<OffsetRange, OffsetByteProgress> underlying;
+    Optional<Offset> lastClaimed;
+
+    WrappedTracker(RestrictionTracker<OffsetRange, OffsetByteProgress> underlying) {
+      this.underlying = underlying;
+      this.lastClaimed = Optional.empty();
+    }
+
+    @Override
+    public boolean tryClaim(OffsetByteProgress position) {
+      boolean claimed = underlying.tryClaim(position);
+      if (claimed) {
+        lastClaimed = Optional.of(position.lastOffset());
+      }
+      return claimed;
+    }
+
+    @Override
+    public OffsetRange currentRestriction() {
+      return underlying.currentRestriction();
+    }
+
+    @Override
+    public @Nullable SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+      return underlying.trySplit(fractionOfRemainder);
+    }
+
+    @Override
+    public void checkDone() throws IllegalStateException {
+      underlying.checkDone();
+    }
+
+    @Override
+    public IsBounded isBounded() {
+      return underlying.isBounded();
+    }
   }
 
   @ProcessElement
   public ProcessContinuation processElement(
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
-      @Element Partition partition,
-      OutputReceiver<SequencedMessage> receiver)
+      @Element SubscriptionPartition subscriptionPartition,
+      OutputReceiver<SequencedMessage> receiver,
+      BundleFinalizer finalizer)
       throws Exception {
+    WrappedTracker wrapped = new WrappedTracker(tracker);
     try (PartitionProcessor processor =
-        processorFactory.newProcessor(partition, tracker, receiver)) {
+        processorFactory.newProcessor(subscriptionPartition, wrapped, receiver)) {
       processor.start();
-      return processor.waitForCompletion(maxSleepTime);
+      ProcessContinuation result = processor.waitForCompletion(maxSleepTime);
+      wrapped.lastClaimed.ifPresent(
+          lastClaimedOffset ->
+              finalizer.afterBundleCommit(
+                  Instant.ofEpochMilli(Long.MAX_VALUE),
+                  () -> {
+                    Committer committer = committerFactory.apply(subscriptionPartition);
+                    committer.startAsync().awaitRunning();
+                    // Commit the next-to-deliver offset.
+                    committer.commitOffset(Offset.of(lastClaimedOffset.value() + 1)).get();
+                    committer.stopAsync().awaitTerminated();
+                  }));
+      return result;
     }
   }
 
   @GetInitialRestriction
-  public OffsetRange getInitialRestriction(@Element Partition partition) {
-    try (InitialOffsetReader reader = offsetReaderFactory.apply(partition)) {
+  public OffsetRange getInitialRestriction(@Element SubscriptionPartition subscriptionPartition) {
+    try (InitialOffsetReader reader = offsetReaderFactory.apply(subscriptionPartition)) {
       Offset offset = reader.read();
       return new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */);
     }
@@ -71,7 +135,7 @@ class PerPartitionSdf extends DoFn<Partition, SequencedMessage> {
 
   @NewTracker
   public RestrictionTracker<OffsetRange, OffsetByteProgress> newTracker(
-      @Element Partition partition, @Restriction OffsetRange range) {
-    return trackerFactory.apply(partition, range);
+      @Element SubscriptionPartition subscriptionPartition, @Restriction OffsetRange range) {
+    return trackerFactory.apply(subscriptionPartition, range);
   }
 }

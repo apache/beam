@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import java.io.Serializable;
 
-/** A serializable Supplier that can throw a StatusException. */
+/** A serializable Supplier. */
 public interface SerializableSupplier<T> extends Serializable {
   T get();
 }

@@ -36,7 +36,6 @@ import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.testing.FakeApiService;
-import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
@@ -70,10 +69,7 @@ public class PartitionProcessorImplTest {
 
   abstract static class FakeSubscriber extends FakeApiService implements Subscriber {}
 
-  abstract static class FakeCommitter extends FakeApiService implements Committer {}
-
   @Spy FakeSubscriber subscriber;
-  @Spy FakeCommitter committer;
 
   Consumer<List<SequencedMessage>> leakedConsumer;
   PartitionProcessor processor;
@@ -96,8 +92,7 @@ public class PartitionProcessorImplTest {
               return subscriber;
             });
     processor =
-        new PartitionProcessorImpl(
-            tracker, receiver, committer, subscriberFactory, DEFAULT_FLOW_CONTROL);
+        new PartitionProcessorImpl(tracker, receiver, subscriberFactory, DEFAULT_FLOW_CONTROL);
     assertNotNull(leakedConsumer);
   }
 
@@ -109,8 +104,6 @@ public class PartitionProcessorImplTest {
     processor.start();
     verify(subscriber).startAsync();
     verify(subscriber).awaitRunning();
-    verify(committer).startAsync();
-    verify(committer).awaitRunning();
     verify(subscriber)
         .seek(
             SeekRequest.newBuilder()
@@ -125,8 +118,6 @@ public class PartitionProcessorImplTest {
     processor.close();
     verify(subscriber).stopAsync();
     verify(subscriber).awaitTerminated();
-    verify(committer).stopAsync();
-    verify(committer).awaitTerminated();
   }
 
   @Test
@@ -158,34 +149,6 @@ public class PartitionProcessorImplTest {
     assertThrows(ApiException.class, () -> processor.close());
     verify(subscriber).stopAsync();
     verify(subscriber).awaitTerminated();
-    verify(committer).stopAsync();
-    verify(committer).awaitTerminated();
-  }
-
-  @Test
-  public void lifecycleCommitterAwaitThrows() throws Exception {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
-    processor.start();
-    doThrow(new CheckedApiException(Code.INTERNAL).underlying).when(committer).awaitTerminated();
-    assertThrows(ApiException.class, () -> processor.close());
-    verify(subscriber).stopAsync();
-    verify(subscriber).awaitTerminated();
-    verify(committer).stopAsync();
-    verify(committer).awaitTerminated();
-  }
-
-  @Test
-  public void committerFailureFails() throws Exception {
-    when(tracker.currentRestriction())
-        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
-    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
-    processor.start();
-    committer.fail(new CheckedApiException(Code.OUT_OF_RANGE));
-    ApiException e =
-        assertThrows(ApiException.class, () -> processor.waitForCompletion(Duration.ZERO));
-    assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
   @Test
@@ -236,7 +199,7 @@ public class PartitionProcessorImplTest {
     SequencedMessage message1 = messageWithOffset(1);
     SequencedMessage message3 = messageWithOffset(3);
     leakedConsumer.accept(ImmutableList.of(message1, message3));
-    InOrder order = inOrder(tracker, receiver, subscriber, committer);
+    InOrder order = inOrder(tracker, receiver, subscriber);
     order
         .verify(tracker)
         .tryClaim(
@@ -254,7 +217,6 @@ public class PartitionProcessorImplTest {
                 .setAllowedMessages(2)
                 .setAllowedBytes(message1.getSizeBytes() + message3.getSizeBytes())
                 .build());
-    order.verify(committer).commitOffset(Offset.of(4)); // Next-to-receive offset.
     assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
   }
 }
