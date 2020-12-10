@@ -17,16 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import static com.google.cloud.pubsublite.internal.testing.UnitTestExamples.example;
+import static org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions.DEFAULT_FLOW_CONTROL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.api.core.ApiFutures;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
@@ -36,6 +40,7 @@ import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
+import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
@@ -90,17 +95,33 @@ public class PartitionProcessorImplTest {
               leakedConsumer = args.getArgument(0);
               return subscriber;
             });
-    processor = new PartitionProcessorImpl(tracker, receiver, committer, subscriberFactory);
+    processor =
+        new PartitionProcessorImpl(
+            tracker, receiver, committer, subscriberFactory, DEFAULT_FLOW_CONTROL);
     assertNotNull(leakedConsumer);
   }
 
   @Test
   public void lifecycle() throws Exception {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
     processor.start();
     verify(subscriber).startAsync();
     verify(subscriber).awaitRunning();
     verify(committer).startAsync();
     verify(committer).awaitRunning();
+    verify(subscriber)
+        .seek(
+            SeekRequest.newBuilder()
+                .setCursor(Cursor.newBuilder().setOffset(example(Offset.class).value()))
+                .build());
+    verify(subscriber)
+        .allowFlow(
+            FlowControlRequest.newBuilder()
+                .setAllowedBytes(DEFAULT_FLOW_CONTROL.bytesOutstanding())
+                .setAllowedMessages(DEFAULT_FLOW_CONTROL.messagesOutstanding())
+                .build());
     processor.close();
     verify(subscriber).stopAsync();
     verify(subscriber).awaitTerminated();
@@ -109,7 +130,29 @@ public class PartitionProcessorImplTest {
   }
 
   @Test
-  public void lifecycleSubscriberAwaitThrows() {
+  public void lifecycleSeekThrows() throws Exception {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any()))
+        .thenReturn(ApiFutures.immediateFailedFuture(new CheckedApiException(Code.OUT_OF_RANGE)));
+    doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
+    assertThrows(CheckedApiException.class, () -> processor.start());
+  }
+
+  @Test
+  public void lifecycleFlowControlThrows() {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any()))
+        .thenReturn(ApiFutures.immediateFailedFuture(new CheckedApiException(Code.OUT_OF_RANGE)));
+    assertThrows(CheckedApiException.class, () -> processor.start());
+  }
+
+  @Test
+  public void lifecycleSubscriberAwaitThrows() throws Exception {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
     processor.start();
     doThrow(new CheckedApiException(Code.INTERNAL).underlying).when(subscriber).awaitTerminated();
     assertThrows(ApiException.class, () -> processor.close());
@@ -120,7 +163,10 @@ public class PartitionProcessorImplTest {
   }
 
   @Test
-  public void lifecycleCommitterAwaitThrows() {
+  public void lifecycleCommitterAwaitThrows() throws Exception {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
     processor.start();
     doThrow(new CheckedApiException(Code.INTERNAL).underlying).when(committer).awaitTerminated();
     assertThrows(ApiException.class, () -> processor.close());
@@ -131,7 +177,10 @@ public class PartitionProcessorImplTest {
   }
 
   @Test
-  public void committerFailureFails() {
+  public void committerFailureFails() throws Exception {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
     processor.start();
     committer.fail(new CheckedApiException(Code.OUT_OF_RANGE));
     ApiException e =
@@ -140,7 +189,10 @@ public class PartitionProcessorImplTest {
   }
 
   @Test
-  public void subscriberFailureFails() {
+  public void subscriberFailureFails() throws Exception {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
     processor.start();
     subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
     ApiException e =
@@ -150,6 +202,9 @@ public class PartitionProcessorImplTest {
 
   @Test
   public void allowFlowFailureFails() throws Exception {
+    when(tracker.currentRestriction())
+        .thenReturn(new OffsetRange(example(Offset.class).value(), Long.MAX_VALUE));
+    when(subscriber.seek(any())).thenReturn(ApiFutures.immediateFuture(example(Offset.class)));
     processor.start();
     when(tracker.tryClaim(any())).thenReturn(true);
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
@@ -161,7 +216,6 @@ public class PartitionProcessorImplTest {
 
   @Test
   public void timeoutReturnsResume() {
-    processor.start();
     assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
   }
 
@@ -169,7 +223,11 @@ public class PartitionProcessorImplTest {
   public void failedClaimCausesStop() {
     when(tracker.tryClaim(any())).thenReturn(false);
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
+    verify(tracker, times(1)).tryClaim(any());
     assertEquals(ProcessContinuation.stop(), processor.waitForCompletion(Duration.millis(10)));
+    // Future calls to process don't try to claim.
+    leakedConsumer.accept(ImmutableList.of(messageWithOffset(2)));
+    verify(tracker, times(1)).tryClaim(any());
   }
 
   @Test

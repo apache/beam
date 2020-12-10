@@ -23,33 +23,51 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
+import com.google.common.flogger.GoogleLogger;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
+import org.joda.time.Duration;
 
 /**
  * OffsetByteRangeTracker is an unbounded restriction tracker for Pub/Sub lite partitions that
  * tracks offsets for checkpointing and bytes for progress.
  *
- * Any valid instance of an OffsetByteRangeTracker tracks one of exactly two types of ranges:
- *   - Unbounded ranges whose last offset is Long.MAX_VALUE
- *   - Completed ranges that are either empty (From == To) or fully claimed (lastClaimed == To - 1)
+ * <p>Any valid instance of an OffsetByteRangeTracker tracks one of exactly two types of ranges: -
+ * Unbounded ranges whose last offset is Long.MAX_VALUE - Completed ranges that are either empty
+ * (From == To) or fully claimed (lastClaimed == To - 1)
  *
- * TODO(dpcollins-google): make this restrict splits until a certain number of bytes have been
- * processed or wall time has passed
+ * <p>Also prevents splitting until minTrackingTime has passed or minBytesReceived have been
+ * received. IMPORTANT: minTrackingTime must be strictly smaller than the SDF read timeout when it
+ * would return ProcessContinuation.resume().
  */
 public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteProgress>
     implements HasProgress {
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   private final TopicBacklogReader backlogReader;
+  private final Duration minTrackingTime;
+  private final long minBytesReceived;
+  private final Stopwatch stopwatch;
   private OffsetRange range;
   private @Nullable Long lastClaimed;
   private long byteCount = 0;
 
-  public OffsetByteRangeTracker(OffsetRange range, TopicBacklogReader backlogReader) {
+  public OffsetByteRangeTracker(
+      OffsetRange range,
+      TopicBacklogReader backlogReader,
+      Stopwatch stopwatch,
+      Duration minTrackingTime,
+      long minBytesReceived) {
     checkArgument(range.getTo() == Long.MAX_VALUE);
     this.backlogReader = backlogReader;
+    this.minTrackingTime = minTrackingTime;
+    this.minBytesReceived = minBytesReceived;
+    this.stopwatch = stopwatch.reset().start();
     this.range = range;
   }
 
@@ -94,10 +112,22 @@ public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, Offs
     return lastClaimed == null ? currentRestriction().getFrom() : lastClaimed + 1;
   }
 
+  /**
+   * Whether the tracker has received enough data/been running for enough time that it can
+   * checkpoint and be confident it can get sufficient throughput.
+   */
+  private boolean receivedEnough() {
+    Duration duration = Duration.millis(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    if (duration.isLongerThan(minTrackingTime)) return true;
+    if (byteCount >= minBytesReceived) return true;
+    return false;
+  }
+
   @Override
   public @Nullable SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
     // Cannot split a bounded range. This should already be completely claimed.
     if (range.getTo() != Long.MAX_VALUE) return null;
+    if (!receivedEnough()) return null;
     range = new OffsetRange(currentRestriction().getFrom(), nextOffset());
     return SplitResult.of(this.range, new OffsetRange(nextOffset(), Long.MAX_VALUE));
   }
@@ -119,6 +149,9 @@ public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, Offs
         range,
         lastClaimedNotNull + 1,
         range.getTo());
+    logger.atInfo().log(
+        "Closed byte range after receiving %s offsets and %s bytes, and having %s time elapse.",
+        range.getTo() - range.getFrom(), byteCount, stopwatch.elapsed());
   }
 
   @Override

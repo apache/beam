@@ -20,11 +20,14 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
+import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
+import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
@@ -50,30 +53,52 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
   private final Committer committer;
   private final Subscriber subscriber;
   private final SettableFuture<Void> completionFuture = SettableFuture.create();
+  private final FlowControlSettings flowControlSettings;
 
   @SuppressWarnings("methodref.receiver.bound.invalid")
   PartitionProcessorImpl(
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver,
       Committer committer,
-      Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory) {
+      Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory,
+      FlowControlSettings flowControlSettings) {
     this.tracker = tracker;
     this.receiver = receiver;
     this.committer = committer;
     this.subscriber = subscriberFactory.apply(this::onMessages);
+    this.flowControlSettings = flowControlSettings;
   }
 
   @Override
-  public void start() {
+  @SuppressWarnings("argument.type.incompatible")
+  public void start() throws CheckedApiException {
     this.committer.addListener(this, MoreExecutors.directExecutor());
     this.subscriber.addListener(this, MoreExecutors.directExecutor());
     this.committer.startAsync();
     this.subscriber.startAsync();
     this.committer.awaitRunning();
     this.subscriber.awaitRunning();
+    try {
+      this.subscriber
+          .seek(
+              SeekRequest.newBuilder()
+                  .setCursor(Cursor.newBuilder().setOffset(tracker.currentRestriction().getFrom()))
+                  .build())
+          .get();
+      this.subscriber.allowFlow(
+          FlowControlRequest.newBuilder()
+              .setAllowedBytes(flowControlSettings.bytesOutstanding())
+              .setAllowedMessages(flowControlSettings.messagesOutstanding())
+              .build());
+    } catch (ExecutionException e) {
+      throw ExtractStatus.toCanonical(e.getCause());
+    } catch (Throwable t) {
+      throw ExtractStatus.toCanonical(t);
+    }
   }
 
   private void onMessages(List<SequencedMessage> messages) {
+    if (completionFuture.isDone()) return;
     Offset lastOffset = Offset.of(Iterables.getLast(messages).getCursor().getOffset());
     long byteSize = messages.stream().mapToLong(SequencedMessage::getSizeBytes).sum();
     if (tracker.tryClaim(OffsetByteProgress.of(lastOffset, byteSize))) {
