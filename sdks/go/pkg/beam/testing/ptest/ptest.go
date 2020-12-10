@@ -26,6 +26,14 @@ import (
 
 	// ptest uses the direct runner to execute pipelines by default.
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
+)
+
+var (
+	// expansionAddr is the endpoint for an expansion service for cross-language
+	// transforms.
+	ExpansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
 )
 
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.

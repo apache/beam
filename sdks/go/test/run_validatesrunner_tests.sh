@@ -155,4 +155,6 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]
 fi
 
 echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
-go test ./sdks/go/test/validatesrunner/... $ARGS
+go test -v ./sdks/go/test/integration/... $ARGS
+
+exit_background_processes
