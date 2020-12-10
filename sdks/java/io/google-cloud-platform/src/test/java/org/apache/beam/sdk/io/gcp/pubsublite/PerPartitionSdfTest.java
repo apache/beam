@@ -161,7 +161,7 @@ public class PerPartitionSdfTest {
     order.verify(processor).start();
     order.verify(processor).waitForCompletion(MAX_SLEEP_TIME);
     order.verify(processor).close();
-    verify(finalizer).afterBundleCommit(Instant.ofEpochMilli(Long.MAX_VALUE), any());
+    verify(finalizer).afterBundleCommit(eq(Instant.ofEpochMilli(Long.MAX_VALUE)), any());
     assertTrue(callbackRef.get() != null);
     when(committer.commitOffset(any())).thenReturn(ApiFutures.immediateFuture(null));
     callbackRef.get().onBundleSuccess();
