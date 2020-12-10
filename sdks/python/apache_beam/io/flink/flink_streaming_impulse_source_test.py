@@ -34,7 +34,7 @@ class FlinkStreamingImpulseSourceTest(unittest.TestCase):
     p | FlinkStreamingImpulseSource()
     # Test that roundtrip through Runner API works
     beam.Pipeline.from_runner_api(
-        p.to_runner_api(), p.runner, p._options, allow_proto_holders=False)
+        p.to_runner_api(), p.runner, p._options)
 
 
 if __name__ == '__main__':
