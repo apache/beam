@@ -395,11 +395,15 @@ public class Environments {
   }
 
   private static String getDefaultJavaSdkHarnessContainerUrl() {
+    // TODO(BEAM-11433): Re-enable defaulting by Java version once
+    // Java 11 is supported by x-lang
+    // JavaVersion defaultJavaVer = getJavaVersion()
+    JavaVersion defaultJavaVer = JavaVersion.Java8;
     return String.format(
         "%s/%s%s_sdk:%s",
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
-        getJavaVersion().toString(),
+        defaultJavaVer.toString(),
         ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }
