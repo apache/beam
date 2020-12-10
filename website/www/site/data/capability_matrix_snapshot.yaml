@@ -565,3 +565,198 @@ capability-matrix-snapshot:
               l1: "No"
               l2: pending model support
               l3: ""
+
+    - description: Bounded Splittable DoFn Support Status
+      anchor: what
+      color-b: "ca1"
+      color-y: "ec3"
+      color-p: "fe5"
+      color-n: "ddd"
+      rows:
+        - name: Base
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+        - name: Side Inputs
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3:
+        - name: Splittable DoFn Initiated Checkpointing
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner v2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+        - name: Dynamic Splitting
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+        - name: Bundle Finalization
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+    - description: Unbounded Splittable DoFn Support Status
+      anchor: what
+      color-b: "ca1"
+      color-y: "ec3"
+      color-p: "fe5"
+      color-n: "ddd"
+      rows:
+        - name: Base
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+        - name: Side Inputs
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+        - name: Splittable DoFn Initiated Checkpointing
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+        - name: Dynamic Splitting
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "No"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
+        - name: Bundle Finalization
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this with checkpointing enabled.
+              l3: ""
+            - class: spark
+              l1:
+              l2:
+              l3: ""
