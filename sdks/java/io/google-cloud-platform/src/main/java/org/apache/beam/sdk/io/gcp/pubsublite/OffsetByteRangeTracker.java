@@ -72,6 +72,11 @@ public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, Offs
   }
 
   @Override
+  public void finalize() {
+    this.backlogReader.close();
+  }
+
+  @Override
   public IsBounded isBounded() {
     return IsBounded.UNBOUNDED;
   }
@@ -109,6 +114,7 @@ public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, Offs
   }
 
   private long nextOffset() {
+    checkState(lastClaimed == null || lastClaimed < Long.MAX_VALUE);
     return lastClaimed == null ? currentRestriction().getFrom() : lastClaimed + 1;
   }
 
@@ -135,7 +141,6 @@ public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, Offs
   @Override
   @SuppressWarnings("unboxing.of.nullable")
   public void checkDone() throws IllegalStateException {
-    backlogReader.close();
     if (range.getFrom() == range.getTo()) return;
     checkState(
         lastClaimed != null,
