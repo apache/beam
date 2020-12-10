@@ -427,7 +427,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsub_version = "1.108.6"
-    def google_cloud_pubsublite_version = "0.6.5"
+    def google_cloud_pubsublite_version = "0.7.0"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom

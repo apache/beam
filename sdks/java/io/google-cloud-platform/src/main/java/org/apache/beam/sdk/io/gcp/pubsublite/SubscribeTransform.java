@@ -23,6 +23,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
+import com.google.common.math.LongMath;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.joda.time.Duration;
 
 class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage>> {
@@ -70,12 +72,18 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
         tracker,
         receiver,
         options.getCommitter(partition),
-        consumer -> newSubscriber(partition, consumer));
+        consumer -> newSubscriber(partition, consumer),
+        options.flowControlSettings());
   }
 
   private RestrictionTracker<OffsetRange, OffsetByteProgress> newRestrictionTracker(
       Partition partition, OffsetRange initial) {
-    return new OffsetByteRangeTracker(initial, options.getBacklogReader(partition));
+    return new OffsetByteRangeTracker(
+        initial,
+        options.getBacklogReader(partition),
+        Stopwatch.createUnstarted(),
+        MAX_SLEEP_TIME.multipliedBy(3).dividedBy(4),
+        LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10));
   }
 
   @Override

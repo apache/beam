@@ -145,6 +145,7 @@ public abstract class SubscriberOptions implements Serializable {
     // Required parameters.
     public abstract Builder setSubscriptionPath(SubscriptionPath path);
 
+    // Optional parameters
     public abstract Builder setPartitions(Set<Partition> partitions);
 
     public abstract Builder setFlowControlSettings(FlowControlSettings flowControlSettings);
