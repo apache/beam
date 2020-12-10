@@ -155,7 +155,7 @@ public class PerPartitionSdfTest {
         .afterBundleCommit(any(), any());
     assertEquals(
         ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output, finalizer));
-    verify(processorFactory).newProcessor(PARTITION, tracker, output);
+    verify(processorFactory).newProcessor(PARTITION, any(), output);
     InOrder order = inOrder(processor);
     order.verify(processor).start();
     order.verify(processor).waitForCompletion(MAX_SLEEP_TIME);
