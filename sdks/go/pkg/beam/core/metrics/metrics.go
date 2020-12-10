@@ -528,6 +528,19 @@ func (r CounterResult) Result() int64 {
 	return r.Attempted
 }
 
+// MergeCounters combines counter metrics that share a common key.
+func MergeCounters(
+	attempted map[StepKey]int64,
+	committed map[StepKey]int64) []CounterResult {
+	res := make([]CounterResult, 0)
+
+	for k := range attempted {
+		v := committed[k]
+		res = append(res, CounterResult{Attempted: attempted[k], Committed: v, Key: k})
+	}
+	return res
+}
+
 // DistributionResult is an attempted and a commited value of a distribution
 // metric plus key.
 type DistributionResult struct {
@@ -543,6 +556,19 @@ func (r DistributionResult) Result() DistributionValue {
 		return r.Committed
 	}
 	return r.Attempted
+}
+
+// MergeDistributions combines distribution metrics that share a common key.
+func MergeDistributions(
+	attempted map[StepKey]DistributionValue,
+	committed map[StepKey]DistributionValue) []DistributionResult {
+	res := make([]DistributionResult, 0)
+
+	for k := range attempted {
+		v := committed[k]
+		res = append(res, DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
+	}
+	return res
 }
 
 // GaugeResult is an attempted and a commited value of a gauge metric plus
@@ -565,4 +591,17 @@ func (r GaugeResult) Result() GaugeValue {
 // StepKey uniquely identifies a metric within a pipeline graph.
 type StepKey struct {
 	Step, Name, Namespace string
+}
+
+// MergeGauges combines gauge metrics that share a common key.
+func MergeGauges(
+	attempted map[StepKey]GaugeValue,
+	committed map[StepKey]GaugeValue) []GaugeResult {
+	res := make([]GaugeResult, 0)
+
+	for k := range attempted {
+		v := committed[k]
+		res = append(res, GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
+	}
+	return res
 }
