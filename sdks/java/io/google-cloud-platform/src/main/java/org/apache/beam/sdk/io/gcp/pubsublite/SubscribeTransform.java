@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
+import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.checkArgument;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.common.math.LongMath;
@@ -48,8 +50,11 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     this.options = options;
   }
 
-  private Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> consumer)
-      throws ApiException {
+  private void checkSubscription(SubscriptionPartition subscriptionPartition) throws ApiException {
+    checkArgument(subscriptionPartition.subscription().equals(options.subscriptionPath()));
+  }
+
+  private Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> consumer) {
     try {
       return options
           .getSubscriberFactory(partition)
@@ -65,38 +70,59 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
   }
 
   private PartitionProcessor newPartitionProcessor(
-      Partition partition,
+      SubscriptionPartition subscriptionPartition,
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
-      OutputReceiver<SequencedMessage> receiver) {
+      OutputReceiver<SequencedMessage> receiver)
+      throws ApiException {
+    checkSubscription(subscriptionPartition);
     return new PartitionProcessorImpl(
         tracker,
         receiver,
-        options.getCommitter(partition),
-        consumer -> newSubscriber(partition, consumer),
+        consumer -> newSubscriber(subscriptionPartition.partition(), consumer),
         options.flowControlSettings());
   }
 
   private RestrictionTracker<OffsetRange, OffsetByteProgress> newRestrictionTracker(
-      Partition partition, OffsetRange initial) {
+      SubscriptionPartition subscriptionPartition, OffsetRange initial) {
+    checkSubscription(subscriptionPartition);
     return new OffsetByteRangeTracker(
         initial,
-        options.getBacklogReader(partition),
+        options.getBacklogReader(subscriptionPartition.partition()),
         Stopwatch.createUnstarted(),
         MAX_SLEEP_TIME.multipliedBy(3).dividedBy(4),
         LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10));
   }
 
+  private InitialOffsetReader newInitialOffsetReader(SubscriptionPartition subscriptionPartition) {
+    checkSubscription(subscriptionPartition);
+    return options.getInitialOffsetReader(subscriptionPartition.partition());
+  }
+
+  private Committer newCommitter(SubscriptionPartition subscriptionPartition) {
+    checkSubscription(subscriptionPartition);
+    return options.getCommitter(subscriptionPartition.partition());
+  }
+
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
-    PCollection<Partition> partitions = Create.of(options.partitions()).expand(input);
+    PCollection<SubscriptionPartition> partitions =
+        Create.of(
+                options.partitions().stream()
+                    .map(
+                        partition ->
+                            SubscriptionPartition.of(options.subscriptionPath(), partition))
+                    .collect(Collectors.toList()))
+            .expand(input);
     // Prevent fusion between Create and read.
-    PCollection<Partition> shuffledPartitions = partitions.apply(Reshuffle.viaRandomKey());
+    PCollection<SubscriptionPartition> shuffledPartitions =
+        partitions.apply(Reshuffle.viaRandomKey());
     return shuffledPartitions.apply(
         ParDo.of(
             new PerPartitionSdf(
                 MAX_SLEEP_TIME,
-                options::getInitialOffsetReader,
+                this::newInitialOffsetReader,
                 this::newRestrictionTracker,
-                this::newPartitionProcessor)));
+                this::newPartitionProcessor,
+                this::newCommitter)));
   }
 }

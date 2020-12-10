@@ -17,25 +17,19 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
+import com.google.auto.value.AutoValue;
+import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.SubscriptionPath;
+import org.apache.beam.sdk.coders.DefaultCoder;
 
-/**
- * The TopicBacklogReader uses the TopicStats API to aggregate the backlog, or the distance between
- * the current cursor and HEAD for a single {subscription, partition} pair.
- */
-interface TopicBacklogReader extends AutoCloseable {
-  /**
-   * Compute and aggregate message statistics for message between the provided start offset and
-   * HEAD. This method is blocking.
-   *
-   * @param offset The current offset of the subscriber.
-   * @return A ComputeMessageStatsResponse with the aggregated statistics for messages in the
-   *     backlog.
-   */
-  ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException;
+@AutoValue
+@DefaultCoder(SubscriptionPartitionCoder.class)
+public abstract class SubscriptionPartition {
+  static SubscriptionPartition of(SubscriptionPath subscription, Partition partition) {
+    return new AutoValue_SubscriptionPartition(subscription, partition);
+  }
 
-  @Override
-  void close();
+  abstract SubscriptionPath subscription();
+
+  abstract Partition partition();
 }

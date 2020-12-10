@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.SubscriptionPath;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,24 +27,40 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.DelegateCoder;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A coder for a Uuid. */
-class UuidCoder extends AtomicCoder<Uuid> {
-  private static Coder<Uuid> CODER = DelegateCoder.of(ByteStringCoder.of(), Uuid::value, Uuid::of);
+class SubscriptionPartitionCoder extends AtomicCoder<SubscriptionPartition> {
+  private static final Coder<SubscriptionPartition> CODER =
+      DelegateCoder.of(
+          KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()),
+          SubscriptionPartitionCoder::toKv,
+          SubscriptionPartitionCoder::fromKv);
+
+  private static KV<String, Long> toKv(SubscriptionPartition value) {
+    return KV.of(value.subscription().toString(), value.partition().value());
+  }
+
+  private static SubscriptionPartition fromKv(KV<String, Long> kv) {
+    return SubscriptionPartition.of(
+        SubscriptionPath.parse(kv.getKey()), Partition.of(kv.getValue()));
+  }
 
   @Override
-  public void encode(Uuid value, OutputStream outStream) throws IOException {
+  public void encode(SubscriptionPartition value, OutputStream outStream) throws IOException {
     CODER.encode(value, outStream);
   }
 
   @Override
-  public Uuid decode(InputStream inStream) throws IOException {
+  public SubscriptionPartition decode(InputStream inStream) throws IOException {
     return CODER.decode(inStream);
   }
 
   public static CoderProvider getCoderProvider() {
-    return CoderProviders.forCoder(TypeDescriptor.of(Uuid.class), new UuidCoder());
+    return CoderProviders.forCoder(
+        TypeDescriptor.of(SubscriptionPartition.class), new SubscriptionPartitionCoder());
   }
 }
