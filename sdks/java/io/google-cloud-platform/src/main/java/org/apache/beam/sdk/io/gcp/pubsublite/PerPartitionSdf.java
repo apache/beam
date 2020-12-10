@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -96,6 +97,16 @@ class PerPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
     public IsBounded isBounded() {
       return underlying.isBounded();
     }
+  }
+
+  @GetInitialWatermarkEstimatorState
+  Instant getInitialWatermarkState() {
+    return Instant.EPOCH;
+  }
+
+  @NewWatermarkEstimator
+  MonotonicallyIncreasing newWatermarkEstimator(@WatermarkEstimatorState Instant state) {
+    return new MonotonicallyIncreasing(state);
   }
 
   @ProcessElement
