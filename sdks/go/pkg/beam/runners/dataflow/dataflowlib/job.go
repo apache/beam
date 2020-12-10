@@ -240,6 +240,12 @@ func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
 	return client, nil
 }
 
+// GetMetrics returns a collection of metrics describing the progress of a
+// job by making a call to Cloud Monitoring service.
+func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID string) (*df.JobMetrics, error) {
+	return client.Projects.Locations.Jobs.GetMetrics(project, region, jobID).Do()
+}
+
 type dataflowOptions struct {
 	Experiments []string `json:"experiments,omitempty"`
 	PipelineURL string   `json:"pipelineUrl"`

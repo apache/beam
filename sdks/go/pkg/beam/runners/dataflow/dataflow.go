@@ -204,8 +204,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
-	return nil, err
+	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
 }
 func gcsRecorderHook(opts []string) perf.CaptureHook {
 	bucket, prefix, err := gcsx.ParseObject(opts[0])

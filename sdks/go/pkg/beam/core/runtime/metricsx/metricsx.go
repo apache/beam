@@ -32,7 +32,7 @@ func FromMonitoringInfos(attempted []*pipepb.MonitoringInfo, committed []*pipepb
 	ac, ad, ag := groupByType(attempted)
 	cc, cd, cg := groupByType(committed)
 
-	return metrics.NewResults(mergeCounters(ac, cc), mergeDistributions(ad, cd), mergeGauges(ag, cg))
+	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg))
 }
 
 func groupByType(minfos []*pipepb.MonitoringInfo) (
@@ -82,42 +82,6 @@ func groupByType(minfos []*pipepb.MonitoringInfo) (
 		}
 	}
 	return counters, distributions, gauges
-}
-
-func mergeCounters(
-	attempted map[metrics.StepKey]int64,
-	committed map[metrics.StepKey]int64) []metrics.CounterResult {
-	res := make([]metrics.CounterResult, 0)
-
-	for k := range attempted {
-		v := committed[k]
-		res = append(res, metrics.CounterResult{Attempted: attempted[k], Committed: v, Key: k})
-	}
-	return res
-}
-
-func mergeDistributions(
-	attempted map[metrics.StepKey]metrics.DistributionValue,
-	committed map[metrics.StepKey]metrics.DistributionValue) []metrics.DistributionResult {
-	res := make([]metrics.DistributionResult, 0)
-
-	for k := range attempted {
-		v := committed[k]
-		res = append(res, metrics.DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
-	}
-	return res
-}
-
-func mergeGauges(
-	attempted map[metrics.StepKey]metrics.GaugeValue,
-	committed map[metrics.StepKey]metrics.GaugeValue) []metrics.GaugeResult {
-	res := make([]metrics.GaugeResult, 0)
-
-	for k := range attempted {
-		v := committed[k]
-		res = append(res, metrics.GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
-	}
-	return res
 }
 
 func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
