@@ -29,7 +29,7 @@ import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for a Uuid. */
-class UuidCoder extends AtomicCoder<Uuid> {
+public class UuidCoder extends AtomicCoder<Uuid> {
   private static Coder<Uuid> CODER = DelegateCoder.of(ByteStringCoder.of(), Uuid::value, Uuid::of);
 
   @Override

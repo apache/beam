@@ -24,6 +24,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -155,7 +156,7 @@ public class PerPartitionSdfTest {
         .afterBundleCommit(any(), any());
     assertEquals(
         ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output, finalizer));
-    verify(processorFactory).newProcessor(PARTITION, any(), output);
+    verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
     order.verify(processor).start();
     order.verify(processor).waitForCompletion(MAX_SLEEP_TIME);
