@@ -398,7 +398,7 @@ public class Environments {
     // TODO(BEAM-11433): Re-enable defaulting by Java version once
     // Java 11 is supported by x-lang
     // JavaVersion defaultJavaVer = getJavaVersion()
-    JavaVersion defaultJavaVer = JavaVersion.Java8;
+    JavaVersion defaultJavaVer = JavaVersion.v8;
     return String.format(
         "%s/%s%s_sdk:%s",
         ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
