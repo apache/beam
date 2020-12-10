@@ -45,7 +45,7 @@ import org.joda.time.Duration;
  * received. IMPORTANT: minTrackingTime must be strictly smaller than the SDF read timeout when it
  * would return ProcessContinuation.resume().
  */
-public class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteProgress>
+class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteProgress>
     implements HasProgress {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 

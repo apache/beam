@@ -25,7 +25,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.function.Consumer;
 
-public interface SerializableSubscriberFactory extends Serializable {
+interface SerializableSubscriberFactory extends Serializable {
   long serialVersionUID = -6978345654136456L;
 
   Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> message_consumer)
