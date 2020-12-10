@@ -34,6 +34,7 @@ Available classes:
 
 from __future__ import absolute_import
 
+import threading
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -43,8 +44,6 @@ from typing import Optional
 from typing import Type
 from typing import Union
 from typing import cast
-
-import threading
 
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
