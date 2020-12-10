@@ -50,6 +50,25 @@ golang {
   }
 }
 
+// ValidatesRunner tests for Flink using an updated framework that supports
+// cross-language tests.
+// TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
+task flinkXlangValidatesRunner {
+  dependsOn ":runners:flink:1.10:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def options = [
+            "--runner flink",
+            "--flink_job_server_jar ${project(":runners:flink:1.10:job-server").shadowJar.archivePath}",
+            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
 task flinkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":runners:flink:1.10:job-server:shadowJar"
