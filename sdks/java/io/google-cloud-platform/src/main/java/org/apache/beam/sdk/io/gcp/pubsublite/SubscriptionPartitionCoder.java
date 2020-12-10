@@ -33,7 +33,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-class SubscriptionPartitionCoder extends AtomicCoder<SubscriptionPartition> {
+public class SubscriptionPartitionCoder extends AtomicCoder<SubscriptionPartition> {
   private static final Coder<SubscriptionPartition> CODER =
       DelegateCoder.of(
           KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()),
