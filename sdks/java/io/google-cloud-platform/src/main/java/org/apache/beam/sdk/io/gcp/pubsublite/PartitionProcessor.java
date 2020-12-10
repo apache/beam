@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.cloud.pubsublite.internal.CheckedApiException;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.joda.time.Duration;
 
 interface PartitionProcessor extends AutoCloseable {
-  void start();
+  void start() throws CheckedApiException;
 
   ProcessContinuation waitForCompletion(Duration duration);
 }

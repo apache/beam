@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
@@ -34,16 +35,34 @@ import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
+import org.joda.time.Duration;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Spy;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings("initialization.fields.uninitialized")
 public class OffsetByteRangeTrackerTest {
   private static final double IGNORED_FRACTION = -10000000.0;
+  private static final long MIN_BYTES = 1000;
   private static final OffsetRange RANGE = new OffsetRange(123L, Long.MAX_VALUE);
   private final TopicBacklogReader reader = mock(TopicBacklogReader.class);
-  private final OffsetByteRangeTracker tracker = new OffsetByteRangeTracker(RANGE, reader);
+
+  @Spy Ticker ticker;
+  private OffsetByteRangeTracker tracker;
+
+  @Before
+  public void setUp() {
+    initMocks(this);
+    when(ticker.read()).thenReturn(0L);
+    tracker =
+        new OffsetByteRangeTracker(
+            RANGE, reader, Stopwatch.createUnstarted(ticker), Duration.millis(500), MIN_BYTES);
+  }
 
   @Test
   public void progressTracked() {
@@ -66,8 +85,8 @@ public class OffsetByteRangeTrackerTest {
   @Test
   @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
   public void claimSplitSuccess() {
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), 10)));
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(10_000), 11)));
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(10_000), MIN_BYTES)));
     SplitResult<OffsetRange> splits = tracker.trySplit(IGNORED_FRACTION);
     assertEquals(RANGE.getFrom(), splits.getPrimary().getFrom());
     assertEquals(10_001, splits.getPrimary().getTo());
@@ -82,6 +101,7 @@ public class OffsetByteRangeTrackerTest {
   @Test
   @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
   public void splitWithoutClaimEmpty() {
+    when(ticker.read()).thenReturn(100000000000000L);
     SplitResult<OffsetRange> splits = tracker.trySplit(IGNORED_FRACTION);
     assertEquals(RANGE.getFrom(), splits.getPrimary().getFrom());
     assertEquals(RANGE.getFrom(), splits.getPrimary().getTo());
@@ -98,19 +118,43 @@ public class OffsetByteRangeTrackerTest {
 
   @Test
   public void cannotClaimBackwards() {
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), 10)));
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
     assertThrows(
         IllegalArgumentException.class,
-        () -> tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), 10)));
+        () -> tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
     assertThrows(
         IllegalArgumentException.class,
-        () -> tracker.tryClaim(OffsetByteProgress.of(Offset.of(999), 10)));
+        () -> tracker.tryClaim(OffsetByteProgress.of(Offset.of(999), MIN_BYTES)));
   }
 
   @Test
   public void cannotClaimSplitRange() {
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), 10)));
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
     assertTrue(tracker.trySplit(IGNORED_FRACTION) != null);
-    assertFalse(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 10)));
+    assertFalse(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), MIN_BYTES)));
+  }
+
+  @Test
+  public void cannotSplitNotEnoughBytesOrTime() {
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES - 2)));
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 1)));
+    when(ticker.read()).thenReturn(100_000_000L);
+    assertTrue(tracker.trySplit(IGNORED_FRACTION) == null);
+  }
+
+  @Test
+  public void canSplitTimeOnly() {
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES - 2)));
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 1)));
+    when(ticker.read()).thenReturn(1_000_000_000L);
+    assertTrue(tracker.trySplit(IGNORED_FRACTION) != null);
+  }
+
+  @Test
+  public void canSplitBytesOnly() {
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES - 2)));
+    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 2)));
+    when(ticker.read()).thenReturn(100_000_000L);
+    assertTrue(tracker.trySplit(IGNORED_FRACTION) != null);
   }
 }
