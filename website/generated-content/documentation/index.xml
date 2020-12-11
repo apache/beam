@@ -1974,7 +1974,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="h
 &lt;p>&lt;code>.toTable()&lt;/code>&lt;/p>
 &lt;ul>
 &lt;li>Accepts the target Snowflake table name.&lt;/li>
-&lt;li>Example: &lt;code>.toTable(&amp;quot;MY_TABLE)&lt;/code>&lt;/li>
+&lt;li>Example: &lt;code>.toTable(&amp;quot;MY_TABLE&amp;quot;)&lt;/code>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>
@@ -2032,7 +2032,9 @@ AS COPY INTO stream_table from @streamstage;&lt;/code>&lt;/pre>
 &lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Note&lt;/strong>:&lt;/p>
-&lt;p>SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html">COPY to table&lt;/a>). StagingBucketName will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under the “stagingBucketName” path.&lt;/p>
+&lt;p>As mentioned before SnowflakeIO uses &lt;a href="https://docs.snowflake.com/en/user-guide/data-load-snowpipe.html">SnowPipe REST calls&lt;/a>
+behind the scenes for writing from unbounded sources. StagingBucketName will be used to save CSV files which will end up in Snowflake.
+SnowflakeIO is not going to delete created CSV files from path under the “stagingBucketName” either during or after finishing streaming.&lt;/p>
 &lt;p>&lt;strong>Optional&lt;/strong> for streaming:&lt;/p>
 &lt;ul>
 &lt;li>
