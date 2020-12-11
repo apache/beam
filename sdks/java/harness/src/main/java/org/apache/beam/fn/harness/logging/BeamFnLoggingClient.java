@@ -40,6 +40,7 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import org.apache.beam.fn.harness.TransformProcessingThreadTracker;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -215,6 +216,11 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (loggerName != null) {
         builder.setLogLocation(loggerName);
       }
+
+      String transformId =
+          TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
+              .getOrDefault((long) record.getThreadID(), "");
+      builder.setTransformId(transformId);
 
       // The thread that sends log records should never perform a blocking publish and
       // only insert log records best effort.
