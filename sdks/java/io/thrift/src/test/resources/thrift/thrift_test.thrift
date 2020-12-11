@@ -17,7 +17,24 @@
  */
 // This thrift file is used to generate the TestThriftStruct class.
 
-namespace java test_thrift
+namespace java org.apache.beam.sdk.io.thrift
+
+typedef string Name
+typedef i16 Age
+
+struct TestThriftInnerStruct {
+    1: Name testNameTypedef = "kid"
+    2: Age testAgeTypedef = 12
+}
+
+enum TestThriftEnum { C1, C2 }
+
+union TestThriftUnion {
+    1: TestThriftInnerStruct snake_case_nested_struct;
+    2: TestThriftEnum camelCaseEnum;
+}
+
+typedef set<string> StringSet
 
 struct TestThriftStruct {
     1: i8 testByte
@@ -28,4 +45,9 @@ struct TestThriftStruct {
     6: map<string, i16> stringIntMap
     7: binary testBinary
     8: bool testBool
+    9: list<i32> testList
+    10: StringSet testStringSetTypedef
+    11: TestThriftEnum testEnum
+    12: TestThriftInnerStruct testNested
+    13: TestThriftUnion testUnion
 }
