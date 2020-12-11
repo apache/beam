@@ -1,6 +1,8 @@
 package org.apache.beam.io.cdc;
 
 import io.debezium.connector.mysql.MySqlConnector;
+import io.debezium.connector.sqlserver.SqlServerConnector;
+import io.debezium.connector.postgresql.PostgresConnector;
 import io.debezium.document.Document;
 import io.debezium.document.DocumentReader;
 import io.debezium.document.DocumentWriter;
@@ -183,14 +185,58 @@ public class CounterSourceConnectorTest {
 							.withConnectionProperty("database.include.list", "inventory")
 							.withConnectionProperty("database.history", SDFDatabaseHistory.class.getName())
 							.withConnectionProperty("include.schema.changes", "false")
-              ).withFormatFunction(record -> {
-		          System.out.println("GOT RECORD - " + record.toString());
-		          return record.toString();
-		        })
+              ).withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
       ).setCoder(StringUtf8Coder.of());
 	  //.apply(TextIO.write().to("test"));
 
 	  p.run().waitUntilFinish();
   }
+  
+    @Test
+    public void testDebeziumIOPostgreSql() {
+        PipelineOptions options = PipelineOptionsFactory.create();
+        Pipeline p = Pipeline.create(options);
+        p.apply(DebeziumIO.<String>read().
+                withConnectorConfiguration(
+                        DebeziumIO.ConnectorConfiguration.create()
+                                .withUsername("postgres")
+                                .withPassword("debezium")
+                                .withConnectorClass(PostgresConnector.class)
+                                .withHostName("127.0.0.1")
+                                .withPort("5000")
+                                .withConnectionProperty("database.dbname", "postgres")
+                                .withConnectionProperty("database.server.name", "dbserver2")
+                                .withConnectionProperty("schema.include.list", "inventory")
+                                .withConnectionProperty("slot.name", "dbzslot2")
+                                .withConnectionProperty("database.history", SDFDatabaseHistory.class.getName())
+                                .withConnectionProperty("include.schema.changes", "false")
+                ).withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
+        ).setCoder(StringUtf8Coder.of());
+
+        p.run().waitUntilFinish();
+    }
+
+    @Test
+    public void testDebeziumIOSqlSever() {
+        PipelineOptions options = PipelineOptionsFactory.create();
+        Pipeline p = Pipeline.create(options);
+        p.apply(DebeziumIO.<String>read().
+                        withConnectorConfiguration(
+                                DebeziumIO.ConnectorConfiguration.create()
+                                        .withUsername("sa")
+                                        .withPassword("Password!")
+                                        .withConnectorClass(SqlServerConnector.class)
+                                        .withHostName("127.0.0.1")
+                                        .withPort("1433")
+                                        .withConnectionProperty("database.dbname", "testDB")
+                                        .withConnectionProperty("database.server.name", "server1")
+                                        .withConnectionProperty("table.include.list", "dbo.customers")
+                                        .withConnectionProperty("database.history", SDFDatabaseHistory.class.getName())
+                                        .withConnectionProperty("include.schema.changes", "false")
+                        ).withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
+        ).setCoder(StringUtf8Coder.of());
+
+        p.run().waitUntilFinish();
+    }
   
 }
