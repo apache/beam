@@ -1602,7 +1602,7 @@ versions denoted &lt;code>0.x.y&lt;/code>.&lt;/p>
 &lt;h3 id="2250-2020-10-23">2.25.0 (2020-10-23)&lt;/h3>
 &lt;p>Official &lt;a href="https://archive.apache.org/dist/beam/2.25.0/apache-beam-2.25.0-source-release.zip">source code download&lt;/a>.
 &lt;a href="https://archive.apache.org/dist/beam/2.25.0/apache-beam-2.25.0-source-release.zip.sha512">SHA-512&lt;/a>.
-[signature]https://archive.apache.org/dist/beam/.25.0/apache-beam-2.25.0-source-release.zip.asc).&lt;/p>
+&lt;a href="https://archive.apache.org/dist/beam/.25.0/apache-beam-2.25.0-source-release.zip.asc">signature&lt;/a>.&lt;/p>
 &lt;p>&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347147">Release notes&lt;/a>.
 &lt;a href="/blog/beam-2.25.0">Blog post&lt;/a>.&lt;/p>
 &lt;h3 id="2240-2020-09-18">2.24.0 (2020-09-18)&lt;/h3>
