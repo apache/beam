@@ -33,7 +33,7 @@ import (
 // Convenience function.
 func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobOptions, async bool) (*universalPipelineResult, error) {
 	// (1) Prepare job to obtain artifact staging instructions.
-	presult := &universalPipelineResult{JobID: ""}
+	presult := &universalPipelineResult{}
 
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
@@ -94,17 +94,18 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	}
 	err = WaitForCompletion(ctx, client, jobID)
 
-	res, err := newUniversalPipelineResult(ctx, jobID, client)
-	if err != nil {
-		return presult, err
+	res, presultErr := newUniversalPipelineResult(ctx, jobID, client)
+	if presultErr != nil {
+		if err != nil {
+			return presult, errors.Wrap(err, presultErr.Error())
+		}
+		return presult, presultErr
 	}
-	presult = res
-
-	return presult, err
+	return res, err
 }
 
 type universalPipelineResult struct {
-	JobID   string
+	jobID   string
 	metrics *metrics.Results
 }
 
@@ -122,4 +123,8 @@ func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.
 
 func (pr universalPipelineResult) Metrics() metrics.Results {
 	return *pr.metrics
+}
+
+func (pr universalPipelineResult) JobID() string {
+	return pr.jobID
 }

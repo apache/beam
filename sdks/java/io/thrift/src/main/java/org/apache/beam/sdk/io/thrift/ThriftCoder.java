@@ -37,7 +37,7 @@ import org.apache.thrift.transport.TIOStreamTransport;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-class ThriftCoder<T> extends CustomCoder<T> {
+public class ThriftCoder<T> extends CustomCoder<T> {
 
   private final Class<T> type;
   private final TProtocolFactory protocolFactory;
@@ -57,7 +57,7 @@ class ThriftCoder<T> extends CustomCoder<T> {
    * @return ThriftCoder initialize with class to be encoded/decoded and {@link TProtocolFactory}
    *     used to encode/decode.
    */
-  static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {
+  public static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {
     return new ThriftCoder<>(clazz, protocolFactory);
   }
 

@@ -110,7 +110,7 @@ func purgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 		}
 	}
 
-	// Updating all input ids to reflect the correct sources
+	// Updating all input and output ids to reflect the correct PCollections
 	for _, t := range components.GetTransforms() {
 		inputs := t.GetInputs()
 		for tag, nodeID := range inputs {
@@ -118,8 +118,13 @@ func purgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 				inputs[tag] = pcolID
 			}
 		}
+		outputs := t.GetOutputs()
+		for tag, nodeID := range outputs {
+			if pcolID, exists := idxMap[nodeID]; exists {
+				outputs[tag] = pcolID
+			}
+		}
 	}
-
 }
 
 // VerifyNamedOutputs ensures the expanded outputs correspond to the correct and expected named outputs

@@ -78,7 +78,7 @@ public class External {
   private static AtomicInteger namespaceCounter = new AtomicInteger(0);
 
   private static final ExpansionServiceClientFactory DEFAULT =
-      new DefaultExpansionServiceClientFactory(
+      DefaultExpansionServiceClientFactory.create(
           endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().build());
 
   private static int getFreshNamespaceIndex() {
