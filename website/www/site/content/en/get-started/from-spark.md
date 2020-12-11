@@ -20,14 +20,14 @@ limitations under the License.
 {{< localstorage language language-py >}}
 
 If you already know [_Apache Spark_](http://spark.apache.org/),
-learning _Apache Beam_ is easy.
+learning _Apache Beam_ is familiar.
 The Beam and Spark APIs are similar, so you already know the basic concepts.
 
 Spark stores data _Spark DataFrames_ for structured data,
 and in _Resilient Distributed Datasets_ (RDD) for unstructured data.
 We are using RDDs for this guide.
 
-A _Spark RDD_ represents a collection of elements,
+A Spark RDD represents a collection of elements,
 while in Beam it's called a _Parallel Collection_ (PCollection).
 A PCollection in Beam does _not_ have any ordering guarantees.
 
@@ -56,7 +56,7 @@ In Beam you _pipe_ your data through the pipeline using the
 _pipe operator_ `|` like `data | beam.Map(...)` instead of chaining
 methods like `data.map(...)`, but they're doing the same thing.
 
-Here's how an equivalent pipeline looks like in Beam.
+Here's what an equivalent pipeline looks like in Beam.
 
 {{< highlight py >}}
 import apache_beam as beam
@@ -76,15 +76,22 @@ with beam.Pipeline() as pipeline:
 > from within a PTransform.
 
 Another thing to note is that Beam pipelines are constructed _lazily_.
-This means that when you _pipe_ `|` data you're only _decalring_ the
+This means that when you pipe `|` data you're only _decalring_ the
 transformations and the order you want them to happen,
 but the actual computation doesn't happen.
 The pipeline is run _after_ the `with beam.Pipeline() as pipeline` context has
 closed.
-The pipeline is then sent to your runner of choice and it processes the data.
 
 > ℹ️ When the `with beam.Pipeline() as pipeline` context closes,
 > it implicitly calls `pipeline.run()` which triggers the computation to happen.
+
+The pipeline is then sent to your
+[runner of choice](https://beam.apache.org/documentation/runners/capability-matrix/)
+and it processes the data.
+
+> ℹ️ The pipeline can run locally with the _DirectRunner_,
+> or in a distributed runner such as Flink, Spark, or Dataflow.
+> The Spark runner is not related to PySpark.
 
 A label can optionally be added to a transform using the
 _right shift operator_ `>>` like `data | 'My description' >> beam.Map(...)`.
