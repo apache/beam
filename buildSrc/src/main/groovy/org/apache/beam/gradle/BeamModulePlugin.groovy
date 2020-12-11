@@ -430,7 +430,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.0-rc2"
+    def testcontainers_version = "1.15.1"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
