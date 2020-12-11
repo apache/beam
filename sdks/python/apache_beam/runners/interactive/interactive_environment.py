@@ -32,12 +32,14 @@ import logging
 import os
 import sys
 import tempfile
+from collections.abc import Iterable
 
 import apache_beam as beam
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
 from apache_beam.runners.interactive.recording_manager import RecordingManager
+from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
 from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -163,7 +165,8 @@ class InteractiveEnvironment(object):
     # the gRPC server serves.
     self._test_stream_service_controllers = {}
     self._cached_source_signature = {}
-    self._tracked_user_pipelines = set()
+    self._tracked_user_pipelines = UserPipelineTracker()
+
     # Tracks the computation completeness of PCollections. PCollections tracked
     # here don't need to be re-computed when data introspection is needed.
     self._computed_pcolls = set()
@@ -277,6 +280,21 @@ class InteractiveEnvironment(object):
     self.evict_computed_pcollections(pipeline)
     self.evict_cached_source_signature(pipeline)
     self.evict_pipeline_result(pipeline)
+    self.evict_tracked_pipelines(pipeline)
+
+  def _track_user_pipelines(self, watchable):
+    """Tracks user pipelines from the given watchable."""
+
+    if isinstance(watchable, beam.Pipeline):
+      self._tracked_user_pipelines.add_user_pipeline(watchable)
+    elif isinstance(watchable, dict):
+      for v in watchable.values():
+        if isinstance(v, beam.Pipeline):
+          self._tracked_user_pipelines.add_user_pipeline(v)
+    elif isinstance(watchable, Iterable):
+      for v in watchable:
+        if isinstance(v, beam.Pipeline):
+          self._tracked_user_pipelines.add_user_pipeline(v)
 
   def watch(self, watchable):
     """Watches a watchable.
@@ -287,6 +305,8 @@ class InteractiveEnvironment(object):
     matter since they are different instances. Duplicated variables are also
     allowed when watching.
     """
+    self._track_user_pipelines(watchable)
+
     if isinstance(watchable, dict):
       self._watching_dict_list.append(watchable.items())
     else:
@@ -510,11 +530,10 @@ class InteractiveEnvironment(object):
     function also clears up internal states for those anonymous pipelines once
     all their PCollections are anonymous.
     """
-    self._tracked_user_pipelines = set()
     for watching in self.watching():
       for _, val in watching:
         if isinstance(val, beam.pipeline.Pipeline):
-          self._tracked_user_pipelines.add(val)
+          self._tracked_user_pipelines.add_user_pipeline(val)
           _ = self.get_cache_manager(val, create_if_absent=True)
           _ = self.get_recording_manager(val, create_if_absent=True)
     all_tracked_pipeline_ids = set(self._background_caching_jobs.keys()).union(
@@ -531,14 +550,32 @@ class InteractiveEnvironment(object):
 
   @property
   def tracked_user_pipelines(self):
-    return self._tracked_user_pipelines
+    """Returns the user pipelines in this environment."""
+    for p in self._tracked_user_pipelines:
+      yield p
+
+  def user_pipeline(self, derived_pipeline):
+    """Returns the user pipeline for the given derived pipeline."""
+    return self._tracked_user_pipelines.get_user_pipeline(derived_pipeline)
+
+  def add_user_pipeline(self, user_pipeline):
+    self._tracked_user_pipelines.add_user_pipeline(user_pipeline)
+
+  def add_derived_pipeline(self, user_pipeline, derived_pipeline):
+    """Adds the derived pipeline to the parent user pipeline."""
+    self._tracked_user_pipelines.add_derived_pipeline(
+        user_pipeline, derived_pipeline)
+
+  def evict_tracked_pipelines(self, user_pipeline):
+    """Evicts the user pipeline and its derived pipelines."""
+    if user_pipeline:
+      self._tracked_user_pipelines.evict(user_pipeline)
 
   def pipeline_id_to_pipeline(self, pid):
     """Converts a pipeline id to a user pipeline.
     """
 
-    pid_to_pipelines = {str(id(p)): p for p in self._tracked_user_pipelines}
-    return pid_to_pipelines[pid]
+    return self._tracked_user_pipelines.get_pipeline(pid)
 
   def mark_pcollection_computed(self, pcolls):
     """Marks computation completeness for the given pcolls.

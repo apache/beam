@@ -15,12 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import io.grpc.StatusException;
-import java.io.Serializable;
-
-/** A serializable Function that can throw a StatusException. */
-public interface SerializableStatusFunction<InT, OutT> extends Serializable {
-  OutT apply(InT input) throws StatusException;
-}
+/** Table schema for BigTable. */
+package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;

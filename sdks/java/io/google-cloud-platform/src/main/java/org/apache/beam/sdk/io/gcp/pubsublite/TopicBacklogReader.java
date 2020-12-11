@@ -21,7 +21,6 @@ import com.google.api.core.ApiFuture;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
-import io.grpc.StatusException;
 import java.util.Map;
 
 /**
@@ -32,7 +31,7 @@ import java.util.Map;
 public interface TopicBacklogReader {
 
   /** Create a TopicBacklogReader from settings. */
-  static TopicBacklogReader create(TopicBacklogReaderSettings settings) throws StatusException {
+  static TopicBacklogReader create(TopicBacklogReaderSettings settings) {
     return settings.instantiate();
   }
   /**

@@ -36,6 +36,10 @@ capability-matrix:
       name: Hazelcast Jet
     - class: twister2
       name: Twister2
+    - class: python direct
+      name: Python Direct FnRunner
+    - class: go direct
+      name: Go Direct Runner
 
   categories:
     - description: What is being computed?
@@ -95,6 +99,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
         - name: GroupByKey
           values:
             - class: model
@@ -144,6 +156,14 @@ capability-matrix:
             - class: twister2
               l1: "Yes"
               l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
               l3: ""
         - name: Flatten
           values:
@@ -195,6 +215,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
         - name: Combine
           values:
             - class: model
@@ -244,6 +272,14 @@ capability-matrix:
             - class: twister2
               l1: "Yes"
               l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
               l3: ""
         - name: Composite Transforms
           values:
@@ -295,6 +331,14 @@ capability-matrix:
               l1: "Partially"
               l2: supported via inlining
               l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
         - name: Side Inputs
           values:
             - class: model
@@ -344,6 +388,14 @@ capability-matrix:
             - class: twister2
               l1: "Yes"
               l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
               l3: ""
         - name: Source API
           values:
@@ -395,55 +447,13 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-        - name: Splittable DoFn (SDF)
-          values:
-            - class: model
-              l1: "Partially"
-              l2: DoFn where processing of each element can be split for parallelism, or suspended and resumed
-              l3: Allows users to develop DoFn's that process a single element in portions ("restrictions"), executed in parallel or sequentially. This supersedes the unbounded and bounded `Source` APIs by supporting all of their features on a per-element basis. See http://s.apache.org/splittable-do-fn. Design is in progress on achieving parity with Source API regarding progress signals.
-            - class: dataflow
-              l1: "Yes"
+            - class: python direct
+              l1: ""
               l2:
-              l3: Does not yet support autotuning features of the Source API.
-            - class: flink
-              l1: "Yes"
+              l3: ""
+            - class: go direct
+              l1: ""
               l2:
-              l3:
-            - class: spark-rdd
-              l1: "Partially"
-              l2: supports bounded-per-element SDFs
-              l3:
-            - class: spark-dataset
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: mapreduce
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: jstorm
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: ibmstreams
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: samza
-              l1: "Partially"
-              l2: supports bounded-per-element SDFs
-              l3:
-            - class: nemo
-              l1: "No"
-              l2: not implemented
-              l3: ""
-            - class: jet
-              l1: "No"
-              l2: not implemented
-              l3: ""
-            - class: twister2
-              l1: "Partially"
-              l2: supports bounded
               l3: ""
         - name: Metrics
           values:
@@ -495,6 +505,14 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
         - name: Stateful Processing
           values:
             - class: model
@@ -545,6 +563,608 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
+    - description: Bounded Splittable DoFn Support Status
+      anchor: what
+      color-b: "ca1"
+      color-y: "ec3"
+      color-p: "fe5"
+      color-n: "ddd"
+      rows:
+        - name: Base
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "Yes"
+              l2:
+              l3:
+        - name: Side Inputs
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1:
+              l2:
+              l3:
+            - class: go direct
+              l1: "Yes"
+              l2:
+              l3:
+        - name: Splittable DoFn Initiated Checkpointing
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner v2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Dynamic Splitting
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: Only with Python SDK
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Bundle Finalization
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+    - description: Unbounded Splittable DoFn Support Status
+      anchor: what
+      color-b: "ca1"
+      color-y: "ec3"
+      color-p: "fe5"
+      color-n: "ddd"
+      rows:
+        - name: Base
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Side Inputs
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1:
+              l2:
+              l3:
+            - class: go direct
+              l1: "Yes"
+              l2:
+              l3:
+        - name: Splittable DoFn Initiated Checkpointing
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Dynamic Splitting
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "No"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "No"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Bundle Finalization
+          values:
+            - class: model
+              l1: "Yes"
+              l2:
+              l3:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this with checkpointing enabled.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: mapreduce
+              l1:
+              l2:
+              l3:
+            - class: jstorm
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
     - description: Where in event time?
       anchor: where
       color-b: "37d"

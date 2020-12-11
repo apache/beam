@@ -220,7 +220,10 @@ class RestrictionProvider(object):
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
   method of that class should have exactly one parameter whose default value is
-  an instance of ``RestrictionProvider``.
+  an instance of ``RestrictionParam``. This ``RestrictionParam`` can either be
+  constructed with an explicit ``RestrictionProvider``, or, if no
+  ``RestrictionProvider`` is provided, the ``DoFn`` itself must be a
+  ``RestrictionProvider``.
 
   The provided ``RestrictionProvider`` instance must provide suitable overrides
   for the following methods:
@@ -503,8 +506,11 @@ class WatermarkEstimatorProvider(object):
   information within an SDF.
 
   In order to make an SDF.process() access to the typical WatermarkEstimator,
-  the SDF author should pass a DoFn.WatermarkEstimatorParam with a default value
-  of one WatermarkEstimatorProvider instance.
+  the SDF author should have an argument whose default value is a
+  DoFn.WatermarkEstimatorParam instance.  This DoFn.WatermarkEstimatorParam
+  can either be constructed with an explicit WatermarkEstimatorProvider,
+  or, if no WatermarkEstimatorProvider is provided, the DoFn itself must
+  be a WatermarkEstimatorProvider.
   """
   def initial_estimator_state(self, element, restriction):
     """Returns the initial state of the WatermarkEstimator with given element
@@ -546,9 +552,10 @@ class _DoFnParam(object):
 
 class _RestrictionDoFnParam(_DoFnParam):
   """Restriction Provider DoFn parameter."""
-  def __init__(self, restriction_provider):
-    # type: (RestrictionProvider) -> None
-    if not isinstance(restriction_provider, RestrictionProvider):
+  def __init__(self, restriction_provider=None):
+    # type: (typing.Optional[RestrictionProvider]) -> None
+    if (restriction_provider is not None and
+        not isinstance(restriction_provider, RestrictionProvider)):
       raise ValueError(
           'DoFn.RestrictionParam expected RestrictionProvider object.')
     self.restriction_provider = restriction_provider
@@ -604,12 +611,15 @@ class _BundleFinalizerParam(_DoFnParam):
 
 
 class _WatermarkEstimatorParam(_DoFnParam):
-  """WatermarkEstomator DoFn parameter."""
-  def __init__(self, watermark_estimator_provider):
-    # type: (WatermarkEstimatorProvider) -> None
-    if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
+  """WatermarkEstimator DoFn parameter."""
+  def __init__(
+      self,
+      watermark_estimator_provider: typing.
+      Optional[WatermarkEstimatorProvider] = None):
+    if (watermark_estimator_provider is not None and not isinstance(
+        watermark_estimator_provider, WatermarkEstimatorProvider)):
       raise ValueError(
-          'DoFn._WatermarkEstimatorParam expected'
+          'DoFn.WatermarkEstimatorParam expected'
           'WatermarkEstimatorProvider object.')
     self.watermark_estimator_provider = watermark_estimator_provider
     self.param_id = 'WatermarkEstimatorProvider'
