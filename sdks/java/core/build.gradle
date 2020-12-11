@@ -19,12 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
-  classesTriggerCheckerBugs: [
-    'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
-    'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
-    'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
-  ],
-  checkerTooSlowOnTests: true,
+  enableChecker: false,
   shadowClosure: {
     dependencies {
       include(dependency("org.apache.commons:.*"))
@@ -34,7 +29,7 @@ applyJavaNature(
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
   },
-  disableLintWarnings: ['rawtypes'], // Avro-generated test code has rawtype errorss
+  disableLintWarnings: ['rawtypes'] // Avro-generated test code has rawtype errorss
 )
 applyAvroNature()
 applyAntlrNature()

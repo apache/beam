@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.redis')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.redis')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Redis"
 ext.summary ="IO to read and write on a Redis keystore."

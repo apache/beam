@@ -21,8 +21,8 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
-)
+  enableChecker:false,
+  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -164,6 +164,7 @@ task sparkRunner(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
 }
 
+<<<<<<< HEAD
 task hadoopVersionsTest(group: "Verification") {
   description = "Runs Hadoop format tests with different Hadoop versions"
   dependsOn createTaskNames(hadoopVersions, "Test")
@@ -219,4 +220,13 @@ static def createTaskNames(Map<String, String> hadoopVersions, String suffix) {
   return hadoopVersions.keySet().stream()
       .map{num -> "runHadoopFormatIO$num$suffix"}
       .collect(Collectors.toList())
+}
+
+task hadoopFormatIOElasticTest(type: Test) {
+  group = "Verification"
+  description = 'Runs HadoopFormatIO integration test with ElasticSearchContainer'
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  include '**/HadoopFormatIOElasticIT.class'
+  useJUnit { }
 }

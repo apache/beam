@@ -17,8 +17,8 @@
  */
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.snowflake',
-)
+  enableChecker: false,
+  automaticModuleName: 'org.apache.beam.sdk.io.snowflake')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

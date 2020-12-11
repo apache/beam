@@ -23,8 +23,8 @@ plugins {
 }
 
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.aws',
-)
+  enableChecker: false,
+  automaticModuleName: 'org.apache.beam.sdk.io.aws')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."

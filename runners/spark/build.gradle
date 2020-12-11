@@ -22,12 +22,8 @@ import java.util.stream.Collectors
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.spark',
-  classesTriggerCheckerBugs: [
-    'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
-    'SparkCombineFn': 'https://github.com/typetools/checker-framework/issues/3793',
-    'WindowingHelpers': 'https://github.com/typetools/checker-framework/issues/3793',
-  ],
-)
+  enableChecker: false,
+  )
 
 description = "Apache Beam :: Runners :: Spark"
 

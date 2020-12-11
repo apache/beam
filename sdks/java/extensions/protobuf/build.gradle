@@ -18,14 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  generatedClassPatterns: [
-    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto2CoderTestMessages/,
-    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto2SchemaMessages/,
-    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto3SchemaMessages/,
-    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto3SchemaOptions/,
-  ],
-  automaticModuleName: 'org.apache.beam.sdk.extensions.protobuf',
-)
+  enableChecker: false,
+  automaticModuleName: 'org.apache.beam.sdk.extensions.protobuf')
 applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"

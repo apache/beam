@@ -20,8 +20,8 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.parquet',
-)
+  enableChecker: false,
+  automaticModuleName: 'org.apache.beam.sdk.io.parquet')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
 ext.summary = "IO to read and write on Parquet storage format."

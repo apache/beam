@@ -18,12 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 
-applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
-  classesTriggerCheckerBugs: [
-    'HCatalogTable': 'TODO: file a bug report',
-  ]
-)
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog')
 
 def hive_version = "2.1.0"
 def netty_version = "4.1.51.Final"
