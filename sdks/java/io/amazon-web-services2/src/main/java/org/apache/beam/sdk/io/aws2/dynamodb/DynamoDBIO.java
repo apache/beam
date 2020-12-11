@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -117,8 +116,7 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  *                         .setMaxAttempts(5)
  *                         .setMaxDuration(Duration.standardMinutes(1))
  *                         .build())
- *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region))
- *               .withOverwriteByPKeys(overwriteByPKeys));
+ *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region)));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
@@ -129,6 +127,11 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  *   <li>Mapper function with a table name to map or transform your object into KV<tableName,
  *       writeRequest>
  * </ul>
+ *
+ * If primary keys could repeat in your stream (i.e. an upsert stream), you could encounter a
+ * ValidationError, as AWS does not allow writing duplicate keys within a single batch operation.
+ * For such use cases, you can explicitly set the key names corresponding to the primary key to be
+ * deduplicated using the withDeduplicateKeys method
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -141,7 +144,7 @@ public final class DynamoDBIO {
   }
 
   public static <T> Write<T> write() {
-    return new AutoValue_DynamoDBIO_Write.Builder().build();
+    return new AutoValue_DynamoDBIO_Write.Builder().setDeduplicateKeys(new ArrayList<>()).build();
   }
 
   /** Read data from DynamoDB and return ScanResult. */
@@ -363,7 +366,7 @@ public final class DynamoDBIO {
 
     abstract @Nullable SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
 
-    abstract List<String> getOverwriteByPKeys();
+    abstract List<String> getDeduplicateKeys();
 
     abstract Builder<T> toBuilder();
 
@@ -377,18 +380,9 @@ public final class DynamoDBIO {
       abstract Builder<T> setWriteItemMapperFn(
           SerializableFunction<T, KV<String, WriteRequest>> writeItemMapperFn);
 
-      abstract Builder<T> setOverwriteByPKeys(List<String> overwriteByPKeys);
+      abstract Builder<T> setDeduplicateKeys(List<String> deduplicateKeys);
 
-      abstract Write<T> autoBuild();
-
-      abstract Optional<List<String>> getOverwriteByPKeys();
-
-      Write<T> build() {
-        if (!getOverwriteByPKeys().isPresent()) {
-          setOverwriteByPKeys(new ArrayList<>());
-        }
-        return autoBuild();
-      }
+      abstract Write<T> build();
     }
 
     public Write<T> withDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider) {
@@ -440,8 +434,8 @@ public final class DynamoDBIO {
       return toBuilder().setWriteItemMapperFn(writeItemMapperFn).build();
     }
 
-    public Write<T> withOverwriteByPKeys(List<String> overwriteByPKeys) {
-      return toBuilder().setOverwriteByPKeys(overwriteByPKeys).build();
+    public Write<T> withDeduplicateKeys(List<String> deduplicateKeys) {
+      return toBuilder().setDeduplicateKeys(deduplicateKeys).build();
     }
 
     @Override
@@ -493,31 +487,25 @@ public final class DynamoDBIO {
         final KV<String, WriteRequest> writeRequest =
             (KV<String, WriteRequest>) spec.getWriteItemMapperFn().apply(context.element());
         batch.put(
-            KV.of(writeRequest.getKey(), extractPkeyValues(writeRequest.getValue())), writeRequest);
+            KV.of(writeRequest.getKey(), extractDeduplicateKeyValues(writeRequest.getValue())),
+            writeRequest);
         if (batch.size() >= BATCH_SIZE) {
           flushBatch();
         }
       }
 
-      private Map<String, AttributeValue> extractPkeyValues(WriteRequest request) {
-        if (spec.getOverwriteByPKeys() != null) {
-          if (request.putRequest() != null) {
-            return request.putRequest().item().entrySet().stream()
-                .filter(entry -> spec.getOverwriteByPKeys().contains(entry.getKey()))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-          } else if (request.deleteRequest() != null) {
-            return request.deleteRequest().key().entrySet().stream()
-                .filter(entry -> spec.getOverwriteByPKeys().contains(entry.getKey()))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-          }
+      private Map<String, AttributeValue> extractDeduplicateKeyValues(WriteRequest request) {
+        if (request.putRequest() != null) {
+          return request.putRequest().item().entrySet().stream()
+              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        } else if (request.deleteRequest() != null) {
+          return request.deleteRequest().key().entrySet().stream()
+              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         } else {
-          if (request.putRequest() != null) {
-            return request.putRequest().item();
-          } else if (request.deleteRequest() != null) {
-            return request.deleteRequest().key();
-          }
+          return Collections.emptyMap();
         }
-        return Collections.emptyMap();
       }
 
       @FinishBundle

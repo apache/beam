@@ -238,7 +238,7 @@ public class DynamoDBIOTest implements Serializable {
     // designate duplication factor for each bundle
     final List<Integer> duplications = Arrays.asList(1, 2, 3);
 
-    final List<String> overwriteByPKeys =
+    final List<String> deduplicateKeys =
         Arrays.asList(DynamoDBIOTestHelper.ATTR_NAME_1, DynamoDBIOTestHelper.ATTR_NAME_2);
 
     AmazonDynamoDB amazonDynamoDBMock = Mockito.mock(AmazonDynamoDB.class);
@@ -254,7 +254,7 @@ public class DynamoDBIOTest implements Serializable {
                 .withRetryConfiguration(
                     DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
                 .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock))
-                .withOverwriteByPKeys(overwriteByPKeys));
+                .withDeduplicateKeys(deduplicateKeys));
 
     pipeline.run().waitUntilFinish();
 
