@@ -739,12 +739,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               (FnDataReceiver<Timer<Object>>) timer -> processTimer(localName, timeDomain, timer)));
     }
 
+    TransformProcessingThreadTracker.recordProcessingThread(
+        Thread.currentThread().getId(), this.pTransformId);
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
   }
 
   private void processElementForParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
     try {
+      TransformProcessingThreadTracker.recordProcessingThread(
+          Thread.currentThread().getId(), this.pTransformId);
       doFnInvoker.invokeProcessElement(processContext);
     } finally {
       currentElement = null;
@@ -754,6 +758,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForWindowObservingParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
     try {
+      TransformProcessingThreadTracker.recordProcessingThread(
+          Thread.currentThread().getId(), this.pTransformId);
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
@@ -1637,6 +1643,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
+      TransformProcessingThreadTracker.recordProcessingThread(
+          Thread.currentThread().getId(), this.pTransformId);
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
         doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
@@ -1656,6 +1664,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       timerHandler.close();
     }
 
+    TransformProcessingThreadTracker.recordProcessingThread(
+        Thread.currentThread().getId(), this.pTransformId);
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
     // TODO(BEAM-10212): Support caching state data across bundle boundaries.
